@@ -7,6 +7,7 @@ import Graphon.Basic
 import Mathlib.Order.Partition.Finpartition
 import Mathlib.Combinatorics.SimpleGraph.Density
 import Mathlib.MeasureTheory.Integral.Bochner.Basic
+import Mathlib.MeasureTheory.Function.Floor
 
 /-!
 # Step Graphons
@@ -120,11 +121,58 @@ noncomputable def toVertex (n : ℕ) [NeZero n] (x : I) : Fin n :=
     have hn : 0 < n := NeZero.pos n
     omega⟩
 
+set_option linter.unusedSectionVars false in
+/-- The function `x ↦ min (n-1) ⌊n*x⌋₊` as a function `ℝ → ℕ` is measurable. -/
+theorem measurable_minFloor_nat : Measurable (fun x : ℝ => min (n - 1) ⌊(n : ℝ) * x⌋₊) :=
+  Measurable.min measurable_const (Measurable.nat_floor (measurable_const.mul measurable_id))
+
+/-- The function `x ↦ min (n-1) ⌊n*x⌋₊` is measurable as a real-valued function. -/
+theorem measurable_minFloor : Measurable (fun x : ℝ => (↑(min (n - 1) ⌊(n : ℝ) * x⌋₊) : ℝ)) :=
+  measurable_from_nat.comp measurable_minFloor_nat
+
+/-- The `toVertex` function is measurable. -/
+theorem measurable_toVertex : Measurable (toVertex n : I → Fin n) := by
+  -- Use measurable_to_countable': show preimage of each singleton is measurable
+  apply measurable_to_countable'
+  intro i
+  -- The preimage is an interval in I, which is measurable
+  -- toVertex n x = i iff min (n-1) ⌊n * x.val⌋₊ = i.val
+  have heq : toVertex n ⁻¹' {i} =
+      (Subtype.val : I → ℝ) ⁻¹' {x | min (n - 1) ⌊(n : ℝ) * x⌋₊ = i.val} := by
+    ext x
+    simp only [Set.mem_preimage, Set.mem_singleton_iff, Set.mem_setOf_eq]
+    simp only [toVertex, Fin.ext_iff]
+  rw [heq]
+  -- The preimage under measurable_subtype_coe of a measurable set is measurable
+  apply MeasurableSet.preimage _ measurable_subtype_coe
+  -- The set {x | min (n-1) ⌊n*x⌋₊ = i.val} is measurable in ℝ
+  -- Cast to ℝ and rewrite as intersection of two half-open conditions
+  have hset : {x : ℝ | min (n - 1) ⌊(n : ℝ) * x⌋₊ = i.val} =
+      {x : ℝ | (i.val : ℝ) ≤ (↑(min (n - 1) ⌊(n : ℝ) * x⌋₊) : ℝ)} ∩
+      {x : ℝ | (↑(min (n - 1) ⌊(n : ℝ) * x⌋₊) : ℝ) ≤ (i.val : ℝ)} := by
+    ext x
+    simp only [Set.mem_inter_iff, Set.mem_setOf_eq, Nat.cast_le]
+    omega
+  rw [hset]
+  apply MeasurableSet.inter
+  · -- Goal: {x | i.val ≤ min ...} is measurable
+    exact measurableSet_le measurable_const measurable_minFloor
+  · -- Goal: {x | min ... ≤ i.val} is measurable
+    exact measurableSet_le measurable_minFloor measurable_const
+
 /-- The function mapping pairs to adjacency indicators is measurable. -/
 theorem measurable_adjIndicator_comp_toVertex (G : SimpleGraph (Fin n)) [DecidableRel G.Adj] :
     Measurable (fun p : I × I => adjIndicator G (toVertex n p.1) (toVertex n p.2)) := by
-  -- The function is piecewise constant on rectangles, hence measurable
-  sorry
+  -- Factor as composition: (toVertex × toVertex) then adjIndicator
+  -- adjIndicator is measurable from Fin n × Fin n (finite, discrete) to ℝ
+  have h : (fun p : I × I => adjIndicator G (toVertex n p.1) (toVertex n p.2)) =
+      (fun q : Fin n × Fin n => adjIndicator G q.1 q.2) ∘
+      (fun p : I × I => (toVertex n p.1, toVertex n p.2)) := rfl
+  rw [h]
+  apply Measurable.comp
+  · exact measurable_of_finite _
+  · exact Measurable.prodMk (measurable_toVertex.comp measurable_fst)
+                            (measurable_toVertex.comp measurable_snd)
 
 /-- The function mapping pairs to adjacency indicators is strongly measurable. -/
 theorem stronglyMeasurable_adjIndicator_comp_toVertex (G : SimpleGraph (Fin n))
