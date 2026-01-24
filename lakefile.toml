@@ -1,0 +1,11 @@
+name = "Graphons"
+version = "0.1.0"
+defaultTargets = ["Graphons"]
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+version = "git#master"
+
+[[lean_lib]]
+name = "Graphons"
