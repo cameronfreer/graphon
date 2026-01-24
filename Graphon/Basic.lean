@@ -109,57 +109,103 @@ This is the standard space for graphons in the literature. We use `I` (= `Set.Ic
 as the underlying type, which carries the subtype measure from Lebesgue measure on ℝ. -/
 abbrev GraphonI := Graphon I (volume : Measure I)
 
-/-! ### Coercions and instances for SymmKernel -/
+/-! ### Coercions and instances for SymmKernel
+
+We provide coercions so that a `SymmKernel` can be used directly as an `AEEqFun`.
+The extensionality lemma shows that two symmetric kernels are equal iff their
+underlying `AEEqFun` representatives are equal (which is itself equality up to
+a.e. equivalence). -/
 
 namespace SymmKernel
 
+/-- A symmetric kernel can be used as its underlying `AEEqFun`. -/
 instance : CoeFun (SymmKernel α μ) (fun _ => (α × α) →ₘ[μ.prod μ] ℝ) :=
   ⟨toAEEqFun⟩
 
-/-- Symmetric kernels are equal if their underlying AEEqFun are equal. -/
+/-- Symmetric kernels are equal iff their underlying `AEEqFun` are equal.
+
+Since `AEEqFun` equality is defined as a.e. equality of representatives,
+this means two symmetric kernels are equal iff they agree almost everywhere. -/
 @[ext]
 theorem ext {W₁ W₂ : SymmKernel α μ} (h : W₁.toAEEqFun = W₂.toAEEqFun) : W₁ = W₂ := by
   cases W₁; cases W₂; simp only [mk.injEq]; exact h
 
-/-- The symmetry property: W(x,y) = W(y,x) a.e. -/
+/-- The symmetry property: `W(x,y) = W(y,x)` for almost every `(x,y)`.
+
+This is the defining property of symmetric kernels, ensuring the kernel
+represents an undirected relationship. -/
 theorem symm_ae (W : SymmKernel α μ) : ∀ᵐ p ∂(μ.prod μ), W.toAEEqFun p.swap = W.toAEEqFun p :=
   W.symm'
 
 end SymmKernel
 
-/-! ### Coercions and instances for Graphon -/
+/-! ### Coercions and instances for Graphon
+
+We provide coercions so that a `Graphon` can be used as a `SymmKernel` or `AEEqFun`.
+The key properties are:
+- `ae_nonneg`: values are non-negative a.e.
+- `ae_le_one`: values are at most 1 a.e.
+- `symm_ae`: the graphon is symmetric a.e.
+
+Together these ensure the graphon represents a valid edge-weight function for
+the limit of dense graphs. -/
 
 namespace Graphon
 
+/-- A graphon can be used as its underlying `AEEqFun`. -/
 instance : CoeFun (Graphon α μ) (fun _ => (α × α) →ₘ[μ.prod μ] ℝ) :=
   ⟨fun W => W.toSymmKernel.toAEEqFun⟩
 
-/-- Coercion from Graphon to SymmKernel. -/
+/-- A graphon can be viewed as its underlying symmetric kernel.
+
+This forgets the `[0,1]` bound but retains the symmetry property. -/
 instance : Coe (Graphon α μ) (SymmKernel α μ) :=
   ⟨toSymmKernel⟩
 
-/-- Graphons are equal if their underlying SymmKernels are equal. -/
+/-- Graphons are equal iff their underlying symmetric kernels are equal.
+
+Since `SymmKernel` equality reduces to `AEEqFun` equality (a.e. equality),
+two graphons are equal iff they agree almost everywhere. -/
 @[ext]
 theorem ext {W₁ W₂ : Graphon α μ} (h : W₁.toSymmKernel = W₂.toSymmKernel) : W₁ = W₂ := by
   cases W₁; cases W₂; simp only [mk.injEq]; exact h
 
-/-- Values are non-negative a.e. -/
+/-- Graphon values are non-negative almost everywhere.
+
+This is half of the `[0,1]` bound; combined with `ae_le_one`, it ensures
+the graphon represents valid edge probabilities. -/
 theorem ae_nonneg (W : Graphon α μ) : ∀ᵐ p ∂(μ.prod μ), 0 ≤ W.toAEEqFun p :=
   W.ae_mem_Icc.mono fun _ h => h.1
 
-/-- Values are at most 1 a.e. -/
+/-- Graphon values are at most 1 almost everywhere.
+
+This is half of the `[0,1]` bound; combined with `ae_nonneg`, it ensures
+the graphon represents valid edge probabilities. -/
 theorem ae_le_one (W : Graphon α μ) : ∀ᵐ p ∂(μ.prod μ), W.toAEEqFun p ≤ 1 :=
   W.ae_mem_Icc.mono fun _ h => h.2
 
-/-- The symmetry property for graphons: W(x,y) = W(y,x) a.e. -/
+/-- The symmetry property for graphons: `W(x,y) = W(y,x)` for almost every `(x,y)`.
+
+This ensures the graphon represents an undirected graph limit. -/
 theorem symm_ae (W : Graphon α μ) : ∀ᵐ p ∂(μ.prod μ), W.toAEEqFun p.swap = W.toAEEqFun p :=
   W.toSymmKernel.symm_ae
 
-/-! ### Constant graphons -/
+/-! ### Constant graphons
+
+The constant graphons `zero` and `one` represent the limits of sequences of
+empty graphs and complete graphs, respectively. For a sequence of empty graphs
+`Gₙ` on `n` vertices, the graphon limit is the constant function `W ≡ 0`.
+Similarly, complete graphs converge to `W ≡ 1`.
+
+These require `[IsProbabilityMeasure μ]` to ensure the product measure is
+symmetric under swap. -/
 
 variable [IsProbabilityMeasure μ]
 
-/-- The constant zero graphon. Represents the limit of empty graphs. -/
+/-- The constant zero graphon, representing the limit of empty graphs.
+
+For a sequence of empty graphs `Gₙ` (graphs with no edges), the edge density
+between any two sets converges to 0, giving the graphon `W(x,y) = 0` for all `x,y`. -/
 def zero : Graphon α μ where
   toAEEqFun := AEEqFun.const (α × α) 0
   symm' := by
@@ -174,7 +220,10 @@ def zero : Graphon α μ where
     rw [hp]
     exact ⟨le_refl 0, zero_le_one⟩
 
-/-- The constant one graphon. Represents the limit of complete graphs. -/
+/-- The constant one graphon, representing the limit of complete graphs.
+
+For a sequence of complete graphs `Kₙ`, the edge density between any two sets
+converges to 1, giving the graphon `W(x,y) = 1` for all `x,y`. -/
 def one : Graphon α μ where
   toAEEqFun := AEEqFun.const (α × α) 1
   symm' := by
@@ -189,14 +238,28 @@ def one : Graphon α μ where
     rw [hp]
     exact ⟨zero_le_one, le_refl 1⟩
 
+/-- The underlying `AEEqFun` of the zero graphon is the constant 0 function. -/
 theorem zero_toAEEqFun : (zero : Graphon α μ).toAEEqFun = AEEqFun.const (α × α) 0 := rfl
 
+/-- The underlying `AEEqFun` of the one graphon is the constant 1 function. -/
 theorem one_toAEEqFun : (one : Graphon α μ).toAEEqFun = AEEqFun.const (α × α) 1 := rfl
 
-/-! ### Complement -/
+/-! ### Complement
 
-/-- The complement of a graphon: (1 - W). If W represents graph G, then compl W
-represents the complement graph Ḡ. -/
+The complement operation `compl W = 1 - W` corresponds to taking graph complements.
+If `W` is the graphon limit of a sequence of graphs `Gₙ`, then `compl W` is the
+graphon limit of the complement graphs `Ḡₙ`.
+
+Key properties:
+- `compl_compl`: complement is an involution
+- `compl_zero`: the complement of the empty graph limit is the complete graph limit
+- `compl_one`: the complement of the complete graph limit is the empty graph limit -/
+
+/-- The complement of a graphon: `(1 - W)`.
+
+If `W` is the graphon limit of graphs `Gₙ`, then `compl W` is the limit of the
+complement graphs `Ḡₙ`. The edge probability `W(x,y)` becomes the non-edge
+probability `1 - W(x,y)`. -/
 def compl (W : Graphon α μ) : Graphon α μ where
   toAEEqFun := AEEqFun.const (α × α) 1 - W.toAEEqFun
   symm' := by
@@ -222,12 +285,19 @@ def compl (W : Graphon α μ) : Graphon α μ where
     · linarith [hp.2]
     · linarith [hp.1]
 
+/-- Complement is an involution: `(1 - (1 - W)) = W`.
+
+This reflects the graph-theoretic fact that the complement of the complement
+of a graph is the original graph. -/
 @[simp]
 theorem compl_compl (W : Graphon α μ) : W.compl.compl = W := by
   ext
   simp only [compl]
   rw [sub_sub_cancel]
 
+/-- The complement of the zero graphon is the one graphon: `1 - 0 = 1`.
+
+Graph-theoretically: the complement of the empty graph is the complete graph. -/
 @[simp]
 theorem compl_zero : (zero : Graphon α μ).compl = one := by
   ext
@@ -237,6 +307,9 @@ theorem compl_zero : (zero : Graphon α μ).compl = one := by
   simp only [Pi.sub_apply, Function.const_apply] at hsub h1 h0 ⊢
   rw [hsub, h1, h0, sub_zero]
 
+/-- The complement of the one graphon is the zero graphon: `1 - 1 = 0`.
+
+Graph-theoretically: the complement of the complete graph is the empty graph. -/
 @[simp]
 theorem compl_one : (one : Graphon α μ).compl = zero := by
   ext
@@ -248,26 +321,43 @@ theorem compl_one : (one : Graphon α μ).compl = zero := by
 
 end Graphon
 
-/-! ### Coercions and instances for SignedGraphon -/
+/-! ### Coercions and instances for SignedGraphon
+
+Signed graphons arise naturally when computing cut distances, which involve
+differences of graphons. The key property is that if `W₁, W₂ : Graphon α μ`
+with values in `[0,1]`, then `W₁ - W₂` has values in `[-1,1]`, so
+`|W₁ - W₂| ≤ 1` almost everywhere.
+
+The `sub` operation constructs the difference of two graphons as a signed graphon,
+which is essential for defining the cut norm and cut distance. -/
 
 namespace SignedGraphon
 
+/-- A signed graphon can be used as its underlying `AEEqFun`. -/
 instance : CoeFun (SignedGraphon α μ) (fun _ => (α × α) →ₘ[μ.prod μ] ℝ) :=
   ⟨fun W => W.toSymmKernel.toAEEqFun⟩
 
-/-- Coercion from SignedGraphon to SymmKernel. -/
+/-- A signed graphon can be viewed as its underlying symmetric kernel.
+
+This forgets the `|W| ≤ 1` bound but retains the symmetry property. -/
 instance : Coe (SignedGraphon α μ) (SymmKernel α μ) :=
   ⟨toSymmKernel⟩
 
-/-- SignedGraphons are equal if their underlying SymmKernels are equal. -/
+/-- Signed graphons are equal iff their underlying symmetric kernels are equal.
+
+Since `SymmKernel` equality reduces to `AEEqFun` equality (a.e. equality),
+two signed graphons are equal iff they agree almost everywhere. -/
 @[ext]
 theorem ext {W₁ W₂ : SignedGraphon α μ} (h : W₁.toSymmKernel = W₂.toSymmKernel) : W₁ = W₂ := by
   cases W₁; cases W₂; simp only [mk.injEq]; exact h
 
 variable [IsProbabilityMeasure μ]
 
-/-- Create a signed graphon from a graphon. Since graphon values are in [0,1],
-the absolute value is automatically bounded by 1. -/
+/-- Embed a graphon as a signed graphon.
+
+Since graphon values lie in `[0,1]` a.e., we have `|W| ≤ 1` a.e., so every
+graphon is trivially a signed graphon. This embedding is useful when we want
+to use graphons in contexts that expect signed graphons (e.g., cut norm). -/
 def ofGraphon (W : Graphon α μ) : SignedGraphon α μ where
   toSymmKernel := W.toSymmKernel
   ae_abs_le_one := by
@@ -277,7 +367,13 @@ def ofGraphon (W : Graphon α μ) : SignedGraphon α μ where
     · linarith [hp.1]
     · exact hp.2
 
-/-- The difference of two graphons is a signed graphon. -/
+/-- The difference of two graphons as a signed graphon.
+
+If `W₁(x,y) ∈ [0,1]` and `W₂(x,y) ∈ [0,1]` a.e., then
+`(W₁ - W₂)(x,y) ∈ [-1,1]` a.e., so `|W₁ - W₂| ≤ 1`.
+
+This operation is fundamental for defining the cut distance:
+`δ□(U, W) = inf_φ ‖U - W^φ‖_□` where `W^φ` is a pullback of `W`. -/
 def sub (W₁ W₂ : Graphon α μ) : SignedGraphon α μ where
   toAEEqFun := W₁.toAEEqFun - W₂.toAEEqFun
   symm' := by
