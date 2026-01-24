@@ -6,11 +6,11 @@ A formalization of graphon theory in Lean 4 with mathlib, based on Part 3 of Lov
 
 A **graphon** is a symmetric measurable function `W : [0,1]² → [0,1]` that represents the limit of a convergent sequence of dense graphs. Graphons are fundamental objects in the theory of graph limits, providing a way to study large networks through their limiting behavior.
 
-This library formalizes the core theory of graphons, including:
-- The definition of graphons as equivalence classes of symmetric kernels
-- Homomorphism densities and their properties
-- The cut distance metric on the space of graphons
-- Approximation theorems connecting finite graphs to graphons
+This library aims to formalize the core theory of graphons, including:
+- The definition of graphons as equivalence classes of symmetric kernels *(Phase 1 - complete)*
+- Homomorphism densities and their properties *(Phase 3 - planned)*
+- The cut distance metric on the space of graphons *(Phase 8 - planned)*
+- Approximation theorems connecting finite graphs to graphons *(Phase 9 - planned)*
 
 ## Current Status
 
@@ -38,10 +38,12 @@ Located in `Graphon/Basic.lean`:
 
 ### Parameterization by Probability Space
 
-Rather than hardcoding the unit interval `[0,1]`, we parameterize graphons by an arbitrary probability space `(α, μ)`. This provides:
+Rather than hardcoding the unit interval `[0,1]`, we parameterize graphons by a probability space `(α, μ)` where `μ` satisfies `[IsProbabilityMeasure μ]`. This provides:
 - Greater generality for theoretical development
 - Cleaner statements of pullback/pushforward operations
-- The canonical type `GraphonI` specializes to the standard case
+- The canonical type `GraphonI` specializes to the unit interval with Lebesgue measure
+
+The base type `SymmKernel` is defined for general measures, but `Graphon` and `SignedGraphon` operations require probability measures to ensure proper normalization and that swap is measure-preserving on the product space.
 
 ### AEEqFun for Quotient Structure
 
@@ -151,12 +153,16 @@ File: `Graphon/Counting.lean`
 - Lean 4
 - mathlib (pinned to specific revision for reproducibility)
 
-Key mathlib imports:
+**Current mathlib imports (Phase 1):**
 - `Mathlib.MeasureTheory.Function.AEEqFun` — L⁰ spaces
 - `Mathlib.MeasureTheory.Measure.Prod` — product measures
 - `Mathlib.MeasureTheory.Constructions.UnitInterval` — unit interval as probability space
-- `Mathlib.Combinatorics.SimpleGraph.Density` — edge density (Phase 2+)
-- `Mathlib.Combinatorics.SimpleGraph.Maps` — graph homomorphisms (Phase 3+)
+- `Mathlib.Tactic.Linarith` — linear arithmetic tactic
+
+**Planned mathlib imports (Phase 2+):**
+- `Mathlib.Combinatorics.SimpleGraph.Density` — edge density (Phase 2)
+- `Mathlib.Combinatorics.SimpleGraph.Maps` — graph homomorphisms (Phase 3)
+- `Mathlib.MeasureTheory.Constructions.Pi` — product measures for densities (Phase 3)
 
 ## License
 

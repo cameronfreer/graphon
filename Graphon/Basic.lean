@@ -8,6 +8,7 @@ import Mathlib.MeasureTheory.Measure.Prod
 import Mathlib.Topology.UnitInterval
 import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 import Mathlib.MeasureTheory.Constructions.UnitInterval
+import Mathlib.Tactic.Linarith
 
 /-!
 # Graphons
@@ -15,23 +16,32 @@ import Mathlib.MeasureTheory.Constructions.UnitInterval
 A graphon is a symmetric measurable function `W : [0,1]² → [0,1]` that represents
 the limit of a convergent sequence of dense graphs.
 
-This file introduces graphons parameterized by an arbitrary probability space, using
+This file introduces graphons parameterized by a probability space `(α, μ)`, using
 `AEEqFun` (almost-everywhere equal functions) to handle the quotient by a.e. equality.
 
 ## Main definitions
 
 * `SymmKernel` - A symmetric kernel: element of L⁰(α × α, ℝ) symmetric a.e.
-* `Graphon` - A graphon: symmetric kernel with values in [0,1] a.e.
-* `SignedGraphon` - Signed kernel: |W| ≤ 1 a.e. For cut distance.
-* `GraphonI` - Canonical graphon type on the unit interval
+  (general measure, used as base type)
+* `Graphon` - A graphon over a probability space: symmetric kernel with values in [0,1] a.e.
+* `SignedGraphon` - Signed graphon: |W| ≤ 1 a.e. For cut distance calculations.
+* `GraphonI` - Canonical graphon type on the unit interval with Lebesgue measure
 
 ## Design notes
 
-We parameterize by a probability space rather than hardcoding `[0,1]`. The canonical
-type `GraphonI` uses `unitInterval` with Lebesgue measure. We use `AEEqFun` to
-represent kernels as elements of L⁰, which gives us automatic quotienting by a.e.
-equality. We use `ℝ` as the codomain (rather than `Set.Icc 0 1`) to enable subtraction
-for cut distance calculations.
+We parameterize `Graphon` and `SignedGraphon` by a probability space `(α, μ)` with
+`[IsProbabilityMeasure μ]`, following Lovász's normalization convention. The canonical
+type `GraphonI` uses the unit interval with Lebesgue measure. The base type `SymmKernel`
+is defined for general measures to allow reuse in other contexts.
+
+We use `AEEqFun` to represent kernels as elements of L⁰, which gives us automatic
+quotienting by a.e. equality. We use `ℝ` as the codomain (rather than `Set.Icc 0 1`)
+to enable subtraction for cut distance calculations.
+
+The `IsProbabilityMeasure` assumption ensures:
+- The product measure `μ.prod μ` is also a probability measure
+- Swap is measure-preserving (`μ.prod μ` is symmetric)
+- Integrals are normalized (important for homomorphism densities)
 
 ## References
 
@@ -54,7 +64,11 @@ lemma ae_prod_swap [SFinite μ] {P : α × α → Prop} (hP : ∀ᵐ p ∂(μ.pr
 
 This is the base type for both graphons (values in [0,1]) and signed kernels
 (values in [-1,1]). The symmetry condition `W(x,y) = W(y,x)` holds almost
-everywhere with respect to the product measure. -/
+everywhere with respect to the product measure.
+
+Note: This type is defined for general measures. For the swap-invariance of a.e.
+properties to hold, the measure should be `SFinite`. The subtypes `Graphon` and
+`SignedGraphon` are intended for use with probability measures. -/
 structure SymmKernel (α : Type*) [MeasurableSpace α] (μ : Measure α) where
   /-- The underlying almost-everywhere equal function class -/
   toAEEqFun : (α × α) →ₘ[μ.prod μ] ℝ
@@ -64,7 +78,13 @@ structure SymmKernel (α : Type*) [MeasurableSpace α] (μ : Measure α) where
 /-- A graphon: a symmetric kernel with values in [0,1] almost everywhere.
 
 This represents the limit object for sequences of dense graphs. The domain is
-parameterized by a probability space (α, μ). -/
+a probability space `(α, μ)`. Operations on graphons require `[IsProbabilityMeasure μ]`
+to ensure proper normalization and measure-theoretic properties.
+
+The `IsProbabilityMeasure` constraint ensures:
+- `μ.prod μ` is a probability measure on the product space
+- Swap is measure-preserving (needed for symmetry properties)
+- Integrals give meaningful densities -/
 structure Graphon (α : Type*) [MeasurableSpace α] (μ : Measure α)
     extends SymmKernel α μ where
   /-- Values lie in [0,1] a.e. -/
@@ -73,7 +93,9 @@ structure Graphon (α : Type*) [MeasurableSpace α] (μ : Measure α)
 /-- A signed graphon: a symmetric kernel with |W| ≤ 1 almost everywhere.
 
 Used for cut distance calculations, where we need to consider differences of graphons.
-The bound |W| ≤ 1 is preserved under taking differences of graphons. -/
+The bound |W| ≤ 1 is preserved under taking differences of graphons.
+
+Like `Graphon`, operations require `[IsProbabilityMeasure μ]`. -/
 structure SignedGraphon (α : Type*) [MeasurableSpace α] (μ : Measure α)
     extends SymmKernel α μ where
   /-- Absolute value bounded by 1 a.e. -/
@@ -135,7 +157,7 @@ theorem symm_ae (W : Graphon α μ) : ∀ᵐ p ∂(μ.prod μ), W.toAEEqFun p.sw
 
 /-! ### Constant graphons -/
 
-variable [SFinite μ]
+variable [IsProbabilityMeasure μ]
 
 /-- The constant zero graphon. Represents the limit of empty graphs. -/
 def zero : Graphon α μ where
@@ -242,6 +264,8 @@ instance : Coe (SignedGraphon α μ) (SymmKernel α μ) :=
 theorem ext {W₁ W₂ : SignedGraphon α μ} (h : W₁.toSymmKernel = W₂.toSymmKernel) : W₁ = W₂ := by
   cases W₁; cases W₂; simp only [mk.injEq]; exact h
 
+variable [IsProbabilityMeasure μ]
+
 /-- Create a signed graphon from a graphon. Since graphon values are in [0,1],
 the absolute value is automatically bounded by 1. -/
 def ofGraphon (W : Graphon α μ) : SignedGraphon α μ where
@@ -254,7 +278,7 @@ def ofGraphon (W : Graphon α μ) : SignedGraphon α μ where
     · exact hp.2
 
 /-- The difference of two graphons is a signed graphon. -/
-def sub [SFinite μ] (W₁ W₂ : Graphon α μ) : SignedGraphon α μ where
+def sub (W₁ W₂ : Graphon α μ) : SignedGraphon α μ where
   toAEEqFun := W₁.toAEEqFun - W₂.toAEEqFun
   symm' := by
     have hsub_ae := AEEqFun.coeFn_sub W₁.toAEEqFun W₂.toAEEqFun
