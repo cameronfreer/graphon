@@ -120,10 +120,24 @@ theorem homDensityIntegrand_mem_Icc_ae (F : SimpleGraph V) [DecidableRel F.Adj]
   intro x hx_nonneg hx_le_one
   exact ⟨hx_nonneg, hx_le_one⟩
 
-/-- The homomorphism density integrand is ae-measurable. -/
+/-- The homomorphism density integrand is ae-measurable.
+
+**Technical note**: The proof requires showing that the composition
+`x ↦ W(x v₁, x v₂)` is ae-measurable on `Measure.pi`. The graphon is
+ae-strongly-measurable on `μ × μ`, and we need to lift this to the
+pushforward measure `Measure.map (x ↦ (x v₁, x v₂)) (Measure.pi _)`.
+For probability measures with independent coordinates, this pushforward
+equals `μ × μ` when `v₁ ≠ v₂` (which holds for simple graph edges). -/
 theorem homDensityIntegrand_aemeasurable (F : SimpleGraph V) [DecidableRel F.Adj]
     (W : Graphon α μ) : AEMeasurable (homDensityIntegrand F W) (Measure.pi (fun _ : V => μ)) := by
-  -- Product of ae-measurable functions is ae-measurable
+  unfold homDensityIntegrand
+  apply Finset.aemeasurable_fun_prod
+  intro e _
+  -- The pair projection map is measurable
+  have h_pair : Measurable (fun x : V → α => (x (Quot.out e).1, x (Quot.out e).2)) :=
+    Measurable.prodMk (measurable_pi_apply _) (measurable_pi_apply _)
+  -- Need: W.toAEEqFun composed with h_pair is ae-measurable
+  -- This requires showing the pushforward measure equals μ × μ
   sorry
 
 /-- The homomorphism density integrand is integrable over the product measure. -/
