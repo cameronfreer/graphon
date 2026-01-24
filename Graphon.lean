@@ -6,3 +6,4 @@ Authors: Cameron Freer
 
 import Graphon.Basic
 import Graphon.Step
+import Graphon.HomDensity
