@@ -79,50 +79,83 @@ theorem homDensity_bot (W : Graphon α μ) :
     homDensity (⊥ : SimpleGraph V) W = 1 := by
   -- The empty graph has no edges, so the integrand is a product over ∅, which is 1.
   -- The integral of 1 over a probability space is 1.
-  sorry
+  unfold homDensity
+  convert integral_const (1 : ℝ) using 1
+  · congr 1
+    ext x
+    apply prod_eq_one
+    intro e he
+    -- e is an edge in the bottom graph, which has no edges
+    simp only [SimpleGraph.mem_edgeFinset] at he
+    simp only [SimpleGraph.edgeSet_bot, Set.mem_empty_iff_false] at he
+  · simp
 
-/-- The integrand in the homomorphism density is nonnegative.
+/-- The integrand in the homomorphism density is nonnegative a.e.
 
-This follows because each factor `W(x(u), x(v))` is nonnegative (W takes values
+This follows because each factor `W(x(u), x(v))` is nonnegative a.e. (W takes values
 in [0,1] a.e.) and a product of nonnegative terms is nonnegative. -/
-theorem homDensityIntegrand_nonneg (F : SimpleGraph V) [DecidableRel F.Adj]
-    (W : Graphon α μ) (x : V → α) : 0 ≤ homDensityIntegrand F W x := by
-  unfold homDensityIntegrand
-  apply prod_nonneg
-  intro e _
-  -- Need: 0 ≤ W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)
-  -- This follows from W being a graphon (values in [0,1] a.e.)
-  -- but we only have the a.e. statement, not pointwise
+theorem homDensityIntegrand_nonneg_ae (F : SimpleGraph V) [DecidableRel F.Adj]
+    (W : Graphon α μ) : 0 ≤ᵐ[Measure.pi (fun _ : V => μ)] fun x => homDensityIntegrand F W x := by
+  -- The graphon W takes values in [0,1] a.e. on α × α
+  -- For a.e. x : V → α (in the product measure), all edge evaluations are nonneg
   sorry
 
-/-- The integrand in the homomorphism density is at most 1.
+/-- The integrand in the homomorphism density is at most 1 a.e.
 
-This follows because each factor `W(x(u), x(v))` is at most 1 (W takes values
-in [0,1] a.e.) and a product of terms ≤ 1 (with each ≥ 0) is ≤ 1. -/
-theorem homDensityIntegrand_le_one (F : SimpleGraph V) [DecidableRel F.Adj]
-    (W : Graphon α μ) (x : V → α) : homDensityIntegrand F W x ≤ 1 := by
-  unfold homDensityIntegrand
+This follows because each factor `W(x(u), x(v))` is at most 1 a.e. (W takes values
+in [0,1] a.e.) and a product of terms in [0,1] is in [0,1]. -/
+theorem homDensityIntegrand_le_one_ae (F : SimpleGraph V) [DecidableRel F.Adj]
+    (W : Graphon α μ) :
+    (fun x => homDensityIntegrand F W x) ≤ᵐ[Measure.pi (fun _ : V => μ)] fun _ => (1 : ℝ) := by
   -- Product of terms in [0,1] is in [0,1]
   sorry
 
+/-- The homomorphism density integrand takes values in [0, 1] a.e.
+
+This combines the nonnegativity and upper bound. -/
+theorem homDensityIntegrand_mem_Icc_ae (F : SimpleGraph V) [DecidableRel F.Adj]
+    (W : Graphon α μ) :
+    ∀ᵐ x ∂Measure.pi (fun _ : V => μ), homDensityIntegrand F W x ∈ Set.Icc 0 1 := by
+  filter_upwards [homDensityIntegrand_nonneg_ae F W, homDensityIntegrand_le_one_ae F W]
+  intro x hx_nonneg hx_le_one
+  exact ⟨hx_nonneg, hx_le_one⟩
+
+/-- The homomorphism density integrand is ae-measurable. -/
+theorem homDensityIntegrand_aemeasurable (F : SimpleGraph V) [DecidableRel F.Adj]
+    (W : Graphon α μ) : AEMeasurable (homDensityIntegrand F W) (Measure.pi (fun _ : V => μ)) := by
+  -- Product of ae-measurable functions is ae-measurable
+  sorry
+
+/-- The homomorphism density integrand is integrable over the product measure. -/
+theorem homDensityIntegrand_integrable (F : SimpleGraph V) [DecidableRel F.Adj]
+    (W : Graphon α μ) : Integrable (homDensityIntegrand F W) (Measure.pi (fun _ : V => μ)) :=
+  Integrable.of_mem_Icc 0 1 (homDensityIntegrand_aemeasurable F W)
+    (homDensityIntegrand_mem_Icc_ae F W)
+
 /-- Homomorphism density is nonnegative.
 
-This is the integral of a nonnegative function over a positive measure space. -/
+This is the integral of an a.e. nonnegative function over a measure space. -/
 theorem homDensity_nonneg (F : SimpleGraph V) [DecidableRel F.Adj] (W : Graphon α μ) :
     0 ≤ homDensity F W := by
-  unfold homDensity
-  apply integral_nonneg
-  intro x
-  exact homDensityIntegrand_nonneg F W x
+  rw [homDensity_eq_integral]
+  apply integral_nonneg_of_ae
+  exact homDensityIntegrand_nonneg_ae F W
 
 /-- Homomorphism density is at most 1.
 
-This follows because the integrand is bounded by 1 and we integrate over a
-probability space. -/
+This follows because the integrand is bounded by 1 a.e. and we integrate over a
+probability space (so the integral of the constant 1 is 1). -/
 theorem homDensity_le_one (F : SimpleGraph V) [DecidableRel F.Adj] (W : Graphon α μ) :
     homDensity F W ≤ 1 := by
-  -- The integrand is bounded by 1, and we integrate over a probability space
-  sorry
+  -- Use integral_mono_ae: ∫ f ≤ ∫ g when f ≤ᵐ g and both are integrable
+  rw [homDensity_eq_integral]
+  have h1 : Integrable (fun _ : V → α => (1 : ℝ)) (Measure.pi (fun _ : V => μ)) :=
+    integrable_const 1
+  calc ∫ x, homDensityIntegrand F W x ∂Measure.pi (fun _ => μ)
+      ≤ ∫ _, (1 : ℝ) ∂Measure.pi (fun _ : V => μ) :=
+        integral_mono_ae (homDensityIntegrand_integrable F W) h1
+          (homDensityIntegrand_le_one_ae F W)
+    _ = 1 := by simp
 
 /-- Homomorphism density is in `[0, 1]`. -/
 theorem homDensity_mem_Icc (F : SimpleGraph V) [DecidableRel F.Adj] (W : Graphon α μ) :
