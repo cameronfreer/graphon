@@ -77,9 +77,8 @@ An empty graph has no edges, so the integrand is a product over an empty set,
 which equals 1. The integral of 1 over a probability space is 1. -/
 theorem homDensity_bot (W : Graphon α μ) :
     homDensity (⊥ : SimpleGraph V) W = 1 := by
-  unfold homDensity
-  -- edgeFinset of empty graph is empty, so product is 1
-  -- integral of 1 over probability space is 1
+  -- The empty graph has no edges, so the integrand is a product over ∅, which is 1.
+  -- The integral of 1 over a probability space is 1.
   sorry
 
 end HomDensity
