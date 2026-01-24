@@ -29,6 +29,14 @@ The homomorphism density `t(F, W)` for a graph `F` on vertex set `V` and graphon
 defined as the integral over all maps `x : V → [0,1]` of the product of `W(x(u), x(v))`
 over all edges `{u, v}` of `F`.
 
+### Technical note on a.e. bounds
+
+The integrand bounds (nonneg, ≤ 1, integrability) require lifting the graphon's
+a.e. bound from `μ × μ` to `Measure.pi (fun _ => μ)`. The key fact is that for
+probability measures with independent coordinates, the pair projection
+`x ↦ (x v₁, x v₂)` maps `Measure.pi` to `μ × μ` when `v₁ ≠ v₂`. This is
+implicit in `measurePreserving_piFinTwo` and related results.
+
 ## References
 
 * [L. Lovász, *Large Networks and Graph Limits*][lovasz2012], Section 7.1
@@ -90,15 +98,57 @@ theorem homDensity_bot (W : Graphon α μ) :
     simp only [SimpleGraph.edgeSet_bot, Set.mem_empty_iff_false] at he
   · simp
 
+/-- For probability measures, the graphon value at a pair projection is in [0,1] a.e.
+
+This key technical lemma shows that for any two indices `v₁ v₂ : V`, the composition
+`x ↦ W(x v₁, x v₂)` takes values in [0,1] for a.e. `x : V → α` under `Measure.pi`.
+
+The proof uses that for independent coordinates, the pair projection
+`x ↦ (x v₁, x v₂)` maps `Measure.pi` quasi-measure-preservingly to `μ × μ`,
+allowing us to lift the graphon's a.e. bound. -/
+theorem graphonEval_mem_Icc_ae (W : Graphon α μ) (v₁ v₂ : V) :
+    ∀ᵐ x ∂Measure.pi (fun _ : V => μ), W.toAEEqFun (x v₁, x v₂) ∈ Set.Icc 0 1 := by
+  -- The pair map (x ↦ (x v₁, x v₂)) is measurable
+  have h_meas : Measurable (fun x : V → α => (x v₁, x v₂)) :=
+    Measurable.prodMk (measurable_pi_apply _) (measurable_pi_apply _)
+  -- For probability measures, independent coordinates give:
+  -- Measure.map (x ↦ (x v₁, x v₂)) (Measure.pi _) is related to μ × μ
+  -- so the a.e. bound on μ × μ lifts to Measure.pi
+  sorry
+
 /-- The integrand in the homomorphism density is nonnegative a.e.
 
 This follows because each factor `W(x(u), x(v))` is nonnegative a.e. (W takes values
 in [0,1] a.e.) and a product of nonnegative terms is nonnegative. -/
 theorem homDensityIntegrand_nonneg_ae (F : SimpleGraph V) [DecidableRel F.Adj]
     (W : Graphon α μ) : 0 ≤ᵐ[Measure.pi (fun _ : V => μ)] fun x => homDensityIntegrand F W x := by
-  -- The graphon W takes values in [0,1] a.e. on α × α
-  -- For a.e. x : V → α (in the product measure), all edge evaluations are nonneg
-  sorry
+  -- Use that each edge evaluation is in [0,1] a.e., then the product is nonneg a.e.
+  have h_edges : ∀ e ∈ F.edgeFinset,
+      ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
+        W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
+    fun e _ => graphonEval_mem_Icc_ae W (Quot.out e).1 (Quot.out e).2
+  -- Finite intersection of a.e. properties is a.e. (by induction on finset)
+  have h_all : ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
+      ∀ e ∈ F.edgeFinset, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 := by
+    have aux : ∀ (s : Finset (Sym2 V)),
+        (∀ e ∈ s, ∀ᵐ (x : V → α) ∂Measure.pi fun _ => μ,
+          W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1) →
+        ∀ᵐ (x : V → α) ∂Measure.pi fun _ => μ,
+          ∀ e ∈ s, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 := by
+      intro s
+      refine Finset.induction_on s ?empty ?insert
+      case empty => simp
+      case insert =>
+        intro a s' _ ih hs
+        simp only [Finset.mem_insert, forall_eq_or_imp] at hs ⊢
+        filter_upwards [hs.1, ih hs.2] with x hx1 hx2
+        exact ⟨hx1, hx2⟩
+    exact aux F.edgeFinset h_edges
+  filter_upwards [h_all] with x hx
+  unfold homDensityIntegrand
+  apply prod_nonneg
+  intro e he
+  exact (hx e he).1
 
 /-- The integrand in the homomorphism density is at most 1 a.e.
 
@@ -107,8 +157,36 @@ in [0,1] a.e.) and a product of terms in [0,1] is in [0,1]. -/
 theorem homDensityIntegrand_le_one_ae (F : SimpleGraph V) [DecidableRel F.Adj]
     (W : Graphon α μ) :
     (fun x => homDensityIntegrand F W x) ≤ᵐ[Measure.pi (fun _ : V => μ)] fun _ => (1 : ℝ) := by
-  -- Product of terms in [0,1] is in [0,1]
-  sorry
+  -- Use that each edge evaluation is in [0,1] a.e., then the product is ≤ 1 a.e.
+  have h_edges : ∀ e ∈ F.edgeFinset,
+      ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
+        W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
+    fun e _ => graphonEval_mem_Icc_ae W (Quot.out e).1 (Quot.out e).2
+  -- Finite intersection of a.e. properties is a.e. (same induction as nonneg)
+  have h_all : ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
+      ∀ e ∈ F.edgeFinset, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 := by
+    have aux : ∀ (s : Finset (Sym2 V)),
+        (∀ e ∈ s, ∀ᵐ (x : V → α) ∂Measure.pi fun _ => μ,
+          W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1) →
+        ∀ᵐ (x : V → α) ∂Measure.pi fun _ => μ,
+          ∀ e ∈ s, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 := by
+      intro s
+      refine Finset.induction_on s ?empty ?insert
+      case empty => simp
+      case insert =>
+        intro a s' _ ih hs
+        simp only [Finset.mem_insert, forall_eq_or_imp] at hs ⊢
+        filter_upwards [hs.1, ih hs.2] with x hx1 hx2
+        exact ⟨hx1, hx2⟩
+    exact aux F.edgeFinset h_edges
+  filter_upwards [h_all] with x hx
+  unfold homDensityIntegrand
+  -- Product of terms in [0,1] is ≤ 1
+  apply prod_le_one
+  · intro e he
+    exact (hx e he).1
+  · intro e he
+    exact (hx e he).2
 
 /-- The homomorphism density integrand takes values in [0, 1] a.e.
 
