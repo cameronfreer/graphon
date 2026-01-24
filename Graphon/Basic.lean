@@ -13,11 +13,13 @@ import Mathlib.Tactic.Linarith
 /-!
 # Graphons
 
-A graphon is a symmetric measurable function `W : [0,1]² → [0,1]` that represents
-the limit of a convergent sequence of dense graphs.
+A graphon is (informally) a symmetric measurable function `W : [0,1]² → [0,1]` that
+represents the limit of a convergent sequence of dense graphs. More precisely,
+graphons are equivalence classes of such functions under almost-everywhere equality.
 
 This file introduces graphons parameterized by a probability space `(α, μ)`, using
-`AEEqFun` (almost-everywhere equal functions) to handle the quotient by a.e. equality.
+`AEEqFun` (almost-everywhere equivalence classes of functions) to represent kernels.
+Two kernels that agree almost everywhere are considered equal.
 
 ## Main definitions
 
@@ -54,8 +56,11 @@ variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
 
 /-! ### Helper lemmas for product measure symmetry -/
 
-/-- If a property holds a.e. for the product measure μ × μ, then it also holds
-a.e. when composed with swap, since swap is measure-preserving. -/
+/-- If a property holds a.e. for the product measure `μ × μ`, then it also holds
+a.e. when composed with swap.
+
+This requires `[SFinite μ]` to ensure that swap is measure-preserving on the
+product measure (i.e., `(μ.prod μ).map swap = μ.prod μ`). -/
 lemma ae_prod_swap [SFinite μ] {P : α × α → Prop} (hP : ∀ᵐ p ∂(μ.prod μ), P p) :
     ∀ᵐ p ∂(μ.prod μ), P p.swap :=
   (Measure.measurePreserving_swap (μ := μ) (ν := μ)).quasiMeasurePreserving.ae hP
