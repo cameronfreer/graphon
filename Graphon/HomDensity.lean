@@ -81,6 +81,54 @@ theorem homDensity_bot (W : Graphon α μ) :
   -- The integral of 1 over a probability space is 1.
   sorry
 
+/-- The integrand in the homomorphism density is nonnegative.
+
+This follows because each factor `W(x(u), x(v))` is nonnegative (W takes values
+in [0,1] a.e.) and a product of nonnegative terms is nonnegative. -/
+theorem homDensityIntegrand_nonneg (F : SimpleGraph V) [DecidableRel F.Adj]
+    (W : Graphon α μ) (x : V → α) : 0 ≤ homDensityIntegrand F W x := by
+  unfold homDensityIntegrand
+  apply prod_nonneg
+  intro e _
+  -- Need: 0 ≤ W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)
+  -- This follows from W being a graphon (values in [0,1] a.e.)
+  -- but we only have the a.e. statement, not pointwise
+  sorry
+
+/-- The integrand in the homomorphism density is at most 1.
+
+This follows because each factor `W(x(u), x(v))` is at most 1 (W takes values
+in [0,1] a.e.) and a product of terms ≤ 1 (with each ≥ 0) is ≤ 1. -/
+theorem homDensityIntegrand_le_one (F : SimpleGraph V) [DecidableRel F.Adj]
+    (W : Graphon α μ) (x : V → α) : homDensityIntegrand F W x ≤ 1 := by
+  unfold homDensityIntegrand
+  -- Product of terms in [0,1] is in [0,1]
+  sorry
+
+/-- Homomorphism density is nonnegative.
+
+This is the integral of a nonnegative function over a positive measure space. -/
+theorem homDensity_nonneg (F : SimpleGraph V) [DecidableRel F.Adj] (W : Graphon α μ) :
+    0 ≤ homDensity F W := by
+  unfold homDensity
+  apply integral_nonneg
+  intro x
+  exact homDensityIntegrand_nonneg F W x
+
+/-- Homomorphism density is at most 1.
+
+This follows because the integrand is bounded by 1 and we integrate over a
+probability space. -/
+theorem homDensity_le_one (F : SimpleGraph V) [DecidableRel F.Adj] (W : Graphon α μ) :
+    homDensity F W ≤ 1 := by
+  -- The integrand is bounded by 1, and we integrate over a probability space
+  sorry
+
+/-- Homomorphism density is in `[0, 1]`. -/
+theorem homDensity_mem_Icc (F : SimpleGraph V) [DecidableRel F.Adj] (W : Graphon α μ) :
+    homDensity F W ∈ Set.Icc 0 1 :=
+  ⟨homDensity_nonneg F W, homDensity_le_one F W⟩
+
 end HomDensity
 
 end Graphon
