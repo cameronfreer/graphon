@@ -1,6 +1,6 @@
-name = "Graphons"
+name = "Graphon"
 version = "0.1.0"
-defaultTargets = ["Graphons"]
+defaultTargets = ["Graphon"]
 
 [[require]]
 name = "mathlib"
@@ -8,4 +8,4 @@ scope = "leanprover-community"
 rev = "d557daf6dc764277d2f5cb03daf31d21bc5f01d3"
 
 [[lean_lib]]
-name = "Graphons"
+name = "Graphon"
