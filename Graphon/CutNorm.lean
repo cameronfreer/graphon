@@ -101,9 +101,17 @@ noncomputable def cutNorm (W : SymmKernel α μ) : ℝ :=
 /-- Cut norm is non-negative (follows from abs being non-negative). -/
 theorem cutNorm_nonneg (W : SymmKernel α μ) : 0 ≤ cutNorm W := by
   unfold cutNorm
-  -- The supremum of absolute values is ≥ 0
-  -- In particular, |rectIntegral W ∅ ∅| = 0 is in the range
-  sorry
+  -- The supremum of non-negative values is non-negative
+  -- We show 0 is a lower bound for the range
+  apply Real.iSup_nonneg
+  intro S
+  apply Real.iSup_nonneg
+  intro _
+  apply Real.iSup_nonneg
+  intro T
+  apply Real.iSup_nonneg
+  intro _
+  exact abs_nonneg _
 
 /-- Cut norm bounds individual rectangle integrals. -/
 theorem abs_rectIntegral_le_cutNorm (W : SymmKernel α μ) {S T : Set α}
