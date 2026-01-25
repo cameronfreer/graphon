@@ -15,3 +15,7 @@ import Graphon.CutDistance
 import Graphon.Approximation
 import Graphon.Counting
 import Graphon.Regularity
+import Graphon.Compactness
+import Graphon.Sampling
+import Graphon.InverseCounting
+import Graphon.Convergence
