@@ -188,6 +188,34 @@ theorem cutDistance_le_one (U W : Graphon α μ) : cutDistance U W ≤ 1 := by
       ≤ cutNormDiff U W := csInf_le h_bdd h_in_set
     _ ≤ 1 := cutNormDiff_le_one U W
 
+/-- Triangle inequality for cut distance.
+
+δ□(U, W) ≤ δ□(U, V) + δ□(V, W)
+
+This is the key property making cut distance a pseudometric. -/
+theorem cutDistance_triangle (U V W : Graphon α μ) :
+    cutDistance U W ≤ cutDistance U V + cutDistance V W := by
+  -- The proof uses:
+  -- For any ε > 0, find φ, ψ such that
+  --   cutNormDiff U (pullback V φ) < δ□(U,V) + ε
+  --   cutNormDiff V (pullback W ψ) < δ□(V,W) + ε
+  -- Then use cutNormDiff triangle inequality
+  sorry
+
+/-- Cut distance is symmetric.
+
+δ□(U, W) = δ□(W, U)
+
+The proof uses that measure-preserving maps are invertible a.e. on a
+standard probability space. -/
+theorem cutDistance_symm (U W : Graphon α μ) :
+    cutDistance U W = cutDistance W U := by
+  -- This requires that for every measure-preserving φ,
+  -- there exists a measure-preserving ψ such that
+  -- cutNormDiff U (pullback W φ) = cutNormDiff W (pullback U ψ)
+  -- This uses the symmetry of cut norm and invertibility of φ
+  sorry
+
 end CutDistance
 
 end Graphon

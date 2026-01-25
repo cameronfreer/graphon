@@ -63,8 +63,8 @@ theorem WeaklyIsomorphic.refl (W : Graphon α μ) : WeaklyIsomorphic W W :=
 theorem WeaklyIsomorphic.symm {U W : Graphon α μ} (h : WeaklyIsomorphic U W) :
     WeaklyIsomorphic W U := by
   unfold WeaklyIsomorphic at *
-  -- cutDistance is symmetric (pseudometric)
-  sorry
+  rw [cutDistance_symm]
+  exact h
 
 /-- Weak isomorphism is transitive. -/
 theorem WeaklyIsomorphic.trans {U V W : Graphon α μ}
@@ -72,8 +72,9 @@ theorem WeaklyIsomorphic.trans {U V W : Graphon α μ}
     WeaklyIsomorphic U W := by
   unfold WeaklyIsomorphic at *
   -- Use triangle inequality: d(U,W) ≤ d(U,V) + d(V,W) = 0 + 0 = 0
-  have h := cutDistance_nonneg U W
-  sorry
+  have h_tri := cutDistance_triangle U V W
+  have h_nonneg := cutDistance_nonneg U W
+  linarith
 
 /-- Weak isomorphism is an equivalence relation. -/
 theorem weaklyIsomorphic_equivalence :

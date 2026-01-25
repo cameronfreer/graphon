@@ -90,13 +90,8 @@ theorem IsConvergent.isCauchy (W : ℕ → Graphon α μ) (h : IsConvergent W) :
   use N
   intro m n hm hn
   calc cutDistance (W m) (W n)
-      ≤ cutDistance (W m) V + cutDistance V (W n) := by
-          -- Triangle inequality for cut distance (pseudometric)
-          sorry
-    _ = cutDistance (W m) V + cutDistance (W n) V := by
-        congr 1
-        -- cutDistance is symmetric
-        sorry
+      ≤ cutDistance (W m) V + cutDistance V (W n) := cutDistance_triangle (W m) V (W n)
+    _ = cutDistance (W m) V + cutDistance (W n) V := by rw [cutDistance_symm V (W n)]
     _ < ε / 2 + ε / 2 := add_lt_add (hN m hm) (hN n hn)
     _ = ε := add_halves ε
 
