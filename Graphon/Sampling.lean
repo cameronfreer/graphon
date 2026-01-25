@@ -67,8 +67,8 @@ noncomputable def sampleGraphExpectedDensity (W : Graphon α μ) : ℝ :=
 theorem sampleGraphExpectedDensity_eq (W : Graphon α μ) :
     sampleGraphExpectedDensity W = ∫ x, (∫ y, W.toAEEqFun (x, y) ∂μ) ∂μ := by
   unfold sampleGraphExpectedDensity
-  -- This follows from Fubini's theorem
-  sorry
+  -- Apply Fubini's theorem
+  exact integral_prod W.toAEEqFun (SymmKernel.graphon_integrable W)
 
 /-- The expected edge density is in [0,1]. -/
 theorem sampleGraphExpectedDensity_mem_Icc (W : Graphon α μ) :
@@ -76,15 +76,21 @@ theorem sampleGraphExpectedDensity_mem_Icc (W : Graphon α μ) :
   constructor
   · -- Nonnegativity from W ≥ 0 a.e.
     unfold sampleGraphExpectedDensity
-    apply integral_nonneg
-    intro p
-    have h := W.ae_mem_Icc
-    -- Need pointwise bound from a.e. bound
-    sorry
+    apply integral_nonneg_of_ae
+    filter_upwards [W.ae_mem_Icc] with p hp
+    exact hp.1
   · -- Upper bound from W ≤ 1 a.e. and μ being probability measure
     unfold sampleGraphExpectedDensity
     -- ∫ W ≤ ∫ 1 = 1 since W ≤ 1 a.e. and μ is probability measure
-    sorry
+    calc ∫ p, W.toAEEqFun p ∂(μ.prod μ)
+        ≤ ∫ _, (1 : ℝ) ∂(μ.prod μ) := by
+          apply integral_mono_ae (SymmKernel.graphon_integrable W) (integrable_const 1)
+          filter_upwards [W.ae_mem_Icc] with p hp
+          exact hp.2
+      _ = ((μ.prod μ) univ).toReal := by rw [integral_const, smul_eq_mul, mul_one]; rfl
+      _ = 1 := by
+          have h_prob : IsProbabilityMeasure (μ.prod μ) := inferInstance
+          simp [h_prob.measure_univ]
 
 end Sampling
 

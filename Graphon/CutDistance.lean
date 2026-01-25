@@ -98,6 +98,75 @@ theorem cutNormDiff_nonneg (U W : Graphon α μ) : 0 ≤ cutNormDiff U W := by
   intro _
   exact abs_nonneg _
 
+/-- Helper: absolute value of rectangle integral difference is bounded by 1. -/
+theorem abs_rectIntegralDiff_le_one (U W : Graphon α μ) (S T : Set α) :
+    |rectIntegralDiff U W S T| ≤ 1 := by
+  unfold rectIntegralDiff
+  calc |∫ p in S ×ˢ T, (U.toAEEqFun p - W.toAEEqFun p) ∂(μ.prod μ)|
+      ≤ ∫ p in S ×ˢ T, |U.toAEEqFun p - W.toAEEqFun p| ∂(μ.prod μ) := abs_integral_le_integral_abs
+    _ ≤ ∫ _ in S ×ˢ T, (1 : ℝ) ∂(μ.prod μ) := by
+        apply setIntegral_mono_ae_restrict
+        · exact (SymmKernel.graphon_integrable U).sub (SymmKernel.graphon_integrable W) |>.abs.integrableOn
+        · exact integrable_const 1
+        · have hU_bound := U.ae_mem_Icc
+          have hW_bound := W.ae_mem_Icc
+          have h_diff_bound : ∀ᵐ p ∂(μ.prod μ), |U.toAEEqFun p - W.toAEEqFun p| ≤ 1 := by
+            filter_upwards [hU_bound, hW_bound] with p hU_p hW_p
+            rw [abs_le]
+            constructor
+            · linarith [hU_p.1, hW_p.2]
+            · linarith [hU_p.2, hW_p.1]
+          exact ae_restrict_of_ae h_diff_bound
+    _ ≤ 1 := by
+        rw [setIntegral_const, smul_eq_mul, mul_one]
+        have h_prob : IsProbabilityMeasure (μ.prod μ) := inferInstance
+        have h_le : (μ.prod μ) (S ×ˢ T) ≤ 1 := by
+          calc (μ.prod μ) (S ×ˢ T) ≤ (μ.prod μ) univ := measure_mono (subset_univ _)
+            _ = 1 := h_prob.measure_univ
+        exact ENNReal.toReal_le_of_le_ofReal (by norm_num) (by simp only [ENNReal.ofReal_one]; exact h_le)
+
+/-- Rectangle integral difference is bounded by cut norm difference. -/
+theorem abs_rectIntegralDiff_le (U W : Graphon α μ) {S T : Set α}
+    (hS : MeasurableSet S) (hT : MeasurableSet T) :
+    |rectIntegralDiff U W S T| ≤ cutNormDiff U W := by
+  unfold cutNormDiff
+  -- Build bddAbove proofs using abs_rectIntegralDiff_le_one
+  have h_bddS : BddAbove (Set.range fun S' =>
+      ⨆ (_ : MeasurableSet S'), ⨆ T', ⨆ (_ : MeasurableSet T'), |rectIntegralDiff U W S' T'|) := by
+    use 1
+    rintro _ ⟨S', rfl⟩
+    apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+    intro _
+    apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+    intro T'
+    apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+    intro _
+    exact abs_rectIntegralDiff_le_one U W S' T'
+  apply le_ciSup_of_le h_bddS S
+  have h_bdd_hS : BddAbove (Set.range fun _ : MeasurableSet S =>
+      ⨆ T', ⨆ (_ : MeasurableSet T'), |rectIntegralDiff U W S T'|) := by
+    use 1
+    rintro _ ⟨_, rfl⟩
+    apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+    intro T'
+    apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+    intro _
+    exact abs_rectIntegralDiff_le_one U W S T'
+  apply le_ciSup_of_le h_bdd_hS hS
+  have h_bddT : BddAbove (Set.range fun T' =>
+      ⨆ (_ : MeasurableSet T'), |rectIntegralDiff U W S T'|) := by
+    use 1
+    rintro _ ⟨T', rfl⟩
+    apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+    intro _
+    exact abs_rectIntegralDiff_le_one U W S T'
+  apply le_ciSup_of_le h_bddT T
+  have h_bddT' : BddAbove (Set.range fun _ : MeasurableSet T => |rectIntegralDiff U W S T|) := by
+    use 1
+    rintro x ⟨_, rfl⟩
+    exact abs_rectIntegralDiff_le_one U W S T
+  exact le_ciSup h_bddT' hT
+
 /-- Cut norm difference with self is zero. -/
 theorem cutNormDiff_self (W : Graphon α μ) : cutNormDiff W W = 0 := by
   unfold cutNormDiff rectIntegralDiff
@@ -188,6 +257,48 @@ theorem cutNormDiff_le_one (U W : Graphon α μ) : cutNormDiff U W ≤ 1 := by
           calc (μ.prod μ) (S ×ˢ T) ≤ (μ.prod μ) univ := measure_mono (subset_univ _)
             _ = 1 := h_prob.measure_univ
         exact ENNReal.toReal_le_of_le_ofReal (by norm_num) (by simp only [ENNReal.ofReal_one]; exact h_le)
+
+/-- Rectangle integral difference satisfies the triangle inequality. -/
+theorem rectIntegralDiff_triangle (U V W : Graphon α μ) (S T : Set α) :
+    |rectIntegralDiff U W S T| ≤ |rectIntegralDiff U V S T| + |rectIntegralDiff V W S T| := by
+  unfold rectIntegralDiff
+  -- (U - W) = (U - V) + (V - W), so |∫(U-W)| ≤ |∫(U-V)| + |∫(V-W)|
+  have h_decomp : ∀ p, U.toAEEqFun p - W.toAEEqFun p =
+      (U.toAEEqFun p - V.toAEEqFun p) + (V.toAEEqFun p - W.toAEEqFun p) := by
+    intro p; ring
+  have h_eq : ∫ p in S ×ˢ T, (U.toAEEqFun p - W.toAEEqFun p) ∂(μ.prod μ) =
+      ∫ p in S ×ˢ T, ((U.toAEEqFun p - V.toAEEqFun p) + (V.toAEEqFun p - W.toAEEqFun p)) ∂(μ.prod μ) := by
+    congr 1
+    ext p
+    exact h_decomp p
+  rw [h_eq, integral_add]
+  · exact abs_add_le _ _
+  · exact (SymmKernel.graphon_integrable U).sub (SymmKernel.graphon_integrable V) |>.integrableOn
+  · exact (SymmKernel.graphon_integrable V).sub (SymmKernel.graphon_integrable W) |>.integrableOn
+
+/-- Cut norm difference satisfies the triangle inequality. -/
+theorem cutNormDiff_triangle (U V W : Graphon α μ) :
+    cutNormDiff U W ≤ cutNormDiff U V + cutNormDiff V W := by
+  have hUV := cutNormDiff_nonneg U V
+  have hVW := cutNormDiff_nonneg V W
+  have hsum : 0 ≤ cutNormDiff U V + cutNormDiff V W := by linarith
+  unfold cutNormDiff
+  -- The supremum of |rect U W| is bounded by sup of |rect U V| + sup of |rect V W|
+  -- For each rectangle, use rectIntegralDiff_triangle
+  apply Real.iSup_le _ hsum
+  intro S
+  apply Real.iSup_le _ hsum
+  intro hS
+  apply Real.iSup_le _ hsum
+  intro T
+  apply Real.iSup_le _ hsum
+  intro hT
+  calc |rectIntegralDiff U W S T|
+      ≤ |rectIntegralDiff U V S T| + |rectIntegralDiff V W S T| := rectIntegralDiff_triangle U V W S T
+    _ ≤ cutNormDiff U V + cutNormDiff V W := by
+        apply add_le_add
+        · exact abs_rectIntegralDiff_le U V hS hT
+        · exact abs_rectIntegralDiff_le V W hS hT
 
 end CutNormDiff
 
