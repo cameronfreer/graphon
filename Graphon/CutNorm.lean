@@ -113,12 +113,17 @@ theorem cutNorm_nonneg (W : SymmKernel α μ) : 0 ≤ cutNorm W := by
   intro _
   exact abs_nonneg _
 
-/-- Cut norm bounds individual rectangle integrals. -/
+/-- Cut norm bounds individual rectangle integrals.
+
+Note: This requires the cut norm to be finite (bounded above), which holds for
+graphons (values in [0,1]) but may not hold for general symmetric kernels. -/
 theorem abs_rectIntegral_le_cutNorm (W : SymmKernel α μ) {S T : Set α}
     (hS : MeasurableSet S) (hT : MeasurableSet T) :
     |rectIntegral W S T| ≤ cutNorm W := by
   unfold cutNorm
-  -- The value is in the range of the supremum
+  -- The value |rectIntegral W S T| is achieved at (S, hS, T, hT) in the iSup
+  -- This requires showing the iSup over the outer sets is bounded above
+  -- For general SymmKernel this needs additional hypotheses
   sorry
 
 /-- Cut norm for graphons is bounded by 1.
@@ -126,7 +131,20 @@ theorem abs_rectIntegral_le_cutNorm (W : SymmKernel α μ) {S T : Set α}
 Since graphon values are in [0,1], the rectangle integral over any S × T
 is at most μ(S) * μ(T) ≤ 1. -/
 theorem cutNorm_le_one (W : Graphon α μ) : cutNorm W.toSymmKernel ≤ 1 := by
-  -- For any S, T: |∫_{S×T} W| ≤ ∫_{S×T} |W| ≤ ∫_{S×T} 1 = μ(S×T) ≤ 1
+  unfold cutNorm
+  apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+  intro S
+  apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+  intro _
+  apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+  intro T
+  apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+  intro _
+  -- For graphons: |∫_{S×T} W| ≤ ∫_{S×T} |W| ≤ ∫_{S×T} 1 = μ(S×T) ≤ 1
+  -- The key steps:
+  -- 1. |∫ W| ≤ ∫ |W| (triangle inequality for integrals)
+  -- 2. |W| ≤ 1 a.e. since W ∈ [0,1]
+  -- 3. ∫_{S×T} 1 = μ(S×T) ≤ μ(univ×univ) = 1
   sorry
 
 end CutNorm
