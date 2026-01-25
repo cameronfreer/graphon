@@ -109,8 +109,10 @@ variable [IsProbabilityMeasure μ]
 
 /-- If a sequence converges to two limits, they are weakly isomorphic.
 
-Limits in the graphon space are unique up to weak isomorphism. -/
-theorem limit_unique_upto_weakIso
+Limits in the graphon space are unique up to weak isomorphism.
+
+**Hypothesis**: Requires `[StandardBorelSpace α]` for the triangle inequality. -/
+theorem limit_unique_upto_weakIso [StandardBorelSpace α]
     (W : ℕ → Graphon α μ) (U V : Graphon α μ)
     (hU : ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) U < ε)
     (hV : ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε) :

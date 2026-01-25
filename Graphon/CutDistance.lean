@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.CutNorm
 import Graphon.Pullback
+import Mathlib.MeasureTheory.Constructions.Polish.Basic
 
 /-!
 # Cut Distance for Graphons
@@ -237,12 +238,15 @@ theorem cutDistance_le_one (U W : Graphon α μ) : cutDistance U W ≤ 1 := by
       ≤ cutNormDiff U W := csInf_le h_bdd h_in_set
     _ ≤ 1 := cutNormDiff_le_one U W
 
-/-- Triangle inequality for cut distance.
+/-- Triangle inequality for cut distance on standard Borel spaces.
 
 δ□(U, W) ≤ δ□(U, V) + δ□(V, W)
 
-This is the key property making cut distance a pseudometric. -/
-theorem cutDistance_triangle (U V W : Graphon α μ) :
+This is the key property making cut distance a pseudometric.
+
+**Hypothesis**: Requires `[StandardBorelSpace α]` for composition of
+measure-preserving maps to give optimal representatives. -/
+theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
     cutDistance U W ≤ cutDistance U V + cutDistance V W := by
   -- The proof uses:
   -- For any ε > 0, find φ, ψ such that
@@ -251,13 +255,17 @@ theorem cutDistance_triangle (U V W : Graphon α μ) :
   -- Then use cutNormDiff triangle inequality
   sorry
 
-/-- Cut distance is symmetric.
+/-- Cut distance is symmetric on standard Borel spaces.
 
 δ□(U, W) = δ□(W, U)
 
 The proof uses that measure-preserving maps are invertible a.e. on a
-standard probability space. -/
-theorem cutDistance_symm (U W : Graphon α μ) :
+standard Borel probability space.
+
+**Hypothesis**: Requires `[StandardBorelSpace α]` because the one-sided definition
+of cut distance only achieves symmetry when measure-preserving maps have
+measure-preserving inverses, which holds on standard Borel spaces. -/
+theorem cutDistance_symm [StandardBorelSpace α] (U W : Graphon α μ) :
     cutDistance U W = cutDistance W U := by
   -- This requires that for every measure-preserving φ,
   -- there exists a measure-preserving ψ such that

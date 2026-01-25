@@ -59,15 +59,15 @@ def WeaklyIsomorphic (U W : Graphon α μ) : Prop :=
 theorem WeaklyIsomorphic.refl (W : Graphon α μ) : WeaklyIsomorphic W W :=
   cutDistance_self W
 
-/-- Weak isomorphism is symmetric. -/
-theorem WeaklyIsomorphic.symm {U W : Graphon α μ} (h : WeaklyIsomorphic U W) :
-    WeaklyIsomorphic W U := by
+/-- Weak isomorphism is symmetric (on standard Borel spaces). -/
+theorem WeaklyIsomorphic.symm [StandardBorelSpace α] {U W : Graphon α μ}
+    (h : WeaklyIsomorphic U W) : WeaklyIsomorphic W U := by
   unfold WeaklyIsomorphic at *
   rw [cutDistance_symm]
   exact h
 
-/-- Weak isomorphism is transitive. -/
-theorem WeaklyIsomorphic.trans {U V W : Graphon α μ}
+/-- Weak isomorphism is transitive (on standard Borel spaces). -/
+theorem WeaklyIsomorphic.trans [StandardBorelSpace α] {U V W : Graphon α μ}
     (hUV : WeaklyIsomorphic U V) (hVW : WeaklyIsomorphic V W) :
     WeaklyIsomorphic U W := by
   unfold WeaklyIsomorphic at *
@@ -76,10 +76,10 @@ theorem WeaklyIsomorphic.trans {U V W : Graphon α μ}
   have h_nonneg := cutDistance_nonneg U W
   linarith
 
-/-- Weak isomorphism is an equivalence relation. -/
-theorem weaklyIsomorphic_equivalence :
+/-- Weak isomorphism is an equivalence relation (on standard Borel spaces). -/
+theorem weaklyIsomorphic_equivalence [StandardBorelSpace α] :
     Equivalence (WeaklyIsomorphic (α := α) (μ := μ)) :=
-  ⟨WeaklyIsomorphic.refl, @WeaklyIsomorphic.symm _ _ _ _, @WeaklyIsomorphic.trans _ _ _ _⟩
+  ⟨WeaklyIsomorphic.refl, @WeaklyIsomorphic.symm _ _ _ _ _, @WeaklyIsomorphic.trans _ _ _ _ _⟩
 
 /-- Relationship between `WeaklyIsomorphic` and `WeakIso`:
 

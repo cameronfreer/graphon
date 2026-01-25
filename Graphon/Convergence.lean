@@ -82,7 +82,7 @@ theorem converges_iff_homDensity (W : ℕ → Graphon α μ) :
     sorry
 
 /-- Convergent sequences are Cauchy. -/
-theorem IsConvergent.isCauchy (W : ℕ → Graphon α μ) (h : IsConvergent W) :
+theorem IsConvergent.isCauchy [StandardBorelSpace α] (W : ℕ → Graphon α μ) (h : IsConvergent W) :
     IsCauchy W := by
   obtain ⟨V, hV⟩ := h
   intro ε hε
@@ -101,8 +101,8 @@ theorem IsCauchy.isConvergent (W : ℕ → Graphon α μ) (h : IsCauchy W) :
   obtain ⟨V, hV⟩ := complete W h
   exact ⟨V, hV⟩
 
-/-- Cauchy ⟺ Convergent. -/
-theorem isCauchy_iff_isConvergent (W : ℕ → Graphon α μ) :
+/-- Cauchy ⟺ Convergent (on standard Borel spaces). -/
+theorem isCauchy_iff_isConvergent [StandardBorelSpace α] (W : ℕ → Graphon α μ) :
     IsCauchy W ↔ IsConvergent W :=
   ⟨IsCauchy.isConvergent W, fun h => h.isCauchy W⟩
 
@@ -121,7 +121,7 @@ theorem exists_convergent_subsequence (W : ℕ → Graphon α μ) :
   compact W
 
 /-- The limit of a convergent sequence is unique up to weak isomorphism. -/
-theorem limit_unique (W : ℕ → Graphon α μ) (U V : Graphon α μ)
+theorem limit_unique [StandardBorelSpace α] (W : ℕ → Graphon α μ) (U V : Graphon α μ)
     (hU : ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) U < ε)
     (hV : ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε) :
     WeaklyIsomorphic U V :=
@@ -169,8 +169,10 @@ The following are equivalent:
 3. The sequence is Cauchy in cut distance
 
 Moreover, any convergent sequence has a unique limit up to weak isomorphism,
-and every sequence has a convergent subsequence. -/
-theorem graphLimit_characterization (W : ℕ → Graphon α μ) :
+and every sequence has a convergent subsequence.
+
+**Hypothesis**: Requires `[StandardBorelSpace α]` for the Cauchy ↔ Convergent equivalence. -/
+theorem graphLimit_characterization [StandardBorelSpace α] (W : ℕ → Graphon α μ) :
     (IsConvergent W ↔ HasConvergentHomDensities W) ∧
     (IsConvergent W ↔ IsCauchy W) ∧
     (∃ (V : Graphon α μ) (φ : ℕ → ℕ), StrictMono φ ∧ IsConvergent (W ∘ φ)) :=
