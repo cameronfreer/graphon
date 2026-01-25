@@ -85,7 +85,15 @@ noncomputable def cutNormDiff (U W : Graphon α μ) : ℝ :=
 theorem cutNormDiff_nonneg (U W : Graphon α μ) : 0 ≤ cutNormDiff U W := by
   unfold cutNormDiff
   -- The supremum of absolute values is ≥ 0
-  sorry
+  apply Real.iSup_nonneg
+  intro S
+  apply Real.iSup_nonneg
+  intro _
+  apply Real.iSup_nonneg
+  intro T
+  apply Real.iSup_nonneg
+  intro _
+  exact abs_nonneg _
 
 /-- Cut norm difference with self is zero. -/
 theorem cutNormDiff_self (W : Graphon α μ) : cutNormDiff W W = 0 := by
@@ -93,7 +101,25 @@ theorem cutNormDiff_self (W : Graphon α μ) : cutNormDiff W W = 0 := by
   -- W - W = 0, so all rectangle integrals are 0
   simp only [sub_self, integral_zero, abs_zero]
   -- The supremum of constant 0 is 0
-  sorry
+  apply le_antisymm
+  · apply Real.iSup_le _ (le_refl 0)
+    intro S
+    apply Real.iSup_le _ (le_refl 0)
+    intro _
+    apply Real.iSup_le _ (le_refl 0)
+    intro T
+    apply Real.iSup_le _ (le_refl 0)
+    intro _
+    exact le_refl 0
+  · apply Real.iSup_nonneg
+    intro S
+    apply Real.iSup_nonneg
+    intro _
+    apply Real.iSup_nonneg
+    intro T
+    apply Real.iSup_nonneg
+    intro _
+    exact le_refl 0
 
 /-- Cut norm difference is symmetric. -/
 theorem cutNormDiff_symm (U W : Graphon α μ) : cutNormDiff U W = cutNormDiff W U := by
