@@ -95,7 +95,10 @@ theorem rectAverage_zero (S T : Set α) : rectAverage (zero : Graphon α μ) S T
   · simp only [mul_eq_zero]
     right
     -- The integral of 0 is 0
-    sorry
+    apply setIntegral_eq_zero_of_ae_eq_zero
+    have h : ∀ᵐ p ∂(μ.prod μ), (zero : Graphon α μ).toAEEqFun p = 0 :=
+      (AEEqFun.coeFn_const (α × α) (0 : ℝ))
+    exact h.mono fun p hp _ => hp
 
 /-- Rectangle average of one graphon is one (for positive measure sets). -/
 theorem rectAverage_one {S T : Set α} (hS : μ S ≠ 0) (hT : μ T ≠ 0)
@@ -103,8 +106,20 @@ theorem rectAverage_one {S T : Set α} (hS : μ S ≠ 0) (hT : μ T ≠ 0)
     rectAverage (one : Graphon α μ) S T = 1 := by
   unfold rectAverage
   simp only [hS, hT, dite_false]
-  -- The integral of 1 over S × T is μ(S) * μ(T)
-  sorry
+  -- The one graphon has toAEEqFun = 1 a.e.
+  have h_one : ∀ᵐ p ∂(μ.prod μ), (one : Graphon α μ).toAEEqFun p = 1 :=
+    (AEEqFun.coeFn_const (α × α) (1 : ℝ))
+  -- Use setIntegral_congr_ae to replace toAEEqFun with 1
+  conv_lhs => rw [setIntegral_congr_ae (hSm.prod hTm) (h_one.mono fun p hp _ => hp)]
+  -- Now we have ∫ p in S ×ˢ T, 1 = (μ.prod μ)(S ×ˢ T)
+  rw [MeasureTheory.setIntegral_one_eq_measureReal, MeasureTheory.measureReal_prod_prod]
+  -- The result follows by field arithmetic: (μ S)⁻¹ * (μ T)⁻¹ * (μ S * μ T) = 1
+  have hS_pos : 0 < (μ S).toReal := ENNReal.toReal_pos hS (measure_lt_top μ S).ne
+  have hT_pos : 0 < (μ T).toReal := ENNReal.toReal_pos hT (measure_lt_top μ T).ne
+  simp only [Measure.real, ENNReal.toReal]
+  have hS_nnreal : (0 : ℝ) < (μ S).toNNReal := ENNReal.toNNReal_pos hS (measure_lt_top μ S).ne
+  have hT_nnreal : (0 : ℝ) < (μ T).toNNReal := ENNReal.toNNReal_pos hT (measure_lt_top μ T).ne
+  field_simp [hS_nnreal.ne', hT_nnreal.ne']
 
 end RectAverage
 
