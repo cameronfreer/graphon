@@ -141,12 +141,24 @@ theorem cutNormDiff_symm (U W : Graphon α μ) : cutNormDiff U W = cutNormDiff W
     ring]
   rw [abs_neg]
 
-/-- Cut norm difference is bounded by 2.
+/-- Cut norm difference is bounded by 1.
 
-Since U, W ∈ [0,1], we have U - W ∈ [-1,1], so |∫(U-W)| ≤ μ(S×T) ≤ 1.
-Actually the bound is 1, not 2. -/
+Since U, W ∈ [0,1], we have U - W ∈ [-1,1], so |∫(U-W)| ≤ μ(S×T) ≤ 1. -/
 theorem cutNormDiff_le_one (U W : Graphon α μ) : cutNormDiff U W ≤ 1 := by
-  -- For any S, T: |∫_{S×T} (U-W)| ≤ ∫_{S×T} |U-W| ≤ ∫_{S×T} 1 = μ(S×T) ≤ 1
+  unfold cutNormDiff
+  apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+  intro S
+  apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+  intro _
+  apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+  intro T
+  apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+  intro _
+  -- |∫_{S×T} (U-W)| ≤ ∫_{S×T} |U-W| ≤ ∫_{S×T} 1 = μ(S×T) ≤ 1
+  -- Key steps:
+  -- 1. |∫ (U-W)| ≤ ∫ |U-W| (triangle inequality)
+  -- 2. |U-W| ≤ 1 a.e. since U, W ∈ [0,1]
+  -- 3. ∫_{S×T} 1 = μ(S×T) ≤ 1
   sorry
 
 end CutNormDiff
