@@ -61,7 +61,8 @@ noncomputable def rectAverage (W : Graphon α μ) (S T : Set α) : ℝ :=
     ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ)
 
 /-- The rectangle average is in [0, 1] for graphons. -/
-theorem rectAverage_mem_Icc (W : Graphon α μ) (S T : Set α) :
+theorem rectAverage_mem_Icc (W : Graphon α μ) (S T : Set α)
+    (hS : MeasurableSet S) (hT : MeasurableSet T) :
     rectAverage W S T ∈ Set.Icc 0 1 := by
   unfold rectAverage
   split_ifs with hS hT
@@ -69,14 +70,41 @@ theorem rectAverage_mem_Icc (W : Graphon α μ) (S T : Set α) :
   · exact ⟨le_refl 0, zero_le_one⟩
   · -- The integral is between 0 and μ(S)μ(T), so the average is in [0,1]
     -- Since W ∈ [0,1] a.e., we have 0 ≤ ∫_{S×T} W ≤ μ(S×T) = μ(S)μ(T)
-    sorry
+    have hS_pos : 0 < (μ S).toReal := ENNReal.toReal_pos hS (measure_lt_top μ S).ne
+    have hT_pos : 0 < (μ T).toReal := ENNReal.toReal_pos hT (measure_lt_top μ T).ne
+    -- Bounds on the integral
+    have h_int_nonneg : 0 ≤ ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ) := by
+      apply setIntegral_nonneg_of_ae_restrict
+      exact ae_restrict_of_ae (W.ae_mem_Icc.mono fun p hp => hp.1)
+    have h_int_le : ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ) ≤ (μ S).toReal * (μ T).toReal := by
+      calc ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ)
+          ≤ ∫ _ in S ×ˢ T, (1 : ℝ) ∂(μ.prod μ) := by
+            apply setIntegral_mono_ae_restrict
+            · exact (SymmKernel.graphon_integrable W).integrableOn
+            · exact integrable_const 1
+            · exact ae_restrict_of_ae (W.ae_mem_Icc.mono fun p hp => hp.2)
+        _ = ((μ.prod μ) (S ×ˢ T)).toReal := by
+            rw [setIntegral_const, smul_eq_mul, mul_one]; rfl
+        _ = (μ S).toReal * (μ T).toReal := by
+            rw [Measure.prod_prod]; simp only [ENNReal.toReal_mul]
+    constructor
+    · -- Lower bound: 0
+      apply mul_nonneg
+      apply mul_nonneg (inv_nonneg.mpr hS_pos.le) (inv_nonneg.mpr hT_pos.le)
+      exact h_int_nonneg
+    · -- Upper bound: 1
+      calc (μ S).toReal⁻¹ * (μ T).toReal⁻¹ * ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ)
+          ≤ (μ S).toReal⁻¹ * (μ T).toReal⁻¹ * ((μ S).toReal * (μ T).toReal) := by
+            apply mul_le_mul_of_nonneg_left h_int_le
+            apply mul_nonneg (inv_nonneg.mpr hS_pos.le) (inv_nonneg.mpr hT_pos.le)
+        _ = 1 := by field_simp
 
 /-- The rectangle average is symmetric. -/
 theorem rectAverage_symm (W : Graphon α μ) (S T : Set α)
     (hS : MeasurableSet S) (hT : MeasurableSet T) :
     rectAverage W S T = rectAverage W T S := by
   unfold rectAverage
-  split_ifs with h1 h2 h3 h4
+  split_ifs with h1 h2 h3 _
   · rfl
   · rfl
   · rfl
@@ -84,7 +112,7 @@ theorem rectAverage_symm (W : Graphon α μ) (S T : Set α)
     rw [mul_comm (μ S).toReal⁻¹ (μ T).toReal⁻¹]
     congr 1
     -- The integral over S × T equals the integral over T × S by symmetry of W
-    sorry
+    exact SymmKernel.rectIntegral_symm W.toSymmKernel hS hT
 
 /-- Rectangle average of zero graphon is zero. -/
 theorem rectAverage_zero (S T : Set α) : rectAverage (zero : Graphon α μ) S T = 0 := by
@@ -114,8 +142,6 @@ theorem rectAverage_one {S T : Set α} (hS : μ S ≠ 0) (hT : μ T ≠ 0)
   -- Now we have ∫ p in S ×ˢ T, 1 = (μ.prod μ)(S ×ˢ T)
   rw [MeasureTheory.setIntegral_one_eq_measureReal, MeasureTheory.measureReal_prod_prod]
   -- The result follows by field arithmetic: (μ S)⁻¹ * (μ T)⁻¹ * (μ S * μ T) = 1
-  have hS_pos : 0 < (μ S).toReal := ENNReal.toReal_pos hS (measure_lt_top μ S).ne
-  have hT_pos : 0 < (μ T).toReal := ENNReal.toReal_pos hT (measure_lt_top μ T).ne
   simp only [Measure.real, ENNReal.toReal]
   have hS_nnreal : (0 : ℝ) < (μ S).toNNReal := ENNReal.toNNReal_pos hS (measure_lt_top μ S).ne
   have hT_nnreal : (0 : ℝ) < (μ T).toNNReal := ENNReal.toNNReal_pos hT (measure_lt_top μ T).ne

@@ -61,9 +61,16 @@ noncomputable def rectIntegral (W : SymmKernel α μ) (S T : Set α) : ℝ :=
 theorem rectIntegral_symm (W : SymmKernel α μ) (hS : MeasurableSet S) (hT : MeasurableSet T) :
     rectIntegral W S T = rectIntegral W T S := by
   simp only [rectIntegral]
-  -- Use Fubini and symmetry of W: W(x,y) = W(y,x) a.e.
-  -- ∫_{S×T} W(x,y) = ∫_{T×S} W(y,x) = ∫_{T×S} W(x,y)
-  sorry
+  -- Step 1: Change of variables via swap
+  -- ∫_{S×T} W(p) = ∫_{T×S} W(p.swap)
+  rw [← setIntegral_prod_swap S T W.toAEEqFun]
+  -- Step 2: Use symmetry W(p.swap) = W(p) a.e.
+  apply setIntegral_congr_ae (hT.prod hS)
+  -- Need to show: ∀ᵐ p ∂(μ.prod μ), p ∈ T ×ˢ S → W(p.swap) = W(p)
+  have h_symm := W.symm'
+  -- W.symm' says W(p.swap) = W(p) a.e., which is exactly what we need
+  filter_upwards [h_symm] with p hp _
+  exact hp
 
 /-- Rectangle integral over empty set is zero. -/
 theorem rectIntegral_empty_left (W : SymmKernel α μ) (T : Set α) :
@@ -113,6 +120,41 @@ theorem cutNorm_nonneg (W : SymmKernel α μ) : 0 ≤ cutNorm W := by
   intro _
   exact abs_nonneg _
 
+/-- Graphon values are bounded by 1 in absolute value. -/
+theorem graphon_abs_le_one (W : Graphon α μ) :
+    ∀ᵐ p ∂(μ.prod μ), |W.toAEEqFun p| ≤ 1 := by
+  filter_upwards [W.ae_mem_Icc] with p hp
+  rw [abs_le]
+  exact ⟨by linarith [hp.1], hp.2⟩
+
+/-- Graphons are integrable on probability spaces. -/
+theorem graphon_integrable (W : Graphon α μ) : Integrable W.toAEEqFun (μ.prod μ) := by
+  apply Integrable.of_mem_Icc 0 1
+  · exact W.toAEEqFun.aemeasurable
+  · exact W.ae_mem_Icc
+
+/-- Rectangle integral of a graphon is bounded by 1. -/
+theorem abs_rectIntegral_le_one (W : Graphon α μ) (S T : Set α) :
+    |rectIntegral W.toSymmKernel S T| ≤ 1 := by
+  simp only [rectIntegral]
+  calc |∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ)|
+      ≤ ∫ p in S ×ˢ T, |W.toAEEqFun p| ∂(μ.prod μ) := abs_integral_le_integral_abs
+    _ ≤ ∫ _ in S ×ˢ T, (1 : ℝ) ∂(μ.prod μ) := by
+        apply setIntegral_mono_ae_restrict
+        · exact (graphon_integrable W).abs.integrableOn
+        · exact integrable_const 1
+        · exact ae_restrict_of_ae (graphon_abs_le_one W)
+    _ = ((μ.prod μ) (S ×ˢ T)).toReal := by
+        rw [setIntegral_const, smul_eq_mul, mul_one]
+        rfl
+    _ ≤ 1 := by
+        have h_prob : IsProbabilityMeasure (μ.prod μ) := inferInstance
+        have h_le : (μ.prod μ) (S ×ˢ T) ≤ ENNReal.ofReal 1 := by
+          simp only [ENNReal.ofReal_one]
+          calc (μ.prod μ) (S ×ˢ T) ≤ (μ.prod μ) univ := measure_mono (subset_univ _)
+            _ = 1 := h_prob.measure_univ
+        exact ENNReal.toReal_le_of_le_ofReal (by norm_num) h_le
+
 /-- Cut norm bounds individual rectangle integrals.
 
 For graphons this follows from boundedness of the function (values in [0,1]).
@@ -121,10 +163,48 @@ follows from the graphon value bounds. -/
 theorem abs_rectIntegral_le_cutNorm (W : Graphon α μ) {S T : Set α}
     (hS : MeasurableSet S) (hT : MeasurableSet T) :
     |rectIntegral W.toSymmKernel S T| ≤ cutNorm W.toSymmKernel := by
-  -- For graphons, the cut norm is bounded by 1 (see cutNorm_le_one)
-  -- We need to use le_ciSup with the boundedness condition
-  -- The proof needs: BddAbove of the rectangle integrals (follows from graphon bounds)
-  sorry
+  unfold cutNorm
+  -- The rectangle integral is one of the terms in the supremum
+  -- The set is bounded above by 1 (from abs_rectIntegral_le_one)
+  have h_bound : ∀ S' T', |rectIntegral W.toSymmKernel S' T'| ≤ 1 :=
+    fun S' T' => abs_rectIntegral_le_one W S' T'
+  -- Extract the BddAbove property for nested iSup
+  have hbS : BddAbove (Set.range fun S' =>
+      ⨆ (_ : MeasurableSet S'), ⨆ T', ⨆ (_ : MeasurableSet T'), |rectIntegral W.toSymmKernel S' T'|) := by
+    use 1
+    rintro _ ⟨S', rfl⟩
+    apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+    intro _
+    apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+    intro T'
+    apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+    intro _
+    exact h_bound S' T'
+  apply le_ciSup_of_le hbS S
+  have hbhS : BddAbove (Set.range fun _ : MeasurableSet S =>
+      ⨆ T', ⨆ (_ : MeasurableSet T'), |rectIntegral W.toSymmKernel S T'|) := by
+    use 1
+    rintro _ ⟨_, rfl⟩
+    apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+    intro T'
+    apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+    intro _
+    exact h_bound S T'
+  apply le_ciSup_of_le hbhS hS
+  have hbT : BddAbove (Set.range fun T' =>
+      ⨆ (_ : MeasurableSet T'), |rectIntegral W.toSymmKernel S T'|) := by
+    use 1
+    rintro _ ⟨T', rfl⟩
+    apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
+    intro _
+    exact h_bound S T'
+  apply le_ciSup_of_le hbT T
+  have hbhT : BddAbove (Set.range fun _ : MeasurableSet T =>
+      |rectIntegral W.toSymmKernel S T|) := by
+    use 1
+    rintro _ ⟨_, rfl⟩
+    exact h_bound S T
+  exact le_ciSup hbhT hT
 
 /-- Cut norm for graphons is bounded by 1.
 
@@ -135,17 +215,36 @@ theorem cutNorm_le_one (W : Graphon α μ) : cutNorm W.toSymmKernel ≤ 1 := by
   apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
   intro S
   apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
-  intro _
+  intro hS
   apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
   intro T
   apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
-  intro _
+  intro hT
   -- For graphons: |∫_{S×T} W| ≤ ∫_{S×T} |W| ≤ ∫_{S×T} 1 = μ(S×T) ≤ 1
-  -- The key steps:
-  -- 1. |∫ W| ≤ ∫ |W| (triangle inequality for integrals)
-  -- 2. |W| ≤ 1 a.e. since W ∈ [0,1]
-  -- 3. ∫_{S×T} 1 = μ(S×T) ≤ μ(univ×univ) = 1
-  sorry
+  simp only [rectIntegral]
+  calc |∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ)|
+      ≤ ∫ p in S ×ˢ T, |W.toAEEqFun p| ∂(μ.prod μ) := abs_integral_le_integral_abs
+    _ ≤ ∫ _ in S ×ˢ T, (1 : ℝ) ∂(μ.prod μ) := by
+        apply setIntegral_mono_ae_restrict
+        · -- Integrability of |W|
+          exact (graphon_integrable W).abs.integrableOn
+        · -- Integrability of constant 1
+          exact integrable_const 1
+        · -- |W| ≤ 1 a.e. on S ×ˢ T
+          have h_ae := graphon_abs_le_one W
+          exact ae_restrict_of_ae h_ae
+    _ = ((μ.prod μ) (S ×ˢ T)).toReal := by
+        rw [setIntegral_const, smul_eq_mul, mul_one]
+        rfl
+    _ ≤ 1 := by
+        have h_prob : IsProbabilityMeasure (μ.prod μ) := inferInstance
+        have h_le : (μ.prod μ) (S ×ˢ T) ≤ 1 := by
+          calc (μ.prod μ) (S ×ˢ T) ≤ (μ.prod μ) univ := measure_mono (subset_univ _)
+            _ = 1 := h_prob.measure_univ
+        have h_le' : (μ.prod μ) (S ×ˢ T) ≤ ENNReal.ofReal 1 := by
+          simp only [ENNReal.ofReal_one]
+          exact h_le
+        exact ENNReal.toReal_le_of_le_ofReal (by norm_num) h_le'
 
 end CutNorm
 

@@ -92,15 +92,16 @@ variable [IsProbabilityMeasure μ]
 
 /-- Homomorphism density difference is bounded by edge count times cut norm difference.
 
-This is the quantitative version of continuity with respect to cut norm. -/
+This is the quantitative version of continuity with respect to cut norm.
+
+**Note**: We use `max 1 F.edgeFinset.card` in the denominator to handle the empty graph case.
+For empty graphs, both homomorphism densities equal 1, so the bound is trivially satisfied. -/
 theorem homDensity_continuous_cutNormDiff (F : SimpleGraph V) [DecidableRel F.Adj]
     (U W : Graphon α μ) (ε : ℝ) (hε : ε > 0)
-    (h : cutNormDiff U W < ε / F.edgeFinset.card) :
+    (h : cutNormDiff U W < ε / max 1 F.edgeFinset.card) :
     |homDensity F U - homDensity F W| < ε := by
   by_cases hF : F.edgeFinset.card = 0
   · -- Empty graph: both densities are 1
-    simp only [hF, Nat.cast_zero] at h ⊢
-    -- When edgeFinset is empty, both homDensities equal 1
     have hEmpty : F.edgeFinset = ∅ := Finset.card_eq_zero.mp hF
     have hU : homDensity F U = 1 := by
       unfold homDensity
@@ -114,11 +115,15 @@ theorem homDensity_continuous_cutNormDiff (F : SimpleGraph V) [DecidableRel F.Ad
       simp
     simp only [hU, hW, sub_self, abs_zero]
     exact hε
-  · calc |homDensity F U - homDensity F W|
+  · have hcard_pos : 0 < F.edgeFinset.card := Nat.pos_of_ne_zero hF
+    have hmax_eq : max 1 F.edgeFinset.card = F.edgeFinset.card :=
+      max_eq_right (Nat.one_le_iff_ne_zero.mpr hF)
+    simp only [hmax_eq] at h
+    calc |homDensity F U - homDensity F W|
         ≤ F.edgeFinset.card * cutNormDiff U W := homDensity_sub_le F U W
       _ < F.edgeFinset.card * (ε / F.edgeFinset.card) := by
           apply mul_lt_mul_of_pos_left h
-          exact Nat.cast_pos.mpr (Nat.pos_of_ne_zero hF)
+          exact Nat.cast_pos.mpr hcard_pos
       _ = ε := by field_simp
 
 end Continuity

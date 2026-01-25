@@ -59,8 +59,10 @@ def WeaklyIsomorphic (U W : Graphon α μ) : Prop :=
 theorem WeaklyIsomorphic.refl (W : Graphon α μ) : WeaklyIsomorphic W W :=
   cutDistance_self W
 
-/-- Weak isomorphism is symmetric (on standard Borel spaces). -/
-theorem WeaklyIsomorphic.symm [StandardBorelSpace α] {U W : Graphon α μ}
+/-- Weak isomorphism is symmetric.
+
+Note: With the two-sided cut distance definition, this no longer requires `StandardBorelSpace`. -/
+theorem WeaklyIsomorphic.symm {U W : Graphon α μ}
     (h : WeaklyIsomorphic U W) : WeaklyIsomorphic W U := by
   unfold WeaklyIsomorphic at *
   rw [cutDistance_symm]
@@ -76,10 +78,12 @@ theorem WeaklyIsomorphic.trans [StandardBorelSpace α] {U V W : Graphon α μ}
   have h_nonneg := cutDistance_nonneg U W
   linarith
 
-/-- Weak isomorphism is an equivalence relation (on standard Borel spaces). -/
+/-- Weak isomorphism is an equivalence relation (on standard Borel spaces).
+
+Note: Only `trans` still requires `StandardBorelSpace` (for the triangle inequality). -/
 theorem weaklyIsomorphic_equivalence [StandardBorelSpace α] :
     Equivalence (WeaklyIsomorphic (α := α) (μ := μ)) :=
-  ⟨WeaklyIsomorphic.refl, @WeaklyIsomorphic.symm _ _ _ _ _, @WeaklyIsomorphic.trans _ _ _ _ _⟩
+  ⟨WeaklyIsomorphic.refl, WeaklyIsomorphic.symm, @WeaklyIsomorphic.trans _ _ _ _ _⟩
 
 /-- Relationship between `WeaklyIsomorphic` and `WeakIso`:
 
@@ -91,14 +95,15 @@ theorem WeakIso.weaklyIsomorphic {U W : Graphon α μ} (h : WeakIso U W) :
     WeaklyIsomorphic U W := by
   unfold WeaklyIsomorphic cutDistance
   obtain ⟨φ, hφ, hU⟩ := h
-  -- Use φ as witness: cutNormDiff U (pullback W φ) = 0 since U = pullback W φ
+  -- Use φ and id as witnesses: U = pullback W φ so cutNormDiff (pullback U id) (pullback W φ) = 0
   apply le_antisymm
   · apply csInf_le
     · use 0
-      intro d ⟨ψ, hψ, hd⟩
+      intro d ⟨ψ₁, ψ₂, hψ₁, hψ₂, hd⟩
       rw [hd]
-      exact cutNormDiff_nonneg U (Graphon.pullback W ψ hψ)
-    · refine ⟨φ, hφ, ?_⟩
+      exact cutNormDiff_nonneg (Graphon.pullback U ψ₁ hψ₁) (Graphon.pullback W ψ₂ hψ₂)
+    · refine ⟨id, φ, MeasurePreserving.id μ, hφ, ?_⟩
+      simp only [pullback_id]
       rw [hU]
       exact (cutNormDiff_self (Graphon.pullback W φ hφ)).symm
   · exact cutDistance_nonneg U W

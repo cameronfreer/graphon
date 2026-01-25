@@ -62,8 +62,10 @@ theorem rectIntegralDiff_eq (U W : Graphon α μ) (S T : Set α) :
       SymmKernel.rectIntegral U.toSymmKernel S T - SymmKernel.rectIntegral W.toSymmKernel S T := by
   unfold rectIntegralDiff SymmKernel.rectIntegral
   rw [← integral_sub]
-  -- Integrability conditions
-  all_goals sorry
+  · -- Integrability of U on the rectangle
+    exact (SymmKernel.graphon_integrable U).integrableOn
+  · -- Integrability of W on the rectangle
+    exact (SymmKernel.graphon_integrable W).integrableOn
 
 end RectIntegralDiff
 
@@ -156,11 +158,36 @@ theorem cutNormDiff_le_one (U W : Graphon α μ) : cutNormDiff U W ≤ 1 := by
   apply Real.iSup_le _ (by norm_num : (0:ℝ) ≤ 1)
   intro _
   -- |∫_{S×T} (U-W)| ≤ ∫_{S×T} |U-W| ≤ ∫_{S×T} 1 = μ(S×T) ≤ 1
-  -- Key steps:
-  -- 1. |∫ (U-W)| ≤ ∫ |U-W| (triangle inequality)
-  -- 2. |U-W| ≤ 1 a.e. since U, W ∈ [0,1]
-  -- 3. ∫_{S×T} 1 = μ(S×T) ≤ 1
-  sorry
+  simp only [rectIntegralDiff]
+  -- Step 1: |∫ (U-W)| ≤ ∫ |U-W|
+  calc |∫ p in S ×ˢ T, (U.toAEEqFun p - W.toAEEqFun p) ∂(μ.prod μ)|
+      ≤ ∫ p in S ×ˢ T, |U.toAEEqFun p - W.toAEEqFun p| ∂(μ.prod μ) := abs_integral_le_integral_abs
+    _ ≤ ∫ _ in S ×ˢ T, (1 : ℝ) ∂(μ.prod μ) := by
+        -- |U - W| ≤ 1 a.e. since U, W ∈ [0,1]
+        apply setIntegral_mono_ae_restrict
+        · -- Integrability of |U - W|
+          have hU := SymmKernel.graphon_integrable U
+          have hW := SymmKernel.graphon_integrable W
+          exact (hU.sub hW).abs.integrableOn
+        · exact integrable_const 1
+        · -- |U(p) - W(p)| ≤ 1 a.e.
+          have hU_bound := U.ae_mem_Icc
+          have hW_bound := W.ae_mem_Icc
+          have h_diff_bound : ∀ᵐ p ∂(μ.prod μ), |U.toAEEqFun p - W.toAEEqFun p| ≤ 1 := by
+            filter_upwards [hU_bound, hW_bound] with p hU_p hW_p
+            rw [abs_le]
+            constructor
+            · linarith [hU_p.1, hW_p.2]
+            · linarith [hU_p.2, hW_p.1]
+          exact ae_restrict_of_ae h_diff_bound
+    _ = ((μ.prod μ) (S ×ˢ T)).toReal := by
+        rw [setIntegral_const, smul_eq_mul, mul_one]; rfl
+    _ ≤ 1 := by
+        have h_prob : IsProbabilityMeasure (μ.prod μ) := inferInstance
+        have h_le : (μ.prod μ) (S ×ˢ T) ≤ 1 := by
+          calc (μ.prod μ) (S ×ˢ T) ≤ (μ.prod μ) univ := measure_mono (subset_univ _)
+            _ = 1 := h_prob.measure_univ
+        exact ENNReal.toReal_le_of_le_ofReal (by norm_num) (by simp only [ENNReal.ofReal_one]; exact h_le)
 
 end CutNormDiff
 
@@ -172,69 +199,69 @@ variable [IsProbabilityMeasure μ]
 
 /-- The cut distance between two graphons on the same probability space.
 
-`δ□(U, W) = inf_φ ‖U - W^φ‖_□`
+`δ□(U, W) = inf_{φ,ψ} ‖U^φ - W^ψ‖_□`
 
-where the infimum is over all measure-preserving maps `φ : α → α`.
+where the infimum is over all measure-preserving maps `φ, ψ : α → α`.
 
-**Design note**: This definition only reparametrizes the second argument. The standard
-definition in Lovász uses measure-preserving maps from a common probability space to
-both graphon spaces, making it symmetric by construction. On a fixed standard probability
-space (like the unit interval), this one-sided version gives the same result due to the
-existence of invertible measure-preserving maps.
+**Design note**: This two-sided definition reparametrizes BOTH graphons, making symmetry
+trivial by construction (swap φ and ψ). This matches the standard definition in Lovász
+which uses measure-preserving maps from a common probability space to both graphon spaces.
 
-For graphons on different probability spaces, use `WeakIso` from `Pullback.lean` instead.
-
-The `cutDistance_symm` theorem (which uses sorry) asserts symmetry holds on standard
-probability spaces due to invertibility of measure-preserving maps. -/
+The one-sided definition `inf_φ ‖U - W^φ‖_□` requires `[StandardBorelSpace α]` to prove
+symmetry (via invertibility of measure-preserving maps). The two-sided definition avoids
+this requirement while giving the same value on standard Borel spaces. -/
 noncomputable def cutDistance (U W : Graphon α μ) : ℝ :=
-  sInf {d : ℝ | ∃ (φ : α → α) (hφ : MeasurePreserving φ μ μ), d = cutNormDiff U (pullback W φ hφ)}
+  sInf {d : ℝ | ∃ (φ ψ : α → α) (hφ : MeasurePreserving φ μ μ) (hψ : MeasurePreserving ψ μ μ),
+        d = cutNormDiff (pullback U φ hφ) (pullback W ψ hψ)}
 
 /-- Cut distance is non-negative. -/
 theorem cutDistance_nonneg (U W : Graphon α μ) : 0 ≤ cutDistance U W := by
   unfold cutDistance
   apply Real.sInf_nonneg
-  intro d ⟨φ, hφ, hd⟩
+  intro d ⟨φ, ψ, hφ, hψ, hd⟩
   rw [hd]
-  exact cutNormDiff_nonneg U (pullback W φ hφ)
+  exact cutNormDiff_nonneg (pullback U φ hφ) (pullback W ψ hψ)
 
-/-- The set defining cut distance is nonempty (identity map always works). -/
+/-- The set defining cut distance is nonempty (identity maps always work). -/
 theorem cutDistance_set_nonempty (U W : Graphon α μ) :
-    {d : ℝ | ∃ (φ : α → α) (hφ : MeasurePreserving φ μ μ), d = cutNormDiff U (pullback W φ hφ)}.Nonempty :=
-  ⟨cutNormDiff U (pullback W id (MeasurePreserving.id μ)), id, MeasurePreserving.id μ, rfl⟩
+    {d : ℝ | ∃ (φ ψ : α → α) (hφ : MeasurePreserving φ μ μ) (hψ : MeasurePreserving ψ μ μ),
+        d = cutNormDiff (pullback U φ hφ) (pullback W ψ hψ)}.Nonempty :=
+  ⟨cutNormDiff (pullback U id (MeasurePreserving.id μ)) (pullback W id (MeasurePreserving.id μ)),
+   id, id, MeasurePreserving.id μ, MeasurePreserving.id μ, rfl⟩
 
 /-- Cut distance of a graphon to itself is zero. -/
 theorem cutDistance_self (W : Graphon α μ) : cutDistance W W = 0 := by
   unfold cutDistance
   apply le_antisymm
-  · -- Upper bound: use identity map
+  · -- Upper bound: use identity maps for both
     apply csInf_le
     · -- Bounded below by 0
       use 0
-      intro d ⟨φ, hφ, hd⟩
+      intro d ⟨φ, ψ, hφ, hψ, hd⟩
       rw [hd]
-      exact cutNormDiff_nonneg W (pullback W φ hφ)
-    · -- Identity gives 0
-      refine ⟨id, MeasurePreserving.id μ, ?_⟩
-      rw [pullback_id]
+      exact cutNormDiff_nonneg (pullback W φ hφ) (pullback W ψ hψ)
+    · -- Both identity maps give 0
+      refine ⟨id, id, MeasurePreserving.id μ, MeasurePreserving.id μ, ?_⟩
+      simp only [pullback_id]
       exact (cutNormDiff_self W).symm
   · exact cutDistance_nonneg W W
 
 /-- Cut distance is bounded by 1. -/
 theorem cutDistance_le_one (U W : Graphon α μ) : cutDistance U W ≤ 1 := by
   unfold cutDistance
-  have h_bdd : BddBelow {d : ℝ | ∃ (φ : α → α) (hφ : MeasurePreserving φ μ μ),
-      d = cutNormDiff U (pullback W φ hφ)} := by
+  have h_bdd : BddBelow {d : ℝ | ∃ (φ ψ : α → α) (hφ : MeasurePreserving φ μ μ)
+      (hψ : MeasurePreserving ψ μ μ), d = cutNormDiff (pullback U φ hφ) (pullback W ψ hψ)} := by
     use 0
-    intro d ⟨φ, hφ, hd⟩
+    intro d ⟨φ, ψ, hφ, hψ, hd⟩
     rw [hd]
-    exact cutNormDiff_nonneg U (pullback W φ hφ)
-  -- The identity map gives cutNormDiff U W which is ≤ 1
-  have h_in_set : cutNormDiff U W ∈ {d : ℝ | ∃ (φ : α → α) (hφ : MeasurePreserving φ μ μ),
-      d = cutNormDiff U (pullback W φ hφ)} := by
-    refine ⟨id, MeasurePreserving.id μ, ?_⟩
-    rw [pullback_id]
-  calc sInf {d : ℝ | ∃ (φ : α → α) (hφ : MeasurePreserving φ μ μ),
-        d = cutNormDiff U (pullback W φ hφ)}
+    exact cutNormDiff_nonneg (pullback U φ hφ) (pullback W ψ hψ)
+  -- Identity maps give cutNormDiff U W which is ≤ 1
+  have h_in_set : cutNormDiff U W ∈ {d : ℝ | ∃ (φ ψ : α → α) (hφ : MeasurePreserving φ μ μ)
+      (hψ : MeasurePreserving ψ μ μ), d = cutNormDiff (pullback U φ hφ) (pullback W ψ hψ)} := by
+    refine ⟨id, id, MeasurePreserving.id μ, MeasurePreserving.id μ, ?_⟩
+    rw [pullback_id, pullback_id]
+  calc sInf {d : ℝ | ∃ (φ ψ : α → α) (hφ : MeasurePreserving φ μ μ)
+        (hψ : MeasurePreserving ψ μ μ), d = cutNormDiff (pullback U φ hφ) (pullback W ψ hψ)}
       ≤ cutNormDiff U W := csInf_le h_bdd h_in_set
     _ ≤ 1 := cutNormDiff_le_one U W
 
@@ -249,29 +276,28 @@ measure-preserving maps to give optimal representatives. -/
 theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
     cutDistance U W ≤ cutDistance U V + cutDistance V W := by
   -- The proof uses:
-  -- For any ε > 0, find φ, ψ such that
-  --   cutNormDiff U (pullback V φ) < δ□(U,V) + ε
-  --   cutNormDiff V (pullback W ψ) < δ□(V,W) + ε
-  -- Then use cutNormDiff triangle inequality
+  -- For any ε > 0, find φ₁, ψ₁, φ₂, ψ₂ such that
+  --   cutNormDiff (pullback U φ₁) (pullback V ψ₁) < δ□(U,V) + ε
+  --   cutNormDiff (pullback V φ₂) (pullback W ψ₂) < δ□(V,W) + ε
+  -- Then use that the infimum over all (φ, ψ) includes (φ₁, ψ₂)
+  -- and cutNormDiff triangle inequality
   sorry
 
-/-- Cut distance is symmetric on standard Borel spaces.
+/-- Cut distance is symmetric.
 
 δ□(U, W) = δ□(W, U)
 
-The proof uses that measure-preserving maps are invertible a.e. on a
-standard Borel probability space.
-
-**Hypothesis**: Requires `[StandardBorelSpace α]` because the one-sided definition
-of cut distance only achieves symmetry when measure-preserving maps have
-measure-preserving inverses, which holds on standard Borel spaces. -/
-theorem cutDistance_symm [StandardBorelSpace α] (U W : Graphon α μ) :
-    cutDistance U W = cutDistance W U := by
-  -- This requires that for every measure-preserving φ,
-  -- there exists a measure-preserving ψ such that
-  -- cutNormDiff U (pullback W φ) = cutNormDiff W (pullback U ψ)
-  -- This uses the symmetry of cut norm and invertibility of φ
-  sorry
+With the two-sided definition, this is immediate by swapping φ and ψ
+and using the symmetry of cutNormDiff. No StandardBorelSpace needed! -/
+theorem cutDistance_symm (U W : Graphon α μ) : cutDistance U W = cutDistance W U := by
+  unfold cutDistance
+  congr 1
+  ext d
+  constructor
+  · rintro ⟨φ, ψ, hφ, hψ, hd⟩
+    exact ⟨ψ, φ, hψ, hφ, by rw [hd, cutNormDiff_symm]⟩
+  · rintro ⟨ψ, φ, hψ, hφ, hd⟩
+    exact ⟨φ, ψ, hφ, hψ, by rw [hd, cutNormDiff_symm]⟩
 
 end CutDistance
 
