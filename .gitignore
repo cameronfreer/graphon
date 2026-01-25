@@ -4,3 +4,4 @@ lake-packages/
 build/
 *.olean
 .DS_Store
+.claude/
