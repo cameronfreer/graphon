@@ -99,8 +99,21 @@ theorem homDensity_continuous_cutNormDiff (F : SimpleGraph V) [DecidableRel F.Ad
     |homDensity F U - homDensity F W| < ε := by
   by_cases hF : F.edgeFinset.card = 0
   · -- Empty graph: both densities are 1
-    simp only [hF, Nat.cast_zero, mul_zero] at h ⊢
-    sorry
+    simp only [hF, Nat.cast_zero] at h ⊢
+    -- When edgeFinset is empty, both homDensities equal 1
+    have hEmpty : F.edgeFinset = ∅ := Finset.card_eq_zero.mp hF
+    have hU : homDensity F U = 1 := by
+      unfold homDensity
+      simp only [hEmpty, Finset.prod_empty]
+      simp only [integral_const]
+      simp
+    have hW : homDensity F W = 1 := by
+      unfold homDensity
+      simp only [hEmpty, Finset.prod_empty]
+      simp only [integral_const]
+      simp
+    simp only [hU, hW, sub_self, abs_zero]
+    exact hε
   · calc |homDensity F U - homDensity F W|
         ≤ F.edgeFinset.card * cutNormDiff U W := homDensity_sub_le F U W
       _ < F.edgeFinset.card * (ε / F.edgeFinset.card) := by
