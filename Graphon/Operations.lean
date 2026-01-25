@@ -164,15 +164,17 @@ variable {V : Type*} [Fintype V] [DecidableEq V]
 theorem homDensity_pointwiseMul_le (F : SimpleGraph V) [DecidableRel F.Adj]
     (W₁ W₂ : Graphon α μ) :
     homDensity F (pointwiseMul W₁ W₂) ≤ min (homDensity F W₁) (homDensity F W₂) := by
-  -- Proof strategy:
+  -- Proof sketch:
   -- 1. Use le_min_iff to split into two inequalities
   -- 2. For homDensity F (W₁ * W₂) ≤ homDensity F W₁:
-  --    a. Since W₂ ∈ [0,1] a.e., we have W₁ * W₂ ≤ W₁ * 1 = W₁ a.e.
-  --    b. The product over edges preserves this monotonicity
-  --    c. Use integral_mono_ae (following pattern from homDensity_le_one)
+  --    a. Since W₂ ∈ [0,1] a.e., we have (W₁ * W₂)(e) ≤ W₁(e) * 1 = W₁(e) a.e.
+  --    b. Use graphonEval_mem_Icc_ae to get a.e. bounds for all edges
+  --    c. Apply Finset.prod_le_prod with the a.e. bounds
+  --    d. Use integral_mono_ae
   -- 3. Similarly for the W₂ bound
-  -- TODO: Complete this proof in a future phase (requires propagating a.e. bounds
-  -- through Finset.prod and establishing the integrand inequality)
+  -- Key lemmas: graphonEval_mem_Icc_ae, Finset.prod_le_prod, integral_mono_ae
+  -- Requires: AEEqFun.coeFn_mul to connect (W₁.toAEEqFun * W₂.toAEEqFun) p
+  --           to W₁.toAEEqFun p * W₂.toAEEqFun p
   sorry
 
 end HomDensity
