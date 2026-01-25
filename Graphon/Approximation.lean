@@ -65,13 +65,13 @@ theorem rectAverage_mem_Icc (W : Graphon α μ) (S T : Set α)
     (hS : MeasurableSet S) (hT : MeasurableSet T) :
     rectAverage W S T ∈ Set.Icc 0 1 := by
   unfold rectAverage
-  split_ifs with hS hT
+  split_ifs with hμS_zero hμT_zero
   · exact ⟨le_refl 0, zero_le_one⟩
   · exact ⟨le_refl 0, zero_le_one⟩
   · -- The integral is between 0 and μ(S)μ(T), so the average is in [0,1]
     -- Since W ∈ [0,1] a.e., we have 0 ≤ ∫_{S×T} W ≤ μ(S×T) = μ(S)μ(T)
-    have hS_pos : 0 < (μ S).toReal := ENNReal.toReal_pos hS (measure_lt_top μ S).ne
-    have hT_pos : 0 < (μ T).toReal := ENNReal.toReal_pos hT (measure_lt_top μ T).ne
+    have hS_pos : 0 < (μ S).toReal := ENNReal.toReal_pos hμS_zero (measure_lt_top μ S).ne
+    have hT_pos : 0 < (μ T).toReal := ENNReal.toReal_pos hμT_zero (measure_lt_top μ T).ne
     -- Bounds on the integral
     have h_int_nonneg : 0 ≤ ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ) := by
       apply setIntegral_nonneg_of_ae_restrict
