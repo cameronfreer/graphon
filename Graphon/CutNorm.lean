@@ -115,15 +115,15 @@ theorem cutNorm_nonneg (W : SymmKernel α μ) : 0 ≤ cutNorm W := by
 
 /-- Cut norm bounds individual rectangle integrals.
 
-Note: This requires the cut norm to be finite (bounded above), which holds for
-graphons (values in [0,1]) but may not hold for general symmetric kernels. -/
-theorem abs_rectIntegral_le_cutNorm (W : SymmKernel α μ) {S T : Set α}
+For graphons this follows from boundedness of the function (values in [0,1]).
+The proof requires showing the supremum is over a bounded-above set, which
+follows from the graphon value bounds. -/
+theorem abs_rectIntegral_le_cutNorm (W : Graphon α μ) {S T : Set α}
     (hS : MeasurableSet S) (hT : MeasurableSet T) :
-    |rectIntegral W S T| ≤ cutNorm W := by
-  unfold cutNorm
-  -- The value |rectIntegral W S T| is achieved at (S, hS, T, hT) in the iSup
-  -- This requires showing the iSup over the outer sets is bounded above
-  -- For general SymmKernel this needs additional hypotheses
+    |rectIntegral W.toSymmKernel S T| ≤ cutNorm W.toSymmKernel := by
+  -- For graphons, the cut norm is bounded by 1 (see cutNorm_le_one)
+  -- We need to use le_ciSup with the boundedness condition
+  -- The proof needs: BddAbove of the rectangle integrals (follows from graphon bounds)
   sorry
 
 /-- Cut norm for graphons is bounded by 1.

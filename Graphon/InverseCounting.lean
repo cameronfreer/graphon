@@ -122,11 +122,32 @@ theorem limit_unique_upto_weakIso [StandardBorelSpace α]
   unfold WeaklyIsomorphic
   apply le_antisymm
   · -- cutDistance U V ≤ 0
-    -- By triangle inequality: δ□(U, V) ≤ δ□(U, Wₙ) + δ□(Wₙ, V)
-    -- Both terms can be made arbitrarily small
-    -- Get N₁, N₂ such that Wₙ is close to both U and V
-    -- Take n = max N₁ N₂, show δ□(U, V) < ε for any ε > 0
-    sorry
+    -- Show: for all ε > 0, cutDistance U V ≤ ε
+    -- Then use le_of_forall_le_of_dense or similar
+    by_contra h_neg
+    push_neg at h_neg
+    -- h_neg : cutDistance U V > 0
+    -- Let ε = cutDistance U V / 2
+    set ε := cutDistance U V / 2 with hε_def
+    have hε_pos : ε > 0 := by linarith
+    obtain ⟨N₁, hN₁⟩ := hU ε hε_pos
+    obtain ⟨N₂, hN₂⟩ := hV ε hε_pos
+    set n := max N₁ N₂ with hn_def
+    have hn₁ : n ≥ N₁ := le_max_left N₁ N₂
+    have hn₂ : n ≥ N₂ := le_max_right N₁ N₂
+    have h1 : cutDistance (W n) U < ε := hN₁ n hn₁
+    have h2 : cutDistance (W n) V < ε := hN₂ n hn₂
+    have h_tri : cutDistance U V ≤ cutDistance U (W n) + cutDistance (W n) V :=
+      cutDistance_triangle U (W n) V
+    have h_symm : cutDistance U (W n) = cutDistance (W n) U := cutDistance_symm U (W n)
+    have h_bound : cutDistance U V < 2 * ε := by
+      calc cutDistance U V
+          ≤ cutDistance U (W n) + cutDistance (W n) V := h_tri
+        _ = cutDistance (W n) U + cutDistance (W n) V := by rw [h_symm]
+        _ < ε + ε := add_lt_add h1 h2
+        _ = 2 * ε := by ring
+    -- But 2 * ε = cutDistance U V, contradiction
+    linarith
   · exact cutDistance_nonneg U V
 
 /-- Homomorphism densities determine the graphon up to weak isomorphism.
