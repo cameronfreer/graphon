@@ -7,6 +7,7 @@ import Graphon.Step
 import Mathlib.Combinatorics.SimpleGraph.Maps
 import Mathlib.Combinatorics.SimpleGraph.Finite
 import Mathlib.MeasureTheory.Constructions.Pi
+import Mathlib.Probability.Independence.Basic
 
 /-!
 # Homomorphism Densities
@@ -98,23 +99,57 @@ theorem homDensity_bot (W : Graphon α μ) :
     simp only [SimpleGraph.edgeSet_bot, Set.mem_empty_iff_false] at he
   · simp
 
+/-- Helper: for edges in simple graphs, the two vertices are distinct. -/
+theorem edge_out_ne {F : SimpleGraph V} [DecidableRel F.Adj] {e : Sym2 V}
+    (he : e ∈ F.edgeSet) : (Quot.out e).1 ≠ (Quot.out e).2 := by
+  have h_not_diag := F.not_isDiag_of_mem_edgeSet he
+  have h_eq : e = Sym2.mk (Quot.out e) := (Quot.out_eq e).symm
+  rw [h_eq, Sym2.mk_isDiag_iff] at h_not_diag
+  exact h_not_diag
+
 /-- For probability measures, the graphon value at a pair projection is in [0,1] a.e.
 
-This key technical lemma shows that for any two indices `v₁ v₂ : V`, the composition
+This key technical lemma shows that for distinct indices `v₁ ≠ v₂ : V`, the composition
 `x ↦ W(x v₁, x v₂)` takes values in [0,1] for a.e. `x : V → α` under `Measure.pi`.
 
-The proof uses that for independent coordinates, the pair projection
-`x ↦ (x v₁, x v₂)` maps `Measure.pi` quasi-measure-preservingly to `μ × μ`,
-allowing us to lift the graphon's a.e. bound. -/
-theorem graphonEval_mem_Icc_ae (W : Graphon α μ) (v₁ v₂ : V) :
+The proof uses that for distinct coordinates, `eval v₁` and `eval v₂` are independent
+under `Measure.pi`. By `measurePreserving_eval`, the marginal distributions equal `μ`,
+and by independence, the pair `(x v₁, x v₂)` has distribution `μ × μ`. Since the
+graphon's a.e. bound holds on `μ × μ`, it lifts to `Measure.pi`. -/
+theorem graphonEval_mem_Icc_ae (W : Graphon α μ) {v₁ v₂ : V} (hne : v₁ ≠ v₂) :
     ∀ᵐ x ∂Measure.pi (fun _ : V => μ), W.toAEEqFun (x v₁, x v₂) ∈ Set.Icc 0 1 := by
   -- The pair map (x ↦ (x v₁, x v₂)) is measurable
   have h_meas : Measurable (fun x : V → α => (x v₁, x v₂)) :=
     Measurable.prodMk (measurable_pi_apply _) (measurable_pi_apply _)
-  -- For probability measures, independent coordinates give:
-  -- Measure.map (x ↦ (x v₁, x v₂)) (Measure.pi _) is related to μ × μ
-  -- so the a.e. bound on μ × μ lifts to Measure.pi
-  sorry
+  -- For probability measures, the coordinate projections are independent
+  have h_indep : ProbabilityTheory.iIndepFun (fun i (x : V → α) => x i)
+      (Measure.pi (fun _ : V => μ)) :=
+    ProbabilityTheory.iIndepFun_pi (fun _ => aemeasurable_id)
+  -- Get pairwise independence for v₁ ≠ v₂
+  have h_indep_pair := h_indep.indepFun hne
+  -- By independence, the pair map has product distribution
+  have h_map : Measure.map (fun x => (x v₁, x v₂)) (Measure.pi (fun _ : V => μ)) =
+      (Measure.map (fun x => x v₁) (Measure.pi (fun _ : V => μ))).prod
+      (Measure.map (fun x => x v₂) (Measure.pi (fun _ : V => μ))) := by
+    rw [ProbabilityTheory.indepFun_iff_map_prod_eq_prod_map_map
+      (measurable_pi_apply _).aemeasurable (measurable_pi_apply _).aemeasurable] at h_indep_pair
+    exact h_indep_pair
+  -- The marginals are μ (by measure-preserving property of eval)
+  have h_marg₁ : Measure.map (fun x => x v₁) (Measure.pi (fun _ : V => μ)) = μ :=
+    (MeasureTheory.measurePreserving_eval (fun _ : V => μ) v₁).map_eq
+  have h_marg₂ : Measure.map (fun x => x v₂) (Measure.pi (fun _ : V => μ)) = μ :=
+    (MeasureTheory.measurePreserving_eval (fun _ : V => μ) v₂).map_eq
+  -- So the pair map is measure-preserving to μ × μ
+  have h_map_eq : Measure.map (fun x => (x v₁, x v₂)) (Measure.pi (fun _ : V => μ)) =
+      μ.prod μ := by
+    rw [h_map, h_marg₁, h_marg₂]
+  -- Now use QuasiMeasurePreserving.ae to lift the a.e. bound
+  have h_qmp : Measure.QuasiMeasurePreserving (fun x : V → α => (x v₁, x v₂))
+      (Measure.pi (fun _ : V => μ)) (μ.prod μ) := by
+    constructor
+    · exact h_meas
+    · rw [h_map_eq]
+  exact h_qmp.ae W.ae_mem_Icc
 
 /-- The integrand in the homomorphism density is nonnegative a.e.
 
@@ -126,7 +161,7 @@ theorem homDensityIntegrand_nonneg_ae (F : SimpleGraph V) [DecidableRel F.Adj]
   have h_edges : ∀ e ∈ F.edgeFinset,
       ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
         W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
-    fun e _ => graphonEval_mem_Icc_ae W (Quot.out e).1 (Quot.out e).2
+    fun e he => graphonEval_mem_Icc_ae W (edge_out_ne (SimpleGraph.mem_edgeFinset.mp he))
   -- Finite intersection of a.e. properties is a.e. (by induction on finset)
   have h_all : ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
       ∀ e ∈ F.edgeFinset, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 := by
@@ -161,7 +196,7 @@ theorem homDensityIntegrand_le_one_ae (F : SimpleGraph V) [DecidableRel F.Adj]
   have h_edges : ∀ e ∈ F.edgeFinset,
       ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
         W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
-    fun e _ => graphonEval_mem_Icc_ae W (Quot.out e).1 (Quot.out e).2
+    fun e he => graphonEval_mem_Icc_ae W (edge_out_ne (SimpleGraph.mem_edgeFinset.mp he))
   -- Finite intersection of a.e. properties is a.e. (same induction as nonneg)
   have h_all : ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
       ∀ e ∈ F.edgeFinset, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 := by
@@ -210,13 +245,38 @@ theorem homDensityIntegrand_aemeasurable (F : SimpleGraph V) [DecidableRel F.Adj
     (W : Graphon α μ) : AEMeasurable (homDensityIntegrand F W) (Measure.pi (fun _ : V => μ)) := by
   unfold homDensityIntegrand
   apply Finset.aemeasurable_fun_prod
-  intro e _
+  intro e he
   -- The pair projection map is measurable
   have h_pair : Measurable (fun x : V → α => (x (Quot.out e).1, x (Quot.out e).2)) :=
     Measurable.prodMk (measurable_pi_apply _) (measurable_pi_apply _)
-  -- Need: W.toAEEqFun composed with h_pair is ae-measurable
-  -- This requires showing the pushforward measure equals μ × μ
-  sorry
+  -- The edge vertices are distinct
+  have hne := edge_out_ne (SimpleGraph.mem_edgeFinset.mp he)
+  -- Use the same argument as graphonEval_mem_Icc_ae to show the map equals μ × μ
+  have h_indep : ProbabilityTheory.iIndepFun (fun i (x : V → α) => x i)
+      (Measure.pi (fun _ : V => μ)) :=
+    ProbabilityTheory.iIndepFun_pi (fun _ => aemeasurable_id)
+  have h_indep_pair := h_indep.indepFun hne
+  have h_map : Measure.map (fun x => (x (Quot.out e).1, x (Quot.out e).2))
+      (Measure.pi (fun _ : V => μ)) =
+      (Measure.map (fun x => x (Quot.out e).1) (Measure.pi (fun _ : V => μ))).prod
+      (Measure.map (fun x => x (Quot.out e).2) (Measure.pi (fun _ : V => μ))) := by
+    rw [ProbabilityTheory.indepFun_iff_map_prod_eq_prod_map_map
+      (measurable_pi_apply _).aemeasurable (measurable_pi_apply _).aemeasurable] at h_indep_pair
+    exact h_indep_pair
+  have h_marg₁ : Measure.map (fun x => x (Quot.out e).1) (Measure.pi (fun _ : V => μ)) = μ :=
+    (MeasureTheory.measurePreserving_eval (fun _ : V => μ) (Quot.out e).1).map_eq
+  have h_marg₂ : Measure.map (fun x => x (Quot.out e).2) (Measure.pi (fun _ : V => μ)) = μ :=
+    (MeasureTheory.measurePreserving_eval (fun _ : V => μ) (Quot.out e).2).map_eq
+  have h_map_eq : Measure.map (fun x => (x (Quot.out e).1, x (Quot.out e).2))
+      (Measure.pi (fun _ : V => μ)) = μ.prod μ := by
+    rw [h_map, h_marg₁, h_marg₂]
+  -- Now use AEMeasurable.comp_measurable
+  have h_graphon_aem : AEMeasurable W.toAEEqFun (μ.prod μ) := W.toAEEqFun.aemeasurable
+  -- Substitute to get aemeasurable w.r.t. the pushforward measure
+  have h_aem_map : AEMeasurable W.toAEEqFun
+      (Measure.map (fun x => (x (Quot.out e).1, x (Quot.out e).2)) (Measure.pi (fun _ : V => μ))) := by
+    rw [h_map_eq]; exact h_graphon_aem
+  exact h_aem_map.comp_measurable h_pair
 
 /-- The homomorphism density integrand is integrable over the product measure. -/
 theorem homDensityIntegrand_integrable (F : SimpleGraph V) [DecidableRel F.Adj]
