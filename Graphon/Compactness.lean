@@ -81,6 +81,28 @@ theorem weaklyIsomorphic_equivalence :
     Equivalence (WeaklyIsomorphic (α := α) (μ := μ)) :=
   ⟨WeaklyIsomorphic.refl, @WeaklyIsomorphic.symm _ _ _ _, @WeaklyIsomorphic.trans _ _ _ _⟩
 
+/-- Relationship between `WeaklyIsomorphic` and `WeakIso`:
+
+`WeakIso U W` (one-sided pullback relation) implies `WeaklyIsomorphic U W` (cutDistance = 0).
+
+The converse direction (cutDistance = 0 implies WeakIso in both directions) requires
+additional structure on the probability space (e.g., standard Borel). -/
+theorem WeakIso.weaklyIsomorphic {U W : Graphon α μ} (h : WeakIso U W) :
+    WeaklyIsomorphic U W := by
+  unfold WeaklyIsomorphic cutDistance
+  obtain ⟨φ, hφ, hU⟩ := h
+  -- Use φ as witness: cutNormDiff U (pullback W φ) = 0 since U = pullback W φ
+  apply le_antisymm
+  · apply csInf_le
+    · use 0
+      intro d ⟨ψ, hψ, hd⟩
+      rw [hd]
+      exact cutNormDiff_nonneg U (Graphon.pullback W ψ hψ)
+    · refine ⟨φ, hφ, ?_⟩
+      rw [hU]
+      exact (cutNormDiff_self (Graphon.pullback W φ hφ)).symm
+  · exact cutDistance_nonneg U W
+
 end Quotient
 
 /-! ### Total boundedness -/

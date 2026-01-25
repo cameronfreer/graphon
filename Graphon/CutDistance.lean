@@ -135,7 +135,18 @@ variable [IsProbabilityMeasure μ]
 
 `δ□(U, W) = inf_φ ‖U - W^φ‖_□`
 
-where the infimum is over all measure-preserving maps `φ : α → α`. -/
+where the infimum is over all measure-preserving maps `φ : α → α`.
+
+**Design note**: This definition only reparametrizes the second argument. The standard
+definition in Lovász uses measure-preserving maps from a common probability space to
+both graphon spaces, making it symmetric by construction. On a fixed standard probability
+space (like the unit interval), this one-sided version gives the same result due to the
+existence of invertible measure-preserving maps.
+
+For graphons on different probability spaces, use `WeakIso` from `Pullback.lean` instead.
+
+The `cutDistance_symm` theorem (which uses sorry) asserts symmetry holds on standard
+probability spaces due to invertibility of measure-preserving maps. -/
 noncomputable def cutDistance (U W : Graphon α μ) : ℝ :=
   sInf {d : ℝ | ∃ (φ : α → α) (hφ : MeasurePreserving φ μ μ), d = cutNormDiff U (pullback W φ hφ)}
 
