@@ -94,7 +94,23 @@ theorem cutDistance_tendsto_iff_homDensity_tendsto
   constructor
   · -- Forward: counting lemma
     intro hconv F _ ε hε
-    sorry
+    by_cases hF : F.edgeFinset.card = 0
+    · -- Empty graph case: homDensity is always 1
+      use 0
+      intro n _
+      have h_empty : F.edgeFinset = ∅ := Finset.card_eq_zero.mp hF
+      simp only [homDensity_eq_integral, homDensityIntegrand, h_empty, Finset.prod_empty,
+          sub_self, abs_zero, hε]
+    · -- Non-empty graph: use counting lemma
+      have hcard_pos : (0 : ℝ) < F.edgeFinset.card := Nat.cast_pos.mpr (Nat.pos_of_ne_zero hF)
+      obtain ⟨N, hN⟩ := hconv (ε / F.edgeFinset.card) (div_pos hε hcard_pos)
+      use N
+      intro n hn
+      calc |homDensity F (W n) - homDensity F V|
+          ≤ F.edgeFinset.card * cutDistance (W n) V := homDensity_sub_le_of_cutDistance F (W n) V
+        _ < F.edgeFinset.card * (ε / F.edgeFinset.card) := by
+            apply mul_lt_mul_of_pos_left (hN n hn) hcard_pos
+        _ = ε := mul_div_cancel₀ ε (ne_of_gt hcard_pos)
   · -- Backward: inverse counting lemma
     intro hhom ε hε
     sorry
