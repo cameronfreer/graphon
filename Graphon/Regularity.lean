@@ -38,6 +38,84 @@ variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
 
 namespace Graphon
 
+/-! ### Energy function -/
+
+section Energy
+
+variable [IsProbabilityMeasure μ]
+
+/-- The energy of a graphon with respect to a partition.
+
+E(P, W) = Σ_{S,T ∈ P.parts} μ(S) μ(T) (rectAverage W S T)²
+
+This measures how much of the L² norm of W is captured by its stepification.
+The energy is always in [0, 1] and increases under refinement. -/
+noncomputable def energy (W : Graphon α μ) (P : MeasurablePartition α μ) : ℝ :=
+  P.parts.sum fun S =>
+    P.parts.sum fun T =>
+      (μ S).toReal * (μ T).toReal * (rectAverage W S T) ^ 2
+
+/-- The energy is non-negative. -/
+theorem energy_nonneg (W : Graphon α μ) (P : MeasurablePartition α μ) :
+    0 ≤ energy W P := by
+  unfold energy
+  apply Finset.sum_nonneg
+  intro S _
+  apply Finset.sum_nonneg
+  intro T _
+  apply mul_nonneg
+  apply mul_nonneg
+  · exact ENNReal.toReal_nonneg
+  · exact ENNReal.toReal_nonneg
+  · exact sq_nonneg _
+
+/-- The energy is at most 1.
+
+Since rectAverage W S T ∈ [0,1] and Σ_{S,T} μ(S)μ(T) ≤ 1. -/
+theorem energy_le_one (W : Graphon α μ) (P : MeasurablePartition α μ) :
+    energy W P ≤ 1 := by
+  unfold energy
+  -- Each term: μ(S) μ(T) (avg)² ≤ μ(S) μ(T) * 1 = μ(S) μ(T)
+  -- Sum over S, T: Σ μ(S) μ(T) = (Σ μ(S)) * (Σ μ(T)) ≤ 1 * 1 = 1
+  calc P.parts.sum (fun S => P.parts.sum fun T =>
+        (μ S).toReal * (μ T).toReal * (rectAverage W S T) ^ 2)
+      ≤ P.parts.sum (fun S => P.parts.sum fun T =>
+        (μ S).toReal * (μ T).toReal * 1) := by
+          apply Finset.sum_le_sum
+          intro S hS
+          apply Finset.sum_le_sum
+          intro T hT
+          apply mul_le_mul_of_nonneg_left
+          · -- rectAverage² ≤ 1 since rectAverage ∈ [0,1]
+            have h := rectAverage_mem_Icc W S T (P.measurable_parts S hS) (P.measurable_parts T hT)
+            calc (rectAverage W S T) ^ 2
+                ≤ 1 ^ 2 := by
+                    apply sq_le_sq'
+                    · linarith [h.1]
+                    · exact h.2
+              _ = 1 := one_pow 2
+          · apply mul_nonneg ENNReal.toReal_nonneg ENNReal.toReal_nonneg
+    _ = P.parts.sum (fun S => P.parts.sum fun T =>
+        (μ S).toReal * (μ T).toReal) := by simp only [mul_one]
+    _ = (P.parts.sum fun S => (μ S).toReal) * (P.parts.sum fun T => (μ T).toReal) := by
+          rw [Finset.sum_mul_sum]
+    _ ≤ 1 * 1 := by
+          apply mul_le_mul
+          · -- Sum of measures ≤ 1 (partition covers a.e.)
+            calc P.parts.sum (fun S => (μ S).toReal)
+                ≤ (μ univ).toReal := by
+                    -- This follows from the partition covering the space
+                    sorry
+              _ = 1 := by rw [measure_univ]; simp
+          · calc P.parts.sum (fun T => (μ T).toReal)
+                ≤ (μ univ).toReal := by sorry
+              _ = 1 := by rw [measure_univ]; simp
+          · apply Finset.sum_nonneg; intro _ _; exact ENNReal.toReal_nonneg
+          · norm_num
+    _ = 1 := one_mul 1
+
+end Energy
+
 /-! ### Regularity lemma -/
 
 section Regularity
