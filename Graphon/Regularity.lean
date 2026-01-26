@@ -107,6 +107,72 @@ theorem energy_le_one (W : Graphon α μ) (P : MeasurablePartition α μ) :
           · norm_num
     _ = 1 := one_mul 1
 
+/-! ### Energy increment lemma -/
+
+/-- The "defect" of a partition: measures how far W is from being stepwise constant.
+
+For a partition P and rectangle S × T, the defect is:
+∫_{S×T} |W(x,y) - rectAverage W S T|² dμ(x) dμ(y)
+
+The total defect is the sum over all partition rectangles.
+When W is close to stepified P W in cut norm, the defect is small. -/
+noncomputable def defect (W : Graphon α μ) (P : MeasurablePartition α μ) : ℝ :=
+  P.parts.sum fun S =>
+    P.parts.sum fun T =>
+      ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ)
+
+/-- The defect is non-negative. -/
+theorem defect_nonneg (W : Graphon α μ) (P : MeasurablePartition α μ) :
+    0 ≤ defect W P := by
+  unfold defect
+  apply Finset.sum_nonneg
+  intro S _
+  apply Finset.sum_nonneg
+  intro T _
+  apply setIntegral_nonneg_of_ae_restrict
+  exact ae_of_all _ (fun _ => sq_nonneg _)
+
+/-- Key identity: L² norm = energy + defect.
+
+‖W‖₂² = E(P, W) + D(P, W)
+
+where E(P, W) is the energy and D(P, W) is the defect.
+This follows from the Pythagorean theorem for L² orthogonal projections. -/
+theorem l2_norm_eq_energy_add_defect (W : Graphon α μ) (P : MeasurablePartition α μ) :
+    ∫ p, (W.toAEEqFun p) ^ 2 ∂(μ.prod μ) = energy W P + defect W P := by
+  -- Proof uses: for each rectangle S × T,
+  -- ∫_{S×T} W² = μ(S)μ(T)(avg)² + ∫_{S×T} (W - avg)²
+  -- This is the variance decomposition.
+  sorry
+
+/-- Energy increment lemma (Frieze-Kannan style).
+
+If W has large defect on some rectangle S × T of P, then refining that
+rectangle increases the energy.
+
+More precisely: if there exist S, T ∈ P such that
+∫_{S×T} |W - rectAverage W S T|² ≥ ε² μ(S) μ(T),
+then splitting S (or T) into two parts by an appropriate cut increases
+the energy by at least ε⁴/4 (or similar constant).
+
+This is the key step that drives the regularity iteration. -/
+theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
+    (ε : ℝ) (hε : ε > 0)
+    (h_bad : ∃ S ∈ P.parts, ∃ T ∈ P.parts,
+      ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) ≥
+        ε ^ 2 * (μ S).toReal * (μ T).toReal) :
+    ∃ Q : MeasurablePartition α μ,
+      Refines Q P ∧ Q.parts.card ≤ 2 * P.parts.card ∧
+      energy W Q ≥ energy W P + ε ^ 4 / 4 := by
+  -- The proof constructs Q by finding a good cut of S (or T):
+  -- 1. If ∫_{S×T} (W - avg)² ≥ ε² μ(S) μ(T), then W varies significantly on S × T
+  -- 2. By Markov/Chebyshev, there exists a measurable cut S = S₁ ∪ S₂ such that
+  --    |rectAverage W S₁ T - rectAverage W S T| ≥ ε/2 or similar
+  -- 3. Replacing S with S₁, S₂ in P gives Q
+  -- 4. The energy increase comes from: new terms have (avg on smaller set)²
+  --    which by convexity arguments increases the sum
+  sorry
+
 end Energy
 
 /-! ### Regularity lemma -/
@@ -116,29 +182,33 @@ section Regularity
 variable [IsProbabilityMeasure μ]
 
 /-- The regularity function: given ε, returns an upper bound on the number of parts
-    needed in a partition to achieve ε-approximation in cut norm.
+    needed in a partition to achieve ε-approximation.
 
-This is the tower function that arises in the regularity lemma. -/
+For Frieze-Kannan regularity, the bound is polynomial in 1/ε (roughly 1/ε⁸).
+This is much better than the tower bound in Szemerédi's lemma. -/
 noncomputable def regularityBound (ε : ℝ) : ℕ :=
-  -- The actual bound is a tower of 2s of height depending on 1/ε
-  -- For formalization purposes, we use a non-constructive definition
-  if ε ≤ 0 then 0 else Nat.ceil (1 / ε)
+  if ε ≤ 0 then 0 else Nat.ceil (1 / ε ^ 8)
 
-/-- The regularity lemma: any graphon can be approximated by a step graphon.
+/-- The Frieze-Kannan weak regularity lemma.
 
 For any ε > 0 and any graphon W, there exists a measurable partition P with
-at most `regularityBound ε` parts such that the cut norm difference between
-W and the stepified version is at most ε.
+at most O(1/ε⁸) parts such that W has small defect on P.
 
-This is the graphon analogue of Szemerédi's regularity lemma. -/
+This implies that W is ε-close to the step graphon stepify P W in cut norm.
+
+**Proof outline** (Frieze-Kannan [1999]):
+1. Start with trivial partition P₀ = {α}
+2. While there exists a "bad" rectangle (defect ≥ ε² per unit area):
+   - Apply energy_increment to get P_{i+1}
+   - This increases energy by ≥ ε⁴/C
+3. Since energy ≤ 1, we get at most C/ε⁴ iterations
+4. Each iteration at most doubles parts, so final count ≤ 2^{C/ε⁴}
+5. More careful analysis gives polynomial bound ~1/ε⁸ -/
 theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ P : MeasurablePartition α μ,
-      P.parts.card ≤ regularityBound ε := by
-  -- The proof uses an energy increment argument:
-  -- 1. Start with the trivial partition
-  -- 2. If cut norm error > ε, find a "regular" refinement
-  -- 3. The "energy" (L² norm of stepified graphon) increases by ≥ ε²
-  -- 4. Energy is bounded by 1, so this can happen at most 1/ε² times
+      P.parts.card ≤ regularityBound ε ∧
+      defect W P ≤ ε ^ 2 := by
+  -- The proof iterates energy_increment until defect is small
   sorry
 
 end Regularity
