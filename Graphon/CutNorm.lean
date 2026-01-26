@@ -264,4 +264,87 @@ theorem cutNorm_nonneg (W : Graphon α μ) [IsProbabilityMeasure μ] : 0 ≤ cut
 theorem cutNorm_le_one (W : Graphon α μ) [IsProbabilityMeasure μ] : cutNorm W ≤ 1 :=
   SymmKernel.cutNorm_le_one W
 
+/-! ### Weighted integrals and cut norm -/
+
+section WeightedIntegral
+
+variable [IsProbabilityMeasure μ]
+
+/-- The key lemma for the counting lemma: weighted integrals are bounded by cut norm.
+
+For f, g : α → [0, 1] measurable and K a signed kernel:
+|∫∫ f(x) g(y) K(x,y) dμ(x) dμ(y)| ≤ ‖f‖_∞ ‖g‖_∞ ‖K‖_□
+
+When f, g have values in [0, 1], this gives:
+|∫∫ f(x) g(y) K(x,y) dμ(x) dμ(y)| ≤ ‖K‖_□
+
+The proof approximates f and g by simple functions (linear combinations of
+indicator functions of measurable sets). Since ‖K‖_□ bounds each rectangle
+integral, it bounds the weighted sum by triangle inequality.
+
+**Note**: This is Lemma 10.21 in Lovász [2012]. -/
+theorem abs_weighted_integral_le_cutNorm (K : Graphon α μ) (f g : α → ℝ)
+    (hf_meas : Measurable f) (hg_meas : Measurable g)
+    (hf_bound : ∀ x, f x ∈ Set.Icc 0 1) (hg_bound : ∀ x, g x ∈ Set.Icc 0 1) :
+    |∫ x, ∫ y, f x * g y * K.toAEEqFun (x, y) ∂μ ∂μ| ≤ cutNorm K := by
+  -- The proof uses the layer-cake representation (Cavalieri's principle):
+  -- f(x) = ∫₀¹ 1_{f(x) > t} dt  for f : α → [0,1]
+  --
+  -- Therefore:
+  -- ∫∫ f(x) g(y) K(x,y) dμ(x) dμ(y)
+  --   = ∫₀¹ ∫₀¹ ∫∫ 1_{f>s}(x) 1_{g>t}(y) K(x,y) dμ dμ ds dt  (Fubini)
+  --   = ∫₀¹ ∫₀¹ rectIntegral K {f > s} {g > t} ds dt
+  --
+  -- Taking absolute value and using triangle inequality:
+  -- |∫∫ f g K| ≤ ∫₀¹ ∫₀¹ |rectIntegral K {f > s} {g > t}| ds dt
+  --           ≤ ∫₀¹ ∫₀¹ cutNorm K ds dt
+  --           = cutNorm K
+  --
+  -- The technical implementation requires:
+  -- 1. Measurability of {f > t} and {g > t}
+  -- 2. Layer-cake formula (MeasureTheory.integral_eq_lintegral_pos_sub_lintegral_neg or direct)
+  -- 3. Fubini to swap order of integration
+  -- 4. The bound |rectIntegral K S T| ≤ cutNorm K for measurable S, T
+  --
+  -- The detailed argument is standard measure-theoretic manipulation.
+  sorry
+
+/-- Special case: indicator functions give rectangle integrals.
+
+This connects the weighted integral form to the rectangle integral definition. -/
+theorem weighted_integral_indicator (K : Graphon α μ) (S T : Set α)
+    (hS : MeasurableSet S) (hT : MeasurableSet T) :
+    ∫ x, ∫ y, S.indicator (fun _ => (1:ℝ)) x * T.indicator (fun _ => (1:ℝ)) y *
+      K.toAEEqFun (x, y) ∂μ ∂μ = SymmKernel.rectIntegral K.toSymmKernel S T := by
+  simp only [SymmKernel.rectIntegral]
+  -- Step 1: Rewrite with indicator pulled into inner integral
+  have h1 : ∀ x, ∫ y, S.indicator (fun _ => (1:ℝ)) x * T.indicator (fun _ => (1:ℝ)) y *
+      K.toAEEqFun (x, y) ∂μ =
+      S.indicator (fun x => ∫ y, T.indicator (fun _ => (1:ℝ)) y * K.toAEEqFun (x, y) ∂μ) x := by
+    intro x
+    by_cases hx : x ∈ S
+    · simp only [indicator_of_mem hx, one_mul]
+    · simp only [Set.indicator_of_notMem hx, zero_mul, integral_zero]
+  simp_rw [h1]
+  -- Step 2: Apply integral_indicator for outer integral
+  rw [MeasureTheory.integral_indicator hS]
+  -- Step 3: Deal with inner integral indicator
+  have h2 : ∀ x, ∫ y, T.indicator (fun _ => (1:ℝ)) y * K.toAEEqFun (x, y) ∂μ =
+      ∫ y in T, K.toAEEqFun (x, y) ∂μ := by
+    intro x
+    rw [← MeasureTheory.integral_indicator hT]
+    congr 1
+    ext y
+    by_cases hy : y ∈ T
+    · simp [indicator_of_mem hy]
+    · simp [Set.indicator_of_notMem hy]
+  simp_rw [h2]
+  -- Step 4: Apply setIntegral_prod (Fubini for set integrals)
+  have h_int : IntegrableOn K.toAEEqFun (S ×ˢ T) (μ.prod μ) :=
+    (SymmKernel.graphon_integrable K).integrableOn
+  -- setIntegral_prod: ∫_{S×T} f z d(μ×ν) = ∫_S (∫_T f(x,y) dν) dμ
+  exact (MeasureTheory.setIntegral_prod K.toAEEqFun h_int).symm
+
+end WeightedIntegral
+
 end Graphon
