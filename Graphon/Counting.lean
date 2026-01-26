@@ -53,11 +53,30 @@ This is the key result showing that cut norm controls homomorphism densities. -/
 theorem homDensity_sub_le (F : SimpleGraph V) [DecidableRel F.Adj]
     (U W : Graphon α μ) :
     |homDensity F U - homDensity F W| ≤ F.edgeFinset.card * cutNormDiff U W := by
-  -- Proof outline:
-  -- 1. Write the difference of integrands as a telescoping sum
-  -- 2. Each term differs in one edge factor
-  -- 3. Use that |∫(U-W)| ≤ ‖U-W‖_□ for appropriate rectangles
-  -- 4. Sum over edges gives the bound
+  -- Proof outline (Lovász, Theorem 10.23):
+  --
+  -- Let E = {e₁, ..., eₘ} be the edges of F. For an assignment x : V → α:
+  -- - Uᵢ(x) = U(x(eᵢ.1), x(eᵢ.2))
+  -- - Wᵢ(x) = W(x(eᵢ.1), x(eᵢ.2))
+  --
+  -- Step 1: Telescoping identity
+  --   ∏ᵢ Uᵢ - ∏ᵢ Wᵢ = Σⱼ (∏ᵢ<ⱼ Uᵢ) · (Uⱼ - Wⱼ) · (∏ᵢ>ⱼ Wᵢ)
+  --
+  -- Step 2: Each term in the sum satisfies
+  --   |∫ (∏ᵢ<ⱼ Uᵢ) · (Uⱼ - Wⱼ) · (∏ᵢ>ⱼ Wᵢ) dμ^V|
+  --   ≤ ‖U - W‖_□  (by cut norm definition)
+  --
+  --   The key is that the prefix (∏ᵢ<ⱼ Uᵢ) and suffix (∏ᵢ>ⱼ Wᵢ) are
+  --   measurable functions in [0,1], so integrating (Uⱼ - Wⱼ) against them
+  --   gives a bound by the cut norm (via conditioning on the other variables).
+  --
+  -- Step 3: Triangle inequality
+  --   |∫ (∏ U - ∏ W)| ≤ Σⱼ |∫ term_j| ≤ m · ‖U - W‖_□
+  --
+  -- Implementation requires:
+  -- - Finset.list_eq_of_card for ordering edges
+  -- - Telescoping product lemma for finite products
+  -- - Conditional expectation bounds using cut norm
   sorry
 
 /-- Corollary: graphs with small cut distance have similar homomorphism densities.
