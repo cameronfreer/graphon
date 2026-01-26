@@ -121,10 +121,26 @@ theorem homDensity_sub_le (F : SimpleGraph V) [DecidableRel F.Adj]
   -- Step 3: Triangle inequality
   --   |∫ (∏ U - ∏ W)| ≤ Σⱼ |∫ term_j| ≤ m · ‖U - W‖_□
   --
-  -- Implementation requires:
-  -- - Finset.list_eq_of_card for ordering edges
-  -- - Telescoping product lemma for finite products
-  -- - Conditional expectation bounds using cut norm
+  -- Implementation note:
+  --
+  -- The helper `abs_prod_sub_prod_le` gives the pointwise bound:
+  --   |∏_e U(e,x) - ∏_e W(e,x)| ≤ Σ_e |U(e,x) - W(e,x)|
+  --
+  -- However, integrating this gives an L¹ bound:
+  --   |∫ (∏ U - ∏ W)| ≤ ∫ Σ_e |U(e) - W(e)| = Σ_e ∫ |U(e) - W(e)|
+  --
+  -- This does NOT directly give the cut norm bound because:
+  --   ∫ |U - W| ≥ cutNormDiff U W  (L¹ dominates cut norm)
+  --
+  -- The full proof requires conditioning: for each edge e, condition on
+  -- all other vertex assignments, then use that the conditioned integral
+  -- ∫∫ f(v₁,v₂) (U - W)(v₁,v₂) dμ(v₁) dμ(v₂) is bounded by cutNormDiff U W
+  -- when f ∈ [0,1] is measurable (this is the key lemma from Lovász).
+  --
+  -- The full implementation would require:
+  -- - Conditional expectation machinery
+  -- - The lemma: ∫∫ f(s,t) (U-W)(s,t) dμ(s) dμ(t) ≤ ‖U-W‖_□ for f ∈ [0,1]
+  -- - Ordering edges and applying this iteratively
   sorry
 
 /-- Corollary: graphs with small cut distance have similar homomorphism densities.
