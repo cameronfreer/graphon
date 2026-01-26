@@ -156,6 +156,45 @@ section HomDensity
 variable [IsProbabilityMeasure μ]
 variable {V : Type*} [Fintype V] [DecidableEq V]
 
+/-- The pointwise product evaluates to the product of evaluations, a.e. on the pi measure. -/
+theorem pointwiseMul_eval_ae (W₁ W₂ : Graphon α μ) {v₁ v₂ : V} (hne : v₁ ≠ v₂) :
+    ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
+      (pointwiseMul W₁ W₂).toAEEqFun (x v₁, x v₂) =
+        W₁.toAEEqFun (x v₁, x v₂) * W₂.toAEEqFun (x v₁, x v₂) := by
+  -- Lift AEEqFun.coeFn_mul through the coordinate projection
+  have h_meas : Measurable (fun x : V → α => (x v₁, x v₂)) :=
+    Measurable.prodMk (measurable_pi_apply _) (measurable_pi_apply _)
+  have h_indep : ProbabilityTheory.iIndepFun (fun i (x : V → α) => x i)
+      (Measure.pi (fun _ : V => μ)) := ProbabilityTheory.iIndepFun_pi (fun _ => aemeasurable_id)
+  have h_indep_pair := h_indep.indepFun hne
+  have h_map : Measure.map (fun x => (x v₁, x v₂)) (Measure.pi (fun _ : V => μ)) =
+      (Measure.map (fun x => x v₁) (Measure.pi (fun _ : V => μ))).prod
+      (Measure.map (fun x => x v₂) (Measure.pi (fun _ : V => μ))) := by
+    rw [ProbabilityTheory.indepFun_iff_map_prod_eq_prod_map_map
+      (measurable_pi_apply _).aemeasurable (measurable_pi_apply _).aemeasurable] at h_indep_pair
+    exact h_indep_pair
+  have h_marg₁ : Measure.map (fun x => x v₁) (Measure.pi (fun _ : V => μ)) = μ :=
+    (MeasureTheory.measurePreserving_eval (fun _ : V => μ) v₁).map_eq
+  have h_marg₂ : Measure.map (fun x => x v₂) (Measure.pi (fun _ : V => μ)) = μ :=
+    (MeasureTheory.measurePreserving_eval (fun _ : V => μ) v₂).map_eq
+  have h_map_eq : Measure.map (fun x => (x v₁, x v₂)) (Measure.pi (fun _ : V => μ)) =
+      μ.prod μ := by rw [h_map, h_marg₁, h_marg₂]
+  have h_qmp : Measure.QuasiMeasurePreserving (fun x : V → α => (x v₁, x v₂))
+      (Measure.pi (fun _ : V => μ)) (μ.prod μ) := by
+    constructor
+    · exact h_meas
+    · rw [h_map_eq]
+  -- AEEqFun.coeFn_mul gives the a.e. equality on μ.prod μ
+  have h_mul := AEEqFun.coeFn_mul W₁.toAEEqFun W₂.toAEEqFun
+  -- Convert to the form we need: (pointwiseMul W₁ W₂).toAEEqFun p = W₁ p * W₂ p
+  have h_ae : ∀ᵐ p ∂(μ.prod μ),
+      (pointwiseMul W₁ W₂).toAEEqFun p = W₁.toAEEqFun p * W₂.toAEEqFun p := by
+    filter_upwards [h_mul] with p hp
+    simp only [Pi.mul_apply, pointwiseMul] at hp ⊢
+    exact hp
+  -- Lift to pi measure
+  exact h_qmp.ae h_ae
+
 /-- Homomorphism density of the pointwise product is bounded by the minimum of the
     individual densities.
 
@@ -164,18 +203,88 @@ variable {V : Type*} [Fintype V] [DecidableEq V]
 theorem homDensity_pointwiseMul_le (F : SimpleGraph V) [DecidableRel F.Adj]
     (W₁ W₂ : Graphon α μ) :
     homDensity F (pointwiseMul W₁ W₂) ≤ min (homDensity F W₁) (homDensity F W₂) := by
-  -- Proof sketch:
-  -- 1. Use le_min_iff to split into two inequalities
-  -- 2. For homDensity F (W₁ * W₂) ≤ homDensity F W₁:
-  --    a. Since W₂ ∈ [0,1] a.e., we have (W₁ * W₂)(e) ≤ W₁(e) * 1 = W₁(e) a.e.
-  --    b. Use graphonEval_mem_Icc_ae to get a.e. bounds for all edges
-  --    c. Apply Finset.prod_le_prod with the a.e. bounds
-  --    d. Use integral_mono_ae
-  -- 3. Similarly for the W₂ bound
-  -- Key lemmas: graphonEval_mem_Icc_ae, Finset.prod_le_prod, integral_mono_ae
-  -- Requires: AEEqFun.coeFn_mul to connect (W₁.toAEEqFun * W₂.toAEEqFun) p
-  --           to W₁.toAEEqFun p * W₂.toAEEqFun p
-  sorry
+  rw [le_min_iff]
+  -- Get a.e. bounds for all edges
+  have h_edges₁ : ∀ e ∈ F.edgeFinset,
+      ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
+        W₁.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
+    fun e he => graphonEval_mem_Icc_ae W₁ (edge_out_ne (SimpleGraph.mem_edgeFinset.mp he))
+  have h_edges₂ : ∀ e ∈ F.edgeFinset,
+      ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
+        W₂.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
+    fun e he => graphonEval_mem_Icc_ae W₂ (edge_out_ne (SimpleGraph.mem_edgeFinset.mp he))
+  -- Get a.e. equality for pointwiseMul evaluation
+  have h_mul_edges : ∀ e ∈ F.edgeFinset,
+      ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
+        (pointwiseMul W₁ W₂).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) =
+          W₁.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) *
+          W₂.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) :=
+    fun e he => pointwiseMul_eval_ae W₁ W₂ (edge_out_ne (SimpleGraph.mem_edgeFinset.mp he))
+  -- Combine all a.e. properties
+  have h_all : ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
+      (∀ e ∈ F.edgeFinset, W₁.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1) ∧
+      (∀ e ∈ F.edgeFinset, W₂.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1) ∧
+      (∀ e ∈ F.edgeFinset, (pointwiseMul W₁ W₂).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) =
+          W₁.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) *
+          W₂.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) := by
+    have aux : ∀ (s : Finset (Sym2 V)) (P : (V → α) → Sym2 V → Prop),
+        (∀ e ∈ s, ∀ᵐ x ∂Measure.pi (fun _ : V => μ), P x e) →
+        ∀ᵐ x ∂Measure.pi (fun _ : V => μ), ∀ e ∈ s, P x e := by
+      intro s P
+      refine Finset.induction_on s ?empty ?insert
+      case empty => simp
+      case insert =>
+        intro a s' _ ih hs
+        simp only [Finset.mem_insert, forall_eq_or_imp] at hs ⊢
+        filter_upwards [hs.1, ih hs.2] with x hx1 hx2
+        exact ⟨hx1, hx2⟩
+    filter_upwards [aux F.edgeFinset _ h_edges₁, aux F.edgeFinset _ h_edges₂,
+        aux F.edgeFinset _ h_mul_edges] with x hx₁ hx₂ hx_mul
+    exact ⟨hx₁, hx₂, hx_mul⟩
+  constructor
+  · -- homDensity F (W₁ * W₂) ≤ homDensity F W₁
+    rw [homDensity_eq_integral, homDensity_eq_integral]
+    apply integral_mono_ae (homDensityIntegrand_integrable F (pointwiseMul W₁ W₂))
+      (homDensityIntegrand_integrable F W₁)
+    filter_upwards [h_all] with x ⟨hx₁, hx₂, hx_mul⟩
+    simp only [homDensityIntegrand]
+    -- Rewrite the pointwiseMul product using hx_mul
+    have h_prod_eq : ∏ e ∈ F.edgeFinset,
+        (pointwiseMul W₁ W₂).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) =
+        ∏ e ∈ F.edgeFinset, W₁.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) *
+          W₂.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) :=
+      Finset.prod_congr rfl fun e he => hx_mul e he
+    rw [h_prod_eq]
+    apply Finset.prod_le_prod
+    · intro e he
+      exact mul_nonneg (hx₁ e he).1 (hx₂ e he).1
+    · intro e he
+      calc W₁.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) *
+             W₂.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)
+          ≤ W₁.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) * 1 := by
+            apply mul_le_mul_of_nonneg_left (hx₂ e he).2 (hx₁ e he).1
+        _ = W₁.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) := mul_one _
+  · -- homDensity F (W₁ * W₂) ≤ homDensity F W₂
+    rw [homDensity_eq_integral, homDensity_eq_integral]
+    apply integral_mono_ae (homDensityIntegrand_integrable F (pointwiseMul W₁ W₂))
+      (homDensityIntegrand_integrable F W₂)
+    filter_upwards [h_all] with x ⟨hx₁, hx₂, hx_mul⟩
+    simp only [homDensityIntegrand]
+    have h_prod_eq : ∏ e ∈ F.edgeFinset,
+        (pointwiseMul W₁ W₂).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) =
+        ∏ e ∈ F.edgeFinset, W₁.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) *
+          W₂.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) :=
+      Finset.prod_congr rfl fun e he => hx_mul e he
+    rw [h_prod_eq]
+    apply Finset.prod_le_prod
+    · intro e he
+      exact mul_nonneg (hx₁ e he).1 (hx₂ e he).1
+    · intro e he
+      calc W₁.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) *
+             W₂.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)
+          ≤ 1 * W₂.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) := by
+            apply mul_le_mul_of_nonneg_right (hx₁ e he).2 (hx₂ e he).1
+        _ = W₂.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) := one_mul _
 
 end HomDensity
 
