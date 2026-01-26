@@ -340,6 +340,44 @@ theorem homDensity_pullback (F : SimpleGraph V) [DecidableRel F.Adj]
     _ = ∫ y, ∏ e ∈ F.edgeFinset, W.toAEEqFun (y (Quot.out e).1, y (Quot.out e).2)
         ∂Measure.pi (fun _ => ν) := by rfl
 
+/-- General version: Homomorphism density is invariant under pullback for any
+    measure-preserving map (not just equivalences).
+
+For any graph `F`, graphon `W`, and measure-preserving map `φ : α → β`:
+`t(F, W^φ) = t(F, W)`
+
+This uses `integral_map` instead of `integral_comp'`, so it doesn't require
+`φ` to be a bijection. -/
+theorem homDensity_pullback_mp (F : SimpleGraph V) [DecidableRel F.Adj]
+    (W : Graphon β ν) (φ : α → β) (hφ : MeasurePreserving φ μ ν) :
+    homDensity F (pullback W φ hφ) = homDensity F W := by
+  unfold homDensity
+  -- piMap φ is measure-preserving
+  have h_mp' : MeasurePreserving (piMap φ : (V → α) → V → β)
+      (Measure.pi (fun _ : V => μ)) (Measure.pi (fun _ : V => ν)) :=
+    measurePreserving_piMap hφ
+  -- The integrand is aemeasurable
+  have h_aem : AEMeasurable (homDensityIntegrand F W) (Measure.pi (fun _ => ν)) :=
+    homDensityIntegrand_aemeasurable F W
+  -- AEMeasurable implies AEStronglyMeasurable for ℝ (second countable)
+  have h_aesm : AEStronglyMeasurable (homDensityIntegrand F W)
+      (Measure.map (piMap φ) (Measure.pi (fun _ => μ))) := by
+    rw [h_mp'.map_eq]
+    exact h_aem.aestronglyMeasurable
+  -- The key step: change of variables using integral_map
+  calc ∫ x, ∏ e ∈ F.edgeFinset, (pullback W φ hφ).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)
+        ∂Measure.pi (fun _ => μ)
+      = ∫ x, homDensityIntegrand F (pullback W φ hφ) x ∂Measure.pi (fun _ => μ) := by rfl
+    _ = ∫ x, homDensityIntegrand F W (piMap (V := V) φ x) ∂Measure.pi (fun _ => μ) := by
+        apply integral_congr_ae
+        exact homDensityIntegrand_pullback_ae F W φ hφ
+    _ = ∫ y, homDensityIntegrand F W y ∂(Measure.map (piMap φ) (Measure.pi (fun _ => μ))) := by
+        rw [integral_map (measurable_piMap hφ.measurable).aemeasurable h_aesm]
+    _ = ∫ y, homDensityIntegrand F W y ∂Measure.pi (fun _ => ν) := by
+        rw [h_mp'.map_eq]
+    _ = ∫ y, ∏ e ∈ F.edgeFinset, W.toAEEqFun (y (Quot.out e).1, y (Quot.out e).2)
+        ∂Measure.pi (fun _ => ν) := by rfl
+
 /-- Weakly isomorphic graphons have the same homomorphism densities. -/
 theorem homDensity_weakIso (F : SimpleGraph V) [DecidableRel F.Adj]
     {U : Graphon α μ} {W : Graphon β ν}

@@ -60,13 +60,25 @@ theorem homDensity_sub_le (F : SimpleGraph V) [DecidableRel F.Adj]
   -- 4. Sum over edges gives the bound
   sorry
 
-/-- Corollary: graphs with small cut distance have similar homomorphism densities. -/
+/-- Corollary: graphs with small cut distance have similar homomorphism densities.
+
+The proof uses that homDensity is preserved under pullbacks (homDensity_pullback_mp):
+- For any φ, ψ measure-preserving: homDensity F (pullback U φ) = homDensity F U
+- So |homDensity F U - homDensity F W| = |homDensity F (pullback U φ) - homDensity F (pullback W ψ)|
+- By homDensity_sub_le: ≤ |E(F)| * cutNormDiff (pullback U φ) (pullback W ψ)
+- Taking inf over φ, ψ gives the bound by cutDistance -/
 theorem homDensity_sub_le_of_cutDistance (F : SimpleGraph V) [DecidableRel F.Adj]
     (U W : Graphon α μ) :
     |homDensity F U - homDensity F W| ≤ F.edgeFinset.card * cutDistance U W := by
-  -- We need cutDistance ≤ cutNormDiff, but that's backwards
-  -- Actually the statement should use cutNormDiff, not cutDistance
-  -- Or we need to prove this for any reparametrization and take inf
+  -- The LHS is constant for any reparametrizations of U and W
+  -- by homDensity_pullback_mp: homDensity F (pullback U φ hφ) = homDensity F U
+  -- For any φ, ψ measure-preserving, we have:
+  --   |homDensity F U - homDensity F W|
+  --   = |homDensity F (pullback U φ hφ) - homDensity F (pullback W ψ hψ)|
+  --   ≤ |E(F)| * cutNormDiff (pullback U φ hφ) (pullback W ψ hψ)  [by homDensity_sub_le]
+  -- Taking infimum over all (φ, ψ):
+  --   ≤ |E(F)| * cutDistance U W
+  -- This requires homDensity_sub_le to be completed first.
   sorry
 
 /-- If cut distance is zero, homomorphism densities are equal.
