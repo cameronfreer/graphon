@@ -72,14 +72,54 @@ theorem homDensity_sub_le_of_cutDistance (F : SimpleGraph V) [DecidableRel F.Adj
     |homDensity F U - homDensity F W| ≤ F.edgeFinset.card * cutDistance U W := by
   -- The LHS is constant for any reparametrizations of U and W
   -- by homDensity_pullback_mp: homDensity F (pullback U φ hφ) = homDensity F U
-  -- For any φ, ψ measure-preserving, we have:
-  --   |homDensity F U - homDensity F W|
-  --   = |homDensity F (pullback U φ hφ) - homDensity F (pullback W ψ hψ)|
-  --   ≤ |E(F)| * cutNormDiff (pullback U φ hφ) (pullback W ψ hψ)  [by homDensity_sub_le]
-  -- Taking infimum over all (φ, ψ):
-  --   ≤ |E(F)| * cutDistance U W
-  -- This requires homDensity_sub_le to be completed first.
-  sorry
+  unfold cutDistance
+  -- For each d in the infimum set, we have LHS ≤ |E(F)| * d
+  -- Therefore LHS ≤ |E(F)| * sInf {...}
+  have h_bdd : BddBelow {d : ℝ | ∃ (φ ψ : α → α) (hφ : MeasurePreserving φ μ μ)
+      (hψ : MeasurePreserving ψ μ μ), d = cutNormDiff (pullback U φ hφ) (pullback W ψ hψ)} := by
+    use 0
+    intro d ⟨φ, ψ, hφ, hψ, hd⟩
+    rw [hd]
+    exact cutNormDiff_nonneg (pullback U φ hφ) (pullback W ψ hψ)
+  have h_nonempty : {d : ℝ | ∃ (φ ψ : α → α) (hφ : MeasurePreserving φ μ μ)
+      (hψ : MeasurePreserving ψ μ μ), d = cutNormDiff (pullback U φ hφ) (pullback W ψ hψ)}.Nonempty :=
+    cutDistance_set_nonempty U W
+  -- LHS ≤ |E(F)| * d for all d in the set
+  have h_forall : ∀ d ∈ {d : ℝ | ∃ (φ ψ : α → α) (hφ : MeasurePreserving φ μ μ)
+      (hψ : MeasurePreserving ψ μ μ), d = cutNormDiff (pullback U φ hφ) (pullback W ψ hψ)},
+      |homDensity F U - homDensity F W| ≤ F.edgeFinset.card * d := by
+    intro d ⟨φ, ψ, hφ, hψ, hd⟩
+    -- By homDensity_pullback_mp, homDensity is preserved under pullback
+    rw [← homDensity_pullback_mp F U φ hφ, ← homDensity_pullback_mp F W ψ hψ, hd]
+    -- Now apply homDensity_sub_le
+    exact homDensity_sub_le F (pullback U φ hφ) (pullback W ψ hψ)
+  -- Conclude: LHS ≤ |E(F)| * d for all d implies LHS ≤ |E(F)| * sInf
+  by_cases hcard : F.edgeFinset.card = 0
+  · -- If no edges, LHS = 0 and RHS = 0 * cutDistance = 0
+    -- First show homDensity F U = homDensity F W = 1 for empty graphs
+    have h_empty : F.edgeFinset = ∅ := Finset.card_eq_zero.mp hcard
+    have h_hom_eq : homDensity F U = homDensity F W := by
+      simp only [homDensity_eq_integral, homDensityIntegrand, h_empty, Finset.prod_empty]
+    rw [h_hom_eq, sub_self, abs_zero, hcard, Nat.cast_zero, zero_mul]
+  · -- Non-empty graph: use csInf property
+    have hcard_pos : (0 : ℝ) < F.edgeFinset.card := Nat.cast_pos.mpr (Nat.pos_of_ne_zero hcard)
+    -- LHS / |E(F)| ≤ d for all d ∈ S, so LHS / |E(F)| ≤ sInf S
+    have h_div : |homDensity F U - homDensity F W| / F.edgeFinset.card ≤ sInf
+        {d : ℝ | ∃ (φ ψ : α → α) (hφ : MeasurePreserving φ μ μ)
+         (hψ : MeasurePreserving ψ μ μ), d = cutNormDiff (pullback U φ hφ) (pullback W ψ hψ)} := by
+      apply le_csInf h_nonempty
+      intro d hd
+      have hle := h_forall d hd
+      rw [div_le_iff₀ hcard_pos]
+      calc |homDensity F U - homDensity F W|
+          ≤ F.edgeFinset.card * d := hle
+        _ = d * F.edgeFinset.card := mul_comm _ _
+    rw [div_le_iff₀ hcard_pos] at h_div
+    calc |homDensity F U - homDensity F W|
+        ≤ sInf {d : ℝ | ∃ (φ ψ : α → α) (hφ : MeasurePreserving φ μ μ)
+            (hψ : MeasurePreserving ψ μ μ), d = cutNormDiff (pullback U φ hφ) (pullback W ψ hψ)} *
+            F.edgeFinset.card := h_div
+      _ = F.edgeFinset.card * sInf _ := mul_comm _ _
 
 /-- If cut distance is zero, homomorphism densities are equal.
 
