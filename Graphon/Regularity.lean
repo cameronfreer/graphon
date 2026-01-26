@@ -208,13 +208,51 @@ theorem variance_decomposition_rect (W : Graphon α μ) (S T : Set α)
   -- Key expansion: (W - c)² = W² - 2cW + c²
   have h_expand : ∀ p, (W.toAEEqFun p - c) ^ 2 = (W.toAEEqFun p) ^ 2 - 2 * c * W.toAEEqFun p + c ^ 2 := by
     intro p; ring
-  -- The proof rearranges the variance identity:
-  -- ∫ (W - c)² = ∫ W² - 2c ∫ W + c² · μ(S×T)
-  -- Therefore: ∫ W² = ∫ (W - c)² + 2c ∫ W - c² · μ(S×T)
-  -- Using ∫ W = c · μ(S×T): ∫ W² = ∫ (W - c)² + c² · μ(S×T)
-  --
-  -- The technical details involve integral linearity and can be completed later.
-  sorry
+  -- Step 1: Show ∫ (W - c)² = ∫ W² - 2c ∫ W + c² μ(S×T)
+  have h_diff_sq_expand : ∫ p in S ×ˢ T, (W.toAEEqFun p - c) ^ 2 ∂(μ.prod μ) =
+      ∫ p in S ×ˢ T, (W.toAEEqFun p) ^ 2 ∂(μ.prod μ) -
+      2 * c * ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ) +
+      c ^ 2 * ((μ.prod μ) (S ×ˢ T)).toReal := by
+    -- Rewrite using the expansion
+    have h1 : ∫ p in S ×ˢ T, (W.toAEEqFun p - c) ^ 2 ∂(μ.prod μ) =
+        ∫ p in S ×ˢ T, ((W.toAEEqFun p) ^ 2 - 2 * c * W.toAEEqFun p + c ^ 2) ∂(μ.prod μ) := by
+      congr 1; funext p; exact h_expand p
+    rw [h1]
+    -- Split the integral: ∫(a + b) = ∫a + ∫b
+    have h_step1 : ∫ p in S ×ˢ T, (W.toAEEqFun p ^ 2 - 2 * c * W.toAEEqFun p + c ^ 2) ∂(μ.prod μ) =
+        ∫ p in S ×ˢ T, (W.toAEEqFun p ^ 2 - 2 * c * W.toAEEqFun p) ∂(μ.prod μ) +
+        ∫ _ in S ×ˢ T, c ^ 2 ∂(μ.prod μ) := by
+      have h_eq : (fun p => W.toAEEqFun p ^ 2 - 2 * c * W.toAEEqFun p + c ^ 2) =
+          (fun p => W.toAEEqFun p ^ 2 - 2 * c * W.toAEEqFun p) + (fun _ => c ^ 2) := by
+        ext p; simp only [Pi.add_apply]
+      rw [h_eq]
+      exact integral_add (h_int_W_sq.sub h_int_cW) h_int_const
+    rw [h_step1]
+    -- Split the first integral: ∫(a - b) = ∫a - ∫b
+    have h_step2 : ∫ p in S ×ˢ T, (W.toAEEqFun p ^ 2 - 2 * c * W.toAEEqFun p) ∂(μ.prod μ) =
+        ∫ p in S ×ˢ T, W.toAEEqFun p ^ 2 ∂(μ.prod μ) -
+        ∫ p in S ×ˢ T, (2 * c * W.toAEEqFun p) ∂(μ.prod μ) := by
+      have : (fun p => W.toAEEqFun p ^ 2 - 2 * c * W.toAEEqFun p) =
+          (fun p => W.toAEEqFun p ^ 2) - (fun p => 2 * c * W.toAEEqFun p) := by
+        funext p; simp only [Pi.sub_apply]
+      rw [this]
+      exact integral_sub h_int_W_sq h_int_cW
+    rw [h_step2]
+    -- Factor out constant: ∫(c * f) = c * ∫f
+    rw [integral_const_mul]
+    -- Evaluate constant integral: ∫c = c * μ(S×T)
+    rw [setIntegral_const, smul_eq_mul]
+    simp only [Measure.real]
+    ring
+  -- Step 2: Use h_int_eq and h_diff_sq_expand to derive the goal
+  -- From h_diff_sq_expand and h_int_eq, we get:
+  -- ∫ (W - c)² = ∫ W² - 2c * (c * μ(S)μ(T)) + c² μ(S×T)
+  --            = ∫ W² - 2c² μ(S)μ(T) + c² μ(S)μ(T)
+  --            = ∫ W² - c² μ(S)μ(T)
+  -- Rearranging: ∫ W² = ∫ (W - c)² + c² μ(S)μ(T)
+  rw [h_measure_rect] at h_diff_sq_expand
+  rw [h_int_eq] at h_diff_sq_expand
+  linarith
 
 /-- Key identity: L² norm = energy + defect.
 
