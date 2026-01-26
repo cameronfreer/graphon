@@ -73,8 +73,27 @@ theorem converges_iff_homDensity (W : ℕ → Graphon α μ) :
     use homDensity F V
     intro ε hε
     -- By counting lemma: |t(F, Wₙ) - t(F, V)| ≤ |E(F)| · δ□(Wₙ, V)
-    -- Choose N so δ□(Wₙ, V) < ε / |E(F)|
-    sorry
+    -- Choose N so δ□(Wₙ, V) < ε / max(1, |E(F)|)
+    by_cases hF : F.edgeFinset.card = 0
+    · -- Empty graph: homDensity is always 1, so trivially converges
+      -- When edgeFinset is empty, ∏ e ∈ ∅, f e = 1, so homDensity = ∫ 1 dμ^V = 1
+      use 0
+      intro n _
+      have h_empty : F.edgeFinset = ∅ := Finset.card_eq_zero.mp hF
+      simp only [homDensity_eq_integral, homDensityIntegrand, h_empty, Finset.prod_empty,
+          integral_const, smul_eq_mul, mul_one, Measure.pi_univ, measure_univ, ENNReal.toReal_one,
+          sub_self, abs_zero, hε]
+    · -- Non-empty graph: use counting lemma
+      have hcard_pos : (0 : ℝ) < F.edgeFinset.card := Nat.cast_pos.mpr (Nat.pos_of_ne_zero hF)
+      obtain ⟨N, hN⟩ := hV (ε / F.edgeFinset.card) (div_pos hε hcard_pos)
+      use N
+      intro n hn
+      -- |t(F, Wₙ) - t(F, V)| ≤ |E(F)| · δ□(Wₙ, V) < |E(F)| · (ε/|E(F)|) = ε
+      calc |homDensity F (W n) - homDensity F V|
+          ≤ F.edgeFinset.card * cutDistance (W n) V := homDensity_sub_le_of_cutDistance F (W n) V
+        _ < F.edgeFinset.card * (ε / F.edgeFinset.card) := by
+            apply mul_lt_mul_of_pos_left (hN n hn) hcard_pos
+        _ = ε := mul_div_cancel₀ ε (ne_of_gt hcard_pos)
   · -- Backward direction: inverse counting lemma + completeness
     intro hconv
     -- Use inverse counting to show sequence is Cauchy

@@ -382,16 +382,23 @@ theorem cutDistance_le_one (U W : Graphon α μ) : cutDistance U W ≤ 1 := by
 
 This is the key property making cut distance a pseudometric.
 
-**Hypothesis**: Requires `[StandardBorelSpace α]` for composition of
-measure-preserving maps to give optimal representatives. -/
+**Hypothesis**: Requires `[StandardBorelSpace α]` for the "common representation"
+trick where measure-preserving maps can be aligned via Rokhlin's theorem.
+
+**Proof sketch** (Lovász, Section 8.2):
+1. For any ε > 0, choose (φ₁, ψ₁) with cutNormDiff(U^φ₁, V^ψ₁) < δ□(U,V) + ε/2
+2. Choose (φ₂, ψ₂) with cutNormDiff(V^φ₂, W^ψ₂) < δ□(V,W) + ε/2
+3. On StandardBorel, by Rokhlin's theorem, there exists a measure-preserving χ
+   such that V^ψ₁ and V^φ₂ have a common representation V^χ up to a.e. equality
+4. By cutNormDiff_triangle:
+   cutNormDiff(U^φ₁', W^ψ₂') ≤ cutNormDiff(U^φ₁', V^χ) + cutNormDiff(V^χ, W^ψ₂')
+5. With appropriate compositions φ₁' = φ₁ and ψ₂' = ψ₂:
+   ≤ (δ□(U,V) + ε/2) + (δ□(V,W) + ε/2) = δ□(U,V) + δ□(V,W) + ε
+6. Taking inf over all (φ, ψ) and ε → 0 gives the result. -/
 theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
     cutDistance U W ≤ cutDistance U V + cutDistance V W := by
-  -- The proof uses:
-  -- For any ε > 0, find φ₁, ψ₁, φ₂, ψ₂ such that
-  --   cutNormDiff (pullback U φ₁) (pullback V ψ₁) < δ□(U,V) + ε
-  --   cutNormDiff (pullback V φ₂) (pullback W ψ₂) < δ□(V,W) + ε
-  -- Then use that the infimum over all (φ, ψ) includes (φ₁, ψ₂)
-  -- and cutNormDiff triangle inequality
+  -- Full proof requires formalizing the common representation trick,
+  -- which uses Rokhlin's theorem for measure-preserving maps on StandardBorel.
   sorry
 
 /-- Cut distance is symmetric.
