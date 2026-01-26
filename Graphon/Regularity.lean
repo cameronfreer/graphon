@@ -101,15 +101,8 @@ theorem energy_le_one (W : Graphon α μ) (P : MeasurablePartition α μ) :
           rw [Finset.sum_mul_sum]
     _ ≤ 1 * 1 := by
           apply mul_le_mul
-          · -- Sum of measures ≤ 1 (partition covers a.e.)
-            calc P.parts.sum (fun S => (μ S).toReal)
-                ≤ (μ univ).toReal := by
-                    -- This follows from the partition covering the space
-                    sorry
-              _ = 1 := by rw [measure_univ]; simp
-          · calc P.parts.sum (fun T => (μ T).toReal)
-                ≤ (μ univ).toReal := by sorry
-              _ = 1 := by rw [measure_univ]; simp
+          · exact MeasurablePartition.sum_measure_parts_le_one P
+          · exact MeasurablePartition.sum_measure_parts_le_one P
           · apply Finset.sum_nonneg; intro _ _; exact ENNReal.toReal_nonneg
           · norm_num
     _ = 1 := one_mul 1

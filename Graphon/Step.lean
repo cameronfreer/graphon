@@ -72,6 +72,28 @@ def card : ℕ := P.parts.card
 theorem measurableSet_part {S : Set α} (hS : S ∈ P.parts) : MeasurableSet S :=
   P.measurable_parts S hS
 
+/-- The sum of measures of partition parts is at most 1.
+
+Since parts are pairwise disjoint, Σ μ(S) = μ(⋃ S) ≤ μ(univ) = 1. -/
+theorem sum_measure_parts_le_one [IsProbabilityMeasure μ] :
+    P.parts.sum (fun S => (μ S).toReal) ≤ 1 := by
+  -- First show the sum equals the measure of the union
+  have h_disjoint : (P.parts : Set (Set α)).PairwiseDisjoint id := P.pairwiseDisjoint
+  have h_meas : ∀ S ∈ P.parts, MeasurableSet S := P.measurable_parts
+  -- The union of disjoint measurable sets has measure equal to the sum
+  calc P.parts.sum (fun S => (μ S).toReal)
+      = (μ (⋃ S ∈ P.parts, S)).toReal := by
+          -- measure_biUnion_finset for disjoint measurable sets
+          rw [measure_biUnion_finset]
+          · simp only [ENNReal.toReal_sum (fun _ _ => measure_ne_top μ _)]
+          · intro S hS T hT hST
+            exact h_disjoint hS hT hST
+          · exact fun S hS => h_meas S hS
+    _ ≤ (μ univ).toReal := by
+          apply ENNReal.toReal_mono (measure_ne_top μ univ)
+          exact measure_mono (subset_univ _)
+    _ = 1 := by rw [measure_univ]; simp
+
 end MeasurablePartition
 
 /-! ### Graphon from simple graph -/
