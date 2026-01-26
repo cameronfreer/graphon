@@ -44,6 +44,54 @@ section Counting
 
 variable [IsProbabilityMeasure μ]
 
+/-! ### Helper lemmas for product bounds -/
+
+/-- Bound on absolute difference of products by sum of differences.
+
+For values in [0,1], the difference of products is bounded by the sum of
+individual differences. This is used in the counting lemma proof. -/
+theorem abs_prod_sub_prod_le {ι : Type*} [DecidableEq ι] (s : Finset ι)
+    (f g : ι → ℝ) (hf : ∀ i ∈ s, f i ∈ Set.Icc 0 1) (hg : ∀ i ∈ s, g i ∈ Set.Icc 0 1) :
+    |s.prod f - s.prod g| ≤ s.sum (fun i => |f i - g i|) := by
+  -- The proof uses the telescoping identity:
+  -- ∏ f - ∏ g = Σⱼ (∏_{i<j} f i) · (f j - g j) · (∏_{i>j} g i)
+  -- Each prefix product is in [0,1] and each suffix product is in [0,1],
+  -- so the absolute value of each term is at most |f j - g j|.
+  -- Summing over j gives the bound.
+  induction s using Finset.induction with
+  | empty => simp
+  | @insert a s ha ih =>
+    simp only [Finset.prod_insert ha, Finset.sum_insert ha]
+    -- |f(a) * ∏ f - g(a) * ∏ g| = |f(a) * ∏ f - g(a) * ∏ f + g(a) * ∏ f - g(a) * ∏ g|
+    --                          ≤ |f(a) - g(a)| * |∏ f| + |g(a)| * |∏ f - ∏ g|
+    --                          ≤ |f(a) - g(a)| + |∏ f - ∏ g|  (since products in [0,1])
+    have hfs : ∀ i ∈ s, f i ∈ Set.Icc 0 1 := fun i hi => hf i (Finset.mem_insert_of_mem hi)
+    have hgs : ∀ i ∈ s, g i ∈ Set.Icc 0 1 := fun i hi => hg i (Finset.mem_insert_of_mem hi)
+    have hfa : f a ∈ Set.Icc 0 1 := hf a (Finset.mem_insert_self a s)
+    have hga : g a ∈ Set.Icc 0 1 := hg a (Finset.mem_insert_self a s)
+    have hpf : s.prod f ∈ Set.Icc 0 1 := by
+      constructor
+      · exact Finset.prod_nonneg (fun i hi => (hfs i hi).1)
+      · exact Finset.prod_le_one (fun i hi => (hfs i hi).1) (fun i hi => (hfs i hi).2)
+    have hpg : s.prod g ∈ Set.Icc 0 1 := by
+      constructor
+      · exact Finset.prod_nonneg (fun i hi => (hgs i hi).1)
+      · exact Finset.prod_le_one (fun i hi => (hgs i hi).1) (fun i hi => (hgs i hi).2)
+    calc |f a * s.prod f - g a * s.prod g|
+        = |f a * s.prod f - g a * s.prod f + g a * s.prod f - g a * s.prod g| := by ring_nf
+      _ = |(f a - g a) * s.prod f + g a * (s.prod f - s.prod g)| := by ring_nf
+      _ ≤ |(f a - g a) * s.prod f| + |g a * (s.prod f - s.prod g)| := abs_add_le _ _
+      _ = |f a - g a| * |s.prod f| + |g a| * |s.prod f - s.prod g| := by
+          rw [abs_mul, abs_mul]
+      _ ≤ |f a - g a| * 1 + 1 * |s.prod f - s.prod g| := by
+          apply add_le_add
+          · apply mul_le_mul_of_nonneg_left _ (abs_nonneg _)
+            rw [abs_of_nonneg hpf.1]; exact hpf.2
+          · apply mul_le_mul_of_nonneg_right _ (abs_nonneg _)
+            rw [abs_of_nonneg hga.1]; exact hga.2
+      _ = |f a - g a| + |s.prod f - s.prod g| := by ring
+      _ ≤ |f a - g a| + s.sum (fun i => |f i - g i|) := add_le_add_right (ih hfs hgs) _
+
 /-- The counting lemma: homomorphism density difference is bounded by cut norm.
 
 For any graph F and graphons U, W on the same probability space:
