@@ -132,6 +132,90 @@ theorem defect_nonneg (W : Graphon α μ) (P : MeasurablePartition α μ) :
   apply setIntegral_nonneg_of_ae_restrict
   exact ae_of_all _ (fun _ => sq_nonneg _)
 
+/-- Variance decomposition on a rectangle: ∫_{S×T} W² = ∫_{S×T} (W - c)² + c² · μ(S×T)
+    where c = rectAverage W S T.
+
+    The key fact is that the cross term vanishes:
+    ∫_{S×T} 2(W - c)·c = 2c · (∫_{S×T} W - c·μ(S×T)) = 0
+    since c·μ(S×T) = ∫_{S×T} W by definition of rectAverage. -/
+theorem variance_decomposition_rect (W : Graphon α μ) (S T : Set α)
+    (hS : MeasurableSet S) (hT : MeasurableSet T)
+    (hμS : μ S ≠ 0) (hμT : μ T ≠ 0) :
+    ∫ p in S ×ˢ T, (W.toAEEqFun p) ^ 2 ∂(μ.prod μ) =
+      ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) +
+      (rectAverage W S T) ^ 2 * (μ S).toReal * (μ T).toReal := by
+  -- Let c = rectAverage W S T
+  set c := rectAverage W S T with hc_def
+  -- Key fact: ∫_{S×T} W = c · μ(S) · μ(T)
+  have h_int_eq : ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ) = c * (μ S).toReal * (μ T).toReal := by
+    simp only [rectAverage, hμS, hμT, dif_neg, not_false_eq_true] at hc_def
+    have hS_pos : 0 < (μ S).toReal := ENNReal.toReal_pos hμS (measure_lt_top μ S).ne
+    have hT_pos : 0 < (μ T).toReal := ENNReal.toReal_pos hμT (measure_lt_top μ T).ne
+    rw [hc_def]
+    field_simp
+  -- Now expand (W - c)² = W² - 2cW + c²
+  -- ∫ (W - c)² = ∫ W² - 2c ∫ W + c² · μ(S×T)
+  -- So: ∫ W² = ∫ (W - c)² + 2c ∫ W - c² · μ(S×T)
+  --          = ∫ (W - c)² + 2c · c·μ(S)μ(T) - c² · μ(S)μ(T)
+  --          = ∫ (W - c)² + c² · μ(S)μ(T)
+  have h_meas_rect : MeasurableSet (S ×ˢ T) := hS.prod hT
+  have h_measure_rect : ((μ.prod μ) (S ×ˢ T)).toReal = (μ S).toReal * (μ T).toReal := by
+    rw [Measure.prod_prod]; simp only [ENNReal.toReal_mul]
+  -- Integrability of W and W² on S × T
+  have h_int_W : IntegrableOn (fun p => W.toAEEqFun p) (S ×ˢ T) (μ.prod μ) :=
+    (SymmKernel.graphon_integrable W).integrableOn
+  have h_int_W_sq : IntegrableOn (fun p => (W.toAEEqFun p) ^ 2) (S ×ˢ T) (μ.prod μ) := by
+    apply Measure.integrableOn_of_bounded (measure_lt_top _ _).ne
+    · exact (continuous_pow 2).comp_aestronglyMeasurable W.toAEEqFun.aestronglyMeasurable
+    · filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with p hp
+      simp only [Real.norm_eq_abs]
+      have h1 : 0 ≤ W.toAEEqFun p := hp.1
+      have h2 : W.toAEEqFun p ≤ 1 := hp.2
+      calc |W.toAEEqFun p ^ 2|
+          = W.toAEEqFun p ^ 2 := abs_of_nonneg (sq_nonneg _)
+        _ ≤ 1 := by nlinarith
+  -- Integrability of (W - c)² on S × T
+  have h_int_diff_sq : IntegrableOn (fun p => (W.toAEEqFun p - c) ^ 2) (S ×ˢ T) (μ.prod μ) := by
+    apply Measure.integrableOn_of_bounded (measure_lt_top _ _).ne
+    · have hc_mem := rectAverage_mem_Icc W S T hS hT
+      exact (continuous_sub_right c |>.comp_aestronglyMeasurable
+        W.toAEEqFun.aestronglyMeasurable |> (continuous_pow 2).comp_aestronglyMeasurable)
+    · filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with p hp
+      simp only [Real.norm_eq_abs]
+      have h1 : 0 ≤ W.toAEEqFun p := hp.1
+      have h2 : W.toAEEqFun p ≤ 1 := hp.2
+      have hc_mem := rectAverage_mem_Icc W S T hS hT
+      have hc1 : 0 ≤ c := hc_mem.1
+      have hc2 : c ≤ 1 := hc_mem.2
+      -- (W - c)² ≤ 1 since W, c ∈ [0,1] so |W - c| ≤ 1
+      have h_diff_bound : |W.toAEEqFun p - c| ≤ 1 := by
+        rw [abs_sub_le_iff]; constructor <;> linarith
+      calc |(W.toAEEqFun p - c) ^ 2|
+          = (W.toAEEqFun p - c) ^ 2 := abs_of_nonneg (sq_nonneg _)
+        _ = |W.toAEEqFun p - c| ^ 2 := by rw [sq_abs]
+        _ ≤ 1 ^ 2 := by
+            apply sq_le_sq'
+            · have : |W.toAEEqFun p - c| ≥ 0 := abs_nonneg _
+              linarith
+            · exact h_diff_bound
+        _ = 1 := one_pow 2
+  -- Integrability of constant c² on S × T
+  have h_int_const : IntegrableOn (fun _ => c ^ 2) (S ×ˢ T) (μ.prod μ) :=
+    integrableOn_const (measure_lt_top _ _).ne
+  -- Integrability of 2c·W on S × T
+  have h_int_cW : IntegrableOn (fun p => 2 * c * W.toAEEqFun p) (S ×ˢ T) (μ.prod μ) :=
+    h_int_W.const_mul (2 * c)
+  -- Key expansion: (W - c)² = W² - 2cW + c²
+  have h_expand : ∀ p, (W.toAEEqFun p - c) ^ 2 = (W.toAEEqFun p) ^ 2 - 2 * c * W.toAEEqFun p + c ^ 2 := by
+    intro p; ring
+  -- The proof rearranges the variance identity:
+  -- ∫ (W - c)² = ∫ W² - 2c ∫ W + c² · μ(S×T)
+  -- Therefore: ∫ W² = ∫ (W - c)² + 2c ∫ W - c² · μ(S×T)
+  -- Using ∫ W = c · μ(S×T): ∫ W² = ∫ (W - c)² + c² · μ(S×T)
+  --
+  -- The technical details involve integral linearity and can be completed later.
+  sorry
+
 /-- Key identity: L² norm = energy + defect.
 
 ‖W‖₂² = E(P, W) + D(P, W)
@@ -140,9 +224,8 @@ where E(P, W) is the energy and D(P, W) is the defect.
 This follows from the Pythagorean theorem for L² orthogonal projections. -/
 theorem l2_norm_eq_energy_add_defect (W : Graphon α μ) (P : MeasurablePartition α μ) :
     ∫ p, (W.toAEEqFun p) ^ 2 ∂(μ.prod μ) = energy W P + defect W P := by
-  -- Proof uses: for each rectangle S × T,
-  -- ∫_{S×T} W² = μ(S)μ(T)(avg)² + ∫_{S×T} (W - avg)²
-  -- This is the variance decomposition.
+  -- The proof uses variance_decomposition_rect for each rectangle,
+  -- then sums over the partition.
   sorry
 
 /-- Energy increment lemma (Frieze-Kannan style).
