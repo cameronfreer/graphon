@@ -264,7 +264,158 @@ theorem l2_norm_eq_energy_add_defect (W : Graphon α μ) (P : MeasurablePartitio
     ∫ p, (W.toAEEqFun p) ^ 2 ∂(μ.prod μ) = energy W P + defect W P := by
   -- The proof uses variance_decomposition_rect for each rectangle,
   -- then sums over the partition.
-  sorry
+  -- Step 1: Expand definitions of energy and defect
+  unfold energy defect
+  -- Step 2: Combine sums: energy + defect = Σ_{S,T} (μS μT c² + ∫_{S×T} (W-c)²)
+  rw [← Finset.sum_add_distrib]
+  conv_rhs =>
+    arg 2
+    ext S
+    rw [← Finset.sum_add_distrib]
+  -- Step 3: Each term equals ∫_{S×T} W² by variance_decomposition_rect (or 0 if μ=0)
+  -- Transform each summand using add_comm to match variance_decomposition_rect
+  conv_rhs =>
+    arg 2
+    ext S
+    arg 2
+    ext T
+    rw [add_comm]
+  -- Now RHS is Σ_{S,T} (∫_{S×T} (W-c)² + μS μT c²)
+  -- This should equal Σ_{S,T} ∫_{S×T} W² by variance_decomposition_rect
+  -- Helper: for each rectangle, the summand equals ∫_{S×T} W²
+  have h_rect : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+      ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) +
+      (μ S).toReal * (μ T).toReal * (rectAverage W S T) ^ 2 =
+      ∫ p in S ×ˢ T, (W.toAEEqFun p) ^ 2 ∂(μ.prod μ) := by
+    intro S hS T hT
+    -- Case split on whether μ S = 0 or μ T = 0
+    by_cases hμS : μ S = 0
+    · -- When μ S = 0, all terms are 0
+      have h_prod_zero : (μ.prod μ) (S ×ˢ T) = 0 := by
+        rw [Measure.prod_prod, hμS, zero_mul]
+      simp only [hμS, ENNReal.toReal_zero, zero_mul]
+      rw [setIntegral_measure_zero _ h_prod_zero, setIntegral_measure_zero _ h_prod_zero]
+      ring
+    · by_cases hμT : μ T = 0
+      · -- When μ T = 0, all terms are 0
+        have h_prod_zero : (μ.prod μ) (S ×ˢ T) = 0 := by
+          rw [Measure.prod_prod, hμT, mul_zero]
+        simp only [hμT, ENNReal.toReal_zero, mul_zero]
+        rw [setIntegral_measure_zero _ h_prod_zero, setIntegral_measure_zero _ h_prod_zero]
+        ring
+      · -- When both measures are positive, use variance_decomposition_rect
+        have h_var := variance_decomposition_rect W S T
+              (P.measurableSet_part hS) (P.measurableSet_part hT) hμS hμT
+        linarith
+  -- Step 4: Rewrite RHS using h_rect to get Σ_{S,T} ∫_{S×T} W²
+  have h_sum_eq : ∑ S ∈ P.parts, ∑ T ∈ P.parts,
+      (∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) +
+       (μ S).toReal * (μ T).toReal * (rectAverage W S T) ^ 2) =
+      ∑ S ∈ P.parts, ∑ T ∈ P.parts, ∫ p in S ×ˢ T, (W.toAEEqFun p) ^ 2 ∂(μ.prod μ) := by
+    apply Finset.sum_congr rfl
+    intro S hS
+    apply Finset.sum_congr rfl
+    intro T hT
+    exact h_rect S hS T hT
+  rw [h_sum_eq]
+  -- Step 5: Show that Σ_{S,T} ∫_{S×T} W² = ∫ W²
+  -- This requires showing partition rectangles cover α × α a.e. and are disjoint
+  -- The key is that partition rectangles ⋃_{S,T} S × T cover α × α a.e.
+  -- and the integral over the whole space equals the integral over this union
+  symm
+  -- Partition rectangles cover α × α a.e.
+  have h_ae_covers : ∀ᵐ p ∂(μ.prod μ), ∃ S ∈ P.parts, ∃ T ∈ P.parts, p ∈ S ×ˢ T := by
+    -- Use ae_prod_iff_ae_ae to reduce to: for a.e. x, for a.e. y, (x,y) ∈ some rectangle
+    have h_meas : MeasurableSet {p : α × α | ∃ S ∈ P.parts, ∃ T ∈ P.parts, p ∈ S ×ˢ T} := by
+      -- The set is the union of measurable rectangles
+      have h_eq : {p : α × α | ∃ S ∈ P.parts, ∃ T ∈ P.parts, p ∈ S ×ˢ T} =
+          ⋃ S ∈ P.parts, ⋃ T ∈ P.parts, S ×ˢ T := by
+        ext p
+        simp only [Set.mem_setOf_eq, Set.mem_iUnion, exists_prop]
+      rw [h_eq]
+      apply MeasurableSet.biUnion P.parts.countable_toSet
+      intro S hS
+      apply MeasurableSet.biUnion P.parts.countable_toSet
+      intro T hT
+      exact (P.measurableSet_part hS).prod (P.measurableSet_part hT)
+    rw [Measure.ae_prod_iff_ae_ae h_meas]
+    filter_upwards [P.ae_covers] with x hx
+    filter_upwards [P.ae_covers] with y hy
+    obtain ⟨S, hS_mem, hxS⟩ := hx
+    obtain ⟨T, hT_mem, hyT⟩ := hy
+    exact ⟨S, hS_mem, T, hT_mem, ⟨hxS, hyT⟩⟩
+  -- Define the union of all partition rectangles
+  let rectUnion := ⋃ S ∈ P.parts, ⋃ T ∈ P.parts, S ×ˢ T
+  -- Show the rectangles are pairwise disjoint (as a collection indexed by products)
+  have h_meas_union : MeasurableSet rectUnion := by
+    apply MeasurableSet.biUnion P.parts.countable_toSet
+    intro S hS
+    apply MeasurableSet.biUnion P.parts.countable_toSet
+    intro T hT
+    exact (P.measurableSet_part hS).prod (P.measurableSet_part hT)
+  -- Integrability of W² on whole space
+  have h_int : Integrable (fun p => (W.toAEEqFun p) ^ 2) (μ.prod μ) := by
+    -- Use integrableOn_of_bounded on Set.univ, then convert to Integrable
+    have h_int_on : IntegrableOn (fun p => (W.toAEEqFun p) ^ 2) Set.univ (μ.prod μ) := by
+      apply Measure.integrableOn_of_bounded (measure_lt_top _ _).ne
+      · exact (continuous_pow 2).comp_aestronglyMeasurable W.toAEEqFun.aestronglyMeasurable
+      · filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with p hp
+        simp only [Real.norm_eq_abs]
+        calc |W.toAEEqFun p ^ 2| = W.toAEEqFun p ^ 2 := abs_of_nonneg (sq_nonneg _)
+          _ ≤ 1 := by nlinarith [hp.1, hp.2]
+    rwa [integrableOn_univ] at h_int_on
+  -- Integral over union = integral over whole space (since union covers a.e.)
+  have h_int_eq : ∫ p in rectUnion, (W.toAEEqFun p) ^ 2 ∂(μ.prod μ) =
+      ∫ p, (W.toAEEqFun p) ^ 2 ∂(μ.prod μ) := by
+    apply setIntegral_eq_integral_of_ae_compl_eq_zero
+    -- a.e. x, x ∉ rectUnion → f x = 0. Since a.e. x ∈ rectUnion, this is vacuously true a.e.
+    filter_upwards [h_ae_covers] with p hp h_not_in
+    simp only [rectUnion, Set.mem_iUnion, not_exists] at h_not_in
+    obtain ⟨S, hS, T, hT, hp_mem⟩ := hp
+    exact absurd hp_mem (h_not_in S hS T hT)
+  rw [← h_int_eq]
+  -- Now need to show ∫_{rectUnion} W² = Σ_{S,T} ∫_{S×T} W²
+  -- Use integral_biUnion_finset on the product index
+  -- First, rewrite rectUnion as biUnion over product
+  have h_union_eq : rectUnion = ⋃ (st : Set α × Set α), ⋃ (_ : st ∈ P.parts ×ˢ P.parts), st.1 ×ˢ st.2 := by
+    simp only [rectUnion]
+    ext p
+    simp only [Set.mem_iUnion, Finset.mem_product, exists_prop, Prod.exists]
+    constructor
+    · rintro ⟨S, hS, T, hT, hp⟩
+      exact ⟨S, T, ⟨hS, hT⟩, hp⟩
+    · rintro ⟨S, T, ⟨hS, hT⟩, hp⟩
+      exact ⟨S, hS, T, hT, hp⟩
+  -- Show rectangles are pairwise disjoint
+  have h_disj : (↑(P.parts ×ˢ P.parts) : Set (Set α × Set α)).Pairwise
+      (Function.onFun Disjoint fun st => st.1 ×ˢ st.2) := by
+    intro ⟨S₁, T₁⟩ h₁ ⟨S₂, T₂⟩ h₂ hne
+    simp only [Function.onFun, Set.disjoint_iff_inter_eq_empty, Set.prod_inter_prod]
+    simp only [Finset.coe_product, Set.mem_prod, Finset.mem_coe] at h₁ h₂
+    by_cases hS : S₁ = S₂
+    · subst hS
+      have hT : T₁ ≠ T₂ := fun h => hne (Prod.ext rfl h)
+      have h_disj_T : Disjoint T₁ T₂ := P.pairwiseDisjoint h₁.2 h₂.2 hT
+      simp only [Set.inter_self, Set.disjoint_iff_inter_eq_empty.mp h_disj_T, Set.prod_empty]
+    · have h_disj_S : Disjoint S₁ S₂ := P.pairwiseDisjoint h₁.1 h₂.1 hS
+      simp only [Set.disjoint_iff_inter_eq_empty.mp h_disj_S, Set.empty_prod]
+  -- Measurability of each rectangle
+  have h_meas_rect : ∀ st ∈ P.parts ×ˢ P.parts, MeasurableSet (st.1 ×ˢ st.2) := by
+    intro ⟨S, T⟩ hst
+    simp only [Finset.mem_product] at hst
+    exact (P.measurableSet_part hst.1).prod (P.measurableSet_part hst.2)
+  -- Integrability on each rectangle
+  have h_int_rect : ∀ st ∈ P.parts ×ˢ P.parts,
+      IntegrableOn (fun p => (W.toAEEqFun p) ^ 2) (st.1 ×ˢ st.2) (μ.prod μ) := fun _ _ =>
+    h_int.integrableOn
+  -- Apply integral_biUnion_finset
+  have h_sum_eq_union : ∫ p in rectUnion, (W.toAEEqFun p) ^ 2 ∂(μ.prod μ) =
+      ∑ st ∈ P.parts ×ˢ P.parts, ∫ p in st.1 ×ˢ st.2, (W.toAEEqFun p) ^ 2 ∂(μ.prod μ) := by
+    conv_lhs => rw [h_union_eq]
+    exact integral_biUnion_finset (P.parts ×ˢ P.parts) h_meas_rect h_disj h_int_rect
+  rw [h_sum_eq_union]
+  -- Convert sum over product to double sum using Finset.sum_product
+  rw [Finset.sum_product]
 
 /-- Energy increment lemma (Frieze-Kannan style).
 

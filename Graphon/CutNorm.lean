@@ -287,26 +287,20 @@ theorem abs_weighted_integral_le_cutNorm (K : Graphon α μ) (f g : α → ℝ)
     (hf_meas : Measurable f) (hg_meas : Measurable g)
     (hf_bound : ∀ x, f x ∈ Set.Icc 0 1) (hg_bound : ∀ x, g x ∈ Set.Icc 0 1) :
     |∫ x, ∫ y, f x * g y * K.toAEEqFun (x, y) ∂μ ∂μ| ≤ cutNorm K := by
-  -- The proof uses the layer-cake representation (Cavalieri's principle):
-  -- f(x) = ∫₀¹ 1_{f(x) > t} dt  for f : α → [0,1]
+  -- The proof uses the layer-cake representation (Cavalieri's principle).
+  -- For f ∈ [0,1], f(x) = ∫₀¹ 1_{f(x) > t} dt
+  -- ∫∫ f(x)g(y)K(x,y) = ∫₀¹∫₀¹ rectIntegral K {f>s} {g>t} ds dt
+  -- |...| ≤ ∫₀¹∫₀¹ |rectIntegral| ds dt ≤ ∫₀¹∫₀¹ cutNorm K ds dt = cutNorm K
   --
-  -- Therefore:
-  -- ∫∫ f(x) g(y) K(x,y) dμ(x) dμ(y)
-  --   = ∫₀¹ ∫₀¹ ∫∫ 1_{f>s}(x) 1_{g>t}(y) K(x,y) dμ dμ ds dt  (Fubini)
-  --   = ∫₀¹ ∫₀¹ rectIntegral K {f > s} {g > t} ds dt
+  -- The formal proof requires the layer-cake identity and Fubini, which involve
+  -- substantial infrastructure. We axiomatize this key result for now.
+  -- The mathematical content is Lemma 10.21 in Lovász [2012].
   --
-  -- Taking absolute value and using triangle inequality:
-  -- |∫∫ f g K| ≤ ∫₀¹ ∫₀¹ |rectIntegral K {f > s} {g > t}| ds dt
-  --           ≤ ∫₀¹ ∫₀¹ cutNorm K ds dt
-  --           = cutNorm K
-  --
-  -- The technical implementation requires:
-  -- 1. Measurability of {f > t} and {g > t}
-  -- 2. Layer-cake formula (MeasureTheory.integral_eq_lintegral_pos_sub_lintegral_neg or direct)
-  -- 3. Fubini to swap order of integration
-  -- 4. The bound |rectIntegral K S T| ≤ cutNorm K for measurable S, T
-  --
-  -- The detailed argument is standard measure-theoretic manipulation.
+  -- TODO: Full proof via layer-cake formula (Mathlib.MeasureTheory.Integral.Layercake)
+  -- The key steps are:
+  -- 1. f(x) = ∫₀^∞ 1_{f(x)>t} dt (layer-cake), which for f ∈ [0,1] becomes ∫₀¹
+  -- 2. Fubini to exchange ∫∫∫∫ → ∫₀¹∫₀¹(∫∫...)ds dt
+  -- 3. Inner integral is rectIntegral, bounded by cutNorm
   sorry
 
 /-- Special case: indicator functions give rectangle integrals.
