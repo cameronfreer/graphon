@@ -300,6 +300,50 @@ theorem cutNormDiff_triangle (U V W : Graphon α μ) :
         · exact abs_rectIntegralDiff_le U V hS hT
         · exact abs_rectIntegralDiff_le V W hS hT
 
+/-! ### Weighted integrals of differences -/
+
+/-- Weighted integral of graphon difference bounded by cut norm difference (indicator case).
+
+For measurable sets S, T:
+|∫∫ 1_S(x) 1_T(y) (U(x,y) - W(x,y)) dμ(x) dμ(y)| ≤ ‖U - W‖_□
+
+This follows directly from the cut norm definition. -/
+theorem abs_weighted_integral_diff_indicator_le (U W : Graphon α μ) (S T : Set α)
+    (hS : MeasurableSet S) (hT : MeasurableSet T) :
+    |∫ x, ∫ y, S.indicator (fun _ => (1:ℝ)) x * T.indicator (fun _ => (1:ℝ)) y *
+      (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ ∂μ| ≤ cutNormDiff U W := by
+  -- First, simplify the integral to a set integral
+  -- Using similar logic to weighted_integral_indicator in CutNorm.lean
+  have h1 : ∀ x, ∫ y, S.indicator (fun _ => (1:ℝ)) x * T.indicator (fun _ => (1:ℝ)) y *
+      (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ =
+      S.indicator (fun x => ∫ y, T.indicator (fun _ => (1:ℝ)) y *
+        (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ) x := by
+    intro x
+    by_cases hx : x ∈ S
+    · simp only [Set.indicator_of_mem hx, one_mul]
+    · simp only [Set.indicator_of_notMem hx, zero_mul, integral_zero]
+  simp_rw [h1]
+  rw [MeasureTheory.integral_indicator hS]
+  have h2 : ∀ x, ∫ y, T.indicator (fun _ => (1:ℝ)) y *
+      (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ =
+      ∫ y in T, (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ := by
+    intro x
+    rw [← MeasureTheory.integral_indicator hT]
+    congr 1
+    ext y
+    by_cases hy : y ∈ T
+    · simp [Set.indicator_of_mem hy]
+    · simp [Set.indicator_of_notMem hy]
+  simp_rw [h2]
+  -- Now we have |∫_S ∫_T (U - W)| = |rectIntegralDiff U W S T|
+  have h_int : IntegrableOn (fun p => U.toAEEqFun p - W.toAEEqFun p) (S ×ˢ T) (μ.prod μ) :=
+    ((SymmKernel.graphon_integrable U).sub (SymmKernel.graphon_integrable W)).integrableOn
+  rw [← MeasureTheory.setIntegral_prod _ h_int]
+  -- This is exactly rectIntegralDiff
+  have h_eq : ∫ p in S ×ˢ T, (U.toAEEqFun p - W.toAEEqFun p) ∂(μ.prod μ) = rectIntegralDiff U W S T := rfl
+  rw [h_eq]
+  exact abs_rectIntegralDiff_le U W hS hT
+
 end CutNormDiff
 
 /-! ### Cut distance -/

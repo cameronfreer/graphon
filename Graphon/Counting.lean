@@ -101,46 +101,37 @@ This is the key result showing that cut norm controls homomorphism densities. -/
 theorem homDensity_sub_le (F : SimpleGraph V) [DecidableRel F.Adj]
     (U W : Graphon α μ) :
     |homDensity F U - homDensity F W| ≤ F.edgeFinset.card * cutNormDiff U W := by
-  -- Proof outline (Lovász, Theorem 10.23):
+  -- **Proof structure** (Lovász, Theorem 10.23):
   --
-  -- Let E = {e₁, ..., eₘ} be the edges of F. For an assignment x : V → α:
-  -- - Uᵢ(x) = U(x(eᵢ.1), x(eᵢ.2))
-  -- - Wᵢ(x) = W(x(eᵢ.1), x(eᵢ.2))
+  -- The key insight is telescoping + iterated conditioning.
   --
-  -- Step 1: Telescoping identity
-  --   ∏ᵢ Uᵢ - ∏ᵢ Wᵢ = Σⱼ (∏ᵢ<ⱼ Uᵢ) · (Uⱼ - Wⱼ) · (∏ᵢ>ⱼ Wᵢ)
+  -- **Step 1**: Telescoping decomposition
+  --   For edge set E = {e₁,...,eₘ} and vertex assignment x : V → α:
+  --   ∏_e U(x_e) - ∏_e W(x_e) = Σⱼ (prefix_j) · (U_j - W_j) · (suffix_j)
+  --   where prefix_j = ∏_{i<j} U_i and suffix_j = ∏_{i>j} W_i
   --
-  -- Step 2: Each term in the sum satisfies
-  --   |∫ (∏ᵢ<ⱼ Uᵢ) · (Uⱼ - Wⱼ) · (∏ᵢ>ⱼ Wᵢ) dμ^V|
-  --   ≤ ‖U - W‖_□  (by cut norm definition)
+  -- **Step 2**: Each term contributes ≤ cutNormDiff U W after integration
+  --   For edge eⱼ connecting vertices u, v:
+  --   |∫...∫ (prefix_j)(U(x_u,x_v) - W(x_u,x_v))(suffix_j) dμ^V|
   --
-  --   The key is that the prefix (∏ᵢ<ⱼ Uᵢ) and suffix (∏ᵢ>ⱼ Wᵢ) are
-  --   measurable functions in [0,1], so integrating (Uⱼ - Wⱼ) against them
-  --   gives a bound by the cut norm (via conditioning on the other variables).
+  --   After integrating out all coordinates except x_u, x_v:
+  --   = |∫∫ f(x_u,x_v) (U(x_u,x_v) - W(x_u,x_v)) dμ(x_u) dμ(x_v)|
   --
-  -- Step 3: Triangle inequality
-  --   |∫ (∏ U - ∏ W)| ≤ Σⱼ |∫ term_j| ≤ m · ‖U - W‖_□
+  --   where f = E[prefix_j · suffix_j | x_u, x_v] ∈ [0,1] measurable.
   --
-  -- Implementation note:
+  --   By `abs_weighted_integral_le_cutNorm` applied to differences:
+  --   This is ≤ cutNormDiff U W
   --
-  -- The helper `abs_prod_sub_prod_le` gives the pointwise bound:
-  --   |∏_e U(e,x) - ∏_e W(e,x)| ≤ Σ_e |U(e,x) - W(e,x)|
+  -- **Step 3**: Triangle inequality over edges
+  --   |homDensity F U - homDensity F W| ≤ Σⱼ |term_j| ≤ |E| · cutNormDiff U W
   --
-  -- However, integrating this gives an L¹ bound:
-  --   |∫ (∏ U - ∏ W)| ≤ ∫ Σ_e |U(e) - W(e)| = Σ_e ∫ |U(e) - W(e)|
+  -- **Dependencies**:
+  -- - `abs_weighted_integral_le_cutNorm` (for the difference case)
+  -- - Fubini-Tonelli for iterated integration
+  -- - Conditioning / conditional expectation
   --
-  -- This does NOT directly give the cut norm bound because:
-  --   ∫ |U - W| ≥ cutNormDiff U W  (L¹ dominates cut norm)
-  --
-  -- The full proof requires conditioning: for each edge e, condition on
-  -- all other vertex assignments, then use that the conditioned integral
-  -- ∫∫ f(v₁,v₂) (U - W)(v₁,v₂) dμ(v₁) dμ(v₂) is bounded by cutNormDiff U W
-  -- when f ∈ [0,1] is measurable (this is the key lemma from Lovász).
-  --
-  -- The full implementation would require:
-  -- - Conditional expectation machinery
-  -- - The lemma: ∫∫ f(s,t) (U-W)(s,t) dμ(s) dμ(t) ≤ ‖U-W‖_□ for f ∈ [0,1]
-  -- - Ordering edges and applying this iteratively
+  -- The current implementation is blocked on proving the weighted integral
+  -- bound for general [0,1]-bounded measurable functions.
   sorry
 
 /-- Corollary: graphs with small cut distance have similar homomorphism densities.
