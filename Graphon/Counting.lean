@@ -29,7 +29,7 @@ The constant `|E(F)|` (number of edges in F) is optimal in general.
 * [L. Lovász, *Large Networks and Graph Limits*][lovasz2012], Chapter 10
 -/
 
-open MeasureTheory Set Filter Finset
+open MeasureTheory Set Filter Finset SimpleGraph
 
 open scoped ENNReal
 
@@ -91,6 +91,103 @@ theorem abs_prod_sub_prod_le {ι : Type*} [DecidableEq ι] (s : Finset ι)
             rw [abs_of_nonneg hga.1]; exact hga.2
       _ = |f a - g a| + |s.prod f - s.prod g| := by ring
       _ ≤ |f a - g a| + s.sum (fun i => |f i - g i|) := add_le_add_right (ih hfs hgs) _
+
+/-! ### Special case: Complete graph on 2 vertices (K₂)
+
+The counting lemma for K₂ can be proven directly since homDensity K₂ W
+equals the integral of W over μ.prod μ, which is rectIntegralDiff over univ × univ. -/
+
+/-- Swap symmetry for Graphon integrals on Measure.pi (Fin 2 → α). -/
+private lemma integral_swap_on_pi (W : Graphon α μ) :
+    ∫ x : Fin 2 → α, W.toAEEqFun (x 1, x 0) ∂Measure.pi (fun _ => μ) =
+    ∫ x : Fin 2 → α, W.toAEEqFun (x 0, x 1) ∂Measure.pi (fun _ => μ) := by
+  have hmp := measurePreserving_finTwoArrow μ
+  have hemb := MeasurableEquiv.measurableEmbedding (MeasurableEquiv.finTwoArrow (α := α))
+  have h1 : ∫ x : Fin 2 → α, W.toAEEqFun (x 1, x 0) ∂Measure.pi (fun _ => μ) =
+            ∫ p, W.toAEEqFun p.swap ∂(μ.prod μ) := by
+    conv_lhs => arg 2; ext x
+                rw [show (x 1, x 0) = (MeasurableEquiv.finTwoArrow x).swap by
+                    simp [MeasurableEquiv.finTwoArrow_apply, Prod.swap]]
+    exact hmp.integral_comp hemb (fun p => W.toAEEqFun p.swap)
+  have h2 : ∫ x : Fin 2 → α, W.toAEEqFun (x 0, x 1) ∂Measure.pi (fun _ => μ) =
+            ∫ p, W.toAEEqFun p ∂(μ.prod μ) := by
+    conv_lhs => arg 2; ext x
+                rw [show (x 0, x 1) = MeasurableEquiv.finTwoArrow x by
+                    simp [MeasurableEquiv.finTwoArrow_apply]]
+    exact hmp.integral_comp hemb (fun p => W.toAEEqFun p)
+  rw [h1, h2]
+  exact integral_congr_ae (by filter_upwards [W.symm'] with p hp; exact hp)
+
+/-- The Quot.out of s(0,1) is either (0,1) or (1,0). -/
+private lemma quot_out_01_cases :
+    let p := Quot.out (s((0 : Fin 2), 1))
+    (p.1 = 0 ∧ p.2 = 1) ∨ (p.1 = 1 ∧ p.2 = 0) := by
+  set p := Quot.out (s((0 : Fin 2), 1)) with hp
+  have h1 := Sym2.out_fst_mem (s((0 : Fin 2), 1))
+  have h2 := Sym2.out_snd_mem (s((0 : Fin 2), 1))
+  simp only [Sym2.mem_iff] at h1 h2
+  have hQuot : s(p.1, p.2) = s((0 : Fin 2), 1) := Quot.out_eq _
+  cases h1 with
+  | inl h1_0 => cases h2 with
+    | inl h2_0 => exfalso; rw [h1_0, h2_0] at hQuot; simp at hQuot
+    | inr h2_1 => exact Or.inl ⟨h1_0, h2_1⟩
+  | inr h1_1 => cases h2 with
+    | inl h2_0 => exact Or.inr ⟨h1_1, h2_0⟩
+    | inr h2_1 => exfalso; rw [h1_1, h2_1] at hQuot; simp at hQuot
+
+/-- For the complete graph K₂, homDensity equals the integral over μ.prod μ.
+
+This uses the equivalence between Measure.pi (Fin 2 → α) and μ.prod μ via
+`measurePreserving_finTwoArrow`. -/
+lemma homDensity_completeGraph_two (W : Graphon α μ) :
+    homDensity (completeGraph (Fin 2)) W = ∫ p, W.toAEEqFun p ∂(μ.prod μ) := by
+  unfold homDensity
+  have hedge : (completeGraph (Fin 2)).edgeFinset = {s((0 : Fin 2), 1)} := by
+    ext e; simp only [mem_edgeFinset, Finset.mem_singleton]
+    constructor
+    · intro h; induction e using Sym2.inductionOn with
+      | _ v w => rw [completeGraph_eq_top] at h; simp only [mem_edgeSet, top_adj, ne_eq] at h
+                 fin_cases v <;> fin_cases w <;> simp_all
+    · intro h; rw [h, completeGraph_eq_top]; simp
+  rw [hedge]; simp only [Finset.prod_singleton]
+  have hmp := measurePreserving_finTwoArrow μ
+  have hemb := MeasurableEquiv.measurableEmbedding (MeasurableEquiv.finTwoArrow (α := α))
+  cases quot_out_01_cases with
+  | inl h => simp only [h.1, h.2]
+             conv_lhs => arg 2; ext x
+                         rw [show (x 0, x 1) = MeasurableEquiv.finTwoArrow x by
+                             simp [MeasurableEquiv.finTwoArrow_apply]]
+             exact hmp.integral_comp hemb (fun p => W.toAEEqFun p)
+  | inr h => simp only [h.1, h.2]; rw [integral_swap_on_pi W]
+             conv_lhs => arg 2; ext x
+                         rw [show (x 0, x 1) = MeasurableEquiv.finTwoArrow x by
+                             simp [MeasurableEquiv.finTwoArrow_apply]]
+             exact hmp.integral_comp hemb (fun p => W.toAEEqFun p)
+
+/-- Convert integral to rectIntegralDiff over univ × univ. -/
+private lemma integral_eq_rectIntegralDiff_univ (U W : Graphon α μ) :
+    ∫ p, (U.toAEEqFun p - W.toAEEqFun p) ∂(μ.prod μ) = rectIntegralDiff U W univ univ := by
+  unfold rectIntegralDiff
+  rw [Set.univ_prod_univ]
+  exact setIntegral_univ.symm
+
+/-- Counting lemma for K₂: the complete graph on 2 vertices.
+
+This is a base case that can be proven directly without the full layer cake machinery,
+since K₂ has exactly one edge and the homDensity integral directly equals the
+rectIntegralDiff over univ × univ. -/
+theorem homDensity_sub_le_completeGraph_two (U W : Graphon α μ) :
+    |homDensity (completeGraph (Fin 2)) U - homDensity (completeGraph (Fin 2)) W| ≤
+      (completeGraph (Fin 2)).edgeFinset.card * cutNormDiff U W := by
+  rw [homDensity_completeGraph_two U, homDensity_completeGraph_two W]
+  rw [← integral_sub (SymmKernel.graphon_integrable U) (SymmKernel.graphon_integrable W)]
+  rw [integral_eq_rectIntegralDiff_univ U W]
+  have hle := abs_rectIntegralDiff_le U W MeasurableSet.univ MeasurableSet.univ
+  have hcard : (completeGraph (Fin 2)).edgeFinset.card = 1 := by native_decide
+  rw [hcard, Nat.cast_one, one_mul]
+  exact hle
+
+/-! ### General counting lemma -/
 
 /-- The counting lemma: homomorphism density difference is bounded by cut norm.
 
