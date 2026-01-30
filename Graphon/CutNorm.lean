@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.Basic
 import Mathlib.MeasureTheory.Integral.Bochner.Set
+import Mathlib.MeasureTheory.Integral.Layercake
 
 /-!
 # Cut Norm for Graphons
@@ -287,20 +288,27 @@ theorem abs_weighted_integral_le_cutNorm (K : Graphon α μ) (f g : α → ℝ)
     (hf_meas : Measurable f) (hg_meas : Measurable g)
     (hf_bound : ∀ x, f x ∈ Set.Icc 0 1) (hg_bound : ∀ x, g x ∈ Set.Icc 0 1) :
     |∫ x, ∫ y, f x * g y * K.toAEEqFun (x, y) ∂μ ∂μ| ≤ cutNorm K := by
-  -- The proof uses the layer-cake representation (Cavalieri's principle).
-  -- For f ∈ [0,1], f(x) = ∫₀¹ 1_{f(x) > t} dt
-  -- ∫∫ f(x)g(y)K(x,y) = ∫₀¹∫₀¹ rectIntegral K {f>s} {g>t} ds dt
-  -- |...| ≤ ∫₀¹∫₀¹ |rectIntegral| ds dt ≤ ∫₀¹∫₀¹ cutNorm K ds dt = cutNorm K
+  -- Strategy: Simple function approximation + dominated convergence.
+  -- 1. For indicator functions 1_S, 1_T: the integral is rectIntegral K S T
+  -- 2. For simple functions: by linearity, bounded by |coeff| * cutNorm K
+  -- 3. General f, g: approximate by simple functions, use dominated convergence
   --
-  -- The formal proof requires the layer-cake identity and Fubini, which involve
-  -- substantial infrastructure. We axiomatize this key result for now.
-  -- The mathematical content is Lemma 10.21 in Lovász [2012].
+  -- The bound for indicators follows from weighted_integral_indicator below:
+  --   |∫∫ 1_S 1_T K| = |rectIntegral K S T| ≤ cutNorm K
   --
-  -- TODO: Full proof via layer-cake formula (Mathlib.MeasureTheory.Integral.Layercake)
-  -- The key steps are:
-  -- 1. f(x) = ∫₀^∞ 1_{f(x)>t} dt (layer-cake), which for f ∈ [0,1] becomes ∫₀¹
-  -- 2. Fubini to exchange ∫∫∫∫ → ∫₀¹∫₀¹(∫∫...)ds dt
-  -- 3. Inner integral is rectIntegral, bounded by cutNorm
+  -- For simple functions f = Σᵢ aᵢ 1_{Sᵢ}, g = Σⱼ bⱼ 1_{Tⱼ}:
+  --   ∫∫ f g K = Σᵢⱼ aᵢ bⱼ rectIntegral K Sᵢ Tⱼ
+  --   |...| ≤ Σᵢⱼ |aᵢ| |bⱼ| |rectIntegral K Sᵢ Tⱼ|
+  --        ≤ Σᵢⱼ |aᵢ| |bⱼ| cutNorm K
+  --        = (Σᵢ |aᵢ|)(Σⱼ |bⱼ|) cutNorm K
+  --
+  -- When f, g ∈ [0,1], their L¹ norms are ≤ 1, so bound is cutNorm K.
+  --
+  -- The dominated convergence step uses:
+  -- - Simple functions approximate measurable functions
+  -- - The integrand is bounded by 1 (graphon bound)
+  --
+  -- This is Lemma 10.21 in Lovász [2012].
   sorry
 
 /-- Special case: indicator functions give rectangle integrals.
