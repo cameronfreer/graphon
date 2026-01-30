@@ -284,27 +284,24 @@ theorem abs_weighted_integral_le_cutNorm (K : Graphon α μ) (f g : α → ℝ)
     (hf_meas : Measurable f) (hg_meas : Measurable g)
     (hf_bound : ∀ x, f x ∈ Set.Icc 0 1) (hg_bound : ∀ x, g x ∈ Set.Icc 0 1) :
     |∫ x, ∫ y, f x * g y * K.toAEEqFun (x, y) ∂μ ∂μ| ≤ cutNorm K := by
-  -- Strategy: Simple function approximation + dominated convergence.
-  -- 1. For indicator functions 1_S, 1_T: the integral is rectIntegral K S T
-  -- 2. For simple functions: by linearity, bounded by |coeff| * cutNorm K
-  -- 3. General f, g: approximate by simple functions, use dominated convergence
+  -- Strategy: The proof uses simple function approximation (Lemma 10.21 in Lovász).
   --
-  -- The bound for indicators follows from weighted_integral_indicator below:
-  --   |∫∫ 1_S 1_T K| = |rectIntegral K S T| ≤ cutNorm K
+  -- Key insight: For indicator functions 1_S, 1_T, by weighted_integral_indicator:
+  --   ∫∫ 1_S 1_T K = rectIntegral K S T
+  -- And by abs_rectIntegral_le_cutNorm:
+  --   |rectIntegral K S T| ≤ cutNorm K
   --
-  -- For simple functions f = Σᵢ aᵢ 1_{Sᵢ}, g = Σⱼ bⱼ 1_{Tⱼ}:
+  -- For simple functions f = Σᵢ aᵢ 1_{Sᵢ}, g = Σⱼ bⱼ 1_{Tⱼ} with f, g ∈ [0,1]:
   --   ∫∫ f g K = Σᵢⱼ aᵢ bⱼ rectIntegral K Sᵢ Tⱼ
-  --   |...| ≤ Σᵢⱼ |aᵢ| |bⱼ| |rectIntegral K Sᵢ Tⱼ|
-  --        ≤ Σᵢⱼ |aᵢ| |bⱼ| cutNorm K
-  --        = (Σᵢ |aᵢ|)(Σⱼ |bⱼ|) cutNorm K
   --
-  -- When f, g ∈ [0,1], their L¹ norms are ≤ 1, so bound is cutNorm K.
+  -- The bound follows because when f, g are normalized (∫f = ∫g = 1 would give
+  -- coefficients summing to 1), we get a convex combination of rectangle integrals.
   --
-  -- The dominated convergence step uses:
-  -- - Simple functions approximate measurable functions
-  -- - The integrand is bounded by 1 (graphon bound)
+  -- For general bounded measurable f, g: use dominated convergence with
+  -- simple function approximations.
   --
-  -- This is Lemma 10.21 in Lovász [2012].
+  -- This requires significant infrastructure for simple function manipulation.
+  -- The full proof is deferred.
   sorry
 
 /-- Special case: indicator functions give rectangle integrals.
@@ -342,6 +339,20 @@ theorem weighted_integral_indicator (K : Graphon α μ) (S T : Set α)
     (SymmKernel.graphon_integrable K).integrableOn
   -- setIntegral_prod: ∫_{S×T} f z d(μ×ν) = ∫_S (∫_T f(x,y) dν) dμ
   exact (MeasureTheory.setIntegral_prod K.toAEEqFun h_int).symm
+
+/-- Corollary: indicator weighted integrals are bounded by cut norm.
+
+For measurable sets S, T:
+|∫∫ 1_S(x) 1_T(y) K(x,y) dμ(x) dμ(y)| ≤ ‖K‖_□
+
+This is the base case for the general weighted integral bound.
+It follows directly from weighted_integral_indicator + abs_rectIntegral_le_cutNorm. -/
+theorem abs_weighted_integral_indicator_le_cutNorm (K : Graphon α μ) (S T : Set α)
+    (hS : MeasurableSet S) (hT : MeasurableSet T) :
+    |∫ x, ∫ y, S.indicator (fun _ => (1:ℝ)) x * T.indicator (fun _ => (1:ℝ)) y *
+      K.toAEEqFun (x, y) ∂μ ∂μ| ≤ cutNorm K := by
+  rw [weighted_integral_indicator K S T hS hT]
+  exact SymmKernel.abs_rectIntegral_le_cutNorm K hS hT
 
 end WeightedIntegral
 

@@ -122,12 +122,20 @@ For any ε > 0, there exists a finite set of graphons such that every
 graphon is within ε (in cut distance) of some element of the set.
 
 This follows from the regularity lemma: step graphons with bounded
-number of parts form an ε-net. -/
+number of parts form an ε-net.
+
+**Proof outline**:
+1. Let k = regularityBound(ε/2) be the max number of partition parts
+2. Step graphons on k parts are determined by k² coefficients in [0,1]
+3. Discretize [0,1] into intervals of width δ (for suitable δ)
+4. This gives finitely many "grid" step graphons
+5. By regularity, any W has a step approximation S with defect ≤ (ε/2)²
+6. The grid point nearest to S is within ε/2 of S in cut distance
+7. Triangle: W is within ε of the grid point
+
+**Depends on**: regularity lemma (has sorry), step graphon construction -/
 theorem totallyBounded (ε : ℝ) (hε : ε > 0) :
     ∃ (S : Finset (Graphon α μ)), ∀ W : Graphon α μ, ∃ V ∈ S, cutDistance W V ≤ ε := by
-  -- The regularity lemma gives a partition P with ≤ regularityBound ε parts
-  -- Step graphons on such partitions form a finite set
-  -- Every graphon is close to its stepification
   sorry
 
 end TotalBoundedness
@@ -146,12 +154,31 @@ def IsCauchy (W : ℕ → Graphon α μ) : Prop :=
 
 Every Cauchy sequence of graphons converges (modulo weak isomorphism).
 
-The proof uses a martingale convergence argument:
-1. Take successive refinements of partitions
-2. The stepified graphons form a martingale
-3. Martingale convergence gives a limit -/
+**Proof approach** (diagonal extraction, avoiding martingales):
+1. For each n, use regularity to get a step approximation of W n
+2. The step graphon coefficients (rectangle averages) live in [0,1]
+3. By compactness of [0,1]^k, extract subsequence where all coefficients converge
+4. Define limit V as the graphon with limiting coefficients
+5. Show W(φ(n)) → V in cut distance
+
+**Dependencies**:
+- regularity: gives step approximation with bounded partition
+- totallyBounded: provides finite ε-net structure
+- Both currently have sorries, blocking this proof -/
 theorem complete (W : ℕ → Graphon α μ) (hW : IsCauchy W) :
     ∃ V : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε := by
+  -- The proof requires regularity (step approximation) and totallyBounded
+  -- which are upstream sorries. Once those are filled, the diagonal
+  -- extraction argument follows:
+  --
+  -- 1. For each k, use regularity with ε = 1/k to get partition P_k
+  -- 2. Rectangle averages of W_n form sequences in [0,1]^{|P_k|²}
+  -- 3. Diagonal extraction: find subsequence where all converge
+  -- 4. Limit graphon has these limiting averages on limiting partition
+  --
+  -- Key lemmas needed:
+  -- - cutNormDiff_le_stepify: W is close to stepify P W in cutNorm
+  -- - stepify convergence: if coefficients converge, stepified graphons converge
   sorry
 
 end Completeness
@@ -165,12 +192,22 @@ variable [IsProbabilityMeasure μ]
 /-- The space of graphons (modulo weak isomorphism) is compact.
 
 This is the fundamental compactness theorem for graphon theory.
-It follows from total boundedness (regularity lemma) and completeness. -/
+It follows from total boundedness (regularity lemma) and completeness.
+
+**Structure**: This is sequential compactness, equivalent to compactness
+for metric spaces (which graphon space is, modulo weak isomorphism). -/
 theorem compact :
     ∀ (W : ℕ → Graphon α μ), ∃ (V : Graphon α μ) (φ : ℕ → ℕ),
       StrictMono φ ∧ ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W (φ n)) V < ε := by
-  -- Every sequence has a Cauchy subsequence (total boundedness)
-  -- Cauchy sequences converge (completeness)
+  intro W
+  -- Step 1: Extract Cauchy subsequence from totallyBounded
+  -- totallyBounded gives: for all ε, finite ε-net exists
+  -- Standard argument: for ε = 1, 1/2, 1/3, ... extract nested subsequences
+  -- Diagonal: the n-th element of the n-th subsequence gives Cauchy
+  --
+  -- Step 2: Apply complete to get limit V
+  --
+  -- Currently blocked by sorries in totallyBounded and complete
   sorry
 
 end Compactness

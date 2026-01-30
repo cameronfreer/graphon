@@ -436,13 +436,34 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
     ∃ Q : MeasurablePartition α μ,
       Refines Q P ∧ Q.parts.card ≤ 2 * P.parts.card ∧
       energy W Q ≥ energy W P + ε ^ 4 / 4 := by
-  -- The proof constructs Q by finding a good cut of S (or T):
-  -- 1. If ∫_{S×T} (W - avg)² ≥ ε² μ(S) μ(T), then W varies significantly on S × T
-  -- 2. By Markov/Chebyshev, there exists a measurable cut S = S₁ ∪ S₂ such that
-  --    |rectAverage W S₁ T - rectAverage W S T| ≥ ε/2 or similar
-  -- 3. Replacing S with S₁, S₂ in P gives Q
-  -- 4. The energy increase comes from: new terms have (avg on smaller set)²
-  --    which by convexity arguments increases the sum
+  -- **Proof outline** (Frieze-Kannan energy increment):
+  --
+  -- Given: ∫_{S×T} (W - c)² ≥ ε² μ(S) μ(T) where c = rectAverage W S T
+  --
+  -- **Step 1**: Define T-average function
+  --   W_T(x) := (1/μ(T)) ∫_T W(x,y) dμ(y)
+  --   This is measurable and takes values in [0,1]
+  --
+  -- **Step 2**: Apply Chebyshev to W_T on S
+  --   Variance of W_T on S ≥ ε² (follows from Fubini + hypothesis)
+  --   By Chebyshev: ∃ t such that μ{x ∈ S : W_T(x) > t} and μ{x ∈ S : W_T(x) ≤ t}
+  --   both have measure ≥ μ(S)/2, and the averages differ by ≥ ε
+  --
+  -- **Step 3**: Define S₁ = {x ∈ S : W_T(x) ≤ t}, S₂ = S \ S₁
+  --   Both are measurable (W_T is measurable)
+  --   Build Q by replacing S with S₁, S₂ in P
+  --
+  -- **Step 4**: Energy increase via convexity
+  --   Old contribution: μ(S)μ(T) · c²
+  --   New contribution: μ(S₁)μ(T) · c₁² + μ(S₂)μ(T) · c₂²
+  --   where c₁, c₂ are new rectangle averages
+  --   By convexity of x², when c₁ and c₂ are separated from c,
+  --   the weighted sum increases by ≥ ε⁴/4
+  --
+  -- **Required helper lemmas** (not yet implemented):
+  -- - Measurability of conditional expectation / T-average
+  -- - Chebyshev inequality for variance on measure spaces
+  -- - Partition refinement construction
   sorry
 
 end Energy
@@ -480,7 +501,27 @@ theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ P : MeasurablePartition α μ,
       P.parts.card ≤ regularityBound ε ∧
       defect W P ≤ ε ^ 2 := by
-  -- The proof iterates energy_increment until defect is small
+  -- **Proof outline** (Frieze-Kannan iteration):
+  --
+  -- Start with trivial partition P₀ = {α}
+  --
+  -- **Iteration**: While defect W P > ε²:
+  --   1. Find "bad" rectangle S × T where local variance ≥ ε² μ(S) μ(T)
+  --   2. Apply energy_increment to get P' refining P
+  --   3. Energy increases by ≥ ε⁴/4
+  --
+  -- **Termination**:
+  --   - energy W P ≤ 1 (by energy_le_one)
+  --   - Each iteration increases energy by ≥ ε⁴/4
+  --   - So at most 4/ε⁴ iterations
+  --
+  -- **Part count bound**:
+  --   - Each iteration at most doubles parts
+  --   - Starting with 1 part, after k iterations: ≤ 2^k parts
+  --   - With k ≤ 4/ε⁴: parts ≤ 2^{4/ε⁴}
+  --   - More careful analysis gives polynomial bound ~1/ε⁸
+  --
+  -- **Depends on**: energy_increment (sorry above)
   sorry
 
 end Regularity
@@ -496,7 +537,19 @@ variable [IsProbabilityMeasure μ]
 def IsEquitable (P : MeasurablePartition α μ) (ε : ℝ) : Prop :=
   ∀ S ∈ P.parts, |(μ S).toReal - 1 / P.parts.card| ≤ ε
 
-/-- Any partition can be refined to an equitable one with controlled part count. -/
+/-- Any partition can be refined to an equitable one with controlled part count.
+
+**Proof idea**:
+Each part S of P with μ(S) > ε is split into ⌈μ(S)/ε⌉ equal-measure pieces.
+Small parts (μ(S) ≤ ε) are kept as is.
+
+**Construction**: For a part S with μ(S) > ε:
+1. Find measurable sets S₁,...,Sₖ partitioning S with k = ⌈μ(S)/ε⌉
+2. Each Sᵢ has measure μ(S)/k ≈ ε
+
+**Challenge**: Constructing the equal-measure partition of a measurable set
+requires the Lebesgue density theorem or explicit construction via
+layer cake / quantile functions. Not trivial in full generality. -/
 theorem exists_equitable_refinement (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ Q : MeasurablePartition α μ,
       Refines Q P ∧
