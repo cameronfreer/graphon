@@ -362,27 +362,52 @@ theorem abs_weighted_integral_diff_le (U W : Graphon α μ) (f g : α → ℝ)
       cutNormDiff U W := by
   -- **Proof via layer cake representation** (Lovász, Lemma 10.21):
   --
-  -- For f, g ∈ [0,1], we have the layer cake identities:
-  --   f(x) = ∫₀¹ 1{f(x) ≥ s} ds
-  --   g(y) = ∫₀¹ 1{g(y) ≥ t} dt
+  -- For f, g ∈ [0,1], the layer cake identity gives:
+  --   f(x) = ∫₀¹ 1{f(x) ≥ s} ds  and  g(y) = ∫₀¹ 1{g(y) ≥ t} dt
   --
-  -- The weighted integral becomes (by Fubini):
+  -- The key calculation (via Fubini 4-fold interchange):
   --   ∫∫ f(x) g(y) (U-W)(x,y) dμ² = ∫₀¹ ∫₀¹ rectIntegralDiff U W {f≥s} {g≥t} ds dt
   --
-  -- Taking absolute value and using |rectIntegralDiff| ≤ cutNormDiff:
-  --   |...| ≤ ∫₀¹ ∫₀¹ |rectIntegralDiff U W {f≥s} {g≥t}| ds dt
-  --        ≤ ∫₀¹ ∫₀¹ cutNormDiff U W ds dt
-  --        = cutNormDiff U W
+  -- Taking absolute value:
+  --   |...| ≤ ∫₀¹ ∫₀¹ |rectIntegralDiff| ds dt ≤ ∫₀¹ ∫₀¹ cutNormDiff ds dt = cutNormDiff
   --
-  -- **Technical requirements** (all satisfied):
-  -- 1. Layer cake representation for bounded measurable functions
-  -- 2. Fubini interchange: requires integrability, which holds since everything is bounded by 1
-  -- 3. The bound |rectIntegralDiff U W S T| ≤ cutNormDiff U W (proved in abs_rectIntegralDiff_le)
-  -- 4. Measurability of {f ≥ s} and {g ≥ t}: follows from measurability of f, g
-  --
-  -- TODO: Full implementation requires setting up the layer cake / Fubini machinery.
-  -- The indicator case abs_weighted_integral_diff_indicator_le is already proven.
-  sorry
+  -- Step 1: Set up integrability
+  have h_diff_int : Integrable (fun p => U.toAEEqFun p - W.toAEEqFun p) (μ.prod μ) :=
+    (SymmKernel.graphon_integrable U).sub (SymmKernel.graphon_integrable W)
+  have h_fg_bound : ∀ p : α × α, ‖f p.1 * g p.2‖ ≤ 1 := fun p => by
+    rw [Real.norm_eq_abs, abs_of_nonneg (mul_nonneg (hf_bound p.1).1 (hg_bound p.2).1)]
+    exact mul_le_one₀ (hf_bound p.1).2 (hg_bound p.2).1 (hg_bound p.2).2
+  have h_fgD_int : Integrable (fun p => f p.1 * g p.2 * (U.toAEEqFun p - W.toAEEqFun p)) (μ.prod μ) :=
+    h_diff_int.bdd_mul ((hf_meas.comp measurable_fst).mul (hg_meas.comp measurable_snd)).aestronglyMeasurable
+      (Filter.Eventually.of_forall h_fg_bound)
+  -- Step 2: Convert iterated integral to product integral
+  have h_fubini : ∫ x, ∫ y, f x * g y * (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ ∂μ =
+      ∫ p, f p.1 * g p.2 * (U.toAEEqFun p - W.toAEEqFun p) ∂(μ.prod μ) :=
+    (integral_prod _ h_fgD_int).symm
+  rw [h_fubini]
+  -- Step 3: Apply absolute value bound
+  calc |∫ p, f p.1 * g p.2 * (U.toAEEqFun p - W.toAEEqFun p) ∂(μ.prod μ)|
+      ≤ ∫ p, |f p.1 * g p.2 * (U.toAEEqFun p - W.toAEEqFun p)| ∂(μ.prod μ) :=
+        abs_integral_le_integral_abs
+    _ = ∫ p, f p.1 * g p.2 * |U.toAEEqFun p - W.toAEEqFun p| ∂(μ.prod μ) := by
+        congr 1; ext p
+        rw [abs_mul, abs_of_nonneg (mul_nonneg (hf_bound p.1).1 (hg_bound p.2).1)]
+    _ ≤ cutNormDiff U W := by
+        -- This is where the layer cake representation is used
+        -- The full proof requires expressing:
+        --   f(x) g(y) = ∫_{(0,1]²} 1_{f≥s}(x) 1_{g≥t}(y) ds dt
+        -- and then using Fubini to interchange with the (U-W) integral.
+        --
+        -- For now, we use the weaker bound that ∫|U-W| ≤ 1 and cutNormDiff ≤ 1:
+        -- ∫ f g |U-W| ≤ ∫ |U-W| ≤ ... (but this doesn't give cutNormDiff directly)
+        --
+        -- The correct layer cake proof:
+        -- ∫ f g |U-W| ≤ ∫∫_{(0,1]²} 1_{f≥s} 1_{g≥t} |U-W| ds dt (by Fubini)
+        --            ≤ ∫∫_{(0,1]²} |rectIntegralDiff U W {f≥s} {g≥t}| ds dt (by Fubini again)
+        --            ≤ ∫∫_{(0,1]²} cutNormDiff U W ds dt = cutNormDiff U W
+        --
+        -- TODO: Formalize the layer cake + Fubini interchange
+        sorry
 
 end CutNormDiff
 
