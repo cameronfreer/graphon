@@ -367,35 +367,64 @@ theorem abs_weighted_integral_diff_indicator_le (U W : Graphon α μ) (S T : Set
   rw [h_eq]
   exact abs_rectIntegralDiff_le U W hS hT
 
+/-- Helper: Indicator times general weight is bounded by cutNormDiff.
+
+For measurable S and g : α → [0,1]:
+|∫∫ 1_S(x) g(y) (U-W)(x,y) dμ²| ≤ cutNormDiff U W
+
+This uses 1-fold layer cake on g:
+∫∫ 1_S g (U-W) = ∫₀¹ rectIntegralDiff U W S {g≥t} dt -/
+private lemma abs_weighted_integral_diff_indicator_general_le (U W : Graphon α μ)
+    (S : Set α) (hS : MeasurableSet S) (g : α → ℝ)
+    (hg_meas : Measurable g) (hg_bound : ∀ y, g y ∈ Set.Icc 0 1) :
+    |∫ x, ∫ y, S.indicator (fun _ => (1:ℝ)) x * g y *
+      (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ ∂μ| ≤ cutNormDiff U W := by
+  -- Level sets of g are measurable
+  have hT_meas : ∀ t, MeasurableSet {y | t ≤ g y} := fun t => hg_meas measurableSet_Ici
+  -- For each t, |rectIntegralDiff U W S {g≥t}| ≤ cutNormDiff
+  have h_rect_bound : ∀ t, |rectIntegralDiff U W S {y | t ≤ g y}| ≤ cutNormDiff U W :=
+    fun t => abs_rectIntegralDiff_le U W hS (hT_meas t)
+  -- The integral ∫∫ 1_S g (U-W) = ∫₀¹ rectIntegralDiff U W S {g≥t} dt
+  -- by layer cake on g.
+  --
+  -- Integrability setup
+  have h_diff_int : Integrable (fun p => U.toAEEqFun p - W.toAEEqFun p) (μ.prod μ) :=
+    (SymmKernel.graphon_integrable U).sub (SymmKernel.graphon_integrable W)
+  have h_1g_bound : ∀ p : α × α, ‖S.indicator (fun _ => (1:ℝ)) p.1 * g p.2‖ ≤ 1 := fun p => by
+    rw [Real.norm_eq_abs]
+    by_cases hx : p.1 ∈ S
+    · simp only [Set.indicator_of_mem hx]
+      rw [one_mul, abs_of_nonneg (hg_bound p.2).1]
+      exact (hg_bound p.2).2
+    · simp only [Set.indicator_of_notMem hx, zero_mul, abs_zero, zero_le_one]
+  have h_int : Integrable (fun p => S.indicator (fun _ => (1:ℝ)) p.1 * g p.2 *
+      (U.toAEEqFun p - W.toAEEqFun p)) (μ.prod μ) := by
+    apply Integrable.bdd_mul h_diff_int
+    · exact ((measurable_const.indicator hS).comp measurable_fst).mul
+        (hg_meas.comp measurable_snd) |>.aestronglyMeasurable
+    · exact Filter.Eventually.of_forall h_1g_bound
+  -- Convert to product measure
+  have h_fubini : ∫ x, ∫ y, S.indicator (fun _ => (1:ℝ)) x * g y *
+      (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ ∂μ =
+      ∫ p, S.indicator (fun _ => (1:ℝ)) p.1 * g p.2 * (U.toAEEqFun p - W.toAEEqFun p) ∂(μ.prod μ) :=
+    (integral_prod _ h_int).symm
+  rw [h_fubini]
+  -- Layer cake on g: g(y) = ∫₀¹ 1_{t ≤ g(y)} dt
+  -- So ∫ 1_S g K = ∫₀¹ (∫ 1_S 1_{g≥t} K) dt = ∫₀¹ rectIntegralDiff S {g≥t} dt
+  -- The Fubini interchange for this 2-fold case is justified by:
+  -- - Integrand bounded by 2, measures finite
+  --
+  -- |∫₀¹ rectIntegralDiff S {g≥t} dt| ≤ ∫₀¹ |rectIntegralDiff S {g≥t}| dt
+  --                                   ≤ ∫₀¹ cutNormDiff dt = cutNormDiff
+  sorry
+
 /-- General weighted integral of graphon difference bounded by cut norm difference.
 
 For f, g : α → [0, 1] measurable and graphons U, W:
 |∫∫ f(x) g(y) (U(x,y) - W(x,y)) dμ(x) dμ(y)| ≤ ‖U - W‖_□
 
-**Proof strategy**: Layer cake representation (Lovász, Lemma 10.21):
-
-1. **Pointwise layer cake**: For a ∈ [0,1]:
-   - a = ∫₀¹ 1_{a ≥ t} dt = measure of {t ∈ (0,1] : t ≤ a} = a
-
-2. **Product layer cake**: f(x) * g(y) = ∫∫_{[0,1]²} 1_{f≥s}(x) * 1_{g≥t}(y) ds dt
-   - This follows from the pointwise identity and Fubini on [0,1]²
-
-3. **Main integral**: Substituting the product layer cake:
-   - ∫∫_α f(x) g(y) (U-W)(x,y) dμ²
-   - = ∫∫_α [∫∫_{[0,1]²} 1_{f≥s}(x) 1_{g≥t}(y) ds dt] (U-W)(x,y) dμ²
-   - = ∫∫_{[0,1]²} [∫∫_α 1_{f≥s}(x) 1_{g≥t}(y) (U-W)(x,y) dμ²] ds dt (Fubini)
-   - = ∫∫_{[0,1]²} rectIntegralDiff U W {f≥s} {g≥t} ds dt
-
-4. **Bound**: |...| ≤ ∫∫_{[0,1]²} cutNormDiff U W ds dt = cutNormDiff U W
-
-**Technical requirements**:
-- Measurability of level sets: {f ≥ s} is measurable (from `hf_meas`)
-- 4-fold Fubini: Interchange μ × μ with Lebesgue × Lebesgue on [0,1]²
-- Integrability: All integrands bounded by 1, all measures finite
-
-**Verified building blocks**:
-- `abs_weighted_integral_diff_indicator_le`: The indicator case
-- `abs_rectIntegralDiff_le`: Rectangle integrals bounded by cutNormDiff -/
+Uses nested layer cake: first on f (reducing to indicator case), then on g.
+This is Lemma 10.21 in Lovász [2012]. -/
 theorem abs_weighted_integral_diff_le (U W : Graphon α μ) (f g : α → ℝ)
     (hf_meas : Measurable f) (hg_meas : Measurable g)
     (hf_bound : ∀ x, f x ∈ Set.Icc 0 1) (hg_bound : ∀ x, g x ∈ Set.Icc 0 1) :
