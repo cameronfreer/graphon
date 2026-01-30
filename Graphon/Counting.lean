@@ -103,35 +103,41 @@ theorem homDensity_sub_le (F : SimpleGraph V) [DecidableRel F.Adj]
     |homDensity F U - homDensity F W| ≤ F.edgeFinset.card * cutNormDiff U W := by
   -- **Proof structure** (Lovász, Theorem 10.23):
   --
-  -- The key insight is telescoping + iterated conditioning.
+  -- **Overview**: Use telescoping decomposition + Fubini to reduce to weighted integrals.
   --
-  -- **Step 1**: Telescoping decomposition
-  --   For edge set E = {e₁,...,eₘ} and vertex assignment x : V → α:
-  --   ∏_e U(x_e) - ∏_e W(x_e) = Σⱼ (prefix_j) · (U_j - W_j) · (suffix_j)
-  --   where prefix_j = ∏_{i<j} U_i and suffix_j = ∏_{i>j} W_i
+  -- **Step 1**: Start with the integral representation
+  --   homDensity F U - homDensity F W = ∫ (∏_{e∈E} U_e(x) - ∏_{e∈E} W_e(x)) dμ^V
+  --   where U_e(x) = U(x_{e.1}, x_{e.2}) for vertex assignment x : V → α.
   --
-  -- **Step 2**: Each term contributes ≤ cutNormDiff U W after integration
-  --   For edge eⱼ connecting vertices u, v:
-  --   |∫...∫ (prefix_j)(U(x_u,x_v) - W(x_u,x_v))(suffix_j) dμ^V|
+  -- **Step 2**: Apply telescoping decomposition (pointwise in x)
+  --   By `abs_prod_sub_prod_le`, for each x:
+  --   |∏ U_e(x) - ∏ W_e(x)| ≤ Σⱼ |prefix_j(x)| · |U_j(x) - W_j(x)| · |suffix_j(x)|
+  --   where prefix/suffix are products with edge indices <j / >j respectively,
+  --   and all factors are in [0,1].
   --
-  --   After integrating out all coordinates except x_u, x_v:
-  --   = |∫∫ f(x_u,x_v) (U(x_u,x_v) - W(x_u,x_v)) dμ(x_u) dμ(x_v)|
+  -- **Step 3**: Integrate and bound each term
+  --   For edge eⱼ = {u, v}, the j-th term after integration:
+  --   |∫ prefix_j(x) · (U_j(x) - W_j(x)) · suffix_j(x) dμ^V|
   --
-  --   where f = E[prefix_j · suffix_j | x_u, x_v] ∈ [0,1] measurable.
+  --   By Fubini, integrate out all vertices except u, v:
+  --   = |∫∫ f_j(x_u, x_v) · (U(x_u, x_v) - W(x_u, x_v)) dμ(x_u) dμ(x_v)|
   --
-  --   By `abs_weighted_integral_le_cutNorm` applied to differences:
-  --   This is ≤ cutNormDiff U W
+  --   where f_j = E[prefix_j · suffix_j | x_u, x_v] ∈ [0,1] measurable.
   --
-  -- **Step 3**: Triangle inequality over edges
-  --   |homDensity F U - homDensity F W| ≤ Σⱼ |term_j| ≤ |E| · cutNormDiff U W
+  -- **Step 4**: Apply weighted integral bound
+  --   By `abs_weighted_integral_diff_le` (or variants):
+  --   |∫∫ f(x) g(y) (U - W)(x,y) dμ² | ≤ cutNormDiff U W
   --
-  -- **Dependencies**:
-  -- - `abs_weighted_integral_le_cutNorm` (for the difference case)
-  -- - Fubini-Tonelli for iterated integration
-  -- - Conditioning / conditional expectation
+  --   Technical note: f_j may not factor as f(x_u) g(x_v), requiring
+  --   the more general bound for h(x,y) ∈ [0,1].
   --
-  -- The current implementation is blocked on proving the weighted integral
-  -- bound for general [0,1]-bounded measurable functions.
+  -- **Step 5**: Sum over edges
+  --   |homDensity F U - homDensity F W| ≤ Σⱼ cutNormDiff U W = |E| · cutNormDiff U W
+  --
+  -- **Key lemmas used**:
+  -- - `abs_prod_sub_prod_le`: Pointwise telescoping bound
+  -- - `abs_weighted_integral_diff_le`: Weighted integral bound for differences
+  -- - Fubini-Tonelli for iterated integration on product measure
   sorry
 
 /-- Corollary: graphs with small cut distance have similar homomorphism densities.

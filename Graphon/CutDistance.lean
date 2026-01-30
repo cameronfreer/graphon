@@ -344,6 +344,31 @@ theorem abs_weighted_integral_diff_indicator_le (U W : Graphon α μ) (S T : Set
   rw [h_eq]
   exact abs_rectIntegralDiff_le U W hS hT
 
+/-- General weighted integral of graphon difference bounded by cut norm difference.
+
+For f, g : α → [0, 1] measurable and graphons U, W:
+|∫∫ f(x) g(y) (U(x,y) - W(x,y)) dμ(x) dμ(y)| ≤ ‖U - W‖_□
+
+**Proof strategy**: Same layer cake approach as `abs_weighted_integral_le_cutNorm`:
+- f(x) = ∫₀¹ 1{f(x) ≥ s} ds
+- g(y) = ∫₀¹ 1{g(y) ≥ t} dt
+- The product integral becomes ∫₀¹ ∫₀¹ rectIntegralDiff U W {f≥s} {g≥t} ds dt
+- Each rectIntegralDiff is bounded by cutNormDiff U W
+- Integrating over [0,1]² gives the bound -/
+theorem abs_weighted_integral_diff_le (U W : Graphon α μ) (f g : α → ℝ)
+    (hf_meas : Measurable f) (hg_meas : Measurable g)
+    (hf_bound : ∀ x, f x ∈ Set.Icc 0 1) (hg_bound : ∀ x, g x ∈ Set.Icc 0 1) :
+    |∫ x, ∫ y, f x * g y * (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ ∂μ| ≤
+      cutNormDiff U W := by
+  -- The proof uses the same layer cake strategy as abs_weighted_integral_le_cutNorm.
+  -- Key steps:
+  -- 1. f(x) * g(y) = ∫₀¹ ∫₀¹ 1{f≥s}(x) 1{g≥t}(y) ds dt
+  -- 2. Fubini interchange: ∫_x ∫_y ∫_s ∫_t → ∫_s ∫_t ∫_x ∫_y
+  -- 3. Inner integral = rectIntegralDiff U W {f≥s} {g≥t}
+  -- 4. |rectIntegralDiff| ≤ cutNormDiff U W
+  -- 5. ∫₀¹ ∫₀¹ cutNormDiff U W ds dt = cutNormDiff U W
+  sorry
+
 end CutNormDiff
 
 /-! ### Cut distance -/
