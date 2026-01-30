@@ -5,7 +5,6 @@ Authors: Cameron Freer
 -/
 import Graphon.Basic
 import Mathlib.MeasureTheory.Integral.Bochner.Set
-import Mathlib.MeasureTheory.Integral.Layercake
 
 /-!
 # Cut Norm for Graphons
@@ -30,7 +29,8 @@ a graphon can be approximated by step functions.
 
 For a graphon W ∈ [0,1], we have 0 ≤ ‖W‖_□ ≤ 1.
 
-The cut distance δ_□(U, W) = inf_φ ‖U - W^φ‖_□ will be defined in CutDistance.lean.
+The cut distance δ_□(U, W) = inf_{φ,ψ} ‖U^φ - W^ψ‖_□ is defined in CutDistance.lean
+(two-sided reparametrization for trivial symmetry).
 
 ## References
 

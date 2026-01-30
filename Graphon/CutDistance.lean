@@ -16,7 +16,7 @@ which is the fundamental metric for graphon convergence theory.
 ## Main definitions
 
 * `Graphon.cutNormDiff` - The cut norm of the difference `‖U - W‖_□`
-* `Graphon.cutDistance` - The cut distance `δ□(U, W) = inf_φ ‖U - W^φ‖_□`
+* `Graphon.cutDistance` - The cut distance `δ□(U, W) = inf_{φ,ψ} ‖U^φ - W^ψ‖_□` (two-sided)
 
 ## Main results
 

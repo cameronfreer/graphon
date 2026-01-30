@@ -119,27 +119,31 @@ theorem homDensity_sub_le (F : SimpleGraph V) [DecidableRel F.Adj]
   --   For edge eⱼ = {u, v}, the j-th term after integration:
   --   |∫ prefix_j(x) · (U_j(x) - W_j(x)) · suffix_j(x) dμ^V|
   --
-  --   By Fubini, integrate out all vertices except u, v:
-  --   = |∫∫ f_j(x_u, x_v) · (U(x_u, x_v) - W(x_u, x_v)) dμ(x_u) dμ(x_v)|
+  --   By Fubini, integrate out all vertices except u, v.
+  --   The key observation is that with a suitable edge ordering:
+  --   - prefix_j depends only on vertices "settled" before u,v
+  --   - suffix_j depends only on vertices "unsettled" after u,v
   --
-  --   where f_j = E[prefix_j · suffix_j | x_u, x_v] ∈ [0,1] measurable.
+  --   After integrating out unsettled vertices, suffix_j becomes a constant ≤ 1.
+  --   After integrating, the term has the form:
+  --   |∫∫ h_j(x_u, x_v) · (U(x_u, x_v) - W(x_u, x_v)) dμ(x_u) dμ(x_v)|
+  --   where h_j ∈ [0,1] measurable in both variables.
   --
   -- **Step 4**: Apply weighted integral bound
-  --   By `abs_weighted_integral_diff_le`:
-  --   |∫∫ f(x) g(y) (U - W)(x,y) dμ² | ≤ cutNormDiff U W
+  --   For indicator functions: abs_weighted_integral_diff_indicator_le gives
+  --   |∫∫ 1_S 1_T (U - W)| ≤ cutNormDiff U W
   --
-  --   Note: The conditional expectation E[prefix · suffix | x_u, x_v] factors as
-  --   f(x_u) g(x_v) when edges are ordered appropriately, because:
-  --   - prefix_j depends only on edges before j (vertices "settled" before u,v)
-  --   - suffix_j depends only on edges after j (vertices "unsettled")
-  --   - By Fubini, these integrate independently to give separable weights.
+  --   For general h ∈ [0,1] (not necessarily separable f(x)g(y)):
+  --   By layer cake representation, h = ∫_{[0,1]²} 1_{h≥(s,t)} d(s,t)
+  --   Then Fubini + indicator bound gives |∫∫ h (U-W)| ≤ cutNormDiff U W
   --
   -- **Step 5**: Sum over edges
   --   |homDensity F U - homDensity F W| ≤ Σⱼ cutNormDiff U W = |E| · cutNormDiff U W
   --
   -- **Key lemmas used**:
   -- - `abs_prod_sub_prod_le`: Pointwise telescoping bound
-  -- - `abs_weighted_integral_diff_le`: Weighted integral bound for differences
+  -- - `abs_weighted_integral_diff_indicator_le`: Indicator case for rectangle integrals
+  -- - Layer cake representation + Fubini for general weights
   -- - Fubini-Tonelli for iterated integration on product measure
   sorry
 
