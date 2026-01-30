@@ -6,6 +6,7 @@ Authors: Cameron Freer
 import Graphon.CutNorm
 import Graphon.Pullback
 import Mathlib.MeasureTheory.Constructions.Polish.Basic
+import Mathlib.MeasureTheory.Integral.Layercake
 
 /-!
 # Cut Distance for Graphons
@@ -302,6 +303,28 @@ theorem cutNormDiff_triangle (U V W : Graphon α μ) :
 
 /-! ### Weighted integrals of differences -/
 
+/-- Layer cake identity: For a ∈ [0,1], a = ∫_{(0,1]} 1_{s ≤ a} ds.
+
+This is the pointwise version of the layer cake formula. -/
+private lemma layer_cake_Icc (a : ℝ) (ha : a ∈ Set.Icc 0 1) :
+    a = ∫ s in Set.Ioc 0 1, Set.indicator (Set.Iic a) (fun _ => (1:ℝ)) s := by
+  rw [setIntegral_indicator measurableSet_Iic]
+  have h_inter : Set.Ioc (0:ℝ) 1 ∩ Set.Iic a = Set.Ioc 0 (min a 1) := by
+    ext t
+    simp only [Set.mem_inter_iff, Set.mem_Ioc, Set.mem_Iic]
+    constructor
+    · intro ⟨⟨h1, h2⟩, h3⟩; exact ⟨h1, le_min h3 h2⟩
+    · intro ⟨h1, h2⟩
+      have ht_le_1 : t ≤ 1 := h2.trans (min_le_right a 1)
+      exact ⟨⟨h1, ht_le_1⟩, (min_le_left a 1).trans' h2⟩
+  rw [h_inter, min_eq_left ha.2]
+  by_cases ha0 : a ≤ 0
+  · rw [le_antisymm ha0 ha.1, Set.Ioc_self]; simp
+  · push_neg at ha0
+    rw [setIntegral_const, smul_eq_mul, mul_one]
+    unfold Measure.real
+    rw [Real.volume_Ioc, sub_zero, ENNReal.toReal_ofReal ha0.le]
+
 /-- Weighted integral of graphon difference bounded by cut norm difference (indicator case).
 
 For measurable sets S, T:
@@ -385,16 +408,44 @@ theorem abs_weighted_integral_diff_le (U W : Graphon α μ) (f g : α → ℝ)
   -- |∫∫ 1_{f≥s} 1_{g≥t} (U-W)| ≤ cutNormDiff U W for all s, t
   have h_indicator_bound : ∀ s t, |rectIntegralDiff U W {x | s ≤ f x} {y | t ≤ g y}| ≤
       cutNormDiff U W := fun s t => abs_rectIntegralDiff_le U W (hS_meas s) (hT_meas t)
-  -- The full proof requires:
-  -- 1. Rewrite f(x)*g(y) using layer cake as double integral over [0,1]²
-  -- 2. Exchange order of integration (4-fold Fubini)
-  -- 3. Apply h_indicator_bound to each inner integral
-  -- 4. Integrate over [0,1]² with Lebesgue measure
+  -- Step 1: Convert to product measure form
+  have h_diff_int : Integrable (fun p => U.toAEEqFun p - W.toAEEqFun p) (μ.prod μ) :=
+    (SymmKernel.graphon_integrable U).sub (SymmKernel.graphon_integrable W)
+  have h_fg_bound : ∀ p : α × α, ‖f p.1 * g p.2‖ ≤ 1 := fun p => by
+    rw [Real.norm_eq_abs, abs_of_nonneg (mul_nonneg (hf_bound p.1).1 (hg_bound p.2).1)]
+    exact mul_le_one₀ (hf_bound p.1).2 (hg_bound p.2).1 (hg_bound p.2).2
+  have h_fgK_int : Integrable (fun p => f p.1 * g p.2 * (U.toAEEqFun p - W.toAEEqFun p)) (μ.prod μ) := by
+    apply Integrable.bdd_mul h_diff_int
+    · exact (hf_meas.comp measurable_fst).mul (hg_meas.comp measurable_snd) |>.aestronglyMeasurable
+    · exact Filter.Eventually.of_forall h_fg_bound
+  have h_fubini : ∫ x, ∫ y, f x * g y * (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ ∂μ =
+      ∫ p, f p.1 * g p.2 * (U.toAEEqFun p - W.toAEEqFun p) ∂(μ.prod μ) := (integral_prod _ h_fgK_int).symm
+  rw [h_fubini]
+  -- Step 2: Layer cake decomposition (Lovász Lemma 10.21)
   --
-  -- The Fubini interchange is justified because:
-  -- - Integrand is bounded by |K| ≤ 1
-  -- - All measure spaces are σ-finite (probability measures)
-  -- - The product σ-algebra is generated correctly
+  -- **Key identity**: For a ∈ [0,1], a = ∫_{(0,1]} 1_{s ≤ a} ds (see `layer_cake_Icc`)
+  --
+  -- **Product**: f(x)*g(y) = ∫∫_{(0,1]²} 1_{s ≤ f(x)} 1_{t ≤ g(y)} ds dt
+  --
+  -- **Main decomposition** (applying Fubini on (α×α) × ([0,1]×[0,1])):
+  --   ∫_{α²} f(x) g(y) K(x,y) dμ² = ∫_{(0,1]²} rectIntegral K {f≥s} {g≥t} ds dt
+  --
+  -- For K = U - W:
+  --   ∫_{α²} fg(U-W) = ∫_{(0,1]²} rectIntegralDiff U W {f≥s} {g≥t} ds dt
+  --
+  -- **Bound**:
+  --   |...| ≤ ∫_{(0,1]²} |rectIntegralDiff U W {f≥s} {g≥t}| ds dt
+  --       ≤ ∫_{(0,1]²} cutNormDiff U W ds dt
+  --       = cutNormDiff U W (since volume([0,1]²) = 1)
+  --
+  -- **Technical justification for Fubini**:
+  -- 1. Measurability: The integrand (x,y,s,t) ↦ 1_{s≤f(x)} 1_{t≤g(y)} (U-W)(x,y)
+  --    is measurable on (α×α) × (ℝ×ℝ) as composition of measurable maps.
+  -- 2. σ-finiteness: μ.prod μ (probability) and volume|_{(0,1]²} are σ-finite.
+  -- 3. Integrability: |integrand| ≤ 2 on a finite measure space.
+  --
+  -- The 4-fold Fubini interchange is a standard but technical construction.
+  -- This lemma corresponds to Lovász [2012], Lemma 10.21.
   sorry
 
 end CutNormDiff
