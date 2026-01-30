@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.Basic
 import Mathlib.MeasureTheory.Integral.Bochner.Set
+import Mathlib.MeasureTheory.Integral.Layercake
 
 /-!
 # Cut Norm for Graphons
@@ -284,24 +285,30 @@ theorem abs_weighted_integral_le_cutNorm (K : Graphon α μ) (f g : α → ℝ)
     (hf_meas : Measurable f) (hg_meas : Measurable g)
     (hf_bound : ∀ x, f x ∈ Set.Icc 0 1) (hg_bound : ∀ x, g x ∈ Set.Icc 0 1) :
     |∫ x, ∫ y, f x * g y * K.toAEEqFun (x, y) ∂μ ∂μ| ≤ cutNorm K := by
-  -- Strategy: The proof uses simple function approximation (Lemma 10.21 in Lovász).
+  -- Strategy: Layer cake representation (Lemma 10.21 in Lovász).
   --
-  -- Key insight: For indicator functions 1_S, 1_T, by weighted_integral_indicator:
-  --   ∫∫ 1_S 1_T K = rectIntegral K S T
-  -- And by abs_rectIntegral_le_cutNorm:
-  --   |rectIntegral K S T| ≤ cutNorm K
+  -- For f, g ∈ [0,1], we have layer cake representations:
+  --   f(x) = ∫_0^1 1{f(x) ≥ s} ds (since f ≤ 1, integral over [0,1] suffices)
+  --   g(y) = ∫_0^1 1{g(y) ≥ t} dt
   --
-  -- For simple functions f = Σᵢ aᵢ 1_{Sᵢ}, g = Σⱼ bⱼ 1_{Tⱼ} with f, g ∈ [0,1]:
-  --   ∫∫ f g K = Σᵢⱼ aᵢ bⱼ rectIntegral K Sᵢ Tⱼ
+  -- The product integral becomes (by Fubini, interchanging 4 integrals):
+  --   ∫_x ∫_y f(x) g(y) K(x,y) = ∫_0^1 ∫_0^1 ∫_x ∫_y 1{f≥s}(x) 1{g≥t}(y) K(x,y) ds dt
+  --                            = ∫_0^1 ∫_0^1 rectIntegral K {f≥s} {g≥t} ds dt
   --
-  -- The bound follows because when f, g are normalized (∫f = ∫g = 1 would give
-  -- coefficients summing to 1), we get a convex combination of rectangle integrals.
+  -- Taking absolute value and applying |rectIntegral K S T| ≤ cutNorm K:
+  --   |∫∫ f g K| ≤ ∫_0^1 ∫_0^1 |rectIntegral K {f≥s} {g≥t}| ds dt
+  --             ≤ ∫_0^1 ∫_0^1 cutNorm K ds dt
+  --             = cutNorm K · 1 · 1 = cutNorm K
   --
-  -- For general bounded measurable f, g: use dominated convergence with
-  -- simple function approximations.
+  -- Technical requirements:
+  -- 1. Fubini for the 4-fold integral interchange
+  -- 2. Measurability of {f ≥ s} and {g ≥ t} for a.e. s, t
+  -- 3. Integrability conditions
   --
-  -- This requires significant infrastructure for simple function manipulation.
-  -- The full proof is deferred.
+  -- All conditions are satisfied since:
+  -- - K is bounded by 1, f, g are bounded by 1
+  -- - All functions are measurable
+  -- - μ is a probability measure (finite total mass)
   sorry
 
 /-- Special case: indicator functions give rectangle integrals.
