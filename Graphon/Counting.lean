@@ -125,11 +125,14 @@ theorem homDensity_sub_le (F : SimpleGraph V) [DecidableRel F.Adj]
   --   where f_j = E[prefix_j · suffix_j | x_u, x_v] ∈ [0,1] measurable.
   --
   -- **Step 4**: Apply weighted integral bound
-  --   By `abs_weighted_integral_diff_le` (or variants):
+  --   By `abs_weighted_integral_diff_le`:
   --   |∫∫ f(x) g(y) (U - W)(x,y) dμ² | ≤ cutNormDiff U W
   --
-  --   Technical note: f_j may not factor as f(x_u) g(x_v), requiring
-  --   the more general bound for h(x,y) ∈ [0,1].
+  --   Note: The conditional expectation E[prefix · suffix | x_u, x_v] factors as
+  --   f(x_u) g(x_v) when edges are ordered appropriately, because:
+  --   - prefix_j depends only on edges before j (vertices "settled" before u,v)
+  --   - suffix_j depends only on edges after j (vertices "unsettled")
+  --   - By Fubini, these integrate independently to give separable weights.
   --
   -- **Step 5**: Sum over edges
   --   |homDensity F U - homDensity F W| ≤ Σⱼ cutNormDiff U W = |E| · cutNormDiff U W

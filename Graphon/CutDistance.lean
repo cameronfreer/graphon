@@ -360,13 +360,28 @@ theorem abs_weighted_integral_diff_le (U W : Graphon α μ) (f g : α → ℝ)
     (hf_bound : ∀ x, f x ∈ Set.Icc 0 1) (hg_bound : ∀ x, g x ∈ Set.Icc 0 1) :
     |∫ x, ∫ y, f x * g y * (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ ∂μ| ≤
       cutNormDiff U W := by
-  -- The proof uses the same layer cake strategy as abs_weighted_integral_le_cutNorm.
-  -- Key steps:
-  -- 1. f(x) * g(y) = ∫₀¹ ∫₀¹ 1{f≥s}(x) 1{g≥t}(y) ds dt
-  -- 2. Fubini interchange: ∫_x ∫_y ∫_s ∫_t → ∫_s ∫_t ∫_x ∫_y
-  -- 3. Inner integral = rectIntegralDiff U W {f≥s} {g≥t}
-  -- 4. |rectIntegralDiff| ≤ cutNormDiff U W
-  -- 5. ∫₀¹ ∫₀¹ cutNormDiff U W ds dt = cutNormDiff U W
+  -- **Proof via layer cake representation** (Lovász, Lemma 10.21):
+  --
+  -- For f, g ∈ [0,1], we have the layer cake identities:
+  --   f(x) = ∫₀¹ 1{f(x) ≥ s} ds
+  --   g(y) = ∫₀¹ 1{g(y) ≥ t} dt
+  --
+  -- The weighted integral becomes (by Fubini):
+  --   ∫∫ f(x) g(y) (U-W)(x,y) dμ² = ∫₀¹ ∫₀¹ rectIntegralDiff U W {f≥s} {g≥t} ds dt
+  --
+  -- Taking absolute value and using |rectIntegralDiff| ≤ cutNormDiff:
+  --   |...| ≤ ∫₀¹ ∫₀¹ |rectIntegralDiff U W {f≥s} {g≥t}| ds dt
+  --        ≤ ∫₀¹ ∫₀¹ cutNormDiff U W ds dt
+  --        = cutNormDiff U W
+  --
+  -- **Technical requirements** (all satisfied):
+  -- 1. Layer cake representation for bounded measurable functions
+  -- 2. Fubini interchange: requires integrability, which holds since everything is bounded by 1
+  -- 3. The bound |rectIntegralDiff U W S T| ≤ cutNormDiff U W (proved in abs_rectIntegralDiff_le)
+  -- 4. Measurability of {f ≥ s} and {g ≥ t}: follows from measurability of f, g
+  --
+  -- TODO: Full implementation requires setting up the layer cake / Fubini machinery.
+  -- The indicator case abs_weighted_integral_diff_indicator_le is already proven.
   sorry
 
 end CutNormDiff

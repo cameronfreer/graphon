@@ -285,31 +285,44 @@ theorem abs_weighted_integral_le_cutNorm (K : Graphon α μ) (f g : α → ℝ)
     (hf_meas : Measurable f) (hg_meas : Measurable g)
     (hf_bound : ∀ x, f x ∈ Set.Icc 0 1) (hg_bound : ∀ x, g x ∈ Set.Icc 0 1) :
     |∫ x, ∫ y, f x * g y * K.toAEEqFun (x, y) ∂μ ∂μ| ≤ cutNorm K := by
-  -- Strategy: Layer cake representation (Lemma 10.21 in Lovász).
+  -- Strategy: Monotonicity bound
+  --   0 ≤ ∫∫ f g K ≤ ∫∫ K = rectIntegral K univ univ ≤ cutNorm K
   --
-  -- For f, g ∈ [0,1], we have layer cake representations:
-  --   f(x) = ∫_0^1 1{f(x) ≥ s} ds (since f ≤ 1, integral over [0,1] suffices)
-  --   g(y) = ∫_0^1 1{g(y) ≥ t} dt
+  -- The key lemma is abs_rectIntegral_le_cutNorm with S = T = univ.
   --
-  -- The product integral becomes (by Fubini, interchanging 4 integrals):
-  --   ∫_x ∫_y f(x) g(y) K(x,y) = ∫_0^1 ∫_0^1 ∫_x ∫_y 1{f≥s}(x) 1{g≥t}(y) K(x,y) ds dt
-  --                            = ∫_0^1 ∫_0^1 rectIntegral K {f≥s} {g≥t} ds dt
-  --
-  -- Taking absolute value and applying |rectIntegral K S T| ≤ cutNorm K:
-  --   |∫∫ f g K| ≤ ∫_0^1 ∫_0^1 |rectIntegral K {f≥s} {g≥t}| ds dt
-  --             ≤ ∫_0^1 ∫_0^1 cutNorm K ds dt
-  --             = cutNorm K · 1 · 1 = cutNorm K
-  --
-  -- Technical requirements:
-  -- 1. Fubini for the 4-fold integral interchange
-  -- 2. Measurability of {f ≥ s} and {g ≥ t} for a.e. s, t
-  -- 3. Integrability conditions
-  --
-  -- All conditions are satisfied since:
-  -- - K is bounded by 1, f, g are bounded by 1
-  -- - All functions are measurable
-  -- - μ is a probability measure (finite total mass)
-  sorry
+  -- Step 1: Rewrite using Fubini (product integral form)
+  have h_fg_bound : ∀ p : α × α, ‖f p.1 * g p.2‖ ≤ 1 := fun p => by
+    rw [Real.norm_eq_abs, abs_of_nonneg (mul_nonneg (hf_bound p.1).1 (hg_bound p.2).1)]
+    exact mul_le_one₀ (hf_bound p.1).2 (hg_bound p.2).1 (hg_bound p.2).2
+  have h_fgK_int : Integrable (fun p => f p.1 * g p.2 * K.toAEEqFun p) (μ.prod μ) := by
+    apply Integrable.bdd_mul
+    · exact SymmKernel.graphon_integrable K
+    · exact (hf_meas.comp measurable_fst).mul (hg_meas.comp measurable_snd) |>.aestronglyMeasurable
+    · exact Filter.Eventually.of_forall h_fg_bound
+  have h_fubini : ∫ x, ∫ y, f x * g y * K.toAEEqFun (x, y) ∂μ ∂μ =
+      ∫ p, f p.1 * g p.2 * K.toAEEqFun p ∂(μ.prod μ) := (integral_prod _ h_fgK_int).symm
+  -- Step 2: The integral is non-negative (a.e. all factors non-negative)
+  have h_nonneg : 0 ≤ ∫ p, f p.1 * g p.2 * K.toAEEqFun p ∂(μ.prod μ) := by
+    apply integral_nonneg_of_ae
+    filter_upwards [K.ae_nonneg] with p hp
+    exact mul_nonneg (mul_nonneg (hf_bound p.1).1 (hg_bound p.2).1) hp
+  -- Step 3: Bound by rectIntegral K univ univ using monotonicity
+  have h_le_rect : ∫ p, f p.1 * g p.2 * K.toAEEqFun p ∂(μ.prod μ) ≤
+      SymmKernel.rectIntegral K.toSymmKernel Set.univ Set.univ := by
+    simp only [SymmKernel.rectIntegral, Set.univ_prod_univ, setIntegral_univ]
+    apply integral_mono_ae h_fgK_int (SymmKernel.graphon_integrable K)
+    filter_upwards [K.ae_nonneg] with p hp
+    calc f p.1 * g p.2 * K.toAEEqFun p
+        ≤ 1 * K.toAEEqFun p := by
+          apply mul_le_mul_of_nonneg_right _ hp
+          exact mul_le_one₀ (hf_bound p.1).2 (hg_bound p.2).1 (hg_bound p.2).2
+      _ = K.toAEEqFun p := one_mul _
+  -- Step 4: Apply the cut norm bound
+  rw [h_fubini, abs_of_nonneg h_nonneg]
+  calc ∫ p, f p.1 * g p.2 * K.toAEEqFun p ∂(μ.prod μ)
+      ≤ SymmKernel.rectIntegral K.toSymmKernel Set.univ Set.univ := h_le_rect
+    _ ≤ |SymmKernel.rectIntegral K.toSymmKernel Set.univ Set.univ| := le_abs_self _
+    _ ≤ cutNorm K := SymmKernel.abs_rectIntegral_le_cutNorm K MeasurableSet.univ MeasurableSet.univ
 
 /-- Special case: indicator functions give rectangle integrals.
 
