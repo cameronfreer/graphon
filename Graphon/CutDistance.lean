@@ -349,49 +349,52 @@ theorem abs_weighted_integral_diff_indicator_le (U W : Graphon α μ) (S T : Set
 For f, g : α → [0, 1] measurable and graphons U, W:
 |∫∫ f(x) g(y) (U(x,y) - W(x,y)) dμ(x) dμ(y)| ≤ ‖U - W‖_□
 
-**Proof strategy**: Same layer cake approach as `abs_weighted_integral_le_cutNorm`:
-- f(x) = ∫₀¹ 1{f(x) ≥ s} ds
-- g(y) = ∫₀¹ 1{g(y) ≥ t} dt
-- The product integral becomes ∫₀¹ ∫₀¹ rectIntegralDiff U W {f≥s} {g≥t} ds dt
-- Each rectIntegralDiff is bounded by cutNormDiff U W
-- Integrating over [0,1]² gives the bound -/
+**Proof strategy**: Layer cake representation (Lovász, Lemma 10.21):
+
+1. **Pointwise layer cake**: For a ∈ [0,1]:
+   - a = ∫₀¹ 1_{a ≥ t} dt = measure of {t ∈ (0,1] : t ≤ a} = a
+
+2. **Product layer cake**: f(x) * g(y) = ∫∫_{[0,1]²} 1_{f≥s}(x) * 1_{g≥t}(y) ds dt
+   - This follows from the pointwise identity and Fubini on [0,1]²
+
+3. **Main integral**: Substituting the product layer cake:
+   - ∫∫_α f(x) g(y) (U-W)(x,y) dμ²
+   - = ∫∫_α [∫∫_{[0,1]²} 1_{f≥s}(x) 1_{g≥t}(y) ds dt] (U-W)(x,y) dμ²
+   - = ∫∫_{[0,1]²} [∫∫_α 1_{f≥s}(x) 1_{g≥t}(y) (U-W)(x,y) dμ²] ds dt (Fubini)
+   - = ∫∫_{[0,1]²} rectIntegralDiff U W {f≥s} {g≥t} ds dt
+
+4. **Bound**: |...| ≤ ∫∫_{[0,1]²} cutNormDiff U W ds dt = cutNormDiff U W
+
+**Technical requirements**:
+- Measurability of level sets: {f ≥ s} is measurable (from `hf_meas`)
+- 4-fold Fubini: Interchange μ × μ with Lebesgue × Lebesgue on [0,1]²
+- Integrability: All integrands bounded by 1, all measures finite
+
+**Verified building blocks**:
+- `abs_weighted_integral_diff_indicator_le`: The indicator case
+- `abs_rectIntegralDiff_le`: Rectangle integrals bounded by cutNormDiff -/
 theorem abs_weighted_integral_diff_le (U W : Graphon α μ) (f g : α → ℝ)
     (hf_meas : Measurable f) (hg_meas : Measurable g)
     (hf_bound : ∀ x, f x ∈ Set.Icc 0 1) (hg_bound : ∀ x, g x ∈ Set.Icc 0 1) :
     |∫ x, ∫ y, f x * g y * (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ ∂μ| ≤
       cutNormDiff U W := by
-  -- **Proof via layer cake representation** (Lovász, Lemma 10.21):
+  -- Level sets are measurable
+  have hS_meas : ∀ s, MeasurableSet {x | s ≤ f x} := fun s => hf_meas measurableSet_Ici
+  have hT_meas : ∀ t, MeasurableSet {y | t ≤ g y} := fun t => hg_meas measurableSet_Ici
+  -- The indicator bound (already proven) gives:
+  -- |∫∫ 1_{f≥s} 1_{g≥t} (U-W)| ≤ cutNormDiff U W for all s, t
+  have h_indicator_bound : ∀ s t, |rectIntegralDiff U W {x | s ≤ f x} {y | t ≤ g y}| ≤
+      cutNormDiff U W := fun s t => abs_rectIntegralDiff_le U W (hS_meas s) (hT_meas t)
+  -- The full proof requires:
+  -- 1. Rewrite f(x)*g(y) using layer cake as double integral over [0,1]²
+  -- 2. Exchange order of integration (4-fold Fubini)
+  -- 3. Apply h_indicator_bound to each inner integral
+  -- 4. Integrate over [0,1]² with Lebesgue measure
   --
-  -- For f, g ∈ [0,1], the pointwise layer cake identity gives:
-  --   f(x) = ∫₀¹ 1{f(x) ≥ s} ds  (since f(x) = ∫₀^{f(x)} 1 dt)
-  --   g(y) = ∫₀¹ 1{g(y) ≥ t} dt
-  --
-  -- Therefore the product:
-  --   f(x) g(y) = [∫₀¹ 1{f≥s} ds][∫₀¹ 1{g≥t} dt] = ∫₀¹ ∫₀¹ 1{f≥s}(x) 1{g≥t}(y) ds dt
-  --
-  -- Substituting into the integral:
-  --   ∫∫ f(x) g(y) (U-W)(x,y) dμ²
-  --     = ∫∫ [∫₀¹ ∫₀¹ 1{f≥s}(x) 1{g≥t}(y) ds dt] (U-W)(x,y) dμ²
-  --     = ∫₀¹ ∫₀¹ [∫∫ 1{f≥s}(x) 1{g≥t}(y) (U-W)(x,y) dμ²] ds dt  (by Fubini)
-  --     = ∫₀¹ ∫₀¹ rectIntegralDiff U W {f≥s} {g≥t} ds dt
-  --
-  -- Taking absolute value (triangle inequality for integrals):
-  --   |∫₀¹ ∫₀¹ rectIntegralDiff ds dt| ≤ ∫₀¹ ∫₀¹ |rectIntegralDiff| ds dt
-  --                                    ≤ ∫₀¹ ∫₀¹ cutNormDiff U W ds dt
-  --                                    = cutNormDiff U W · 1 · 1
-  --                                    = cutNormDiff U W
-  --
-  -- **Key lemmas**:
-  -- - Layer cake identity (pointwise)
-  -- - Fubini interchange (4-fold: μ, μ, Lebesgue on [0,1], Lebesgue on [0,1])
-  -- - abs_rectIntegralDiff_le: |rectIntegralDiff U W S T| ≤ cutNormDiff U W
-  --
-  -- **Integrability**: All integrals are over finite measure spaces with bounded
-  -- integrands, so Fubini applies.
-  --
-  -- TODO: Full formalization requires setting up the layer cake product identity
-  -- and the 4-fold Fubini interchange. The indicator case is already proven
-  -- (abs_weighted_integral_diff_indicator_le).
+  -- The Fubini interchange is justified because:
+  -- - Integrand is bounded by |K| ≤ 1
+  -- - All measure spaces are σ-finite (probability measures)
+  -- - The product σ-algebra is generated correctly
   sorry
 
 end CutNormDiff
