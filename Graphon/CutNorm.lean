@@ -5,7 +5,6 @@ Authors: Cameron Freer
 -/
 import Graphon.Basic
 import Mathlib.MeasureTheory.Integral.Bochner.Set
-import Mathlib.MeasureTheory.Integral.Layercake
 
 /-!
 # Cut Norm for Graphons
@@ -273,10 +272,7 @@ variable [IsProbabilityMeasure μ]
 
 /-- The key lemma for the counting lemma: weighted integrals are bounded by cut norm.
 
-For f, g : α → [0, 1] measurable and K a signed kernel:
-|∫∫ f(x) g(y) K(x,y) dμ(x) dμ(y)| ≤ ‖f‖_∞ ‖g‖_∞ ‖K‖_□
-
-When f, g have values in [0, 1], this gives:
+For f, g : α → [0, 1] measurable and K a graphon:
 |∫∫ f(x) g(y) K(x,y) dμ(x) dμ(y)| ≤ ‖K‖_□
 
 The proof approximates f and g by simple functions (linear combinations of
