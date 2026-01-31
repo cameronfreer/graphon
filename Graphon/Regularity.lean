@@ -274,16 +274,32 @@ For fixed x: (W_T(x) - c)² ≤ (μT)⁻¹ · ∫_T (W(x,y) - c)² dy
 
 This follows from `sq_setIntegral_le_measure_mul_setIntegral_sq`. -/
 lemma tAverage_sub_sq_le_avg_sq [IsProbabilityMeasure μ]
-    (W : Graphon α μ) (T : Set α) (hT : MeasurableSet T) (c : ℝ)
-    (hμT : μ T ≠ 0) (x : α) :
+    (W : Graphon α μ) (T : Set α) (c : ℝ) (hμT : μ T ≠ 0) (x : α)
+    (hW_int : IntegrableOn (fun y => W.toAEEqFun (x, y)) T μ)
+    (hx_int : IntegrableOn (fun y => W.toAEEqFun (x, y) - c) T μ)
+    (hx_sq_int : IntegrableOn (fun y => (W.toAEEqFun (x, y) - c) ^ 2) T μ) :
     (tAverage W T x - c) ^ 2 ≤
       (μ T).toReal⁻¹ * ∫ y in T, (W.toAEEqFun (x, y) - c) ^ 2 ∂μ := by
-  -- The proof uses sq_setIntegral_le_measure_mul_setIntegral_sq
-  -- Key steps:
-  -- 1. tAverage W T x - c = (μT)⁻¹ · ∫_T (W(x,y) - c) dy
-  -- 2. Apply Cauchy-Schwarz: (∫ f)² ≤ μT · ∫ f²
-  -- 3. Rearrange: ((μT)⁻¹ ∫ f)² ≤ (μT)⁻¹ ∫ f²
-  sorry
+  unfold tAverage
+  simp only [hμT, dif_neg, not_false_eq_true]
+  have hμT_top : μ T ≠ ⊤ := (measure_lt_top μ T).ne
+  have hμT_pos : (0 : ℝ) < (μ T).toReal := ENNReal.toReal_pos hμT hμT_top
+  set f := fun y => W.toAEEqFun (x, y) - c with hf_def
+  have hc_int : IntegrableOn (fun _ : α => c) T μ := integrableOn_const (hs := hμT_top)
+  have h_lin : (μ T).toReal⁻¹ * ∫ y in T, W.toAEEqFun (x, y) ∂μ - c =
+               (μ T).toReal⁻¹ * ∫ y in T, f y ∂μ := by
+    rw [integral_sub hW_int hc_int]
+    rw [setIntegral_const]
+    simp only [Measure.real, smul_eq_mul]
+    field_simp
+  rw [h_lin]
+  have h_cs : (∫ y in T, f y ∂μ) ^ 2 ≤ (μ T).toReal * ∫ y in T, (f y) ^ 2 ∂μ :=
+    sq_setIntegral_le_measure_mul_setIntegral_sq f T hx_int hx_sq_int
+  calc ((μ T).toReal⁻¹ * ∫ y in T, f y ∂μ) ^ 2
+      = (μ T).toReal⁻¹ ^ 2 * (∫ y in T, f y ∂μ) ^ 2 := by ring
+    _ ≤ (μ T).toReal⁻¹ ^ 2 * ((μ T).toReal * ∫ y in T, (f y) ^ 2 ∂μ) := by
+        apply mul_le_mul_of_nonneg_left h_cs (sq_nonneg _)
+    _ = (μ T).toReal⁻¹ * ∫ y in T, (f y) ^ 2 ∂μ := by rw [inv_pow]; field_simp
 
 /-- Jensen's inequality gives an UPPER bound for the T-average squared deviation.
 
