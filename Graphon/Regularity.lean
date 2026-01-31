@@ -234,16 +234,14 @@ theorem tAverage_sq_le_defect_div (W : Graphon α μ) (S T : Set α)
       (μ T).toReal⁻¹ * ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) := by
   -- Let c = rectAverage W S T
   set c := rectAverage W S T with hc_def
-  -- The proof uses:
-  -- 1. Fubini to convert ∫_{S×T} to ∫_S ∫_T
-  -- 2. Pointwise Jensen: (⨍_T f)² ≤ ⨍_T f² for convex f = (·)²
-  -- 3. Integration over S to get the final inequality
+  -- Strategy: Use Jensen inequality for squares pointwise, then integrate over S
+  -- For each x: (W_T(x) - c)² = (⨍_T (W(x,y) - c) dy)² ≤ ⨍_T (W(x,y) - c)² dy
+  -- Integrating over S: ∫_S (W_T - c)² ≤ ∫_S (⨍_T (W - c)²) = (μT)⁻¹ · ∫_{S×T} (W - c)²
   --
-  -- Key steps:
-  -- (W_T(x) - c)² = ((μT)⁻¹ · ∫_T (W(x,y) - c) dy)²
-  --               ≤ (μT)⁻¹ · ∫_T (W(x,y) - c)² dy   (Jensen for square)
-  -- Integrating over S:
-  -- ∫_S (W_T - c)² ≤ (μT)⁻¹ · ∫_S ∫_T (W - c)² = (μT)⁻¹ · ∫_{S×T} (W - c)²
+  -- Key ingredients:
+  -- 1. ConvexOn.map_set_average_le (Jensen for convex functions)
+  -- 2. Fubini (setIntegral_prod) to convert double to product integral
+  -- 3. Integrability bounds from W ∈ [0,1] a.e.
   sorry
 
 /-- Frieze-Kannan median cut lemma (key for energy increment).
@@ -270,8 +268,18 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
     (h_var : ∫ x in S, (f x - m) ^ 2 ∂μ ≥ ε ^ 2 * (μ S).toReal) :
     ∃ S₁ : Set α, MeasurableSet S₁ ∧ S₁ ⊆ S ∧
       μ S₁ ≠ 0 ∧ μ (S \ S₁) ≠ 0 ∧
-      |((μ S₁).toReal⁻¹ * ∫ x in S₁, f x ∂μ) - m| ≥ ε / 2 ∨
-      |((μ (S \ S₁)).toReal⁻¹ * ∫ x in S \ S₁, f x ∂μ) - m| ≥ ε / 2 := by
+      (|((μ S₁).toReal⁻¹ * ∫ x in S₁, f x ∂μ) - m| ≥ ε / 2 ∨
+       |((μ (S \ S₁)).toReal⁻¹ * ∫ x in S \ S₁, f x ∂μ) - m| ≥ ε / 2) := by
+  -- Strategy: Use Markov/Chebyshev argument
+  -- 1. Define S_high = S ∩ {f ≥ m + ε/2} and S_low = S ∩ {f ≤ m - ε/2}
+  -- 2. Show μ(S_high ∪ S_low) > 0:
+  --    - If μ(S_high ∪ S_low) = 0, then |f - m| < ε/2 a.e. on S
+  --    - This implies ∫_S (f - m)² < (ε/2)² μS < ε² μS, contradicting h_var
+  -- 3. Case split: μ S_high ≠ 0 or μ S_low ≠ 0
+  -- 4. If μ S_high ≠ 0: use S₁ = S_high
+  --    - Show μ(S \ S_high) ≠ 0: if S = S_high a.e., then avg(f, S) ≥ m + ε/2 > m
+  --    - Show avg(f, S_high) ≥ m + ε/2 (all points in S_high satisfy f ≥ m + ε/2)
+  -- 5. Symmetric argument for S_low
   sorry
 
 end TAverage
