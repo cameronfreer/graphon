@@ -173,6 +173,50 @@ theorem Refines.trans {P Q R : MeasurablePartition α μ}
 
 end Refinement
 
+/-! ### Partition splitting -/
+
+section Split
+
+variable [IsProbabilityMeasure μ]
+
+/-- Split one part of a partition into two pieces.
+
+Given partition P and a part S ∈ P.parts, and a measurable subset S₁ ⊆ S,
+construct the refinement Q that replaces S with S₁ and S \ S₁.
+
+**Preconditions**:
+- S ∈ P.parts
+- S₁ ⊆ S is measurable
+- Both S₁ and S \ S₁ have positive measure (to be non-trivial)
+
+**Implementation note**: Uses classical decidability for Finset operations on Set α. -/
+noncomputable def MeasurablePartition.splitPart (P : MeasurablePartition α μ)
+    (S : Set α) (_hS : S ∈ P.parts) (S₁ : Set α) (_hS₁_meas : MeasurableSet S₁)
+    (_hS₁_sub : S₁ ⊆ S) (_hS₁_pos : μ S₁ ≠ 0) (_hS₂_pos : μ (S \ S₁) ≠ 0) :
+    MeasurablePartition α μ := by
+  -- Temporarily sorry'd to unblock downstream proofs
+  -- Full implementation replaces S with {S₁, S \ S₁}
+  exact sorry
+
+/-- Splitting a part produces a refinement. -/
+theorem MeasurablePartition.splitPart_refines (P : MeasurablePartition α μ)
+    (S : Set α) (hS : S ∈ P.parts) (S₁ : Set α) (hS₁_meas : MeasurableSet S₁)
+    (hS₁_sub : S₁ ⊆ S) (hS₁_pos : μ S₁ ≠ 0) (hS₂_pos : μ (S \ S₁) ≠ 0) :
+    Refines (MeasurablePartition.splitPart P S hS S₁ hS₁_meas hS₁_sub hS₁_pos hS₂_pos) P := by
+  -- Temporarily sorry'd since splitPart is sorry'd
+  sorry
+
+/-- Splitting adds at most one part. -/
+theorem MeasurablePartition.splitPart_card (P : MeasurablePartition α μ)
+    (S : Set α) (hS : S ∈ P.parts) (S₁ : Set α) (hS₁_meas : MeasurableSet S₁)
+    (hS₁_sub : S₁ ⊆ S) (hS₁_pos : μ S₁ ≠ 0) (hS₂_pos : μ (S \ S₁) ≠ 0) :
+    (MeasurablePartition.splitPart P S hS S₁ hS₁_meas hS₁_sub hS₁_pos hS₂_pos).parts.card
+      ≤ P.parts.card + 1 := by
+  -- Temporarily sorry'd since splitPart is sorry'd
+  sorry
+
+end Split
+
 /-! ### Stepification (to be developed)
 
 The full stepification construction requires:

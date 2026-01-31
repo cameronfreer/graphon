@@ -736,35 +736,66 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
     ∃ Q : MeasurablePartition α μ,
       Refines Q P ∧ Q.parts.card ≤ 2 * P.parts.card ∧
       energy W Q ≥ energy W P + ε ^ 4 / 4 := by
-  -- **Proof outline** (Frieze-Kannan energy increment):
+  -- **Proof structure** (Frieze-Kannan energy increment):
   --
-  -- Given: ∫_{S×T} (W - c)² ≥ ε² μ(S) μ(T) where c = rectAverage W S T
-  --
-  -- **Step 1**: Define T-average function
-  --   W_T(x) := (1/μ(T)) ∫_T W(x,y) dμ(y)
-  --   This is measurable and takes values in [0,1]
-  --
-  -- **Step 2**: Apply Chebyshev to W_T on S
-  --   Variance of W_T on S ≥ ε² (follows from Fubini + hypothesis)
-  --   By Chebyshev: ∃ t such that μ{x ∈ S : W_T(x) > t} and μ{x ∈ S : W_T(x) ≤ t}
-  --   both have measure ≥ μ(S)/2, and the averages differ by ≥ ε
-  --
-  -- **Step 3**: Define S₁ = {x ∈ S : W_T(x) ≤ t}, S₂ = S \ S₁
-  --   Both are measurable (W_T is measurable)
-  --   Build Q by replacing S with S₁, S₂ in P
-  --
-  -- **Step 4**: Energy increase via convexity
-  --   Old contribution: μ(S)μ(T) · c²
-  --   New contribution: μ(S₁)μ(T) · c₁² + μ(S₂)μ(T) · c₂²
-  --   where c₁, c₂ are new rectangle averages
-  --   By convexity of x², when c₁ and c₂ are separated from c,
-  --   the weighted sum increases by ≥ ε⁴/4
-  --
-  -- **Required helper lemmas** (not yet implemented):
-  -- - Measurability of conditional expectation / T-average
-  -- - Chebyshev inequality for variance on measure spaces
-  -- - Partition refinement construction
-  sorry
+  -- Step 1: Extract the "bad" rectangle S × T
+  obtain ⟨S, hS_mem, T, hT_mem, h_defect⟩ := h_bad
+  have hS_meas : MeasurableSet S := P.measurableSet_part hS_mem
+  have hT_meas : MeasurableSet T := P.measurableSet_part hT_mem
+  -- Non-degeneracy: S and T have positive measure
+  -- (If μ S = 0 or μ T = 0, the bound ε² μS μT = 0, so hypothesis is trivial.
+  -- A proper treatment would strengthen h_bad to require μ S > 0 and μ T > 0,
+  -- or derive this from the partition having only positive-measure parts.)
+  have hμS_pos : μ S ≠ 0 := by
+    by_contra h
+    -- If μ S = 0, the bound is 0, but defect integral could still be positive
+    -- Need: partition parts have positive measure (not in current definition)
+    sorry
+  have hμT_pos : μ T ≠ 0 := by
+    by_contra h
+    sorry
+  -- Step 2: Define T-average W_T and its mean m on S
+  set W_T := tAverage W T with hW_T_def
+  have hW_T_meas : Measurable W_T := tAverage_measurable W T hT_meas
+  set c := rectAverage W S T with hc_def
+  -- The mean of W_T on S equals c (by tAverage_integral_eq_rectAverage)
+  have hμS_top : μ S ≠ ⊤ := (measure_lt_top μ S).ne
+  have hμT_top : μ T ≠ ⊤ := (measure_lt_top μ T).ne
+  have hc_mean : c = (μ S).toReal⁻¹ * ∫ x in S, W_T x ∂μ := by
+    rw [hc_def, hW_T_def, tAverage_integral_eq_rectAverage W S T hS_meas hT_meas hμS_pos hμT_pos]
+  -- Step 3: Show variance of W_T on S is at least ε²
+  -- From hypothesis: ∫_{S×T} (W - c)² ≥ ε² μ(S) μ(T)
+  -- By tAverage_sq_le_defect_div: ∫_S (W_T - c)² relates to defect
+  -- (The actual variance bound needs careful derivation from the hypothesis)
+  have h_var : ∫ x in S, (W_T x - c) ^ 2 ∂μ ≥ ε ^ 2 * (μ S).toReal := by
+    -- This follows from the defect hypothesis and properties of T-average
+    -- The key insight: large defect on S×T implies large variance of W_T on S
+    sorry
+  -- Step 4: Apply exists_variance_cut to get the cut S₁
+  obtain ⟨S₁, hS₁_meas, hS₁_sub, hμS₁_pos, hμS₂_pos, h_avg_diff⟩ :=
+    exists_variance_cut W_T S hS_meas hW_T_meas hμS_pos c hc_mean ε hε h_var
+  -- Step 5: Build the refined partition Q
+  let Q := MeasurablePartition.splitPart P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
+  use Q
+  -- Step 6: Prove the three conclusions
+  constructor
+  -- (a) Q refines P
+  · exact MeasurablePartition.splitPart_refines P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
+  constructor
+  -- (b) Q has at most 2 * P.parts.card parts
+  · have h_card := MeasurablePartition.splitPart_card P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
+    -- Since S ∈ P.parts, we have P.parts.card ≥ 1
+    have h_P_nonempty : 1 ≤ P.parts.card := Finset.one_le_card.mpr ⟨S, hS_mem⟩
+    -- Q is definitionally splitPart P S ..., so Q.parts.card = (splitPart ...).parts.card
+    calc Q.parts.card ≤ P.parts.card + 1 := h_card
+      _ ≤ P.parts.card + P.parts.card := by omega
+      _ = 2 * P.parts.card := by ring
+  -- (c) Energy increases by at least ε⁴/4
+  · -- This is the key calculation: when averages on S₁ and S₂ differ from c,
+    -- the energy increases due to convexity of x²
+    -- Energy Q - Energy P = contribution from (S₁,T), (S₂,T) - contribution from (S,T)
+    --                     ≥ ε⁴/4 by weighted convexity
+    sorry
 
 end Energy
 
@@ -801,27 +832,42 @@ theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ P : MeasurablePartition α μ,
       P.parts.card ≤ regularityBound ε ∧
       defect W P ≤ ε ^ 2 := by
-  -- **Proof outline** (Frieze-Kannan iteration):
+  -- **Proof structure** (Frieze-Kannan iteration with fuel):
   --
-  -- Start with trivial partition P₀ = {α}
+  -- We use induction on fuel k = ⌈4/ε⁴⌉ + 1 to bound the number of iterations.
+  -- At each step:
+  -- - If defect ≤ ε², we're done
+  -- - If defect > ε², apply energy_increment to get P' with energy ≥ energy P + ε⁴/4
   --
-  -- **Iteration**: While defect W P > ε²:
-  --   1. Find "bad" rectangle S × T where local variance ≥ ε² μ(S) μ(T)
-  --   2. Apply energy_increment to get P' refining P
-  --   3. Energy increases by ≥ ε⁴/4
-  --
-  -- **Termination**:
-  --   - energy W P ≤ 1 (by energy_le_one)
-  --   - Each iteration increases energy by ≥ ε⁴/4
-  --   - So at most 4/ε⁴ iterations
-  --
-  -- **Part count bound**:
-  --   - Each iteration at most doubles parts
-  --   - Starting with 1 part, after k iterations: ≤ 2^k parts
-  --   - With k ≤ 4/ε⁴: parts ≤ 2^{4/ε⁴}
-  --   - More careful analysis gives polynomial bound ~1/ε⁸
-  --
-  -- **Depends on**: energy_increment (sorry above)
+  -- Since energy ≤ 1 (by energy_le_one) and starts ≥ 0, we can have at most
+  -- 4/ε⁴ iterations before energy exceeds 1.
+
+  -- Step 1: Define the iteration bound (fuel)
+  let maxIter : ℕ := Nat.ceil (4 / ε ^ 4) + 1
+
+  -- Step 2: Define the iteration function (by recursion on fuel)
+  -- iterate : ℕ → MeasurablePartition α μ → MeasurablePartition α μ
+  -- iterate 0 P = P  (out of fuel, return current)
+  -- iterate (k+1) P = if defect W P ≤ ε² then P
+  --                   else iterate k (energy_increment's Q)
+
+  -- Step 3: Start with trivial partition and iterate
+  -- The trivial partition has {univ} as the only part
+  -- (This requires constructing MeasurablePartition with parts = {univ})
+
+  -- Step 4: Show the final partition satisfies both conditions:
+  -- (a) parts.card ≤ regularityBound ε
+  --     Each iteration at most doubles parts, starting with 1
+  --     After k iterations: ≤ 2^k ≤ 2^{4/ε⁴} ≤ regularityBound ε
+  -- (b) defect W P ≤ ε²
+  --     Either we stopped early (defect ≤ ε²)
+  --     Or we ran all iterations, but then energy > 1, contradicting energy_le_one
+
+  -- **Technical dependencies** (all have sorries upstream):
+  -- - energy_increment (for the iteration step)
+  -- - trivial partition constructor
+  -- - defect computation on trivial partition
+
   sorry
 
 end Regularity
