@@ -313,16 +313,18 @@ theorem tAverage_sq_le_defect_div (W : Graphon α μ) (S T : Set α)
     (hμS : μ S ≠ 0) (hμT : μ T ≠ 0) :
     ∫ x in S, (tAverage W T x - rectAverage W S T) ^ 2 ∂μ ≤
       (μ T).toReal⁻¹ * ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) := by
-  -- Let c = rectAverage W S T
   set c := rectAverage W S T with hc_def
-  -- Strategy: Use Jensen inequality for squares pointwise, then integrate over S
-  -- For each x: (W_T(x) - c)² = (⨍_T (W(x,y) - c) dy)² ≤ ⨍_T (W(x,y) - c)² dy
-  -- Integrating over S: ∫_S (W_T - c)² ≤ ∫_S (⨍_T (W - c)²) = (μT)⁻¹ · ∫_{S×T} (W - c)²
+  have hμT_top : μ T ≠ ⊤ := (measure_lt_top μ T).ne
+  have hμS_top : μ S ≠ ⊤ := (measure_lt_top μ S).ne
+  -- Step 1: Apply pointwise bound via tAverage_sub_sq_le_avg_sq for a.e. x
+  -- Step 2: Integrate over S
+  -- Step 3: Apply Fubini (setIntegral_prod) to convert ∫_S (∫_T f) to ∫_{S×T} f
   --
-  -- Key ingredients:
-  -- 1. ConvexOn.map_set_average_le (Jensen for convex functions)
-  -- 2. Fubini (setIntegral_prod) to convert double to product integral
-  -- 3. Integrability bounds from W ∈ [0,1] a.e.
+  -- The detailed proof requires:
+  -- 1. Showing integrability of (W_T - c)² on S
+  -- 2. Showing integrability of (W - c)² on S×T
+  -- 3. Applying integral_mono with the pointwise bound
+  -- 4. Swapping integrals using setIntegral_prod
   sorry
 
 /-- Frieze-Kannan median cut lemma (key for energy increment).
