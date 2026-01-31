@@ -315,16 +315,42 @@ theorem tAverage_sq_le_defect_div (W : Graphon α μ) (S T : Set α)
       (μ T).toReal⁻¹ * ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) := by
   set c := rectAverage W S T with hc_def
   have hμT_top : μ T ≠ ⊤ := (measure_lt_top μ T).ne
-  have hμS_top : μ S ≠ ⊤ := (measure_lt_top μ S).ne
-  -- Step 1: Apply pointwise bound via tAverage_sub_sq_le_avg_sq for a.e. x
-  -- Step 2: Integrate over S
-  -- Step 3: Apply Fubini (setIntegral_prod) to convert ∫_S (∫_T f) to ∫_{S×T} f
+  have hμT_pos : (0 : ℝ) < (μ T).toReal := ENNReal.toReal_pos hμT hμT_top
+  -- Define the inner integrand f(x,y) = (W(x,y) - c)²
+  set f : α × α → ℝ := fun p => (W.toAEEqFun p - c) ^ 2 with hf_def
+  -- Step 1: Integrability of f on S×T (W bounded in [0,1], c in [0,1])
+  have h_int_prod : IntegrableOn f (S ×ˢ T) (μ.prod μ) := by
+    apply Measure.integrableOn_of_bounded (M := 4)
+    · rw [Measure.prod_prod S T]
+      exact (ENNReal.mul_lt_top (measure_lt_top μ S) (measure_lt_top μ T)).ne
+    · exact (continuous_pow 2).comp_aestronglyMeasurable
+        (W.toAEEqFun.aestronglyMeasurable.sub aestronglyMeasurable_const)
+    · filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with ⟨x, y⟩ hW
+      simp only [hf_def, Real.norm_eq_abs]
+      have hc_bnd : c ∈ Icc (0 : ℝ) 1 := rectAverage_mem_Icc W S T hS hT
+      have h1 : |W.toAEEqFun (x, y) - c| ≤ 2 := by
+        rw [abs_le]; constructor <;> linarith [hW.1, hW.2, hc_bnd.1, hc_bnd.2]
+      have h2 : (W.toAEEqFun (x, y) - c) ^ 2 ≤ 4 := by
+        obtain ⟨h1a, h1b⟩ := abs_le.mp h1
+        have := sq_le_sq' h1a h1b
+        simp only at this
+        linarith [sq_nonneg (W.toAEEqFun (x, y) - c)]
+      rw [abs_of_nonneg (sq_nonneg _)]
+      exact h2
+  -- Step 2: Apply Fubini (setIntegral_prod) to convert to iterated integral
+  have h_fubini := setIntegral_prod f h_int_prod
+  -- h_fubini : ∫_{S×T} f = ∫_S (∫_T f(x,y))
+  rw [h_fubini, ← integral_const_mul]
+  -- Goal: ∫_S (tAverage - c)² ≤ ∫_S ((μT)⁻¹ * ∫_T (W - c)²)
+  -- Step 3: Apply setIntegral_mono_ae with pointwise bound from tAverage_sub_sq_le_avg_sq
+  -- The key technical requirements are:
+  -- 1. LHS integrand is integrable on S (bounded by 4 since tAverage, c ∈ [0,1])
+  -- 2. RHS integrand is integrable on S (follows from Fubini)
+  -- 3. Pointwise: (tAverage - c)² ≤ (μT)⁻¹ ∫_T (W - c)² for a.e. x
   --
-  -- The detailed proof requires:
-  -- 1. Showing integrability of (W_T - c)² on S
-  -- 2. Showing integrability of (W - c)² on S×T
-  -- 3. Applying integral_mono with the pointwise bound
-  -- 4. Swapping integrals using setIntegral_prod
+  -- The integrability proofs require working with AEStronglyMeasurable for composed
+  -- functions y ↦ W(x, y) which has subtle measure-theoretic details.
+  -- For now, we mark this as sorry pending a cleaner API for these proofs.
   sorry
 
 /-- Frieze-Kannan median cut lemma (key for energy increment).
@@ -371,6 +397,14 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
   --   - Show avg(f, S_high) ≥ m + ε/2 (since all points satisfy f ≥ m + ε/2)
   --
   -- If μ(S_low) ≠ 0: symmetric argument with ≤ instead of ≥
+  --
+  -- The full proof requires careful measure-theoretic arguments:
+  -- 1. Show μ(S_high) ≠ 0 ∨ μ(S_low) ≠ 0 via contrapositive and variance bound
+  -- 2. Show μ(S \ S₁) ≠ 0 to avoid trivial splits
+  -- 3. Show average on S₁ differs from m by at least ε/2
+  --
+  -- Each step involves setIntegral bounds and monotonicity arguments.
+  -- For now, we mark this as sorry pending the technical details.
   sorry
 
 end TAverage
