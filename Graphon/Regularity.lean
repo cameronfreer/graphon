@@ -109,6 +109,72 @@ theorem energy_le_one (W : Graphon α μ) (P : MeasurablePartition α μ) :
 
 /-! ### Energy increment lemma -/
 
+section TAverage
+
+variable [IsProbabilityMeasure μ]
+
+/-- The T-average of a graphon: for fixed T, W_T(x) = (1/μ(T)) ∫_T W(x,y) dμ(y).
+
+This is the conditional expectation of W(x,·) given that y ∈ T. -/
+noncomputable def tAverage (W : Graphon α μ) (T : Set α) (x : α) : ℝ :=
+  if hT : μ T = 0 then 0
+  else (μ T).toReal⁻¹ * ∫ y in T, W.toAEEqFun (x, y) ∂μ
+
+/-- The T-average is measurable. -/
+theorem tAverage_measurable (W : Graphon α μ) (T : Set α) (hT : MeasurableSet T) :
+    Measurable (tAverage W T) := by
+  unfold tAverage
+  by_cases h : μ T = 0
+  · simp only [h, dif_pos, measurable_const]
+  · simp only [h, dif_neg, not_false_eq_true]
+    apply Measurable.const_mul
+    -- Need to show x ↦ ∫ y in T, W(x, y) ∂μ is measurable
+    -- This follows from StronglyMeasurable.integral_prod_right
+    have h_int : StronglyMeasurable fun x => ∫ y in T, W.toAEEqFun (x, y) ∂μ := by
+      -- Use StronglyMeasurable.integral_prod_right for restricted measure
+      have h1 : StronglyMeasurable fun x => ∫ y, W.toAEEqFun (x, y) ∂(μ.restrict T) :=
+        StronglyMeasurable.integral_prod_right W.toAEEqFun.stronglyMeasurable
+      simp only [Measure.restrict_apply'] at h1 ⊢
+      convert h1 using 1
+    exact h_int.measurable
+
+/-- The T-average takes values in [0, 1] when W is a graphon.
+
+This uses that W ∈ [0,1] a.e. on the product measure, so for a.e. x,
+the function y ↦ W(x,y) is in [0,1] for a.e. y. -/
+theorem tAverage_mem_Icc (W : Graphon α μ) (T : Set α) (hT : MeasurableSet T) (x : α) :
+    tAverage W T x ∈ Set.Icc 0 1 := by
+  unfold tAverage
+  by_cases h : μ T = 0
+  · simp only [h, dif_pos, Set.mem_Icc, le_refl, zero_le_one, and_self]
+  · simp only [h, dif_neg, not_false_eq_true, Set.mem_Icc]
+    have hT_pos : 0 < (μ T).toReal := ENNReal.toReal_pos h (measure_lt_top μ T).ne
+    constructor
+    · -- tAverage ≥ 0
+      apply mul_nonneg (inv_nonneg.mpr ENNReal.toReal_nonneg)
+      -- The integral ∫_T W(x,y) dy ≥ 0 since W ≥ 0 a.e.
+      -- This uses Fubini: for a.e. x, W(x,·) ≥ 0 a.e.
+      sorry
+    · -- tAverage ≤ 1
+      -- ∫_T W(x,y) dy ≤ ∫_T 1 dy = μ(T) since W ≤ 1 a.e.
+      sorry
+
+/-- The average of W_T over S equals rectAverage W S T.
+
+This is a consequence of Fubini-Tonelli:
+  (1/μS) ∫_S W_T dx = (1/μS) ∫_S (1/μT) ∫_T W(x,y) dy dx
+                     = (1/μS μT) ∫_{S×T} W
+                     = rectAverage W S T -/
+theorem tAverage_integral_eq_rectAverage (W : Graphon α μ) (S T : Set α)
+    (hS : MeasurableSet S) (hT : MeasurableSet T)
+    (hμS : μ S ≠ 0) (hμT : μ T ≠ 0) :
+    (μ S).toReal⁻¹ * ∫ x in S, tAverage W T x ∂μ = rectAverage W S T := by
+  -- Uses Fubini to convert iterated integral to product integral
+  -- and pull out the constant (μ T)⁻¹
+  sorry
+
+end TAverage
+
 /-- The "defect" of a partition: measures how far W is from being stepwise constant.
 
 For a partition P and rectangle S × T, the defect is:
