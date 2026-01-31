@@ -232,8 +232,18 @@ theorem tAverage_sq_le_defect_div (W : Graphon α μ) (S T : Set α)
     (hμS : μ S ≠ 0) (hμT : μ T ≠ 0) :
     ∫ x in S, (tAverage W T x - rectAverage W S T) ^ 2 ∂μ ≤
       (μ T).toReal⁻¹ * ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) := by
-  -- Uses Jensen's inequality: (∫_T f)² ≤ μ(T) · ∫_T f²
-  -- Applied pointwise to f(y) = W(x,y) - c
+  -- Let c = rectAverage W S T
+  set c := rectAverage W S T with hc_def
+  -- The proof uses:
+  -- 1. Fubini to convert ∫_{S×T} to ∫_S ∫_T
+  -- 2. Pointwise Jensen: (⨍_T f)² ≤ ⨍_T f² for convex f = (·)²
+  -- 3. Integration over S to get the final inequality
+  --
+  -- Key steps:
+  -- (W_T(x) - c)² = ((μT)⁻¹ · ∫_T (W(x,y) - c) dy)²
+  --               ≤ (μT)⁻¹ · ∫_T (W(x,y) - c)² dy   (Jensen for square)
+  -- Integrating over S:
+  -- ∫_S (W_T - c)² ≤ (μT)⁻¹ · ∫_S ∫_T (W - c)² = (μT)⁻¹ · ∫_{S×T} (W - c)²
   sorry
 
 /-- Frieze-Kannan median cut lemma (key for energy increment).
