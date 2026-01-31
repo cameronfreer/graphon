@@ -220,6 +220,50 @@ theorem tAverage_integral_eq_rectAverage (W : Graphon α μ) (S T : Set α)
   rw [h_pull]
   ring
 
+/-- Jensen's inequality gives an UPPER bound for the T-average squared deviation.
+
+By Jensen: (∫_T f)² / μ(T) ≤ ∫_T f²
+Applied pointwise: (W_T(x) - c)² = ((1/μT) ∫_T (W(x,y) - c))² ≤ (1/μT) ∫_T (W(x,y) - c)²
+Integrating over S: ∫_S (W_T - c)² ≤ (1/μT) ∫_{S×T} (W - c)²
+
+Note: This is an UPPER bound. For a lower bound, we need a different approach. -/
+theorem tAverage_sq_le_defect_div (W : Graphon α μ) (S T : Set α)
+    (hS : MeasurableSet S) (hT : MeasurableSet T)
+    (hμS : μ S ≠ 0) (hμT : μ T ≠ 0) :
+    ∫ x in S, (tAverage W T x - rectAverage W S T) ^ 2 ∂μ ≤
+      (μ T).toReal⁻¹ * ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) := by
+  -- Uses Jensen's inequality: (∫_T f)² ≤ μ(T) · ∫_T f²
+  -- Applied pointwise to f(y) = W(x,y) - c
+  sorry
+
+/-- Frieze-Kannan median cut lemma (key for energy increment).
+
+If ∫_S (f - m)² ≥ ε² μ(S) where m = (1/μS) ∫_S f (the mean), then there exists
+a measurable subset S₁ ⊆ S with μ(S₁), μ(S \ S₁) ≥ μ(S)/4 such that
+the averages of f on S₁ and S \ S₁ differ from m by at least ε/2.
+
+This is the key step that produces a "good cut" for the energy increment.
+The proof uses Chebyshev's inequality: if variance is ε², then the probability
+of deviating by ε from the mean is at least some constant.
+
+**Standard argument**:
+1. By Chebyshev: μ{x : |f(x) - m| ≥ ε/2} ≥ constant · ε²/ε² = constant
+2. Split by the median: S₁ = {x ∈ S : f(x) ≤ median}, S₂ = S \ S₁
+3. If variance is high, at least one of S₁ or S₂ has average differing from m
+
+This lemma is stated but not yet proven; filling it requires careful
+measure-theoretic arguments. -/
+theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
+    (hf_meas : Measurable f) (hμS : μ S ≠ 0)
+    (m : ℝ) (hm : m = (μ S).toReal⁻¹ * ∫ x in S, f x ∂μ)
+    (ε : ℝ) (hε : ε > 0)
+    (h_var : ∫ x in S, (f x - m) ^ 2 ∂μ ≥ ε ^ 2 * (μ S).toReal) :
+    ∃ S₁ : Set α, MeasurableSet S₁ ∧ S₁ ⊆ S ∧
+      μ S₁ ≠ 0 ∧ μ (S \ S₁) ≠ 0 ∧
+      |((μ S₁).toReal⁻¹ * ∫ x in S₁, f x ∂μ) - m| ≥ ε / 2 ∨
+      |((μ (S \ S₁)).toReal⁻¹ * ∫ x in S \ S₁, f x ∂μ) - m| ≥ ε / 2 := by
+  sorry
+
 end TAverage
 
 /-- The "defect" of a partition: measures how far W is from being stepwise constant.
