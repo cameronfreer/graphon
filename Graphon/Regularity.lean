@@ -270,16 +270,24 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
       μ S₁ ≠ 0 ∧ μ (S \ S₁) ≠ 0 ∧
       (|((μ S₁).toReal⁻¹ * ∫ x in S₁, f x ∂μ) - m| ≥ ε / 2 ∨
        |((μ (S \ S₁)).toReal⁻¹ * ∫ x in S \ S₁, f x ∂μ) - m| ≥ ε / 2) := by
-  -- Strategy: Use Markov/Chebyshev argument
-  -- 1. Define S_high = S ∩ {f ≥ m + ε/2} and S_low = S ∩ {f ≤ m - ε/2}
-  -- 2. Show μ(S_high ∪ S_low) > 0:
-  --    - If μ(S_high ∪ S_low) = 0, then |f - m| < ε/2 a.e. on S
-  --    - This implies ∫_S (f - m)² < (ε/2)² μS < ε² μS, contradicting h_var
-  -- 3. Case split: μ S_high ≠ 0 or μ S_low ≠ 0
-  -- 4. If μ S_high ≠ 0: use S₁ = S_high
-  --    - Show μ(S \ S_high) ≠ 0: if S = S_high a.e., then avg(f, S) ≥ m + ε/2 > m
-  --    - Show avg(f, S_high) ≥ m + ε/2 (all points in S_high satisfy f ≥ m + ε/2)
-  -- 5. Symmetric argument for S_low
+  -- **Strategy**: Chebyshev/Markov argument
+  --
+  -- Define:
+  -- - S_high = S ∩ {f ≥ m + ε/2}
+  -- - S_low = S ∩ {f ≤ m - ε/2}
+  --
+  -- **Step 1**: Show μ(S_high) ≠ 0 ∨ μ(S_low) ≠ 0
+  -- Proof by contradiction: if both are zero, then |f - m| < ε/2 a.e. on S,
+  -- so ∫_S (f - m)² < (ε/2)² · μ(S) < ε² · μ(S), contradicting h_var.
+  --
+  -- **Step 2**: Case split
+  -- If μ(S_high) ≠ 0:
+  --   - Use S₁ = S_high
+  --   - Show μ(S \ S_high) ≠ 0: if S = S_high a.e., then avg(f, S) ≥ m + ε/2,
+  --     contradicting the definition of m
+  --   - Show avg(f, S_high) ≥ m + ε/2 (since all points satisfy f ≥ m + ε/2)
+  --
+  -- If μ(S_low) ≠ 0: symmetric argument with ≤ instead of ≥
   sorry
 
 end TAverage
