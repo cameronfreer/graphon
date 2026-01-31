@@ -138,26 +138,49 @@ theorem tAverage_measurable (W : Graphon α μ) (T : Set α) (hT : MeasurableSet
       convert h1 using 1
     exact h_int.measurable
 
-/-- The T-average takes values in [0, 1] when W is a graphon.
+/-- The T-average takes values in [0, 1] for a.e. x when W is a graphon.
 
-This uses that W ∈ [0,1] a.e. on the product measure, so for a.e. x,
-the function y ↦ W(x,y) is in [0,1] for a.e. y. -/
-theorem tAverage_mem_Icc (W : Graphon α μ) (T : Set α) (hT : MeasurableSet T) (x : α) :
-    tAverage W T x ∈ Set.Icc 0 1 := by
+This uses that W ∈ [0,1] a.e. on the product measure. By Fubini (ae_ae_of_ae_prod),
+for a.e. x, the function y ↦ W(x,y) is in [0,1] for a.e. y. Then the integral
+is bounded: 0 ≤ ∫_T W(x,y) ≤ μ(T). -/
+theorem tAverage_ae_mem_Icc (W : Graphon α μ) (T : Set α) (hT : MeasurableSet T) :
+    ∀ᵐ x ∂μ, tAverage W T x ∈ Set.Icc 0 1 := by
+  -- Step 1: From W.ae_mem_Icc (on product), get pointwise bounds for a.e. x
+  have h_ae_ae := Measure.ae_ae_of_ae_prod W.ae_mem_Icc
+  -- h_ae_ae : ∀ᵐ x ∂μ, ∀ᵐ y ∂μ, W(x,y) ∈ [0,1]
+  -- Step 2: Get ae-strong-measurability for a.e. x
+  have h_meas_ae := AEStronglyMeasurable.prodMk_left W.toAEEqFun.aestronglyMeasurable
+  -- h_meas_ae : ∀ᵐ x ∂μ, AEStronglyMeasurable (fun y => W(x,y)) μ
+  filter_upwards [h_ae_ae, h_meas_ae] with x hx hx_meas
   unfold tAverage
   by_cases h : μ T = 0
   · simp only [h, dif_pos, Set.mem_Icc, le_refl, zero_le_one, and_self]
   · simp only [h, dif_neg, not_false_eq_true, Set.mem_Icc]
     have hT_pos : 0 < (μ T).toReal := ENNReal.toReal_pos h (measure_lt_top μ T).ne
+    -- hx : ∀ᵐ y ∂μ, W(x,y) ∈ [0,1]
+    have hx_lower : ∀ᵐ y ∂μ, 0 ≤ W.toAEEqFun (x, y) := by
+      filter_upwards [hx] with y hy; exact hy.1
+    have hx_upper : ∀ᵐ y ∂μ, W.toAEEqFun (x, y) ≤ 1 := by
+      filter_upwards [hx] with y hy; exact hy.2
     constructor
     · -- tAverage ≥ 0
       apply mul_nonneg (inv_nonneg.mpr ENNReal.toReal_nonneg)
-      -- The integral ∫_T W(x,y) dy ≥ 0 since W ≥ 0 a.e.
-      -- This uses Fubini: for a.e. x, W(x,·) ≥ 0 a.e.
-      sorry
+      exact setIntegral_nonneg_of_ae hx_lower
     · -- tAverage ≤ 1
-      -- ∫_T W(x,y) dy ≤ ∫_T 1 dy = μ(T) since W ≤ 1 a.e.
-      sorry
+      -- Need: (μ T)⁻¹ * ∫_T W(x,y) ≤ 1, i.e., ∫_T W(x,y) ≤ μ(T)
+      rw [inv_mul_le_iff₀ hT_pos, mul_one]
+      -- Integrability: bounded a.e. function on finite measure space
+      have h_int_W : IntegrableOn (fun y => W.toAEEqFun (x, y)) T μ := by
+        apply Measure.integrableOn_of_bounded (M := 1) (measure_lt_top μ T).ne
+        · exact hx_meas
+        · filter_upwards [ae_restrict_of_ae hx] with y hy
+          simp only [Real.norm_eq_abs, abs_le]
+          exact ⟨by linarith [hy.1], by linarith [hy.2]⟩
+      calc ∫ y in T, W.toAEEqFun (x, y) ∂μ
+          ≤ ∫ y in T, (1 : ℝ) ∂μ := by
+            apply setIntegral_mono_ae_restrict h_int_W integrableOn_const
+            filter_upwards [ae_restrict_of_ae hx_upper] with y hy; exact hy
+        _ = (μ T).toReal := by rw [setIntegral_const]; simp [Measure.real]
 
 /-- The average of W_T over S equals rectAverage W S T.
 
@@ -169,9 +192,33 @@ theorem tAverage_integral_eq_rectAverage (W : Graphon α μ) (S T : Set α)
     (hS : MeasurableSet S) (hT : MeasurableSet T)
     (hμS : μ S ≠ 0) (hμT : μ T ≠ 0) :
     (μ S).toReal⁻¹ * ∫ x in S, tAverage W T x ∂μ = rectAverage W S T := by
-  -- Uses Fubini to convert iterated integral to product integral
-  -- and pull out the constant (μ T)⁻¹
-  sorry
+  -- Step 1: Unfold tAverage and simplify (μ T ≠ 0 case)
+  unfold tAverage
+  simp only [hμT, dif_neg, not_false_eq_true]
+  -- Step 2: Unfold rectAverage
+  unfold rectAverage
+  simp only [hμS, hμT, dif_neg, not_false_eq_true]
+  -- Step 3: Show integrability on S×T for Fubini
+  have h_int : IntegrableOn (fun p => W.toAEEqFun p) (S ×ˢ T) (μ.prod μ) := by
+    apply Measure.integrableOn_of_bounded (M := 1)
+    · rw [Measure.prod_prod S T]
+      exact (ENNReal.mul_lt_top (measure_lt_top μ S) (measure_lt_top μ T)).ne
+    · exact W.toAEEqFun.aestronglyMeasurable
+    · filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with p hp
+      simp only [Real.norm_eq_abs, abs_le]
+      exact ⟨by linarith [hp.1], by linarith [hp.2]⟩
+  -- Step 4: Apply Fubini (setIntegral_prod.symm) to convert ∫_{S×T} to ∫_S ∫_T
+  have h_fubini := setIntegral_prod (f := fun p => W.toAEEqFun p) h_int
+  -- h_fubini : ∫_{S×T} W = ∫_S (∫_T W(x,y)) dx
+  -- Rewrite RHS using Fubini
+  rw [h_fubini]
+  -- Goal: (μS)⁻¹ * ∫_S (μT)⁻¹ * (∫_T W(x,y) dy) dx = (μS)⁻¹ * (μT)⁻¹ * ∫_S (∫_T W(x,y) dy) dx
+  -- Pull constant out of integral: ∫_S c * f dx = c * ∫_S f dx
+  have h_pull : ∫ x in S, (μ T).toReal⁻¹ * ∫ y in T, W.toAEEqFun (x, y) ∂μ ∂μ =
+      (μ T).toReal⁻¹ * ∫ x in S, ∫ y in T, W.toAEEqFun (x, y) ∂μ ∂μ := by
+    rw [← integral_const_mul]
+  rw [h_pull]
+  ring
 
 end TAverage
 
