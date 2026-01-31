@@ -4,6 +4,8 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.Approximation
+import Mathlib.Analysis.Convex.Integral
+import Mathlib.Analysis.Convex.SpecificFunctions.Deriv
 
 /-!
 # Regularity Lemma for Graphons
@@ -219,6 +221,69 @@ theorem tAverage_integral_eq_rectAverage (W : Graphon α μ) (S T : Set α)
     rw [← integral_const_mul]
   rw [h_pull]
   ring
+
+/-! ### Helper lemmas for energy increment -/
+
+/-- Cauchy-Schwarz for set integrals: (∫_T f)² ≤ μ(T) · ∫_T f².
+
+This is Jensen's inequality applied to the convex function x².
+The key is: (average f)² ≤ average(f²), which rearranges to give this bound. -/
+lemma sq_setIntegral_le_measure_mul_setIntegral_sq [IsProbabilityMeasure μ]
+    (f : α → ℝ) (T : Set α) (hf_int : IntegrableOn f T μ)
+    (hf_sq_int : IntegrableOn (fun x => (f x) ^ 2) T μ) :
+    (∫ x in T, f x ∂μ) ^ 2 ≤ (μ T).toReal * ∫ x in T, (f x) ^ 2 ∂μ := by
+  -- Handle μ T = 0 case
+  by_cases hμT : μ T = 0
+  · rw [Measure.restrict_eq_zero.mpr hμT]
+    simp [hμT, ENNReal.toReal_zero]
+  -- Main case: μ T ≠ 0
+  have hμT_top : μ T ≠ ⊤ := (measure_lt_top μ T).ne
+  have hμT_pos : (0 : ℝ) < (μ T).toReal := ENNReal.toReal_pos hμT hμT_top
+  -- Step 1: Jensen says g(⨍ f) ≤ ⨍ g(f) where g(x) = x²
+  have hconv : ConvexOn ℝ univ (fun x : ℝ => x ^ 2) :=
+    (Even.strictConvexOn_pow (by norm_num : Even 2) (by norm_num : (2 : ℕ) ≠ 0)).convexOn
+  have hcont : ContinuousOn (fun x : ℝ => x ^ 2) univ := continuous_pow 2 |>.continuousOn
+  have h_mem : ∀ᵐ x ∂μ.restrict T, f x ∈ (univ : Set ℝ) := by
+    filter_upwards with x; exact mem_univ _
+  have h_jensen := ConvexOn.map_set_average_le hconv hcont isClosed_univ hμT hμT_top
+    h_mem hf_int hf_sq_int
+  -- h_jensen : (⨍ f)² ≤ ⨍ f²
+  -- Step 2: Unfold averages and do algebra
+  rw [setAverage_eq, setAverage_eq] at h_jensen
+  simp only [smul_eq_mul, Measure.real] at h_jensen
+  -- h_jensen : ((μT)⁻¹ * ∫f)² ≤ (μT)⁻¹ * ∫f²
+  -- Multiply by (μT)² to get: (∫f)² ≤ (μT) * ∫f²
+  have h_key : (μ T).toReal⁻¹ ^ 2 * (∫ x in T, f x ∂μ) ^ 2 ≤
+               (μ T).toReal⁻¹ * ∫ x in T, f x ^ 2 ∂μ := by
+    have h1 : ((μ T).toReal⁻¹ * ∫ x in T, f x ∂μ) ^ 2 =
+              (μ T).toReal⁻¹ ^ 2 * (∫ x in T, f x ∂μ) ^ 2 := by ring
+    rw [← h1]
+    exact h_jensen
+  have hμT_inv_sq : (μ T).toReal⁻¹ ^ 2 = ((μ T).toReal ^ 2)⁻¹ := by rw [inv_pow]
+  calc (∫ x in T, f x ∂μ) ^ 2
+      = (μ T).toReal ^ 2 * ((μ T).toReal⁻¹ ^ 2 * (∫ x in T, f x ∂μ) ^ 2) := by
+        rw [hμT_inv_sq]; field_simp
+    _ ≤ (μ T).toReal ^ 2 * ((μ T).toReal⁻¹ * ∫ x in T, f x ^ 2 ∂μ) := by
+        apply mul_le_mul_of_nonneg_left h_key (sq_nonneg _)
+    _ = (μ T).toReal * ∫ x in T, f x ^ 2 ∂μ := by field_simp
+
+/-- Pointwise bound: the T-average deviation squared is bounded by
+the average squared deviation over T.
+
+For fixed x: (W_T(x) - c)² ≤ (μT)⁻¹ · ∫_T (W(x,y) - c)² dy
+
+This follows from `sq_setIntegral_le_measure_mul_setIntegral_sq`. -/
+lemma tAverage_sub_sq_le_avg_sq [IsProbabilityMeasure μ]
+    (W : Graphon α μ) (T : Set α) (hT : MeasurableSet T) (c : ℝ)
+    (hμT : μ T ≠ 0) (x : α) :
+    (tAverage W T x - c) ^ 2 ≤
+      (μ T).toReal⁻¹ * ∫ y in T, (W.toAEEqFun (x, y) - c) ^ 2 ∂μ := by
+  -- The proof uses sq_setIntegral_le_measure_mul_setIntegral_sq
+  -- Key steps:
+  -- 1. tAverage W T x - c = (μT)⁻¹ · ∫_T (W(x,y) - c) dy
+  -- 2. Apply Cauchy-Schwarz: (∫ f)² ≤ μT · ∫ f²
+  -- 3. Rearrange: ((μT)⁻¹ ∫ f)² ≤ (μT)⁻¹ ∫ f²
+  sorry
 
 /-- Jensen's inequality gives an UPPER bound for the T-average squared deviation.
 
