@@ -367,6 +367,29 @@ theorem abs_weighted_integral_diff_indicator_le (U W : Graphon α μ) (S T : Set
   rw [h_eq]
   exact abs_rectIntegralDiff_le U W hS hT
 
+/-- Helper: For simple function g = Σⱼ cⱼ 1_{Tⱼ}, the weighted integral equals
+an integral over [0,1] of rectangle integrals.
+
+This is the layer cake formula for simple functions:
+Σⱼ cⱼ · rectIntegralDiff S Tⱼ = ∫₀¹ rectIntegralDiff S {g ≥ t} dt
+
+For simple functions, this is a finite sum computation (algebraic, no Fubini). -/
+private lemma layer_cake_simple_eq (U W : Graphon α μ) (S : Set α) (hS : MeasurableSet S)
+    (g : α → ℝ) (hg_meas : Measurable g) (hg_bound : ∀ y, g y ∈ Set.Icc 0 1)
+    (hg_simple : ∃ (n : ℕ) (c : Fin n → ℝ) (T : Fin n → Set α),
+      (∀ i, MeasurableSet (T i)) ∧ (∀ i, c i ∈ Set.Icc 0 1) ∧
+      (∀ y, g y = ∑ i, c i * (T i).indicator (fun _ => (1:ℝ)) y) ∧
+      (∀ i j, i ≠ j → Disjoint (T i) (T j))) :
+    ∫ p, S.indicator (fun _ => (1:ℝ)) p.1 * g p.2 *
+      (U.toAEEqFun p - W.toAEEqFun p) ∂(μ.prod μ) =
+    ∫ t in Set.Ioc 0 1, rectIntegralDiff U W S {y | t ≤ g y} := by
+  -- For simple functions, this is an algebraic identity (finite sum).
+  -- The LHS is Σⱼ cⱼ rectIntegralDiff S Tⱼ
+  -- The RHS is ∫₀¹ I({g≥t}) dt where I = rectIntegralDiff S ·
+  -- By layer cake: for t ∈ (cⱼ₋₁, cⱼ], I({g≥t}) = Σ_{k≥j} Iₖ
+  -- So RHS = Σⱼ (cⱼ - cⱼ₋₁) Σ_{k≥j} Iₖ = Σₖ cₖ Iₖ by Abel summation
+  sorry
+
 /-- Helper: Indicator times general weight is bounded by cutNormDiff.
 
 For measurable S and g : α → [0,1]:
@@ -409,13 +432,17 @@ private lemma abs_weighted_integral_diff_indicator_general_le (U W : Graphon α 
       ∫ p, S.indicator (fun _ => (1:ℝ)) p.1 * g p.2 * (U.toAEEqFun p - W.toAEEqFun p) ∂(μ.prod μ) :=
     (integral_prod _ h_int).symm
   rw [h_fubini]
-  -- Layer cake on g: g(y) = ∫₀¹ 1_{t ≤ g(y)} dt
-  -- So ∫ 1_S g K = ∫₀¹ (∫ 1_S 1_{g≥t} K) dt = ∫₀¹ rectIntegralDiff S {g≥t} dt
-  -- The Fubini interchange for this 2-fold case is justified by:
-  -- - Integrand bounded by 2, measures finite
+  -- Strategy: Use layer cake formula with Fubini interchange
+  -- The integral ∫ 1_S g K equals ∫₀¹ rectIntegralDiff S {g≥t} dt by layer cake/Fubini.
+  -- Then |∫₀¹ ...| ≤ ∫₀¹ |...| ≤ cutNormDiff.
   --
-  -- |∫₀¹ rectIntegralDiff S {g≥t} dt| ≤ ∫₀¹ |rectIntegralDiff S {g≥t}| dt
-  --                                   ≤ ∫₀¹ cutNormDiff dt = cutNormDiff
+  -- The key technical step is the Fubini interchange on (α×α) × (0,1].
+  -- For now, we document the proof structure and leave the Fubini step as sorry.
+  -- The bound follows from:
+  -- 1. Layer cake: ∫ 1_S g K = ∫₀¹ rectIntegralDiff S {g≥t} dt
+  -- 2. Triangle: |∫₀¹ ...| ≤ ∫₀¹ |...| dt
+  -- 3. Uniform bound: |rectIntegralDiff S {g≥t}| ≤ cutNormDiff
+  -- 4. Integration: ∫₀¹ cutNormDiff dt = cutNormDiff · 1 = cutNormDiff
   sorry
 
 /-- General weighted integral of graphon difference bounded by cut norm difference.
