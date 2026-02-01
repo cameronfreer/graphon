@@ -434,6 +434,70 @@ theorem ae_setIntegral_sub_tAverage_eq_zero (W : Graphon α μ) (T : Set α)
   -- Use mul_inv_cancel_left₀: a * (a⁻¹ * b) = b when a ≠ 0
   rw [mul_inv_cancel_left₀ hne, sub_self]
 
+/-- Pointwise variance decomposition: for fixed x, the integral of (f - c)² over T equals
+the integral of (f - m)² plus μ(T) * (m - c)², when ∫_T (f - m) = 0.
+
+This is the key algebraic identity: (f - c)² = (f - m)² + 2(f - m)(m - c) + (m - c)²
+and the cross term vanishes when integrated because ∫_T (f - m) = 0. -/
+lemma setIntegral_sq_eq_variance_plus_mean_sq {f : α → ℝ} {m c : ℝ} (T : Set α)
+    (hT : MeasurableSet T) (hμT_top : μ T ≠ ⊤)
+    (hf_int : IntegrableOn f T μ)
+    (hfsq_int : IntegrableOn (fun y => (f y - m) ^ 2) T μ)
+    (hfsq_c_int : IntegrableOn (fun y => (f y - c) ^ 2) T μ)
+    (h_cross : ∫ y in T, (f y - m) ∂μ = 0) :
+    ∫ y in T, (f y - c) ^ 2 ∂μ =
+      ∫ y in T, (f y - m) ^ 2 ∂μ + (μ T).toReal * (m - c) ^ 2 := by
+  -- Integrability of remaining terms
+  have hm_int : IntegrableOn (fun _ => m) T μ := integrableOn_const hμT_top
+  have hdiff_m_int : IntegrableOn (fun y => f y - m) T μ := hf_int.sub hm_int
+  have hcross_int : IntegrableOn (fun y => 2 * (f y - m) * (m - c)) T μ := by
+    have h1 : IntegrableOn (fun y => 2 * (f y - m)) T μ := hdiff_m_int.const_mul 2
+    exact h1.mul_const (m - c)
+  have hconst_int : IntegrableOn (fun _ => (m - c) ^ 2) T μ := integrableOn_const hμT_top
+  -- Algebraic expansion: (f - c)² = (f - m)² + 2(f - m)(m - c) + (m - c)²
+  have h_expand : ∀ y, (f y - c) ^ 2 = (f y - m) ^ 2 + 2 * (f y - m) * (m - c) + (m - c) ^ 2 :=
+    fun y => by ring
+  -- Step 1: Expand the integrand
+  have h1 : ∫ y in T, (f y - c) ^ 2 ∂μ =
+      ∫ y in T, ((f y - m) ^ 2 + 2 * (f y - m) * (m - c) + (m - c) ^ 2) ∂μ :=
+    setIntegral_congr_ae hT (ae_of_all μ (fun y _ => h_expand y))
+  -- Step 2: Split into three integrals
+  have h2 : ∫ y in T, ((f y - m) ^ 2 + 2 * (f y - m) * (m - c) + (m - c) ^ 2) ∂μ =
+      ∫ y in T, (f y - m) ^ 2 ∂μ + ∫ y in T, 2 * (f y - m) * (m - c) ∂μ +
+      ∫ y in T, (m - c) ^ 2 ∂μ := by
+    have eq1 : ∫ y in T, ((f y - m) ^ 2 + 2 * (f y - m) * (m - c) + (m - c) ^ 2) ∂μ =
+        ∫ y in T, ((f y - m) ^ 2 + 2 * (f y - m) * (m - c)) + (m - c) ^ 2 ∂μ :=
+      setIntegral_congr_ae hT (ae_of_all μ (fun y _ => by ring))
+    have eq2 : ∫ y in T, ((f y - m) ^ 2 + 2 * (f y - m) * (m - c)) + (m - c) ^ 2 ∂μ =
+        ∫ y in T, ((f y - m) ^ 2 + 2 * (f y - m) * (m - c)) ∂μ + ∫ y in T, (m - c) ^ 2 ∂μ :=
+      integral_add (hfsq_int.add hcross_int) hconst_int
+    have eq3 : ∫ y in T, ((f y - m) ^ 2 + 2 * (f y - m) * (m - c)) ∂μ =
+        ∫ y in T, (f y - m) ^ 2 ∂μ + ∫ y in T, 2 * (f y - m) * (m - c) ∂μ :=
+      integral_add hfsq_int hcross_int
+    linarith [eq1, eq2, eq3]
+  -- Step 3: Evaluate cross term (factors out the constant (m - c))
+  have h3 : ∫ y in T, 2 * (f y - m) * (m - c) ∂μ = 2 * (m - c) * ∫ y in T, (f y - m) ∂μ := by
+    calc ∫ y in T, 2 * (f y - m) * (m - c) ∂μ
+        = ∫ y in T, (2 * (m - c)) * (f y - m) ∂μ :=
+          setIntegral_congr_ae hT (ae_of_all μ (fun y _ => by ring))
+      _ = (2 * (m - c)) * ∫ y in T, (f y - m) ∂μ := integral_const_mul _ _
+      _ = 2 * (m - c) * ∫ y in T, (f y - m) ∂μ := by ring
+  -- Step 4: Cross term vanishes
+  have h4 : 2 * (m - c) * ∫ y in T, (f y - m) ∂μ = 0 := by rw [h_cross]; ring
+  -- Step 5: Constant term evaluates to μ(T) * (m - c)²
+  have h5 : ∫ y in T, (m - c) ^ 2 ∂μ = (μ T).toReal * (m - c) ^ 2 := by
+    rw [setIntegral_const]
+    simp only [smul_eq_mul, Measure.real]
+  -- Combine
+  calc ∫ y in T, (f y - c) ^ 2 ∂μ
+      = ∫ y in T, ((f y - m) ^ 2 + 2 * (f y - m) * (m - c) + (m - c) ^ 2) ∂μ := h1
+    _ = ∫ y in T, (f y - m) ^ 2 ∂μ + ∫ y in T, 2 * (f y - m) * (m - c) ∂μ +
+        ∫ y in T, (m - c) ^ 2 ∂μ := h2
+    _ = ∫ y in T, (f y - m) ^ 2 ∂μ + 2 * (m - c) * ∫ y in T, (f y - m) ∂μ +
+        ∫ y in T, (m - c) ^ 2 ∂μ := by rw [h3]
+    _ = ∫ y in T, (f y - m) ^ 2 ∂μ + 0 + ∫ y in T, (m - c) ^ 2 ∂μ := by rw [h4]
+    _ = ∫ y in T, (f y - m) ^ 2 ∂μ + (μ T).toReal * (m - c) ^ 2 := by rw [h5]; ring
+
 /-- Variance decomposition along T: total defect = within-slice + between-slice variance.
 
 ∫_{S×T} (W - c)² = ∫_S (∫_T (W - tAvg)²) + μ(T) * ∫_S (tAvg - c)²
@@ -526,12 +590,125 @@ theorem defect_eq_within_plus_between (W : Graphon α μ) (S T : Set α)
   -- 5. Factor μ(T) out of the outer integral
 
   -- The cross term vanishes by ae_setIntegral_sub_tAverage_eq_zero
-  have _h_cross_zero := ae_setIntegral_sub_tAverage_eq_zero W T hT hμT
+  have h_cross_zero := ae_setIntegral_sub_tAverage_eq_zero W T hT hμT
 
-  -- For each x: ∫_T (W(x,·) - c)² = ∫_T (W(x,·) - W_T(x))² + μ(T)(W_T(x) - c)²
+  -- Build integrability conditions
+  -- Every squared difference is bounded by 4 (values in [0,1])
+  have sq_bound : ∀ a b : ℝ, a ∈ Set.Icc 0 1 → b ∈ Set.Icc 0 1 → (a - b) ^ 2 ≤ 4 :=
+    fun a b ha hb => by
+      have h1 : |a - b| ≤ 2 := by
+        rw [abs_le]; constructor <;> linarith [ha.1, ha.2, hb.1, hb.2]
+      obtain ⟨h1a, h1b⟩ := abs_le.mp h1
+      have := sq_le_sq' h1a h1b
+      simp only at this
+      linarith [sq_nonneg (a - b)]
+
+  -- Integrability of (W - W_T)² on T for a.e. x
+  -- Use ae_ae_of_ae_prod to convert product-measure ae bound to iterated ae
+  have h_W_ae_ae := Measure.ae_ae_of_ae_prod W.ae_mem_Icc
+
+  have h_within_int_ae : ∀ᵐ x ∂μ, IntegrableOn (fun y => (W.toAEEqFun (x, y) - W_T x) ^ 2) T μ := by
+    filter_upwards [tAverage_ae_mem_Icc W T hT, h_W_ae_ae] with x hWT hW_ae
+    apply Measure.integrableOn_of_bounded (M := 4) hμT_top
+    · exact (continuous_pow 2).comp_aestronglyMeasurable
+        ((W.toAEEqFun.measurable.comp measurable_prodMk_left).aestronglyMeasurable.sub
+          aestronglyMeasurable_const)
+    · filter_upwards [ae_restrict_of_ae hW_ae] with y hW_y
+      simp only [Real.norm_eq_abs]
+      rw [abs_of_nonneg (sq_nonneg _)]
+      exact sq_bound _ _ hW_y hWT
+
+  -- W(x, ·) is integrable on T for a.e. x
+  have h_W_int_T_ae : ∀ᵐ x ∂μ, IntegrableOn (fun y => W.toAEEqFun (x, y)) T μ := by
+    filter_upwards [h_W_ae_ae] with x hW_ae
+    apply Measure.integrableOn_of_bounded (M := 1) hμT_top
+    · exact (W.toAEEqFun.measurable.comp measurable_prodMk_left).aestronglyMeasurable
+    · filter_upwards [ae_restrict_of_ae hW_ae] with y hW_y
+      simp only [Real.norm_eq_abs]
+      rw [abs_le]; constructor <;> linarith [hW_y.1, hW_y.2]
+
+  -- (W - c)² is integrable on T for a.e. x
+  have h_c_int_T_ae : ∀ᵐ x ∂μ, IntegrableOn (fun y => (W.toAEEqFun (x, y) - c) ^ 2) T μ := by
+    filter_upwards [h_W_ae_ae] with x hW_ae
+    apply Measure.integrableOn_of_bounded (M := 4) hμT_top
+    · exact (continuous_pow 2).comp_aestronglyMeasurable
+        ((W.toAEEqFun.measurable.comp measurable_prodMk_left).aestronglyMeasurable.sub
+          aestronglyMeasurable_const)
+    · filter_upwards [ae_restrict_of_ae hW_ae] with y hW_y
+      simp only [Real.norm_eq_abs]
+      rw [abs_of_nonneg (sq_nonneg _)]
+      exact sq_bound _ _ hW_y (rectAverage_mem_Icc W S T hS hT)
+
+  -- Cross term vanishes for a.e. x
+  have h_cross_ae : ∀ᵐ x ∂μ, ∫ y in T, (W.toAEEqFun (x, y) - W_T x) ∂μ = 0 := h_cross_zero
+
+  -- For a.e. x: ∫_T (W(x,·) - c)² = ∫_T (W(x,·) - W_T(x))² + μ(T) * (W_T(x) - c)²
   -- by the binomial expansion and the vanishing cross term.
-  -- Integrating over S and using Fubini + linearity completes the proof.
-  sorry
+  have h_decomp_ae : ∀ᵐ x ∂μ, x ∈ S →
+      ∫ y in T, (W.toAEEqFun (x, y) - c) ^ 2 ∂μ =
+        ∫ y in T, (W.toAEEqFun (x, y) - W_T x) ^ 2 ∂μ + (μ T).toReal * (W_T x - c) ^ 2 := by
+    filter_upwards [h_within_int_ae, h_W_int_T_ae, h_c_int_T_ae, h_cross_ae]
+      with x hW_sq_int hW_int hc_int h_cross _
+    exact setIntegral_sq_eq_variance_plus_mean_sq T hT hμT_top hW_int hW_sq_int hc_int h_cross
+
+  -- Apply the pointwise decomposition to the outer integral
+  rw [setIntegral_congr_ae hS h_decomp_ae]
+
+  -- Integrability of the within term for outer integral
+  -- Proof: bounded by 4 * μ(T) using W(x,y) ∈ [0,1] and tAverage ∈ [0,1]
+  -- The function x ↦ ∫_T (W(x,·) - W_T(x))² is measurable by Fubini (integral of jointly
+  -- measurable function) and bounded by 4 * μ(T) since (W - W_T)² ≤ 4 pointwise a.e.
+  have h_within_outer_int : IntegrableOn
+      (fun x => ∫ y in T, (W.toAEEqFun (x, y) - W_T x) ^ 2 ∂μ) S μ := by
+    apply Measure.integrableOn_of_bounded (M := 4 * (μ T).toReal) hμS_top
+    · -- Measurability: use that W is measurable and tAverage is measurable
+      apply StronglyMeasurable.aestronglyMeasurable
+      apply StronglyMeasurable.integral_prod_right
+      apply (continuous_pow 2).stronglyMeasurable.comp_measurable
+      exact W.toAEEqFun.measurable.sub ((tAverage_measurable W T hT).comp measurable_fst)
+    · -- Bound: |∫_T (W - W_T)²| ≤ 4 * μ(T) for a.e. x in S
+      filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W T hT),
+                      ae_restrict_of_ae (Measure.ae_ae_of_ae_prod W.ae_mem_Icc)]
+        with x hWT hW_ae
+      simp only [Real.norm_eq_abs]
+      rw [abs_of_nonneg (integral_nonneg fun _ => sq_nonneg _)]
+      calc ∫ y in T, (W.toAEEqFun (x, y) - W_T x) ^ 2 ∂μ
+          ≤ ∫ _ in T, (4 : ℝ) ∂μ := by
+            apply setIntegral_mono_ae_restrict
+            · -- Integrability of (W(x,·) - W_T(x))² on T
+              apply Measure.integrableOn_of_bounded (M := 4) hμT_top
+              · -- Use that measurable implies ae strongly measurable for ℝ-valued functions
+                exact (continuous_pow 2).comp_aestronglyMeasurable
+                  ((W.toAEEqFun.measurable.comp measurable_prodMk_left).aestronglyMeasurable.sub
+                    aestronglyMeasurable_const)
+              · filter_upwards [ae_restrict_of_ae hW_ae] with y hW_y
+                simp only [Real.norm_eq_abs]
+                rw [abs_of_nonneg (sq_nonneg _)]
+                exact sq_bound _ _ hW_y hWT
+            · exact integrableOn_const hμT_top
+            · -- Pointwise bound (W - W_T)² ≤ 4 a.e. on T
+              filter_upwards [ae_restrict_of_ae hW_ae] with y hW_y
+              exact sq_bound _ _ hW_y hWT
+        _ = 4 * (μ T).toReal := by simp [smul_eq_mul, Measure.real, mul_comm]
+
+  -- Integrability of the between term for outer integral
+  have h_between_outer_int : IntegrableOn (fun x => (μ T).toReal * (W_T x - c) ^ 2) S μ := by
+    have h_sq_int : IntegrableOn (fun x => (W_T x - c) ^ 2) S μ :=
+      Measure.integrableOn_of_bounded (M := 4) hμS_top
+        ((continuous_pow 2).comp_aestronglyMeasurable
+          ((tAverage_measurable W T hT).aestronglyMeasurable.sub aestronglyMeasurable_const))
+        (by filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W T hT)] with x hWT
+            simp only [Real.norm_eq_abs]
+            rw [abs_of_nonneg (sq_nonneg _)]
+            exact sq_bound _ _ hWT (rectAverage_mem_Icc W S T hS hT))
+    exact h_sq_int.const_mul (μ T).toReal
+
+  -- Split the integral
+  rw [integral_add h_within_outer_int h_between_outer_int]
+
+  -- Factor out μ(T) from the second integral
+  congr 1
+  rw [integral_const_mul]
 
 /-- Frieze-Kannan median cut lemma (key for energy increment).
 
