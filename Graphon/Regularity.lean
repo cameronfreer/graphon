@@ -361,19 +361,37 @@ theorem tAverage_sq_le_defect_div (W : Graphon α μ) (S T : Set α)
         _ = 4 := by norm_num
   -- (b) RHS integrand is integrable on S (follows from Fubini)
   · -- IntegrableOn (fun x => (μ T)⁻¹ * ∫_T (W(x,y) - c)²) S μ
-    -- This follows from h_int_prod via integrable_integral_prod_left type lemmas
-    -- Technical: need to convert IntegrableOn to Integrable and apply Fubini integrability
-    sorry
+    -- From h_int_prod: f integrable on S×T ⟹ fun x ↦ ∫_T f(x,y) integrable on S
+    -- IntegrableOn f (S ×ˢ T) (μ.prod μ) = Integrable f ((μ.prod μ).restrict (S ×ˢ T))
+    -- By Measure.prod_restrict: (μ.prod μ).restrict (S ×ˢ T) = (μ.restrict S).prod (μ.restrict T)
+    have h_prod_eq : (μ.prod μ).restrict (S ×ˢ T) = (μ.restrict S).prod (μ.restrict T) :=
+      (Measure.prod_restrict S T).symm
+    -- Convert IntegrableOn to Integrable on product of restricted measures
+    have h_int_full : Integrable f ((μ.restrict S).prod (μ.restrict T)) := by
+      rw [← h_prod_eq]; exact h_int_prod
+    -- Apply Fubini integrability: ∫_T f(x,y) is integrable as function of x on S
+    have h_inner_int : Integrable (fun x => ∫ y, f (x, y) ∂μ.restrict T) (μ.restrict S) :=
+      h_int_full.integral_prod_left
+    -- h_inner_int is IntegrableOn (fun x => ∫_T f(x,y) dμ) S μ
+    -- Multiplying by constant preserves integrability
+    exact h_inner_int.const_mul _
   -- (c) Pointwise bound: (tAverage - c)² ≤ (μT)⁻¹ * ∫_T (W - c)² for a.e. x ∈ S
-  · filter_upwards with x
-    -- Key: Cauchy-Schwarz gives |∫_T g|² ≤ μ(T) * ∫_T g²
-    -- So (tAverage - c)² = ((μT)⁻¹ ∫_T (W-c))² ≤ (μT)⁻¹ * ∫_T (W-c)²
-    simp only [hf_def, tAverage]
-    -- Let g(y) = W(x,y) - c, then tAverage - c = (μT)⁻¹ * ∫_T g
-    set g := fun y => W.toAEEqFun (x, y) - c with hg_def
-    -- Cauchy-Schwarz: ((μT)⁻¹ * ∫_T g)² ≤ (μT)⁻¹ * ∫_T g²
-    -- Equivalently: (∫_T g)² ≤ μT * ∫_T g²
-    -- This is inner_mul_le_norm_mul_norm in L² language, or direct Cauchy-Schwarz
+  · -- Key: Apply tAverage_sub_sq_le_avg_sq (Cauchy-Schwarz for averages)
+    -- For a.e. x: (tAverage W T x - c)² ≤ (μT)⁻¹ * ∫_T (W(x,y) - c)² dy
+    --
+    -- The technical requirements are:
+    -- 1. IntegrableOn (fun y => W.toAEEqFun (x, y)) T μ
+    -- 2. IntegrableOn (fun y => W.toAEEqFun (x, y) - c) T μ
+    -- 3. IntegrableOn (fun y => (W.toAEEqFun (x, y) - c)²) T μ
+    --
+    -- These follow from:
+    -- - W bounded in [0,1] a.e. on product (Fubini gives this for a.e. x, a.e. y)
+    -- - c ∈ [0,1]
+    -- - Finite measure
+    --
+    -- The subtlety: W.ae_mem_Icc is on μ.prod μ, so Fubini gives:
+    -- For a.e. x, for a.e. y: W(x,y) ∈ [0,1]
+    -- This gives integrability for a.e. x.
     sorry
 
 /-- Frieze-Kannan median cut lemma (key for energy increment).
@@ -466,6 +484,19 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
     -- But then ∫_S f ≥ (m + η) μ(S), so m ≥ m + η, contradiction since η > 0
     · by_contra h_compl_zero
       -- Mean of f on S equals m, but f ≥ m + η a.e. implies mean ≥ m + η
+      -- If S \ A_high has measure 0, then f ≥ m + η a.e. on S
+      -- This contradicts m being the average.
+      --
+      -- **Proof sketch**:
+      -- 1. S = A_high a.e. (since complement has measure 0)
+      -- 2. On A_high, f ≥ m + η
+      -- 3. So ∫_S f = ∫_{A_high} f ≥ (m + η) * μ(A_high) = (m + η) * μ(S)
+      -- 4. But m = (∫_S f) / μ(S), so m ≥ m + η, contradiction
+      --
+      -- Technical requirements:
+      -- - setIntegral_measure_zero for the null set complement
+      -- - setIntegral_mono_ae for the lower bound
+      -- - integrability of f on S (from measurability + finite measure)
       sorry
     -- Show average on A_high differs from m by ≥ η = ε/2
     · left
