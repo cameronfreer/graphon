@@ -469,7 +469,16 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
     --
     -- This contradicts h_var: ε² μ(S) ≤ ∫_S (f-m)² < η² μ(S) = (ε/2)² μ(S) = ε² μ(S) / 4
     --
-    -- Technical proof requires setIntegral_mono_ae and careful handling of null sets
+    -- Key observations:
+    -- 1. A_high ∪ A_low has measure 0, so the integral over it contributes 0
+    -- 2. On S \ (A_high ∪ A_low), we have |f - m| < η, so (f - m)² < η²
+    -- 3. Therefore ∫_S (f - m)² < η² μ(S) = (ε/2)² μ(S)
+    -- 4. This contradicts h_var: ε² μ(S) ≤ ∫_S (f - m)²
+    --
+    -- Detailed proof requires:
+    -- - Showing the integral over the null set A_high ∪ A_low is 0
+    -- - Bounding the integral over the complement by η² μ(S)
+    -- - Combining these with h_var to get ε² < (ε/2)² = ε²/4
     sorry
 
   -- Step 2: Case split and construct S₁
