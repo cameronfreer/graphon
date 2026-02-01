@@ -375,23 +375,21 @@ theorem tAverage_sq_le_defect_div (W : Graphon α μ) (S T : Set α)
     -- h_inner_int is IntegrableOn (fun x => ∫_T f(x,y) dμ) S μ
     -- Multiplying by constant preserves integrability
     exact h_inner_int.const_mul _
-  -- (c) Pointwise bound: (tAverage - c)² ≤ (μT)⁻¹ * ∫_T (W - c)² for a.e. x ∈ S
+  -- (c) Pointwise bound: (tAverage - c)² ≤ (μT)⁻¹ * ∫_T (W - c)² for a.e. x
   · -- Key: Apply tAverage_sub_sq_le_avg_sq (Cauchy-Schwarz for averages)
     -- For a.e. x: (tAverage W T x - c)² ≤ (μT)⁻¹ * ∫_T (W(x,y) - c)² dy
     --
-    -- The technical requirements are:
-    -- 1. IntegrableOn (fun y => W.toAEEqFun (x, y)) T μ
-    -- 2. IntegrableOn (fun y => W.toAEEqFun (x, y) - c) T μ
-    -- 3. IntegrableOn (fun y => (W.toAEEqFun (x, y) - c)²) T μ
+    -- Technical requirements (satisfied for a.e. x by Fubini on W.ae_mem_Icc):
+    -- 1. IntegrableOn (fun y => W(x,y)) T μ
+    -- 2. IntegrableOn (fun y => W(x,y) - c) T μ
+    -- 3. IntegrableOn (fun y => (W(x,y) - c)²) T μ
     --
-    -- These follow from:
-    -- - W bounded in [0,1] a.e. on product (Fubini gives this for a.e. x, a.e. y)
-    -- - c ∈ [0,1]
-    -- - Finite measure
+    -- The slice integrability follows from:
+    -- - Integrable.prod_right_ae: for a.e. x, the squared slice is integrable (from h_int_full)
+    -- - For a.e. x, W(x,·) ∈ [0,1] a.e. (Fubini on W.ae_mem_Icc)
+    -- - Boundedness + measurability on finite measure space
     --
-    -- The subtlety: W.ae_mem_Icc is on μ.prod μ, so Fubini gives:
-    -- For a.e. x, for a.e. y: W(x,y) ∈ [0,1]
-    -- This gives integrability for a.e. x.
+    -- Then apply tAverage_sub_sq_le_avg_sq for each such x.
     sorry
 
 /-- Frieze-Kannan median cut lemma (key for energy increment).
