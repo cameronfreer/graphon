@@ -342,16 +342,39 @@ theorem tAverage_sq_le_defect_div (W : Graphon α μ) (S T : Set α)
   -- h_fubini : ∫_{S×T} f = ∫_S (∫_T f(x,y))
   rw [h_fubini, ← integral_const_mul]
   -- Goal: ∫_S (tAverage - c)² ≤ ∫_S ((μT)⁻¹ * ∫_T (W - c)²)
-  -- Step 3: Apply setIntegral_mono_ae with pointwise bound from tAverage_sub_sq_le_avg_sq
-  -- The key technical requirements are:
-  -- 1. LHS integrand is integrable on S (bounded by 4 since tAverage, c ∈ [0,1])
-  -- 2. RHS integrand is integrable on S (follows from Fubini)
-  -- 3. Pointwise: (tAverage - c)² ≤ (μT)⁻¹ ∫_T (W - c)² for a.e. x
-  --
-  -- The integrability proofs require working with AEStronglyMeasurable for composed
-  -- functions y ↦ W(x, y) which has subtle measure-theoretic details.
-  -- For now, we mark this as sorry pending a cleaner API for these proofs.
-  sorry
+
+  -- Step 3: Apply setIntegral_mono_ae with pointwise Cauchy-Schwarz bound
+  apply setIntegral_mono_ae
+  -- (a) LHS integrand is integrable on S (bounded by 4)
+  · apply Measure.integrableOn_of_bounded (M := 4)
+    · exact (measure_lt_top μ S).ne
+    · exact (continuous_pow 2).comp_aestronglyMeasurable
+        ((tAverage_measurable W T hT).aestronglyMeasurable.sub aestronglyMeasurable_const)
+    · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W T hT)] with x hx
+      simp only [Real.norm_eq_abs]
+      have hc_bnd : c ∈ Icc (0 : ℝ) 1 := rectAverage_mem_Icc W S T hS hT
+      rw [abs_of_nonneg (sq_nonneg _)]
+      have h1 : |tAverage W T x - c| ≤ 2 := by
+        rw [abs_le]; constructor <;> linarith [hx.1, hx.2, hc_bnd.1, hc_bnd.2]
+      calc (tAverage W T x - c) ^ 2 ≤ |tAverage W T x - c| ^ 2 := sq_le_sq' (neg_abs_le _) (le_abs_self _)
+        _ ≤ 2 ^ 2 := sq_le_sq' (by linarith [abs_nonneg (tAverage W T x - c)]) h1
+        _ = 4 := by norm_num
+  -- (b) RHS integrand is integrable on S (follows from Fubini)
+  · -- IntegrableOn (fun x => (μ T)⁻¹ * ∫_T (W(x,y) - c)²) S μ
+    -- This follows from h_int_prod via integrable_integral_prod_left type lemmas
+    -- Technical: need to convert IntegrableOn to Integrable and apply Fubini integrability
+    sorry
+  -- (c) Pointwise bound: (tAverage - c)² ≤ (μT)⁻¹ * ∫_T (W - c)² for a.e. x ∈ S
+  · filter_upwards with x
+    -- Key: Cauchy-Schwarz gives |∫_T g|² ≤ μ(T) * ∫_T g²
+    -- So (tAverage - c)² = ((μT)⁻¹ ∫_T (W-c))² ≤ (μT)⁻¹ * ∫_T (W-c)²
+    simp only [hf_def, tAverage]
+    -- Let g(y) = W(x,y) - c, then tAverage - c = (μT)⁻¹ * ∫_T g
+    set g := fun y => W.toAEEqFun (x, y) - c with hg_def
+    -- Cauchy-Schwarz: ((μT)⁻¹ * ∫_T g)² ≤ (μT)⁻¹ * ∫_T g²
+    -- Equivalently: (∫_T g)² ≤ μT * ∫_T g²
+    -- This is inner_mul_le_norm_mul_norm in L² language, or direct Cauchy-Schwarz
+    sorry
 
 /-- Frieze-Kannan median cut lemma (key for energy increment).
 
@@ -399,13 +422,58 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
   -- If μ(S_low) ≠ 0: symmetric argument with ≤ instead of ≥
   --
   -- The full proof requires careful measure-theoretic arguments:
-  -- 1. Show μ(S_high) ≠ 0 ∨ μ(S_low) ≠ 0 via contrapositive and variance bound
-  -- 2. Show μ(S \ S₁) ≠ 0 to avoid trivial splits
-  -- 3. Show average on S₁ differs from m by at least ε/2
-  --
-  -- Each step involves setIntegral bounds and monotonicity arguments.
-  -- For now, we mark this as sorry pending the technical details.
-  sorry
+  -- **Implementation** (Markov approach):
+
+  -- Let η = ε/2 and define the deviation sets
+  set η := ε / 2 with hη_def
+  have hη_pos : η > 0 := by linarith
+
+  -- Define A⁺ = S ∩ {f ≥ m + η} and A⁻ = S ∩ {f ≤ m - η}
+  let A_high := S ∩ {x | f x ≥ m + η}
+  let A_low := S ∩ {x | f x ≤ m - η}
+
+  have hA_high_meas : MeasurableSet A_high := hS.inter (hf_meas measurableSet_Ici)
+  have hA_low_meas : MeasurableSet A_low := hS.inter (hf_meas measurableSet_Iic)
+  have hA_high_sub : A_high ⊆ S := Set.inter_subset_left
+  have hA_low_sub : A_low ⊆ S := Set.inter_subset_left
+
+  -- Step 1: Show μ(A_high) ≠ 0 ∨ μ(A_low) ≠ 0
+  -- If both were zero, then |f - m| < η a.e. on S, so variance < η² μ(S) = (ε/2)² μ(S) < ε² μ(S)
+  have h_exists : μ A_high ≠ 0 ∨ μ A_low ≠ 0 := by
+    by_contra h_both_zero
+    push_neg at h_both_zero
+    obtain ⟨h_high_zero, h_low_zero⟩ := h_both_zero
+    -- If μ(A_high) = 0 and μ(A_low) = 0, then |f - m| < η a.e. on S
+    -- So ∫_S (f - m)² < η² μ(S) = (ε/2)² μ(S) = ε² μ(S) / 4 < ε² μ(S)
+    -- This contradicts h_var
+    -- Technical: need setIntegral_le_of_ae_le_of_measure_ne_zero
+    sorry
+
+  -- Step 2: Case split and construct S₁
+  rcases h_exists with h_high | h_low
+  · -- Case: μ(A_high) ≠ 0, use S₁ = A_high
+    use A_high
+    refine ⟨hA_high_meas, hA_high_sub, h_high, ?_, ?_⟩
+    -- Show μ(S \ A_high) ≠ 0:
+    -- If S \ A_high has measure 0, then f ≥ m + η a.e. on S
+    -- But then ∫_S f ≥ (m + η) μ(S), so m ≥ m + η, contradiction since η > 0
+    · by_contra h_compl_zero
+      -- Mean of f on S equals m, but f ≥ m + η a.e. implies mean ≥ m + η
+      sorry
+    -- Show average on A_high differs from m by ≥ η = ε/2
+    · left
+      -- On A_high, f ≥ m + η, so average ≥ m + η, so |average - m| ≥ η
+      sorry
+  · -- Case: μ(A_low) ≠ 0, use S₁ = A_low
+    use A_low
+    refine ⟨hA_low_meas, hA_low_sub, h_low, ?_, ?_⟩
+    -- Show μ(S \ A_low) ≠ 0:
+    · by_contra h_compl_zero
+      sorry
+    -- Show average on A_low differs from m by ≥ η = ε/2
+    · right
+      -- On A_low, f ≤ m - η, so average ≤ m - η, so |average - m| ≥ η
+      sorry
 
 end TAverage
 
@@ -805,6 +873,25 @@ section Regularity
 
 variable [IsProbabilityMeasure μ]
 
+/-- The trivial partition with just {univ} as the only part. -/
+noncomputable def trivialPartition : MeasurablePartition α μ where
+  parts := {Set.univ}
+  measurable_parts := fun S hS => by
+    simp only [Finset.mem_singleton] at hS
+    rw [hS]
+    exact MeasurableSet.univ
+  pairwiseDisjoint := by
+    intro S hS T hT hne
+    simp only [Finset.coe_singleton, Set.mem_singleton_iff] at hS hT
+    -- Both S and T must be univ, but hne says S ≠ T - contradiction
+    exact absurd (hS.trans hT.symm) hne
+  ae_covers := by
+    filter_upwards with x
+    exact ⟨Set.univ, Finset.mem_singleton_self _, Set.mem_univ x⟩
+
+theorem trivialPartition_card : (trivialPartition (α := α) (μ := μ)).parts.card = 1 := by
+  simp [trivialPartition]
+
 /-- The regularity function: given ε, returns an upper bound on the number of parts
     needed in a partition to achieve ε-approximation.
 
@@ -834,41 +921,60 @@ theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
       defect W P ≤ ε ^ 2 := by
   -- **Proof structure** (Frieze-Kannan iteration with fuel):
   --
-  -- We use induction on fuel k = ⌈4/ε⁴⌉ + 1 to bound the number of iterations.
-  -- At each step:
-  -- - If defect ≤ ε², we're done
-  -- - If defect > ε², apply energy_increment to get P' with energy ≥ energy P + ε⁴/4
-  --
-  -- Since energy ≤ 1 (by energy_le_one) and starts ≥ 0, we can have at most
-  -- 4/ε⁴ iterations before energy exceeds 1.
+  -- Key insight: energy_increment gives energy increase ≥ ε⁴/4 per iteration,
+  -- and energy ≤ 1, so at most 4/ε⁴ iterations.
 
-  -- Step 1: Define the iteration bound (fuel)
-  let maxIter : ℕ := Nat.ceil (4 / ε ^ 4) + 1
+  -- Define the iteration bound (fuel)
+  set maxIter : ℕ := Nat.ceil (4 / ε ^ 4) + 1 with hMaxIter_def
 
-  -- Step 2: Define the iteration function (by recursion on fuel)
-  -- iterate : ℕ → MeasurablePartition α μ → MeasurablePartition α μ
-  -- iterate 0 P = P  (out of fuel, return current)
-  -- iterate (k+1) P = if defect W P ≤ ε² then P
-  --                   else iterate k (energy_increment's Q)
+  -- We prove by strong induction on fuel that:
+  -- For all P with defect > ε², iterating at most k times either:
+  -- (a) produces P' with defect ≤ ε² and bounded parts, or
+  -- (b) energy exceeds 1 (contradiction)
 
-  -- Step 3: Start with trivial partition and iterate
-  -- The trivial partition has {univ} as the only part
-  -- (This requires constructing MeasurablePartition with parts = {univ})
+  -- Start with trivial partition
+  let P₀ := trivialPartition (α := α) (μ := μ)
 
-  -- Step 4: Show the final partition satisfies both conditions:
-  -- (a) parts.card ≤ regularityBound ε
-  --     Each iteration at most doubles parts, starting with 1
-  --     After k iterations: ≤ 2^k ≤ 2^{4/ε⁴} ≤ regularityBound ε
-  -- (b) defect W P ≤ ε²
-  --     Either we stopped early (defect ≤ ε²)
-  --     Or we ran all iterations, but then energy > 1, contradicting energy_le_one
+  -- Case analysis: either defect P₀ ≤ ε² already, or we need to iterate
+  by_cases h_done : defect W P₀ ≤ ε ^ 2
+  · -- Already done: trivial partition has small defect
+    use P₀
+    constructor
+    · -- parts.card ≤ regularityBound ε
+      calc P₀.parts.card = 1 := trivialPartition_card
+        _ ≤ regularityBound ε := by
+          simp only [regularityBound]
+          split_ifs with h
+          · linarith
+          · exact Nat.one_le_ceil_iff.mpr (by positivity)
+    · exact h_done
 
-  -- **Technical dependencies** (all have sorries upstream):
-  -- - energy_increment (for the iteration step)
-  -- - trivial partition constructor
-  -- - defect computation on trivial partition
-
-  sorry
+  · -- Need to iterate: use energy_increment repeatedly
+    -- This is the core iteration argument
+    --
+    -- **Inductive claim**: After k iterations, either:
+    -- (1) Current partition has defect ≤ ε², or
+    -- (2) Energy ≥ k * ε⁴/4
+    --
+    -- Since energy ≤ 1, case (2) with k > 4/ε⁴ is impossible,
+    -- so we must reach case (1) within maxIter iterations.
+    --
+    -- **Iteration step**: Given P with defect > ε²,
+    -- - Find "bad" rectangle (exists since defect > ε² implies some rect has defect > ε²·μ(S)μ(T))
+    -- - Apply energy_increment to get Q with:
+    --   * Q refines P
+    --   * Q.parts.card ≤ 2 * P.parts.card
+    --   * energy W Q ≥ energy W P + ε⁴/4
+    --
+    -- **Part count bound**:
+    -- After k iterations: P_k.parts.card ≤ 2^k
+    -- Since k ≤ 4/ε⁴, we get 2^{4/ε⁴} ≤ regularityBound ε
+    --
+    -- The detailed iteration proof requires:
+    -- - Converting "defect > ε²" to "exists bad rectangle" (needs defect_pos_of_exists_bad)
+    -- - Tracking energy increase across iterations
+    -- - Verifying part count stays within bounds
+    sorry
 
 end Regularity
 
