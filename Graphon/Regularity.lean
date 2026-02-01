@@ -424,17 +424,18 @@ theorem defect_eq_within_plus_between (W : Graphon α μ) (S T : Set α)
       (μ T).toReal * ∫ x in S, (tAverage W T x - rectAverage W S T) ^ 2 ∂μ := by
   -- **Variance decomposition**: Total defect = within-slice + between-slice variance
   --
-  -- Proof outline:
+  -- Proof sketch:
   -- 1. Use Fubini: ∫_{S×T} f = ∫_S (∫_T f)
-  -- 2. Expand (W - c)² = (W - W_T)² + 2(W - W_T)(W_T - c) + (W_T - c)² where W_T = tAverage W T
-  -- 3. Cross term ∫_T (W - W_T) = 0 by definition of tAverage
-  -- 4. Constant term ∫_T (W_T - c)² = μ(T) * (W_T - c)²
-  -- 5. Factor out μ(T) from the between-slice integral
+  -- 2. Pointwise: (W - c)² = (W - W_T)² + 2(W - W_T)(W_T - c) + (W_T - c)²
+  -- 3. Cross term ∫_T 2(W - W_T)(W_T - c) = 2(W_T - c) * ∫_T (W - W_T) = 0
+  --    (since ∫_T (W - W_T) = 0 by definition of W_T = tAverage W T)
+  -- 4. Constant term: ∫_T (W_T - c)² = μ(T) * (W_T - c)²
+  -- 5. Integrate over S and factor out μ(T) using integral_const_mul
   --
   -- Technical requirements:
-  -- - Fubini via setIntegral_prod
   -- - Integrability of squared differences (bounded by 4)
-  -- - integral_const_mul for factoring
+  -- - Fubini via setIntegral_prod and prod_right_ae
+  -- - setIntegral_congr for ae pointwise equality
   sorry
 
 /-- Frieze-Kannan median cut lemma (key for energy increment).
