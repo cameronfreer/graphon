@@ -343,8 +343,8 @@ theorem tAverage_sq_le_defect_div (W : Graphon α μ) (S T : Set α)
   rw [h_fubini, ← integral_const_mul]
   -- Goal: ∫_S (tAverage - c)² ≤ ∫_S ((μT)⁻¹ * ∫_T (W - c)²)
 
-  -- Step 3: Apply setIntegral_mono_ae with pointwise Cauchy-Schwarz bound
-  apply setIntegral_mono_ae
+  -- Step 3: Apply setIntegral_mono_ae_restrict with pointwise Cauchy-Schwarz bound
+  apply setIntegral_mono_ae_restrict
   -- (a) LHS integrand is integrable on S (bounded by 4)
   · apply Measure.integrableOn_of_bounded (M := 4)
     · exact (measure_lt_top μ S).ne
@@ -378,19 +378,35 @@ theorem tAverage_sq_le_defect_div (W : Graphon α μ) (S T : Set α)
   -- (c) Pointwise bound: (tAverage - c)² ≤ (μT)⁻¹ * ∫_T (W - c)² for a.e. x
   · -- Key: Apply tAverage_sub_sq_le_avg_sq (Cauchy-Schwarz for averages)
     -- For a.e. x: (tAverage W T x - c)² ≤ (μT)⁻¹ * ∫_T (W(x,y) - c)² dy
-    --
-    -- Technical requirements (satisfied for a.e. x by Fubini on W.ae_mem_Icc):
-    -- 1. IntegrableOn (fun y => W(x,y)) T μ
-    -- 2. IntegrableOn (fun y => W(x,y) - c) T μ
-    -- 3. IntegrableOn (fun y => (W(x,y) - c)²) T μ
-    --
-    -- The slice integrability follows from:
-    -- - Integrable.prod_right_ae: for a.e. x, the squared slice is integrable (from h_int_full)
-    -- - For a.e. x, W(x,·) ∈ [0,1] a.e. (Fubini on W.ae_mem_Icc)
-    -- - Boundedness + measurability on finite measure space
-    --
-    -- Then apply tAverage_sub_sq_le_avg_sq for each such x.
-    sorry
+    -- First get integrability of h_int_full on the product of restricted measures
+    have h_prod_eq : (μ.prod μ).restrict (S ×ˢ T) = (μ.restrict S).prod (μ.restrict T) :=
+      (Measure.prod_restrict S T).symm
+    have h_int_full : Integrable f ((μ.restrict S).prod (μ.restrict T)) := by
+      rw [← h_prod_eq]; exact h_int_prod
+    -- From h_int_full.prod_right_ae: for a.e. x ∂(μ.restrict S), the slice is integrable
+    have h_slice_ae : ∀ᵐ x ∂(μ.restrict S), Integrable (fun y => f (x, y)) (μ.restrict T) :=
+      h_int_full.prod_right_ae
+    -- Also need integrability of W and W - c on slices
+    -- W is integrable since it's bounded by 1 on a finite measure space
+    have h_W_int_prod : IntegrableOn (fun p => W.toAEEqFun p) (S ×ˢ T) (μ.prod μ) :=
+      (SymmKernel.graphon_integrable W).integrableOn
+    have h_W_full : Integrable (fun p => W.toAEEqFun p) ((μ.restrict S).prod (μ.restrict T)) := by
+      rw [← h_prod_eq]; exact h_W_int_prod
+    have h_W_slice_ae : ∀ᵐ x ∂(μ.restrict S), Integrable (fun y => W.toAEEqFun (x, y)) (μ.restrict T) :=
+      h_W_full.prod_right_ae
+    -- Now filter_upwards on these ae conditions
+    filter_upwards [h_slice_ae, h_W_slice_ae] with x h_f_int h_W_int
+    -- h_f_int : Integrable (fun y => f (x, y)) (μ.restrict T)
+    -- h_W_int : Integrable (fun y => W.toAEEqFun (x, y)) (μ.restrict T)
+    -- Convert from Integrable on μ.restrict T to IntegrableOn on T
+    have h_W_intOn : IntegrableOn (fun y => W.toAEEqFun (x, y)) T μ := h_W_int
+    have h_f_intOn : IntegrableOn (fun y => f (x, y)) T μ := h_f_int
+    -- h_f_intOn is integrability of (W(x,y) - c)²
+    -- Need to show integrability of W(x,y) - c (follows from W integrable and c constant)
+    have h_diff_intOn : IntegrableOn (fun y => W.toAEEqFun (x, y) - c) T μ :=
+      h_W_intOn.sub (integrableOn_const (measure_lt_top μ T).ne)
+    -- Apply tAverage_sub_sq_le_avg_sq
+    exact tAverage_sub_sq_le_avg_sq W T c hμT x h_W_intOn h_diff_intOn h_f_intOn
 
 /-- Frieze-Kannan median cut lemma (key for energy increment).
 
@@ -410,7 +426,7 @@ of deviating by ε from the mean is at least some constant.
 This lemma is stated but not yet proven; filling it requires careful
 measure-theoretic arguments. -/
 theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
-    (hf_meas : Measurable f) (hμS : μ S ≠ 0)
+    (hf_meas : Measurable f) (hf_int : IntegrableOn f S μ) (hμS : μ S ≠ 0)
     (m : ℝ) (hm : m = (μ S).toReal⁻¹ * ∫ x in S, f x ∂μ)
     (ε : ℝ) (hε : ε > 0)
     (h_var : ∫ x in S, (f x - m) ^ 2 ∂μ ≥ ε ^ 2 * (μ S).toReal) :
@@ -475,11 +491,73 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
     -- 3. Therefore ∫_S (f - m)² < η² μ(S) = (ε/2)² μ(S)
     -- 4. This contradicts h_var: ε² μ(S) ≤ ∫_S (f - m)²
     --
-    -- Detailed proof requires:
-    -- - Showing the integral over the null set A_high ∪ A_low is 0
-    -- - Bounding the integral over the complement by η² μ(S)
-    -- - Combining these with h_var to get ε² < (ε/2)² = ε²/4
-    sorry
+    -- Detailed proof:
+    -- Key: on S \ (A_high ∪ A_low), we have |f - m| < η, so (f - m)² < η²
+    -- The null sets A_high and A_low contribute nothing to the integral
+    have hμS_top : μ S ≠ ⊤ := (measure_lt_top μ S).ne
+    have hμS_pos : (0 : ℝ) < (μ S).toReal := ENNReal.toReal_pos hμS hμS_top
+    -- Show A_high ∪ A_low has measure 0
+    have h_union_zero : μ (A_high ∪ A_low) = 0 := by
+      rw [measure_union_null h_high_zero h_low_zero]
+    -- Key: On S, outside A_high ∪ A_low, we have |f x - m| < η
+    have h_ae_bound : ∀ᵐ x ∂μ.restrict S, (f x - m) ^ 2 < η ^ 2 := by
+      -- Use ae_restrict_iff' with the null set
+      rw [ae_restrict_iff' hS]
+      -- The set (A_high ∪ A_low) ∩ S has measure 0
+      have h_null_in_S : μ ((A_high ∪ A_low) ∩ S) = 0 := by
+        apply le_antisymm _ (zero_le _)
+        calc μ ((A_high ∪ A_low) ∩ S) ≤ μ (A_high ∪ A_low) := measure_mono Set.inter_subset_left
+          _ = 0 := h_union_zero
+      -- Outside this null set, the bound holds
+      have h_compl_eq : (A_high ∪ A_low)ᶜ ∈ ae μ := by
+        rw [compl_mem_ae_iff]
+        exact h_union_zero
+      filter_upwards [h_compl_eq] with x hx hxS
+      -- hx : x ∉ A_high ∪ A_low
+      simp only [Set.mem_compl_iff, Set.mem_union, not_or] at hx
+      have hx_not_high : x ∉ A_high := hx.1
+      have hx_not_low : x ∉ A_low := hx.2
+      -- A_high = S ∩ {f ≥ m + η}, so x ∉ A_high means: x ∉ S or f x < m + η
+      -- Since x ∈ S, we get f x < m + η
+      have h1 : f x < m + η := by
+        by_contra h
+        push_neg at h
+        exact hx_not_high ⟨hxS, h⟩
+      -- A_low = S ∩ {f ≤ m - η}, so x ∉ A_low means: x ∉ S or f x > m - η
+      -- Since x ∈ S, we get f x > m - η
+      have h2 : f x > m - η := by
+        by_contra h
+        push_neg at h
+        exact hx_not_low ⟨hxS, h⟩
+      -- Now |f x - m| < η
+      have h_abs : |f x - m| < η := abs_sub_lt_iff.mpr ⟨by linarith, by linarith⟩
+      -- So (f x - m)² < η²
+      calc (f x - m) ^ 2 = |f x - m| ^ 2 := (sq_abs _).symm
+        _ < η ^ 2 := sq_lt_sq' (by linarith [abs_nonneg (f x - m)]) h_abs
+    -- Bound the integral (use strict inequality to lt)
+    -- First get integrability from the ae bound
+    have h_sq_int : IntegrableOn (fun x => (f x - m) ^ 2) S μ := by
+      apply Measure.integrableOn_of_bounded hμS_top
+      · exact ((hf_meas.sub measurable_const).pow_const 2).aestronglyMeasurable
+      · -- Need: ‖(f x - m)²‖ ≤ η² a.e. on S
+        -- From h_ae_bound: (f x - m)² < η² a.e., so ≤ η²
+        filter_upwards [h_ae_bound] with x hx
+        simp only [Real.norm_eq_abs]
+        rw [abs_of_nonneg (sq_nonneg _)]
+        exact le_of_lt hx
+    have h_int_bound : ∫ x in S, (f x - m) ^ 2 ∂μ ≤ η ^ 2 * (μ S).toReal := by
+      calc ∫ x in S, (f x - m) ^ 2 ∂μ ≤ ∫ _ in S, η ^ 2 ∂μ := by
+            apply setIntegral_mono_ae_restrict h_sq_int (integrableOn_const hμS_top)
+            filter_upwards [h_ae_bound] with x hx
+            exact le_of_lt hx
+        _ = η ^ 2 * (μ S).toReal := by rw [setIntegral_const]; simp [Measure.real]; ring
+    -- But h_var says ∫ ≥ ε² μS. If ε² μS ≤ η² μS = (ε/2)² μS = ε² μS / 4 and μS > 0, we get ε² ≤ ε²/4
+    have h_contra : ε ^ 2 * (μ S).toReal ≤ η ^ 2 * (μ S).toReal := le_trans h_var h_int_bound
+    have h_sq : η ^ 2 = (ε / 2) ^ 2 := by rw [hη_def]
+    rw [h_sq, div_pow] at h_contra
+    -- ε² μS ≤ ε²/4 μS, so ε² ≤ ε²/4, contradiction with ε > 0
+    have h_ε_sq_pos : 0 < ε ^ 2 := sq_pos_of_pos hε
+    nlinarith [sq_nonneg ε, hμS_pos]
 
   -- Step 2: Case split and construct S₁
   rcases h_exists with h_high | h_low
@@ -490,32 +568,67 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
     -- If S \ A_high has measure 0, then f ≥ m + η a.e. on S
     -- But then ∫_S f ≥ (m + η) μ(S), so m ≥ m + η, contradiction since η > 0
     · by_contra h_compl_zero
-      -- Mean of f on S equals m, but f ≥ m + η a.e. implies mean ≥ m + η
       -- If S \ A_high has measure 0, then f ≥ m + η a.e. on S
-      -- This contradicts m being the average.
-      --
-      -- **Proof sketch**:
-      -- 1. S = A_high a.e. (since complement has measure 0)
-      -- 2. On A_high, f ≥ m + η
-      -- 3. So ∫_S f = ∫_{A_high} f ≥ (m + η) * μ(A_high) = (m + η) * μ(S)
-      -- 4. But m = (∫_S f) / μ(S), so m ≥ m + η, contradiction
-      --
-      -- Technical requirements:
-      -- - setIntegral_measure_zero for the null set complement
-      -- - setIntegral_mono_ae for the lower bound
-      -- - integrability of f on S (from measurability + finite measure)
-      sorry
+      -- This contradicts m being the average
+      have hμS_top : μ S ≠ ⊤ := (measure_lt_top μ S).ne
+      have hμS_pos : (0 : ℝ) < (μ S).toReal := ENNReal.toReal_pos hμS hμS_top
+      -- On A_high ⊆ S, f ≥ m + η pointwise
+      have h_lb_on_high : ∀ x ∈ A_high, f x ≥ m + η := fun x ⟨_, hx⟩ => hx
+      -- Since μ(S \ A_high) = 0, f ≥ m + η a.e. on S
+      have h_ae_lb : ∀ᵐ x ∂μ.restrict S, f x ≥ m + η := by
+        rw [ae_restrict_iff' hS]
+        have h_compl_ae : (S \ A_high)ᶜ ∈ ae μ := by
+          rw [compl_mem_ae_iff]
+          exact h_compl_zero
+        filter_upwards [h_compl_ae] with x hx hxS
+        -- x ∈ (S \ A_high)ᶜ and x ∈ S ⟹ x ∈ A_high
+        -- (S \ A_high)ᶜ = Sᶜ ∪ A_high
+        rw [Set.compl_diff] at hx
+        cases hx with
+        | inl hx_in_high => exact h_lb_on_high x hx_in_high
+        | inr hx_not_S => exact absurd hxS hx_not_S
+      -- Lower bound: ∫_S f ≥ (m + η) μ(S)
+      have h_int_lb : ∫ x in S, f x ∂μ ≥ (m + η) * (μ S).toReal := by
+        calc ∫ x in S, f x ∂μ ≥ ∫ _ in S, (m + η) ∂μ := by
+              apply setIntegral_mono_ae_restrict (integrableOn_const hμS_top) hf_int
+              exact h_ae_lb
+          _ = (m + η) * (μ S).toReal := by
+              rw [setIntegral_const, smul_eq_mul]
+              simp only [Measure.real]
+              ring
+      -- But m = (∫_S f) / μ(S), so ∫_S f = m * μ(S)
+      have h_int_eq : ∫ x in S, f x ∂μ = m * (μ S).toReal := by
+        rw [hm]; field_simp
+      -- Combine: m * μ(S) ≥ (m + η) * μ(S), so m ≥ m + η, contradiction
+      nlinarith
     -- Show average on A_high differs from m by ≥ η = ε/2
     · left
       -- On A_high, f ≥ m + η, so average ≥ m + η, so |average - m| ≥ η
       have hμA_top : μ A_high ≠ ⊤ := (measure_lt_top μ A_high).ne
       have hμA_pos' : (0 : ℝ) < (μ A_high).toReal := ENNReal.toReal_pos h_high hμA_top
-      -- Key: on A_high, f ≥ m + η pointwise, so average ≥ m + η
-      -- Technical: setIntegral_mono_ae gives ∫ (m+η) ≤ ∫ f on A_high
-      -- Then average = (μ A_high)⁻¹ ∫ f ≥ m + η
-      -- So |average - m| ≥ η
-      -- The detailed proof requires integrability of f on A_high
-      sorry
+      -- On A_high, f ≥ m + η pointwise
+      have h_lb_on_high : ∀ x ∈ A_high, f x ≥ m + η := fun x ⟨_, hx⟩ => hx
+      -- Lower bound: ∫_{A_high} f ≥ (m + η) μ(A_high)
+      have h_int_lb : ∫ x in A_high, f x ∂μ ≥ (m + η) * (μ A_high).toReal := by
+        calc ∫ x in A_high, f x ∂μ ≥ ∫ _ in A_high, (m + η) ∂μ := by
+              apply setIntegral_mono_ae_restrict (integrableOn_const hμA_top) (hf_int.mono hA_high_sub le_rfl)
+              simp only [Filter.EventuallyLE, Pi.le_def]
+              rw [ae_restrict_iff' hA_high_meas]
+              filter_upwards with x hx
+              exact h_lb_on_high x hx
+          _ = (m + η) * (μ A_high).toReal := by rw [setIntegral_const, smul_eq_mul]; simp [Measure.real]; ring
+      -- Average = (μ A_high)⁻¹ ∫ f ≥ m + η
+      have h_avg_ge : (μ A_high).toReal⁻¹ * ∫ x in A_high, f x ∂μ ≥ m + η := by
+        have h1 : (m + η) * (μ A_high).toReal ≤ ∫ x in A_high, f x ∂μ := h_int_lb
+        have h2 : (μ A_high).toReal⁻¹ * ((m + η) * (μ A_high).toReal) = m + η := by field_simp
+        calc (μ A_high).toReal⁻¹ * ∫ x in A_high, f x ∂μ
+            ≥ (μ A_high).toReal⁻¹ * ((m + η) * (μ A_high).toReal) := by
+              apply mul_le_mul_of_nonneg_left h1 (inv_nonneg.mpr (le_of_lt hμA_pos'))
+          _ = m + η := h2
+      -- |average - m| ≥ η, i.e., average - m ≥ η or -(average - m) ≥ η
+      rw [ge_iff_le, le_abs]
+      left
+      linarith
   · -- Case: μ(A_low) ≠ 0, use S₁ = A_low (symmetric to A_high case)
     use A_low
     refine ⟨hA_low_meas, hA_low_sub, h_low, ?_, ?_⟩
@@ -523,14 +636,62 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
     -- If μ(S \ A_low) = 0, then f ≤ m - η a.e. on S
     -- But then ∫_S f ≤ (m - η) μ(S), so m ≤ m - η, contradiction
     · by_contra h_compl_zero
-      -- Technical: use setIntegral_mono_ae and definition of m
-      sorry
+      have hμS_top : μ S ≠ ⊤ := (measure_lt_top μ S).ne
+      have hμS_pos : (0 : ℝ) < (μ S).toReal := ENNReal.toReal_pos hμS hμS_top
+      -- On A_low ⊆ S, f ≤ m - η pointwise
+      have h_ub_on_low : ∀ x ∈ A_low, f x ≤ m - η := fun x ⟨_, hx⟩ => hx
+      -- Since μ(S \ A_low) = 0, f ≤ m - η a.e. on S
+      have h_ae_ub : ∀ᵐ x ∂μ.restrict S, f x ≤ m - η := by
+        rw [ae_restrict_iff' hS]
+        have h_compl_ae : (S \ A_low)ᶜ ∈ ae μ := by
+          rw [compl_mem_ae_iff]
+          exact h_compl_zero
+        filter_upwards [h_compl_ae] with x hx hxS
+        rw [Set.compl_diff] at hx
+        cases hx with
+        | inl hx_in_low => exact h_ub_on_low x hx_in_low
+        | inr hx_not_S => exact absurd hxS hx_not_S
+      -- Upper bound: ∫_S f ≤ (m - η) μ(S)
+      have h_int_ub : ∫ x in S, f x ∂μ ≤ (m - η) * (μ S).toReal := by
+        calc ∫ x in S, f x ∂μ ≤ ∫ _ in S, (m - η) ∂μ := by
+              apply setIntegral_mono_ae_restrict hf_int (integrableOn_const hμS_top)
+              exact h_ae_ub
+          _ = (m - η) * (μ S).toReal := by rw [setIntegral_const, smul_eq_mul]; simp [Measure.real]; ring
+      -- But m = (∫_S f) / μ(S), so ∫_S f = m * μ(S)
+      have h_int_eq : ∫ x in S, f x ∂μ = m * (μ S).toReal := by
+        rw [hm]; field_simp
+      -- Combine: m * μ(S) ≤ (m - η) * μ(S), so m ≤ m - η, contradiction
+      nlinarith
     -- Show average on A_low differs from m by ≥ η = ε/2
-    · right
-      -- On A_low, f ≤ m - η pointwise, so average ≤ m - η
-      -- Thus |average - m| = m - average ≥ η
-      -- Technical: requires integrability of f on A_low
-      sorry
+    · left  -- Use the LEFT case: |avg(A_low) - m| ≥ η
+      have hμA_top : μ A_low ≠ ⊤ := (measure_lt_top μ A_low).ne
+      have hμA_pos' : (0 : ℝ) < (μ A_low).toReal := ENNReal.toReal_pos h_low hμA_top
+      -- On A_low, f ≤ m - η pointwise
+      have h_ub_on_low : ∀ x ∈ A_low, f x ≤ m - η := fun x ⟨_, hx⟩ => hx
+      -- Upper bound: ∫_{A_low} f ≤ (m - η) μ(A_low)
+      have h_int_ub : ∫ x in A_low, f x ∂μ ≤ (m - η) * (μ A_low).toReal := by
+        calc ∫ x in A_low, f x ∂μ ≤ ∫ _ in A_low, (m - η) ∂μ := by
+              apply setIntegral_mono_ae_restrict (hf_int.mono hA_low_sub le_rfl) (integrableOn_const hμA_top)
+              simp only [Filter.EventuallyLE]
+              rw [ae_restrict_iff' hA_low_meas]
+              filter_upwards with x hx
+              exact h_ub_on_low x hx
+          _ = (m - η) * (μ A_low).toReal := by rw [setIntegral_const, smul_eq_mul]; simp [Measure.real]; ring
+      -- Average = (μ A_low)⁻¹ ∫ f ≤ m - η
+      have h_avg_le : (μ A_low).toReal⁻¹ * ∫ x in A_low, f x ∂μ ≤ m - η := by
+        have h1 : ∫ x in A_low, f x ∂μ ≤ (m - η) * (μ A_low).toReal := h_int_ub
+        have h2 : (μ A_low).toReal⁻¹ * ((m - η) * (μ A_low).toReal) = m - η := by field_simp
+        calc (μ A_low).toReal⁻¹ * ∫ x in A_low, f x ∂μ
+            ≤ (μ A_low).toReal⁻¹ * ((m - η) * (μ A_low).toReal) := by
+              apply mul_le_mul_of_nonneg_left h1 (inv_nonneg.mpr (le_of_lt hμA_pos'))
+          _ = m - η := h2
+      -- |average - m| ≥ η, i.e., -(average - m) ≥ η, i.e., m - average ≥ η
+      -- Since avg ≤ m - η, we have avg - m ≤ -η, so -(avg - m) ≥ η
+      rw [ge_iff_le, le_abs]
+      right
+      -- Goal: -(avg - m) ≥ η, i.e., m - avg ≥ η
+      -- From h_avg_le: avg ≤ m - η, so m - avg ≥ η
+      linarith
 
 end TAverage
 
@@ -881,12 +1042,39 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
   -- By tAverage_sq_le_defect_div: ∫_S (W_T - c)² relates to defect
   -- (The actual variance bound needs careful derivation from the hypothesis)
   have h_var : ∫ x in S, (W_T x - c) ^ 2 ∂μ ≥ ε ^ 2 * (μ S).toReal := by
-    -- This follows from the defect hypothesis and properties of T-average
-    -- The key insight: large defect on S×T implies large variance of W_T on S
+    -- **Proof sketch**:
+    -- By variance decomposition:
+    --   defect = ∫_{S×T} (W - c)² = μ(T) * ∫_S (W_T - c)² + ∫_S (∫_T (W - W_T)²)
+    -- Since the within-slice variance ∫_S (∫_T (W - W_T)²) ≥ 0:
+    --   μ(T) * ∫_S (W_T - c)² ≤ defect
+    -- But we need the REVERSE direction to apply exists_variance_cut!
+    --
+    -- The correct approach: use the FULL energy analysis
+    -- The defect on S×T decomposes into:
+    -- 1. Between-slice variance: how much W_T varies on S (relative to c)
+    -- 2. Within-slice variance: how much W varies within each T-slice
+    --
+    -- If between-slice variance is ≥ ε²μ(S), we cut S (current approach)
+    -- If within-slice variance is large, we should cut T instead
+    --
+    -- For now, we assume the between-slice variance is large enough.
+    -- A complete proof would handle both cases or strengthen the hypothesis.
+    --
+    -- **Technical note**: The hypothesis requires μ S ≠ 0 AND μ T ≠ 0.
+    -- If we strengthen to require positive measure parts, the bound follows
+    -- from the variance decomposition with the right factor.
     sorry
   -- Step 4: Apply exists_variance_cut to get the cut S₁
+  -- Need integrability of W_T on S (follows from tAverage_ae_mem_Icc: bounded a.e. function on finite measure)
+  have hW_T_int : IntegrableOn W_T S μ := by
+    apply Measure.integrableOn_of_bounded (M := 1) (measure_lt_top μ S).ne
+    · exact hW_T_meas.aestronglyMeasurable
+    · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W T hT_meas)] with x hx
+      simp only [Real.norm_eq_abs]
+      rw [abs_le]
+      exact ⟨by linarith [hx.1], by linarith [hx.2]⟩
   obtain ⟨S₁, hS₁_meas, hS₁_sub, hμS₁_pos, hμS₂_pos, h_avg_diff⟩ :=
-    exists_variance_cut W_T S hS_meas hW_T_meas hμS_pos c hc_mean ε hε h_var
+    exists_variance_cut W_T S hS_meas hW_T_meas hW_T_int hμS_pos c hc_mean ε hε h_var
   -- Step 5: Build the refined partition Q
   let Q := MeasurablePartition.splitPart P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
   use Q
@@ -904,10 +1092,32 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
       _ ≤ P.parts.card + P.parts.card := by omega
       _ = 2 * P.parts.card := by ring
   -- (c) Energy increases by at least ε⁴/4
-  · -- This is the key calculation: when averages on S₁ and S₂ differ from c,
-    -- the energy increases due to convexity of x²
-    -- Energy Q - Energy P = contribution from (S₁,T), (S₂,T) - contribution from (S,T)
-    --                     ≥ ε⁴/4 by weighted convexity
+  · -- **Proof sketch**:
+    -- Energy Q - Energy P ≥ Δ where Δ is the contribution from splitting S
+    --
+    -- Old contribution from (S,T): (rectAverage W S T)² * μ(S) * μ(T) = c² * μ(S) * μ(T)
+    --
+    -- New contribution from (S₁,T) and (S₂,T):
+    --   (rectAverage W S₁ T)² * μ(S₁) * μ(T) + (rectAverage W S₂ T)² * μ(S₂) * μ(T)
+    --
+    -- By convexity of x² and Jensen's inequality:
+    --   Let a₁ = rectAverage W S₁ T, a₂ = rectAverage W S₂ T
+    --   Let w₁ = μ(S₁)/μ(S), w₂ = μ(S₂)/μ(S)  (weights summing to 1)
+    --   Then w₁*a₁ + w₂*a₂ = c (weighted average = overall average)
+    --
+    --   New - Old = μ(T) * [a₁² * μ(S₁) + a₂² * μ(S₂) - c² * μ(S)]
+    --             = μ(T) * μ(S) * [w₁*a₁² + w₂*a₂² - c²]
+    --             ≥ μ(T) * μ(S) * (w₁*w₂*(a₁ - a₂)²)  (convexity bound)
+    --
+    -- From h_avg_diff: either |a₁ - c| ≥ ε/2 or |avg(S₂,T) - c| ≥ ε/2
+    -- Combined with w₁*a₁ + w₂*a₂ = c, this implies |a₁ - a₂| ≥ ε/2
+    --
+    -- Therefore: New - Old ≥ μ(T) * μ(S) * w₁ * w₂ * (ε/2)²
+    --                      ≥ μ(T) * μ(S) * (1/4) * (ε/2)² = ε²/16 * μ(T) * μ(S)
+    -- (using w₁ * w₂ ≥ 1/4 when w₁, w₂ ≥ 0)
+    --
+    -- This gives ε²/16 * μ(S) * μ(T), but we claimed ε⁴/4.
+    -- The factor ε⁴ vs ε² depends on the precise formulation of the regularity lemma.
     sorry
 
 end Energy
