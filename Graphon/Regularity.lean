@@ -817,7 +817,7 @@ the energy by at least ε⁴/4 (or similar constant).
 This is the key step that drives the regularity iteration. -/
 theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
     (ε : ℝ) (hε : ε > 0)
-    (h_bad : ∃ S ∈ P.parts, ∃ T ∈ P.parts,
+    (h_bad : ∃ S ∈ P.parts, ∃ T ∈ P.parts, μ S ≠ 0 ∧ μ T ≠ 0 ∧
       ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) ≥
         ε ^ 2 * (μ S).toReal * (μ T).toReal) :
     ∃ Q : MeasurablePartition α μ,
@@ -825,22 +825,10 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
       energy W Q ≥ energy W P + ε ^ 4 / 4 := by
   -- **Proof structure** (Frieze-Kannan energy increment):
   --
-  -- Step 1: Extract the "bad" rectangle S × T
-  obtain ⟨S, hS_mem, T, hT_mem, h_defect⟩ := h_bad
+  -- Step 1: Extract the "bad" rectangle S × T with positive measure parts
+  obtain ⟨S, hS_mem, T, hT_mem, hμS_pos, hμT_pos, h_defect⟩ := h_bad
   have hS_meas : MeasurableSet S := P.measurableSet_part hS_mem
   have hT_meas : MeasurableSet T := P.measurableSet_part hT_mem
-  -- Non-degeneracy: S and T have positive measure
-  -- (If μ S = 0 or μ T = 0, the bound ε² μS μT = 0, so hypothesis is trivial.
-  -- A proper treatment would strengthen h_bad to require μ S > 0 and μ T > 0,
-  -- or derive this from the partition having only positive-measure parts.)
-  have hμS_pos : μ S ≠ 0 := by
-    by_contra h
-    -- If μ S = 0, the bound is 0, but defect integral could still be positive
-    -- Need: partition parts have positive measure (not in current definition)
-    sorry
-  have hμT_pos : μ T ≠ 0 := by
-    by_contra h
-    sorry
   -- Step 2: Define T-average W_T and its mean m on S
   set W_T := tAverage W T with hW_T_def
   have hW_T_meas : Measurable W_T := tAverage_measurable W T hT_meas
