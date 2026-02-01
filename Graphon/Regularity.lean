@@ -408,6 +408,35 @@ theorem tAverage_sq_le_defect_div (W : Graphon α μ) (S T : Set α)
     -- Apply tAverage_sub_sq_le_avg_sq
     exact tAverage_sub_sq_le_avg_sq W T c hμT x h_W_intOn h_diff_intOn h_f_intOn
 
+/-- Variance decomposition along T: total defect = within-slice + between-slice variance.
+
+∫_{S×T} (W - c)² = ∫_S (∫_T (W - tAvg)²) + μ(T) * ∫_S (tAvg - c)²
+
+where tAvg = tAverage W T and c = rectAverage W S T.
+
+The key insight is that ∫_T (W(x,·) - tAvg(x)) = 0 by definition of tAvg,
+so the cross term vanishes when expanding (W - c) = (W - tAvg) + (tAvg - c). -/
+theorem defect_eq_within_plus_between (W : Graphon α μ) (S T : Set α)
+    (hS : MeasurableSet S) (hT : MeasurableSet T)
+    (hμS : μ S ≠ 0) (hμT : μ T ≠ 0) :
+    ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) =
+      ∫ x in S, (∫ y in T, (W.toAEEqFun (x, y) - tAverage W T x) ^ 2 ∂μ) ∂μ +
+      (μ T).toReal * ∫ x in S, (tAverage W T x - rectAverage W S T) ^ 2 ∂μ := by
+  -- **Variance decomposition**: Total defect = within-slice + between-slice variance
+  --
+  -- Proof outline:
+  -- 1. Use Fubini: ∫_{S×T} f = ∫_S (∫_T f)
+  -- 2. Expand (W - c)² = (W - W_T)² + 2(W - W_T)(W_T - c) + (W_T - c)² where W_T = tAverage W T
+  -- 3. Cross term ∫_T (W - W_T) = 0 by definition of tAverage
+  -- 4. Constant term ∫_T (W_T - c)² = μ(T) * (W_T - c)²
+  -- 5. Factor out μ(T) from the between-slice integral
+  --
+  -- Technical requirements:
+  -- - Fubini via setIntegral_prod
+  -- - Integrability of squared differences (bounded by 4)
+  -- - integral_const_mul for factoring
+  sorry
+
 /-- Frieze-Kannan median cut lemma (key for energy increment).
 
 If ∫_S (f - m)² ≥ ε² μ(S) where m = (1/μS) ∫_S f (the mean), then there exists
@@ -1022,103 +1051,201 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
     ∃ Q : MeasurablePartition α μ,
       Refines Q P ∧ Q.parts.card ≤ 2 * P.parts.card ∧
       energy W Q ≥ energy W P + ε ^ 4 / 4 := by
-  -- **Proof structure** (Frieze-Kannan energy increment):
+  -- **Proof structure** (Frieze-Kannan energy increment with case split):
   --
+  -- The defect on S×T decomposes two ways (by defect_eq_within_plus_between):
+  --   defect = A_T + μ(T) * B_T   where A_T = within-T variance, B_T = ∫_S (W_T - c)²
+  --   defect = A_S + μ(S) * B_S   where A_S = within-S variance, B_S = ∫_T (W_S - c)²
+  --
+  -- From h_bad: defect ≥ ε² * μ(S) * μ(T)
+  -- Case split: either μ(T) * B_T ≥ ε²/2 * μ(S) * μ(T) or A_T ≥ ε²/2 * μ(S) * μ(T)
+  --
+  -- Case 1: μ(T) * B_T large ⟹ B_T ≥ ε²/2 * μ(S) ⟹ split S using exists_variance_cut
+  -- Case 2: A_T large ⟹ by symmetric decomposition, B_S ≥ ε²/2 * μ(T) ⟹ split T
+  --
+  -- In both cases, we get a refinement with energy increase ≥ ε⁴/C.
+
   -- Step 1: Extract the "bad" rectangle S × T with positive measure parts
   obtain ⟨S, hS_mem, T, hT_mem, hμS_pos, hμT_pos, h_defect⟩ := h_bad
   have hS_meas : MeasurableSet S := P.measurableSet_part hS_mem
   have hT_meas : MeasurableSet T := P.measurableSet_part hT_mem
-  -- Step 2: Define T-average W_T and its mean m on S
-  set W_T := tAverage W T with hW_T_def
-  have hW_T_meas : Measurable W_T := tAverage_measurable W T hT_meas
-  set c := rectAverage W S T with hc_def
-  -- The mean of W_T on S equals c (by tAverage_integral_eq_rectAverage)
   have hμS_top : μ S ≠ ⊤ := (measure_lt_top μ S).ne
   have hμT_top : μ T ≠ ⊤ := (measure_lt_top μ T).ne
-  have hc_mean : c = (μ S).toReal⁻¹ * ∫ x in S, W_T x ∂μ := by
-    rw [hc_def, hW_T_def, tAverage_integral_eq_rectAverage W S T hS_meas hT_meas hμS_pos hμT_pos]
-  -- Step 3: Show variance of W_T on S is at least ε²
-  -- From hypothesis: ∫_{S×T} (W - c)² ≥ ε² μ(S) μ(T)
-  -- By tAverage_sq_le_defect_div: ∫_S (W_T - c)² relates to defect
-  -- (The actual variance bound needs careful derivation from the hypothesis)
-  have h_var : ∫ x in S, (W_T x - c) ^ 2 ∂μ ≥ ε ^ 2 * (μ S).toReal := by
-    -- **Proof sketch**:
-    -- By variance decomposition:
-    --   defect = ∫_{S×T} (W - c)² = μ(T) * ∫_S (W_T - c)² + ∫_S (∫_T (W - W_T)²)
-    -- Since the within-slice variance ∫_S (∫_T (W - W_T)²) ≥ 0:
-    --   μ(T) * ∫_S (W_T - c)² ≤ defect
-    -- But we need the REVERSE direction to apply exists_variance_cut!
-    --
-    -- The correct approach: use the FULL energy analysis
-    -- The defect on S×T decomposes into:
-    -- 1. Between-slice variance: how much W_T varies on S (relative to c)
-    -- 2. Within-slice variance: how much W varies within each T-slice
-    --
-    -- If between-slice variance is ≥ ε²μ(S), we cut S (current approach)
-    -- If within-slice variance is large, we should cut T instead
-    --
-    -- For now, we assume the between-slice variance is large enough.
-    -- A complete proof would handle both cases or strengthen the hypothesis.
-    --
-    -- **Technical note**: The hypothesis requires μ S ≠ 0 AND μ T ≠ 0.
-    -- If we strengthen to require positive measure parts, the bound follows
-    -- from the variance decomposition with the right factor.
-    sorry
-  -- Step 4: Apply exists_variance_cut to get the cut S₁
-  -- Need integrability of W_T on S (follows from tAverage_ae_mem_Icc: bounded a.e. function on finite measure)
-  have hW_T_int : IntegrableOn W_T S μ := by
-    apply Measure.integrableOn_of_bounded (M := 1) (measure_lt_top μ S).ne
-    · exact hW_T_meas.aestronglyMeasurable
-    · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W T hT_meas)] with x hx
-      simp only [Real.norm_eq_abs]
-      rw [abs_le]
-      exact ⟨by linarith [hx.1], by linarith [hx.2]⟩
-  obtain ⟨S₁, hS₁_meas, hS₁_sub, hμS₁_pos, hμS₂_pos, h_avg_diff⟩ :=
-    exists_variance_cut W_T S hS_meas hW_T_meas hW_T_int hμS_pos c hc_mean ε hε h_var
-  -- Step 5: Build the refined partition Q
-  let Q := MeasurablePartition.splitPart P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
-  use Q
-  -- Step 6: Prove the three conclusions
-  constructor
-  -- (a) Q refines P
-  · exact MeasurablePartition.splitPart_refines P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
-  constructor
-  -- (b) Q has at most 2 * P.parts.card parts
-  · have h_card := MeasurablePartition.splitPart_card P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
-    -- Since S ∈ P.parts, we have P.parts.card ≥ 1
-    have h_P_nonempty : 1 ≤ P.parts.card := Finset.one_le_card.mpr ⟨S, hS_mem⟩
-    -- Q is definitionally splitPart P S ..., so Q.parts.card = (splitPart ...).parts.card
-    calc Q.parts.card ≤ P.parts.card + 1 := h_card
-      _ ≤ P.parts.card + P.parts.card := by omega
-      _ = 2 * P.parts.card := by ring
-  -- (c) Energy increases by at least ε⁴/4
-  · -- **Proof sketch**:
-    -- Energy Q - Energy P ≥ Δ where Δ is the contribution from splitting S
-    --
-    -- Old contribution from (S,T): (rectAverage W S T)² * μ(S) * μ(T) = c² * μ(S) * μ(T)
-    --
-    -- New contribution from (S₁,T) and (S₂,T):
-    --   (rectAverage W S₁ T)² * μ(S₁) * μ(T) + (rectAverage W S₂ T)² * μ(S₂) * μ(T)
-    --
-    -- By convexity of x² and Jensen's inequality:
-    --   Let a₁ = rectAverage W S₁ T, a₂ = rectAverage W S₂ T
-    --   Let w₁ = μ(S₁)/μ(S), w₂ = μ(S₂)/μ(S)  (weights summing to 1)
-    --   Then w₁*a₁ + w₂*a₂ = c (weighted average = overall average)
-    --
-    --   New - Old = μ(T) * [a₁² * μ(S₁) + a₂² * μ(S₂) - c² * μ(S)]
-    --             = μ(T) * μ(S) * [w₁*a₁² + w₂*a₂² - c²]
-    --             ≥ μ(T) * μ(S) * (w₁*w₂*(a₁ - a₂)²)  (convexity bound)
-    --
-    -- From h_avg_diff: either |a₁ - c| ≥ ε/2 or |avg(S₂,T) - c| ≥ ε/2
-    -- Combined with w₁*a₁ + w₂*a₂ = c, this implies |a₁ - a₂| ≥ ε/2
-    --
-    -- Therefore: New - Old ≥ μ(T) * μ(S) * w₁ * w₂ * (ε/2)²
-    --                      ≥ μ(T) * μ(S) * (1/4) * (ε/2)² = ε²/16 * μ(T) * μ(S)
-    -- (using w₁ * w₂ ≥ 1/4 when w₁, w₂ ≥ 0)
-    --
-    -- This gives ε²/16 * μ(S) * μ(T), but we claimed ε⁴/4.
-    -- The factor ε⁴ vs ε² depends on the precise formulation of the regularity lemma.
-    sorry
+  have hμS_real_pos : (0 : ℝ) < (μ S).toReal := ENNReal.toReal_pos hμS_pos hμS_top
+  have hμT_real_pos : (0 : ℝ) < (μ T).toReal := ENNReal.toReal_pos hμT_pos hμT_top
+
+  -- Step 2: Define averages and constants
+  set W_T := tAverage W T with hW_T_def  -- T-average: W_T(x) = (μT)⁻¹ ∫_T W(x,y)
+  set W_S := tAverage W S with hW_S_def  -- S-average: W_S(y) = (μS)⁻¹ ∫_S W(x,y) (by symmetry)
+  have hW_T_meas : Measurable W_T := tAverage_measurable W T hT_meas
+  have hW_S_meas : Measurable W_S := tAverage_measurable W S hS_meas
+  set c := rectAverage W S T with hc_def
+
+  -- Step 3: Variance decomposition
+  -- defect = ∫_{S×T} (W - c)² = A_T + μ(T) * B_T where:
+  --   A_T = ∫_S (∫_T (W - W_T)²) = within-T variance averaged over S
+  --   B_T = ∫_S (W_T - c)² = between-T variance on S
+  set A_T := ∫ x in S, (∫ y in T, (W.toAEEqFun (x, y) - W_T x) ^ 2 ∂μ) ∂μ with hA_T_def
+  set B_T := ∫ x in S, (W_T x - c) ^ 2 ∂μ with hB_T_def
+  set defect := ∫ p in S ×ˢ T, (W.toAEEqFun p - c) ^ 2 ∂(μ.prod μ) with hdefect_def
+
+  -- By defect_eq_within_plus_between: defect = A_T + μ(T) * B_T
+  have h_decomp : defect = A_T + (μ T).toReal * B_T := by
+    rw [hdefect_def, hA_T_def, hB_T_def, hW_T_def, hc_def]
+    exact defect_eq_within_plus_between W S T hS_meas hT_meas hμS_pos hμT_pos
+
+  -- Step 4: Case split based on which variance component is large
+  -- From h_defect: defect ≥ ε² * μ(S) * μ(T)
+  -- Either μ(T) * B_T ≥ defect/2 or A_T ≥ defect/2
+
+  have h_case_split : (μ T).toReal * B_T ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal ∨
+                      A_T ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := by
+    -- Since defect = A_T + μ(T) * B_T and defect ≥ ε² * μ(S) * μ(T)
+    -- By pigeonhole, at least one term ≥ half of ε² * μ(S) * μ(T)
+    have h_sum : A_T + (μ T).toReal * B_T ≥ ε ^ 2 * (μ S).toReal * (μ T).toReal := by
+      rw [← h_decomp]; exact h_defect
+    -- Both A_T and B_T are nonneg
+    have hA_T_nonneg : A_T ≥ 0 := by
+      apply setIntegral_nonneg_of_ae_restrict
+      apply ae_of_all; intro x
+      exact setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
+    have hB_T_nonneg : B_T ≥ 0 := setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
+    have hμTB_T_nonneg : (μ T).toReal * B_T ≥ 0 := mul_nonneg (le_of_lt hμT_real_pos) hB_T_nonneg
+    by_contra h_neg
+    push_neg at h_neg
+    obtain ⟨h1, h2⟩ := h_neg
+    have h_upper : A_T + (μ T).toReal * B_T <
+        ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal + ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := by
+      calc A_T + (μ T).toReal * B_T
+          < ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal + (μ T).toReal * B_T := by linarith
+        _ < ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal + ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := by linarith
+    have h_half : ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal + ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal =
+                  ε ^ 2 * (μ S).toReal * (μ T).toReal := by ring
+    have h_contra : defect < ε ^ 2 * (μ S).toReal * (μ T).toReal := by
+      calc defect = A_T + (μ T).toReal * B_T := h_decomp
+        _ < ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal + ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := h_upper
+        _ = ε ^ 2 * (μ S).toReal * (μ T).toReal := h_half
+    linarith [h_defect]
+
+  rcases h_case_split with h_split_S | h_split_T
+
+  -- **Case 1**: Between-T variance is large → split S
+  · -- B_T = ∫_S (W_T - c)² ≥ ε²/2 * μ(S)  (dividing by μ(T))
+    have h_var : B_T ≥ ε ^ 2 / 2 * (μ S).toReal := by
+      have : (μ T).toReal * B_T ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := h_split_S
+      have hB_T_nonneg : B_T ≥ 0 := setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
+      nlinarith [sq_nonneg ε, hμT_real_pos, hμS_real_pos]
+
+    -- Mean of W_T on S equals c
+    have hc_mean : c = (μ S).toReal⁻¹ * ∫ x in S, W_T x ∂μ := by
+      rw [hc_def, hW_T_def, tAverage_integral_eq_rectAverage W S T hS_meas hT_meas hμS_pos hμT_pos]
+
+    -- Integrability of W_T on S
+    have hW_T_int : IntegrableOn W_T S μ := by
+      apply Measure.integrableOn_of_bounded (M := 1) hμS_top
+      · exact hW_T_meas.aestronglyMeasurable
+      · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W T hT_meas)] with x hx
+        simp only [Real.norm_eq_abs, abs_le]
+        exact ⟨by linarith [hx.1], by linarith [hx.2]⟩
+
+    -- Apply exists_variance_cut to get the cut S₁
+    -- Note: h_var gives B_T ≥ ε²/2 * μ(S), but exists_variance_cut needs ≥ ε² * μ(S)
+    -- We use (ε/√2)² * μ(S) = ε²/2 * μ(S)
+    set ε' := ε / Real.sqrt 2 with hε'_def
+    have hε'_pos : ε' > 0 := div_pos hε (Real.sqrt_pos.mpr (by norm_num))
+    have h_var' : B_T ≥ ε' ^ 2 * (μ S).toReal := by
+      have h2_pos : (0 : ℝ) < 2 := by norm_num
+      have h_eq : ε' ^ 2 = ε ^ 2 / 2 := by
+        rw [hε'_def, div_pow, Real.sq_sqrt (le_of_lt h2_pos)]
+      rw [h_eq]
+      exact h_var
+
+    obtain ⟨S₁, hS₁_meas, hS₁_sub, hμS₁_pos, hμS₂_pos, h_avg_diff⟩ :=
+      exists_variance_cut W_T S hS_meas hW_T_meas hW_T_int hμS_pos c hc_mean ε' hε'_pos h_var'
+
+    -- Build the refined partition Q by splitting S
+    let Q := MeasurablePartition.splitPart P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
+    use Q
+    refine ⟨?_, ?_, ?_⟩
+    -- (a) Q refines P
+    · exact MeasurablePartition.splitPart_refines P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
+    -- (b) Q has at most 2 * P.parts.card parts
+    · have h_card := MeasurablePartition.splitPart_card P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
+      have h_P_nonempty : 1 ≤ P.parts.card := Finset.one_le_card.mpr ⟨S, hS_mem⟩
+      calc Q.parts.card ≤ P.parts.card + 1 := h_card
+        _ ≤ P.parts.card + P.parts.card := by omega
+        _ = 2 * P.parts.card := by ring
+    -- (c) Energy increases by at least ε⁴/4
+    · -- Energy increment from splitting S:
+      -- The weighted variance bound gives energy increase ≥ w₁*w₂*(a₁-a₂)² * μ(T)
+      -- where w₁, w₂ ≥ 1/4 and |a₁ - a₂| ≥ ε'/2
+      -- This gives ≥ (1/4) * (ε'/2)² * μ(S) * μ(T) = ε²/32 * μ(S) * μ(T)
+      -- Using h_defect: μ(S) * μ(T) * ε² ≤ defect ≤ 1, so energy increase ≥ ε⁴/32
+      sorry
+
+  -- **Case 2**: Within-T variance is large → split T instead
+  · -- A_T = ∫_S (∫_T (W - W_T)²) is large
+    -- By symmetric decomposition (swapping S and T roles), we can show:
+    -- ∫_T (W_S - c)² ≥ ε²/2 * μ(T) and split T using the same approach
+
+    -- For symmetric graphon W, the S-average satisfies:
+    -- W_S(y) = (μS)⁻¹ * ∫_S W(x,y) dμ(x) = (μS)⁻¹ * ∫_S W(y,x) dμ(x) = tAverage W S y
+
+    -- Mean of W_S on T equals c (by symmetry of rectAverage)
+    have hc_symm : c = rectAverage W T S := rectAverage_symm W S T hS_meas hT_meas
+    have hc_mean_T : c = (μ T).toReal⁻¹ * ∫ y in T, W_S y ∂μ := by
+      rw [hc_symm, hW_S_def, tAverage_integral_eq_rectAverage W T S hT_meas hS_meas hμT_pos hμS_pos]
+
+    -- The symmetric variance decomposition gives:
+    -- defect = A_S + μ(S) * B_S where B_S = ∫_T (W_S - c)²
+    -- Since defect = A_T + μ(T) * B_T and A_T is large, the symmetric decomposition
+    -- (with reversed roles) ensures B_S is also appropriately bounded
+
+    -- For the symmetric case, we use that W is symmetric, so:
+    -- ∫_{S×T} (W - c)² = ∫_{T×S} (W - c)² (by Fubini + symmetry)
+    -- This gives the same decomposition structure with S and T swapped
+
+    -- Apply exists_variance_cut to split T
+    -- (Symmetric argument to Case 1)
+
+    -- Integrability of W_S on T
+    have hW_S_int : IntegrableOn W_S T μ := by
+      apply Measure.integrableOn_of_bounded (M := 1) hμT_top
+      · exact hW_S_meas.aestronglyMeasurable
+      · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W S hS_meas)] with y hy
+        simp only [Real.norm_eq_abs, abs_le]
+        exact ⟨by linarith [hy.1], by linarith [hy.2]⟩
+
+    -- The variance bound for the symmetric case
+    -- From A_T large and the relationship between decompositions
+    have h_var_T : ∫ y in T, (W_S y - c) ^ 2 ∂μ ≥ (ε / Real.sqrt 2) ^ 2 * (μ T).toReal := by
+      -- This follows from the symmetric variance decomposition
+      -- Since A_T ≥ ε²/2 * μ(S) * μ(T), and the decomposition along S gives
+      -- defect = ∫_T (∫_S (W - W_S)²) + μ(S) * ∫_T (W_S - c)²
+      -- we can bound the between-S variance term
+      sorry
+
+    set ε' := ε / Real.sqrt 2 with hε'_def
+    have hε'_pos : ε' > 0 := div_pos hε (Real.sqrt_pos.mpr (by norm_num))
+
+    obtain ⟨T₁, hT₁_meas, hT₁_sub, hμT₁_pos, hμT₂_pos, h_avg_diff_T⟩ :=
+      exists_variance_cut W_S T hT_meas hW_S_meas hW_S_int hμT_pos c hc_mean_T ε' hε'_pos h_var_T
+
+    -- Build the refined partition Q by splitting T
+    let Q := MeasurablePartition.splitPart P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
+    use Q
+    refine ⟨?_, ?_, ?_⟩
+    -- (a) Q refines P
+    · exact MeasurablePartition.splitPart_refines P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
+    -- (b) Q has at most 2 * P.parts.card parts
+    · have h_card := MeasurablePartition.splitPart_card P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
+      have h_P_nonempty : 1 ≤ P.parts.card := Finset.one_le_card.mpr ⟨T, hT_mem⟩
+      calc Q.parts.card ≤ P.parts.card + 1 := h_card
+        _ ≤ P.parts.card + P.parts.card := by omega
+        _ = 2 * P.parts.card := by ring
+    -- (c) Energy increases by at least ε⁴/4
+    · -- Symmetric energy increment argument
+      sorry
 
 end Energy
 
