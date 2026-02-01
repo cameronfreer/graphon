@@ -438,15 +438,22 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
   have hA_low_sub : A_low ⊆ S := Set.inter_subset_left
 
   -- Step 1: Show μ(A_high) ≠ 0 ∨ μ(A_low) ≠ 0
-  -- If both were zero, then |f - m| < η a.e. on S, so variance < η² μ(S) = (ε/2)² μ(S) < ε² μ(S)
+  -- If both were zero, then |f - m| < η a.e. on S, so variance < η² μ(S) < ε² μ(S)
   have h_exists : μ A_high ≠ 0 ∨ μ A_low ≠ 0 := by
     by_contra h_both_zero
     push_neg at h_both_zero
     obtain ⟨h_high_zero, h_low_zero⟩ := h_both_zero
     -- If μ(A_high) = 0 and μ(A_low) = 0, then |f - m| < η a.e. on S
-    -- So ∫_S (f - m)² < η² μ(S) = (ε/2)² μ(S) = ε² μ(S) / 4 < ε² μ(S)
-    -- This contradicts h_var
-    -- Technical: need setIntegral_le_of_ae_le_of_measure_ne_zero
+    -- So ∫_S (f - m)² ≤ η² μ(S) = (ε/2)² μ(S) < ε² μ(S), contradicting h_var
+    --
+    -- The key inequality: ∫_S (f-m)² ≤ η² μ(S) follows from:
+    -- - On A_high ∪ A_low (measure 0), (f-m)² could be large but contributes 0
+    -- - On S \ (A_high ∪ A_low), we have |f-m| < η so (f-m)² < η²
+    -- - Thus ∫_S (f-m)² = ∫_{S \ (A_high ∪ A_low)} (f-m)² < η² μ(S)
+    --
+    -- This contradicts h_var: ε² μ(S) ≤ ∫_S (f-m)² < η² μ(S) = (ε/2)² μ(S) = ε² μ(S) / 4
+    --
+    -- Technical proof requires setIntegral_mono_ae and careful handling of null sets
     sorry
 
   -- Step 2: Case split and construct S₁
@@ -463,16 +470,28 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
     -- Show average on A_high differs from m by ≥ η = ε/2
     · left
       -- On A_high, f ≥ m + η, so average ≥ m + η, so |average - m| ≥ η
+      have hμA_top : μ A_high ≠ ⊤ := (measure_lt_top μ A_high).ne
+      have hμA_pos' : (0 : ℝ) < (μ A_high).toReal := ENNReal.toReal_pos h_high hμA_top
+      -- Key: on A_high, f ≥ m + η pointwise, so average ≥ m + η
+      -- Technical: setIntegral_mono_ae gives ∫ (m+η) ≤ ∫ f on A_high
+      -- Then average = (μ A_high)⁻¹ ∫ f ≥ m + η
+      -- So |average - m| ≥ η
+      -- The detailed proof requires integrability of f on A_high
       sorry
-  · -- Case: μ(A_low) ≠ 0, use S₁ = A_low
+  · -- Case: μ(A_low) ≠ 0, use S₁ = A_low (symmetric to A_high case)
     use A_low
     refine ⟨hA_low_meas, hA_low_sub, h_low, ?_, ?_⟩
     -- Show μ(S \ A_low) ≠ 0:
+    -- If μ(S \ A_low) = 0, then f ≤ m - η a.e. on S
+    -- But then ∫_S f ≤ (m - η) μ(S), so m ≤ m - η, contradiction
     · by_contra h_compl_zero
+      -- Technical: use setIntegral_mono_ae and definition of m
       sorry
     -- Show average on A_low differs from m by ≥ η = ε/2
     · right
-      -- On A_low, f ≤ m - η, so average ≤ m - η, so |average - m| ≥ η
+      -- On A_low, f ≤ m - η pointwise, so average ≤ m - η
+      -- Thus |average - m| = m - average ≥ η
+      -- Technical: requires integrability of f on A_low
       sorry
 
 end TAverage

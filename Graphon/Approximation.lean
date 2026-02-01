@@ -191,20 +191,58 @@ construct the refinement Q that replaces S with S₁ and S \ S₁.
 
 **Implementation note**: Uses classical decidability for Finset operations on Set α. -/
 noncomputable def MeasurablePartition.splitPart (P : MeasurablePartition α μ)
-    (S : Set α) (_hS : S ∈ P.parts) (S₁ : Set α) (_hS₁_meas : MeasurableSet S₁)
-    (_hS₁_sub : S₁ ⊆ S) (_hS₁_pos : μ S₁ ≠ 0) (_hS₂_pos : μ (S \ S₁) ≠ 0) :
+    (S : Set α) (hS : S ∈ P.parts) (S₁ : Set α) (hS₁_meas : MeasurableSet S₁)
+    (hS₁_sub : S₁ ⊆ S) (_hS₁_pos : μ S₁ ≠ 0) (_hS₂_pos : μ (S \ S₁) ≠ 0) :
     MeasurablePartition α μ := by
-  -- Temporarily sorry'd to unblock downstream proofs
-  -- Full implementation replaces S with {S₁, S \ S₁}
-  exact sorry
+  classical
+  exact {
+    -- Replace S with {S₁, S \ S₁} in parts
+    parts := (P.parts.erase S) ∪ {S₁, S \ S₁}
+    measurable_parts := fun T hT => by
+      simp only [Finset.mem_union, Finset.mem_erase, Finset.mem_insert,
+          Finset.mem_singleton] at hT
+      rcases hT with ⟨_, hT_in⟩ | (rfl | rfl)
+      · exact P.measurableSet_part hT_in
+      · exact hS₁_meas
+      · exact (P.measurableSet_part hS).diff hS₁_meas
+    pairwiseDisjoint := fun T₁ hT₁ T₂ hT₂ hne => by
+      simp only [Finset.coe_union, Finset.coe_erase, Finset.coe_insert,
+          Finset.coe_singleton, Set.mem_union, Set.mem_diff, Set.mem_singleton_iff,
+          Set.mem_insert_iff] at hT₁ hT₂
+      rcases hT₁ with ⟨hT₁_in, hT₁_ne⟩ | (hT₁_eq | hT₁_eq)
+      <;> rcases hT₂ with ⟨hT₂_in, hT₂_ne⟩ | (hT₂_eq | hT₂_eq)
+      · exact P.pairwiseDisjoint hT₁_in hT₂_in hne
+      · subst hT₂_eq; exact (P.pairwiseDisjoint hT₁_in hS hT₁_ne).mono_right hS₁_sub
+      · subst hT₂_eq; exact (P.pairwiseDisjoint hT₁_in hS hT₁_ne).mono_right diff_subset
+      · subst hT₁_eq; exact ((P.pairwiseDisjoint hT₂_in hS hT₂_ne).mono_right hS₁_sub).symm
+      · subst hT₁_eq; subst hT₂_eq; exact absurd rfl hne
+      · subst hT₁_eq; subst hT₂_eq; exact Set.disjoint_sdiff_right
+      · subst hT₁_eq; exact ((P.pairwiseDisjoint hT₂_in hS hT₂_ne).mono_right diff_subset).symm
+      · subst hT₁_eq; subst hT₂_eq; exact Set.disjoint_sdiff_right.symm
+      · subst hT₁_eq; subst hT₂_eq; exact absurd rfl hne
+    ae_covers := by
+      filter_upwards [P.ae_covers] with x ⟨T, hT, hx⟩
+      by_cases hTS : T = S
+      · by_cases hx₁ : x ∈ S₁
+        · exact ⟨S₁, Finset.mem_union_right _ (Finset.mem_insert_self _ _), hx₁⟩
+        · exact ⟨S \ S₁, Finset.mem_union_right _
+            (Finset.mem_insert_of_mem (Finset.mem_singleton_self _)), hTS ▸ hx, hx₁⟩
+      · exact ⟨T, Finset.mem_union_left _ (Finset.mem_erase.mpr ⟨hTS, hT⟩), hx⟩
+  }
 
 /-- Splitting a part produces a refinement. -/
 theorem MeasurablePartition.splitPart_refines (P : MeasurablePartition α μ)
     (S : Set α) (hS : S ∈ P.parts) (S₁ : Set α) (hS₁_meas : MeasurableSet S₁)
     (hS₁_sub : S₁ ⊆ S) (hS₁_pos : μ S₁ ≠ 0) (hS₂_pos : μ (S \ S₁) ≠ 0) :
     Refines (MeasurablePartition.splitPart P S hS S₁ hS₁_meas hS₁_sub hS₁_pos hS₂_pos) P := by
-  -- Temporarily sorry'd since splitPart is sorry'd
-  sorry
+  classical
+  intro T hT
+  simp only [splitPart, Finset.mem_union, Finset.mem_erase, Finset.mem_insert,
+      Finset.mem_singleton] at hT
+  rcases hT with ⟨_, hT_in⟩ | (rfl | rfl)
+  · exact ⟨T, hT_in, Subset.refl T⟩
+  · exact ⟨S, hS, hS₁_sub⟩
+  · exact ⟨S, hS, diff_subset⟩
 
 /-- Splitting adds at most one part. -/
 theorem MeasurablePartition.splitPart_card (P : MeasurablePartition α μ)
@@ -212,8 +250,17 @@ theorem MeasurablePartition.splitPart_card (P : MeasurablePartition α μ)
     (hS₁_sub : S₁ ⊆ S) (hS₁_pos : μ S₁ ≠ 0) (hS₂_pos : μ (S \ S₁) ≠ 0) :
     (MeasurablePartition.splitPart P S hS S₁ hS₁_meas hS₁_sub hS₁_pos hS₂_pos).parts.card
       ≤ P.parts.card + 1 := by
-  -- Temporarily sorry'd since splitPart is sorry'd
-  sorry
+  classical
+  simp only [splitPart]
+  calc ((P.parts.erase S) ∪ {S₁, S \ S₁}).card
+      ≤ (P.parts.erase S).card + ({S₁, S \ S₁} : Finset (Set α)).card := Finset.card_union_le _ _
+    _ ≤ (P.parts.card - 1) + 2 := by
+        apply add_le_add
+        · rw [Finset.card_erase_of_mem hS]
+        · exact Finset.card_insert_le S₁ {S \ S₁}
+    _ ≤ P.parts.card + 1 := by
+        have h_pos : 1 ≤ P.parts.card := Finset.one_le_card.mpr ⟨S, hS⟩
+        omega
 
 end Split
 
