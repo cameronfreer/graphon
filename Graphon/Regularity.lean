@@ -408,6 +408,32 @@ theorem tAverage_sq_le_defect_div (W : Graphon α μ) (S T : Set α)
     -- Apply tAverage_sub_sq_le_avg_sq
     exact tAverage_sub_sq_le_avg_sq W T c hμT x h_W_intOn h_diff_intOn h_f_intOn
 
+/-- For a.e. x, ∫_T (W(x,·) - tAverage W T x) = 0 by definition of tAverage. -/
+theorem ae_setIntegral_sub_tAverage_eq_zero (W : Graphon α μ) (T : Set α)
+    (_hT : MeasurableSet T) (hμT : μ T ≠ 0) :
+    ∀ᵐ x ∂μ, ∫ y in T, (W.toAEEqFun (x, y) - tAverage W T x) ∂μ = 0 := by
+  -- For a.e. x, the slice y ↦ W(x,y) is integrable
+  have h_W_int_prod : Integrable (fun p => W.toAEEqFun p) (μ.prod μ) :=
+    SymmKernel.graphon_integrable W
+  have h_W_slice_ae : ∀ᵐ x ∂μ, Integrable (fun y => W.toAEEqFun (x, y)) μ :=
+    h_W_int_prod.prod_right_ae
+  filter_upwards [h_W_slice_ae] with x hW_int
+  have hμT_top : μ T ≠ ⊤ := (measure_lt_top μ T).ne
+  have hμT_pos : (0 : ℝ) < (μ T).toReal := ENNReal.toReal_pos hμT hμT_top
+  have hW_intOn : IntegrableOn (fun y => W.toAEEqFun (x, y)) T μ := hW_int.integrableOn
+  have hc_int : IntegrableOn (fun _ : α => tAverage W T x) T μ := integrableOn_const hμT_top
+  -- Split the integral
+  rw [integral_sub hW_intOn hc_int, setIntegral_const]
+  simp only [Measure.real, smul_eq_mul]
+  -- Unfold tAverage
+  unfold tAverage
+  simp only [hμT, dif_neg, not_false_eq_true]
+  -- Cancel: ∫_T W - μ(T) * (μ(T)⁻¹ * ∫_T W) = 0
+  have hne : (μ T).toReal ≠ 0 := ne_of_gt hμT_pos
+  -- Goal: ∫ W - μ(T) * (μ(T)⁻¹ * ∫ W) = 0
+  -- Use mul_inv_cancel_left₀: a * (a⁻¹ * b) = b when a ≠ 0
+  rw [mul_inv_cancel_left₀ hne, sub_self]
+
 /-- Variance decomposition along T: total defect = within-slice + between-slice variance.
 
 ∫_{S×T} (W - c)² = ∫_S (∫_T (W - tAvg)²) + μ(T) * ∫_S (tAvg - c)²
@@ -436,6 +462,75 @@ theorem defect_eq_within_plus_between (W : Graphon α μ) (S T : Set α)
   -- - Integrability of squared differences (bounded by 4)
   -- - Fubini via setIntegral_prod and prod_right_ae
   -- - setIntegral_congr for ae pointwise equality
+
+  -- Abbreviations
+  set c := rectAverage W S T with hc_def
+  set W_T := tAverage W T with hW_T_def
+
+  -- Measure bounds
+  have hμT_top : μ T ≠ ⊤ := (measure_lt_top μ T).ne
+  have hμS_top : μ S ≠ ⊤ := (measure_lt_top μ S).ne
+  have hμT_pos : (0 : ℝ) < (μ T).toReal := ENNReal.toReal_pos hμT hμT_top
+
+  -- Integrability of (W - c)² on S×T
+  have h_int_prod : IntegrableOn (fun p => (W.toAEEqFun p - c) ^ 2) (S ×ˢ T) (μ.prod μ) := by
+    apply Measure.integrableOn_of_bounded (M := 4)
+    · rw [Measure.prod_prod S T]
+      exact (ENNReal.mul_lt_top (measure_lt_top μ S) (measure_lt_top μ T)).ne
+    · exact (continuous_pow 2).comp_aestronglyMeasurable
+        (W.toAEEqFun.aestronglyMeasurable.sub aestronglyMeasurable_const)
+    · filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with ⟨x, y⟩ hW
+      simp only [Real.norm_eq_abs]
+      have hc_bnd : c ∈ Icc (0 : ℝ) 1 := rectAverage_mem_Icc W S T hS hT
+      have h1 : |W.toAEEqFun (x, y) - c| ≤ 2 := by
+        rw [abs_le]; constructor <;> linarith [hW.1, hW.2, hc_bnd.1, hc_bnd.2]
+      have h2 : (W.toAEEqFun (x, y) - c) ^ 2 ≤ 4 := by
+        obtain ⟨h1a, h1b⟩ := abs_le.mp h1
+        have := sq_le_sq' h1a h1b
+        simp only at this
+        linarith [sq_nonneg (W.toAEEqFun (x, y) - c)]
+      rw [abs_of_nonneg (sq_nonneg _)]
+      exact h2
+
+  -- Step 1: Apply Fubini to get iterated integral
+  have h_fubini := setIntegral_prod (f := fun p => (W.toAEEqFun p - c) ^ 2) h_int_prod
+  rw [h_fubini]
+
+  -- Step 2: Pointwise algebraic identity on inner integral
+  -- For each x: ∫_T (W - c)² = ∫_T (W - W_T)² + ∫_T 2(W - W_T)(W_T - c) + ∫_T (W_T - c)²
+  -- The cross term vanishes, and the constant term becomes μ(T) * (W_T - c)²
+
+  -- Get slice integrability for a.e. x
+  have h_prod_eq : (μ.prod μ).restrict (S ×ˢ T) = (μ.restrict S).prod (μ.restrict T) :=
+    (Measure.prod_restrict S T).symm
+  have h_int_full : Integrable (fun p => (W.toAEEqFun p - c) ^ 2) ((μ.restrict S).prod (μ.restrict T)) := by
+    rw [← h_prod_eq]; exact h_int_prod
+  have h_slice_ae : ∀ᵐ x ∂(μ.restrict S),
+      Integrable (fun y => (W.toAEEqFun (x, y) - c) ^ 2) (μ.restrict T) :=
+    h_int_full.prod_right_ae
+
+  -- W is integrable on product
+  have h_W_int_prod : Integrable (fun p => W.toAEEqFun p) (μ.prod μ) :=
+    SymmKernel.graphon_integrable W
+  have h_W_full : Integrable (fun p => W.toAEEqFun p) ((μ.restrict S).prod (μ.restrict T)) := by
+    rw [← h_prod_eq]; exact h_W_int_prod.integrableOn
+  have h_W_slice_ae : ∀ᵐ x ∂(μ.restrict S),
+      Integrable (fun y => W.toAEEqFun (x, y)) (μ.restrict T) :=
+    h_W_full.prod_right_ae
+
+  -- The proof follows the outline in the docstring:
+  -- 1. Fubini converts product integral to iterated integral
+  -- 2. Algebraically expand (W - c)² = (W - W_T)² + 2(W - W_T)(W_T - c) + (W_T - c)²
+  -- 3. The cross term vanishes because ∫_T (W - W_T) = 0 by definition of W_T
+  -- 4. The constant term becomes μ(T) * (W_T - c)²
+  -- 5. Factor μ(T) out of the outer integral
+
+  -- The cross term vanishes by ae_setIntegral_sub_tAverage_eq_zero
+  have _h_cross_zero := ae_setIntegral_sub_tAverage_eq_zero W T hT hμT
+
+  -- For each x: ∫_T (W(x,·) - c)² = ∫_T (W(x,·) - W_T(x))² + μ(T)(W_T(x) - c)²
+  -- by the binomial expansion and the vanishing cross term.
+  -- Integrating over S and using Fubini + linearity completes the proof.
   sorry
 
 /-- Frieze-Kannan median cut lemma (key for energy increment).
@@ -1178,10 +1273,39 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
         _ = 2 * P.parts.card := by ring
     -- (c) Energy increases by at least ε⁴/4
     · -- Energy increment from splitting S:
-      -- The weighted variance bound gives energy increase ≥ w₁*w₂*(a₁-a₂)² * μ(T)
-      -- where w₁, w₂ ≥ 1/4 and |a₁ - a₂| ≥ ε'/2
-      -- This gives ≥ (1/4) * (ε'/2)² * μ(S) * μ(T) = ε²/32 * μ(S) * μ(T)
-      -- Using h_defect: μ(S) * μ(T) * ε² ≤ defect ≤ 1, so energy increase ≥ ε⁴/32
+      --
+      -- **Proof strategy** (weighted variance formula):
+      --
+      -- When S is split into S₁ and S₂ = S \ S₁, the energy contribution from the
+      -- rectangle S × T changes as follows:
+      --
+      -- Original: μ(S) μ(T) c² where c = rectAverage W S T
+      -- New:      μ(S₁) μ(T) c₁² + μ(S₂) μ(T) c₂²
+      --           where c₁ = rectAverage W S₁ T, c₂ = rectAverage W S₂ T
+      --
+      -- The energy increase ΔE from this rectangle is:
+      --   ΔE = μ(T) * [μ(S₁) c₁² + μ(S₂) c₂² - μ(S) c²]
+      --
+      -- By the weighted average identity (since c is the weighted average of c₁, c₂):
+      --   μ(S₁) c₁² + μ(S₂) c₂² - μ(S) c² = μ(S₁) μ(S₂) / μ(S) * (c₁ - c₂)²
+      --
+      -- From h_avg_diff: either |c₁ - c| ≥ ε'/2 or |c₂ - c| ≥ ε'/2
+      -- Since c = (μ(S₁) c₁ + μ(S₂) c₂) / μ(S), this implies |c₁ - c₂| ≥ ε'/2
+      --
+      -- Therefore:
+      --   ΔE ≥ μ(T) * μ(S₁) μ(S₂) / μ(S) * (ε'/2)²
+      --
+      -- Since S₁, S₂ are nontrivial parts of S, we have μ(S₁), μ(S₂) > 0 and
+      -- μ(S₁) μ(S₂) ≥ (μ(S)/2)² in the worst case, giving:
+      --   ΔE ≥ μ(T) * μ(S)/4 * (ε'/2)² = μ(S) μ(T) * ε'² / 16
+      --
+      -- With ε' = ε/√2, we have ε'² = ε²/2, so:
+      --   ΔE ≥ μ(S) μ(T) * ε² / 32
+      --
+      -- From h_defect: ε² μ(S) μ(T) ≤ defect ≤ 1, so:
+      --   ΔE ≥ ε⁴ / 32 ≥ ε⁴ / 4 * (1/8)
+      --
+      -- The actual bound ε⁴/4 requires tighter analysis of μ(S₁), μ(S₂) bounds.
       sorry
 
   -- **Case 2**: Within-T variance is large → split T instead
@@ -1220,10 +1344,30 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
     -- The variance bound for the symmetric case
     -- From A_T large and the relationship between decompositions
     have h_var_T : ∫ y in T, (W_S y - c) ^ 2 ∂μ ≥ (ε / Real.sqrt 2) ^ 2 * (μ T).toReal := by
-      -- This follows from the symmetric variance decomposition
-      -- Since A_T ≥ ε²/2 * μ(S) * μ(T), and the decomposition along S gives
-      -- defect = ∫_T (∫_S (W - W_S)²) + μ(S) * ∫_T (W_S - c)²
-      -- we can bound the between-S variance term
+      -- **Proof strategy** (symmetric variance decomposition):
+      --
+      -- We have A_T ≥ ε²/2 * μ(S) * μ(T) (from the case split).
+      --
+      -- By defect_eq_within_plus_between with S and T swapped:
+      --   defect = ∫_T (∫_S (W - W_S)²) + μ(S) * ∫_T (W_S - c)²
+      --          = A_S + μ(S) * B_S
+      --
+      -- where A_S = ∫_T (∫_S (W - W_S)²) is the within-S variance and
+      --       B_S = ∫_T (W_S - c)² is the between-S variance.
+      --
+      -- Key observation: For symmetric graphons, we can relate A_T and B_S.
+      -- By Fubini and symmetry W(x,y) = W(y,x):
+      --   ∫_S (∫_T (W(x,y) - W_T(x))²) = ∫_T (∫_S (W(y,x) - W_T(y))²)
+      --
+      -- This means A_T measures the variance of W along T-slices, integrated over S,
+      -- while B_S measures how W_S (the S-average) varies over T.
+      --
+      -- The relationship A_T ≥ ε²/2 * μ(S) * μ(T) combined with the decomposition
+      -- defect = A_S + μ(S) * B_S and defect = A_T + μ(T) * B_T
+      -- gives us: A_T + μ(T) * B_T = A_S + μ(S) * B_S
+      --
+      -- Since A_T is large, and the within-variance A_S relates to W_S variability,
+      -- we can show B_S ≥ ε²/2 * μ(T) using the constraint.
       sorry
 
     set ε' := ε / Real.sqrt 2 with hε'_def
@@ -1246,6 +1390,17 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
         _ = 2 * P.parts.card := by ring
     -- (c) Energy increases by at least ε⁴/4
     · -- Symmetric energy increment argument
+      -- This is the mirror of Case 1, with T split instead of S.
+      -- The proof follows the same structure as Case 1:
+      --
+      -- 1. Splitting T into T₁ and T₂ = T \ T₁ changes the energy contribution
+      --    from rectangles involving T
+      -- 2. For S × T, the contribution changes from μ(S)μ(T)c² to
+      --    μ(S)μ(T₁)c₁² + μ(S)μ(T₂)c₂²
+      -- 3. By weighted average identity, this gives energy increase
+      --    ≥ μ(S) * μ(T₁)μ(T₂)/μ(T) * (c₁ - c₂)²
+      -- 4. From h_avg_diff_T, we have |c₁ - c₂| ≥ ε'/2
+      -- 5. This gives ΔE ≥ μ(S)μ(T) * ε'²/16 ≥ ε⁴/4 (with appropriate bounds)
       sorry
 
 end Energy
