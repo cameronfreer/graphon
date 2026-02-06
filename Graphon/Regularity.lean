@@ -1464,19 +1464,174 @@ theorem energy_splitPart_ge (W : Graphon α μ) (P : MeasurablePartition α μ)
       P.parts.sum fun T =>
         (μ T).toReal * (μ S₁).toReal * (μ (S \ S₁)).toReal / (μ S).toReal *
           (rectAverage W S₁ T - rectAverage W (S \ S₁) T) ^ 2 := by
-  -- The energy sum over Q.parts replaces S with {S₁, S\S₁}.
-  -- For each pair (U, T) where U is not S, the contribution is unchanged.
-  -- For each T, the old S×T contribution becomes S₁×T + (S\S₁)×T,
-  -- and by energy_rect_split, the difference is the positive term above.
-  -- Similarly for (T, S) → (T, S₁) + (T, S\S₁).
-  --
-  -- The full proof requires careful Finset sum manipulation to:
-  -- 1. Partition Q.parts = (P.parts \ {S}) ∪ {S₁, S\S₁}
-  -- 2. Split the double sum and match terms
-  -- 3. Apply energy_rect_split for each T
-  --
-  -- This is a standard but tedious combinatorial argument.
-  sorry
+  classical
+  intro Q
+  -- Setup: abbreviations and basic facts
+  set S₂ := S \ S₁ with hS₂_def
+  set E := P.parts.erase S with hE_def
+  have hS_meas : MeasurableSet S := P.measurableSet_part hS_mem
+  have hS₂_meas : MeasurableSet S₂ := hS_meas.diff hS₁_meas
+  have hμS : μ S ≠ 0 := fun h => hμS₁ (measure_mono_null hS₁_sub h)
+  -- The δ(T) correction term for a single T
+  set δ : Set α → ℝ := fun T =>
+    (μ T).toReal * (μ S₁).toReal * (μ S₂).toReal / (μ S).toReal *
+      (rectAverage W S₁ T - rectAverage W S₂ T) ^ 2 with hδ_def
+  -- δ(T) ≥ 0 for all T
+  have hδ_nonneg : ∀ T, 0 ≤ δ T := by
+    intro T; simp only [hδ_def]
+    apply mul_nonneg
+    · apply div_nonneg
+      · exact mul_nonneg (mul_nonneg ENNReal.toReal_nonneg ENNReal.toReal_nonneg)
+          ENNReal.toReal_nonneg
+      · exact ENNReal.toReal_nonneg
+    · exact sq_nonneg _
+  -- energy_rect_split gives: eR(S₁,T) + eR(S₂,T) - eR(S,T) = δ(T)
+  -- when all measures are nonzero
+  have h_split : ∀ T, MeasurableSet T → μ T ≠ 0 →
+      energyRect W S₁ T + energyRect W S₂ T - energyRect W S T = δ T := by
+    intro T hT_meas hμT
+    exact energy_rect_split W S T S₁ hS_meas hT_meas hS₁_meas hS₁_sub hμS hμT hμS₁ hμS₂
+  -- When μ T = 0, both sides are 0
+  have h_split_zero : ∀ T, μ T = 0 →
+      energyRect W S₁ T + energyRect W S₂ T - energyRect W S T = δ T := by
+    intro T hμT
+    simp only [energyRect, show (μ T).toReal = 0 from by simp [hμT], zero_mul, mul_zero,
+      add_zero, sub_zero, hδ_def, zero_div]
+  -- Combined: the split identity holds for all measurable T
+  have h_split_all : ∀ T, MeasurableSet T →
+      energyRect W S₁ T + energyRect W S₂ T - energyRect W S T = δ T := by
+    intro T hT_meas
+    by_cases hμT : μ T = 0
+    · exact h_split_zero T hμT
+    · exact h_split T hT_meas hμT
+  -- energyRect is symmetric for measurable sets
+  have h_eR_symm : ∀ A B : Set α, MeasurableSet A → MeasurableSet B →
+      energyRect W A B = energyRect W B A := by
+    intro A B hA hB
+    unfold energyRect
+    rw [rectAverage_symm W A B hA hB]
+    ring
+  -- Q.parts = E ∪ {S₁, S₂}
+  have hQ_parts : Q.parts = E ∪ ({S₁, S₂} : Finset (Set α)) := by
+    simp only [Q, MeasurablePartition.splitPart, hE_def, hS₂_def]
+  -- P.parts = insert S E (i.e., E ∪ {S})
+  have hP_parts : P.parts = insert S E := by
+    rw [hE_def]; exact (Finset.insert_erase hS_mem).symm
+  -- S ∉ E
+  have hS_notin_E : S ∉ E := by rw [hE_def]; simp
+  -- E ⊆ P.parts
+  have hE_sub : E ⊆ P.parts := by rw [hE_def]; exact Finset.erase_subset S P.parts
+  -- All parts of E are measurable
+  have hE_meas : ∀ T ∈ E, MeasurableSet T := fun T hT => P.measurableSet_part (hE_sub hT)
+  -- All parts of Q are measurable
+  have hQ_meas : ∀ T ∈ Q.parts, MeasurableSet T := Q.measurable_parts
+  -- Step A: For each T ∈ P.parts, the inner sum over Q exceeds the inner sum over P by δ(T).
+  -- That is: Σ_{U ∈ Q} eR(U,T) = Σ_{U ∈ P} eR(U,T) + δ(T)
+  -- S₁ ≠ S₂ (since S₂ = S \ S₁ and S₁ ∩ S₂ = ∅ while μ S₁ ≠ 0)
+  have hS₁_ne_S₂ : S₁ ≠ S₂ := by
+    intro h; rw [hS₂_def] at h
+    have : S₁ ⊆ S \ S₁ := h ▸ Subset.rfl
+    exact hμS₁ (measure_mono_null (fun x hx => ((this hx).2 hx).elim) (measure_empty))
+  -- S₁ ∉ E: If S₁ ∈ E = P.parts.erase S, then S₁ ∈ P.parts and S₁ ≠ S.
+  -- By pairwise disjointness, S₁ ∩ S = ∅. But S₁ ⊆ S and μ S₁ ≠ 0, contradiction.
+  have hS₁_notin_E : S₁ ∉ E := by
+    intro h
+    have h1 := (Finset.mem_erase.mp h).1  -- S₁ ≠ S
+    have h2 := (Finset.mem_erase.mp h).2  -- S₁ ∈ P.parts
+    have := P.pairwiseDisjoint h2 hS_mem h1
+    exact hμS₁ (measure_mono_null (Set.disjoint_iff_inter_eq_empty.mp this ▸
+      Set.subset_inter Subset.rfl hS₁_sub) (measure_empty))
+  have hS₂_notin_E : S₂ ∉ E := by
+    intro h
+    have h1 := (Finset.mem_erase.mp h).1  -- S₂ ≠ S
+    have h2 := (Finset.mem_erase.mp h).2  -- S₂ ∈ P.parts
+    have := P.pairwiseDisjoint h2 hS_mem h1
+    exact hμS₂ (measure_mono_null (Set.disjoint_iff_inter_eq_empty.mp this ▸
+      Set.subset_inter Subset.rfl Set.diff_subset) (measure_empty))
+  -- Disjointness for Finset.sum_union
+  have hE_disj_S : Disjoint E ({S₁, S₂} : Finset (Set α)) := by
+    rw [Finset.disjoint_left]
+    intro x hx hx2
+    simp only [Finset.mem_insert, Finset.mem_singleton] at hx2
+    rcases hx2 with rfl | rfl
+    · exact hS₁_notin_E hx
+    · exact hS₂_notin_E hx
+  have hE_disj_S_single : Disjoint E ({S} : Finset (Set α)) := by
+    rw [Finset.disjoint_left]
+    intro x hx hx2
+    simp only [Finset.mem_singleton] at hx2
+    rw [hx2] at hx; exact hS_notin_E hx
+  -- Step A helper: inner sum identity for each T ∈ P.parts
+  have h_inner : ∀ T ∈ P.parts,
+      Q.parts.sum (fun U => energyRect W U T) =
+      P.parts.sum (fun U => energyRect W U T) + δ T := by
+    intro T hT
+    have hT_meas := P.measurableSet_part hT
+    -- Expand Q.parts = E ∪ {S₁, S₂}
+    rw [hQ_parts, Finset.sum_union hE_disj_S]
+    -- Expand P.parts = insert S E = E ∪ {S}
+    rw [show P.parts = E ∪ {S} from by rw [hP_parts, Finset.insert_eq]; exact Finset.union_comm _ _]
+    rw [Finset.sum_union hE_disj_S_single]
+    -- Now: (Σ_E + Σ_{S₁,S₂}) = (Σ_E + Σ_{S}) + δ(T)
+    -- i.e., Σ_{S₁,S₂} = Σ_{S} + δ(T)
+    -- Σ_{S₁,S₂} = eR(S₁,T) + eR(S₂,T)
+    have h1 : ({S₁, S₂} : Finset (Set α)).sum (fun U => energyRect W U T) =
+        energyRect W S₁ T + energyRect W S₂ T := by
+      rw [Finset.sum_pair hS₁_ne_S₂]
+    -- Σ_{S} = eR(S,T)
+    have h2 : ({S} : Finset (Set α)).sum (fun U => energyRect W U T) = energyRect W S T := by
+      simp [Finset.sum_singleton]
+    rw [h1, h2]
+    linarith [h_split_all T hT_meas]
+  -- Step B: The mixed sum equals energy W P + correction
+  -- Note: energy W P = Σ_S Σ_T eR(S,T) = Σ_T Σ_U eR(U,T) by Finset.sum_comm
+  have h_energy_comm : energy W P = P.parts.sum (fun T =>
+      P.parts.sum (fun U => energyRect W U T)) := by
+    unfold energy energyRect; exact Finset.sum_comm
+  have h_step_B : P.parts.sum (fun T => Q.parts.sum (fun U => energyRect W U T)) =
+      energy W P + P.parts.sum δ := by
+    rw [h_energy_comm, ← Finset.sum_add_distrib]
+    exact Finset.sum_congr rfl (fun T hT => h_inner T hT)
+  -- Step C: energy W Q ≥ mixed sum
+  -- energy W Q = Σ_{T ∈ Q} Σ_{U ∈ Q} eR(U,T)
+  -- We need: this ≥ Σ_{T ∈ P} Σ_{U ∈ Q} eR(U,T)
+  -- The difference: Σ_{U ∈ Q} [eR(U,S₁) + eR(U,S₂) - eR(U,S)] ≥ 0
+  -- because each eR(U,S₁)+eR(U,S₂)-eR(U,S) = δ(U) ≥ 0 (by symmetry + split)
+  have h_second_arg_split : ∀ U, MeasurableSet U →
+      energyRect W U S₁ + energyRect W U S₂ - energyRect W U S ≥ 0 := by
+    intro U hU_meas
+    have h1 := h_split_all U hU_meas
+    -- h1 : eR(S₁,U) + eR(S₂,U) - eR(S,U) = δ(U)
+    -- By symmetry: eR(U,S₁) = eR(S₁,U), eR(U,S₂) = eR(S₂,U), eR(U,S) = eR(S,U)
+    rw [h_eR_symm U S₁ hU_meas hS₁_meas, h_eR_symm U S₂ hU_meas hS₂_meas,
+      h_eR_symm U S hU_meas hS_meas]
+    linarith [hδ_nonneg U]
+  have h_step_C : energy W Q ≥ P.parts.sum (fun T => Q.parts.sum (fun U =>
+      energyRect W U T)) := by
+    -- energy W Q = Σ_S Σ_T eR(S,T) = Σ_T Σ_U eR(U,T) (by sum_comm)
+    have h_energy_Q_comm : energy W Q = Q.parts.sum (fun T =>
+        Q.parts.sum (fun U => energyRect W U T)) := by
+      unfold energy energyRect; exact Finset.sum_comm
+    rw [h_energy_Q_comm]
+    -- Now: Σ_{T∈Q} g(T) ≥ Σ_{T∈P} g(T) where g(T) = Σ_{U∈Q} eR(U,T)
+    set g : Set α → ℝ := fun T => Q.parts.sum (fun U => energyRect W U T) with hg_def
+    -- Q sum: Σ_{T ∈ E} g(T) + g(S₁) + g(S₂)
+    -- P sum: Σ_{T ∈ E} g(T) + g(S)
+    -- Need: g(S₁) + g(S₂) ≥ g(S)
+    rw [hQ_parts, Finset.sum_union hE_disj_S, Finset.sum_pair hS₁_ne_S₂]
+    have hP_eq_E_union_S : P.parts = E ∪ {S} := by
+      rw [hP_parts, Finset.insert_eq]; exact Finset.union_comm _ _
+    rw [hP_eq_E_union_S, Finset.sum_union hE_disj_S_single, Finset.sum_singleton]
+    -- Need: g(S₁) + g(S₂) ≥ g(S), i.e., the extra from splitting S in the second arg
+    suffices h : g S₁ + g S₂ ≥ g S by linarith
+    simp only [hg_def]
+    rw [← Finset.sum_add_distrib]
+    -- Need: Σ_{U∈Q} (eR(U,S₁) + eR(U,S₂)) ≥ Σ_{U∈Q} eR(U,S)
+    apply Finset.sum_le_sum
+    intro U hU
+    linarith [h_second_arg_split U (hQ_meas U hU)]
+  -- Combine steps B and C
+  linarith
 
 /-- When the between-variance of `tAverage W V` on part `A` is large,
 splitting `A` by `exists_variance_cut` produces a refinement with strictly
@@ -1797,25 +1952,23 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
       exact energy_increment_of_between_variance W P ε hε
         T hT_mem S hS_mem hT_meas hS_meas hμT_pos hμS_pos h_var_unfolded
 
-    -- **Sub-case 2b**: Between-S variance on T is small → both within-variances are large
-    · -- Here A_T ≥ ε²/2 * μ(S) * μ(T) (from Case 2 hypothesis) and
-      -- μ(S) * B_S < ε²/2 * μ(S) * μ(T) (negation of sub-case 2a).
-      -- Since defect = A_S + μ(S)*B_S ≥ ε²*μ(S)*μ(T), we get
-      -- A_S ≥ ε²/2 * μ(S) * μ(T) as well.
-      --
-      -- Both between-variances B_T, B_S are relatively small,
-      -- so splitting a single part using the between-variance approach
-      -- does not give a useful energy increment.
-      --
-      -- The standard FK proof handles this case by splitting ALL parts
-      -- using a global cut set A (cut-norm approach), which requires
-      -- additional infrastructure not yet available.
-      --
-      -- Example: W(x,y) = 1_{same half} with P = {[0,1]} has both
-      -- within-variances large while between-variances are small.
-      have _h_A_S_large : A_S ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := by
-        push_neg at h_split_T_sym; linarith [h_sum_sym]
-      sorry
+    -- **Sub-case 2b**: Between-S variance on T is small.
+    -- B_T is unconstrained by the rcases (which only gave A_T ≥ half).
+    -- Check whether B_T is large enough to split S directly.
+    · by_cases h_check_B_T : B_T ≥ ε ^ 2 / 2 * (μ S).toReal
+      -- Sub-case 2b-i: B_T large → split S (same as Case 1)
+      · have h_var_unfolded : ∫ x in S, (tAverage W T x - rectAverage W S T) ^ 2 ∂μ ≥
+            ε ^ 2 / 2 * (μ S).toReal := by
+          rw [← hW_T_def, ← hc_def, ← hB_T_def]; exact h_check_B_T
+        exact energy_increment_of_between_variance W P ε hε
+          S hS_mem T hT_mem hS_meas hT_meas hμS_pos hμT_pos h_var_unfolded
+      -- Sub-case 2b-ii: B_T < ε²/2 * μ(S) AND B_S < ε²/2 * μ(T)
+      -- Both within-variances A_T, A_S are large, both between-variances B_T, B_S are small.
+      -- This genuinely requires global cut-norm splitting (not single-part splitting).
+      · push_neg at h_split_T_sym h_check_B_T
+        have _h_A_S_large : A_S ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := by
+          linarith [h_sum_sym]
+        sorry
 
 end Energy
 
