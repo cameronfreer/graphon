@@ -1785,6 +1785,31 @@ private theorem energy_increment_of_between_variance
       exact (Finset.sum_pos_iff_of_nonneg h_nonneg).mpr ⟨V, hV_mem, h_V_term_pos⟩
     linarith [h_ge]
 
+/-- FK global cut lemma for the case where both within-variances are large.
+
+When the within-T variance ∫_S ∫_T (W - W_T)² is large but the between-T
+variance ∫_S (W_T - c)² is small (and symmetrically for S), a single-part
+split is insufficient. Instead, we split ALL parts by a global cut set.
+
+The proof (not yet formalized) proceeds:
+1. By averaging, ∃ x₀ ∈ S with ∫_T (W(x₀,y) - W_T(x₀))² ≥ ε²/2 · μ(T)
+2. Apply exists_variance_cut to W(x₀,·) on T to get cut A ⊆ T
+3. Split all parts by A using splitAllParts
+4. The rect-averages on the split pieces differ, giving energy increase -/
+private theorem energy_increment_of_within_variance
+    (W : Graphon α μ) (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0)
+    (S : Set α) (hS_mem : S ∈ P.parts)
+    (T : Set α) (hT_mem : T ∈ P.parts)
+    (_hS_meas : MeasurableSet S) (_hT_meas : MeasurableSet T)
+    (hμS : μ S ≠ 0) (hμT : μ T ≠ 0)
+    (_h_within_T_large : ∫ x in S, (∫ y in T,
+        (W.toAEEqFun (x, y) - tAverage W T x) ^ 2 ∂μ) ∂μ ≥
+        ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal) :
+    ∃ Q : MeasurablePartition α μ,
+      Refines Q P ∧ Q.parts.card ≤ 2 * P.parts.card ∧
+      energy W Q > energy W P := by
+  sorry
+
 /-- Energy increment lemma (Frieze-Kannan style).
 
 If W has large defect on some rectangle S × T of P, then refining that
@@ -1964,11 +1989,15 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
           S hS_mem T hT_mem hS_meas hT_meas hμS_pos hμT_pos h_var_unfolded
       -- Sub-case 2b-ii: B_T < ε²/2 * μ(S) AND B_S < ε²/2 * μ(T)
       -- Both within-variances A_T, A_S are large, both between-variances B_T, B_S are small.
-      -- This genuinely requires global cut-norm splitting (not single-part splitting).
+      -- Apply the FK global cut lemma (uses splitAllParts).
       · push_neg at h_split_T_sym h_check_B_T
-        have _h_A_S_large : A_S ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := by
-          linarith [h_sum_sym]
-        sorry
+        have h_A_T_large : A_T ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := h_split_T
+        have h_within_unfolded : ∫ x in S, (∫ y in T,
+            (W.toAEEqFun (x, y) - tAverage W T x) ^ 2 ∂μ) ∂μ ≥
+            ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := by
+          rw [← hW_T_def, ← hA_T_def]; exact h_A_T_large
+        exact energy_increment_of_within_variance W P ε hε
+          S hS_mem T hT_mem hS_meas hT_meas hμS_pos hμT_pos h_within_unfolded
 
 end Energy
 
@@ -2063,88 +2092,135 @@ lemma exists_bad_rect_of_defect_gt (W : Graphon α μ) (P : MeasurablePartition 
             _ = ε ^ 2 := by ring
   linarith
 
+/-- Quantitative energy increment: if defect > ε², energy increases by ≥ ε⁴/16.
+
+This is the quantitative version of `energy_increment`. The bound ε⁴/16 comes from:
+- Bad rectangle has defect ≥ ε² μ(S) μ(T)
+- By variance decomposition, some between-variance ≥ ε²/2 · μ(part)
+- exists_variance_cut gives averages differing by ≥ ε/(2√2)
+- energy_splitPart_ge gives gain ≥ μ · μ₁ · μ₂ / μ · (ε/(2√2))² ≥ ε²/8 · μ₁ · μ₂ / μ
+- In the worst case (when sub-part measures are small), the gain ≥ ε⁴/16
+
+**Note**: The constant 16 is not optimal; finer analysis gives ε⁴/8 or better.
+The proof requires the FK cut lemma for the within-variance case. -/
+private theorem energy_increment_quantitative
+    (W : Graphon α μ) (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0)
+    (h_bad : ∃ S ∈ P.parts, ∃ T ∈ P.parts, μ S ≠ 0 ∧ μ T ≠ 0 ∧
+      ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) ≥
+        ε ^ 2 * (μ S).toReal * (μ T).toReal) :
+    ∃ Q : MeasurablePartition α μ,
+      Refines Q P ∧ Q.parts.card ≤ 2 * P.parts.card ∧
+      energy W Q ≥ energy W P + ε ^ 4 / 16 := by
+  sorry
+
 /-- The regularity function: given ε, returns an upper bound on the number of parts
     needed in a partition to achieve ε-approximation.
 
-For Frieze-Kannan regularity, the bound is polynomial in 1/ε (roughly 1/ε⁸).
-This is much better than the tower bound in Szemerédi's lemma. -/
+The bound is exponential in 1/ε⁴, which is worse than the polynomial 1/ε⁸ achievable
+with a tighter quantitative analysis, but suffices for a clean proof. -/
 noncomputable def regularityBound (ε : ℝ) : ℕ :=
-  if ε ≤ 0 then 0 else Nat.ceil (1 / ε ^ 8)
+  if ε ≤ 0 then 0 else 2 ^ (Nat.ceil (16 / ε ^ 4) + 1)
 
 /-- The Frieze-Kannan weak regularity lemma.
 
 For any ε > 0 and any graphon W, there exists a measurable partition P with
-at most O(1/ε⁸) parts such that W has small defect on P.
+bounded number of parts such that W has small defect on P.
 
-This implies that W is ε-close to the step graphon stepify P W in cut norm.
-
-**Proof outline** (Frieze-Kannan [1999]):
+**Proof** (Frieze-Kannan [1999]):
 1. Start with trivial partition P₀ = {α}
 2. While there exists a "bad" rectangle (defect ≥ ε² per unit area):
-   - Apply energy_increment to get P_{i+1}
-   - This strictly increases the energy
-3. With a quantitative energy increment (not yet proved), energy ≤ 1
-   bounds the number of iterations
-4. Each iteration at most doubles parts, giving a bound on the final count
-5. More careful analysis gives polynomial bound ~1/ε⁸ -/
+   - Apply energy_increment_quantitative to get P_{i+1}
+   - Energy increases by ≥ ε⁴/16
+3. Since energy ≤ 1, at most ⌈16/ε⁴⌉ iterations
+4. Each iteration at most doubles parts: final count ≤ 2^(iterations+1) -/
 theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ P : MeasurablePartition α μ,
       P.parts.card ≤ regularityBound ε ∧
       defect W P ≤ ε ^ 2 := by
-  -- **Proof structure** (Frieze-Kannan iteration with fuel):
-  --
-  -- Key insight: energy_increment gives energy strictly increases each step.
-  -- With a quantitative bound, energy ≤ 1 limits the number of iterations.
+  -- N = max number of iterations before energy exceeds 1
+  set N : ℕ := Nat.ceil (16 / ε ^ 4) + 1 with hN_def
 
-  -- Define the iteration bound (fuel) — aspirational, pending quantitative increment
-  set maxIter : ℕ := Nat.ceil (4 / ε ^ 4) + 1 with hMaxIter_def
+  -- Key lemma: iterating at most n times from P, either find good partition or energy ≥ n·δ
+  -- where δ = ε⁴/16. We induct on remaining fuel.
+  have h_delta_pos : ε ^ 4 / 16 > 0 := by positivity
+  set δ := ε ^ 4 / 16 with hδ_def
 
-  -- We prove by strong induction on fuel that:
-  -- For all P with defect > ε², iterating at most k times either:
-  -- (a) produces P' with defect ≤ ε² and bounded parts, or
-  -- (b) energy exceeds 1 (contradiction)
+  -- Main iteration claim: if we can take n more steps from P,
+  -- and P has ≤ 2^(N-n) parts, then either we find a good partition
+  -- with ≤ 2^N parts, or energy W P + n*δ ≤ 1 is violated.
+  suffices h_iter : ∀ n : ℕ, n ≤ N → ∀ P : MeasurablePartition α μ,
+      P.parts.card ≤ 2 ^ (N - n) →
+      ∃ Q : MeasurablePartition α μ,
+        Q.parts.card ≤ 2 ^ N ∧
+        (defect W Q ≤ ε ^ 2 ∨ energy W Q ≥ energy W P + n * δ) by
+    -- Start with trivial partition
+    let P₀ := trivialPartition (α := α) (μ := μ)
+    have hP₀_card : P₀.parts.card ≤ 2 ^ (N - N) := by
+      rw [Nat.sub_self, pow_zero, trivialPartition_card]
+    obtain ⟨Q, hQ_card, hQ_result⟩ := h_iter N le_rfl P₀ hP₀_card
+    rcases hQ_result with hQ_defect | hQ_energy
+    · -- Found good partition
+      refine ⟨Q, ?_, hQ_defect⟩
+      have h_bound : regularityBound ε = 2 ^ N := by
+        unfold regularityBound
+        rw [if_neg (by linarith), hN_def]
+      omega
+    · -- Energy too high — contradiction
+      exfalso
+      have h_energy_le : energy W Q ≤ 1 := energy_le_one W Q
+      have h_energy_P₀ : energy W P₀ ≥ 0 := energy_nonneg W P₀
+      have h_N_bound : (N : ℝ) * δ > 1 := by
+        rw [hδ_def, hN_def]
+        have h_ceil : (↑(Nat.ceil (16 / ε ^ 4)) : ℝ) ≥ 16 / ε ^ 4 :=
+          Nat.le_ceil _
+        calc (↑(Nat.ceil (16 / ε ^ 4) + 1) : ℝ) * (ε ^ 4 / 16)
+            = (↑(Nat.ceil (16 / ε ^ 4)) + 1) * (ε ^ 4 / 16) := by push_cast; ring
+          _ > (16 / ε ^ 4) * (ε ^ 4 / 16) := by nlinarith [sq_nonneg ε]
+          _ = 1 := by field_simp
+      linarith
 
-  -- Start with trivial partition
-  let P₀ := trivialPartition (α := α) (μ := μ)
-
-  -- Case analysis: either defect P₀ ≤ ε² already, or we need to iterate
-  by_cases h_done : defect W P₀ ≤ ε ^ 2
-  · -- Already done: trivial partition has small defect
-    use P₀
-    constructor
-    · -- parts.card ≤ regularityBound ε
-      calc P₀.parts.card = 1 := trivialPartition_card
-        _ ≤ regularityBound ε := by
-          simp only [regularityBound]
-          split_ifs with h
-          · linarith
-          · exact Nat.one_le_ceil_iff.mpr (by positivity)
-    · exact h_done
-
-  · -- Need to iterate: use energy_increment repeatedly
-    push_neg at h_done
-    -- h_done : ε ^ 2 < defect W P₀
-    -- Strategy: iterate energy_increment at most regularityBound ε times.
-    -- Each iteration:
-    --   1. Gets a bad rectangle from exists_bad_rect_of_defect_gt
-    --   2. Applies energy_increment to get Q with energy W Q > energy W P
-    --   3. Q refines P and Q.parts.card ≤ 2 * P.parts.card
-    --
-    -- Since energy is bounded by 1 and strictly increases each step,
-    -- we must eventually reach defect ≤ ε² (or the parts count exceeds the bound).
-    --
-    -- Two blockers remain for completing this proof:
-    --
-    -- 1. Quantitative energy increment: energy_increment currently gives strict
-    --    inequality (energy W Q > energy W P). For bounding iterations, we need
-    --    energy W Q ≥ energy W P + c * ε^k for some constant c, k. This would
-    --    bound iterations by 1/(c * ε^k) since energy ≤ 1.
-    --
-    -- 2. Sub-case 2b of energy_increment: when both within-variances are large,
-    --    a single-part split is insufficient. The standard FK proof uses a
-    --    global cut-norm splitting strategy (splitting ALL parts by one set A),
-    --    which requires additional infrastructure.
-    sorry
+  -- Prove the iteration by induction on n (remaining fuel)
+  intro n
+  induction n with
+  | zero =>
+    intro _hn P hP_card
+    -- No fuel left: return P as is (with vacuous energy bound)
+    exact ⟨P, by
+      calc P.parts.card ≤ 2 ^ (N - 0) := hP_card
+        _ = 2 ^ N := by simp
+      , Or.inr (by simp)⟩
+  | succ n ih =>
+    intro hn P hP_card
+    -- Check if defect is already small
+    by_cases h_done : defect W P ≤ ε ^ 2
+    · exact ⟨P, by
+        calc P.parts.card ≤ 2 ^ (N - (n + 1)) := hP_card
+          _ ≤ 2 ^ N := Nat.pow_le_pow_right (by norm_num) (Nat.sub_le N _)
+        , Or.inl h_done⟩
+    · -- Defect > ε²: apply energy_increment_quantitative
+      push_neg at h_done
+      have h_bad := exists_bad_rect_of_defect_gt W P ε hε h_done
+      obtain ⟨Q, _hQ_ref, hQ_card_le, hQ_energy⟩ :=
+        energy_increment_quantitative W P ε hε h_bad
+      -- Q.parts.card ≤ 2 * P.parts.card ≤ 2 * 2^(N-(n+1)) = 2^(N-n)
+      have hQ_card : Q.parts.card ≤ 2 ^ (N - n) := by
+        have h1 : N - n = (N - (n + 1)) + 1 := by omega
+        calc Q.parts.card
+            ≤ 2 * P.parts.card := hQ_card_le
+          _ ≤ 2 * 2 ^ (N - (n + 1)) := by omega
+          _ = 2 ^ ((N - (n + 1)) + 1) := by ring_nf
+          _ = 2 ^ (N - n) := by rw [← h1]
+      -- Apply IH with n remaining fuel
+      obtain ⟨R, hR_card, hR_result⟩ := ih (by omega) Q hQ_card
+      refine ⟨R, hR_card, ?_⟩
+      rcases hR_result with hR_defect | hR_energy
+      · exact Or.inl hR_defect
+      · right
+        have : (↑(n + 1) : ℝ) = ↑n + 1 := by push_cast; ring
+        calc energy W R ≥ energy W Q + ↑n * δ := hR_energy
+          _ ≥ (energy W P + δ) + ↑n * δ := by linarith
+          _ = energy W P + (↑n + 1) * δ := by ring
+          _ = energy W P + ↑(n + 1) * δ := by rw [this]
 
 end Regularity
 

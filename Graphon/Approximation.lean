@@ -262,6 +262,89 @@ theorem MeasurablePartition.splitPart_card (P : MeasurablePartition α μ)
         have h_pos : 1 ≤ P.parts.card := Finset.one_le_card.mpr ⟨S, hS⟩
         omega
 
+/-- Split every part of a partition by a measurable set A.
+
+For each S ∈ P.parts, we include S ∩ A and S \ A in the new partition
+(keeping all pieces, even null ones — this simplifies ae_covers).
+
+This is the global splitting operation needed for the Frieze-Kannan
+regularity proof when both within-variances are large. -/
+noncomputable def MeasurablePartition.splitAllParts (P : MeasurablePartition α μ)
+    (A : Set α) (hA : MeasurableSet A) : MeasurablePartition α μ := by
+  classical
+  let pieces (S : Set α) : Finset (Set α) := {S ∩ A, S \ A}
+  exact {
+    parts := P.parts.biUnion pieces
+    measurable_parts := fun T hT => by
+      simp only [pieces, Finset.mem_biUnion, Finset.mem_insert,
+          Finset.mem_singleton] at hT
+      obtain ⟨S, hS_mem, rfl | rfl⟩ := hT
+      · exact (P.measurableSet_part hS_mem).inter hA
+      · exact (P.measurableSet_part hS_mem).diff hA
+    pairwiseDisjoint := fun T₁ hT₁ T₂ hT₂ hne => by
+      simp only [pieces, Finset.coe_biUnion, Finset.coe_insert, Finset.coe_singleton,
+          Set.mem_iUnion, Set.mem_insert_iff, Set.mem_singleton_iff,
+          Finset.mem_coe] at hT₁ hT₂
+      obtain ⟨S₁, hS₁_mem, rfl | rfl⟩ := hT₁
+        <;> obtain ⟨S₂, hS₂_mem, rfl | rfl⟩ := hT₂
+      -- (S₁ ∩ A, S₂ ∩ A)
+      · by_cases h : S₁ = S₂
+        · subst h; exact absurd rfl hne
+        · exact (P.pairwiseDisjoint hS₁_mem hS₂_mem h).mono
+            Set.inter_subset_left Set.inter_subset_left
+      -- (S₁ ∩ A, S₂ \ A)
+      · by_cases h : S₁ = S₂
+        · subst h; exact disjoint_inf_sdiff
+        · exact (P.pairwiseDisjoint hS₁_mem hS₂_mem h).mono
+            Set.inter_subset_left Set.diff_subset
+      -- (S₁ \ A, S₂ ∩ A)
+      · by_cases h : S₁ = S₂
+        · subst h; exact disjoint_inf_sdiff.symm
+        · exact (P.pairwiseDisjoint hS₁_mem hS₂_mem h).mono
+            Set.diff_subset Set.inter_subset_left
+      -- (S₁ \ A, S₂ \ A)
+      · by_cases h : S₁ = S₂
+        · subst h; exact absurd rfl hne
+        · exact (P.pairwiseDisjoint hS₁_mem hS₂_mem h).mono
+            Set.diff_subset Set.diff_subset
+    ae_covers := by
+      filter_upwards [P.ae_covers] with x ⟨S, hS_mem, hx⟩
+      by_cases hxA : x ∈ A
+      · exact ⟨S ∩ A, Finset.mem_biUnion.mpr ⟨S, hS_mem,
+          Finset.mem_insert_self _ _⟩, hx, hxA⟩
+      · exact ⟨S \ A, Finset.mem_biUnion.mpr ⟨S, hS_mem,
+          Finset.mem_insert_of_mem (Finset.mem_singleton_self _)⟩, hx, hxA⟩
+  }
+
+omit [IsProbabilityMeasure μ] in
+/-- splitAllParts produces a refinement. -/
+theorem MeasurablePartition.splitAllParts_refines (P : MeasurablePartition α μ)
+    (A : Set α) (hA : MeasurableSet A) :
+    Refines (MeasurablePartition.splitAllParts P A hA) P := by
+  classical
+  intro T hT
+  simp only [splitAllParts, Finset.mem_biUnion, Finset.mem_insert,
+      Finset.mem_singleton] at hT
+  obtain ⟨S, hS_mem, rfl | rfl⟩ := hT
+  · exact ⟨S, hS_mem, Set.inter_subset_left⟩
+  · exact ⟨S, hS_mem, Set.diff_subset⟩
+
+omit [IsProbabilityMeasure μ] in
+/-- splitAllParts has at most 2 * P.parts.card parts. -/
+theorem MeasurablePartition.splitAllParts_card (P : MeasurablePartition α μ)
+    (A : Set α) (hA : MeasurableSet A) :
+    (MeasurablePartition.splitAllParts P A hA).parts.card ≤ 2 * P.parts.card := by
+  classical
+  simp only [splitAllParts]
+  calc (P.parts.biUnion fun S => ({S ∩ A, S \ A} : Finset (Set α))).card
+      ≤ P.parts.sum (fun S => ({S ∩ A, S \ A} : Finset (Set α)).card) :=
+        Finset.card_biUnion_le
+    _ ≤ P.parts.sum (fun _ => 2) := by
+        apply Finset.sum_le_sum
+        intro S _
+        exact Finset.card_insert_le _ _
+    _ = 2 * P.parts.card := by simp [Finset.sum_const, mul_comm]
+
 end Split
 
 /-! ### Stepification (to be developed)
