@@ -1046,6 +1046,25 @@ theorem defect_nonneg (W : Graphon α μ) (P : MeasurablePartition α μ) :
   apply setIntegral_nonneg_of_ae_restrict
   exact ae_of_all _ (fun _ => sq_nonneg _)
 
+/-- The defect on S × T equals the defect on T × S, by symmetry of the graphon.
+
+This follows from the change-of-variables formula (swapping integration domain)
+and the graphon symmetry W(x,y) = W(y,x) a.e. -/
+theorem defect_rect_symm (W : Graphon α μ) (S T : Set α)
+    (hS : MeasurableSet S) (hT : MeasurableSet T) :
+    ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) =
+    ∫ p in T ×ˢ S, (W.toAEEqFun p - rectAverage W T S) ^ 2 ∂(μ.prod μ) := by
+  -- Step 1: Swap integration domain: ∫_{S×T} f(p) = ∫_{T×S} f(p.swap)
+  rw [← setIntegral_prod_swap S T (fun p => (W.toAEEqFun p - rectAverage W S T) ^ 2)]
+  -- Now LHS = ∫_{T×S} (W(p.swap) - rectAverage W S T)²
+  -- Step 2: Replace rectAverage W S T with rectAverage W T S
+  rw [rectAverage_symm W S T hS hT]
+  -- Now LHS = ∫_{T×S} (W(p.swap) - rectAverage W T S)²
+  -- Step 3: Use graphon symmetry W(p.swap) = W(p) a.e.
+  apply setIntegral_congr_ae (hT.prod hS)
+  filter_upwards [W.symm_ae] with p hp _
+  rw [hp]
+
 /-- Variance decomposition on a rectangle: ∫_{S×T} W² = ∫_{S×T} (W - c)² + c² · μ(S×T)
     where c = rectAverage W S T.
 
@@ -1459,6 +1478,9 @@ theorem energy_splitPart_ge (W : Graphon α μ) (P : MeasurablePartition α μ)
   -- This is a standard but tedious combinatorial argument.
   sorry
 
+-- Case 2 mirrors Case 1 with swapped roles, doubling the definitional context.
+set_option maxHeartbeats 800000
+
 /-- Energy increment lemma (Frieze-Kannan style).
 
 If W has large defect on some rectangle S × T of P, then refining that
@@ -1490,7 +1512,7 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
   -- Case 1: μ(T) * B_T large ⟹ B_T ≥ ε²/2 * μ(S) ⟹ split S using exists_variance_cut
   -- Case 2: A_T large ⟹ by symmetric decomposition, B_S ≥ ε²/2 * μ(T) ⟹ split T
   --
-  -- In both cases, we get a refinement with energy increase ≥ ε⁴/C.
+  -- In both cases, we get a refinement with strictly larger energy.
 
   -- Step 1: Extract the "bad" rectangle S × T with positive measure parts
   obtain ⟨S, hS_mem, T, hT_mem, hμS_pos, hμT_pos, h_defect⟩ := h_bad
@@ -1602,7 +1624,7 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
       calc Q.parts.card ≤ P.parts.card + 1 := h_card
         _ ≤ P.parts.card + P.parts.card := by omega
         _ = 2 * P.parts.card := by ring
-    -- (c) Energy increases by at least ε⁴/4
+    -- (c) Energy strictly increases
     · -- Energy increment from splitting S
       -- Step 1: Define S₂ and the rectAverages c₁, c₂
       set S₂ := S \ S₁ with hS₂_def
@@ -1753,12 +1775,236 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
     --   defect(T,S) = A_S + μ(S) * B_S
     -- By pigeonhole, either μ(S)*B_S ≥ defect/2 (split T, symmetric to Case 1)
     -- or A_S ≥ defect/2 (both within-variances large, needs different strategy).
-    --
-    -- The symmetric defect identity defect(S,T) = defect(T,S) follows from
-    -- W(x,y) = W(y,x) a.e. and Fubini, via:
-    --   ∫_{S×T} f(W(x,y)) d(x,y) = ∫_{T×S} f(W(y,x)) d(y,x) = ∫_{T×S} f(W(x,y)) d(x,y)
 
-    sorry
+    -- Step 2.1: Symmetric defect identity: defect(S,T) = defect(T,S)
+    have h_defect_symm : defect =
+        ∫ p in T ×ˢ S, (W.toAEEqFun p - rectAverage W T S) ^ 2 ∂(μ.prod μ) := by
+      rw [hdefect_def, hc_def]
+      exact defect_rect_symm W S T hS_meas hT_meas
+
+    -- Step 2.2: Variance decomposition on T × S
+    -- defect(T,S) = A_S + μ(S) * B_S where:
+    --   A_S = ∫_T (∫_S (W - W_S)²) = within-S variance
+    --   B_S = ∫_T (W_S - rectAverage W T S)² = between-S variance on T
+    set c' := rectAverage W T S with hc'_def
+    set A_S := ∫ y in T, (∫ x in S, (W.toAEEqFun (y, x) - W_S y) ^ 2 ∂μ) ∂μ with hA_S_def
+    set B_S := ∫ y in T, (W_S y - c') ^ 2 ∂μ with hB_S_def
+
+    have h_decomp_TS : ∫ p in T ×ˢ S, (W.toAEEqFun p - c') ^ 2 ∂(μ.prod μ) =
+        A_S + (μ S).toReal * B_S := by
+      rw [hA_S_def, hB_S_def, hW_S_def, hc'_def]
+      exact defect_eq_within_plus_between W T S hT_meas hS_meas hμT_pos hμS_pos
+
+    -- Step 2.3: Pigeonhole on the symmetric decomposition
+    -- defect = A_S + μ(S) * B_S, defect ≥ ε² * μ(S) * μ(T)
+    -- Either μ(S) * B_S ≥ ε²/2 * μ(S) * μ(T) or A_S ≥ ε²/2 * μ(S) * μ(T)
+    have h_defect_eq_sym : defect = A_S + (μ S).toReal * B_S := by
+      rw [h_defect_symm]; exact h_decomp_TS
+
+    have hA_S_nonneg : A_S ≥ 0 := by
+      apply setIntegral_nonneg_of_ae_restrict
+      apply ae_of_all; intro x
+      exact setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
+    have hB_S_nonneg : B_S ≥ 0 := setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
+
+    -- Pigeonhole: defect = A_S + μ(S)*B_S ≥ ε²*μ(S)*μ(T)
+    -- so either μ(S)*B_S ≥ half or A_S ≥ half
+    have h_sum_sym : A_S + (μ S).toReal * B_S ≥ ε ^ 2 * (μ S).toReal * (μ T).toReal := by
+      rw [← h_defect_eq_sym]; exact h_defect
+    -- Use classical logic for pigeonhole
+    by_cases h_split_T_sym : (μ S).toReal * B_S ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal
+
+    -- **Sub-case 2a**: Between-S variance on T is large → split T
+    -- This mirrors Case 1 with S ↔ T swapped.
+    · -- B_S = ∫_T (W_S - c')² ≥ ε²/2 * μ(T)  (dividing by μ(S))
+      have h_var : B_S ≥ ε ^ 2 / 2 * (μ T).toReal := by
+        have : (μ S).toReal * B_S ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := h_split_T_sym
+        have hB_S_nonneg : B_S ≥ 0 := setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
+        nlinarith [sq_nonneg ε, hμS_real_pos, hμT_real_pos]
+
+      -- Mean of W_S on T equals c' = rectAverage W T S
+      have hc'_mean : c' = (μ T).toReal⁻¹ * ∫ y in T, W_S y ∂μ := by
+        rw [hc'_def, hW_S_def, tAverage_integral_eq_rectAverage W T S hT_meas hS_meas hμT_pos hμS_pos]
+
+      -- Integrability of W_S on T
+      have hW_S_int : IntegrableOn W_S T μ := by
+        apply Measure.integrableOn_of_bounded (M := 1) hμT_top
+        · exact hW_S_meas.aestronglyMeasurable
+        · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W S hS_meas)] with x hx
+          simp only [Real.norm_eq_abs, abs_le]
+          exact ⟨by linarith [hx.1], by linarith [hx.2]⟩
+
+      -- Apply exists_variance_cut to get the cut T₁ ⊆ T
+      set ε' := ε / Real.sqrt 2 with hε'_def
+      have hε'_pos : ε' > 0 := div_pos hε (Real.sqrt_pos.mpr (by norm_num))
+      have h_var' : B_S ≥ ε' ^ 2 * (μ T).toReal := by
+        have h2_pos : (0 : ℝ) < 2 := by norm_num
+        have h_eq : ε' ^ 2 = ε ^ 2 / 2 := by
+          rw [hε'_def, div_pow, Real.sq_sqrt (le_of_lt h2_pos)]
+        rw [h_eq]
+        exact h_var
+
+      obtain ⟨T₁, hT₁_meas, hT₁_sub, hμT₁_pos, hμT₂_pos, h_avg_diff⟩ :=
+        exists_variance_cut W_S T hT_meas hW_S_meas hW_S_int hμT_pos c' hc'_mean ε' hε'_pos h_var'
+
+      -- Build the refined partition Q by splitting T
+      let Q := MeasurablePartition.splitPart P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
+      use Q
+      refine ⟨?_, ?_, ?_⟩
+      -- (a) Q refines P
+      · exact MeasurablePartition.splitPart_refines P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
+      -- (b) Q has at most 2 * P.parts.card parts
+      · have h_card := MeasurablePartition.splitPart_card P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
+        have h_P_nonempty : 1 ≤ P.parts.card := Finset.one_le_card.mpr ⟨T, hT_mem⟩
+        calc Q.parts.card ≤ P.parts.card + 1 := h_card
+          _ ≤ P.parts.card + P.parts.card := by omega
+          _ = 2 * P.parts.card := by ring
+      -- (c) Energy strictly increases
+      · -- Energy increment from splitting T
+        set T₂ := T \ T₁ with hT₂_def
+        have hT₂_meas : MeasurableSet T₂ := hT_meas.diff hT₁_meas
+        have hμT₁_top : μ T₁ ≠ ⊤ := (measure_lt_top μ T₁).ne
+        have hμT₂_top : μ T₂ ≠ ⊤ := (measure_lt_top μ T₂).ne
+        have hμT₁_real_pos : 0 < (μ T₁).toReal := ENNReal.toReal_pos hμT₁_pos hμT₁_top
+        have hμT₂_real_pos : 0 < (μ T₂).toReal := ENNReal.toReal_pos hμT₂_pos hμT₂_top
+
+        -- The averages from h_avg_diff are exactly the rectAverages
+        set d₁ := (μ T₁).toReal⁻¹ * ∫ y in T₁, W_S y ∂μ with hd₁_def
+        set d₂ := (μ T₂).toReal⁻¹ * ∫ y in T₂, W_S y ∂μ with hd₂_def
+
+        -- d₁ = rectAverage W T₁ S by tAverage_integral_eq_rectAverage
+        have hd₁_rect : d₁ = rectAverage W T₁ S := by
+          rw [hd₁_def, hW_S_def]
+          exact tAverage_integral_eq_rectAverage W T₁ S hT₁_meas hS_meas hμT₁_pos hμS_pos
+
+        have hd₂_rect : d₂ = rectAverage W T₂ S := by
+          rw [hd₂_def, hW_S_def]
+          exact tAverage_integral_eq_rectAverage W T₂ S hT₂_meas hS_meas hμT₂_pos hμS_pos
+
+        -- c' is the weighted average of d₁ and d₂
+        have h_T_union : T = T₁ ∪ T₂ := by
+          rw [hT₂_def, Set.union_diff_cancel hT₁_sub]
+        have h_disj : Disjoint T₁ T₂ := by
+          rw [hT₂_def]; exact Set.disjoint_sdiff_right
+        have hμ_add : (μ T).toReal = (μ T₁).toReal + (μ T₂).toReal := by
+          rw [h_T_union, measure_union h_disj hT₂_meas]
+          exact ENNReal.toReal_add hμT₁_top hμT₂_top
+
+        have h_int_add : ∫ y in T, W_S y ∂μ = ∫ y in T₁, W_S y ∂μ + ∫ y in T₂, W_S y ∂μ := by
+          rw [h_T_union]
+          exact setIntegral_union h_disj hT₂_meas (hW_S_int.mono hT₁_sub le_rfl)
+            (hW_S_int.mono (Set.diff_subset) le_rfl)
+
+        have hc'_weighted : c' = ((μ T₁).toReal * d₁ + (μ T₂).toReal * d₂) / (μ T).toReal := by
+          rw [hc'_mean, h_int_add, hd₁_def, hd₂_def]
+          field_simp [ne_of_gt hμT₁_real_pos, ne_of_gt hμT₂_real_pos, ne_of_gt hμT_real_pos]
+
+        -- Get |d₁ - d₂| ≥ ε'/2 from h_avg_diff
+        have h_d1_c' : d₁ - c' = (μ T₂).toReal / (μ T).toReal * (d₁ - d₂) := by
+          rw [hc'_weighted, hμ_add]
+          field_simp [ne_of_gt hμT_real_pos]
+          ring
+
+        have h_d2_c' : d₂ - c' = -(μ T₁).toReal / (μ T).toReal * (d₁ - d₂) := by
+          rw [hc'_weighted, hμ_add]
+          field_simp [ne_of_gt hμT_real_pos]
+          ring
+
+        have h_diff_bound : |d₁ - d₂| ≥ ε' / 2 := by
+          rcases h_avg_diff with h1 | h2
+          · -- Case |d₁ - c'| ≥ ε'/2
+            rw [h_d1_c'] at h1
+            have h_ratio_le_one : (μ T₂).toReal / (μ T).toReal ≤ 1 := by
+              rw [div_le_one hμT_real_pos, hμ_add]
+              linarith
+            have h_ratio_pos : 0 < (μ T₂).toReal / (μ T).toReal :=
+              div_pos hμT₂_real_pos hμT_real_pos
+            rw [abs_mul, abs_of_pos h_ratio_pos] at h1
+            calc |d₁ - d₂| ≥ (μ T₂).toReal / (μ T).toReal * |d₁ - d₂| := by
+                  nlinarith [abs_nonneg (d₁ - d₂)]
+              _ ≥ ε' / 2 := h1
+          · -- Case |d₂ - c'| ≥ ε'/2 (symmetric)
+            rw [h_d2_c'] at h2
+            have h_ratio_le_one : (μ T₁).toReal / (μ T).toReal ≤ 1 := by
+              rw [div_le_one hμT_real_pos, hμ_add]
+              linarith
+            have h_ratio_pos : 0 < (μ T₁).toReal / (μ T).toReal :=
+              div_pos hμT₁_real_pos hμT_real_pos
+            have h_abs_eq : |-(μ T₁).toReal / (μ T).toReal * (d₁ - d₂)| =
+                (μ T₁).toReal / (μ T).toReal * |d₁ - d₂| := by
+              rw [neg_div, neg_mul, abs_neg, abs_mul, abs_of_pos h_ratio_pos]
+            rw [h_abs_eq] at h2
+            calc |d₁ - d₂| ≥ (μ T₁).toReal / (μ T).toReal * |d₁ - d₂| := by
+                  nlinarith [abs_nonneg (d₁ - d₂)]
+              _ ≥ ε' / 2 := h2
+
+        -- Energy strictly increases using energy_splitPart_ge
+        -- For splitting T, we need rectAverage on T₁ and T₂ columns.
+        -- energy_splitPart_ge gives:
+        --   energy W Q ≥ energy W P + Σ_U μ(U) * μ(T₁) * μ(T₂) / μ(T) * (rectAverage W T₁ U - rectAverage W T₂ U)²
+        -- The S-th term has (rectAverage W T₁ S - rectAverage W T₂ S)² > 0
+
+        have h_sq_diff_bound : (d₁ - d₂) ^ 2 ≥ (ε' / 2) ^ 2 := by
+          calc (d₁ - d₂) ^ 2 = |d₁ - d₂| ^ 2 := by rw [sq_abs]
+            _ ≥ (ε' / 2) ^ 2 := by
+              apply sq_le_sq'
+              · linarith [abs_nonneg (d₁ - d₂), hε'_pos]
+              · exact h_diff_bound
+
+        have h_ge := energy_splitPart_ge W P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
+
+        -- The rectAverages match d₁, d₂ via symmetry
+        -- rectAverage W T₁ S = d₁ (directly from hd₁_rect)
+        -- rectAverage W (T \ T₁) S = d₂ (directly from hd₂_rect)
+        have h_rect_avg_eq₁ : rectAverage W T₁ S = d₁ := hd₁_rect.symm
+        have h_rect_avg_eq₂ : rectAverage W (T \ T₁) S = d₂ := hd₂_rect.symm
+
+        -- Show the sum is strictly positive by bounding from below by the S-th term
+        have h_S_term_pos : (μ S).toReal * (μ T₁).toReal * (μ (T \ T₁)).toReal / (μ T).toReal *
+            (rectAverage W T₁ S - rectAverage W (T \ T₁) S) ^ 2 > 0 := by
+          rw [h_rect_avg_eq₁, h_rect_avg_eq₂]
+          apply mul_pos
+          · apply div_pos
+            · apply mul_pos (mul_pos hμS_real_pos hμT₁_real_pos) hμT₂_real_pos
+            · exact hμT_real_pos
+          · linarith [sq_nonneg (ε' / 2), sq_pos_of_pos hε'_pos]
+
+        have h_sum_pos : P.parts.sum (fun U => (μ U).toReal * (μ T₁).toReal *
+            (μ (T \ T₁)).toReal / (μ T).toReal *
+            (rectAverage W T₁ U - rectAverage W (T \ T₁) U) ^ 2) > 0 := by
+          have h_nonneg : ∀ U ∈ P.parts, 0 ≤ (μ U).toReal * (μ T₁).toReal *
+              (μ (T \ T₁)).toReal / (μ T).toReal *
+              (rectAverage W T₁ U - rectAverage W (T \ T₁) U) ^ 2 := by
+            intro U _
+            apply mul_nonneg
+            · apply div_nonneg
+              · apply mul_nonneg (mul_nonneg ENNReal.toReal_nonneg ENNReal.toReal_nonneg)
+                  ENNReal.toReal_nonneg
+              · exact ENNReal.toReal_nonneg
+            · exact sq_nonneg _
+          exact (Finset.sum_pos_iff_of_nonneg h_nonneg).mpr ⟨S, hS_mem, h_S_term_pos⟩
+
+        linarith [h_ge]
+
+    -- **Sub-case 2b**: Between-S variance on T is small → both within-variances are large
+    · -- Here A_T ≥ ε²/2 * μ(S) * μ(T) (from Case 2 hypothesis) and
+      -- μ(S) * B_S < ε²/2 * μ(S) * μ(T) (negation of sub-case 2a).
+      -- Since defect = A_S + μ(S)*B_S ≥ ε²*μ(S)*μ(T), we get
+      -- A_S ≥ ε²/2 * μ(S) * μ(T) as well.
+      --
+      -- Both between-variances B_T, B_S are relatively small,
+      -- so splitting a single part using the between-variance approach
+      -- does not give a useful energy increment.
+      --
+      -- The standard FK proof handles this case by splitting ALL parts
+      -- using a global cut set A (cut-norm approach), which requires
+      -- additional infrastructure not yet available.
+      --
+      -- Example: W(x,y) = 1_{same half} with P = {[0,1]} has both
+      -- within-variances large while between-variances are small.
+      have _h_A_S_large : A_S ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := by
+        push_neg at h_split_T_sym; linarith [h_sum_sym]
+      sorry
 
 end Energy
 
@@ -1872,9 +2118,10 @@ This implies that W is ε-close to the step graphon stepify P W in cut norm.
 1. Start with trivial partition P₀ = {α}
 2. While there exists a "bad" rectangle (defect ≥ ε² per unit area):
    - Apply energy_increment to get P_{i+1}
-   - This increases energy by ≥ ε⁴/C
-3. Since energy ≤ 1, we get at most C/ε⁴ iterations
-4. Each iteration at most doubles parts, so final count ≤ 2^{C/ε⁴}
+   - This strictly increases the energy
+3. With a quantitative energy increment (not yet proved), energy ≤ 1
+   bounds the number of iterations
+4. Each iteration at most doubles parts, giving a bound on the final count
 5. More careful analysis gives polynomial bound ~1/ε⁸ -/
 theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ P : MeasurablePartition α μ,
@@ -1882,10 +2129,10 @@ theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
       defect W P ≤ ε ^ 2 := by
   -- **Proof structure** (Frieze-Kannan iteration with fuel):
   --
-  -- Key insight: energy_increment gives energy increase ≥ ε⁴/4 per iteration,
-  -- and energy ≤ 1, so at most 4/ε⁴ iterations.
+  -- Key insight: energy_increment gives energy strictly increases each step.
+  -- With a quantitative bound, energy ≤ 1 limits the number of iterations.
 
-  -- Define the iteration bound (fuel)
+  -- Define the iteration bound (fuel) — aspirational, pending quantitative increment
   set maxIter : ℕ := Nat.ceil (4 / ε ^ 4) + 1 with hMaxIter_def
 
   -- We prove by strong induction on fuel that:
@@ -1922,16 +2169,17 @@ theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
     -- Since energy is bounded by 1 and strictly increases each step,
     -- we must eventually reach defect ≤ ε² (or the parts count exceeds the bound).
     --
-    -- For a complete proof with a quantitative bound on iterations,
-    -- energy_increment would need to provide energy W Q ≥ energy W P + δ
-    -- for some δ > 0 depending on ε. With the current interface (strict inequality only),
-    -- the number of iterations cannot be bounded without additional structure.
+    -- Two blockers remain for completing this proof:
     --
-    -- A quantitative version of energy_increment would give:
-    --   energy W Q ≥ energy W P + c * ε^5  (for some constant c)
-    -- which bounds iterations by 1/(c * ε^5), giving a polynomial bound on parts.
+    -- 1. Quantitative energy increment: energy_increment currently gives strict
+    --    inequality (energy W Q > energy W P). For bounding iterations, we need
+    --    energy W Q ≥ energy W P + c * ε^k for some constant c, k. This would
+    --    bound iterations by 1/(c * ε^k) since energy ≤ 1.
     --
-    -- For now, we sorry this pending the quantitative energy increment.
+    -- 2. Sub-case 2b of energy_increment: when both within-variances are large,
+    --    a single-part split is insufficient. The standard FK proof uses a
+    --    global cut-norm splitting strategy (splitting ALL parts by one set A),
+    --    which requires additional infrastructure.
     sorry
 
 end Regularity
