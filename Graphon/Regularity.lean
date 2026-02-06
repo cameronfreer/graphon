@@ -1478,8 +1478,157 @@ theorem energy_splitPart_ge (W : Graphon α μ) (P : MeasurablePartition α μ)
   -- This is a standard but tedious combinatorial argument.
   sorry
 
--- Case 2 mirrors Case 1 with swapped roles, doubling the definitional context.
-set_option maxHeartbeats 800000
+/-- When the between-variance of `tAverage W V` on part `A` is large,
+splitting `A` by `exists_variance_cut` produces a refinement with strictly
+larger energy. This is the common core of both Case 1 and Case 2a of
+`energy_increment`. -/
+private theorem energy_increment_of_between_variance
+    (W : Graphon α μ) (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0)
+    (A : Set α) (hA_mem : A ∈ P.parts)
+    (V : Set α) (hV_mem : V ∈ P.parts)
+    (hA_meas : MeasurableSet A) (hV_meas : MeasurableSet V)
+    (hμA : μ A ≠ 0) (hμV : μ V ≠ 0)
+    (h_var : ∫ x in A, (tAverage W V x - rectAverage W A V) ^ 2 ∂μ ≥
+        ε ^ 2 / 2 * (μ A).toReal) :
+    ∃ Q : MeasurablePartition α μ,
+      Refines Q P ∧ Q.parts.card ≤ 2 * P.parts.card ∧
+      energy W Q > energy W P := by
+  -- Measure setup
+  have hμA_top : μ A ≠ ⊤ := (measure_lt_top μ A).ne
+  have hμV_top : μ V ≠ ⊤ := (measure_lt_top μ V).ne
+  have hμA_real_pos : (0 : ℝ) < (μ A).toReal := ENNReal.toReal_pos hμA hμA_top
+  have hμV_real_pos : (0 : ℝ) < (μ V).toReal := ENNReal.toReal_pos hμV hμV_top
+  -- Mean identity and integrability
+  set f := tAverage W V with hf_def
+  have hf_meas : Measurable f := tAverage_measurable W V hV_meas
+  set c := rectAverage W A V with hc_def
+  have hc_mean : c = (μ A).toReal⁻¹ * ∫ x in A, f x ∂μ := by
+    rw [hc_def, hf_def, tAverage_integral_eq_rectAverage W A V hA_meas hV_meas hμA hμV]
+  have hf_int : IntegrableOn f A μ := by
+    apply Measure.integrableOn_of_bounded (M := 1) hμA_top
+    · exact hf_meas.aestronglyMeasurable
+    · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W V hV_meas)] with x hx
+      simp only [Real.norm_eq_abs, abs_le]
+      exact ⟨by linarith [hx.1], by linarith [hx.2]⟩
+  -- ε-scaling: (ε/√2)² = ε²/2
+  set ε' := ε / Real.sqrt 2 with hε'_def
+  have hε'_pos : ε' > 0 := div_pos hε (Real.sqrt_pos.mpr (by norm_num))
+  have h_var' : ∫ x in A, (f x - c) ^ 2 ∂μ ≥ ε' ^ 2 * (μ A).toReal := by
+    have h_eq : ε' ^ 2 = ε ^ 2 / 2 := by
+      rw [hε'_def, div_pow, Real.sq_sqrt (by norm_num : (0 : ℝ) ≤ 2)]
+    rw [h_eq]; exact h_var
+  -- Apply exists_variance_cut
+  obtain ⟨A₁, hA₁_meas, hA₁_sub, hμA₁, hμA₂, h_avg_diff⟩ :=
+    exists_variance_cut f A hA_meas hf_meas hf_int hμA c hc_mean ε' hε'_pos h_var'
+  -- Build the refined partition Q by splitting A
+  let Q := MeasurablePartition.splitPart P A hA_mem A₁ hA₁_meas hA₁_sub hμA₁ hμA₂
+  use Q
+  refine ⟨?_, ?_, ?_⟩
+  -- (a) Q refines P
+  · exact MeasurablePartition.splitPart_refines P A hA_mem A₁ hA₁_meas hA₁_sub hμA₁ hμA₂
+  -- (b) Q has at most 2 * P.parts.card parts
+  · have h_card := MeasurablePartition.splitPart_card P A hA_mem A₁ hA₁_meas hA₁_sub hμA₁ hμA₂
+    have h_P_nonempty : 1 ≤ P.parts.card := Finset.one_le_card.mpr ⟨A, hA_mem⟩
+    calc Q.parts.card ≤ P.parts.card + 1 := h_card
+      _ ≤ P.parts.card + P.parts.card := by omega
+      _ = 2 * P.parts.card := by ring
+  -- (c) Energy strictly increases
+  · set A₂ := A \ A₁ with hA₂_def
+    have hA₂_meas : MeasurableSet A₂ := hA_meas.diff hA₁_meas
+    have hμA₁_top : μ A₁ ≠ ⊤ := (measure_lt_top μ A₁).ne
+    have hμA₂_top : μ A₂ ≠ ⊤ := (measure_lt_top μ A₂).ne
+    have hμA₁_real_pos : 0 < (μ A₁).toReal := ENNReal.toReal_pos hμA₁ hμA₁_top
+    have hμA₂_real_pos : 0 < (μ A₂).toReal := ENNReal.toReal_pos hμA₂ hμA₂_top
+    -- Sub-averages
+    set c₁ := (μ A₁).toReal⁻¹ * ∫ x in A₁, f x ∂μ with hc₁_def
+    set c₂ := (μ A₂).toReal⁻¹ * ∫ x in A₂, f x ∂μ with hc₂_def
+    -- Connect to rectAverage
+    have hc₁_rect : c₁ = rectAverage W A₁ V := by
+      rw [hc₁_def, hf_def]
+      exact tAverage_integral_eq_rectAverage W A₁ V hA₁_meas hV_meas hμA₁ hμV
+    have hc₂_rect : c₂ = rectAverage W A₂ V := by
+      rw [hc₂_def, hf_def]
+      exact tAverage_integral_eq_rectAverage W A₂ V hA₂_meas hV_meas hμA₂ hμV
+    -- Weighted average identity
+    have h_A_union : A = A₁ ∪ A₂ := by
+      rw [hA₂_def, Set.union_diff_cancel hA₁_sub]
+    have h_disj : Disjoint A₁ A₂ := by
+      rw [hA₂_def]; exact Set.disjoint_sdiff_right
+    have hμ_add : (μ A).toReal = (μ A₁).toReal + (μ A₂).toReal := by
+      rw [h_A_union, measure_union h_disj hA₂_meas]
+      exact ENNReal.toReal_add hμA₁_top hμA₂_top
+    have h_int_add : ∫ x in A, f x ∂μ = ∫ x in A₁, f x ∂μ + ∫ x in A₂, f x ∂μ := by
+      rw [h_A_union]
+      exact setIntegral_union h_disj hA₂_meas (hf_int.mono hA₁_sub le_rfl)
+        (hf_int.mono (Set.diff_subset) le_rfl)
+    have hc_weighted : c = ((μ A₁).toReal * c₁ + (μ A₂).toReal * c₂) / (μ A).toReal := by
+      rw [hc_mean, h_int_add, hc₁_def, hc₂_def]
+      field_simp [ne_of_gt hμA₁_real_pos, ne_of_gt hμA₂_real_pos, ne_of_gt hμA_real_pos]
+    -- Get |c₁ - c₂| ≥ ε'/2
+    have h_c1_c : c₁ - c = (μ A₂).toReal / (μ A).toReal * (c₁ - c₂) := by
+      rw [hc_weighted, hμ_add]
+      field_simp [ne_of_gt hμA_real_pos]
+      ring
+    have h_c2_c : c₂ - c = -(μ A₁).toReal / (μ A).toReal * (c₁ - c₂) := by
+      rw [hc_weighted, hμ_add]
+      field_simp [ne_of_gt hμA_real_pos]
+      ring
+    have h_diff_bound : |c₁ - c₂| ≥ ε' / 2 := by
+      rcases h_avg_diff with h1 | h2
+      · rw [h_c1_c] at h1
+        have h_ratio_le_one : (μ A₂).toReal / (μ A).toReal ≤ 1 := by
+          rw [div_le_one hμA_real_pos, hμ_add]; linarith
+        have h_ratio_pos : 0 < (μ A₂).toReal / (μ A).toReal :=
+          div_pos hμA₂_real_pos hμA_real_pos
+        rw [abs_mul, abs_of_pos h_ratio_pos] at h1
+        calc |c₁ - c₂| ≥ (μ A₂).toReal / (μ A).toReal * |c₁ - c₂| := by
+              nlinarith [abs_nonneg (c₁ - c₂)]
+          _ ≥ ε' / 2 := h1
+      · rw [h_c2_c] at h2
+        have h_ratio_le_one : (μ A₁).toReal / (μ A).toReal ≤ 1 := by
+          rw [div_le_one hμA_real_pos, hμ_add]; linarith
+        have h_ratio_pos : 0 < (μ A₁).toReal / (μ A).toReal :=
+          div_pos hμA₁_real_pos hμA_real_pos
+        have h_abs_eq : |-(μ A₁).toReal / (μ A).toReal * (c₁ - c₂)| =
+            (μ A₁).toReal / (μ A).toReal * |c₁ - c₂| := by
+          rw [neg_div, neg_mul, abs_neg, abs_mul, abs_of_pos h_ratio_pos]
+        rw [h_abs_eq] at h2
+        calc |c₁ - c₂| ≥ (μ A₁).toReal / (μ A).toReal * |c₁ - c₂| := by
+              nlinarith [abs_nonneg (c₁ - c₂)]
+          _ ≥ ε' / 2 := h2
+    -- Energy strictly increases using energy_splitPart_ge
+    have h_sq_diff_bound : (c₁ - c₂) ^ 2 ≥ (ε' / 2) ^ 2 := by
+      calc (c₁ - c₂) ^ 2 = |c₁ - c₂| ^ 2 := by rw [sq_abs]
+        _ ≥ (ε' / 2) ^ 2 := by
+          apply sq_le_sq'
+          · linarith [abs_nonneg (c₁ - c₂), hε'_pos]
+          · exact h_diff_bound
+    have h_ge := energy_splitPart_ge W P A hA_mem A₁ hA₁_meas hA₁_sub hμA₁ hμA₂
+    have h_rect_avg_eq₁ : rectAverage W A₁ V = c₁ := hc₁_rect.symm
+    have h_rect_avg_eq₂ : rectAverage W (A \ A₁) V = c₂ := hc₂_rect.symm
+    have h_V_term_pos : (μ V).toReal * (μ A₁).toReal * (μ (A \ A₁)).toReal / (μ A).toReal *
+        (rectAverage W A₁ V - rectAverage W (A \ A₁) V) ^ 2 > 0 := by
+      rw [h_rect_avg_eq₁, h_rect_avg_eq₂]
+      apply mul_pos
+      · apply div_pos
+        · apply mul_pos (mul_pos hμV_real_pos hμA₁_real_pos) hμA₂_real_pos
+        · exact hμA_real_pos
+      · linarith [sq_nonneg (ε' / 2), sq_pos_of_pos hε'_pos]
+    have h_sum_pos : P.parts.sum (fun U => (μ U).toReal * (μ A₁).toReal *
+        (μ (A \ A₁)).toReal / (μ A).toReal *
+        (rectAverage W A₁ U - rectAverage W (A \ A₁) U) ^ 2) > 0 := by
+      have h_nonneg : ∀ U ∈ P.parts, 0 ≤ (μ U).toReal * (μ A₁).toReal *
+          (μ (A \ A₁)).toReal / (μ A).toReal *
+          (rectAverage W A₁ U - rectAverage W (A \ A₁) U) ^ 2 := by
+        intro U _
+        apply mul_nonneg
+        · apply div_nonneg
+          · apply mul_nonneg (mul_nonneg ENNReal.toReal_nonneg ENNReal.toReal_nonneg)
+              ENNReal.toReal_nonneg
+          · exact ENNReal.toReal_nonneg
+        · exact sq_nonneg _
+      exact (Finset.sum_pos_iff_of_nonneg h_nonneg).mpr ⟨V, hV_mem, h_V_term_pos⟩
+    linarith [h_ge]
 
 /-- Energy increment lemma (Frieze-Kannan style).
 
@@ -1579,194 +1728,17 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
   rcases h_case_split with h_split_S | h_split_T
 
   -- **Case 1**: Between-T variance is large → split S
-  · -- B_T = ∫_S (W_T - c)² ≥ ε²/2 * μ(S)  (dividing by μ(T))
+  · -- B_T ≥ ε²/2 * μ(S) (dividing by μ(T))
     have h_var : B_T ≥ ε ^ 2 / 2 * (μ S).toReal := by
       have : (μ T).toReal * B_T ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := h_split_S
       have hB_T_nonneg : B_T ≥ 0 := setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
       nlinarith [sq_nonneg ε, hμT_real_pos, hμS_real_pos]
-
-    -- Mean of W_T on S equals c
-    have hc_mean : c = (μ S).toReal⁻¹ * ∫ x in S, W_T x ∂μ := by
-      rw [hc_def, hW_T_def, tAverage_integral_eq_rectAverage W S T hS_meas hT_meas hμS_pos hμT_pos]
-
-    -- Integrability of W_T on S
-    have hW_T_int : IntegrableOn W_T S μ := by
-      apply Measure.integrableOn_of_bounded (M := 1) hμS_top
-      · exact hW_T_meas.aestronglyMeasurable
-      · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W T hT_meas)] with x hx
-        simp only [Real.norm_eq_abs, abs_le]
-        exact ⟨by linarith [hx.1], by linarith [hx.2]⟩
-
-    -- Apply exists_variance_cut to get the cut S₁
-    -- Note: h_var gives B_T ≥ ε²/2 * μ(S), but exists_variance_cut needs ≥ ε² * μ(S)
-    -- We use (ε/√2)² * μ(S) = ε²/2 * μ(S)
-    set ε' := ε / Real.sqrt 2 with hε'_def
-    have hε'_pos : ε' > 0 := div_pos hε (Real.sqrt_pos.mpr (by norm_num))
-    have h_var' : B_T ≥ ε' ^ 2 * (μ S).toReal := by
-      have h2_pos : (0 : ℝ) < 2 := by norm_num
-      have h_eq : ε' ^ 2 = ε ^ 2 / 2 := by
-        rw [hε'_def, div_pow, Real.sq_sqrt (le_of_lt h2_pos)]
-      rw [h_eq]
-      exact h_var
-
-    obtain ⟨S₁, hS₁_meas, hS₁_sub, hμS₁_pos, hμS₂_pos, h_avg_diff⟩ :=
-      exists_variance_cut W_T S hS_meas hW_T_meas hW_T_int hμS_pos c hc_mean ε' hε'_pos h_var'
-
-    -- Build the refined partition Q by splitting S
-    let Q := MeasurablePartition.splitPart P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
-    use Q
-    refine ⟨?_, ?_, ?_⟩
-    -- (a) Q refines P
-    · exact MeasurablePartition.splitPart_refines P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
-    -- (b) Q has at most 2 * P.parts.card parts
-    · have h_card := MeasurablePartition.splitPart_card P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
-      have h_P_nonempty : 1 ≤ P.parts.card := Finset.one_le_card.mpr ⟨S, hS_mem⟩
-      calc Q.parts.card ≤ P.parts.card + 1 := h_card
-        _ ≤ P.parts.card + P.parts.card := by omega
-        _ = 2 * P.parts.card := by ring
-    -- (c) Energy strictly increases
-    · -- Energy increment from splitting S
-      -- Step 1: Define S₂ and the rectAverages c₁, c₂
-      set S₂ := S \ S₁ with hS₂_def
-      have hS₂_meas : MeasurableSet S₂ := hS_meas.diff hS₁_meas
-      have hμS₁_top : μ S₁ ≠ ⊤ := (measure_lt_top μ S₁).ne
-      have hμS₂_top : μ S₂ ≠ ⊤ := (measure_lt_top μ S₂).ne
-      have hμS₁_real_pos : 0 < (μ S₁).toReal := ENNReal.toReal_pos hμS₁_pos hμS₁_top
-      have hμS₂_real_pos : 0 < (μ S₂).toReal := ENNReal.toReal_pos hμS₂_pos hμS₂_top
-
-      -- The averages from h_avg_diff are exactly the rectAverages
-      set c₁ := (μ S₁).toReal⁻¹ * ∫ x in S₁, W_T x ∂μ with hc₁_def
-      set c₂ := (μ S₂).toReal⁻¹ * ∫ x in S₂, W_T x ∂μ with hc₂_def
-
-      -- c₁ = rectAverage W S₁ T by tAverage_integral_eq_rectAverage
-      have hc₁_rect : c₁ = rectAverage W S₁ T := by
-        rw [hc₁_def, hW_T_def]
-        exact tAverage_integral_eq_rectAverage W S₁ T hS₁_meas hT_meas hμS₁_pos hμT_pos
-
-      have hc₂_rect : c₂ = rectAverage W S₂ T := by
-        rw [hc₂_def, hW_T_def]
-        exact tAverage_integral_eq_rectAverage W S₂ T hS₂_meas hT_meas hμS₂_pos hμT_pos
-
-      -- Step 2: c is the weighted average of c₁ and c₂
-      -- From additivity of integrals: ∫_S f = ∫_{S₁} f + ∫_{S₂} f
-      have h_S_union : S = S₁ ∪ S₂ := by
-        rw [hS₂_def, Set.union_diff_cancel hS₁_sub]
-      have h_disj : Disjoint S₁ S₂ := by
-        rw [hS₂_def]; exact Set.disjoint_sdiff_right
-      have hμ_add : (μ S).toReal = (μ S₁).toReal + (μ S₂).toReal := by
-        rw [h_S_union, measure_union h_disj hS₂_meas]
-        exact ENNReal.toReal_add hμS₁_top hμS₂_top
-
-      have h_int_add : ∫ x in S, W_T x ∂μ = ∫ x in S₁, W_T x ∂μ + ∫ x in S₂, W_T x ∂μ := by
-        rw [h_S_union]
-        exact setIntegral_union h_disj hS₂_meas (hW_T_int.mono hS₁_sub le_rfl)
-          (hW_T_int.mono (Set.diff_subset) le_rfl)
-
-      -- c = μ(S)⁻¹ * ∫_S W_T = μ(S)⁻¹ * (∫_{S₁} W_T + ∫_{S₂} W_T)
-      --   = μ(S)⁻¹ * (μ(S₁) c₁ + μ(S₂) c₂)
-      have hc_weighted : c = ((μ S₁).toReal * c₁ + (μ S₂).toReal * c₂) / (μ S).toReal := by
-        rw [hc_mean, h_int_add, hc₁_def, hc₂_def]
-        field_simp [ne_of_gt hμS₁_real_pos, ne_of_gt hμS₂_real_pos, ne_of_gt hμS_real_pos]
-
-      -- Step 3: Get |c₁ - c₂| ≥ ε'/2 from h_avg_diff
-      -- From the between-variance formula:
-      -- μ(S₁)(c₁ - c)² + μ(S₂)(c₂ - c)² = μ(S₁)μ(S₂)/μ(S) * (c₁ - c₂)²
-      --
-      -- And from weighted average: c₁ - c = μ(S₂)/μ(S) * (c₁ - c₂)
-      --                            c₂ - c = -μ(S₁)/μ(S) * (c₁ - c₂)
-
-      have h_c1_c : c₁ - c = (μ S₂).toReal / (μ S).toReal * (c₁ - c₂) := by
-        rw [hc_weighted, hμ_add]
-        field_simp [ne_of_gt hμS_real_pos]
-        ring
-
-      have h_c2_c : c₂ - c = -(μ S₁).toReal / (μ S).toReal * (c₁ - c₂) := by
-        rw [hc_weighted, hμ_add]
-        field_simp [ne_of_gt hμS_real_pos]
-        ring
-
-      -- From h_avg_diff: |c₁ - c| ≥ ε'/2 or |c₂ - c| ≥ ε'/2
-      have h_diff_bound : |c₁ - c₂| ≥ ε' / 2 := by
-        rcases h_avg_diff with h1 | h2
-        · -- Case |c₁ - c| ≥ ε'/2
-          rw [h_c1_c] at h1
-          -- |(μ(S₂)/μ(S)) * (c₁ - c₂)| ≥ ε'/2
-          -- Since μ(S₂)/μ(S) ≤ 1, we get |c₁ - c₂| ≥ ε'/2
-          have h_ratio_le_one : (μ S₂).toReal / (μ S).toReal ≤ 1 := by
-            rw [div_le_one hμS_real_pos, hμ_add]
-            linarith
-          have h_ratio_pos : 0 < (μ S₂).toReal / (μ S).toReal :=
-            div_pos hμS₂_real_pos hμS_real_pos
-          rw [abs_mul, abs_of_pos h_ratio_pos] at h1
-          calc |c₁ - c₂| ≥ (μ S₂).toReal / (μ S).toReal * |c₁ - c₂| := by
-                nlinarith [abs_nonneg (c₁ - c₂)]
-            _ ≥ ε' / 2 := h1
-        · -- Case |c₂ - c| ≥ ε'/2 (symmetric)
-          rw [h_c2_c] at h2
-          have h_ratio_le_one : (μ S₁).toReal / (μ S).toReal ≤ 1 := by
-            rw [div_le_one hμS_real_pos, hμ_add]
-            linarith
-          have h_ratio_pos : 0 < (μ S₁).toReal / (μ S).toReal :=
-            div_pos hμS₁_real_pos hμS_real_pos
-          -- |-(a/b) * x| = |a/b| * |x| = (a/b) * |x| since a/b > 0
-          have h_abs_eq : |-(μ S₁).toReal / (μ S).toReal * (c₁ - c₂)| =
-              (μ S₁).toReal / (μ S).toReal * |c₁ - c₂| := by
-            rw [neg_div, neg_mul, abs_neg, abs_mul, abs_of_pos h_ratio_pos]
-          rw [h_abs_eq] at h2
-          calc |c₁ - c₂| ≥ (μ S₁).toReal / (μ S).toReal * |c₁ - c₂| := by
-                nlinarith [abs_nonneg (c₁ - c₂)]
-            _ ≥ ε' / 2 := h2
-
-      -- Step 4: Energy strictly increases using energy_splitPart_ge
-      -- By energy_splitPart_ge, we have:
-      --   energy W Q ≥ energy W P + Σ_U μ(U) * μ(S₁) * μ(S₂) / μ(S) * (c₁_U - c₂_U)²
-      -- where c₁_U = rectAverage W S₁ U and c₂_U = rectAverage W (S\S₁) U.
-      --
-      -- The T-th term of the sum is:
-      --   μ(T) * μ(S₁) * μ(S₂) / μ(S) * (rectAverage W S₁ T - rectAverage W (S\S₁) T)²
-      -- which equals μ(T) * μ(S₁) * μ(S₂) / μ(S) * (c₁ - c₂)² > 0
-      -- since all measure factors are positive and (c₁ - c₂)² ≥ (ε'/2)² > 0.
-
-      have h_sq_diff_bound : (c₁ - c₂) ^ 2 ≥ (ε' / 2) ^ 2 := by
-        calc (c₁ - c₂) ^ 2 = |c₁ - c₂| ^ 2 := by rw [sq_abs]
-          _ ≥ (ε' / 2) ^ 2 := by
-            apply sq_le_sq'
-            · linarith [abs_nonneg (c₁ - c₂), hε'_pos]
-            · exact h_diff_bound
-
-      -- The sum in energy_splitPart_ge is nonneg (each term is nonneg)
-      have h_ge := energy_splitPart_ge W P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
-
-      -- The T-th term of the sum is strictly positive
-      have h_rect_avg_eq₁ : rectAverage W S₁ T = c₁ := hc₁_rect.symm
-      have h_rect_avg_eq₂ : rectAverage W (S \ S₁) T = c₂ := hc₂_rect.symm
-
-      -- Show the sum is strictly positive by bounding from below by the T-th term
-      have h_T_term_pos : (μ T).toReal * (μ S₁).toReal * (μ (S \ S₁)).toReal / (μ S).toReal *
-          (rectAverage W S₁ T - rectAverage W (S \ S₁) T) ^ 2 > 0 := by
-        rw [h_rect_avg_eq₁, h_rect_avg_eq₂]
-        apply mul_pos
-        · apply div_pos
-          · apply mul_pos (mul_pos hμT_real_pos hμS₁_real_pos) hμS₂_real_pos
-          · exact hμS_real_pos
-        · linarith [sq_nonneg (ε' / 2), sq_pos_of_pos hε'_pos]
-
-      have h_sum_pos : P.parts.sum (fun U => (μ U).toReal * (μ S₁).toReal *
-          (μ (S \ S₁)).toReal / (μ S).toReal *
-          (rectAverage W S₁ U - rectAverage W (S \ S₁) U) ^ 2) > 0 := by
-        have h_nonneg : ∀ U ∈ P.parts, 0 ≤ (μ U).toReal * (μ S₁).toReal *
-            (μ (S \ S₁)).toReal / (μ S).toReal *
-            (rectAverage W S₁ U - rectAverage W (S \ S₁) U) ^ 2 := by
-          intro U _
-          apply mul_nonneg
-          · apply div_nonneg
-            · apply mul_nonneg (mul_nonneg ENNReal.toReal_nonneg ENNReal.toReal_nonneg)
-                ENNReal.toReal_nonneg
-            · exact ENNReal.toReal_nonneg
-          · exact sq_nonneg _
-        exact (Finset.sum_pos_iff_of_nonneg h_nonneg).mpr ⟨T, hT_mem, h_T_term_pos⟩
-
-      linarith [h_ge]
+    -- Unfold set definitions to match the helper's type
+    have h_var_unfolded : ∫ x in S, (tAverage W T x - rectAverage W S T) ^ 2 ∂μ ≥
+        ε ^ 2 / 2 * (μ S).toReal := by
+      rw [← hW_T_def, ← hc_def, ← hB_T_def]; exact h_var
+    exact energy_increment_of_between_variance W P ε hε
+      S hS_mem T hT_mem hS_meas hT_meas hμS_pos hμT_pos h_var_unfolded
 
   -- **Case 2**: Within-T variance is large → use symmetric decomposition
   · -- A_T ≥ ε²/2 * μ(S) * μ(T), meaning the within-T variance is large.
@@ -1815,176 +1787,17 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
     by_cases h_split_T_sym : (μ S).toReal * B_S ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal
 
     -- **Sub-case 2a**: Between-S variance on T is large → split T
-    -- This mirrors Case 1 with S ↔ T swapped.
-    · -- B_S = ∫_T (W_S - c')² ≥ ε²/2 * μ(T)  (dividing by μ(S))
+    · -- B_S ≥ ε²/2 * μ(T) (dividing by μ(S))
       have h_var : B_S ≥ ε ^ 2 / 2 * (μ T).toReal := by
         have : (μ S).toReal * B_S ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := h_split_T_sym
         have hB_S_nonneg : B_S ≥ 0 := setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
         nlinarith [sq_nonneg ε, hμS_real_pos, hμT_real_pos]
-
-      -- Mean of W_S on T equals c' = rectAverage W T S
-      have hc'_mean : c' = (μ T).toReal⁻¹ * ∫ y in T, W_S y ∂μ := by
-        rw [hc'_def, hW_S_def, tAverage_integral_eq_rectAverage W T S hT_meas hS_meas hμT_pos hμS_pos]
-
-      -- Integrability of W_S on T
-      have hW_S_int : IntegrableOn W_S T μ := by
-        apply Measure.integrableOn_of_bounded (M := 1) hμT_top
-        · exact hW_S_meas.aestronglyMeasurable
-        · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W S hS_meas)] with x hx
-          simp only [Real.norm_eq_abs, abs_le]
-          exact ⟨by linarith [hx.1], by linarith [hx.2]⟩
-
-      -- Apply exists_variance_cut to get the cut T₁ ⊆ T
-      set ε' := ε / Real.sqrt 2 with hε'_def
-      have hε'_pos : ε' > 0 := div_pos hε (Real.sqrt_pos.mpr (by norm_num))
-      have h_var' : B_S ≥ ε' ^ 2 * (μ T).toReal := by
-        have h2_pos : (0 : ℝ) < 2 := by norm_num
-        have h_eq : ε' ^ 2 = ε ^ 2 / 2 := by
-          rw [hε'_def, div_pow, Real.sq_sqrt (le_of_lt h2_pos)]
-        rw [h_eq]
-        exact h_var
-
-      obtain ⟨T₁, hT₁_meas, hT₁_sub, hμT₁_pos, hμT₂_pos, h_avg_diff⟩ :=
-        exists_variance_cut W_S T hT_meas hW_S_meas hW_S_int hμT_pos c' hc'_mean ε' hε'_pos h_var'
-
-      -- Build the refined partition Q by splitting T
-      let Q := MeasurablePartition.splitPart P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
-      use Q
-      refine ⟨?_, ?_, ?_⟩
-      -- (a) Q refines P
-      · exact MeasurablePartition.splitPart_refines P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
-      -- (b) Q has at most 2 * P.parts.card parts
-      · have h_card := MeasurablePartition.splitPart_card P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
-        have h_P_nonempty : 1 ≤ P.parts.card := Finset.one_le_card.mpr ⟨T, hT_mem⟩
-        calc Q.parts.card ≤ P.parts.card + 1 := h_card
-          _ ≤ P.parts.card + P.parts.card := by omega
-          _ = 2 * P.parts.card := by ring
-      -- (c) Energy strictly increases
-      · -- Energy increment from splitting T
-        set T₂ := T \ T₁ with hT₂_def
-        have hT₂_meas : MeasurableSet T₂ := hT_meas.diff hT₁_meas
-        have hμT₁_top : μ T₁ ≠ ⊤ := (measure_lt_top μ T₁).ne
-        have hμT₂_top : μ T₂ ≠ ⊤ := (measure_lt_top μ T₂).ne
-        have hμT₁_real_pos : 0 < (μ T₁).toReal := ENNReal.toReal_pos hμT₁_pos hμT₁_top
-        have hμT₂_real_pos : 0 < (μ T₂).toReal := ENNReal.toReal_pos hμT₂_pos hμT₂_top
-
-        -- The averages from h_avg_diff are exactly the rectAverages
-        set d₁ := (μ T₁).toReal⁻¹ * ∫ y in T₁, W_S y ∂μ with hd₁_def
-        set d₂ := (μ T₂).toReal⁻¹ * ∫ y in T₂, W_S y ∂μ with hd₂_def
-
-        -- d₁ = rectAverage W T₁ S by tAverage_integral_eq_rectAverage
-        have hd₁_rect : d₁ = rectAverage W T₁ S := by
-          rw [hd₁_def, hW_S_def]
-          exact tAverage_integral_eq_rectAverage W T₁ S hT₁_meas hS_meas hμT₁_pos hμS_pos
-
-        have hd₂_rect : d₂ = rectAverage W T₂ S := by
-          rw [hd₂_def, hW_S_def]
-          exact tAverage_integral_eq_rectAverage W T₂ S hT₂_meas hS_meas hμT₂_pos hμS_pos
-
-        -- c' is the weighted average of d₁ and d₂
-        have h_T_union : T = T₁ ∪ T₂ := by
-          rw [hT₂_def, Set.union_diff_cancel hT₁_sub]
-        have h_disj : Disjoint T₁ T₂ := by
-          rw [hT₂_def]; exact Set.disjoint_sdiff_right
-        have hμ_add : (μ T).toReal = (μ T₁).toReal + (μ T₂).toReal := by
-          rw [h_T_union, measure_union h_disj hT₂_meas]
-          exact ENNReal.toReal_add hμT₁_top hμT₂_top
-
-        have h_int_add : ∫ y in T, W_S y ∂μ = ∫ y in T₁, W_S y ∂μ + ∫ y in T₂, W_S y ∂μ := by
-          rw [h_T_union]
-          exact setIntegral_union h_disj hT₂_meas (hW_S_int.mono hT₁_sub le_rfl)
-            (hW_S_int.mono (Set.diff_subset) le_rfl)
-
-        have hc'_weighted : c' = ((μ T₁).toReal * d₁ + (μ T₂).toReal * d₂) / (μ T).toReal := by
-          rw [hc'_mean, h_int_add, hd₁_def, hd₂_def]
-          field_simp [ne_of_gt hμT₁_real_pos, ne_of_gt hμT₂_real_pos, ne_of_gt hμT_real_pos]
-
-        -- Get |d₁ - d₂| ≥ ε'/2 from h_avg_diff
-        have h_d1_c' : d₁ - c' = (μ T₂).toReal / (μ T).toReal * (d₁ - d₂) := by
-          rw [hc'_weighted, hμ_add]
-          field_simp [ne_of_gt hμT_real_pos]
-          ring
-
-        have h_d2_c' : d₂ - c' = -(μ T₁).toReal / (μ T).toReal * (d₁ - d₂) := by
-          rw [hc'_weighted, hμ_add]
-          field_simp [ne_of_gt hμT_real_pos]
-          ring
-
-        have h_diff_bound : |d₁ - d₂| ≥ ε' / 2 := by
-          rcases h_avg_diff with h1 | h2
-          · -- Case |d₁ - c'| ≥ ε'/2
-            rw [h_d1_c'] at h1
-            have h_ratio_le_one : (μ T₂).toReal / (μ T).toReal ≤ 1 := by
-              rw [div_le_one hμT_real_pos, hμ_add]
-              linarith
-            have h_ratio_pos : 0 < (μ T₂).toReal / (μ T).toReal :=
-              div_pos hμT₂_real_pos hμT_real_pos
-            rw [abs_mul, abs_of_pos h_ratio_pos] at h1
-            calc |d₁ - d₂| ≥ (μ T₂).toReal / (μ T).toReal * |d₁ - d₂| := by
-                  nlinarith [abs_nonneg (d₁ - d₂)]
-              _ ≥ ε' / 2 := h1
-          · -- Case |d₂ - c'| ≥ ε'/2 (symmetric)
-            rw [h_d2_c'] at h2
-            have h_ratio_le_one : (μ T₁).toReal / (μ T).toReal ≤ 1 := by
-              rw [div_le_one hμT_real_pos, hμ_add]
-              linarith
-            have h_ratio_pos : 0 < (μ T₁).toReal / (μ T).toReal :=
-              div_pos hμT₁_real_pos hμT_real_pos
-            have h_abs_eq : |-(μ T₁).toReal / (μ T).toReal * (d₁ - d₂)| =
-                (μ T₁).toReal / (μ T).toReal * |d₁ - d₂| := by
-              rw [neg_div, neg_mul, abs_neg, abs_mul, abs_of_pos h_ratio_pos]
-            rw [h_abs_eq] at h2
-            calc |d₁ - d₂| ≥ (μ T₁).toReal / (μ T).toReal * |d₁ - d₂| := by
-                  nlinarith [abs_nonneg (d₁ - d₂)]
-              _ ≥ ε' / 2 := h2
-
-        -- Energy strictly increases using energy_splitPart_ge
-        -- For splitting T, we need rectAverage on T₁ and T₂ columns.
-        -- energy_splitPart_ge gives:
-        --   energy W Q ≥ energy W P + Σ_U μ(U) * μ(T₁) * μ(T₂) / μ(T) * (rectAverage W T₁ U - rectAverage W T₂ U)²
-        -- The S-th term has (rectAverage W T₁ S - rectAverage W T₂ S)² > 0
-
-        have h_sq_diff_bound : (d₁ - d₂) ^ 2 ≥ (ε' / 2) ^ 2 := by
-          calc (d₁ - d₂) ^ 2 = |d₁ - d₂| ^ 2 := by rw [sq_abs]
-            _ ≥ (ε' / 2) ^ 2 := by
-              apply sq_le_sq'
-              · linarith [abs_nonneg (d₁ - d₂), hε'_pos]
-              · exact h_diff_bound
-
-        have h_ge := energy_splitPart_ge W P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
-
-        -- The rectAverages match d₁, d₂ via symmetry
-        -- rectAverage W T₁ S = d₁ (directly from hd₁_rect)
-        -- rectAverage W (T \ T₁) S = d₂ (directly from hd₂_rect)
-        have h_rect_avg_eq₁ : rectAverage W T₁ S = d₁ := hd₁_rect.symm
-        have h_rect_avg_eq₂ : rectAverage W (T \ T₁) S = d₂ := hd₂_rect.symm
-
-        -- Show the sum is strictly positive by bounding from below by the S-th term
-        have h_S_term_pos : (μ S).toReal * (μ T₁).toReal * (μ (T \ T₁)).toReal / (μ T).toReal *
-            (rectAverage W T₁ S - rectAverage W (T \ T₁) S) ^ 2 > 0 := by
-          rw [h_rect_avg_eq₁, h_rect_avg_eq₂]
-          apply mul_pos
-          · apply div_pos
-            · apply mul_pos (mul_pos hμS_real_pos hμT₁_real_pos) hμT₂_real_pos
-            · exact hμT_real_pos
-          · linarith [sq_nonneg (ε' / 2), sq_pos_of_pos hε'_pos]
-
-        have h_sum_pos : P.parts.sum (fun U => (μ U).toReal * (μ T₁).toReal *
-            (μ (T \ T₁)).toReal / (μ T).toReal *
-            (rectAverage W T₁ U - rectAverage W (T \ T₁) U) ^ 2) > 0 := by
-          have h_nonneg : ∀ U ∈ P.parts, 0 ≤ (μ U).toReal * (μ T₁).toReal *
-              (μ (T \ T₁)).toReal / (μ T).toReal *
-              (rectAverage W T₁ U - rectAverage W (T \ T₁) U) ^ 2 := by
-            intro U _
-            apply mul_nonneg
-            · apply div_nonneg
-              · apply mul_nonneg (mul_nonneg ENNReal.toReal_nonneg ENNReal.toReal_nonneg)
-                  ENNReal.toReal_nonneg
-              · exact ENNReal.toReal_nonneg
-            · exact sq_nonneg _
-          exact (Finset.sum_pos_iff_of_nonneg h_nonneg).mpr ⟨S, hS_mem, h_S_term_pos⟩
-
-        linarith [h_ge]
+      -- Unfold set definitions to match the helper's type
+      have h_var_unfolded : ∫ y in T, (tAverage W S y - rectAverage W T S) ^ 2 ∂μ ≥
+          ε ^ 2 / 2 * (μ T).toReal := by
+        rw [← hW_S_def, ← hc'_def, ← hB_S_def]; exact h_var
+      exact energy_increment_of_between_variance W P ε hε
+        T hT_mem S hS_mem hT_meas hS_meas hμT_pos hμS_pos h_var_unfolded
 
     -- **Sub-case 2b**: Between-S variance on T is small → both within-variances are large
     · -- Here A_T ≥ ε²/2 * μ(S) * μ(T) (from Case 2 hypothesis) and
