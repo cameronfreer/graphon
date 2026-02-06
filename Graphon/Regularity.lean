@@ -1675,8 +1675,6 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
   -- Step 2: Define averages and constants
   set W_T := tAverage W T with hW_T_def  -- T-average: W_T(x) = (μT)⁻¹ ∫_T W(x,y)
   set W_S := tAverage W S with hW_S_def  -- S-average: W_S(y) = (μS)⁻¹ ∫_S W(x,y) (by symmetry)
-  have hW_T_meas : Measurable W_T := tAverage_measurable W T hT_meas
-  have hW_S_meas : Measurable W_S := tAverage_measurable W S hS_meas
   set c := rectAverage W S T with hc_def
 
   -- Step 3: Variance decomposition
