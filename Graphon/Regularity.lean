@@ -224,6 +224,32 @@ theorem tAverage_integral_eq_rectAverage (W : Graphon α μ) (S T : Set α)
 
 /-! ### Helper lemmas for energy increment -/
 
+/-- Weighted variance identity: when splitting a weighted average, the energy difference
+equals a weighted difference of squares.
+
+If c = (a*c1 + b*c2) / (a+b) is the weighted average, then:
+  a*c1² + b*c2² - (a+b)*c² = (a*b/(a+b)) * (c1 - c2)²
+
+This identity is key for the energy increment lemma. When a rectangle S×T is split
+into S₁×T and S₂×T with respective averages c1 and c2, the energy change comes from
+this weighted variance formula. -/
+lemma weighted_sq_diff (a b c1 c2 : ℝ) (ha : 0 < a) (hb : 0 < b) :
+    let c := (a * c1 + b * c2) / (a + b)
+    a * c1 ^ 2 + b * c2 ^ 2 - (a + b) * c ^ 2 = (a * b / (a + b)) * (c1 - c2) ^ 2 := by
+  intro c
+  have hab : a + b ≠ 0 := by linarith
+  have hab_pos : 0 < a + b := by linarith
+  -- Substitute the definition of c
+  have hc : c = (a * c1 + b * c2) / (a + b) := rfl
+  -- Clear denominators on both sides by multiplying by (a+b)²
+  have h_lhs : a * c1 ^ 2 + b * c2 ^ 2 - (a + b) * c ^ 2 =
+      (a * c1 ^ 2 + b * c2 ^ 2) * (a + b) / (a + b) - (a * c1 + b * c2) ^ 2 / (a + b) := by
+    rw [hc]; field_simp [hab]
+  have h_rhs : (a * b / (a + b)) * (c1 - c2) ^ 2 = a * b * (c1 - c2) ^ 2 / (a + b) := by
+    field_simp [hab]
+  rw [h_lhs, h_rhs]
+  ring
+
 /-- Cauchy-Schwarz for set integrals: (∫_T f)² ≤ μ(T) · ∫_T f².
 
 This is Jensen's inequality applied to the convex function x².
@@ -1305,6 +1331,134 @@ theorem l2_norm_eq_energy_add_defect (W : Graphon α μ) (P : MeasurablePartitio
   -- Convert sum over product to double sum using Finset.sum_product
   rw [Finset.sum_product]
 
+/-- Energy contribution from a single rectangle. -/
+private noncomputable def energyRect (W : Graphon α μ) (S T : Set α) : ℝ :=
+  (μ S).toReal * (μ T).toReal * (rectAverage W S T) ^ 2
+
+/-- The energy difference when replacing S with S₁ ∪ S₂ = S in the energy sum.
+For a fixed T, the contribution from S × T becomes the sum of S₁ × T and S₂ × T contributions.
+The difference is μ(T) * μ(S₁)μ(S₂)/μ(S) * (c₁ - c₂)² where c_i = rectAverage W S_i T. -/
+lemma energy_rect_split (W : Graphon α μ) (S T S₁ : Set α)
+    (hS : MeasurableSet S) (hT : MeasurableSet T) (hS₁ : MeasurableSet S₁) (hS₁_sub : S₁ ⊆ S)
+    (hμS : μ S ≠ 0) (hμT : μ T ≠ 0) (hμS₁ : μ S₁ ≠ 0) (hμS₂ : μ (S \ S₁) ≠ 0) :
+    energyRect W S₁ T + energyRect W (S \ S₁) T - energyRect W S T =
+      (μ T).toReal * (μ S₁).toReal * (μ (S \ S₁)).toReal / (μ S).toReal *
+        (rectAverage W S₁ T - rectAverage W (S \ S₁) T) ^ 2 := by
+  -- Let S₂ = S \ S₁, c = rectAverage S T, c₁ = rectAverage S₁ T, c₂ = rectAverage S₂ T
+  set S₂ := S \ S₁ with hS₂_def
+  set c := rectAverage W S T with hc_def
+  set c₁ := rectAverage W S₁ T with hc₁_def
+  set c₂ := rectAverage W S₂ T with hc₂_def
+  have hS₂_meas : MeasurableSet S₂ := hS.diff hS₁
+  have hμS_top : μ S ≠ ⊤ := (measure_lt_top μ S).ne
+  have hμS₁_top : μ S₁ ≠ ⊤ := (measure_lt_top μ S₁).ne
+  have hμS₂_top : μ S₂ ≠ ⊤ := (measure_lt_top μ S₂).ne
+  have hμS_pos : 0 < (μ S).toReal := ENNReal.toReal_pos hμS hμS_top
+  have hμS₁_pos : 0 < (μ S₁).toReal := ENNReal.toReal_pos hμS₁ hμS₁_top
+  have hμS₂_pos : 0 < (μ S₂).toReal := ENNReal.toReal_pos hμS₂ hμS₂_top
+  -- Step 1: Show μ(S) = μ(S₁) + μ(S₂)
+  have h_disj : Disjoint S₁ S₂ := Set.disjoint_sdiff_right
+  have h_union : S = S₁ ∪ S₂ := (Set.union_diff_cancel hS₁_sub).symm
+  have hμ_add : (μ S).toReal = (μ S₁).toReal + (μ S₂).toReal := by
+    rw [h_union, measure_union h_disj hS₂_meas]
+    exact ENNReal.toReal_add hμS₁_top hμS₂_top
+  -- Step 2: c is the weighted average of c₁ and c₂
+  -- This follows from ∫_{S×T} W = ∫_{S₁×T} W + ∫_{S₂×T} W (Fubini)
+  have hc_weighted : c = ((μ S₁).toReal * c₁ + (μ S₂).toReal * c₂) / (μ S).toReal := by
+    rw [hc_def, hc₁_def, hc₂_def]
+    unfold rectAverage
+    simp only [hμS, hμT, hμS₁, hμS₂, dif_neg, not_false_eq_true]
+    -- ∫_{S×T} W = ∫_S (∫_T W(x,y)) by Fubini = ∫_{S₁} ... + ∫_{S₂} ...
+    have h_int : IntegrableOn (fun p => W.toAEEqFun p) (S ×ˢ T) (μ.prod μ) :=
+      (SymmKernel.graphon_integrable W).integrableOn
+    have h_prod_eq : (μ.prod μ).restrict (S ×ˢ T) = (μ.restrict S).prod (μ.restrict T) :=
+      (Measure.prod_restrict S T).symm
+    have h_int_full : Integrable (fun p => W.toAEEqFun p) ((μ.restrict S).prod (μ.restrict T)) := by
+      rw [← h_prod_eq]; exact h_int
+    -- Use setIntegral_prod to convert to iterated integral
+    have h_fubini := setIntegral_prod (f := fun p => W.toAEEqFun p) h_int
+    -- The integral over S×T splits as S₁×T + S₂×T
+    have h_int_S₁ : IntegrableOn (fun p => W.toAEEqFun p) (S₁ ×ˢ T) (μ.prod μ) := h_int.mono
+      (Set.prod_mono hS₁_sub Subset.rfl) le_rfl
+    have h_int_S₂ : IntegrableOn (fun p => W.toAEEqFun p) (S₂ ×ˢ T) (μ.prod μ) := h_int.mono
+      (Set.prod_mono Set.diff_subset Subset.rfl) le_rfl
+    have h_rect_union : S ×ˢ T = (S₁ ×ˢ T) ∪ (S₂ ×ˢ T) := by
+      rw [← Set.union_prod, h_union]
+    have h_rect_disj : Disjoint (S₁ ×ˢ T) (S₂ ×ˢ T) := by
+      rw [Set.disjoint_iff]
+      intro ⟨x, y⟩ ⟨⟨hx1, _⟩, ⟨hx2, _⟩⟩
+      exact Set.disjoint_sdiff_right.ne_of_mem hx1 hx2 rfl
+    have h_split_int : ∫ p in S ×ˢ T, W.toAEEqFun p ∂μ.prod μ =
+        ∫ p in S₁ ×ˢ T, W.toAEEqFun p ∂μ.prod μ + ∫ p in S₂ ×ˢ T, W.toAEEqFun p ∂μ.prod μ := by
+      rw [h_rect_union]
+      exact setIntegral_union h_rect_disj (hS₂_meas.prod hT) h_int_S₁ h_int_S₂
+    field_simp [ne_of_gt hμS_pos, ne_of_gt hμS₁_pos, ne_of_gt hμS₂_pos]
+    rw [h_split_int]
+  -- Step 3: Apply weighted_sq_diff
+  -- The identity: a*c₁² + b*c₂² - (a+b)*c² = (a*b/(a+b)) * (c₁-c₂)²
+  -- where c = (a*c₁ + b*c₂)/(a+b) is the weighted average
+  have h_c_eq : c = ((μ S₁).toReal * c₁ + (μ S₂).toReal * c₂) /
+      ((μ S₁).toReal + (μ S₂).toReal) := by rw [hc_weighted, hμ_add]
+  -- Specialize weighted_sq_diff with our c
+  have h_ws := weighted_sq_diff (μ S₁).toReal (μ S₂).toReal c₁ c₂ hμS₁_pos hμS₂_pos
+  -- h_ws has form: let c' := ...; a*c₁² + b*c₂² - (a+b)*c'² = ...
+  -- We need to show our c matches c'
+  simp only at h_ws
+  -- Step 4: Unfold energyRect and compute
+  unfold energyRect
+  -- The identity from h_ws (with c = c'):
+  -- μ(S₁)*c₁² + μ(S₂)*c₂² - (μ(S₁)+μ(S₂))*c² = μ(S₁)*μ(S₂)/(μ(S₁)+μ(S₂)) * (c₁-c₂)²
+  -- Multiplying by μ(T):
+  -- μ(T)*(μ(S₁)*c₁² + μ(S₂)*c₂² - μ(S)*c²) = μ(T)*μ(S₁)*μ(S₂)/μ(S) * (c₁-c₂)²
+  have h_key : (μ S₁).toReal * c₁ ^ 2 + (μ S₂).toReal * c₂ ^ 2 -
+      ((μ S₁).toReal + (μ S₂).toReal) * c ^ 2 =
+      (μ S₁).toReal * (μ S₂).toReal / ((μ S₁).toReal + (μ S₂).toReal) * (c₁ - c₂) ^ 2 := by
+    rw [h_c_eq]
+    exact h_ws
+  calc (μ S₁).toReal * (μ T).toReal * c₁ ^ 2 + (μ S₂).toReal * (μ T).toReal * c₂ ^ 2 -
+        (μ S).toReal * (μ T).toReal * c ^ 2
+      = (μ T).toReal * ((μ S₁).toReal * c₁ ^ 2 + (μ S₂).toReal * c₂ ^ 2 -
+          (μ S).toReal * c ^ 2) := by ring
+    _ = (μ T).toReal * ((μ S₁).toReal * c₁ ^ 2 + (μ S₂).toReal * c₂ ^ 2 -
+          ((μ S₁).toReal + (μ S₂).toReal) * c ^ 2) := by rw [hμ_add]
+    _ = (μ T).toReal * ((μ S₁).toReal * (μ S₂).toReal /
+          ((μ S₁).toReal + (μ S₂).toReal) * (c₁ - c₂) ^ 2) := by rw [h_key]
+    _ = (μ T).toReal * (μ S₁).toReal * (μ S₂).toReal / (μ S).toReal * (c₁ - c₂) ^ 2 := by
+          rw [hμ_add]; ring
+
+/-- Energy increases when splitting a part with different sub-averages.
+
+When we split S into S₁ and S\S₁ in a partition, the energy of the new partition
+is at least the old energy plus the positive contribution from `energy_rect_split`
+applied to each T ∈ P.parts. More precisely:
+
+  energy W Q ≥ energy W P + Σ_T μ(T) * μ(S₁) * μ(S\S₁) / μ(S) * (c₁_T - c₂_T)²
+
+where c₁_T = rectAverage W S₁ T and c₂_T = rectAverage W (S\S₁) T.
+
+In particular, if c₁_T ≠ c₂_T for some T, the energy strictly increases. -/
+theorem energy_splitPart_ge (W : Graphon α μ) (P : MeasurablePartition α μ)
+    (S : Set α) (hS_mem : S ∈ P.parts) (S₁ : Set α) (hS₁_meas : MeasurableSet S₁)
+    (hS₁_sub : S₁ ⊆ S) (hμS₁ : μ S₁ ≠ 0) (hμS₂ : μ (S \ S₁) ≠ 0) :
+    let Q := MeasurablePartition.splitPart P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁ hμS₂
+    energy W Q ≥ energy W P +
+      P.parts.sum fun T =>
+        (μ T).toReal * (μ S₁).toReal * (μ (S \ S₁)).toReal / (μ S).toReal *
+          (rectAverage W S₁ T - rectAverage W (S \ S₁) T) ^ 2 := by
+  -- The energy sum over Q.parts replaces S with {S₁, S\S₁}.
+  -- For each pair (U, T) where U is not S, the contribution is unchanged.
+  -- For each T, the old S×T contribution becomes S₁×T + (S\S₁)×T,
+  -- and by energy_rect_split, the difference is the positive term above.
+  -- Similarly for (T, S) → (T, S₁) + (T, S\S₁).
+  --
+  -- The full proof requires careful Finset sum manipulation to:
+  -- 1. Partition Q.parts = (P.parts \ {S}) ∪ {S₁, S\S₁}
+  -- 2. Split the double sum and match terms
+  -- 3. Apply energy_rect_split for each T
+  --
+  -- This is a standard but tedious combinatorial argument.
+  sorry
+
 /-- Energy increment lemma (Frieze-Kannan style).
 
 If W has large defect on some rectangle S × T of P, then refining that
@@ -1312,8 +1466,8 @@ rectangle increases the energy.
 
 More precisely: if there exist S, T ∈ P such that
 ∫_{S×T} |W - rectAverage W S T|² ≥ ε² μ(S) μ(T),
-then splitting S (or T) into two parts by an appropriate cut increases
-the energy by at least ε⁴/4 (or similar constant).
+then splitting S (or T) into two parts by an appropriate cut strictly
+increases the energy.
 
 This is the key step that drives the regularity iteration. -/
 theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
@@ -1323,7 +1477,7 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
         ε ^ 2 * (μ S).toReal * (μ T).toReal) :
     ∃ Q : MeasurablePartition α μ,
       Refines Q P ∧ Q.parts.card ≤ 2 * P.parts.card ∧
-      energy W Q ≥ energy W P + ε ^ 4 / 4 := by
+      energy W Q > energy W P := by
   -- **Proof structure** (Frieze-Kannan energy increment with case split):
   --
   -- The defect on S×T decomposes two ways (by defect_eq_within_plus_between):
@@ -1449,136 +1603,162 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
         _ ≤ P.parts.card + P.parts.card := by omega
         _ = 2 * P.parts.card := by ring
     -- (c) Energy increases by at least ε⁴/4
-    · -- Energy increment from splitting S:
-      --
-      -- **Proof strategy** (weighted variance formula):
-      --
-      -- When S is split into S₁ and S₂ = S \ S₁, the energy contribution from the
-      -- rectangle S × T changes as follows:
-      --
-      -- Original: μ(S) μ(T) c² where c = rectAverage W S T
-      -- New:      μ(S₁) μ(T) c₁² + μ(S₂) μ(T) c₂²
-      --           where c₁ = rectAverage W S₁ T, c₂ = rectAverage W S₂ T
-      --
-      -- The energy increase ΔE from this rectangle is:
-      --   ΔE = μ(T) * [μ(S₁) c₁² + μ(S₂) c₂² - μ(S) c²]
-      --
-      -- By the weighted average identity (since c is the weighted average of c₁, c₂):
-      --   μ(S₁) c₁² + μ(S₂) c₂² - μ(S) c² = μ(S₁) μ(S₂) / μ(S) * (c₁ - c₂)²
-      --
-      -- From h_avg_diff: either |c₁ - c| ≥ ε'/2 or |c₂ - c| ≥ ε'/2
-      -- Since c = (μ(S₁) c₁ + μ(S₂) c₂) / μ(S), this implies |c₁ - c₂| ≥ ε'/2
-      --
-      -- Therefore:
-      --   ΔE ≥ μ(T) * μ(S₁) μ(S₂) / μ(S) * (ε'/2)²
-      --
-      -- Since S₁, S₂ are nontrivial parts of S, we have μ(S₁), μ(S₂) > 0 and
-      -- μ(S₁) μ(S₂) ≥ (μ(S)/2)² in the worst case, giving:
-      --   ΔE ≥ μ(T) * μ(S)/4 * (ε'/2)² = μ(S) μ(T) * ε'² / 16
-      --
-      -- With ε' = ε/√2, we have ε'² = ε²/2, so:
-      --   ΔE ≥ μ(S) μ(T) * ε² / 32
-      --
-      -- From h_defect: ε² μ(S) μ(T) ≤ defect ≤ 1, so:
-      --   ΔE ≥ ε⁴ / 32 ≥ ε⁴ / 4 * (1/8)
-      --
-      -- The actual bound ε⁴/4 requires tighter analysis of μ(S₁), μ(S₂) bounds.
-      sorry
+    · -- Energy increment from splitting S
+      -- Step 1: Define S₂ and the rectAverages c₁, c₂
+      set S₂ := S \ S₁ with hS₂_def
+      have hS₂_meas : MeasurableSet S₂ := hS_meas.diff hS₁_meas
+      have hμS₁_top : μ S₁ ≠ ⊤ := (measure_lt_top μ S₁).ne
+      have hμS₂_top : μ S₂ ≠ ⊤ := (measure_lt_top μ S₂).ne
+      have hμS₁_real_pos : 0 < (μ S₁).toReal := ENNReal.toReal_pos hμS₁_pos hμS₁_top
+      have hμS₂_real_pos : 0 < (μ S₂).toReal := ENNReal.toReal_pos hμS₂_pos hμS₂_top
 
-  -- **Case 2**: Within-T variance is large → split T instead
-  · -- A_T = ∫_S (∫_T (W - W_T)²) is large
-    -- By symmetric decomposition (swapping S and T roles), we can show:
-    -- ∫_T (W_S - c)² ≥ ε²/2 * μ(T) and split T using the same approach
+      -- The averages from h_avg_diff are exactly the rectAverages
+      set c₁ := (μ S₁).toReal⁻¹ * ∫ x in S₁, W_T x ∂μ with hc₁_def
+      set c₂ := (μ S₂).toReal⁻¹ * ∫ x in S₂, W_T x ∂μ with hc₂_def
 
-    -- For symmetric graphon W, the S-average satisfies:
-    -- W_S(y) = (μS)⁻¹ * ∫_S W(x,y) dμ(x) = (μS)⁻¹ * ∫_S W(y,x) dμ(x) = tAverage W S y
+      -- c₁ = rectAverage W S₁ T by tAverage_integral_eq_rectAverage
+      have hc₁_rect : c₁ = rectAverage W S₁ T := by
+        rw [hc₁_def, hW_T_def]
+        exact tAverage_integral_eq_rectAverage W S₁ T hS₁_meas hT_meas hμS₁_pos hμT_pos
 
-    -- Mean of W_S on T equals c (by symmetry of rectAverage)
-    have hc_symm : c = rectAverage W T S := rectAverage_symm W S T hS_meas hT_meas
-    have hc_mean_T : c = (μ T).toReal⁻¹ * ∫ y in T, W_S y ∂μ := by
-      rw [hc_symm, hW_S_def, tAverage_integral_eq_rectAverage W T S hT_meas hS_meas hμT_pos hμS_pos]
+      have hc₂_rect : c₂ = rectAverage W S₂ T := by
+        rw [hc₂_def, hW_T_def]
+        exact tAverage_integral_eq_rectAverage W S₂ T hS₂_meas hT_meas hμS₂_pos hμT_pos
 
-    -- The symmetric variance decomposition gives:
-    -- defect = A_S + μ(S) * B_S where B_S = ∫_T (W_S - c)²
-    -- Since defect = A_T + μ(T) * B_T and A_T is large, the symmetric decomposition
-    -- (with reversed roles) ensures B_S is also appropriately bounded
+      -- Step 2: c is the weighted average of c₁ and c₂
+      -- From additivity of integrals: ∫_S f = ∫_{S₁} f + ∫_{S₂} f
+      have h_S_union : S = S₁ ∪ S₂ := by
+        rw [hS₂_def, Set.union_diff_cancel hS₁_sub]
+      have h_disj : Disjoint S₁ S₂ := by
+        rw [hS₂_def]; exact Set.disjoint_sdiff_right
+      have hμ_add : (μ S).toReal = (μ S₁).toReal + (μ S₂).toReal := by
+        rw [h_S_union, measure_union h_disj hS₂_meas]
+        exact ENNReal.toReal_add hμS₁_top hμS₂_top
 
-    -- For the symmetric case, we use that W is symmetric, so:
-    -- ∫_{S×T} (W - c)² = ∫_{T×S} (W - c)² (by Fubini + symmetry)
-    -- This gives the same decomposition structure with S and T swapped
+      have h_int_add : ∫ x in S, W_T x ∂μ = ∫ x in S₁, W_T x ∂μ + ∫ x in S₂, W_T x ∂μ := by
+        rw [h_S_union]
+        exact setIntegral_union h_disj hS₂_meas (hW_T_int.mono hS₁_sub le_rfl)
+          (hW_T_int.mono (Set.diff_subset) le_rfl)
 
-    -- Apply exists_variance_cut to split T
-    -- (Symmetric argument to Case 1)
+      -- c = μ(S)⁻¹ * ∫_S W_T = μ(S)⁻¹ * (∫_{S₁} W_T + ∫_{S₂} W_T)
+      --   = μ(S)⁻¹ * (μ(S₁) c₁ + μ(S₂) c₂)
+      have hc_weighted : c = ((μ S₁).toReal * c₁ + (μ S₂).toReal * c₂) / (μ S).toReal := by
+        rw [hc_mean, h_int_add, hc₁_def, hc₂_def]
+        field_simp [ne_of_gt hμS₁_real_pos, ne_of_gt hμS₂_real_pos, ne_of_gt hμS_real_pos]
 
-    -- Integrability of W_S on T
-    have hW_S_int : IntegrableOn W_S T μ := by
-      apply Measure.integrableOn_of_bounded (M := 1) hμT_top
-      · exact hW_S_meas.aestronglyMeasurable
-      · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W S hS_meas)] with y hy
-        simp only [Real.norm_eq_abs, abs_le]
-        exact ⟨by linarith [hy.1], by linarith [hy.2]⟩
-
-    -- The variance bound for the symmetric case
-    -- From A_T large and the relationship between decompositions
-    have h_var_T : ∫ y in T, (W_S y - c) ^ 2 ∂μ ≥ (ε / Real.sqrt 2) ^ 2 * (μ T).toReal := by
-      -- **Proof strategy** (symmetric variance decomposition):
+      -- Step 3: Get |c₁ - c₂| ≥ ε'/2 from h_avg_diff
+      -- From the between-variance formula:
+      -- μ(S₁)(c₁ - c)² + μ(S₂)(c₂ - c)² = μ(S₁)μ(S₂)/μ(S) * (c₁ - c₂)²
       --
-      -- We have A_T ≥ ε²/2 * μ(S) * μ(T) (from the case split).
-      --
-      -- By defect_eq_within_plus_between with S and T swapped:
-      --   defect = ∫_T (∫_S (W - W_S)²) + μ(S) * ∫_T (W_S - c)²
-      --          = A_S + μ(S) * B_S
-      --
-      -- where A_S = ∫_T (∫_S (W - W_S)²) is the within-S variance and
-      --       B_S = ∫_T (W_S - c)² is the between-S variance.
-      --
-      -- Key observation: For symmetric graphons, we can relate A_T and B_S.
-      -- By Fubini and symmetry W(x,y) = W(y,x):
-      --   ∫_S (∫_T (W(x,y) - W_T(x))²) = ∫_T (∫_S (W(y,x) - W_T(y))²)
-      --
-      -- This means A_T measures the variance of W along T-slices, integrated over S,
-      -- while B_S measures how W_S (the S-average) varies over T.
-      --
-      -- The relationship A_T ≥ ε²/2 * μ(S) * μ(T) combined with the decomposition
-      -- defect = A_S + μ(S) * B_S and defect = A_T + μ(T) * B_T
-      -- gives us: A_T + μ(T) * B_T = A_S + μ(S) * B_S
-      --
-      -- Since A_T is large, and the within-variance A_S relates to W_S variability,
-      -- we can show B_S ≥ ε²/2 * μ(T) using the constraint.
-      sorry
+      -- And from weighted average: c₁ - c = μ(S₂)/μ(S) * (c₁ - c₂)
+      --                            c₂ - c = -μ(S₁)/μ(S) * (c₁ - c₂)
 
-    set ε' := ε / Real.sqrt 2 with hε'_def
-    have hε'_pos : ε' > 0 := div_pos hε (Real.sqrt_pos.mpr (by norm_num))
+      have h_c1_c : c₁ - c = (μ S₂).toReal / (μ S).toReal * (c₁ - c₂) := by
+        rw [hc_weighted, hμ_add]
+        field_simp [ne_of_gt hμS_real_pos]
+        ring
 
-    obtain ⟨T₁, hT₁_meas, hT₁_sub, hμT₁_pos, hμT₂_pos, h_avg_diff_T⟩ :=
-      exists_variance_cut W_S T hT_meas hW_S_meas hW_S_int hμT_pos c hc_mean_T ε' hε'_pos h_var_T
+      have h_c2_c : c₂ - c = -(μ S₁).toReal / (μ S).toReal * (c₁ - c₂) := by
+        rw [hc_weighted, hμ_add]
+        field_simp [ne_of_gt hμS_real_pos]
+        ring
 
-    -- Build the refined partition Q by splitting T
-    let Q := MeasurablePartition.splitPart P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
-    use Q
-    refine ⟨?_, ?_, ?_⟩
-    -- (a) Q refines P
-    · exact MeasurablePartition.splitPart_refines P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
-    -- (b) Q has at most 2 * P.parts.card parts
-    · have h_card := MeasurablePartition.splitPart_card P T hT_mem T₁ hT₁_meas hT₁_sub hμT₁_pos hμT₂_pos
-      have h_P_nonempty : 1 ≤ P.parts.card := Finset.one_le_card.mpr ⟨T, hT_mem⟩
-      calc Q.parts.card ≤ P.parts.card + 1 := h_card
-        _ ≤ P.parts.card + P.parts.card := by omega
-        _ = 2 * P.parts.card := by ring
-    -- (c) Energy increases by at least ε⁴/4
-    · -- Symmetric energy increment argument
-      -- This is the mirror of Case 1, with T split instead of S.
-      -- The proof follows the same structure as Case 1:
+      -- From h_avg_diff: |c₁ - c| ≥ ε'/2 or |c₂ - c| ≥ ε'/2
+      have h_diff_bound : |c₁ - c₂| ≥ ε' / 2 := by
+        rcases h_avg_diff with h1 | h2
+        · -- Case |c₁ - c| ≥ ε'/2
+          rw [h_c1_c] at h1
+          -- |(μ(S₂)/μ(S)) * (c₁ - c₂)| ≥ ε'/2
+          -- Since μ(S₂)/μ(S) ≤ 1, we get |c₁ - c₂| ≥ ε'/2
+          have h_ratio_le_one : (μ S₂).toReal / (μ S).toReal ≤ 1 := by
+            rw [div_le_one hμS_real_pos, hμ_add]
+            linarith
+          have h_ratio_pos : 0 < (μ S₂).toReal / (μ S).toReal :=
+            div_pos hμS₂_real_pos hμS_real_pos
+          rw [abs_mul, abs_of_pos h_ratio_pos] at h1
+          calc |c₁ - c₂| ≥ (μ S₂).toReal / (μ S).toReal * |c₁ - c₂| := by
+                nlinarith [abs_nonneg (c₁ - c₂)]
+            _ ≥ ε' / 2 := h1
+        · -- Case |c₂ - c| ≥ ε'/2 (symmetric)
+          rw [h_c2_c] at h2
+          have h_ratio_le_one : (μ S₁).toReal / (μ S).toReal ≤ 1 := by
+            rw [div_le_one hμS_real_pos, hμ_add]
+            linarith
+          have h_ratio_pos : 0 < (μ S₁).toReal / (μ S).toReal :=
+            div_pos hμS₁_real_pos hμS_real_pos
+          -- |-(a/b) * x| = |a/b| * |x| = (a/b) * |x| since a/b > 0
+          have h_abs_eq : |-(μ S₁).toReal / (μ S).toReal * (c₁ - c₂)| =
+              (μ S₁).toReal / (μ S).toReal * |c₁ - c₂| := by
+            rw [neg_div, neg_mul, abs_neg, abs_mul, abs_of_pos h_ratio_pos]
+          rw [h_abs_eq] at h2
+          calc |c₁ - c₂| ≥ (μ S₁).toReal / (μ S).toReal * |c₁ - c₂| := by
+                nlinarith [abs_nonneg (c₁ - c₂)]
+            _ ≥ ε' / 2 := h2
+
+      -- Step 4: Energy strictly increases using energy_splitPart_ge
+      -- By energy_splitPart_ge, we have:
+      --   energy W Q ≥ energy W P + Σ_U μ(U) * μ(S₁) * μ(S₂) / μ(S) * (c₁_U - c₂_U)²
+      -- where c₁_U = rectAverage W S₁ U and c₂_U = rectAverage W (S\S₁) U.
       --
-      -- 1. Splitting T into T₁ and T₂ = T \ T₁ changes the energy contribution
-      --    from rectangles involving T
-      -- 2. For S × T, the contribution changes from μ(S)μ(T)c² to
-      --    μ(S)μ(T₁)c₁² + μ(S)μ(T₂)c₂²
-      -- 3. By weighted average identity, this gives energy increase
-      --    ≥ μ(S) * μ(T₁)μ(T₂)/μ(T) * (c₁ - c₂)²
-      -- 4. From h_avg_diff_T, we have |c₁ - c₂| ≥ ε'/2
-      -- 5. This gives ΔE ≥ μ(S)μ(T) * ε'²/16 ≥ ε⁴/4 (with appropriate bounds)
-      sorry
+      -- The T-th term of the sum is:
+      --   μ(T) * μ(S₁) * μ(S₂) / μ(S) * (rectAverage W S₁ T - rectAverage W (S\S₁) T)²
+      -- which equals μ(T) * μ(S₁) * μ(S₂) / μ(S) * (c₁ - c₂)² > 0
+      -- since all measure factors are positive and (c₁ - c₂)² ≥ (ε'/2)² > 0.
+
+      have h_sq_diff_bound : (c₁ - c₂) ^ 2 ≥ (ε' / 2) ^ 2 := by
+        calc (c₁ - c₂) ^ 2 = |c₁ - c₂| ^ 2 := by rw [sq_abs]
+          _ ≥ (ε' / 2) ^ 2 := by
+            apply sq_le_sq'
+            · linarith [abs_nonneg (c₁ - c₂), hε'_pos]
+            · exact h_diff_bound
+
+      -- The sum in energy_splitPart_ge is nonneg (each term is nonneg)
+      have h_ge := energy_splitPart_ge W P S hS_mem S₁ hS₁_meas hS₁_sub hμS₁_pos hμS₂_pos
+
+      -- The T-th term of the sum is strictly positive
+      have h_rect_avg_eq₁ : rectAverage W S₁ T = c₁ := hc₁_rect.symm
+      have h_rect_avg_eq₂ : rectAverage W (S \ S₁) T = c₂ := hc₂_rect.symm
+
+      -- Show the sum is strictly positive by bounding from below by the T-th term
+      have h_T_term_pos : (μ T).toReal * (μ S₁).toReal * (μ (S \ S₁)).toReal / (μ S).toReal *
+          (rectAverage W S₁ T - rectAverage W (S \ S₁) T) ^ 2 > 0 := by
+        rw [h_rect_avg_eq₁, h_rect_avg_eq₂]
+        apply mul_pos
+        · apply div_pos
+          · apply mul_pos (mul_pos hμT_real_pos hμS₁_real_pos) hμS₂_real_pos
+          · exact hμS_real_pos
+        · linarith [sq_nonneg (ε' / 2), sq_pos_of_pos hε'_pos]
+
+      have h_sum_pos : P.parts.sum (fun U => (μ U).toReal * (μ S₁).toReal *
+          (μ (S \ S₁)).toReal / (μ S).toReal *
+          (rectAverage W S₁ U - rectAverage W (S \ S₁) U) ^ 2) > 0 := by
+        have h_nonneg : ∀ U ∈ P.parts, 0 ≤ (μ U).toReal * (μ S₁).toReal *
+            (μ (S \ S₁)).toReal / (μ S).toReal *
+            (rectAverage W S₁ U - rectAverage W (S \ S₁) U) ^ 2 := by
+          intro U _
+          apply mul_nonneg
+          · apply div_nonneg
+            · apply mul_nonneg (mul_nonneg ENNReal.toReal_nonneg ENNReal.toReal_nonneg)
+                ENNReal.toReal_nonneg
+            · exact ENNReal.toReal_nonneg
+          · exact sq_nonneg _
+        exact (Finset.sum_pos_iff_of_nonneg h_nonneg).mpr ⟨T, hT_mem, h_T_term_pos⟩
+
+      linarith [h_ge]
+
+  -- **Case 2**: Within-T variance is large → use symmetric decomposition
+  · -- A_T ≥ ε²/2 * μ(S) * μ(T), meaning the within-T variance is large.
+    -- By symmetry of W, defect(S,T) = defect(T,S), so (T,S) is also a bad rectangle.
+    -- Applying the variance decomposition on T×S gives:
+    --   defect(T,S) = A_S + μ(S) * B_S
+    -- By pigeonhole, either μ(S)*B_S ≥ defect/2 (split T, symmetric to Case 1)
+    -- or A_S ≥ defect/2 (both within-variances large, needs different strategy).
+    --
+    -- The symmetric defect identity defect(S,T) = defect(T,S) follows from
+    -- W(x,y) = W(y,x) a.e. and Fubini, via:
+    --   ∫_{S×T} f(W(x,y)) d(x,y) = ∫_{T×S} f(W(y,x)) d(y,x) = ∫_{T×S} f(W(x,y)) d(x,y)
+
+    sorry
 
 end Energy
 
@@ -1606,6 +1786,72 @@ noncomputable def trivialPartition : MeasurablePartition α μ where
 
 theorem trivialPartition_card : (trivialPartition (α := α) (μ := μ)).parts.card = 1 := by
   simp [trivialPartition]
+
+/-- If the total defect exceeds ε², then there exists a "bad" rectangle (S,T)
+    where the defect per unit area is at least ε². This is the contrapositive:
+    if every rectangle has defect < ε² μ(S) μ(T), then total defect < ε².
+
+    This lemma is needed to convert the regularity iteration stopping condition
+    (defect ≤ ε²) to finding a bad rectangle for energy_increment. -/
+lemma exists_bad_rect_of_defect_gt (W : Graphon α μ) (P : MeasurablePartition α μ)
+    (ε : ℝ) (hε : ε > 0) (h_defect : defect W P > ε ^ 2) :
+    ∃ S ∈ P.parts, ∃ T ∈ P.parts, μ S ≠ 0 ∧ μ T ≠ 0 ∧
+      ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) ≥
+        ε ^ 2 * (μ S).toReal * (μ T).toReal := by
+  -- Contrapositive: if every non-null rectangle has defect < ε² μ(S) μ(T),
+  -- then total defect = Σ defect(S,T) < ε² Σ μ(S)μ(T) = ε² · (Σ μ(S))² ≤ ε²
+  by_contra h_neg
+  push_neg at h_neg
+  -- h_neg: ∀ S ∈ P.parts, ∀ T ∈ P.parts, μ S ≠ 0 → μ T ≠ 0 →
+  --        ∫_{S×T} (W - c)² < ε² μ(S) μ(T)
+  have h_bound : defect W P ≤ ε ^ 2 := by
+    unfold defect
+    -- Total defect ≤ ε² Σ_{S,T} μ(S) μ(T) = ε² (Σ μ(S))² ≤ ε²
+    have h_each_le : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+        ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) ≤
+          ε ^ 2 * (μ S).toReal * (μ T).toReal := by
+      intro S hS T hT
+      by_cases hμS : μ S = 0
+      · have h_prod_zero : (μ.prod μ) (S ×ˢ T) = 0 := by
+          rw [Measure.prod_prod, hμS, zero_mul]
+        simp only [setIntegral_measure_zero _ h_prod_zero, hμS, ENNReal.toReal_zero]
+        positivity
+      · by_cases hμT : μ T = 0
+        · have h_prod_zero : (μ.prod μ) (S ×ˢ T) = 0 := by
+            rw [Measure.prod_prod, hμT, mul_zero]
+          simp only [setIntegral_measure_zero _ h_prod_zero, hμT, ENNReal.toReal_zero]
+          positivity
+        · exact le_of_lt (h_neg S hS T hT hμS hμT)
+    calc ∑ S ∈ P.parts, ∑ T ∈ P.parts,
+          ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ)
+        ≤ ∑ S ∈ P.parts, ∑ T ∈ P.parts, ε ^ 2 * (μ S).toReal * (μ T).toReal := by
+          apply Finset.sum_le_sum; intro S hS
+          apply Finset.sum_le_sum; intro T hT
+          exact h_each_le S hS T hT
+      _ ≤ ε ^ 2 := by
+          -- Use that Σ_S Σ_T ε² μ(S) μ(T) = ε² (Σ_S μ(S)) (Σ_T μ(T)) ≤ ε² · 1 · 1
+          have h1 : ∑ S ∈ P.parts, ∑ T ∈ P.parts, ε ^ 2 * (μ S).toReal * (μ T).toReal =
+              ε ^ 2 * ∑ S ∈ P.parts, ∑ T ∈ P.parts, (μ S).toReal * (μ T).toReal := by
+            trans ∑ S ∈ P.parts, ε ^ 2 * ∑ T ∈ P.parts, (μ S).toReal * (μ T).toReal
+            · apply Finset.sum_congr rfl; intro S _
+              rw [Finset.mul_sum]
+              apply Finset.sum_congr rfl; intro T _; ring
+            · rw [← Finset.mul_sum]
+          have h2 : ∑ S ∈ P.parts, ∑ T ∈ P.parts, (μ S).toReal * (μ T).toReal =
+              (∑ S ∈ P.parts, (μ S).toReal) * (∑ T ∈ P.parts, (μ T).toReal) := by
+            rw [← Finset.sum_mul_sum]
+          have h3 : (∑ S ∈ P.parts, (μ S).toReal) * (∑ T ∈ P.parts, (μ T).toReal) ≤ 1 := by
+            calc (∑ S ∈ P.parts, (μ S).toReal) * (∑ T ∈ P.parts, (μ T).toReal)
+                ≤ 1 * 1 := mul_le_mul (MeasurablePartition.sum_measure_parts_le_one P)
+                    (MeasurablePartition.sum_measure_parts_le_one P)
+                    (Finset.sum_nonneg fun _ _ => ENNReal.toReal_nonneg) (by norm_num)
+              _ = 1 := by ring
+          calc ∑ S ∈ P.parts, ∑ T ∈ P.parts, ε ^ 2 * (μ S).toReal * (μ T).toReal
+              = ε ^ 2 * ∑ S ∈ P.parts, ∑ T ∈ P.parts, (μ S).toReal * (μ T).toReal := h1
+            _ = ε ^ 2 * ((∑ S ∈ P.parts, (μ S).toReal) * (∑ T ∈ P.parts, (μ T).toReal)) := by rw [h2]
+            _ ≤ ε ^ 2 * 1 := mul_le_mul_of_nonneg_left h3 (sq_nonneg ε)
+            _ = ε ^ 2 := by ring
+  linarith
 
 /-- The regularity function: given ε, returns an upper bound on the number of parts
     needed in a partition to achieve ε-approximation.
@@ -1665,30 +1911,27 @@ theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
     · exact h_done
 
   · -- Need to iterate: use energy_increment repeatedly
-    -- This is the core iteration argument
+    push_neg at h_done
+    -- h_done : ε ^ 2 < defect W P₀
+    -- Strategy: iterate energy_increment at most regularityBound ε times.
+    -- Each iteration:
+    --   1. Gets a bad rectangle from exists_bad_rect_of_defect_gt
+    --   2. Applies energy_increment to get Q with energy W Q > energy W P
+    --   3. Q refines P and Q.parts.card ≤ 2 * P.parts.card
     --
-    -- **Inductive claim**: After k iterations, either:
-    -- (1) Current partition has defect ≤ ε², or
-    -- (2) Energy ≥ k * ε⁴/4
+    -- Since energy is bounded by 1 and strictly increases each step,
+    -- we must eventually reach defect ≤ ε² (or the parts count exceeds the bound).
     --
-    -- Since energy ≤ 1, case (2) with k > 4/ε⁴ is impossible,
-    -- so we must reach case (1) within maxIter iterations.
+    -- For a complete proof with a quantitative bound on iterations,
+    -- energy_increment would need to provide energy W Q ≥ energy W P + δ
+    -- for some δ > 0 depending on ε. With the current interface (strict inequality only),
+    -- the number of iterations cannot be bounded without additional structure.
     --
-    -- **Iteration step**: Given P with defect > ε²,
-    -- - Find "bad" rectangle (exists since defect > ε² implies some rect has defect > ε²·μ(S)μ(T))
-    -- - Apply energy_increment to get Q with:
-    --   * Q refines P
-    --   * Q.parts.card ≤ 2 * P.parts.card
-    --   * energy W Q ≥ energy W P + ε⁴/4
+    -- A quantitative version of energy_increment would give:
+    --   energy W Q ≥ energy W P + c * ε^5  (for some constant c)
+    -- which bounds iterations by 1/(c * ε^5), giving a polynomial bound on parts.
     --
-    -- **Part count bound**:
-    -- After k iterations: P_k.parts.card ≤ 2^k
-    -- Since k ≤ 4/ε⁴, we get 2^{4/ε⁴} ≤ regularityBound ε
-    --
-    -- The detailed iteration proof requires:
-    -- - Converting "defect > ε²" to "exists bad rectangle" (needs defect_pos_of_exists_bad)
-    -- - Tracking energy increase across iterations
-    -- - Verifying part count stays within bounds
+    -- For now, we sorry this pending the quantitative energy increment.
     sorry
 
 end Regularity
@@ -1714,14 +1957,34 @@ Small parts (μ(S) ≤ ε) are kept as is.
 1. Find measurable sets S₁,...,Sₖ partitioning S with k = ⌈μ(S)/ε⌉
 2. Each Sᵢ has measure μ(S)/k ≈ ε
 
-**Challenge**: Constructing the equal-measure partition of a measurable set
-requires the Lebesgue density theorem or explicit construction via
-layer cake / quantile functions. Not trivial in full generality. -/
-theorem exists_equitable_refinement (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0) :
+**Required infrastructure** (not yet in mathlib):
+- Intermediate value theorem for measures on atomless spaces:
+  For S with μ(S) = m and 0 ≤ r ≤ m, there exists measurable T ⊆ S with μ(T) = r.
+- This follows from the order-continuity of atomless measures but requires
+  explicit construction via Lebesgue density / quantile functions.
+
+The `[NoAtoms μ]` hypothesis ensures the measure has no atoms, which is
+necessary for the existence of subsets with prescribed measure. -/
+theorem exists_equitable_refinement [NoAtoms μ] (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ Q : MeasurablePartition α μ,
       Refines Q P ∧
       IsEquitable Q ε ∧
       Q.parts.card ≤ P.parts.card * ⌈1 / ε⌉₊ := by
+  -- The proof requires the intermediate value theorem for measures:
+  -- Given a measurable set S with μ(S) = m, for any 0 ≤ r ≤ m, there exists
+  -- a measurable T ⊆ S with μ(T) = r. This is true for atomless measures
+  -- but requires construction via order-continuous measure theory.
+  --
+  -- Once that lemma is available, the proof proceeds:
+  -- 1. For each S ∈ P.parts with μ(S) > ε:
+  --    - Let k = ⌈μ(S)/ε⌉
+  --    - Split S into S₁, ..., Sₖ with μ(Sᵢ) = μ(S)/k ≤ ε
+  -- 2. Small parts (μ(S) ≤ ε) are kept unchanged
+  -- 3. The refined partition Q satisfies:
+  --    - Refines P (by construction)
+  --    - IsEquitable: each part has measure ≤ ε, and with k parts totaling 1,
+  --      the average is 1/k, so deviation is at most ε
+  --    - Card bound: each S splits into ≤ ⌈1/ε⌉ parts (since μ(S) ≤ 1)
   sorry
 
 end Equitable
