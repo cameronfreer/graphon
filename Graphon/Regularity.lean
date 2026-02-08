@@ -1785,30 +1785,1252 @@ private theorem energy_increment_of_between_variance
       exact (Finset.sum_pos_iff_of_nonneg h_nonneg).mpr ⟨V, hV_mem, h_V_term_pos⟩
     linarith [h_ge]
 
+set_option maxHeartbeats 1600000 in
 /-- FK global cut lemma for the case where both within-variances are large.
 
 When the within-T variance ∫_S ∫_T (W - W_T)² is large but the between-T
 variance ∫_S (W_T - c)² is small (and symmetrically for S), a single-part
-split is insufficient. Instead, we split ALL parts by a global cut set.
-
-The proof (not yet formalized) proceeds:
-1. By averaging, ∃ x₀ ∈ S with ∫_T (W(x₀,y) - W_T(x₀))² ≥ ε²/2 · μ(T)
-2. Apply exists_variance_cut to W(x₀,·) on T to get cut A ⊆ T
-3. Split all parts by A using splitAllParts
-4. The rect-averages on the split pieces differ, giving energy increase -/
+split is insufficient. Instead, we find a nontrivial cut of T and use
+two sequential splits. -/
 private theorem energy_increment_of_within_variance
     (W : Graphon α μ) (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0)
     (S : Set α) (hS_mem : S ∈ P.parts)
     (T : Set α) (hT_mem : T ∈ P.parts)
-    (_hS_meas : MeasurableSet S) (_hT_meas : MeasurableSet T)
+    (hS_meas : MeasurableSet S) (hT_meas : MeasurableSet T)
     (hμS : μ S ≠ 0) (hμT : μ T ≠ 0)
-    (_h_within_T_large : ∫ x in S, (∫ y in T,
+    (h_within_T_large : ∫ x in S, (∫ y in T,
         (W.toAEEqFun (x, y) - tAverage W T x) ^ 2 ∂μ) ∂μ ≥
         ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal) :
     ∃ Q : MeasurablePartition α μ,
       Refines Q P ∧ Q.parts.card ≤ 2 * P.parts.card ∧
       energy W Q > energy W P := by
-  sorry
+  -- Strategy: case split on whether between-variances are positive.
+  -- If B_T > 0 or B_S > 0, delegate to energy_increment_of_between_variance.
+  -- If both are zero, use ae_eq_zero_restrict to find a good cut.
+  have hμS_top : μ S ≠ ⊤ := (measure_lt_top μ S).ne
+  have hμT_top : μ T ≠ ⊤ := (measure_lt_top μ T).ne
+  have hμS_real_pos : (0 : ℝ) < (μ S).toReal := ENNReal.toReal_pos hμS hμS_top
+  have hμT_real_pos : (0 : ℝ) < (μ T).toReal := ENNReal.toReal_pos hμT hμT_top
+  -- Define the between-T variance on S: B_T = ∫_S (W_T(x) - c)²
+  set c := rectAverage W S T with hc_def
+  set B_T := ∫ x in S, (tAverage W T x - c) ^ 2 ∂μ with hB_T_def
+  -- Case 1: B_T > 0 → delegate to energy_increment_of_between_variance
+  by_cases hB_T_pos : B_T > 0
+  · -- Set ε' = √(2 * B_T / μS) > 0 so that ε'²/2 * μS = B_T
+    set ε' := Real.sqrt (2 * B_T / (μ S).toReal) with hε'_def
+    have hε'_pos : ε' > 0 := Real.sqrt_pos.mpr (div_pos (mul_pos two_pos hB_T_pos) hμS_real_pos)
+    have h_var : ∫ x in S, (tAverage W T x - rectAverage W S T) ^ 2 ∂μ ≥
+        ε' ^ 2 / 2 * (μ S).toReal := by
+      rw [hε'_def, Real.sq_sqrt (le_of_lt (div_pos (mul_pos two_pos hB_T_pos) hμS_real_pos))]
+      rw [← hc_def, ← hB_T_def]
+      rw [ge_iff_le, ← sub_nonneg]
+      have : (μ S).toReal ≠ 0 := ne_of_gt hμS_real_pos
+      field_simp
+      linarith [hB_T_pos, hμS_real_pos]
+    exact energy_increment_of_between_variance W P ε' hε'_pos
+      S hS_mem T hT_mem hS_meas hT_meas hμS hμT h_var
+  · -- B_T = 0: the between-T variance vanishes
+    push_neg at hB_T_pos
+    have hB_T_nonneg : B_T ≥ 0 :=
+      setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
+    have hB_T_zero : B_T = 0 := le_antisymm hB_T_pos hB_T_nonneg
+    -- Symmetric decomposition: defect(S,T) = defect(T,S), apply variance decomp on T×S
+    set c' := rectAverage W T S with hc'_def
+    set B_S := ∫ y in T, (tAverage W S y - c') ^ 2 ∂μ with hB_S_def
+    -- Case 2: B_S > 0 → delegate to energy_increment_of_between_variance with swapped roles
+    by_cases hB_S_pos : B_S > 0
+    · set ε' := Real.sqrt (2 * B_S / (μ T).toReal) with hε'_def
+      have hε'_pos : ε' > 0 := Real.sqrt_pos.mpr (div_pos (mul_pos two_pos hB_S_pos) hμT_real_pos)
+      have h_var : ∫ y in T, (tAverage W S y - rectAverage W T S) ^ 2 ∂μ ≥
+          ε' ^ 2 / 2 * (μ T).toReal := by
+        rw [hε'_def, Real.sq_sqrt (le_of_lt (div_pos (mul_pos two_pos hB_S_pos) hμT_real_pos))]
+        rw [← hc'_def, ← hB_S_def]
+        rw [ge_iff_le, ← sub_nonneg]
+        have : (μ T).toReal ≠ 0 := ne_of_gt hμT_real_pos
+        field_simp
+        linarith [hB_S_pos, hμT_real_pos]
+      exact energy_increment_of_between_variance W P ε' hε'_pos
+        T hT_mem S hS_mem hT_meas hS_meas hμT hμS h_var
+    · -- Case 3: B_T = 0 AND B_S = 0 (hard case)
+      -- W_T = c a.e. on S and W_S = c' a.e. on T, but within-T variance is large.
+      -- Need to find a global cut that simultaneously splits S and T.
+      push_neg at hB_S_pos
+      have hB_S_nonneg : B_S ≥ 0 :=
+        setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
+      have hB_S_zero : B_S = 0 := le_antisymm hB_S_pos hB_S_nonneg
+      -- Step 1: tAvg_T = c a.e. on S (from B_T = 0)
+      have h_tAvg_T_ae : tAverage W T =ᵐ[μ.restrict S] fun _ => c := by
+        have h_sq_zero := hB_T_zero
+        rw [hB_T_def] at h_sq_zero
+        have h_nonneg : 0 ≤ᵐ[μ.restrict S] fun x => (tAverage W T x - c) ^ 2 :=
+          ae_of_all _ (fun _ => sq_nonneg _)
+        have h_int : IntegrableOn (fun x => (tAverage W T x - c) ^ 2) S μ := by
+          apply Measure.integrableOn_of_bounded (measure_lt_top μ S).ne
+          · exact ((tAverage_measurable W T hT_meas).sub measurable_const).pow_const 2
+              |>.aestronglyMeasurable
+          · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W T hT_meas)] with x hx
+            simp only [Real.norm_eq_abs]
+            have hc_mem := rectAverage_mem_Icc W S T hS_meas hT_meas
+            calc |((tAverage W T x) - c) ^ 2|
+                = ((tAverage W T x) - c) ^ 2 := abs_of_nonneg (sq_nonneg _)
+              _ ≤ 1 := by nlinarith [hx.1, hx.2, hc_mem.1, hc_mem.2]
+        have h_ae_zero := (setIntegral_eq_zero_iff_of_nonneg_ae h_nonneg h_int).mp h_sq_zero
+        filter_upwards [h_ae_zero] with x hx
+        simp only [Pi.zero_apply] at hx
+        linarith [sq_eq_zero_iff.mp hx]
+      -- Step 2: c' = c (by rectAverage_symm)
+      have hc'_eq_c : c' = c := by
+        rw [hc'_def, hc_def]
+        exact rectAverage_symm W T S hT_meas hS_meas
+      -- Step 3: tAvg_S = c a.e. on T (from B_S = 0 and c' = c)
+      have h_tAvg_S_ae : tAverage W S =ᵐ[μ.restrict T] fun _ => c := by
+        have h_sq_zero := hB_S_zero
+        rw [hB_S_def] at h_sq_zero
+        have h_nonneg : 0 ≤ᵐ[μ.restrict T] fun y => (tAverage W S y - c') ^ 2 :=
+          ae_of_all _ (fun _ => sq_nonneg _)
+        have h_int : IntegrableOn (fun y => (tAverage W S y - c') ^ 2) T μ := by
+          apply Measure.integrableOn_of_bounded (measure_lt_top μ T).ne
+          · exact ((tAverage_measurable W S hS_meas).sub measurable_const).pow_const 2
+              |>.aestronglyMeasurable
+          · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W S hS_meas)] with y hy
+            simp only [Real.norm_eq_abs]
+            have hc'_mem := rectAverage_mem_Icc W T S hT_meas hS_meas
+            calc |((tAverage W S y) - c') ^ 2|
+                = ((tAverage W S y) - c') ^ 2 := abs_of_nonneg (sq_nonneg _)
+              _ ≤ 1 := by nlinarith [hy.1, hy.2, hc'_mem.1, hc'_mem.2]
+        have h_ae_zero := (setIntegral_eq_zero_iff_of_nonneg_ae h_nonneg h_int).mp h_sq_zero
+        filter_upwards [h_ae_zero] with y hy
+        simp only [Pi.zero_apply] at hy
+        have := sq_eq_zero_iff.mp hy
+        linarith [this, hc'_eq_c]
+      -- Step 4: The within-T variance with c substituted
+      -- Since tAvg_T = c a.e. on S, we can replace tAvg_T(x) by c in the integral
+      have h_within_c : ∫ x in S, (∫ y in T,
+          (W.toAEEqFun (x, y) - c) ^ 2 ∂μ) ∂μ ≥
+          ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := by
+        calc ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal
+            ≤ ∫ x in S, (∫ y in T,
+              (W.toAEEqFun (x, y) - tAverage W T x) ^ 2 ∂μ) ∂μ := h_within_T_large
+          _ = ∫ x in S, (∫ y in T,
+              (W.toAEEqFun (x, y) - c) ^ 2 ∂μ) ∂μ := by
+            apply setIntegral_congr_ae hS_meas
+            have := (ae_restrict_iff' hS_meas).mp h_tAvg_T_ae
+            filter_upwards [this] with x hx hxS
+            have hx' := hx hxS
+            simp only [hx']
+      have h_within_pos : (0 : ℝ) < ∫ x in S, (∫ y in T,
+          (W.toAEEqFun (x, y) - c) ^ 2 ∂μ) ∂μ :=
+        lt_of_lt_of_le (by positivity) h_within_c
+      -- Step 5: Case split on S = T
+      by_cases hST : S = T
+      · -- Sub-case S = T: B_T = 0, B_S = 0, within-variance large on S×S
+        subst hST
+        -- Part 1: Find nontrivial B ⊆ S with rectAvg(B,B) ≠ c.
+        -- By contradiction: if all nontrivial B ⊆ S have rectAvg(B,B) = c, then
+        -- ∫_{B×B} (W-c) = 0 for all nontrivial B. By polarization + W.symm_ae,
+        -- ∫_{A×B} (W-c) = 0 for all measurable A,B ⊆ S. By π-λ, W = c a.e. on S×S,
+        -- contradicting h_within_pos.
+        have h_good_cut : ∃ B : Set α, MeasurableSet B ∧ B ⊆ S ∧ μ B ≠ 0 ∧ μ (S \ B) ≠ 0 ∧
+            rectAverage W B B ≠ c := by
+          by_contra h_neg
+          push_neg at h_neg
+          exfalso
+          -- Shorthand for the product measure restricted to S × S
+          set ν := (μ.restrict S).prod (μ.restrict S) with hν_def
+          -- Helper: integrability of W-c on any product of subsets
+          have h_Wc_int_prod : ∀ A B : Set α, MeasurableSet A → MeasurableSet B →
+              IntegrableOn (fun p => W.toAEEqFun p - c) (A ×ˢ B) (μ.prod μ) := by
+            intro A B hA_meas hB_meas
+            apply Measure.integrableOn_of_bounded (M := 1)
+            · rw [Measure.prod_prod]; exact (ENNReal.mul_lt_top (measure_lt_top μ A)
+                  (measure_lt_top μ B)).ne
+            · exact (W.toAEEqFun.measurable.sub measurable_const).aestronglyMeasurable
+            · filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with p hp
+              simp only [Real.norm_eq_abs, abs_le]
+              have hc_mem := rectAverage_mem_Icc W S S hS_meas hS_meas
+              constructor <;> nlinarith [hp.1, hp.2, hc_mem.1, hc_mem.2]
+          -- Step A: ∫_{B'×B'} (W-c) = 0 for nontrivial B' ⊆ S (from h_neg)
+          have h_diag_zero : ∀ B' : Set α, MeasurableSet B' → B' ⊆ S →
+              μ B' ≠ 0 → μ (S \ B') ≠ 0 →
+              ∫ p in B' ×ˢ B', (W.toAEEqFun p - c) ∂(μ.prod μ) = 0 := by
+            intro B' hB'_meas hB'_sub hμB' hμSB'
+            have h_ra := h_neg B' hB'_meas hB'_sub hμB' hμSB'
+            unfold rectAverage at h_ra
+            simp only [hμB', dif_neg, not_false_eq_true] at h_ra
+            have hμB'_pos : (0 : ℝ) < (μ B').toReal :=
+              ENNReal.toReal_pos hμB' (measure_lt_top μ B').ne
+            have h_eq : ∫ p in B' ×ˢ B', W.toAEEqFun p ∂(μ.prod μ) =
+                c * (μ B').toReal * (μ B').toReal := by
+              field_simp [ne_of_gt hμB'_pos] at h_ra ⊢; linarith
+            -- ∫_{B'×B'} (W-c) = ∫_{B'×B'} W - ∫_{B'×B'} c = c*μ²-c*μ² = 0
+            have h_int_W : IntegrableOn (fun p => W.toAEEqFun p) (B' ×ˢ B') (μ.prod μ) :=
+              (SymmKernel.graphon_integrable W).integrableOn
+            have h_int_c : IntegrableOn (fun (_ : α × α) => c) (B' ×ˢ B') (μ.prod μ) :=
+              integrableOn_const
+            have h_split : ∫ p in B' ×ˢ B', (W.toAEEqFun p - c) ∂(μ.prod μ) =
+                ∫ p in B' ×ˢ B', W.toAEEqFun p ∂(μ.prod μ) -
+                ∫ p in B' ×ˢ B', c ∂(μ.prod μ) :=
+              integral_sub h_int_W h_int_c
+            have h_const : ∫ (_ : α × α) in B' ×ˢ B', c ∂(μ.prod μ) =
+                c * (μ B').toReal * (μ B').toReal := by
+              rw [setIntegral_const c, smul_eq_mul, Measure.real, Measure.prod_prod,
+                ENNReal.toReal_mul]; ring
+            linarith
+          -- Step B: ∫_{A×S} (W-c) = 0 for all measurable A ⊆ S (from h_tAvg_T_ae)
+          have h_W_ae_ae := Measure.ae_ae_of_ae_prod W.ae_mem_Icc
+          have h_slice_int : ∀ᵐ x ∂μ, ∀ B' : Set α, MeasurableSet B' →
+              IntegrableOn (fun y => W.toAEEqFun (x, y)) B' μ := by
+            filter_upwards [h_W_ae_ae,
+              AEStronglyMeasurable.prodMk_left W.toAEEqFun.aestronglyMeasurable]
+              with x hx hx_meas
+            intro B' hB'_meas
+            exact Measure.integrableOn_of_bounded (M := 1) (measure_lt_top μ B').ne hx_meas
+              (by filter_upwards [ae_restrict_of_ae hx] with y hy
+                  simp only [Real.norm_eq_abs, abs_le]
+                  exact ⟨by linarith [hy.1], by linarith [hy.2]⟩)
+          have h_row_S_zero : ∀ A : Set α, MeasurableSet A → A ⊆ S →
+              ∫ p in A ×ˢ S, (W.toAEEqFun p - c) ∂(μ.prod μ) = 0 := by
+            intro A hA_meas hA_sub
+            rw [setIntegral_prod _ (h_Wc_int_prod A S hA_meas hS_meas)]
+            -- Inner integral: ∫_S (W(x,y)-c) dy = 0 for a.e. x ∈ S (from h_tAvg_T_ae)
+            have h_inner : (fun x => ∫ y in S, (W.toAEEqFun (x, y) - c) ∂μ)
+                =ᵐ[μ.restrict S] 0 := by
+              filter_upwards [h_tAvg_T_ae, ae_restrict_of_ae h_slice_int] with x hx hx_int
+              simp only [Pi.zero_apply]
+              unfold tAverage at hx
+              simp only [hμS, dif_neg, not_false_eq_true] at hx
+              have h1 : ∫ y in S, W.toAEEqFun (x, y) ∂μ = c * (μ S).toReal := by
+                field_simp [ne_of_gt hμS_real_pos] at hx ⊢; linarith
+              rw [integral_sub (hx_int S hS_meas)
+                  (integrableOn_const (measure_lt_top μ S).ne)]
+              rw [h1, setIntegral_const]; simp [Measure.real]; ring
+            have h_ae_A : (fun x => ∫ y in S, (W.toAEEqFun (x, y) - c) ∂μ)
+                =ᵐ[μ.restrict A] 0 :=
+              h_inner.filter_mono (ae_mono (Measure.restrict_mono hA_sub le_rfl))
+            exact integral_eq_zero_of_ae h_ae_A
+          -- Step C: ∫_{A×B} (W-c) = 0 for all measurable A,B ⊆ S
+          -- Sub-step: for disjoint nontrivial A ⊆ S: ∫_{A×(S\A)} = 0
+          -- Proof: ∫_{A×S} = ∫_{A×A} + ∫_{A×(S\A)} (by additivity)
+          -- ∫_{A×S} = 0 (Step B), ∫_{A×A} = 0 (Step A, if nontrivial). So ∫_{A×(S\A)} = 0.
+          have h_rect_zero : ∀ A B : Set α, MeasurableSet A → MeasurableSet B →
+              A ⊆ S → B ⊆ S →
+              ∫ p in A ×ˢ B, (W.toAEEqFun p - c) ∂(μ.prod μ) = 0 := by
+            intro A B hA_meas hB_meas hA_sub hB_sub
+            -- Decompose: A×B = (A∩B)×(A∩B) ∪ (A∩B)×(B\A) ∪ (A\B)×(A∩B) ∪ (A\B)×(B\A)
+            -- Each piece has ∫ = 0.
+            -- For self-pieces (C×C where C ⊆ S nontrivial): use h_diag_zero.
+            -- For cross-pieces (C×D where C,D disjoint, both ⊆ S, nontrivial):
+            --   ∫_{C×S} = ∫_{C×C} + ∫_{C×(S\C)} = 0 + ∫_{C×(S\C)} = 0
+            --   Since ∫_{C×S} = 0 (Step B), ∫_{C×(S\C)} = 0.
+            --   D ⊆ S\C, so ∫_{C×D} ⊆ ∫_{C×(S\C)} can be decomposed further.
+            --   Actually, ∫_{C×(S\C)} = 0 and D ⊆ S\C doesn't directly give ∫_{C×D} = 0.
+            --   But: decompose S\C into D' = D∩(S\C) and (S\C)\D'. If D ⊆ S\C, D' = D.
+            --   ∫_{C×D} + ∫_{C×((S\C)\D)} = ∫_{C×(S\C)} = 0.
+            --   Hmm, both could be nonzero.
+            -- Better approach: use polarization on the square integral condition.
+            -- For disjoint C,D ⊆ S with C,D nontrivial and μ(S\(C∪D)) > 0:
+            --   ∫_{(C∪D)×(C∪D)} = 0 (from h_diag_zero, since C∪D ⊆ S nontrivial with complement)
+            --   = ∫_{C×C} + ∫_{C×D} + ∫_{D×C} + ∫_{D×D}
+            --   = 0 + ∫_{C×D} + ∫_{D×C} + 0
+            --   By W symmetry: ∫_{D×C} = ∫_{C×D} (swap + W(x,y)=W(y,x) a.e.)
+            --   So 2∫_{C×D} = 0, hence ∫_{C×D} = 0.
+            -- For C∪D = S (complement empty):
+            --   ∫_{C×S} = ∫_{C×C} + ∫_{C×D} = 0 + ∫_{C×D} = 0 (from Step B)
+            --   So ∫_{C×D} = 0.
+            -- For zero-measure cases: ∫ over zero measure = 0.
+            -- We handle all cases by splitting A×B into 4 pieces using A∩B and its complements.
+            -- The 4 pieces are: (A∩B)×(A∩B), (A∩B)×(B\A), (A\B)×(A∩B), (A\B)×(B\A)
+            -- These are disjoint and cover A×B.
+            have hAB := hA_meas.inter hB_meas
+            have hAdB := hA_meas.diff hB_meas
+            have hBdA := hB_meas.diff hA_meas
+            -- Helper: ∫_{C×D} = 0 for disjoint C,D ⊆ S with both nontrivial
+            have h_disj_zero : ∀ C D : Set α, MeasurableSet C → MeasurableSet D →
+                C ⊆ S → D ⊆ S → Disjoint C D → μ C ≠ 0 → μ D ≠ 0 →
+                ∫ p in C ×ˢ D, (W.toAEEqFun p - c) ∂(μ.prod μ) = 0 := by
+              intro C D hC_meas hD_meas hC_sub hD_sub hCD_disj hμC hμD
+              by_cases hμSC : μ (S \ C) = 0
+              · -- C =ᵐ S, so D has zero measure (D ⊆ S\C up to null set)
+                have : μ D = 0 := by
+                  apply measure_mono_null (fun x hxD => _)
+                  · exact hμSC
+                  · intro x hxD
+                    exact ⟨hD_sub hxD, fun hxC => Set.disjoint_iff.mp hCD_disj ⟨hxC, hxD⟩⟩
+                exact absurd this hμD
+              · -- C nontrivial with complement: ∫_{C×C} = 0
+                by_cases hμSD : μ (S \ D) = 0
+                · -- D =ᵐ S: C has zero measure
+                  have : μ C = 0 := by
+                    apply measure_mono_null (fun x hxC => _)
+                    · exact hμSD
+                    · intro x hxC
+                      exact ⟨hC_sub hxC, fun hxD => Set.disjoint_iff.mp hCD_disj ⟨hxC, hxD⟩⟩
+                  exact absurd this hμC
+                · -- Both C and D are nontrivial subsets of S with nontrivial complement
+                  -- Use ∫_{C×S} = 0 and ∫_{C×C} = 0
+                  have h1 := h_row_S_zero C hC_meas hC_sub
+                  have h2 := h_diag_zero C hC_meas hC_sub hμC hμSC
+                  -- ∫_{C×S} = ∫_{C×C} + ∫_{C×(S\C)}
+                  have h_union : C ×ˢ S = (C ×ˢ C) ∪ (C ×ˢ (S \ C)) := by
+                    rw [← Set.prod_union, Set.union_diff_cancel hC_sub]
+                  have h_disj_prod : Disjoint (C ×ˢ C) (C ×ˢ (S \ C)) := by
+                    rw [Set.disjoint_iff]; intro ⟨x, y⟩ ⟨⟨_, hy1⟩, ⟨_, hy2⟩⟩
+                    exact hy2.2 hy1
+                  have h3 : ∫ p in C ×ˢ (S \ C), (W.toAEEqFun p - c) ∂(μ.prod μ) = 0 := by
+                    have := setIntegral_union h_disj_prod (hC_meas.prod (hS_meas.diff hC_meas))
+                      (h_Wc_int_prod C C hC_meas hC_meas)
+                      (h_Wc_int_prod C (S \ C) hC_meas (hS_meas.diff hC_meas))
+                    rw [h_union] at h1; linarith
+                  -- D ⊆ S\C, so ∫_{C×D} is part of ∫_{C×(S\C)}
+                  -- Decompose S\C = D ∪ ((S\C)\D)
+                  have hD_sub_SC : D ⊆ S \ C := by
+                    intro x hxD
+                    exact ⟨hD_sub hxD, fun hxC => Set.disjoint_iff.mp hCD_disj ⟨hxC, hxD⟩⟩
+                  -- ∫_{C×(S\C)} = ∫_{C×D} + ∫_{C×((S\C)\D)}
+                  have h_union2 : C ×ˢ (S \ C) = (C ×ˢ D) ∪ (C ×ˢ ((S \ C) \ D)) := by
+                    rw [← Set.prod_union, Set.union_diff_cancel hD_sub_SC]
+                  -- But we can't separate ∫_{C×D} from ∫_{C×((S\C)\D)} without more info.
+                  -- Instead, use symmetry of W:
+                  -- ∫_{D×C} (W(x,y)-c) = ∫_{C×D} (W(y,x)-c) (by swap)
+                  -- = ∫_{C×D} (W(x,y)-c) (by W symmetry a.e.)
+                  -- So ∫_{D×C} = ∫_{C×D}.
+                  -- Also ∫_{D×S} = 0 (Step B), ∫_{D×D} = 0 (Step A).
+                  -- ∫_{D×C} is part of ∫_{D×(S\D)}.
+                  -- ∫_{D×S} = ∫_{D×D} + ∫_{D×(S\D)} = 0 + ∫_{D×(S\D)} = 0.
+                  -- So ∫_{D×(S\D)} = 0. And C ⊆ S\D.
+                  -- Similarly to above, ∫_{D×C} is part of ∫_{D×(S\D)} = 0, but we can't extract it.
+                  -- NEW IDEA: Use polarization with the union C∪D.
+                  by_cases hμSCUD : μ (S \ (C ∪ D)) = 0
+                  · -- C ∪ D =ᵐ S
+                    -- ∫_{C×D} = ∫_{C×S} - ∫_{C×C} - ∫_{C×(S\(C∪D))}
+                    -- Since μ(S\(C∪D)) = 0, ∫_{C×(S\(C∪D))} = 0.
+                    -- And ∫_{C×S} = 0, ∫_{C×C} = 0.
+                    -- But ∫_{C×S} = ∫_{C×C} + ∫_{C×D} + ∫_{C×(S\(C∪D))}
+                    -- Actually, S = C ∪ D ∪ (S\(C∪D)) up to null set.
+                    -- S\C = D ∪ (S\(C∪D)) \ ... hmm, (S\C) = D ∪ ((S\C)\D) since D ⊆ S\C.
+                    -- And ((S\C)\D) = S\(C∪D).
+                    -- So ∫_{C×(S\C)} = ∫_{C×D} + ∫_{C×(S\(C∪D))}.
+                    -- Since μ(S\(C∪D)) = 0: ∫_{C×(S\(C∪D))} = 0 (by measure zero).
+                    -- And ∫_{C×(S\C)} = 0 (from h3).
+                    -- So ∫_{C×D} = 0.
+                    have h_rest_zero : ∫ p in C ×ˢ (S \ (C ∪ D)),
+                        (W.toAEEqFun p - c) ∂(μ.prod μ) = 0 :=
+                      setIntegral_measure_zero _ (by
+                        rw [Measure.prod_prod]; simp [hμSCUD])
+                    have h_eq_SC_D : (S \ C) \ D = S \ (C ∪ D) := by
+                      ext x; simp [Set.mem_diff, Set.mem_union]; tauto
+                    rw [h_eq_SC_D] at h_union2
+                    have h_disj3 : Disjoint (C ×ˢ D) (C ×ˢ (S \ (C ∪ D))) := by
+                      rw [Set.disjoint_iff]; intro ⟨_, y⟩ ⟨hy1, hy2⟩
+                      exact hy2.2.2 (Or.inr hy1.2)
+                    have := setIntegral_union h_disj3
+                      (hC_meas.prod (hS_meas.diff (hC_meas.union hD_meas)))
+                      (h_Wc_int_prod C D hC_meas hD_meas)
+                      (h_Wc_int_prod C (S \ (C ∪ D)) hC_meas (hS_meas.diff (hC_meas.union hD_meas)))
+                    rw [h_union2] at h3; linarith
+                  · -- μ(S\(C∪D)) > 0: use polarization
+                    -- C∪D is nontrivial subset of S with nontrivial complement
+                    have hμCUD : μ (C ∪ D) ≠ 0 := by
+                      intro h; exact hμC (measure_mono_null Set.subset_union_left h)
+                    have hμSCUD' : μ (S \ (C ∪ D)) ≠ 0 := hμSCUD
+                    have hCUD_sub : C ∪ D ⊆ S := Set.union_subset hC_sub hD_sub
+                    have h_CUD := h_diag_zero (C ∪ D)
+                      (hC_meas.union hD_meas) hCUD_sub hμCUD hμSCUD'
+                    -- ∫_{(C∪D)×(C∪D)} = ∫_{C×C} + ∫_{C×D} + ∫_{D×C} + ∫_{D×D}
+                    have h_expand : (C ∪ D) ×ˢ (C ∪ D) =
+                        (C ×ˢ C) ∪ (C ×ˢ D) ∪ (D ×ˢ C) ∪ (D ×ˢ D) := by
+                      ext ⟨x, y⟩; simp [Set.mem_prod, Set.mem_union]; tauto
+                    -- The 4 pieces are pairwise disjoint (since C and D are disjoint)
+                    have h_CC_int := h_Wc_int_prod C C hC_meas hC_meas
+                    have h_CD_int := h_Wc_int_prod C D hC_meas hD_meas
+                    have h_DC_int := h_Wc_int_prod D C hD_meas hC_meas
+                    have h_DD_int := h_Wc_int_prod D D hD_meas hD_meas
+                    -- Integral over union of 4 disjoint pieces
+                    have h_sum : ∫ p in (C ∪ D) ×ˢ (C ∪ D), (W.toAEEqFun p - c) ∂(μ.prod μ) =
+                        ∫ p in C ×ˢ C, (W.toAEEqFun p - c) ∂(μ.prod μ) +
+                        ∫ p in C ×ˢ D, (W.toAEEqFun p - c) ∂(μ.prod μ) +
+                        ∫ p in D ×ˢ C, (W.toAEEqFun p - c) ∂(μ.prod μ) +
+                        ∫ p in D ×ˢ D, (W.toAEEqFun p - c) ∂(μ.prod μ) := by
+                      rw [h_expand]
+                      have d1 : Disjoint (C ×ˢ C) (C ×ˢ D) := by
+                        rw [Set.disjoint_iff]; intro ⟨_, y⟩ ⟨⟨_, hy1⟩, ⟨_, hy2⟩⟩
+                        exact Set.disjoint_iff.mp hCD_disj ⟨hy1, hy2⟩
+                      have d2 : Disjoint (C ×ˢ C ∪ C ×ˢ D) (D ×ˢ C) := by
+                        rw [Set.disjoint_iff]; intro ⟨x, _⟩ ⟨hx1, hx2⟩
+                        rcases hx1 with ⟨hxC, _⟩ | ⟨hxC, _⟩ <;>
+                          exact Set.disjoint_iff.mp hCD_disj ⟨hxC, hx2.1⟩
+                      have d3 : Disjoint (C ×ˢ C ∪ C ×ˢ D ∪ D ×ˢ C) (D ×ˢ D) := by
+                        rw [Set.disjoint_iff]; intro ⟨x, y⟩ ⟨hx1, hx2⟩
+                        rcases hx1 with (⟨hxC, _⟩ | ⟨hxC, _⟩) | ⟨_, hyC⟩
+                        · exact Set.disjoint_iff.mp hCD_disj ⟨hxC, hx2.1⟩
+                        · exact Set.disjoint_iff.mp hCD_disj ⟨hxC, hx2.1⟩
+                        · exact Set.disjoint_iff.mp hCD_disj ⟨hyC, hx2.2⟩
+                      conv_lhs => rw [setIntegral_union d3 (hD_meas.prod hD_meas)
+                        ((h_CC_int.union h_CD_int).union h_DC_int) h_DD_int]
+                      conv_lhs => rw [setIntegral_union d2 (hD_meas.prod hC_meas)
+                        (h_CC_int.union h_CD_int) h_DC_int]
+                      conv_lhs => rw [setIntegral_union d1 (hC_meas.prod hD_meas) h_CC_int h_CD_int]
+                    -- ∫_{D×C} = ∫_{C×D} by W symmetry
+                    have h_swap : ∫ p in D ×ˢ C, (W.toAEEqFun p - c) ∂(μ.prod μ) =
+                        ∫ p in C ×ˢ D, (W.toAEEqFun p - c) ∂(μ.prod μ) := by
+                      rw [← setIntegral_prod_swap]
+                      refine setIntegral_congr_ae (hC_meas.prod hD_meas) ?_
+                      filter_upwards [W.symm_ae] with p hp _
+                      rw [hp]
+                    -- From h_sum, h2, h_diag_zero D, and h_swap:
+                    have h_CC := h2
+                    have hμSD : μ (S \ D) ≠ 0 := by
+                      intro h; exact hμC (measure_mono_null (show C ⊆ S \ D from
+                        fun x hx => ⟨hC_sub hx,
+                        fun hxD => Set.disjoint_iff.mp hCD_disj ⟨hx, hxD⟩⟩) h)
+                    have h_DD := h_diag_zero D hD_meas hD_sub hμD hμSD
+                    rw [h_CC, h_DD, h_swap] at h_sum
+                    linarith [h_CUD]
+            -- Now prove the rectangle identity for general subsets
+            -- Decompose A×B using A∩B, A\B, B\A
+            -- A×B = (A∩B)×(A∩B) ∪ (A∩B)×(B\A) ∪ (A\B)×(A∩B) ∪ (A\B)×(B\A)
+            -- For each piece: either μ = 0 (trivial) or use h_disj_zero / h_diag_zero
+            -- Set pieces
+            set AB := A ∩ B with hAB_def_local
+            set AdB := A \ B with hAdB_def_local
+            set BdA := B \ A with hBdA_def_local
+            -- Each piece ⊆ S
+            have hAB_sub : AB ⊆ S := fun x hx => hA_sub hx.1
+            have hAdB_sub : AdB ⊆ S := fun x hx => hA_sub hx.1
+            have hBdA_sub : BdA ⊆ S := fun x hx => hB_sub hx.1
+            -- Disjointness conditions
+            have h_AB_BdA_disj : Disjoint AB BdA := by
+              rw [Set.disjoint_iff]; intro x ⟨hx1, hx2⟩; exact hx2.2 hx1.1
+            have h_AdB_AB_disj : Disjoint AdB AB := by
+              rw [Set.disjoint_iff]; intro x ⟨hx1, hx2⟩; exact hx1.2 hx2.2
+            have h_AdB_BdA_disj : Disjoint AdB BdA := by
+              rw [Set.disjoint_iff]; intro x ⟨hx1, hx2⟩; exact hx2.2 hx1.1
+            -- A×B = AB×AB ∪ AB×BdA ∪ AdB×AB ∪ AdB×BdA
+            have h_decomp : A ×ˢ B = (AB ×ˢ AB) ∪ (AB ×ˢ BdA) ∪ (AdB ×ˢ AB) ∪ (AdB ×ˢ BdA) := by
+              ext ⟨x, y⟩
+              simp only [Set.mem_prod, Set.mem_union, Set.mem_inter_iff, Set.mem_diff]
+              constructor
+              · intro ⟨hxA, hyB⟩
+                by_cases hxB : x ∈ B
+                · by_cases hyA : y ∈ A
+                  · exact Or.inl (Or.inl (Or.inl ⟨⟨hxA, hxB⟩, hyA, hyB⟩))
+                  · exact Or.inl (Or.inl (Or.inr ⟨⟨hxA, hxB⟩, hyB, hyA⟩))
+                · by_cases hyA : y ∈ A
+                  · exact Or.inl (Or.inr ⟨⟨hxA, hxB⟩, hyA, hyB⟩)
+                  · exact Or.inr ⟨⟨hxA, hxB⟩, hyB, hyA⟩
+              · intro h
+                rcases h with ((⟨⟨hxA, _⟩, _, hyB⟩ | ⟨⟨hxA, _⟩, hyB, _⟩) |
+                    ⟨⟨hxA, _⟩, _, hyB⟩) | ⟨⟨hxA, _⟩, hyB, _⟩ <;> exact ⟨hxA, hyB⟩
+            -- Helper for integral over each piece
+            have h_piece_zero : ∀ C D : Set α, MeasurableSet C → MeasurableSet D →
+                C ⊆ S → D ⊆ S → Disjoint C D →
+                ∫ p in C ×ˢ D, (W.toAEEqFun p - c) ∂(μ.prod μ) = 0 := by
+              intro C D hC_meas hD_meas hC_sub hD_sub hCD_disj
+              by_cases hμC : μ C = 0
+              · exact setIntegral_measure_zero _ (by rw [Measure.prod_prod]; simp [hμC])
+              · by_cases hμD : μ D = 0
+                · exact setIntegral_measure_zero _ (by rw [Measure.prod_prod]; simp [hμD])
+                · exact h_disj_zero C D hC_meas hD_meas hC_sub hD_sub hCD_disj hμC hμD
+            have h_self_zero : ∀ C : Set α, MeasurableSet C → C ⊆ S →
+                ∫ p in C ×ˢ C, (W.toAEEqFun p - c) ∂(μ.prod μ) = 0 := by
+              intro C hC_meas hC_sub
+              by_cases hμC : μ C = 0
+              · exact setIntegral_measure_zero _ (by rw [Measure.prod_prod]; simp [hμC])
+              · by_cases hμSC : μ (S \ C) = 0
+                · -- C =ᵐ S: ∫_{C×C} = ∫_{S×S} (up to null set)
+                  have hC_ae_S : C =ᵐ[μ] S :=
+                    ae_eq_set.mpr ⟨by simp [Set.diff_eq_empty.mpr hC_sub], hμSC⟩
+                  have h_ae : C ×ˢ C =ᵐ[μ.prod μ] S ×ˢ S :=
+                    Measure.set_prod_ae_eq hC_ae_S hC_ae_S
+                  rw [setIntegral_congr_set h_ae]
+                  exact h_row_S_zero S hS_meas Subset.rfl
+                · exact h_diag_zero C hC_meas hC_sub hμC hμSC
+            -- Combine the 4 pieces
+            have d1 : Disjoint (AB ×ˢ AB) (AB ×ˢ BdA) := by
+              rw [Set.disjoint_iff]; intro ⟨_, y⟩ ⟨⟨_, hy1⟩, ⟨_, hy2⟩⟩
+              exact hy2.2 hy1.1
+            have d2 : Disjoint (AB ×ˢ AB ∪ AB ×ˢ BdA) (AdB ×ˢ AB) := by
+              rw [Set.disjoint_iff]; intro ⟨x, _⟩ ⟨hx1, hx2⟩
+              rcases hx1 with ⟨hxAB, _⟩ | ⟨hxAB, _⟩ <;> exact hx2.1.2 hxAB.2
+            have d3 : Disjoint (AB ×ˢ AB ∪ AB ×ˢ BdA ∪ AdB ×ˢ AB) (AdB ×ˢ BdA) := by
+              rw [Set.disjoint_iff]; intro ⟨x, y⟩ ⟨hx1, hx2⟩
+              rcases hx1 with (⟨hxAB, _⟩ | ⟨hxAB, _⟩) | ⟨_, hyAB⟩
+              · exact hx2.1.2 hxAB.2
+              · exact hx2.1.2 hxAB.2
+              · exact hx2.2.2 hyAB.1
+            rw [h_decomp]
+            rw [setIntegral_union d3 (hAdB.prod hBdA)
+              (((h_Wc_int_prod AB AB hAB hAB).union
+                (h_Wc_int_prod AB BdA hAB hBdA)).union
+                (h_Wc_int_prod AdB AB hAdB hAB))
+              (h_Wc_int_prod AdB BdA hAdB hBdA)]
+            rw [setIntegral_union d2 (hAdB.prod hAB)
+              ((h_Wc_int_prod AB AB hAB hAB).union
+                (h_Wc_int_prod AB BdA hAB hBdA))
+              (h_Wc_int_prod AdB AB hAdB hAB)]
+            rw [setIntegral_union d1 (hAB.prod hBdA)
+              (h_Wc_int_prod AB AB hAB hAB) (h_Wc_int_prod AB BdA hAB hBdA)]
+            rw [h_self_zero AB hAB hAB_sub,
+                h_piece_zero AB BdA hAB hBdA hAB_sub hBdA_sub h_AB_BdA_disj,
+                h_piece_zero AdB AB hAdB hAB hAdB_sub hAB_sub h_AdB_AB_disj,
+                h_piece_zero AdB BdA hAdB hBdA hAdB_sub hBdA_sub h_AdB_BdA_disj]
+            ring
+          -- Step D: Apply π-λ to show W = c a.e. on S × S
+          -- ∫_{A×B} (W-c) dν = 0 for all measurable A, B (restricted to S)
+          have h_rect_bochner_zero : ∀ A B : Set α, MeasurableSet A → MeasurableSet B →
+              ∫ p in A ×ˢ B, (W.toAEEqFun p - c) ∂ν = 0 := by
+            intro A B hA_meas hB_meas
+            rw [hν_def, Measure.prod_restrict]
+            rw [Measure.restrict_restrict (hA_meas.prod hB_meas)]
+            rw [Set.prod_inter_prod]
+            exact h_rect_zero (A ∩ S) (B ∩ S) (hA_meas.inter hS_meas) (hB_meas.inter hS_meas)
+              Set.inter_subset_right Set.inter_subset_right
+          -- W = c a.e. on ν (same π-λ argument as S≠T case)
+          have h_ae_zero : (fun p => W.toAEEqFun p - c) =ᵐ[ν] 0 := by
+            have h_f_int : Integrable (fun p => W.toAEEqFun p - c) ν := by
+              rw [hν_def, Measure.prod_restrict]
+              apply Measure.integrableOn_of_bounded (M := 1)
+              · rw [Measure.prod_prod S S]
+                exact (ENNReal.mul_lt_top (measure_lt_top μ S) (measure_lt_top μ S)).ne
+              · exact (W.toAEEqFun.measurable.sub measurable_const).aestronglyMeasurable
+              · filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with p hp
+                simp only [Real.norm_eq_abs, abs_le]
+                have hc_mem := rectAverage_mem_Icc W S S hS_meas hS_meas
+                constructor <;> nlinarith [hp.1, hp.2, hc_mem.1, hc_mem.2]
+            apply h_f_int.ae_eq_zero_of_forall_setIntegral_eq_zero
+            intro E hE _
+            set C := {s : Set α | MeasurableSet s}
+            have h_gen : (inferInstance : MeasurableSpace (α × α)) =
+                MeasurableSpace.generateFrom (Set.image2 (· ×ˢ ·) C C) :=
+              (generateFrom_eq_prod
+                MeasurableSpace.generateFrom_measurableSet
+                MeasurableSpace.generateFrom_measurableSet
+                isCountablySpanning_measurableSet isCountablySpanning_measurableSet).symm
+            have h_pi : IsPiSystem (Set.image2 (· ×ˢ ·) C C) :=
+              IsPiSystem.prod
+                (fun _ ha _ hb _ => MeasurableSet.inter ha hb)
+                (fun _ ha _ hb _ => MeasurableSet.inter ha hb)
+            exact MeasurableSpace.induction_on_inter h_gen h_pi
+              (by simp only [Measure.restrict_empty, integral_zero_measure])
+              (fun E' hE' => by
+                obtain ⟨A, hA, B, hB, rfl⟩ := Set.mem_image2.mp hE'
+                exact h_rect_bochner_zero A B hA hB)
+              (fun E' hE'_meas hE'_zero => by
+                have h_total : ∫ p, (W.toAEEqFun p - c) ∂ν = 0 := by
+                  rw [hν_def, Measure.prod_restrict]
+                  exact h_row_S_zero S hS_meas Subset.rfl
+                have := integral_add_compl hE'_meas h_f_int; linarith)
+              (fun s hs_disj hs_meas hs_zero => by
+                rw [integral_iUnion hs_meas hs_disj h_f_int.integrableOn]; simp [hs_zero])
+              E hE
+          -- Step E: ∫_S ∫_S (W-c)² = 0, contradicting h_within_pos
+          have h_sq_zero : ∫ x in S, (∫ y in S, (W.toAEEqFun (x, y) - c) ^ 2 ∂μ) ∂μ = 0 := by
+            have h_sq_ae : (fun p => (W.toAEEqFun p - c) ^ 2) =ᵐ[ν] 0 := by
+              filter_upwards [h_ae_zero] with p hp
+              simp only [Pi.zero_apply] at hp ⊢; rw [hp]; ring
+            have h_int : Integrable (fun p => (W.toAEEqFun p - c) ^ 2) ν := by
+              rw [hν_def, Measure.prod_restrict]
+              apply Measure.integrableOn_of_bounded (M := 1)
+              · rw [Measure.prod_prod S S]
+                exact (ENNReal.mul_lt_top (measure_lt_top μ S) (measure_lt_top μ S)).ne
+              · exact (W.toAEEqFun.measurable.sub measurable_const).pow_const 2
+                  |>.aestronglyMeasurable
+              · filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with p hp
+                simp only [Real.norm_eq_abs]
+                rw [abs_of_nonneg (sq_nonneg _)]
+                have hc_mem := rectAverage_mem_Icc W S S hS_meas hS_meas
+                nlinarith [hp.1, hp.2, hc_mem.1, hc_mem.2]
+            have h_int_zero : ∫ p, (W.toAEEqFun p - c) ^ 2 ∂ν = 0 :=
+              integral_eq_zero_of_ae h_sq_ae
+            rw [show ∫ x in S, (∫ y in S, (W.toAEEqFun (x, y) - c) ^ 2 ∂μ) ∂μ =
+                ∫ p, (W.toAEEqFun p - c) ^ 2 ∂ν from
+              (integral_prod _ h_int).symm]
+            exact h_int_zero
+          linarith
+        -- Part 2: Build Q = splitPart P S B and show energy increase
+        obtain ⟨B, hB_meas, hB_sub, hμB, hμSB, h_rectAvg_ne⟩ := h_good_cut
+        -- Q = splitPart P S B
+        let Q := MeasurablePartition.splitPart P S hS_mem B hB_meas hB_sub hμB hμSB
+        use Q
+        refine ⟨?_, ?_, ?_⟩
+        -- (a) Q refines P
+        · exact MeasurablePartition.splitPart_refines P S hS_mem B hB_meas hB_sub hμB hμSB
+        -- (b) Q.parts.card ≤ 2 * P.parts.card
+        · have h_card : Q.parts.card ≤ P.parts.card + 1 :=
+            MeasurablePartition.splitPart_card P S hS_mem B hB_meas hB_sub hμB hμSB
+          have h_P_nonempty : 1 ≤ P.parts.card := Finset.one_le_card.mpr ⟨S, hS_mem⟩
+          omega
+        -- (c) Energy strictly increases
+        -- The correction from energy_splitPart_ge gives >= but the correction sum may be 0.
+        -- We prove strict inequality using the column-split Jensen contribution.
+        -- Key facts: rectAvg(B,S) = c and rectAvg(S\B,S) = c (from tAvg_S = c a.e. on S),
+        -- so the T=S term in the correction is 0. But the column-split contribution
+        -- includes the term eR(B,B) + eR(B,S\B) - eR(B,S) = delta'(B) > 0
+        -- (since rectAvg(B,B) ≠ rectAvg(S\B,B), which follows from rectAvg(B,B) ≠ c).
+        · -- Step 1: energy(Q) ≥ energy(P) + correction_row
+          have h_ge := energy_splitPart_ge W P S hS_mem B hB_meas hB_sub hμB hμSB
+          -- Step 2: The correction_row ≥ 0 (and may equal 0)
+          have h_corr_nonneg : P.parts.sum (fun T =>
+              (μ T).toReal * (μ B).toReal * (μ (S \ B)).toReal / (μ S).toReal *
+                (rectAverage W B T - rectAverage W (S \ B) T) ^ 2) ≥ 0 := by
+            apply Finset.sum_nonneg; intro T _
+            apply mul_nonneg
+            · exact div_nonneg (mul_nonneg (mul_nonneg ENNReal.toReal_nonneg
+                ENNReal.toReal_nonneg) ENNReal.toReal_nonneg) ENNReal.toReal_nonneg
+            · exact sq_nonneg _
+          -- Step 3: Show column-split gives strictly positive contribution
+          -- By energy_rect_split: eR(B,T) + eR(S\B,T) - eR(S,T) = delta(T)
+          -- The column-split version: eR(U,B) + eR(U,S\B) - eR(U,S) = delta'(U)
+          -- where delta'(U) = mu(U)*mu(B)*mu(S\B)/mu(S)*(rectAvg(U,B)-rectAvg(U,S\B))^2
+          -- For U=B: delta'(B) = mu(B)^2*mu(S\B)/mu(S)*(rectAvg(B,B)-rectAvg(B,S\B))^2
+          -- We need rectAvg(B,B) ≠ rectAvg(B,S\B), which follows from rectAvg(B,B) ≠ c.
+          -- Proof: rectAvg(B,S) = c (from tAvg_S=c a.e. on S).
+          -- rectAvg(B,S) = (mu(B)*rectAvg(B,B) + mu(S\B)*rectAvg(B,S\B)) / mu(S)
+          -- (by splitting the integral over S = B ∪ (S\B)).
+          -- If rectAvg(B,B) = rectAvg(B,S\B) = d, then d = c, contradicting rectAvg(B,B) ≠ c.
+          set S₂ := S \ B with hS₂_def_local
+          have hS₂_meas : MeasurableSet S₂ := hS_meas.diff hB_meas
+          have hμS_top_local : μ S ≠ ⊤ := (measure_lt_top μ S).ne
+          have hμB_top : μ B ≠ ⊤ := (measure_lt_top μ B).ne
+          have hμS₂_top : μ S₂ ≠ ⊤ := (measure_lt_top μ S₂).ne
+          have hμB_real_pos : (0 : ℝ) < (μ B).toReal := ENNReal.toReal_pos hμB hμB_top
+          have hμS₂_real_pos : (0 : ℝ) < (μ S₂).toReal := ENNReal.toReal_pos hμSB hμS₂_top
+          -- rectAvg(B,S) = c
+          have h_rectAvg_BS : rectAverage W B S = c := by
+            -- tAvg_S = c a.e. on S, B ⊆ S, so rectAvg(B,S) = (μB)⁻¹ ∫_B tAvg_S = c
+            rw [show rectAverage W B S = (μ B).toReal⁻¹ * ∫ x in B, tAverage W S x ∂μ from
+              (tAverage_integral_eq_rectAverage W B S hB_meas hS_meas hμB hμS).symm]
+            have h_ae_B : tAverage W S =ᵐ[μ.restrict B] fun _ => c :=
+              h_tAvg_S_ae.filter_mono (ae_mono (Measure.restrict_mono hB_sub le_rfl))
+            rw [integral_congr_ae h_ae_B, setIntegral_const, smul_eq_mul]
+            simp [Measure.real]; field_simp [ne_of_gt hμB_real_pos]
+          -- rectAvg(B,B) ≠ rectAvg(B,S\B)
+          have h_ne : rectAverage W B B ≠ rectAverage W B S₂ := by
+            intro h_eq
+            -- If rectAvg(B,B) = rectAvg(B,S\B) = d, then d = rectAvg(B,S) = c
+            -- by splitting: ∫_{B×S} W = ∫_{B×B} W + ∫_{B×S₂} W
+            -- ⟹ μ(S)*rectAvg(B,S) = μ(B)*rectAvg(B,B) + μ(S₂)*rectAvg(B,S₂)
+            -- ⟹ μ(S)*c = μ(B)*d + μ(S₂)*d = (μ(B)+μ(S₂))*d = μ(S)*d
+            -- ⟹ d = c, contradicting rectAvg(B,B) ≠ c.
+            apply h_rectAvg_ne
+            -- Show rectAvg(B,B) = c from h_eq and h_rectAvg_BS
+            have h_split : (μ S).toReal * rectAverage W B S =
+                (μ B).toReal * rectAverage W B B + (μ S₂).toReal * rectAverage W B S₂ := by
+              rw [show rectAverage W B S = (μ B).toReal⁻¹ * (μ S).toReal⁻¹ *
+                  ∫ p in B ×ˢ S, W.toAEEqFun p ∂(μ.prod μ) from by
+                unfold rectAverage; simp [hμB, hμS, dif_neg]]
+              rw [show rectAverage W B B = (μ B).toReal⁻¹ * (μ B).toReal⁻¹ *
+                  ∫ p in B ×ˢ B, W.toAEEqFun p ∂(μ.prod μ) from by
+                unfold rectAverage; simp [hμB, dif_neg]]
+              rw [show rectAverage W B S₂ = (μ B).toReal⁻¹ * (μ S₂).toReal⁻¹ *
+                  ∫ p in B ×ˢ S₂, W.toAEEqFun p ∂(μ.prod μ) from by
+                unfold rectAverage; simp [hμB, hμSB, dif_neg]]
+              have h_union : B ×ˢ S = (B ×ˢ B) ∪ (B ×ˢ S₂) := by
+                rw [← Set.prod_union, Set.union_diff_cancel hB_sub]
+              have h_disj : Disjoint (B ×ˢ B) (B ×ˢ S₂) := by
+                rw [Set.disjoint_iff]; intro ⟨_, y⟩ ⟨⟨_, hy1⟩, ⟨_, hy2⟩⟩; exact hy2.2 hy1
+              rw [h_union, setIntegral_union h_disj (hB_meas.prod hS₂_meas)
+                (SymmKernel.graphon_integrable W).integrableOn
+                (SymmKernel.graphon_integrable W).integrableOn]
+              field_simp [ne_of_gt hμB_real_pos, ne_of_gt hμS₂_real_pos,
+                ne_of_gt hμS_real_pos]
+            rw [h_rectAvg_BS, ← h_eq] at h_split
+            have hμ_add : (μ S).toReal = (μ B).toReal + (μ S₂).toReal := by
+              rw [show S = B ∪ S₂ from (Set.union_diff_cancel hB_sub).symm]
+              rw [measure_union Set.disjoint_sdiff_right hS₂_meas]
+              exact ENNReal.toReal_add hμB_top hμS₂_top
+            -- h_split: μS * c = μB * rectAvg(B,B) + μS₂ * rectAvg(B,B)
+            -- = (μB + μS₂) * rectAvg(B,B) = μS * rectAvg(B,B)
+            -- h_split (after rw): μS * c = μB * rectAvg(B,B) + μS₂ * rectAvg(B,B)
+            -- = (μB + μS₂) * rectAvg(B,B) = μS * rectAvg(B,B)
+            -- Substitute hμ_add into h_split to get linear equation
+            have h_rhs : (μ B).toReal * rectAverage W B B + (μ S₂).toReal * rectAverage W B B =
+                (μ S).toReal * rectAverage W B B := by rw [hμ_add]; ring
+            have hμS_pos_local : (0 : ℝ) < (μ S).toReal := by rw [hμ_add]; linarith
+            have h_eq2 : (μ S).toReal * c = (μ S).toReal * rectAverage W B B := by linarith
+            exact (mul_left_cancel₀ (ne_of_gt hμS_pos_local) h_eq2).symm
+          -- rectAvg(B,B) ≠ rectAvg(S\B,B) (by symmetry and the above)
+          have h_ne' : rectAverage W B B ≠ rectAverage W S₂ B := by
+            intro h_eq
+            apply h_ne
+            -- rectAvg(B,S₂) = rectAvg(S₂,B) by symmetry = rectAvg(B,B) by h_eq
+            rw [rectAverage_symm W B S₂ hB_meas hS₂_meas]; exact h_eq
+          -- The column-split delta for U=B and splitting S (second arg) into B and S\B:
+          -- eR(B,B) + eR(S\B,B) - eR(S,B) = delta_col(B) > 0
+          -- This equals mu(B)*mu(B)*mu(S\B)/mu(S)*(rectAvg(B,B)-rectAvg(S\B,B))^2
+          have h_delta_col_B := energy_rect_split W S B B hS_meas hB_meas hB_meas hB_sub
+            hμS hμB hμB hμSB
+          -- delta_col(B) > 0
+          have h_delta_col_pos : (μ B).toReal * (μ B).toReal * (μ S₂).toReal /
+              (μ S).toReal * (rectAverage W B B - rectAverage W S₂ B) ^ 2 > 0 := by
+            apply mul_pos
+            · exact div_pos (mul_pos (mul_pos hμB_real_pos hμB_real_pos) hμS₂_real_pos)
+                hμS_real_pos
+            · exact sq_pos_of_ne_zero (sub_ne_zero.mpr h_ne')
+          -- Prove energy(Q) > energy(P) by showing the column-split contribution
+          -- includes a strictly positive term.
+          -- We replicate the structure of energy_splitPart_ge but extract the
+          -- step C (column correction) contribution, which includes delta_col(B) > 0.
+          -- Setup (matching energy_splitPart_ge proof structure)
+          classical
+          set E := P.parts.erase S with hE_def
+          have hS_notin_E : S ∉ E := by rw [hE_def]; simp
+          have hE_sub : E ⊆ P.parts := by rw [hE_def]; exact Finset.erase_subset S P.parts
+          have hP_parts : P.parts = insert S E := by
+            rw [hE_def]; exact (Finset.insert_erase hS_mem).symm
+          have hP_eq : P.parts = E ∪ {S} := by
+            rw [hP_parts, Finset.insert_eq]; exact Finset.union_comm _ _
+          -- B ≠ S₂
+          have hB_ne_S₂ : B ≠ S₂ := by
+            intro h; rw [hS₂_def_local] at h
+            have : B ⊆ S \ B := h ▸ Subset.rfl
+            exact hμB (measure_mono_null (fun x hx => ((this hx).2 hx).elim) (measure_empty))
+          -- B, S₂ ∉ E
+          have hB_notin_E : B ∉ E := by
+            intro h
+            have h1 := (Finset.mem_erase.mp h).1; have h2 := (Finset.mem_erase.mp h).2
+            exact hμB (measure_mono_null (Set.disjoint_iff_inter_eq_empty.mp
+              (P.pairwiseDisjoint h2 hS_mem h1) ▸ Set.subset_inter Subset.rfl hB_sub)
+              (measure_empty))
+          have hS₂_notin_E : S₂ ∉ E := by
+            intro h
+            have h1 := (Finset.mem_erase.mp h).1; have h2 := (Finset.mem_erase.mp h).2
+            exact hμSB (measure_mono_null (Set.disjoint_iff_inter_eq_empty.mp
+              (P.pairwiseDisjoint h2 hS_mem h1) ▸ Set.subset_inter Subset.rfl Set.diff_subset)
+              (measure_empty))
+          have hE_disj_S : Disjoint E ({B, S₂} : Finset (Set α)) := by
+            rw [Finset.disjoint_left]; intro x hx hx2
+            simp only [Finset.mem_insert, Finset.mem_singleton] at hx2
+            rcases hx2 with rfl | rfl; exact hB_notin_E hx; exact hS₂_notin_E hx
+          have hE_disj_S_single : Disjoint E ({S} : Finset (Set α)) := by
+            rw [Finset.disjoint_left]; intro x hx hx2
+            simp only [Finset.mem_singleton] at hx2; rw [hx2] at hx; exact hS_notin_E hx
+          have hQ_parts : Q.parts = E ∪ ({B, S₂} : Finset (Set α)) := by
+            simp only [Q, MeasurablePartition.splitPart, hE_def, hS₂_def_local]
+          have hQ_meas : ∀ T ∈ Q.parts, MeasurableSet T := Q.measurable_parts
+          -- eR symmetry
+          have h_eR_symm : ∀ A' B' : Set α, MeasurableSet A' → MeasurableSet B' →
+              energyRect W A' B' = energyRect W B' A' := by
+            intro A' B' hA' hB'; unfold energyRect
+            rw [rectAverage_symm W A' B' hA' hB']; ring
+          -- Row split identity: eR(B,T) + eR(S₂,T) - eR(S,T) = delta_row(T)
+          have h_split_all : ∀ T, MeasurableSet T →
+              energyRect W B T + energyRect W S₂ T - energyRect W S T =
+              (μ T).toReal * (μ B).toReal * (μ S₂).toReal / (μ S).toReal *
+                (rectAverage W B T - rectAverage W S₂ T) ^ 2 := by
+            intro T hT_meas
+            by_cases hμT : μ T = 0
+            · simp only [energyRect, show (μ T).toReal = 0 from by simp [hμT], zero_mul,
+                mul_zero, add_zero, sub_zero, zero_div]
+            · exact energy_rect_split W S T B hS_meas hT_meas hB_meas hB_sub hμS hμT hμB hμSB
+          -- Column split: eR(U,B) + eR(U,S₂) - eR(U,S) ≥ 0 for all measurable U
+          have h_col_nonneg : ∀ U, MeasurableSet U →
+              energyRect W U B + energyRect W U S₂ - energyRect W U S ≥ 0 := by
+            intro U hU_meas
+            rw [h_eR_symm U B hU_meas hB_meas, h_eR_symm U S₂ hU_meas hS₂_meas,
+              h_eR_symm U S hU_meas hS_meas]
+            have := h_split_all U hU_meas
+            linarith [mul_nonneg (div_nonneg (mul_nonneg (mul_nonneg
+              (show (0 : ℝ) ≤ (μ U).toReal from ENNReal.toReal_nonneg)
+              (show (0 : ℝ) ≤ (μ B).toReal from ENNReal.toReal_nonneg))
+              (show (0 : ℝ) ≤ (μ S₂).toReal from ENNReal.toReal_nonneg))
+              (show (0 : ℝ) ≤ (μ S).toReal from ENNReal.toReal_nonneg))
+              (sq_nonneg (rectAverage W B U - rectAverage W S₂ U))]
+          -- g(T) = Σ_{U∈Q} eR(U,T)
+          set g : Set α → ℝ := fun T => Q.parts.sum (fun U => energyRect W U T) with hg_def
+          -- energy(Q) = Σ_{T∈Q} g(T) (by sum_comm)
+          have h_energy_Q : energy W Q = Q.parts.sum g := by
+            show Q.parts.sum (fun S => Q.parts.sum (fun T =>
+              (μ S).toReal * (μ T).toReal * (rectAverage W S T) ^ 2)) =
+              Q.parts.sum (fun T => Q.parts.sum (fun U =>
+              (μ U).toReal * (μ T).toReal * (rectAverage W U T) ^ 2))
+            exact Finset.sum_comm
+          -- energy(P) = Σ_{T∈P} Σ_{U∈P} eR(U,T) (by sum_comm)
+          have h_energy_P : energy W P = P.parts.sum (fun T =>
+              P.parts.sum (fun U => energyRect W U T)) := by
+            show P.parts.sum (fun S => P.parts.sum (fun T =>
+              (μ S).toReal * (μ T).toReal * (rectAverage W S T) ^ 2)) =
+              P.parts.sum (fun T => P.parts.sum (fun U =>
+              (μ U).toReal * (μ T).toReal * (rectAverage W U T) ^ 2))
+            exact Finset.sum_comm
+          -- Inner sum identity: Σ_{U∈Q} eR(U,T) = Σ_{U∈P} eR(U,T) + delta_row(T) for T ∈ P
+          have h_inner : ∀ T' ∈ P.parts,
+              Q.parts.sum (fun U => energyRect W U T') =
+              P.parts.sum (fun U => energyRect W U T') +
+              (μ T').toReal * (μ B).toReal * (μ S₂).toReal / (μ S).toReal *
+                (rectAverage W B T' - rectAverage W S₂ T') ^ 2 := by
+            intro T' hT'
+            have hT'_meas := P.measurableSet_part hT'
+            rw [hQ_parts, Finset.sum_union hE_disj_S, Finset.sum_insert (show B ∉ ({S₂} : Finset _) by simp [hB_ne_S₂]),
+                Finset.sum_singleton]
+            rw [hP_eq, Finset.sum_union hE_disj_S_single, Finset.sum_singleton]
+            linarith [h_split_all T' hT'_meas]
+          -- Σ_{T∈P} g(T) = energy(P) + correction_row
+          have h_step_B : P.parts.sum g = energy W P +
+              P.parts.sum (fun T' => (μ T').toReal * (μ B).toReal * (μ S₂).toReal /
+                (μ S).toReal * (rectAverage W B T' - rectAverage W S₂ T') ^ 2) := by
+            rw [h_energy_P, ← Finset.sum_add_distrib]
+            exact Finset.sum_congr rfl (fun T' hT' => h_inner T' hT')
+          -- energy(Q) = Σ_{T∈P} g(T) + [g(B) + g(S₂) - g(S)]
+          have h_energy_decomp : energy W Q = P.parts.sum g + (g B + g S₂ - g S) := by
+            rw [h_energy_Q, hQ_parts, Finset.sum_union hE_disj_S, Finset.sum_insert (show B ∉ ({S₂} : Finset _) by simp [hB_ne_S₂]),
+                Finset.sum_singleton]
+            rw [show P.parts.sum g = (E.sum g) + g S from by
+              rw [hP_eq, Finset.sum_union hE_disj_S_single, Finset.sum_singleton]]
+            ring
+          -- g(B) + g(S₂) - g(S) ≥ delta_col(B) (extract the B-term from the sum)
+          have h_col_sum : g B + g S₂ - g S =
+              Q.parts.sum (fun U => energyRect W U B + energyRect W U S₂ - energyRect W U S) := by
+            simp only [hg_def]; rw [← Finset.sum_add_distrib, ← Finset.sum_sub_distrib]
+          -- B ∈ Q.parts
+          have hB_in_Q : B ∈ Q.parts := by
+            simp only [Q, MeasurablePartition.splitPart]
+            exact Finset.mem_union_right _ (Finset.mem_insert_self _ _)
+          -- The B-term in the column sum is delta_col(B) > 0
+          have h_B_col_term : energyRect W B B + energyRect W B S₂ - energyRect W B S > 0 := by
+            rw [h_eR_symm B S₂ hB_meas hS₂_meas, h_eR_symm B S hB_meas hS_meas]
+            linarith [h_delta_col_B]
+          -- The sum is ≥ the B-term (other terms are non-negative)
+          have h_col_ge : g B + g S₂ - g S > 0 := by
+            rw [h_col_sum]
+            have h_nonneg : ∀ U ∈ Q.parts,
+                0 ≤ energyRect W U B + energyRect W U S₂ - energyRect W U S := by
+              intro U hU
+              linarith [h_col_nonneg U (hQ_meas U hU)]
+            linarith [(Finset.sum_pos_iff_of_nonneg h_nonneg).mpr ⟨B, hB_in_Q, by linarith⟩]
+          -- Combine: energy(Q) > energy(P)
+          rw [h_energy_decomp, h_step_B]
+          linarith [h_corr_nonneg]
+      · -- Sub-case S ≠ T
+        -- Step 5a: Find a nontrivial measurable cut B ⊆ T with positive between-B variance.
+        -- This combines existence of a nontrivial cut with its having positive I_B.
+        --
+        -- Mathematical argument:
+        -- By contradiction, assume for all nontrivial B ⊆ T, I_B = ∫_S (tAvg_B - c)² = 0.
+        -- Then for each B, tAvg_B(x) = c for a.e. x ∈ S, so ∫_B (W(x,y) - c) dy = 0 a.e.
+        -- For finitely many B₁,...,Bₙ, the intersection of the full-measure sets still has
+        -- full measure, so ∫_{Bᵢ} (W(x,y)-c) dy = 0 simultaneously for a.e. x.
+        -- Since simple functions on T (with support in T) span a dense subspace of L²(T,μ|_T),
+        -- and L²(T,μ|_T) is separable (finite measure), taking a countable dense set of
+        -- simple functions and intersecting countably many full-measure sets:
+        -- for a.e. x ∈ S, ⟨W(x,·)-c, φ⟩ = 0 for all φ ∈ L²(T), hence W(x,·) = c a.e. on T.
+        -- This gives ∫_S ∫_T (W-c)² = 0, contradicting h_within_pos.
+        have h_good_cut : ∃ B : Set α, MeasurableSet B ∧ B ⊆ T ∧ μ B ≠ 0 ∧ μ (T \ B) ≠ 0 ∧
+            ∫ x in S, (tAverage W B x - c) ^ 2 ∂μ > 0 := by
+          -- By contradiction: assume for all nontrivial B ⊆ T, the between-B variance is ≤ 0.
+          by_contra h_neg
+          push_neg at h_neg
+          -- For all nontrivial B ⊆ T, tAvg_B = c a.e. on S (variance = 0)
+          have h_tAvg_eq : ∀ B : Set α, MeasurableSet B → B ⊆ T → μ B ≠ 0 → μ (T \ B) ≠ 0 →
+              tAverage W B =ᵐ[μ.restrict S] fun _ => c := by
+            intro B hB_meas hB_sub hμB hμTB
+            have h_le := h_neg B hB_meas hB_sub hμB hμTB
+            have h_ge : ∫ x in S, (tAverage W B x - c) ^ 2 ∂μ ≥ 0 :=
+              setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
+            have h_eq : ∫ x in S, (tAverage W B x - c) ^ 2 ∂μ = 0 := le_antisymm h_le h_ge
+            have h_nonneg : 0 ≤ᵐ[μ.restrict S] fun x => (tAverage W B x - c) ^ 2 :=
+              ae_of_all _ (fun _ => sq_nonneg _)
+            have h_int : IntegrableOn (fun x => (tAverage W B x - c) ^ 2) S μ := by
+              apply Measure.integrableOn_of_bounded (measure_lt_top μ S).ne
+              · exact ((tAverage_measurable W B hB_meas).sub measurable_const).pow_const 2
+                  |>.aestronglyMeasurable
+              · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W B hB_meas)] with x hx
+                simp only [Real.norm_eq_abs]
+                have hc_mem := rectAverage_mem_Icc W S T hS_meas hT_meas
+                calc |((tAverage W B x) - c) ^ 2|
+                    = ((tAverage W B x) - c) ^ 2 := abs_of_nonneg (sq_nonneg _)
+                  _ ≤ 1 := by nlinarith [hx.1, hx.2, hc_mem.1, hc_mem.2]
+            have h_ae_zero := (setIntegral_eq_zero_iff_of_nonneg_ae h_nonneg h_int).mp h_eq
+            filter_upwards [h_ae_zero] with x hx
+            simp only [Pi.zero_apply] at hx
+            linarith [sq_eq_zero_iff.mp hx]
+          -- Integrability of W-slice: for a.e. x, W(x,·) is integrable on any set of finite measure
+          have h_W_ae_ae := Measure.ae_ae_of_ae_prod W.ae_mem_Icc
+          -- h_W_ae_ae : ∀ᵐ x ∂μ, ∀ᵐ y ∂μ, W(x,y) ∈ Icc 0 1
+          -- Helper: W(x,·) is integrable on B' for a.e. x
+          have h_slice_int : ∀ᵐ x ∂μ, ∀ B' : Set α, MeasurableSet B' →
+              IntegrableOn (fun y => W.toAEEqFun (x, y)) B' μ := by
+            filter_upwards [h_W_ae_ae,
+              AEStronglyMeasurable.prodMk_left W.toAEEqFun.aestronglyMeasurable]
+              with x hx hx_meas
+            intro B' hB'_meas
+            exact Measure.integrableOn_of_bounded (M := 1) (measure_lt_top μ B').ne hx_meas
+              (by filter_upwards [ae_restrict_of_ae hx] with y hy
+                  simp only [Real.norm_eq_abs, abs_le]
+                  exact ⟨by linarith [hy.1], by linarith [hy.2]⟩)
+          -- Key claim: ∫_T (W(x,y)-c) dy = 0 for a.e. x ∈ S
+          have h_T_inner_zero :
+              (fun x => ∫ y in T, (W.toAEEqFun (x, y) - c) ∂μ) =ᵐ[μ.restrict S] 0 := by
+            filter_upwards [h_tAvg_T_ae, ae_restrict_of_ae h_slice_int] with x hx hx_int
+            simp only [Pi.zero_apply]
+            unfold tAverage at hx
+            simp only [hμT, dif_neg, not_false_eq_true] at hx
+            have h1 : ∫ y in T, W.toAEEqFun (x, y) ∂μ = c * (μ T).toReal := by
+              field_simp [ne_of_gt hμT_real_pos] at hx ⊢; linarith
+            rw [integral_sub (hx_int T hT_meas)
+                (integrableOn_const (measure_lt_top μ T).ne)]
+            rw [h1, setIntegral_const]; simp [Measure.real]; ring
+          -- For all measurable B' ⊆ T, ∫_{B'} (W(x,y)-c) dy = 0 for a.e. x ∈ S
+          have h_inner_zero : ∀ B' : Set α, MeasurableSet B' → B' ⊆ T →
+              (fun x => ∫ y in B', (W.toAEEqFun (x, y) - c) ∂μ) =ᵐ[μ.restrict S] 0 := by
+            intro B' hB'_meas hB'_sub
+            by_cases hμB' : μ B' = 0
+            · -- μ B' = 0: integral vanishes
+              filter_upwards with x; simp only [Pi.zero_apply]
+              exact setIntegral_measure_zero _ hμB'
+            · by_cases hμTB' : μ (T \ B') = 0
+              · -- B' =ᵐ T: use setIntegral_congr_set
+                have h_ae_eq : B' =ᵐ[μ] T :=
+                  ae_eq_set.mpr ⟨by simp [Set.diff_eq_empty.mpr hB'_sub], hμTB'⟩
+                filter_upwards [h_T_inner_zero] with x hx
+                simp only [Pi.zero_apply] at hx ⊢
+                rwa [setIntegral_congr_set h_ae_eq]
+              · -- Nontrivial: from h_tAvg_eq, tAvg_{B'} = c a.e., so ∫_{B'} (W-c) = 0 a.e.
+                have h_ae := h_tAvg_eq B' hB'_meas hB'_sub hμB' hμTB'
+                have hμB'_pos : (0 : ℝ) < (μ B').toReal :=
+                  ENNReal.toReal_pos hμB' (measure_lt_top μ B').ne
+                filter_upwards [h_ae, ae_restrict_of_ae h_slice_int] with x hx hx_int
+                simp only [Pi.zero_apply]
+                unfold tAverage at hx
+                simp only [hμB', dif_neg, not_false_eq_true] at hx
+                have h1 : ∫ y in B', W.toAEEqFun (x, y) ∂μ = c * (μ B').toReal := by
+                  field_simp [ne_of_gt hμB'_pos] at hx ⊢; linarith
+                rw [integral_sub (hx_int B' hB'_meas)
+                    (integrableOn_const (measure_lt_top μ B').ne)]
+                rw [h1, setIntegral_const]; simp [Measure.real]; ring
+          -- Now apply π-λ to show W = c a.e. on S × T
+          -- Define f₊ = ofReal(max(W-c, 0)) and f₋ = ofReal(max(c-W, 0))
+          -- on the restricted product measure ν = (μ.restrict S).prod (μ.restrict T)
+          set ν := (μ.restrict S).prod (μ.restrict T) with hν_def
+          -- Step A: ∫_{A×B} (W-c) dν = 0 for all measurable A, B
+          -- This follows from Fubini + h_inner_zero
+          have h_rect_bochner_zero : ∀ A B : Set α, MeasurableSet A → MeasurableSet B →
+              ∫ p in A ×ˢ B, (W.toAEEqFun p - c) ∂ν = 0 := by
+            intro A B hA_meas hB_meas
+            -- Rewrite using prod_restrict: ν = (μ.prod μ).restrict (S ×ˢ T)
+            rw [hν_def, Measure.prod_restrict]
+            rw [Measure.restrict_restrict (hA_meas.prod hB_meas)]
+            rw [Set.prod_inter_prod]
+            -- Now the integral is over (A ∩ S) ×ˢ (B ∩ T) w.r.t. μ.prod μ
+            -- Apply Fubini
+            have h_int : IntegrableOn (fun p => W.toAEEqFun p - c)
+                ((A ∩ S) ×ˢ (B ∩ T)) (μ.prod μ) := by
+              have h_meas_prod : (μ.prod μ) ((A ∩ S) ×ˢ (B ∩ T)) ≠ ⊤ := by
+                rw [Measure.prod_prod (A ∩ S) (B ∩ T)]
+                exact (ENNReal.mul_lt_top (measure_lt_top μ (A ∩ S))
+                    (measure_lt_top μ (B ∩ T))).ne
+              apply Measure.integrableOn_of_bounded (M := 1) h_meas_prod
+              · exact (W.toAEEqFun.measurable.sub measurable_const).aestronglyMeasurable
+              · filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with p hp
+                simp only [Real.norm_eq_abs, abs_le]
+                have hc_mem := rectAverage_mem_Icc W S T hS_meas hT_meas
+                constructor <;> nlinarith [hp.1, hp.2, hc_mem.1, hc_mem.2]
+            rw [setIntegral_prod _ h_int]
+            -- ∫_{A∩S} [∫_{B∩T} (W(x,y)-c) dy] dx = 0
+            -- The inner integral is 0 for a.e. x ∈ S (by h_inner_zero)
+            have h_inner_ae := h_inner_zero (B ∩ T)
+              (hB_meas.inter hT_meas) Set.inter_subset_right
+            -- h_inner_ae : (fun x => ∫ y in B∩T, (W(x,y)-c) ∂μ) =ᵐ[μ.restrict S] 0
+            -- Since A ∩ S ⊆ S, the a.e. statement restricts to A ∩ S
+            have h_ae_AS : (fun x => ∫ y in B ∩ T, (W.toAEEqFun (x, y) - c) ∂μ)
+                =ᵐ[μ.restrict (A ∩ S)] 0 :=
+              h_inner_ae.filter_mono (ae_mono (Measure.restrict_mono Set.inter_subset_right le_rfl))
+            exact integral_eq_zero_of_ae h_ae_AS
+          -- Step B: Convert to ℝ≥0∞ and apply ae_eq_of_setLIntegral_prod_eq
+          have h_ae_zero : (fun p => W.toAEEqFun p - c) =ᵐ[ν] 0 := by
+            -- f is integrable w.r.t. ν
+            have h_f_int : Integrable (fun p => W.toAEEqFun p - c) ν := by
+              rw [hν_def, Measure.prod_restrict]
+              apply Measure.integrableOn_of_bounded (M := 1)
+              · rw [Measure.prod_prod S T]
+                exact (ENNReal.mul_lt_top (measure_lt_top μ S) (measure_lt_top μ T)).ne
+              · exact (W.toAEEqFun.measurable.sub measurable_const).aestronglyMeasurable
+              · filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with p hp
+                simp only [Real.norm_eq_abs, abs_le]
+                have hc_mem := rectAverage_mem_Icc W S T hS_meas hT_meas
+                constructor <;> nlinarith [hp.1, hp.2, hc_mem.1, hc_mem.2]
+            -- ∫ f dν = 0 (from rectangle with A = B = univ)
+            have h_total : ∫ p, (W.toAEEqFun p - c) ∂ν = 0 := by
+              have := h_rect_bochner_zero Set.univ Set.univ MeasurableSet.univ MeasurableSet.univ
+              simp [Set.univ_prod_univ] at this; exact this
+            -- Apply ae_eq_zero via π-λ: rectangles generate the product σ-algebra
+            apply h_f_int.ae_eq_zero_of_forall_setIntegral_eq_zero
+            intro E hE _
+            set C := {s : Set α | MeasurableSet s}
+            have h_gen : (inferInstance : MeasurableSpace (α × α)) =
+                MeasurableSpace.generateFrom (Set.image2 (· ×ˢ ·) C C) :=
+              (generateFrom_eq_prod
+                MeasurableSpace.generateFrom_measurableSet
+                MeasurableSpace.generateFrom_measurableSet
+                isCountablySpanning_measurableSet isCountablySpanning_measurableSet).symm
+            have h_pi : IsPiSystem (Set.image2 (· ×ˢ ·) C C) :=
+              IsPiSystem.prod
+                (fun _ ha _ hb _ => MeasurableSet.inter ha hb)
+                (fun _ ha _ hb _ => MeasurableSet.inter ha hb)
+            exact MeasurableSpace.induction_on_inter h_gen h_pi
+              (by simp only [Measure.restrict_empty, integral_zero_measure])
+              (fun E' hE' => by
+                obtain ⟨A, hA, B, hB, rfl⟩ := Set.mem_image2.mp hE'
+                exact h_rect_bochner_zero A B hA hB)
+              (fun E' hE'_meas hE'_zero => by
+                have := integral_add_compl hE'_meas h_f_int; linarith)
+              (fun s hs_disj hs_meas hs_zero => by
+                rw [integral_iUnion hs_meas hs_disj h_f_int.integrableOn]; simp [hs_zero])
+              E hE
+          -- Step C: ∫_S ∫_T (W-c)² = 0, contradicting h_within_pos
+          have h_sq_zero : ∫ x in S, (∫ y in T, (W.toAEEqFun (x, y) - c) ^ 2 ∂μ) ∂μ = 0 := by
+            -- W = c a.e. on S × T (w.r.t. ν), so (W-c)² = 0 a.e.
+            have h_sq_ae : (fun p => (W.toAEEqFun p - c) ^ 2) =ᵐ[ν] 0 := by
+              filter_upwards [h_ae_zero] with p hp
+              simp only [Pi.zero_apply] at hp ⊢; rw [hp]; ring
+            -- The iterated integral equals the integral w.r.t. ν
+            -- ∫ x in S, (∫ y in T, f(x,y) ∂μ) ∂μ = ∫ f dν (by Fubini)
+            have h_int : Integrable (fun p => (W.toAEEqFun p - c) ^ 2) ν := by
+              rw [hν_def, Measure.prod_restrict]
+              apply Measure.integrableOn_of_bounded (M := 1)
+              · rw [Measure.prod_prod S T]
+                exact (ENNReal.mul_lt_top (measure_lt_top μ S) (measure_lt_top μ T)).ne
+              · exact (W.toAEEqFun.measurable.sub measurable_const).pow_const 2
+                  |>.aestronglyMeasurable
+              · filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with p hp
+                simp only [Real.norm_eq_abs]
+                rw [abs_of_nonneg (sq_nonneg _)]
+                have hc_mem := rectAverage_mem_Icc W S T hS_meas hT_meas
+                nlinarith [hp.1, hp.2, hc_mem.1, hc_mem.2]
+            -- ∫ f dν = 0 since f = 0 a.e. w.r.t. ν
+            have h_int_zero : ∫ p, (W.toAEEqFun p - c) ^ 2 ∂ν = 0 :=
+              integral_eq_zero_of_ae h_sq_ae
+            -- ∫ f dν = ∫ x in S, (∫ y in T, f(x,y) ∂μ) ∂μ by Fubini
+            rw [show ∫ x in S, (∫ y in T, (W.toAEEqFun (x, y) - c) ^ 2 ∂μ) ∂μ =
+                ∫ p, (W.toAEEqFun p - c) ^ 2 ∂ν from
+              (integral_prod _ h_int).symm]
+            exact h_int_zero
+          linarith
+        obtain ⟨A, hA_meas, hA_sub, hμA, hμTA, hIA_pos⟩ := h_good_cut
+        have h_one_pos : ∫ x in S, (tAverage W A x - c) ^ 2 ∂μ > 0 ∨
+            ∫ x in S, (tAverage W (T \ A) x - c) ^ 2 ∂μ > 0 := Or.inl hIA_pos
+        -- Step 5c: Build the refinement using two sequential splits
+        -- Split T by A → Q₁ (S survives since S ≠ T)
+        -- Then split S using between-A variance → Q₂
+        -- energy(Q₂) > energy(Q₁) ≥ energy(P)
+        -- Helper: rectAvg(S, A') = c for any measurable A' ⊆ T with μ(A') > 0
+        have h_rectAvg_eq_c : ∀ A' : Set α, MeasurableSet A' → A' ⊆ T → μ A' ≠ 0 →
+            rectAverage W S A' = c := by
+          intro A' hA'_meas hA'_sub hμA'
+          -- rectAvg(S, A') = rectAvg(A', S) by symmetry = (μA')⁻¹ ∫_{A'} tAvg_S(y) dy
+          -- Since tAvg_S = c a.e. on T and A' ⊆ T, this equals c.
+          rw [rectAverage_symm W S A' hS_meas hA'_meas]
+          -- rectAvg(A', S) = (μA')⁻¹ * (μS)⁻¹ * ∫_{A'×S} W = (μA')⁻¹ ∫_{A'} tAvg_S
+          -- Use tAverage_integral_eq_rectAverage in reverse
+          have h := tAverage_integral_eq_rectAverage W A' S hA'_meas hS_meas hμA' hμS
+          -- h : (μ A')⁻¹ * ∫ y in A', tAvg_S y = rectAvg(A', S)
+          rw [← h]
+          -- Now show (μA')⁻¹ * ∫_{A'} tAvg_S = (μA')⁻¹ * ∫_{A'} c = c
+          have hμA'_top : μ A' ≠ ⊤ := (measure_lt_top μ A').ne
+          have hμA'_pos : (0 : ℝ) < (μ A').toReal := ENNReal.toReal_pos hμA' hμA'_top
+          have h_int_c : ∫ y in A', tAverage W S y ∂μ = c * (μ A').toReal := by
+            have h_ae_c := h_tAvg_S_ae
+            -- tAvg_S = c a.e. on T, and A' ⊆ T
+            have h_ae_A' : tAverage W S =ᵐ[μ.restrict A'] fun _ => c :=
+              h_ae_c.filter_mono (ae_mono (Measure.restrict_mono hA'_sub le_rfl))
+            calc ∫ y in A', tAverage W S y ∂μ
+                = ∫ y in A', c ∂μ := integral_congr_ae h_ae_A'
+              _ = c * (μ A').toReal := by
+                  rw [setIntegral_const, smul_eq_mul]; simp [Measure.real]; ring
+          rw [h_int_c]
+          field_simp [ne_of_gt hμA'_pos]
+        -- Helper: S ∈ Q₁.parts after splitting T
+        -- Since S ≠ T, S survives in Q₁ = splitPart P T ...
+        -- The key construction for both cases
+        -- We parameterize by the "good" subset B ⊆ T and the variance bound I_B > 0
+        suffices h_main : ∀ B : Set α, MeasurableSet B → B ⊆ T → μ B ≠ 0 → μ (T \ B) ≠ 0 →
+            ∫ x in S, (tAverage W B x - c) ^ 2 ∂μ > 0 →
+            ∃ Q : MeasurablePartition α μ,
+              Refines Q P ∧ Q.parts.card ≤ 2 * P.parts.card ∧
+              energy W Q > energy W P by
+          rcases h_one_pos with hIA_pos | hITA_pos
+          · exact h_main A hA_meas hA_sub hμA hμTA hIA_pos
+          · exact h_main (T \ A) (hT_meas.diff hA_meas) Set.diff_subset hμTA
+              (by rwa [Set.diff_diff_cancel_left hA_sub]) hITA_pos
+        -- Prove the main construction
+        intro B hB_meas hB_sub hμB hμTB hI_B_pos
+        -- Step A: Build Q₁ = splitPart P T B
+        let Q₁ := MeasurablePartition.splitPart P T hT_mem B hB_meas hB_sub hμB hμTB
+        have hQ₁_refines : Refines Q₁ P :=
+          MeasurablePartition.splitPart_refines P T hT_mem B hB_meas hB_sub hμB hμTB
+        have hQ₁_card : Q₁.parts.card ≤ P.parts.card + 1 :=
+          MeasurablePartition.splitPart_card P T hT_mem B hB_meas hB_sub hμB hμTB
+        have hQ₁_energy : energy W Q₁ ≥ energy W P := by
+          have := energy_splitPart_ge W P T hT_mem B hB_meas hB_sub hμB hμTB
+          linarith [Finset.sum_nonneg (fun V _ =>
+            mul_nonneg (div_nonneg
+              (mul_nonneg (mul_nonneg ENNReal.toReal_nonneg ENNReal.toReal_nonneg)
+                ENNReal.toReal_nonneg) ENNReal.toReal_nonneg) (sq_nonneg _) : ∀ V ∈ P.parts,
+              (0 : ℝ) ≤ (μ V).toReal * (μ B).toReal * (μ (T \ B)).toReal / (μ T).toReal *
+                (rectAverage W B V - rectAverage W (T \ B) V) ^ 2)]
+        -- Step B: Show S ∈ Q₁.parts (since S ≠ T)
+        have hS_in_Q₁ : S ∈ Q₁.parts := by
+          classical
+          simp only [Q₁, MeasurablePartition.splitPart]
+          exact Finset.mem_union_left _ (Finset.mem_erase.mpr ⟨hST, hS_mem⟩)
+        -- B ∈ Q₁.parts
+        have hB_in_Q₁ : B ∈ Q₁.parts := by
+          classical
+          simp only [Q₁, MeasurablePartition.splitPart]
+          exact Finset.mem_union_right _ (Finset.mem_insert_self _ _)
+        -- Step C: Apply exists_variance_cut to tAvg_B on S
+        set I_B := ∫ x in S, (tAverage W B x - c) ^ 2 ∂μ with hI_B_def
+        set ε₁ := Real.sqrt (2 * I_B / (μ S).toReal) with hε₁_def
+        have hε₁_pos : ε₁ > 0 :=
+          Real.sqrt_pos.mpr (div_pos (mul_pos two_pos hI_B_pos) hμS_real_pos)
+        have h_rect_S_B : rectAverage W S B = c := h_rectAvg_eq_c B hB_meas hB_sub hμB
+        have h_var_B : ∫ x in S, (tAverage W B x - rectAverage W S B) ^ 2 ∂μ ≥
+            ε₁ ^ 2 / 2 * (μ S).toReal := by
+          rw [h_rect_S_B, hε₁_def,
+            Real.sq_sqrt (le_of_lt (div_pos (mul_pos two_pos hI_B_pos) hμS_real_pos))]
+          rw [← hI_B_def, ge_iff_le, ← sub_nonneg]
+          have : (μ S).toReal ≠ 0 := ne_of_gt hμS_real_pos
+          field_simp; linarith [hI_B_pos, hμS_real_pos]
+        -- Apply exists_variance_cut
+        set f_B := tAverage W B with hf_B_def
+        have hf_B_meas : Measurable f_B := tAverage_measurable W B hB_meas
+        have hc_B_mean : rectAverage W S B =
+            (μ S).toReal⁻¹ * ∫ x in S, f_B x ∂μ := by
+          rw [hf_B_def]
+          exact (tAverage_integral_eq_rectAverage W S B hS_meas hB_meas hμS hμB).symm
+        have hf_B_int : IntegrableOn f_B S μ := by
+          apply Measure.integrableOn_of_bounded (measure_lt_top μ S).ne
+          · exact hf_B_meas.aestronglyMeasurable
+          · filter_upwards [ae_restrict_of_ae (tAverage_ae_mem_Icc W B hB_meas)] with x hx
+            show ‖f_B x‖ ≤ 1
+            rw [hf_B_def, Real.norm_eq_abs, abs_le]
+            exact ⟨by linarith [hx.1], by linarith [hx.2]⟩
+        set ε₁' := ε₁ / Real.sqrt 2 with hε₁'_def
+        have hε₁'_pos : ε₁' > 0 := div_pos hε₁_pos (Real.sqrt_pos.mpr (by norm_num))
+        have h_var_B' : ∫ x in S, (f_B x - rectAverage W S B) ^ 2 ∂μ ≥
+            ε₁' ^ 2 * (μ S).toReal := by
+          have h_eq : ε₁' ^ 2 = ε₁ ^ 2 / 2 := by
+            rw [hε₁'_def, div_pow, Real.sq_sqrt (by norm_num : (0 : ℝ) ≤ 2)]
+          rw [h_eq]; exact h_var_B
+        obtain ⟨S₁, hS₁_meas, hS₁_sub, hμS₁, hμS₂, h_avg_diff⟩ :=
+          exists_variance_cut f_B S hS_meas hf_B_meas hf_B_int hμS
+            (rectAverage W S B) hc_B_mean ε₁' hε₁'_pos h_var_B'
+        -- Step D: Build Q₂ = splitPart Q₁ S S₁
+        let Q₂ := MeasurablePartition.splitPart Q₁ S hS_in_Q₁ S₁ hS₁_meas hS₁_sub hμS₁ hμS₂
+        use Q₂
+        refine ⟨?_, ?_, ?_⟩
+        -- (a) Q₂ refines P
+        · exact Refines.trans hQ₁_refines
+            (MeasurablePartition.splitPart_refines Q₁ S hS_in_Q₁ S₁ hS₁_meas hS₁_sub hμS₁ hμS₂)
+        -- (b) Q₂.parts.card ≤ 2 * P.parts.card
+        · have hQ₂_card : Q₂.parts.card ≤ Q₁.parts.card + 1 :=
+            MeasurablePartition.splitPart_card Q₁ S hS_in_Q₁ S₁ hS₁_meas hS₁_sub hμS₁ hμS₂
+          have hP_card_ge_2 : 2 ≤ P.parts.card :=
+            Finset.one_lt_card.mpr ⟨S, hS_mem, T, hT_mem, hST⟩
+          omega
+        -- (c) energy W Q₂ > energy W P
+        · -- energy(Q₂) > energy(Q₁) ≥ energy(P)
+          -- Use energy_splitPart_ge on Q₁ for splitting S by S₁
+          have h_ge := energy_splitPart_ge W Q₁ S hS_in_Q₁ S₁ hS₁_meas hS₁_sub hμS₁ hμS₂
+          -- The correction term for V = B is positive
+          -- Need: (μB) * (μS₁) * (μ(S\S₁)) / (μS) * (rectAvg(S₁,B) - rectAvg(S\S₁,B))² > 0
+          set S₂ := S \ S₁ with hS₂_def_local
+          have hS₂_meas_local : MeasurableSet S₂ := hS_meas.diff hS₁_meas
+          have hμS₁_top : μ S₁ ≠ ⊤ := (measure_lt_top μ S₁).ne
+          have hμS₂_top : μ S₂ ≠ ⊤ := (measure_lt_top μ S₂).ne
+          have hμS₁_real_pos : 0 < (μ S₁).toReal := ENNReal.toReal_pos hμS₁ hμS₁_top
+          have hμS₂_real_pos : 0 < (μ S₂).toReal := ENNReal.toReal_pos hμS₂ hμS₂_top
+          have hμB_top : μ B ≠ ⊤ := (measure_lt_top μ B).ne
+          have hμB_real_pos : 0 < (μ B).toReal := ENNReal.toReal_pos hμB hμB_top
+          -- Sub-averages
+          set c₁ := (μ S₁).toReal⁻¹ * ∫ x in S₁, f_B x ∂μ with hc₁_def
+          set c₂ := (μ S₂).toReal⁻¹ * ∫ x in S₂, f_B x ∂μ with hc₂_def
+          -- Connect to rectAverage
+          have hc₁_rect : c₁ = rectAverage W S₁ B :=
+            tAverage_integral_eq_rectAverage W S₁ B hS₁_meas hB_meas hμS₁ hμB
+          have hc₂_rect : c₂ = rectAverage W S₂ B :=
+            tAverage_integral_eq_rectAverage W S₂ B hS₂_meas_local hB_meas hμS₂ hμB
+          -- Weighted average
+          have h_S_union : S = S₁ ∪ S₂ := by
+            rw [hS₂_def_local, Set.union_diff_cancel hS₁_sub]
+          have h_disj : Disjoint S₁ S₂ := by
+            rw [hS₂_def_local]; exact Set.disjoint_sdiff_right
+          have hμ_add : (μ S).toReal = (μ S₁).toReal + (μ S₂).toReal := by
+            rw [h_S_union, measure_union h_disj hS₂_meas_local]
+            exact ENNReal.toReal_add hμS₁_top hμS₂_top
+          have h_int_add : ∫ x in S, f_B x ∂μ =
+              ∫ x in S₁, f_B x ∂μ + ∫ x in S₂, f_B x ∂μ := by
+            rw [h_S_union]
+            exact setIntegral_union h_disj hS₂_meas_local
+              (hf_B_int.mono hS₁_sub le_rfl) (hf_B_int.mono Set.diff_subset le_rfl)
+          have hc_B_weighted : rectAverage W S B =
+              ((μ S₁).toReal * c₁ + (μ S₂).toReal * c₂) / (μ S).toReal := by
+            rw [hc_B_mean, h_int_add, hc₁_def, hc₂_def]
+            field_simp [ne_of_gt hμS₁_real_pos, ne_of_gt hμS₂_real_pos,
+              ne_of_gt hμS_real_pos]
+          -- Get |c₁ - c₂| ≥ ε₁'/2 (same calculation as energy_increment_of_between_variance)
+          have h_c1_c : c₁ - rectAverage W S B =
+              (μ S₂).toReal / (μ S).toReal * (c₁ - c₂) := by
+            rw [hc_B_weighted, hμ_add]
+            field_simp [ne_of_gt hμS_real_pos]; ring
+          have h_c2_c : c₂ - rectAverage W S B =
+              -(μ S₁).toReal / (μ S).toReal * (c₁ - c₂) := by
+            rw [hc_B_weighted, hμ_add]
+            field_simp [ne_of_gt hμS_real_pos]; ring
+          have h_diff_bound : |c₁ - c₂| ≥ ε₁' / 2 := by
+            rcases h_avg_diff with h1 | h2
+            · rw [h_c1_c] at h1
+              have h_ratio_le : (μ S₂).toReal / (μ S).toReal ≤ 1 := by
+                rw [div_le_one hμS_real_pos, hμ_add]; linarith
+              have h_ratio_pos : 0 < (μ S₂).toReal / (μ S).toReal :=
+                div_pos hμS₂_real_pos hμS_real_pos
+              rw [abs_mul, abs_of_pos h_ratio_pos] at h1
+              calc |c₁ - c₂| ≥ (μ S₂).toReal / (μ S).toReal * |c₁ - c₂| := by
+                    nlinarith [abs_nonneg (c₁ - c₂)]
+                _ ≥ ε₁' / 2 := h1
+            · rw [h_c2_c] at h2
+              have h_ratio_le : (μ S₁).toReal / (μ S).toReal ≤ 1 := by
+                rw [div_le_one hμS_real_pos, hμ_add]; linarith
+              have h_ratio_pos : 0 < (μ S₁).toReal / (μ S).toReal :=
+                div_pos hμS₁_real_pos hμS_real_pos
+              have h_abs_eq : |-(μ S₁).toReal / (μ S).toReal * (c₁ - c₂)| =
+                  (μ S₁).toReal / (μ S).toReal * |c₁ - c₂| := by
+                rw [neg_div, neg_mul, abs_neg, abs_mul, abs_of_pos h_ratio_pos]
+              rw [h_abs_eq] at h2
+              calc |c₁ - c₂| ≥ (μ S₁).toReal / (μ S).toReal * |c₁ - c₂| := by
+                    nlinarith [abs_nonneg (c₁ - c₂)]
+                _ ≥ ε₁' / 2 := h2
+          have h_sq_diff : (c₁ - c₂) ^ 2 ≥ (ε₁' / 2) ^ 2 := by
+            calc (c₁ - c₂) ^ 2 = |c₁ - c₂| ^ 2 := by rw [sq_abs]
+              _ ≥ (ε₁' / 2) ^ 2 := by
+                apply sq_le_sq'; · linarith [abs_nonneg (c₁ - c₂), hε₁'_pos]
+                · exact h_diff_bound
+          -- The B-term in the correction sum of energy_splitPart_ge is positive
+          have h_rect_eq₁ : rectAverage W S₁ B = c₁ := hc₁_rect.symm
+          have h_rect_eq₂ : rectAverage W (S \ S₁) B = c₂ := hc₂_rect.symm
+          have h_B_term_pos : (μ B).toReal * (μ S₁).toReal * (μ (S \ S₁)).toReal /
+              (μ S).toReal * (rectAverage W S₁ B - rectAverage W (S \ S₁) B) ^ 2 > 0 := by
+            rw [h_rect_eq₁, h_rect_eq₂]
+            apply mul_pos
+            · apply div_pos
+              · exact mul_pos (mul_pos hμB_real_pos hμS₁_real_pos) hμS₂_real_pos
+              · exact hμS_real_pos
+            · linarith [sq_nonneg (ε₁' / 2), sq_pos_of_pos hε₁'_pos]
+          have h_sum_pos : Q₁.parts.sum (fun U => (μ U).toReal * (μ S₁).toReal *
+              (μ (S \ S₁)).toReal / (μ S).toReal *
+              (rectAverage W S₁ U - rectAverage W (S \ S₁) U) ^ 2) > 0 := by
+            have h_nonneg : ∀ U ∈ Q₁.parts, 0 ≤ (μ U).toReal * (μ S₁).toReal *
+                (μ (S \ S₁)).toReal / (μ S).toReal *
+                (rectAverage W S₁ U - rectAverage W (S \ S₁) U) ^ 2 := by
+              intro U _
+              apply mul_nonneg
+              · apply div_nonneg
+                · exact mul_nonneg (mul_nonneg ENNReal.toReal_nonneg ENNReal.toReal_nonneg)
+                    ENNReal.toReal_nonneg
+                · exact ENNReal.toReal_nonneg
+              · exact sq_nonneg _
+            exact (Finset.sum_pos_iff_of_nonneg h_nonneg).mpr ⟨B, hB_in_Q₁, h_B_term_pos⟩
+          linarith [h_ge, hQ₁_energy]
 
 /-- Energy increment lemma (Frieze-Kannan style).
 
