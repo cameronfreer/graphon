@@ -383,12 +383,142 @@ private lemma layer_cake_simple_eq (U W : Graphon α μ) (S : Set α) (hS : Meas
     ∫ p, S.indicator (fun _ => (1:ℝ)) p.1 * g p.2 *
       (U.toAEEqFun p - W.toAEEqFun p) ∂(μ.prod μ) =
     ∫ t in Set.Ioc 0 1, rectIntegralDiff U W S {y | t ≤ g y} := by
-  -- For simple functions, this is an algebraic identity (finite sum).
-  -- The LHS is Σⱼ cⱼ rectIntegralDiff S Tⱼ
-  -- The RHS is ∫₀¹ I({g≥t}) dt where I = rectIntegralDiff S ·
-  -- By layer cake: for t ∈ (cⱼ₋₁, cⱼ], I({g≥t}) = Σ_{k≥j} Iₖ
-  -- So RHS = Σⱼ (cⱼ - cⱼ₋₁) Σ_{k≥j} Iₖ = Σₖ cₖ Iₖ by Abel summation
-  sorry
+  -- Both sides equal ∑ i, c i * rectIntegralDiff U W S (T i).
+  obtain ⟨n, c, T, hT_meas, hc_bound, hg_eq, hT_disj⟩ := hg_simple
+  set K : α × α → ℝ := fun p => U.toAEEqFun p - W.toAEEqFun p with hK_def
+  have hK_int : Integrable K (μ.prod μ) :=
+    (SymmKernel.graphon_integrable U).sub (SymmKernel.graphon_integrable W)
+  -- Key helper: g(y) = c j for y ∈ T j
+  have hg_val : ∀ j, ∀ y ∈ T j, g y = c j := by
+    intro j y hy
+    rw [hg_eq y, Finset.sum_eq_single_of_mem j (Finset.mem_univ j)]
+    · simp [Set.indicator_of_mem hy]
+    · intro i _ hi
+      have : y ∉ T i := Set.disjoint_right.mp (hT_disj i j hi) hy
+      simp [Set.indicator_of_notMem this]
+  -- ===== LHS = ∑ i, c i * rectIntegralDiff U W S (T i) =====
+  have h_term : ∀ p : α × α, S.indicator (fun _ => (1:ℝ)) p.1 * g p.2 * K p =
+      ∑ i : Fin n, c i * (S ×ˢ T i).indicator K p := by
+    intro p
+    rw [hg_eq p.2]
+    simp_rw [Finset.mul_sum, Finset.sum_mul]
+    congr 1; ext i
+    have h1 : S.indicator (fun _ => (1:ℝ)) p.1 *
+        (c i * (T i).indicator (fun _ => (1:ℝ)) p.2) * K p =
+        c i * (S.indicator (fun _ => (1:ℝ)) p.1 *
+        (T i).indicator (fun _ => (1:ℝ)) p.2 * K p) := by ring
+    rw [h1]; congr 1
+    by_cases hp : p ∈ S ×ˢ T i
+    · rw [Set.indicator_of_mem hp]
+      obtain ⟨hp1, hp2⟩ := Set.mem_prod.mp hp
+      simp [Set.indicator_of_mem hp1, Set.indicator_of_mem hp2]
+    · rw [Set.indicator_of_notMem hp]
+      rw [Set.mem_prod, not_and_or] at hp
+      rcases hp with hp1 | hp2
+      · simp [Set.indicator_of_notMem hp1]
+      · simp [Set.indicator_of_notMem hp2]
+  have h_lhs_eq : ∫ p, S.indicator (fun _ => (1:ℝ)) p.1 * g p.2 * K p ∂(μ.prod μ) =
+      ∫ p, ∑ i : Fin n, c i * (S ×ˢ T i).indicator K p ∂(μ.prod μ) :=
+    integral_congr_ae (Filter.Eventually.of_forall (fun p => h_term p))
+  rw [h_lhs_eq]
+  have h_lhs : ∫ p, ∑ i : Fin n, c i * (S ×ˢ T i).indicator K p ∂(μ.prod μ) =
+      ∑ i : Fin n, c i * rectIntegralDiff U W S (T i) := by
+    rw [integral_finset_sum]
+    · congr 1; ext i
+      rw [integral_const_mul, integral_indicator (hS.prod (hT_meas i))]
+      rfl
+    · intro i _
+      exact (hK_int.indicator (hS.prod (hT_meas i))).const_mul _
+  rw [h_lhs]
+  -- ===== RHS = ∑ i, c i * rectIntegralDiff U W S (T i) =====
+  -- Step 1: Level set decomposition: for t > 0, {y | t ≤ g y} = ⋃ (i with t ≤ c i), T i
+  -- (outside ⋃ T i, g y = 0 so t ≤ g y fails for t > 0)
+  have h_level : ∀ t : ℝ, 0 < t →
+      {y | t ≤ g y} = ⋃ (i : Fin n) (_ : t ≤ c i), T i := by
+    intro t ht
+    ext y
+    simp only [Set.mem_setOf_eq, Set.mem_iUnion]
+    constructor
+    · intro hty
+      -- g y ≥ t > 0, so g y > 0, so y must be in some T j, and c j ≥ t
+      by_contra h_none
+      push_neg at h_none
+      -- h_none : ∀ i, t ≤ c i → y ∉ T i
+      -- We'll show g y = 0, contradicting t ≤ g y with t > 0
+      have hgy0 : g y = 0 := by
+        rw [hg_eq]
+        apply Finset.sum_eq_zero
+        intro i _
+        by_cases hy : y ∈ T i
+        · -- y ∈ T i, so g y = c i ≥ t, but h_none says y ∉ T i
+          exfalso
+          exact h_none i (hty.trans (le_of_eq (hg_val i y hy))) hy
+        · simp [Set.indicator_of_notMem hy]
+      linarith
+    · intro ⟨i, hci, hyi⟩
+      rw [hg_val i y hyi]
+      exact hci
+  -- Step 2: rectIntegralDiff over union = sum (for each t > 0)
+  have h_rect_union : ∀ t : ℝ, 0 < t →
+      rectIntegralDiff U W S (⋃ (i : Fin n) (_ : t ≤ c i), T i) =
+      ∑ i : Fin n, if t ≤ c i then rectIntegralDiff U W S (T i) else 0 := by
+    intro t ht
+    -- Rewrite the biUnion as a finset biUnion for easier manipulation
+    have h_eq_union : (⋃ (i : Fin n) (_ : t ≤ c i), T i) =
+        ⋃ i ∈ Finset.univ.filter (fun i => t ≤ c i), T i := by
+      ext y; simp [Finset.mem_filter]
+    rw [h_eq_union]
+    unfold rectIntegralDiff
+    rw [Set.prod_iUnion₂]
+    have h_disj : Set.Pairwise
+        (Finset.univ.filter (fun i => t ≤ c i) : Set (Fin n)) (fun i j => Disjoint (S ×ˢ T i) (S ×ˢ T j)) := by
+      intro i _ j _ hij
+      exact (hT_disj i j hij).set_prod_right S S
+    rw [integral_biUnion_finset _ (fun i _ => hS.prod (hT_meas i)) h_disj
+        (fun i _ => hK_int.integrableOn)]
+    rw [Finset.sum_filter]
+  -- Step 3: Rewrite RHS integral using level sets
+  -- For t ∈ Ioc 0 1, t > 0 so we can use h_level
+  have h_rhs_eq : ∫ t in Set.Ioc 0 1, rectIntegralDiff U W S {y | t ≤ g y} =
+      ∫ t in Set.Ioc 0 1, ∑ i : Fin n,
+        if t ≤ c i then rectIntegralDiff U W S (T i) else 0 := by
+    apply setIntegral_congr_fun measurableSet_Ioc
+    intro t ht
+    dsimp only
+    rw [h_level t ht.1, h_rect_union t ht.1]
+  rw [h_rhs_eq]
+  -- Step 4: Swap integral and finite sum
+  rw [integral_finset_sum]
+  · -- Step 5: Compute each inner integral
+    congr 1; ext i
+    -- ∫ t in Ioc 0 1, (if t ≤ c i then R_i else 0) dt = c_i * R_i
+    have h_ite_eq : ∀ t : ℝ,
+        (if t ≤ c i then rectIntegralDiff U W S (T i) else 0) =
+        (Set.Iic (c i)).indicator (fun _ => rectIntegralDiff U W S (T i)) t := by
+      intro t
+      by_cases h : t ≤ c i
+      · simp [Set.mem_Iic.mpr h, h]
+      · have : t ∉ Set.Iic (c i) := by simp [Set.mem_Iic]; linarith [not_le.mp h]
+        simp [this, h]
+    simp_rw [h_ite_eq]
+    rw [setIntegral_indicator measurableSet_Iic]
+    rw [Set.Ioc_inter_Iic, min_eq_right (hc_bound i).2]
+    by_cases hci0 : c i ≤ 0
+    · rw [le_antisymm hci0 (hc_bound i).1, Set.Ioc_self, setIntegral_empty, zero_mul]
+    · push_neg at hci0
+      rw [setIntegral_const, smul_eq_mul]
+      congr 1
+      unfold Measure.real
+      rw [Real.volume_Ioc, sub_zero, ENNReal.toReal_ofReal hci0.le]
+  · intro i _
+    have : (fun t => if t ≤ c i then rectIntegralDiff U W S (T i) else 0) =
+        (Set.Iic (c i)).indicator (fun _ => rectIntegralDiff U W S (T i)) := by
+      ext t; by_cases h : t ≤ c i
+      · simp [Set.mem_Iic.mpr h, h]
+      · have : t ∉ Set.Iic (c i) := by simp [Set.mem_Iic]; linarith [not_le.mp h]
+        simp [this, h]
+    rw [this]
+    exact (integrable_const _).indicator measurableSet_Iic
 
 /-- Helper: Indicator times general weight is bounded by cutNormDiff.
 
