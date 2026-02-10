@@ -783,7 +783,158 @@ theorem abs_weighted_integral_diff_le (U W : Graphon α μ) (f g : α → ℝ)
   --
   -- The 4-fold Fubini interchange is a standard but technical construction.
   -- This lemma corresponds to Lovász [2012], Lemma 10.21.
-  sorry
+  --
+  -- Proof: Layer cake on f, reducing to the indicator case (already proved).
+  set K : α × α → ℝ := fun p => U.toAEEqFun p - W.toAEEqFun p with hK_def
+  -- F(s, p) = 1_{s≤f(p.1)} * g(p.2) * K(p)
+  set F : ℝ → α × α → ℝ :=
+    fun s p => ({x : α | s ≤ f x}).indicator (fun _ => (1:ℝ)) p.1 * g p.2 * K p with hF_def
+  -- Helper: |indicator| ≤ 1
+  have abs_ind_le_one : ∀ (A : Set α) (x : α),
+      |A.indicator (fun _ => (1:ℝ)) x| ≤ 1 := by
+    intro A x
+    by_cases hx : x ∈ A
+    · simp [Set.indicator_of_mem hx]
+    · simp [Set.indicator_of_notMem hx]
+  -- |F(s,p)| ≤ |g(p.2)| * |K(p)| ≤ |K(p)|
+  have hF_le_K : ∀ s p, |F s p| ≤ |K p| := by
+    intro s p; simp only [hF_def]; rw [abs_mul, abs_mul]
+    calc |({x : α | s ≤ f x}).indicator (fun _ => (1:ℝ)) p.1| * |g p.2| * |K p|
+        ≤ 1 * 1 * |K p| := by
+          gcongr
+          · exact abs_ind_le_one _ _
+          · rw [abs_of_nonneg (hg_bound p.2).1]; exact (hg_bound p.2).2
+      _ = |K p| := by ring
+  -- K is integrable on μ²
+  have hK_int : Integrable K (μ.prod μ) := h_diff_int
+  -- Measurability of uncurry F
+  have hF_meas : Measurable (Function.uncurry F) := by
+    simp only [hF_def]
+    apply Measurable.mul
+    · apply Measurable.mul
+      · -- 1_{s ≤ f(p.1)} as function of (s, p):
+        -- This is the indicator of {(s, p) | s ≤ f(p.1)} = {q | q.1 ≤ f q.2.1}
+        apply measurable_const.indicator
+        exact measurableSet_le measurable_fst (hf_meas.comp (measurable_fst.comp measurable_snd))
+      · -- g(p.2) as function of (s, p)
+        exact hg_meas.comp (measurable_snd.comp measurable_snd)
+    · exact (U.toAEEqFun.measurable.sub W.toAEEqFun.measurable).comp measurable_snd
+  -- Integrability of uncurry F on (vol.restrict Ioc 0 1) × (μ.prod μ)
+  have hF_int : Integrable (Function.uncurry F)
+      ((volume.restrict (Set.Ioc (0:ℝ) 1)).prod (μ.prod μ)) := by
+    rw [integrable_prod_iff hF_meas.aestronglyMeasurable]
+    constructor
+    · -- For a.e. s, F(s, ·) is integrable on μ²
+      apply Filter.Eventually.of_forall
+      intro s
+      apply Integrable.bdd_mul hK_int
+      · exact ((measurable_const.indicator (hS_meas s)).comp measurable_fst).mul
+            (hg_meas.comp measurable_snd)
+          |>.aestronglyMeasurable
+      · apply Filter.Eventually.of_forall
+        intro p; rw [Real.norm_eq_abs, abs_mul]
+        calc |({x | s ≤ f x}).indicator (fun _ => (1:ℝ)) p.1| * |g p.2|
+            ≤ 1 * 1 := by
+              gcongr
+              · exact abs_ind_le_one _ _
+              · rw [abs_of_nonneg (hg_bound p.2).1]; exact (hg_bound p.2).2
+          _ = 1 := one_mul 1
+    · -- ∫ ‖F(s, p)‖ dμ² is integrable in s on Ioc 0 1
+      have hF_norm_bound : ∀ s : ℝ,
+          ∫ p, ‖Function.uncurry F (s, p)‖ ∂(μ.prod μ) ≤ ∫ p, |K p| ∂(μ.prod μ) := by
+        intro s
+        apply integral_mono_of_nonneg
+        · apply Filter.Eventually.of_forall; intro p; exact norm_nonneg _
+        · exact hK_int.abs
+        · apply Filter.Eventually.of_forall; intro p
+          simp only [Function.uncurry, Real.norm_eq_abs]
+          exact hF_le_K s p
+      have hF_norm_aesm : AEStronglyMeasurable
+          (fun s => ∫ p, ‖Function.uncurry F (s, p)‖ ∂(μ.prod μ))
+          (volume.restrict (Set.Ioc 0 1)) :=
+        hF_meas.norm.aestronglyMeasurable.integral_prod_right'
+      exact Integrable.of_bound hF_norm_aesm (∫ p, |K p| ∂(μ.prod μ))
+        (Filter.Eventually.of_forall (fun s => by
+          rw [Real.norm_eq_abs, abs_of_nonneg (integral_nonneg (fun p => norm_nonneg _))]
+          exact hF_norm_bound s))
+  -- Fubini: swap order of integration
+  have h_swap : ∫ s, ∫ p, F s p ∂(μ.prod μ) ∂(volume.restrict (Set.Ioc 0 1)) =
+      ∫ p, ∫ s, F s p ∂(volume.restrict (Set.Ioc 0 1)) ∂(μ.prod μ) :=
+    integral_integral_swap hF_int
+  -- Inner integral over s gives f(p.1) * g(p.2) * K(p) by layer cake
+  have h_inner_s : ∀ p, ∫ s, F s p ∂(volume.restrict (Set.Ioc 0 1)) =
+      f p.1 * g p.2 * K p := by
+    intro p; simp only [hF_def]
+    -- Factor out g(p.2) and K(p)
+    rw [show (fun s => ({x | s ≤ f x}).indicator (fun _ => (1:ℝ)) p.1 * g p.2 * K p) =
+        (fun s => (g p.2 * K p) *
+        ({x | s ≤ f x}).indicator (fun _ => (1:ℝ)) p.1) from funext (fun s => by ring)]
+    rw [integral_const_mul]
+    -- The integral ∫ 1_{s ≤ f(p.1)} ds = f(p.1) by layer_cake_Icc
+    have h_fp : f p.1 ∈ Set.Icc 0 1 := hf_bound p.1
+    have h_layer : ∫ s in Set.Ioc 0 1,
+        ({x : α | s ≤ f x}).indicator (fun _ => (1:ℝ)) p.1 = f p.1 := by
+      have h_ind_eq : (fun s : ℝ => ({x : α | s ≤ f x}).indicator (fun _ => (1:ℝ)) p.1) =
+          (fun s : ℝ => (Set.Iic (f p.1)).indicator (fun _ => (1:ℝ)) s) := by
+        funext s
+        by_cases h : s ≤ f p.1
+        · simp [Set.indicator_of_mem (show p.1 ∈ {x : α | s ≤ f x} from h),
+                Set.indicator_of_mem (Set.mem_Iic.mpr h)]
+        · push_neg at h
+          simp [Set.indicator_of_notMem (show p.1 ∉ {x : α | s ≤ f x} from not_le.mpr h),
+                Set.indicator_of_notMem (show s ∉ Set.Iic (f p.1) from not_le.mpr h)]
+      rw [h_ind_eq]
+      exact (layer_cake_Icc (f p.1) h_fp).symm
+    rw [h_layer]; ring
+  -- Each inner integral over p, when bounded, uses abs_weighted_integral_diff_indicator_general_le
+  -- First, integrability of each F(s, ·)
+  have hF_s_int : ∀ s, Integrable (F s) (μ.prod μ) := by
+    intro s
+    apply Integrable.bdd_mul hK_int
+    · exact ((measurable_const.indicator (hS_meas s)).comp measurable_fst).mul
+          (hg_meas.comp measurable_snd)
+        |>.aestronglyMeasurable
+    · apply Filter.Eventually.of_forall
+      intro p; rw [Real.norm_eq_abs, abs_mul]
+      calc |({x | s ≤ f x}).indicator (fun _ => (1:ℝ)) p.1| * |g p.2|
+          ≤ 1 * 1 := by
+            gcongr
+            · exact abs_ind_le_one _ _
+            · rw [abs_of_nonneg (hg_bound p.2).1]; exact (hg_bound p.2).2
+        _ = 1 := one_mul 1
+  -- Convert inner integral over p from product to iterated form, then bound
+  have h_bound_s : ∀ s, |∫ p, F s p ∂(μ.prod μ)| ≤ cutNormDiff U W := by
+    intro s
+    -- F(s, p) = 1_{s≤f}(p.1) * g(p.2) * K(p)
+    -- ∫ p, F(s, p) d(μ²) = ∫ x, ∫ y, 1_{s≤f}(x) * g(y) * K(x,y) dμ dμ  (by Fubini)
+    have h_fubini_s : ∫ p, F s p ∂(μ.prod μ) =
+        ∫ x, ∫ y, ({x : α | s ≤ f x}).indicator (fun _ => (1:ℝ)) x * g y *
+          (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ ∂μ := by
+      rw [integral_prod _ (hF_s_int s)]
+    rw [h_fubini_s]
+    exact abs_weighted_integral_diff_indicator_general_le U W _ (hS_meas s) g hg_meas hg_bound
+  -- Main argument: rewrite LHS via Fubini, then bound
+  have h_eq_layer : ∫ p, f p.1 * g p.2 * K p ∂(μ.prod μ) =
+      ∫ s in Set.Ioc 0 1, (∫ p, F s p ∂(μ.prod μ)) := by
+    have h1 : ∫ p, f p.1 * g p.2 * K p ∂(μ.prod μ) =
+        ∫ p, (∫ s, F s p ∂(volume.restrict (Set.Ioc 0 1))) ∂(μ.prod μ) := by
+      congr 1; ext p; exact (h_inner_s p).symm
+    rw [h1, ← h_swap]
+  change |∫ p, f p.1 * g p.2 * K p ∂(μ.prod μ)| ≤ _
+  rw [h_eq_layer]
+  -- Goal: |∫ s in Ioc 0 1, (∫ p, F s p ∂μ²)| ≤ cutNormDiff U W
+  have h_vol_Ioc : (volume (Set.Ioc (0:ℝ) 1)).toReal = 1 := by
+    rw [Real.volume_Ioc, sub_zero, ENNReal.toReal_ofReal (by norm_num : (0:ℝ) ≤ 1)]
+  have h_Ioc_finite : (volume (Set.Ioc (0:ℝ) 1)) < ⊤ := by
+    rw [Real.volume_Ioc, sub_zero]; exact ENNReal.ofReal_lt_top
+  calc |∫ s in Set.Ioc 0 1, ∫ p, F s p ∂(μ.prod μ)|
+      = ‖∫ s in Set.Ioc 0 1, ∫ p, F s p ∂(μ.prod μ)‖ :=
+        (Real.norm_eq_abs _).symm
+    _ ≤ cutNormDiff U W * (volume (Set.Ioc (0:ℝ) 1)).toReal :=
+        norm_setIntegral_le_of_norm_le_const h_Ioc_finite
+          (fun s _ => by rw [Real.norm_eq_abs]; exact h_bound_s s)
+    _ = cutNormDiff U W * 1 := by rw [h_vol_Ioc]
+    _ = cutNormDiff U W := mul_one _
 
 end CutNormDiff
 
