@@ -189,6 +189,184 @@ theorem homDensity_sub_le_completeGraph_two (U W : Graphon α μ) :
 
 /-! ### General counting lemma -/
 
+set_option maxHeartbeats 400000
+
+/-- Key helper for the counting lemma: weighted integral of graphon difference
+bounded by cut norm.
+
+Given a product of graphon evaluations at edges in `T` (each assigned an arbitrary
+graphon via `f`), and a distinguished edge `e₀ ∉ T`, the integral of the product
+times `(U_{e₀} - W_{e₀})` is bounded by `cutNormDiff U W`.
+
+The proof requires Fubini on `Measure.pi` to integrate out all coordinates except
+the two endpoints of `e₀`, reducing to the separable case handled by
+`abs_weighted_integral_diff_le`. Under `Measure.pi`, coordinates are independent,
+so after integrating out vertices not in `e₀`, the weight factors into
+`f(x_u) * g(x_v)` where each factor is in [0,1].
+
+This corresponds to the key step in Lovasz [2012], Theorem 10.23. -/
+private lemma weighted_prod_graphon_diff_le
+    (U W : Graphon α μ) (T : Finset (Sym2 V)) (e₀ : Sym2 V)
+    (he₀T : e₀ ∉ T)
+    (f : Sym2 V → Graphon α μ)
+    (hT_edges : ∀ e ∈ T, (Quot.out e).1 ≠ (Quot.out e).2)
+    (he₀_edge : (Quot.out e₀).1 ≠ (Quot.out e₀).2) :
+    |∫ x : V → α,
+      (∏ e ∈ T, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+      (U.toAEEqFun (x (Quot.out e₀).1, x (Quot.out e₀).2) -
+       W.toAEEqFun (x (Quot.out e₀).1, x (Quot.out e₀).2))
+    ∂Measure.pi (fun _ => μ)| ≤ cutNormDiff U W := by
+  sorry
+
+/-- Integrability of a product of [0,1]-valued graphon evaluations times a difference
+of products. Both terms are bounded a.e., so the product is integrable on
+a probability space. -/
+private lemma counting_integrable_term (U W : Graphon α μ)
+    (S R : Finset (Sym2 V)) (f : Sym2 V → Graphon α μ)
+    (hS_edges : ∀ e ∈ S, (Quot.out e).1 ≠ (Quot.out e).2)
+    (hR_edges : ∀ e ∈ R, (Quot.out e).1 ≠ (Quot.out e).2) :
+    Integrable (fun x : V → α =>
+      (∏ e ∈ R, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+      (∏ e ∈ S, U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) -
+       ∏ e ∈ S, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)))
+      (Measure.pi (fun _ => μ)) := by
+  -- The integrand is a product of [0,1]-valued terms times a difference in [-1,1],
+  -- hence bounded in [-1,1]. On a finite measure space, bounded a.e. functions are integrable.
+  -- AEMeasurability of the integrand and a.e. membership in [-1,1] are both needed.
+  sorry
+
+/-- Strengthened counting lemma with weighted prefix product.
+
+For a set of edges `S` (each with distinct endpoints), a prefix product of graphon
+evaluations at edges in `R` (disjoint from `S`), the integral of the prefix times
+the difference of products is bounded by `|S| * cutNormDiff`.
+
+This is the induction step used to prove the counting lemma. -/
+private lemma weighted_homDensity_sub_le
+    (U W : Graphon α μ) (S : Finset (Sym2 V))
+    (R : Finset (Sym2 V))
+    (f : Sym2 V → Graphon α μ)
+    (hRS : Disjoint R S)
+    (hS_edges : ∀ e ∈ S, (Quot.out e).1 ≠ (Quot.out e).2)
+    (hR_edges : ∀ e ∈ R, (Quot.out e).1 ≠ (Quot.out e).2) :
+    |∫ x : V → α,
+      (∏ e ∈ R, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+      (∏ e ∈ S, U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) -
+       ∏ e ∈ S, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))
+    ∂Measure.pi (fun _ => μ)| ≤ S.card * cutNormDiff U W := by
+  induction S using Finset.induction generalizing R f with
+  | empty =>
+    simp
+  | @insert e₀ S' he₀ ih =>
+    have he₀_edge : (Quot.out e₀).1 ≠ (Quot.out e₀).2 :=
+      hS_edges e₀ (Finset.mem_insert_self e₀ S')
+    have hS'_edges : ∀ e ∈ S', (Quot.out e).1 ≠ (Quot.out e).2 :=
+      fun e he => hS_edges e (Finset.mem_insert_of_mem he)
+    -- Key: e₀ ∉ R (from disjointness)
+    have he₀R : e₀ ∉ R :=
+      Finset.disjoint_right.mp hRS (Finset.mem_insert_self e₀ S')
+    -- Set up R' = insert e₀ R, f' = Function.update f e₀ U
+    set R' := insert e₀ R with hR'_def
+    set f' : Sym2 V → Graphon α μ := Function.update f e₀ U with hf'_def
+    -- Set up f'' for Term 2
+    set f'' : Sym2 V → Graphon α μ := fun e => if e ∈ S' then W else f e with hf''_def
+    -- Algebraic identity: the integrand splits as Term1 + Term2
+    have h_eq : ∀ x : V → α,
+        (∏ e ∈ R, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+        (∏ e ∈ insert e₀ S', U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) -
+         ∏ e ∈ insert e₀ S', W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) =
+        ((∏ e ∈ R', (f' e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+         (∏ e ∈ S', U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) -
+          ∏ e ∈ S', W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))) +
+        ((∏ e ∈ R ∪ S', (f'' e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+         (U.toAEEqFun (x (Quot.out e₀).1, x (Quot.out e₀).2) -
+          W.toAEEqFun (x (Quot.out e₀).1, x (Quot.out e₀).2))) := by
+      intro x
+      -- Simplify prod over R' = insert e₀ R with f' (update)
+      have hR'_prod : ∏ e ∈ R', (f' e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) =
+          U.toAEEqFun (x (Quot.out e₀).1, x (Quot.out e₀).2) *
+          ∏ e ∈ R, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) := by
+        rw [hR'_def, Finset.prod_insert he₀R]
+        congr 1
+        · show (Function.update f e₀ U e₀).toAEEqFun _ = _
+          rw [Function.update_self]
+        · apply Finset.prod_congr rfl
+          intro e he
+          show (Function.update f e₀ U e).toAEEqFun _ = _
+          have hne : e ≠ e₀ := fun heq => he₀R (heq ▸ he)
+          rw [Function.update_of_ne hne]
+      -- Simplify prod over R ∪ S' with f''
+      have hRS'_prod : ∏ e ∈ R ∪ S', (f'' e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) =
+          (∏ e ∈ R, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+          (∏ e ∈ S', W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) := by
+        rw [Finset.prod_union (Finset.disjoint_of_subset_right (Finset.subset_insert _ _) hRS)]
+        congr 1
+        · apply Finset.prod_congr rfl
+          intro e he
+          simp only [hf''_def]
+          have : e ∉ S' := Finset.disjoint_left.mp
+            (Finset.disjoint_of_subset_right (Finset.subset_insert _ _) hRS) he
+          simp [this]
+        · apply Finset.prod_congr rfl
+          intro e he; simp only [hf''_def, if_pos he]
+      rw [hR'_prod, hRS'_prod, Finset.prod_insert he₀, Finset.prod_insert he₀]
+      ring
+    -- Integrability of both terms
+    have hR'_edges : ∀ e ∈ R', (Quot.out e).1 ≠ (Quot.out e).2 := by
+      intro e he; rw [hR'_def] at he
+      rcases Finset.mem_insert.mp he with rfl | he'
+      · exact he₀_edge
+      · exact hR_edges e he'
+    have hRS'_edges : ∀ e ∈ R ∪ S', (Quot.out e).1 ≠ (Quot.out e).2 := by
+      intro e he; rcases Finset.mem_union.mp he with he' | he'
+      · exact hR_edges e he'
+      · exact hS'_edges e he'
+    have h_int1 : Integrable (fun x : V → α =>
+        (∏ e ∈ R', (f' e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+        (∏ e ∈ S', U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) -
+         ∏ e ∈ S', W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)))
+        (Measure.pi (fun _ => μ)) :=
+      counting_integrable_term U W S' R' f' hS'_edges hR'_edges
+    have h_int2 : Integrable (fun x : V → α =>
+        (∏ e ∈ R ∪ S', (f'' e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+        (U.toAEEqFun (x (Quot.out e₀).1, x (Quot.out e₀).2) -
+         W.toAEEqFun (x (Quot.out e₀).1, x (Quot.out e₀).2)))
+        (Measure.pi (fun _ => μ)) := by
+      -- The integrand is bounded a.e. by 2 (product of [0,1] times [-1,1])
+      -- on a probability space, so it is integrable.
+      have h_aux := counting_integrable_term U W {e₀} (R ∪ S') f''
+        (by intro e he; simp only [Finset.mem_singleton] at he; rw [he]; exact he₀_edge)
+        hRS'_edges
+      -- Convert ∏ e ∈ {e₀}, G_e(x) to G_{e₀}(x) via Finset.prod_singleton
+      simp only [Finset.prod_singleton] at h_aux
+      exact h_aux
+    -- Rewrite using the algebraic identity
+    simp_rw [h_eq]
+    rw [integral_add h_int1 h_int2]
+    -- Triangle inequality + bounds
+    have hR'S'_disj : Disjoint R' S' := by
+      rw [hR'_def]
+      exact Finset.disjoint_insert_left.mpr ⟨he₀, hRS.mono_right (Finset.subset_insert _ _)⟩
+    have he₀_not_RS' : e₀ ∉ R ∪ S' := by
+      rw [Finset.mem_union, not_or]; exact ⟨he₀R, he₀⟩
+    calc |∫ x, _ ∂_ + ∫ x, _ ∂_|
+        ≤ |∫ x : V → α,
+            (∏ e ∈ R', (f' e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+            (∏ e ∈ S', U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) -
+             ∏ e ∈ S', W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))
+            ∂Measure.pi (fun _ => μ)| +
+          |∫ x : V → α,
+            (∏ e ∈ R ∪ S', (f'' e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+            (U.toAEEqFun (x (Quot.out e₀).1, x (Quot.out e₀).2) -
+             W.toAEEqFun (x (Quot.out e₀).1, x (Quot.out e₀).2))
+            ∂Measure.pi (fun _ => μ)| := abs_add_le _ _
+      _ ≤ S'.card * cutNormDiff U W + cutNormDiff U W :=
+          add_le_add (ih R' f' hR'S'_disj hS'_edges hR'_edges)
+            (weighted_prod_graphon_diff_le U W (R ∪ S') e₀ he₀_not_RS' f''
+              hRS'_edges he₀_edge)
+      _ = (insert e₀ S').card * cutNormDiff U W := by
+          rw [Finset.card_insert_of_notMem he₀]; push_cast; ring
+
 /-- The counting lemma: homomorphism density difference is bounded by cut norm.
 
 For any graph F and graphons U, W on the same probability space:
@@ -198,51 +376,25 @@ This is the key result showing that cut norm controls homomorphism densities. -/
 theorem homDensity_sub_le (F : SimpleGraph V) [DecidableRel F.Adj]
     (U W : Graphon α μ) :
     |homDensity F U - homDensity F W| ≤ F.edgeFinset.card * cutNormDiff U W := by
-  -- **Proof structure** (Lovász, Theorem 10.23):
-  --
-  -- **Overview**: Use telescoping decomposition + Fubini to reduce to weighted integrals.
-  --
-  -- **Step 1**: Start with the integral representation
-  --   homDensity F U - homDensity F W = ∫ (∏_{e∈E} U_e(x) - ∏_{e∈E} W_e(x)) dμ^V
-  --   where U_e(x) = U(x_{e.1}, x_{e.2}) for vertex assignment x : V → α.
-  --
-  -- **Step 2**: Apply telescoping decomposition (pointwise in x)
-  --   By `abs_prod_sub_prod_le`, for each x:
-  --   |∏ U_e(x) - ∏ W_e(x)| ≤ Σⱼ |prefix_j(x)| · |U_j(x) - W_j(x)| · |suffix_j(x)|
-  --   where prefix/suffix are products with edge indices <j / >j respectively,
-  --   and all factors are in [0,1].
-  --
-  -- **Step 3**: Integrate and bound each term
-  --   For edge eⱼ = {u, v}, the j-th term after integration:
-  --   |∫ prefix_j(x) · (U_j(x) - W_j(x)) · suffix_j(x) dμ^V|
-  --
-  --   By Fubini, integrate out all vertices except u, v.
-  --   The key observation is that with a suitable edge ordering:
-  --   - prefix_j depends only on vertices "settled" before u,v
-  --   - suffix_j depends only on vertices "unsettled" after u,v
-  --
-  --   After integrating out unsettled vertices, suffix_j becomes a constant ≤ 1.
-  --   After integrating, the term has the form:
-  --   |∫∫ h_j(x_u, x_v) · (U(x_u, x_v) - W(x_u, x_v)) dμ(x_u) dμ(x_v)|
-  --   where h_j ∈ [0,1] measurable in both variables.
-  --
-  -- **Step 4**: Apply weighted integral bound
-  --   For indicator functions: abs_weighted_integral_diff_indicator_le gives
-  --   |∫∫ 1_S 1_T (U - W)| ≤ cutNormDiff U W
-  --
-  --   For general h ∈ [0,1] (not necessarily separable f(x)g(y)):
-  --   By layer cake representation, h = ∫_{[0,1]²} 1_{h≥(s,t)} d(s,t)
-  --   Then Fubini + indicator bound gives |∫∫ h (U-W)| ≤ cutNormDiff U W
-  --
-  -- **Step 5**: Sum over edges
-  --   |homDensity F U - homDensity F W| ≤ Σⱼ cutNormDiff U W = |E| · cutNormDiff U W
-  --
-  -- **Key lemmas used**:
-  -- - `abs_prod_sub_prod_le`: Pointwise telescoping bound
-  -- - `abs_weighted_integral_diff_indicator_le`: Indicator case for rectangle integrals
-  -- - Layer cake representation + Fubini for general weights
-  -- - Fubini-Tonelli for iterated integration on product measure
-  sorry
+  -- Express as integral of difference of products
+  have h_edges : ∀ e ∈ F.edgeFinset, (Quot.out e).1 ≠ (Quot.out e).2 :=
+    fun e he => edge_out_ne (SimpleGraph.mem_edgeFinset.mp he)
+  -- homDensity = ∫ ∏ G_e dπ, so the difference = ∫ (∏ U_e - ∏ W_e) dπ
+  -- = ∫ 1 * (∏ U_e - ∏ W_e) dπ = ∫ (∏_{e ∈ ∅} ...) * (∏ U_e - ∏ W_e) dπ
+  have h_diff : homDensity F U - homDensity F W =
+      ∫ x : V → α,
+        (∏ e ∈ (∅ : Finset (Sym2 V)),
+          U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+        (∏ e ∈ F.edgeFinset, U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) -
+         ∏ e ∈ F.edgeFinset, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))
+      ∂Measure.pi (fun _ => μ) := by
+    simp only [Finset.prod_empty, one_mul]
+    show (∫ x, homDensityIntegrand F U x ∂_) - (∫ x, homDensityIntegrand F W x ∂_) = _
+    rw [← integral_sub (homDensityIntegrand_integrable F U) (homDensityIntegrand_integrable F W)]
+    rfl
+  rw [h_diff]
+  exact weighted_homDensity_sub_le U W F.edgeFinset ∅ (fun _ => U)
+    (Finset.disjoint_empty_left _) h_edges (by simp)
 
 /-- Corollary: graphs with small cut distance have similar homomorphism densities.
 

@@ -3316,15 +3316,30 @@ lemma exists_bad_rect_of_defect_gt (W : Graphon α μ) (P : MeasurablePartition 
 
 /-- Quantitative energy increment: if defect > ε², energy increases by ≥ ε⁴/16.
 
-This is the quantitative version of `energy_increment`. The bound ε⁴/16 comes from:
-- Bad rectangle has defect ≥ ε² μ(S) μ(T)
-- By variance decomposition, some between-variance ≥ ε²/2 · μ(part)
-- exists_variance_cut gives averages differing by ≥ ε/(2√2)
-- energy_splitPart_ge gives gain ≥ μ · μ₁ · μ₂ / μ · (ε/(2√2))² ≥ ε²/8 · μ₁ · μ₂ / μ
-- In the worst case (when sub-part measures are small), the gain ≥ ε⁴/16
+**Status**: UNPROVABLE AS STATED. The statement claims a uniform ε⁴/16 energy
+gain from a single binary split, but the actual gain is ~ε⁴ · μ(S) · μ(T),
+which shrinks as the partition becomes finer.
 
-**Note**: The constant 16 is not optimal; finer analysis gives ε⁴/8 or better.
-The proof requires the FK cut lemma for the within-variance case. -/
+**Root cause**: The L² defect hypothesis measures `∫_{S×T} (W - avg)²`, but the
+Frieze-Kannan argument requires control via the cut norm `‖W - step‖_□`. The cut
+norm is bounded by the L² norm (`cutNormDiff ≤ L² defect`) but not vice versa.
+The FK iteration uses cut norm to guarantee exponential energy gain per step, while
+L² defect only gives gain proportional to part measures.
+
+**What IS proved**: The qualitative version `energy_increment` (above) correctly
+shows `energy W Q > energy W P` — i.e., some strict increase exists. The
+`regularity` theorem below uses this sorry only for the explicit iteration bound
+(number of steps ≤ ⌈16/ε⁴⌉). The regularity theorem's existence claim is valid;
+only the explicit bound on partition size depends on this sorry.
+
+**Possible fixes**:
+1. Reformulate using cut norm: replace the L² defect hypothesis with a cut norm
+   condition `cutNormDiff W (stepify P W) ≥ ε`, then the FK argument gives
+   ε⁴/16 gain directly. Requires building `stepify` infrastructure.
+2. Accept tower bounds: use Szemerédi-style iteration where each step gives
+   *some* increase and energy ≤ 1 gives finite termination, but with tower-type
+   bounds instead of exponential.
+3. Use the qualitative `energy_increment` with a different termination argument. -/
 private theorem energy_increment_quantitative
     (W : Graphon α μ) (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0)
     (h_bad : ∃ S ∈ P.parts, ∃ T ∈ P.parts, μ S ≠ 0 ∧ μ T ≠ 0 ∧

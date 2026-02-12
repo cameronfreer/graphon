@@ -1018,8 +1018,10 @@ theorem cutDistance_le_one (U W : Graphon α μ) : cutDistance U W ≤ 1 := by
 
 This is the key property making cut distance a pseudometric.
 
-**Hypothesis**: Requires `[StandardBorelSpace α]` for the "common representation"
-trick where measure-preserving maps can be aligned via Rokhlin's theorem.
+**Axiomatized**: The proof requires Rokhlin's theorem (every standard Borel
+probability space is measure-theoretically isomorphic to [0,1] with Lebesgue
+measure), which is not yet available in Mathlib. The theorem itself is
+well-established; see Lovász [2012], Section 8.2.
 
 **Proof sketch** (Lovász, Section 8.2):
 1. For any ε > 0, choose (φ₁, ψ₁) with cutNormDiff(U^φ₁, V^ψ₁) < δ□(U,V) + ε/2
@@ -1030,11 +1032,14 @@ trick where measure-preserving maps can be aligned via Rokhlin's theorem.
    cutNormDiff(U^φ₁', W^ψ₂') ≤ cutNormDiff(U^φ₁', V^χ) + cutNormDiff(V^χ, W^ψ₂')
 5. With appropriate compositions φ₁' = φ₁ and ψ₂' = ψ₂:
    ≤ (δ□(U,V) + ε/2) + (δ□(V,W) + ε/2) = δ□(U,V) + δ□(V,W) + ε
-6. Taking inf over all (φ, ψ) and ε → 0 gives the result. -/
+6. Taking inf over all (φ, ψ) and ε → 0 gives the result.
+
+**Dependency**: Rokhlin's theorem → Mathlib.MeasureTheory.Measure.Portmanteau
+or a dedicated `StandardBorel.measureEquiv_unitInterval` result.
+Once Rokhlin's theorem is formalized, this sorry can be replaced with a proof
+using the existing `cutNormDiff_triangle` and `pullback_pullback`. -/
 theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
     cutDistance U W ≤ cutDistance U V + cutDistance V W := by
-  -- Full proof requires formalizing the common representation trick,
-  -- which uses Rokhlin's theorem for measure-preserving maps on StandardBorel.
   sorry
 
 /-- Cut distance is symmetric.
