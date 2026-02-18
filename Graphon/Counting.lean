@@ -235,6 +235,47 @@ private lemma abs_weighted_pi_integral_diff_le (U W : Graphon α μ) (u v : V) (
   rw [h_eq, integral_prod _ h_int]
   exact abs_weighted_integral_diff_le U W f g hf_meas hg_meas hf_bound hg_bound
 
+/-- Variant of `abs_weighted_pi_integral_diff_le` with a.e. bounds instead of everywhere bounds.
+Clips `f` and `g` to `[0,1]`, shows the clip agrees a.e. under `Measure.pi`, and applies the
+everywhere-bounded version. -/
+private lemma abs_weighted_pi_integral_diff_le_ae (U W : Graphon α μ) (u v : V) (huv : u ≠ v)
+    (f g : α → ℝ) (hf_meas : Measurable f) (hg_meas : Measurable g)
+    (hf_ae : ∀ᵐ a ∂μ, f a ∈ Set.Icc 0 1)
+    (hg_ae : ∀ᵐ b ∂μ, g b ∈ Set.Icc 0 1) :
+    |∫ x : V → α, f (x u) * g (x v) *
+      (U.toAEEqFun (x u, x v) - W.toAEEqFun (x u, x v))
+    ∂Measure.pi (fun _ => μ)| ≤ cutNormDiff U W := by
+  set f' := fun a => max 0 (min 1 (f a))
+  set g' := fun b => max 0 (min 1 (g b))
+  have hf'_meas : Measurable f' :=
+    Measurable.max measurable_const (Measurable.min measurable_const hf_meas)
+  have hg'_meas : Measurable g' :=
+    Measurable.max measurable_const (Measurable.min measurable_const hg_meas)
+  have hf'_bound : ∀ x, f' x ∈ Set.Icc 0 1 :=
+    fun x => ⟨le_max_left _ _, max_le zero_le_one (min_le_left _ _)⟩
+  have hg'_bound : ∀ x, g' x ∈ Set.Icc 0 1 :=
+    fun x => ⟨le_max_left _ _, max_le zero_le_one (min_le_left _ _)⟩
+  -- f =ᵐ f' under μ, push to Measure.pi via eval projection
+  have hf_eq_pi : ∀ᵐ x ∂Measure.pi (fun _ : V => μ), f (x u) = f' (x u) :=
+    (measurePreserving_eval (fun _ => μ) u).quasiMeasurePreserving.ae
+      (hf_ae.mono fun a ⟨h0, h1⟩ => by
+        show f a = max 0 (min 1 (f a)); rw [min_eq_right h1, max_eq_right h0])
+  have hg_eq_pi : ∀ᵐ x ∂Measure.pi (fun _ : V => μ), g (x v) = g' (x v) :=
+    (measurePreserving_eval (fun _ => μ) v).quasiMeasurePreserving.ae
+      (hg_ae.mono fun b ⟨h0, h1⟩ => by
+        show g b = max 0 (min 1 (g b)); rw [min_eq_right h1, max_eq_right h0])
+  have h_congr : ∫ x, f (x u) * g (x v) *
+      (U.toAEEqFun (x u, x v) - W.toAEEqFun (x u, x v))
+      ∂Measure.pi (fun _ => μ) =
+    ∫ x, f' (x u) * g' (x v) *
+      (U.toAEEqFun (x u, x v) - W.toAEEqFun (x u, x v))
+      ∂Measure.pi (fun _ => μ) := by
+    apply integral_congr_ae
+    filter_upwards [hf_eq_pi, hg_eq_pi] with x hu hv
+    rw [hu, hv]
+  rw [h_congr]
+  exact abs_weighted_pi_integral_diff_le U W u v huv f' g' hf'_meas hg'_meas hf'_bound hg'_bound
+
 /-- Integrability of a product of [0,1]-valued graphon evaluations times a difference
 of products. Both terms are bounded a.e., so the product is integrable on
 a probability space. -/
@@ -318,26 +359,9 @@ private lemma counting_integrable_term (U W : Graphon α μ)
     have hSW_ae : ∀ e ∈ S, ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
         W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
       fun e he => graphonEval_mem_Icc_ae W (hS_edges e he)
-    -- Combine into one a.e. statement using Finset induction
-    have collect : ∀ (T' : Finset (Sym2 V)) (g : Sym2 V → (V → α) → ℝ),
-        (∀ e ∈ T', ∀ᵐ x ∂Measure.pi (fun _ : V => μ), g e x ∈ Set.Icc 0 1) →
-        ∀ᵐ x ∂Measure.pi (fun _ : V => μ), ∀ e ∈ T', g e x ∈ Set.Icc 0 1 := by
-      intro T' g hg
-      induction T' using Finset.induction with
-      | empty => simp
-      | @insert a s' _ ih =>
-        have hs1 := hg a (Finset.mem_insert_self a s')
-        have hs2 := ih (fun e he => hg e (Finset.mem_insert_of_mem he))
-        filter_upwards [hs1, hs2] with x hx1 hx2 e he
-        rcases Finset.mem_insert.mp he with rfl | he'
-        · exact hx1
-        · exact hx2 e he'
-    have hR_all := collect R (fun e x => (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))
-      (fun e he => hR_ae e he)
-    have hSU_all := collect S (fun e x => U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))
-      (fun e he => hSU_ae e he)
-    have hSW_all := collect S (fun e x => W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))
-      (fun e he => hSW_ae e he)
+    have hR_all := (Filter.eventually_all_finite R.finite_toSet).mpr hR_ae
+    have hSU_all := (Filter.eventually_all_finite S.finite_toSet).mpr hSU_ae
+    have hSW_all := (Filter.eventually_all_finite S.finite_toSet).mpr hSW_ae
     filter_upwards [hR_all, hSU_all, hSW_all] with x hxR hxSU hxSW
     -- Now prove the pointwise bound
     have hR_prod_nn : 0 ≤ ∏ e ∈ R, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) :=
@@ -369,7 +393,6 @@ private lemma counting_integrable_term (U W : Graphon α μ)
       nlinarith [sq_nonneg pR, sq_nonneg d]
   exact Integrable.of_mem_Icc (-1) 1 h_aem h_ae_bound
 
-set_option maxHeartbeats 1600000 in
 /-- Key helper for the counting lemma: weighted integral of graphon difference
 bounded by cut norm.
 
@@ -440,28 +463,9 @@ private lemma weighted_prod_graphon_diff_le
         · -- Per-section bound: for a.e. rest, |inner integral| ≤ cutNormDiff U W
           -- First derive: under π, all edge evals in T are a.e. in [0,1]
           have h_all_evals_ae : ∀ᵐ x ∂π, ∀ e ∈ T,
-              (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 := by
-            have h_each : ∀ e ∈ T, ∀ᵐ x ∂π,
-                (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
-              fun e he => graphonEval_mem_Icc_ae (f e) (hT_edges e he)
-            -- Combine finitely many a.e. properties
-            have : ∀ (T' : Finset (Sym2 V)),
-                (∀ e ∈ T', ∀ᵐ x ∂π,
-                  (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1) →
-                ∀ᵐ x ∂π, ∀ e ∈ T',
-                  (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 := by
-              intro T'
-              induction T' using Finset.induction with
-              | empty => intro _; simp
-              | @insert a s' _ ih =>
-                intro h_each'
-                filter_upwards [h_each' a (Finset.mem_insert_self a s'),
-                  ih (fun e he => h_each' e (Finset.mem_insert_of_mem he))]
-                  with x hx1 hx2 e he
-                rcases Finset.mem_insert.mp he with rfl | he'
-                · exact hx1
-                · exact hx2 e he'
-            exact this T h_each
+              (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
+            (Filter.eventually_all_finite T.finite_toSet).mpr
+              (fun e he => graphonEval_mem_Icc_ae (f e) (hT_edges e he))
           -- Push through equiv: under π_pair.prod π_rest, the same bound holds
           have h_decomp_ae : ∀ᵐ y ∂(π_pair.prod π_rest), ∀ e ∈ T,
               (f e).toAEEqFun (equiv.symm y (Quot.out e).1,
@@ -527,7 +531,7 @@ private lemma weighted_prod_graphon_diff_le
               simp only [sub, dite_true]
             have h_sub_v : sub (pair u₀s) (pair v₀s) v₀ = pair v₀s := by
               simp only [sub, dif_neg (Ne.symm he₀_edge), dite_true]
-            simp only [F, hF_def]
+            simp only [F]
             have h_coord : ∀ (i : V), equiv.symm (pair, rest) i =
                 sub (pair u₀s) (pair v₀s) i := h_equiv_sub pair
             simp_rw [h_coord]
@@ -581,7 +585,7 @@ private lemma weighted_prod_graphon_diff_le
           have h_Tu_no_v : ∀ e ∈ T_u, (Quot.out e).1 ≠ v₀ ∧ (Quot.out e).2 ≠ v₀ := by
             intro e he
             have hmem := (Finset.mem_filter.mp he).2
-            simp only [T_u, touchesV] at hmem
+            simp only [touchesV] at hmem
             constructor
             · intro h; simp [h] at hmem
             · intro h; simp [h] at hmem
@@ -636,7 +640,7 @@ private lemma weighted_prod_graphon_diff_le
             have h2 : sub a₁ b (Quot.out e).2 = sub a₂ b (Quot.out e).2 := by
               simp only [sub, dif_neg hne2]
             rw [h1, h2]
-          -- Define weight factors (clipped to [0,1])
+          -- Define weight factors
           haveI : Nonempty α := by
             by_contra h; rw [not_nonempty_iff] at h
             exact absurd (Measure.eq_zero_of_isEmpty μ) (IsProbabilityMeasure.ne_zero μ)
@@ -648,8 +652,6 @@ private lemma weighted_prod_graphon_diff_le
           set g_raw : α → ℝ := fun b =>
             ∏ e ∈ T_v, (f e).toAEEqFun
               (sub a₀ b (Quot.out e).1, sub a₀ b (Quot.out e).2)
-          set f_clip : α → ℝ := fun a => max 0 (min 1 (f_raw a))
-          set g_clip : α → ℝ := fun b => max 0 (min 1 (g_raw b))
           -- The original product factors: ∏_T w_e(sub a b) = f_raw(a) * g_raw(b)
           have h_prod_factor : ∀ a b,
               ∏ e ∈ T, (f e).toAEEqFun (sub a b (Quot.out e).1, sub a b (Quot.out e).2) =
@@ -693,15 +695,6 @@ private lemma weighted_prod_graphon_diff_le
             apply Finset.measurable_prod; intro e _
             exact (f e).toAEEqFun.measurable.comp
               (Measurable.prodMk (sub_b_meas _) (sub_b_meas _))
-          have hf_clip_meas : Measurable f_clip :=
-            Measurable.max measurable_const (Measurable.min measurable_const hf_raw_meas)
-          have hg_clip_meas : Measurable g_clip :=
-            Measurable.max measurable_const (Measurable.min measurable_const hg_raw_meas)
-          -- Everywhere bounds for clipped functions
-          have hf_clip_bound : ∀ x, f_clip x ∈ Set.Icc 0 1 :=
-            fun x => ⟨le_max_left _ _, max_le zero_le_one (min_le_left _ _)⟩
-          have hg_clip_bound : ∀ x, g_clip x ∈ Set.Icc 0 1 :=
-            fun x => ⟨le_max_left _ _, max_le zero_le_one (min_le_left _ _)⟩
           -- From h_pair_ae, derive: for a.e. pair, f_raw(pair u₀s) ∈ [0,1]
           -- Each T_u edge eval doesn't depend on pair v₀s (by h_Tu_indep),
           -- so from h_pair_ae, the eval with b₀ is in [0,1] for a.e. pair too.
@@ -738,17 +731,18 @@ private lemma weighted_prod_graphon_diff_le
             exact ⟨Finset.prod_nonneg (fun e he => (h_each_Tv e he).1),
               Finset.prod_le_one (fun e he => (h_each_Tv e he).1)
                 (fun e he => (h_each_Tv e he).2)⟩
-          -- A.e. under π_pair, f_clip = f_raw and g_clip = g_raw
-          have hf_eq_ae_pair : ∀ᵐ pair ∂π_pair,
-              f_clip (pair u₀s) = f_raw (pair u₀s) := by
-            filter_upwards [h_fraw_ae_pair] with pair ⟨ha0, ha1⟩
-            simp only [f_clip, min_eq_right ha1, max_eq_right ha0]
-          have hg_eq_ae_pair : ∀ᵐ pair ∂π_pair,
-              g_clip (pair v₀s) = g_raw (pair v₀s) := by
-            filter_upwards [h_graw_ae_pair] with pair ⟨hb0, hb1⟩
-            simp only [g_clip, min_eq_right hb1, max_eq_right hb0]
-          -- Now: rewrite integrand and use abs_weighted_pi_integral_diff_le
-          -- Step 1: Rewrite integral using h_integrand_eq and h_prod_factor
+          -- Push a.e. bounds from π_pair to μ via ae_map_iff
+          have h_fraw_ae_mu : ∀ᵐ a ∂μ, f_raw a ∈ Set.Icc 0 1 := by
+            rw [← (measurePreserving_eval (fun _ : {i // p i} => μ) u₀s).map_eq]
+            exact (ae_map_iff (measurable_pi_apply _).aemeasurable
+              (show MeasurableSet {x | f_raw x ∈ Set.Icc 0 1} from
+                hf_raw_meas measurableSet_Icc)).mpr h_fraw_ae_pair
+          have h_graw_ae_mu : ∀ᵐ b ∂μ, g_raw b ∈ Set.Icc 0 1 := by
+            rw [← (measurePreserving_eval (fun _ : {i // p i} => μ) v₀s).map_eq]
+            exact (ae_map_iff (measurable_pi_apply _).aemeasurable
+              (show MeasurableSet {x | g_raw x ∈ Set.Icc 0 1} from
+                hg_raw_meas measurableSet_Icc)).mpr h_graw_ae_pair
+          -- Rewrite integrand using factored form and apply ae bound
           have h_integral_rw : ∫ pair, F (equiv.symm (pair, rest)) ∂π_pair =
               ∫ pair : {i // p i} → α,
                 f_raw (pair u₀s) * g_raw (pair v₀s) *
@@ -758,24 +752,9 @@ private lemma weighted_prod_graphon_diff_le
             apply integral_congr_ae
             filter_upwards with pair
             rw [h_integrand_eq pair, h_prod_factor (pair u₀s) (pair v₀s)]
-          -- Step 2: Replace f_raw with f_clip and g_raw with g_clip (a.e. equal)
-          have h_integral_clip : ∫ pair : {i // p i} → α,
-                f_raw (pair u₀s) * g_raw (pair v₀s) *
-                (U.toAEEqFun (pair u₀s, pair v₀s) -
-                 W.toAEEqFun (pair u₀s, pair v₀s))
-              ∂π_pair =
-              ∫ pair : {i // p i} → α,
-                f_clip (pair u₀s) * g_clip (pair v₀s) *
-                (U.toAEEqFun (pair u₀s, pair v₀s) -
-                 W.toAEEqFun (pair u₀s, pair v₀s))
-              ∂π_pair := by
-            apply integral_congr_ae
-            filter_upwards [hf_eq_ae_pair, hg_eq_ae_pair] with pair hu hv
-            rw [hu, hv]
-          -- Step 3: Apply abs_weighted_pi_integral_diff_le
-          rw [h_integral_rw, h_integral_clip]
-          exact abs_weighted_pi_integral_diff_le U W u₀s v₀s huv_s
-            f_clip g_clip hf_clip_meas hg_clip_meas hf_clip_bound hg_clip_bound
+          rw [h_integral_rw]
+          exact abs_weighted_pi_integral_diff_le_ae U W u₀s v₀s huv_s
+            f_raw g_raw hf_raw_meas hg_raw_meas h_fraw_ae_mu h_graw_ae_mu
     _ = cutNormDiff U W := by
         simp
 
