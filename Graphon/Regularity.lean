@@ -3314,72 +3314,60 @@ lemma exists_bad_rect_of_defect_gt (W : Graphon α μ) (P : MeasurablePartition 
             _ = ε ^ 2 := by ring
   linarith
 
-/-- Quantitative energy increment: if defect > ε², energy increases by ≥ ε⁴/16.
+/-- Quantitative energy increment via cut norm (Frieze-Kannan).
 
-**Status**: UNPROVABLE AS STATED. The statement claims a uniform ε⁴/16 energy
-gain from a single binary split, but the actual gain is ~ε⁴ · μ(S) · μ(T),
-which shrinks as the partition becomes finer.
+If the step graphon approximation of W on partition P has cut norm difference ≥ ε,
+then splitting all parts by the witnessing rectangle yields a refinement Q with
+energy gain ≥ ε².
 
-**Root cause**: The L² defect hypothesis measures `∫_{S×T} (W - avg)²`, but the
-Frieze-Kannan argument requires control via the cut norm `‖W - step‖_□`. The cut
-norm is bounded by the L² norm (`cutNormDiff ≤ L² defect`) but not vice versa.
-The FK iteration uses cut norm to guarantee exponential energy gain per step, while
-L² defect only gives gain proportional to part measures.
+**Proof outline** (FK argument):
+1. By `cutNormDiff W (stepify P W) ≥ ε`, there exist measurable S₀, T₀ with
+   |∫_{S₀×T₀} (W − stepify P W)| ≥ ε (or arbitrarily close).
+2. Set Q = `splitAllParts P S₀`, which splits each part into (S ∩ S₀) and (S \ S₀).
+3. Energy gain = Σ_S (energy gain from splitting S by S₀) ≥ 0.
+4. By Cauchy-Schwarz, the total gain from the witnessing rectangle is ≥ ε².
 
-**What IS proved**: The qualitative version `energy_increment` (above) correctly
-shows `energy W Q > energy W P` — i.e., some strict increase exists. However, the
-formal `regularity` theorem below still routes through this sorry for its
-termination argument (energy gain ≥ ε⁴/16 per step → at most ⌈16/ε⁴⌉ steps).
-
-**Possible fixes**:
-1. Reformulate using cut norm: replace the L² defect hypothesis with a cut norm
-   condition `cutNormDiff W (stepify P W) ≥ ε`, then the FK argument gives
-   ε⁴/16 gain directly. Requires building `stepify` infrastructure.
-2. Accept tower bounds: use Szemerédi-style iteration where each step gives
-   *some* increase and energy ≤ 1 gives finite termination, but with tower-type
-   bounds instead of exponential.
-3. Use the qualitative `energy_increment` with a different termination argument. -/
+The qualitative version `energy_increment` is proved above; this quantitative
+version gives the explicit ε² bound needed for the iteration to terminate. -/
 private theorem energy_increment_quantitative
     (W : Graphon α μ) (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0)
-    (h_bad : ∃ S ∈ P.parts, ∃ T ∈ P.parts, μ S ≠ 0 ∧ μ T ≠ 0 ∧
-      ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) ≥
-        ε ^ 2 * (μ S).toReal * (μ T).toReal) :
+    (h_bad : cutNormDiff W (stepify P W) ≥ ε) :
     ∃ Q : MeasurablePartition α μ,
       Refines Q P ∧ Q.parts.card ≤ 2 * P.parts.card ∧
-      energy W Q ≥ energy W P + ε ^ 4 / 16 := by
+      energy W Q ≥ energy W P + ε ^ 2 := by
   sorry
 
 /-- The regularity function: given ε, returns an upper bound on the number of parts
     needed in a partition to achieve ε-approximation.
 
-The bound is exponential in 1/ε⁴, which is worse than the polynomial 1/ε⁸ achievable
-with a tighter quantitative analysis, but suffices for a clean proof. -/
+The bound is exponential in 1/ε², following the Frieze-Kannan approach which gives
+single-exponential bounds (better than the tower-type bounds from Szemerédi's proof). -/
 noncomputable def regularityBound (ε : ℝ) : ℕ :=
-  if ε ≤ 0 then 0 else 2 ^ (Nat.ceil (16 / ε ^ 4) + 1)
+  if ε ≤ 0 then 0 else 2 ^ (Nat.ceil (1 / ε ^ 2) + 1)
 
 /-- The Frieze-Kannan weak regularity lemma.
 
 For any ε > 0 and any graphon W, there exists a measurable partition P with
-bounded number of parts such that W has small defect on P.
+bounded number of parts such that the step graphon approximation of W on P
+has small cut norm difference from W.
 
 **Proof** (Frieze-Kannan [1999]):
 1. Start with trivial partition P₀ = {α}
-2. While there exists a "bad" rectangle (defect ≥ ε² per unit area):
+2. While `cutNormDiff W (stepify P W) > ε`:
    - Apply energy_increment_quantitative to get P_{i+1}
-   - Energy increases by ≥ ε⁴/16
-3. Since energy ≤ 1, at most ⌈16/ε⁴⌉ iterations
+   - Energy increases by ≥ ε²
+3. Since energy ≤ 1, at most ⌈1/ε²⌉ iterations
 4. Each iteration at most doubles parts: final count ≤ 2^(iterations+1) -/
 theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ P : MeasurablePartition α μ,
       P.parts.card ≤ regularityBound ε ∧
-      defect W P ≤ ε ^ 2 := by
+      cutNormDiff W (stepify P W) ≤ ε := by
   -- N = max number of iterations before energy exceeds 1
-  set N : ℕ := Nat.ceil (16 / ε ^ 4) + 1 with hN_def
+  set N : ℕ := Nat.ceil (1 / ε ^ 2) + 1 with hN_def
 
-  -- Key lemma: iterating at most n times from P, either find good partition or energy ≥ n·δ
-  -- where δ = ε⁴/16. We induct on remaining fuel.
-  have h_delta_pos : ε ^ 4 / 16 > 0 := by positivity
-  set δ := ε ^ 4 / 16 with hδ_def
+  -- Energy gain per step
+  have h_delta_pos : ε ^ 2 > 0 := by positivity
+  set δ := ε ^ 2 with hδ_def
 
   -- Main iteration claim: if we can take n more steps from P,
   -- and P has ≤ 2^(N-n) parts, then either we find a good partition
@@ -3388,15 +3376,15 @@ theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
       P.parts.card ≤ 2 ^ (N - n) →
       ∃ Q : MeasurablePartition α μ,
         Q.parts.card ≤ 2 ^ N ∧
-        (defect W Q ≤ ε ^ 2 ∨ energy W Q ≥ energy W P + n * δ) by
+        (cutNormDiff W (stepify Q W) ≤ ε ∨ energy W Q ≥ energy W P + n * δ) by
     -- Start with trivial partition
     let P₀ := trivialPartition (α := α) (μ := μ)
     have hP₀_card : P₀.parts.card ≤ 2 ^ (N - N) := by
       rw [Nat.sub_self, pow_zero, trivialPartition_card]
     obtain ⟨Q, hQ_card, hQ_result⟩ := h_iter N le_rfl P₀ hP₀_card
-    rcases hQ_result with hQ_defect | hQ_energy
+    rcases hQ_result with hQ_good | hQ_energy
     · -- Found good partition
-      refine ⟨Q, ?_, hQ_defect⟩
+      refine ⟨Q, ?_, hQ_good⟩
       have h_bound : regularityBound ε = 2 ^ N := by
         unfold regularityBound
         rw [if_neg (by linarith), hN_def]
@@ -3407,11 +3395,11 @@ theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
       have h_energy_P₀ : energy W P₀ ≥ 0 := energy_nonneg W P₀
       have h_N_bound : (N : ℝ) * δ > 1 := by
         rw [hδ_def, hN_def]
-        have h_ceil : (↑(Nat.ceil (16 / ε ^ 4)) : ℝ) ≥ 16 / ε ^ 4 :=
+        have h_ceil : (↑(Nat.ceil (1 / ε ^ 2)) : ℝ) ≥ 1 / ε ^ 2 :=
           Nat.le_ceil _
-        calc (↑(Nat.ceil (16 / ε ^ 4) + 1) : ℝ) * (ε ^ 4 / 16)
-            = (↑(Nat.ceil (16 / ε ^ 4)) + 1) * (ε ^ 4 / 16) := by push_cast; ring
-          _ > (16 / ε ^ 4) * (ε ^ 4 / 16) := by nlinarith [sq_nonneg ε]
+        calc (↑(Nat.ceil (1 / ε ^ 2) + 1) : ℝ) * ε ^ 2
+            = (↑(Nat.ceil (1 / ε ^ 2)) + 1) * ε ^ 2 := by push_cast; ring
+          _ > (1 / ε ^ 2) * ε ^ 2 := by nlinarith
           _ = 1 := by field_simp
       linarith
 
@@ -3427,17 +3415,16 @@ theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
       , Or.inr (by simp)⟩
   | succ n ih =>
     intro hn P hP_card
-    -- Check if defect is already small
-    by_cases h_done : defect W P ≤ ε ^ 2
+    -- Check if cut norm is already small
+    by_cases h_done : cutNormDiff W (stepify P W) ≤ ε
     · exact ⟨P, by
         calc P.parts.card ≤ 2 ^ (N - (n + 1)) := hP_card
           _ ≤ 2 ^ N := Nat.pow_le_pow_right (by norm_num) (Nat.sub_le N _)
         , Or.inl h_done⟩
-    · -- Defect > ε²: apply energy_increment_quantitative
+    · -- Cut norm > ε: apply energy_increment_quantitative
       push_neg at h_done
-      have h_bad := exists_bad_rect_of_defect_gt W P ε hε h_done
       obtain ⟨Q, _hQ_ref, hQ_card_le, hQ_energy⟩ :=
-        energy_increment_quantitative W P ε hε h_bad
+        energy_increment_quantitative W P ε hε (le_of_lt h_done)
       -- Q.parts.card ≤ 2 * P.parts.card ≤ 2 * 2^(N-(n+1)) = 2^(N-n)
       have hQ_card : Q.parts.card ≤ 2 ^ (N - n) := by
         have h1 : N - n = (N - (n + 1)) + 1 := by omega
@@ -3449,8 +3436,8 @@ theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
       -- Apply IH with n remaining fuel
       obtain ⟨R, hR_card, hR_result⟩ := ih (by omega) Q hQ_card
       refine ⟨R, hR_card, ?_⟩
-      rcases hR_result with hR_defect | hR_energy
-      · exact Or.inl hR_defect
+      rcases hR_result with hR_good | hR_energy
+      · exact Or.inl hR_good
       · right
         have : (↑(n + 1) : ℝ) = ↑n + 1 := by push_cast; ring
         calc energy W R ≥ energy W Q + ↑n * δ := hR_energy
