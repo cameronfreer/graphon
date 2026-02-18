@@ -347,15 +347,163 @@ theorem MeasurablePartition.splitAllParts_card (P : MeasurablePartition α μ)
 
 end Split
 
-/-! ### Stepification (to be developed)
+/-! ### Stepification -/
 
-The full stepification construction requires:
-1. Building an AEEqFun that is piecewise constant on partition rectangles
-2. Showing this is measurable and symmetric
-3. Proving it takes values in [0,1] a.e.
+section Stepify
 
-This will be developed in future phases when the machinery for
-piecewise-defined graphons is established.
--/
+variable [IsProbabilityMeasure μ]
+
+/-- The stepification function: piecewise constant on partition rectangles.
+
+For a partition P and graphon W, `stepifyFun P W (x,y) = rectAverage W S T`
+when `(x,y) ∈ S × T` for `S, T ∈ P.parts`. -/
+noncomputable def stepifyFun (P : MeasurablePartition α μ) (W : Graphon α μ) :
+    α × α → ℝ :=
+  fun p => ∑ S ∈ P.parts, ∑ T ∈ P.parts,
+    (S ×ˢ T).indicator (fun _ => rectAverage W S T) p
+
+omit [IsProbabilityMeasure μ] in
+/-- `stepifyFun` is measurable. -/
+theorem stepifyFun_measurable (P : MeasurablePartition α μ) (W : Graphon α μ) :
+    Measurable (stepifyFun P W) := by
+  unfold stepifyFun
+  apply Finset.measurable_sum
+  intro S hS
+  apply Finset.measurable_sum
+  intro T hT
+  exact measurable_const.indicator
+    ((P.measurableSet_part hS).prod (P.measurableSet_part hT))
+
+/-- `stepifyFun` is symmetric: `stepifyFun P W (y,x) = stepifyFun P W (x,y)`. -/
+theorem stepifyFun_symm (P : MeasurablePartition α μ) (W : Graphon α μ)
+    (p : α × α) :
+    stepifyFun P W p.swap = stepifyFun P W p := by
+  simp only [stepifyFun]
+  -- LHS = ∑ S, ∑ T, (S ×ˢ T).indicator (c S T) p.swap
+  -- For p.swap ∈ S ×ˢ T ↔ p ∈ T ×ˢ S, so swapping summation gives RHS
+  -- Strategy: show LHS = ∑ S, ∑ T, (T ×ˢ S).indicator (c T S) p
+  --         = ∑ T, ∑ S, (T ×ˢ S).indicator (c T S) p = RHS
+  -- First, rewrite each indicator: (S ×ˢ T).indicator f p.swap = (T ×ˢ S).indicator f p
+  have h_swap : ∀ (S T : Set α) (c : ℝ),
+      (S ×ˢ T).indicator (fun _ => c) p.swap = (T ×ˢ S).indicator (fun _ => c) p := by
+    intro S T c
+    by_cases hp : p.swap ∈ S ×ˢ T
+    · obtain ⟨h1, h2⟩ := Set.mem_prod.mp hp
+      rw [Set.indicator_of_mem hp, Set.indicator_of_mem (Set.mem_prod.mpr ⟨h2, h1⟩)]
+    · rw [Set.indicator_of_notMem hp]
+      symm
+      apply Set.indicator_of_notMem
+      intro h; apply hp
+      obtain ⟨h1, h2⟩ := Set.mem_prod.mp h
+      exact Set.mem_prod.mpr ⟨h2, h1⟩
+  simp_rw [h_swap]
+  -- Now LHS = ∑ S, ∑ T, (T ×ˢ S).indicator (c S T) p
+  -- Now LHS = ∑ S, ∑ T, (T ×ˢ S).indicator (c S T) p
+  -- After sum_comm: = ∑ T, ∑ S, (T ×ˢ S).indicator (c S T) p
+  -- Rename T → A, S → B: = ∑ A, ∑ B, (A ×ˢ B).indicator (c B A) p
+  -- Use rectAverage_symm: c B A = c A B
+  -- So = ∑ A, ∑ B, (A ×ˢ B).indicator (c A B) p = RHS
+  rw [Finset.sum_comm]
+  apply Finset.sum_congr rfl
+  intro A hA
+  apply Finset.sum_congr rfl
+  intro B hB
+  congr 1; ext _
+  exact rectAverage_symm W B A (P.measurableSet_part hB) (P.measurableSet_part hA)
+
+set_option linter.unusedSectionVars false in
+/-- At every point in S × T, the stepification equals rectAverage W S T.
+
+For any (x,y), if x ∈ S and y ∈ T for unique parts S, T ∈ P.parts,
+then stepifyFun P W (x,y) = rectAverage W S T. -/
+theorem stepifyFun_eq_rectAverage (P : MeasurablePartition α μ) (W : Graphon α μ)
+    {p : α × α} {S : Set α} (hS : S ∈ P.parts) {T : Set α} (hT : T ∈ P.parts)
+    (hp : p ∈ S ×ˢ T) : stepifyFun P W p = rectAverage W S T := by
+  unfold stepifyFun
+  rw [Finset.sum_eq_single_of_mem S hS, Finset.sum_eq_single_of_mem T hT]
+  · exact Set.indicator_of_mem hp _
+  · intro T' hT'_mem hT'_ne
+    apply Set.indicator_of_notMem
+    intro hp'
+    obtain ⟨_, hp2⟩ := Set.mem_prod.mp hp
+    obtain ⟨_, hp2'⟩ := Set.mem_prod.mp hp'
+    have h_disj := P.pairwiseDisjoint (Finset.mem_coe.mpr hT) (Finset.mem_coe.mpr hT'_mem) hT'_ne.symm
+    exact Set.disjoint_left.mp h_disj hp2 hp2'
+  · intro S' hS'_mem hS'_ne
+    apply Finset.sum_eq_zero
+    intro T' _
+    apply Set.indicator_of_notMem
+    intro hp'
+    obtain ⟨hp1, _⟩ := Set.mem_prod.mp hp
+    obtain ⟨hp1', _⟩ := Set.mem_prod.mp hp'
+    have h_disj := P.pairwiseDisjoint (Finset.mem_coe.mpr hS) (Finset.mem_coe.mpr hS'_mem) hS'_ne.symm
+    exact Set.disjoint_left.mp h_disj hp1 hp1'
+
+/-- `stepifyFun` takes values in [0,1] a.e. -/
+theorem stepifyFun_mem_Icc_ae (P : MeasurablePartition α μ) (W : Graphon α μ) :
+    ∀ᵐ p ∂(μ.prod μ), stepifyFun P W p ∈ Set.Icc 0 1 := by
+  -- For a.e. p, p ∈ S × T for some S, T ∈ P.parts
+  -- and stepifyFun P W p = rectAverage W S T ∈ [0,1]
+  have h_covers := P.ae_covers
+  -- Lift ae_covers to the product measure via quasiMeasurePreserving
+  have h_fst : ∀ᵐ p ∂(μ.prod μ), ∃ S ∈ P.parts, p.1 ∈ S :=
+    Measure.QuasiMeasurePreserving.ae (Measure.quasiMeasurePreserving_fst) h_covers
+  have h_snd : ∀ᵐ p ∂(μ.prod μ), ∃ T ∈ P.parts, p.2 ∈ T :=
+    Measure.QuasiMeasurePreserving.ae (Measure.quasiMeasurePreserving_snd) h_covers
+  filter_upwards [h_fst, h_snd] with p ⟨S, hS, hpS⟩ ⟨T, hT, hpT⟩
+  rw [stepifyFun_eq_rectAverage P W hS hT (Set.mem_prod.mpr ⟨hpS, hpT⟩)]
+  exact rectAverage_mem_Icc W S T (P.measurableSet_part hS) (P.measurableSet_part hT)
+
+/-- The stepification of a graphon with respect to a partition.
+
+This is the step graphon that equals `rectAverage W S T` on each rectangle `S × T`
+for parts `S, T ∈ P.parts`. -/
+noncomputable def stepify (P : MeasurablePartition α μ) (W : Graphon α μ) :
+    Graphon α μ where
+  toSymmKernel := {
+    toAEEqFun := AEEqFun.mk (stepifyFun P W)
+        (stepifyFun_measurable P W).aestronglyMeasurable
+    symm' := by
+      have h_coeFn : ∀ᵐ p ∂(μ.prod μ),
+          (AEEqFun.mk (stepifyFun P W)
+            (stepifyFun_measurable P W).aestronglyMeasurable : (α × α) →ₘ[μ.prod μ] ℝ) p =
+          stepifyFun P W p :=
+        AEEqFun.coeFn_mk _ _
+      have h_coeFn_swap := ae_prod_swap h_coeFn
+      filter_upwards [h_coeFn, h_coeFn_swap] with p hp hp_swap
+      rw [hp_swap, hp]
+      exact stepifyFun_symm P W p
+  }
+  ae_mem_Icc := by
+    have h_coeFn : ∀ᵐ p ∂(μ.prod μ),
+        (AEEqFun.mk (stepifyFun P W)
+          (stepifyFun_measurable P W).aestronglyMeasurable : (α × α) →ₘ[μ.prod μ] ℝ) p =
+        stepifyFun P W p :=
+      AEEqFun.coeFn_mk _ _
+    filter_upwards [h_coeFn, stepifyFun_mem_Icc_ae P W] with p hp h_Icc
+    rw [hp]; exact h_Icc
+
+/-- The stepification agrees with the stepification function a.e. -/
+theorem stepify_ae (P : MeasurablePartition α μ) (W : Graphon α μ) :
+    ∀ᵐ p ∂(μ.prod μ), (stepify P W).toAEEqFun p = stepifyFun P W p :=
+  AEEqFun.coeFn_mk _ _
+
+/-- cutNormDiff between W and its stepification is bounded by the L² defect.
+
+More precisely, `cutNormDiff W (stepify P W) ≤ √(defect W P)`.
+
+This follows from Cauchy-Schwarz: for any measurable S, T,
+|∫_{S×T} (W - step)| ≤ √(∫_{S×T} (W - step)²) · √(μ(S×T))
+                     ≤ √(defect W P) · 1.
+
+Note: `defect` is defined in `Graphon.Regularity`. -/
+theorem cutNormDiff_stepify_le (P : MeasurablePartition α μ) (W : Graphon α μ)
+    (defect_W_P : ℝ)
+    (h_defect : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+      ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) ≤ defect_W_P) :
+    cutNormDiff W (stepify P W) ≤ Real.sqrt defect_W_P := by
+  sorry
+
+end Stepify
 
 end Graphon
