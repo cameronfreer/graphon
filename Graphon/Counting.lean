@@ -235,39 +235,6 @@ private lemma abs_weighted_pi_integral_diff_le (U W : Graphon α μ) (u v : V) (
   rw [h_eq, integral_prod _ h_int]
   exact abs_weighted_integral_diff_le U W f g hf_meas hg_meas hf_bound hg_bound
 
-/-- Key helper for the counting lemma: weighted integral of graphon difference
-bounded by cut norm.
-
-Given a product of graphon evaluations at edges in `T` (each assigned an arbitrary
-graphon via `f`), and a distinguished edge `e₀ ∉ T`, the integral of the product
-times `(U_{e₀} - W_{e₀})` is bounded by `cutNormDiff U W`.
-
-**Sorry (Fubini on `Measure.pi`)**: The proof requires decomposing `Measure.pi` via
-`measurePreserving_piEquivPiSubtypeProd` into "pair" coordinates `(x_u, x_v)` (endpoints
-of `e₀`) and "rest" coordinates, then applying Fubini (`integral_prod`). For each fixed
-rest assignment, edges in T partition into:
-- Edges between rest vertices → constant factor `C ∈ [0,1]`
-- Edges touching only `u` → product of `∫ graphon(x_u, ·) dμ`, a function of `x_u` in [0,1]
-- Edges touching only `v` → similarly, function of `x_v` in [0,1]
-- No edge touches both `u` and `v` (since `e₀ ∉ T`)
-By independence of coordinates under `Measure.pi`, the weight factors as
-`C · f(x_u) · g(x_v)`. Then `abs_weighted_pi_integral_diff_le` gives the bound.
-
-Once proved, this is the LAST sorry in the counting lemma chain
-(`homDensity_sub_le`). See Lovász [2012], Theorem 10.23. -/
-private lemma weighted_prod_graphon_diff_le
-    (U W : Graphon α μ) (T : Finset (Sym2 V)) (e₀ : Sym2 V)
-    (he₀T : e₀ ∉ T)
-    (f : Sym2 V → Graphon α μ)
-    (hT_edges : ∀ e ∈ T, (Quot.out e).1 ≠ (Quot.out e).2)
-    (he₀_edge : (Quot.out e₀).1 ≠ (Quot.out e₀).2) :
-    |∫ x : V → α,
-      (∏ e ∈ T, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
-      (U.toAEEqFun (x (Quot.out e₀).1, x (Quot.out e₀).2) -
-       W.toAEEqFun (x (Quot.out e₀).1, x (Quot.out e₀).2))
-    ∂Measure.pi (fun _ => μ)| ≤ cutNormDiff U W := by
-  sorry
-
 /-- Integrability of a product of [0,1]-valued graphon evaluations times a difference
 of products. Both terms are bounded a.e., so the product is integrable on
 a probability space. -/
@@ -352,11 +319,11 @@ private lemma counting_integrable_term (U W : Graphon α μ)
         W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
       fun e he => graphonEval_mem_Icc_ae W (hS_edges e he)
     -- Combine into one a.e. statement using Finset induction
-    have collect : ∀ (T : Finset (Sym2 V)) (g : Sym2 V → (V → α) → ℝ),
-        (∀ e ∈ T, ∀ᵐ x ∂Measure.pi (fun _ : V => μ), g e x ∈ Set.Icc 0 1) →
-        ∀ᵐ x ∂Measure.pi (fun _ : V => μ), ∀ e ∈ T, g e x ∈ Set.Icc 0 1 := by
-      intro T g hg
-      induction T using Finset.induction with
+    have collect : ∀ (T' : Finset (Sym2 V)) (g : Sym2 V → (V → α) → ℝ),
+        (∀ e ∈ T', ∀ᵐ x ∂Measure.pi (fun _ : V => μ), g e x ∈ Set.Icc 0 1) →
+        ∀ᵐ x ∂Measure.pi (fun _ : V => μ), ∀ e ∈ T', g e x ∈ Set.Icc 0 1 := by
+      intro T' g hg
+      induction T' using Finset.induction with
       | empty => simp
       | @insert a s' _ ih =>
         have hs1 := hg a (Finset.mem_insert_self a s')
@@ -401,6 +368,416 @@ private lemma counting_integrable_term (U W : Graphon α μ)
     · -- Upper bound: pR * d ≤ 1
       nlinarith [sq_nonneg pR, sq_nonneg d]
   exact Integrable.of_mem_Icc (-1) 1 h_aem h_ae_bound
+
+set_option maxHeartbeats 1600000 in
+/-- Key helper for the counting lemma: weighted integral of graphon difference
+bounded by cut norm.
+
+Given a product of graphon evaluations at edges in `T` (each assigned an arbitrary
+graphon via `f`), and a distinguished edge `e₀ ∉ T`, the integral of the product
+times `(U_{e₀} - W_{e₀})` is bounded by `cutNormDiff U W`.
+
+The proof decomposes `Measure.pi` via `measurePreserving_piEquivPiSubtypeProd` into
+"pair" coordinates `(x_u, x_v)` (endpoints of `e₀`) and "rest" coordinates, then
+applies Fubini (`integral_prod`). For each fixed rest assignment, edges in T partition
+into those touching only `u₀`, those touching only `v₀`, and those touching neither.
+Since `e₀ ∉ T`, no edge in T touches both `u₀` and `v₀`, so the weight factors as
+`C(rest) · f(x_u) · g(x_v)`, and `abs_weighted_integral_diff_le` gives the bound.
+
+See Lovász [2012], Theorem 10.23. -/
+private lemma weighted_prod_graphon_diff_le
+    (U W : Graphon α μ) (T : Finset (Sym2 V)) (e₀ : Sym2 V)
+    (he₀T : e₀ ∉ T)
+    (f : Sym2 V → Graphon α μ)
+    (hT_edges : ∀ e ∈ T, (Quot.out e).1 ≠ (Quot.out e).2)
+    (he₀_edge : (Quot.out e₀).1 ≠ (Quot.out e₀).2) :
+    |∫ x : V → α,
+      (∏ e ∈ T, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+      (U.toAEEqFun (x (Quot.out e₀).1, x (Quot.out e₀).2) -
+       W.toAEEqFun (x (Quot.out e₀).1, x (Quot.out e₀).2))
+    ∂Measure.pi (fun _ => μ)| ≤ cutNormDiff U W := by
+  set u₀ := (Quot.out e₀).1 with hu₀_def
+  set v₀ := (Quot.out e₀).2 with hv₀_def
+  set F : (V → α) → ℝ := fun x =>
+    (∏ e ∈ T, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+    (U.toAEEqFun (x u₀, x v₀) - W.toAEEqFun (x u₀, x v₀)) with hF_def
+  set p : V → Prop := fun i => i = u₀ ∨ i = v₀ with hp_def
+  set equiv := MeasurableEquiv.piEquivPiSubtypeProd (fun _ : V => α) p
+  set π := Measure.pi (fun _ : V => μ)
+  set π_pair := Measure.pi (fun _ : {i : V // p i} => μ)
+  set π_rest := Measure.pi (fun _ : {i : V // ¬p i} => μ)
+  -- Rewrite integral via the decomposition
+  have h_rewrite : ∫ x, F x ∂π = ∫ y, F (equiv.symm y) ∂(π_pair.prod π_rest) := by
+    have mp := measurePreserving_piEquivPiSubtypeProd (fun _ : V => μ) p
+    have key := mp.integral_comp' (fun y => F (equiv.symm y))
+    convert key using 1
+    congr 1; ext x; congr 1
+    exact (equiv.symm_apply_apply x).symm
+  rw [show ∫ x, (∏ e ∈ T, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+    (U.toAEEqFun (x u₀, x v₀) - W.toAEEqFun (x u₀, x v₀)) ∂π = ∫ x, F x ∂π from rfl]
+  rw [h_rewrite]
+  -- Integrability
+  have hF_int : Integrable (fun y => F (equiv.symm y)) (π_pair.prod π_rest) := by
+    have hF_pi : Integrable F π := by
+      have := counting_integrable_term U W {e₀} T f
+        (by intro e he; simp only [Finset.mem_singleton] at he; rw [he]; exact he₀_edge)
+        hT_edges
+      simp only [Finset.prod_singleton] at this; exact this
+    have mp := measurePreserving_piEquivPiSubtypeProd (fun _ : V => μ) p
+    rw [show (fun y => F (equiv.symm y)) = F ∘ equiv.symm from rfl]
+    rw [← mp.map_eq, integrable_map_equiv equiv]
+    convert hF_pi using 1; ext x; simp [Function.comp]
+  -- Fubini + triangle inequality + per-section bound
+  calc |∫ y, F (equiv.symm y) ∂(π_pair.prod π_rest)|
+      = |∫ rest, (∫ pair, F (equiv.symm (pair, rest)) ∂π_pair) ∂π_rest| := by
+        rw [integral_prod_symm _ hF_int]
+    _ ≤ ∫ rest, |∫ pair, F (equiv.symm (pair, rest)) ∂π_pair| ∂π_rest :=
+        abs_integral_le_integral_abs
+    _ ≤ ∫ _, cutNormDiff U W ∂π_rest := by
+        apply integral_mono_ae
+        · exact hF_int.integral_prod_right.norm
+        · exact integrable_const _
+        · -- Per-section bound: for a.e. rest, |inner integral| ≤ cutNormDiff U W
+          -- First derive: under π, all edge evals in T are a.e. in [0,1]
+          have h_all_evals_ae : ∀ᵐ x ∂π, ∀ e ∈ T,
+              (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 := by
+            have h_each : ∀ e ∈ T, ∀ᵐ x ∂π,
+                (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
+              fun e he => graphonEval_mem_Icc_ae (f e) (hT_edges e he)
+            -- Combine finitely many a.e. properties
+            have : ∀ (T' : Finset (Sym2 V)),
+                (∀ e ∈ T', ∀ᵐ x ∂π,
+                  (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1) →
+                ∀ᵐ x ∂π, ∀ e ∈ T',
+                  (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 := by
+              intro T'
+              induction T' using Finset.induction with
+              | empty => intro _; simp
+              | @insert a s' _ ih =>
+                intro h_each'
+                filter_upwards [h_each' a (Finset.mem_insert_self a s'),
+                  ih (fun e he => h_each' e (Finset.mem_insert_of_mem he))]
+                  with x hx1 hx2 e he
+                rcases Finset.mem_insert.mp he with rfl | he'
+                · exact hx1
+                · exact hx2 e he'
+            exact this T h_each
+          -- Push through equiv: under π_pair.prod π_rest, the same bound holds
+          have h_decomp_ae : ∀ᵐ y ∂(π_pair.prod π_rest), ∀ e ∈ T,
+              (f e).toAEEqFun (equiv.symm y (Quot.out e).1,
+                                equiv.symm y (Quot.out e).2) ∈ Set.Icc 0 1 := by
+            have mp := measurePreserving_piEquivPiSubtypeProd (fun _ : V => μ) p
+            exact (mp.symm equiv).quasiMeasurePreserving.ae h_all_evals_ae
+          -- Swap to get rest first: under π_rest.prod π_pair
+          have h_decomp_swap : ∀ᵐ y ∂(π_rest.prod π_pair), ∀ e ∈ T,
+              (f e).toAEEqFun (equiv.symm y.swap (Quot.out e).1,
+                                equiv.symm y.swap (Quot.out e).2) ∈ Set.Icc 0 1 := by
+            have h_swap_mp : MeasurePreserving Prod.swap (π_rest.prod π_pair) (π_pair.prod π_rest) :=
+              Measure.measurePreserving_swap
+            exact h_swap_mp.quasiMeasurePreserving.ae h_decomp_ae
+          -- Fubini: for a.e. rest, for a.e. pair, all evals in [0,1]
+          have h_ae_rest : ∀ᵐ rest ∂π_rest, ∀ᵐ pair ∂π_pair, ∀ e ∈ T,
+              (f e).toAEEqFun (equiv.symm (pair, rest) (Quot.out e).1,
+                                equiv.symm (pair, rest) (Quot.out e).2) ∈ Set.Icc 0 1 :=
+            Measure.ae_ae_of_ae_prod h_decomp_swap
+          filter_upwards [h_ae_rest] with rest h_pair_ae
+          -- Key subtypes for the pair coordinates
+          set u₀s : {i : V // p i} := ⟨u₀, Or.inl rfl⟩
+          set v₀s : {i : V // p i} := ⟨v₀, Or.inr rfl⟩
+          have huv_s : u₀s ≠ v₀s := fun h => he₀_edge (congr_arg Subtype.val h)
+          -- The substitution function: sub(a, b)(i) = a if i=u₀, b if i=v₀, rest(i) otherwise
+          have h_not_p : ∀ i, i ≠ u₀ → i ≠ v₀ → ¬p i := by
+            intro i h1 h2 hi; rcases hi with rfl | rfl <;> contradiction
+          set sub : α → α → V → α := fun a b i =>
+            if h1 : i = u₀ then a else if h2 : i = v₀ then b
+            else rest ⟨i, h_not_p i h1 h2⟩
+          -- equiv.symm(pair, rest) agrees with sub(pair u₀s, pair v₀s)
+          have h_equiv_sub : ∀ (pair : {i // p i} → α) (i : V),
+              equiv.symm (pair, rest) i = sub (pair u₀s) (pair v₀s) i := by
+            intro pair i
+            -- equiv.symm (pair, rest) i = if p i then pair ⟨i,_⟩ else rest ⟨i,_⟩
+            have h_symm_def : equiv.symm (pair, rest) i =
+                if h : p i then pair ⟨i, h⟩ else rest ⟨i, h⟩ := by
+              simp [equiv, MeasurableEquiv.piEquivPiSubtypeProd,
+                Equiv.piEquivPiSubtypeProd]
+            by_cases hi_u : i = u₀
+            · -- i = u₀: p i holds, equiv gives pair ⟨u₀, _⟩ = pair u₀s
+              subst hi_u
+              rw [h_symm_def, dif_pos (Or.inl rfl : p u₀)]
+              simp only [sub, dite_true]; exact congr_arg pair (Subtype.ext rfl)
+            · by_cases hi_v : i = v₀
+              · -- i = v₀: p i holds, equiv gives pair ⟨v₀, _⟩ = pair v₀s
+                subst hi_v
+                rw [h_symm_def, dif_pos (Or.inr rfl : p v₀)]
+                simp only [sub, dif_neg hi_u, dite_true]; exact congr_arg pair (Subtype.ext rfl)
+              · -- i ≠ u₀, i ≠ v₀: ¬p i, both sides give rest
+                rw [h_symm_def, dif_neg (h_not_p i hi_u hi_v)]
+                simp only [sub, dif_neg hi_u, dif_neg hi_v]
+          -- Rewrite the integrand using sub
+          have h_integrand_eq : ∀ (pair : {i // p i} → α),
+              F (equiv.symm (pair, rest)) =
+              (∏ e ∈ T, (f e).toAEEqFun
+                (sub (pair u₀s) (pair v₀s) (Quot.out e).1,
+                 sub (pair u₀s) (pair v₀s) (Quot.out e).2)) *
+              (U.toAEEqFun (pair u₀s, pair v₀s) -
+               W.toAEEqFun (pair u₀s, pair v₀s)) := by
+            intro pair
+            -- Key substitution equalities
+            have h_sub_u : sub (pair u₀s) (pair v₀s) u₀ = pair u₀s := by
+              simp only [sub, dite_true]
+            have h_sub_v : sub (pair u₀s) (pair v₀s) v₀ = pair v₀s := by
+              simp only [sub, dif_neg (Ne.symm he₀_edge), dite_true]
+            simp only [F, hF_def]
+            have h_coord : ∀ (i : V), equiv.symm (pair, rest) i =
+                sub (pair u₀s) (pair v₀s) i := h_equiv_sub pair
+            simp_rw [h_coord]
+            rw [h_sub_u, h_sub_v]
+          -- Map from π_pair to μ × μ via φ(pair) = (pair u₀s, pair v₀s)
+          set φ : ({i // p i} → α) → α × α := fun pair => (pair u₀s, pair v₀s)
+          have hφ_meas : Measurable φ :=
+            Measurable.prodMk (measurable_pi_apply _) (measurable_pi_apply _)
+          have h_map_φ : Measure.map φ π_pair = μ.prod μ := by
+            have h_indep : ProbabilityTheory.IndepFun
+                (fun pair : {i // p i} → α => pair u₀s)
+                (fun pair : {i // p i} → α => pair v₀s)
+                π_pair := by
+              have := (ProbabilityTheory.iIndepFun_pi
+                (μ := fun _ : {i // p i} => μ)
+                (fun _ => aemeasurable_id)).indepFun huv_s
+              simpa only [id] using this
+            rw [show φ = fun pair => ((fun pair : {i // p i} → α => pair u₀s) pair,
+                (fun pair : {i // p i} → α => pair v₀s) pair) from rfl]
+            rw [ProbabilityTheory.indepFun_iff_map_prod_eq_prod_map_map
+              (measurable_pi_apply _).aemeasurable
+              (measurable_pi_apply _).aemeasurable |>.mp h_indep,
+              (measurePreserving_eval (fun _ : {i // p i} => μ) u₀s).map_eq,
+              (measurePreserving_eval (fun _ : {i // p i} => μ) v₀s).map_eq]
+          -- No edge in T has both u₀ and v₀ as endpoints
+          have h_no_uv : ∀ e ∈ T,
+              ¬((Quot.out e).1 = u₀ ∧ (Quot.out e).2 = v₀) ∧
+              ¬((Quot.out e).1 = v₀ ∧ (Quot.out e).2 = u₀) := by
+            intro e he
+            have h_out_e : s((Quot.out e).1, (Quot.out e).2) = e := Quot.out_eq e
+            have h_out_e₀ : s((Quot.out e₀).1, (Quot.out e₀).2) = e₀ := Quot.out_eq e₀
+            constructor
+            · rintro ⟨h1, h2⟩
+              apply he₀T
+              have : e = e₀ := by
+                rw [← h_out_e, ← h_out_e₀, h1, h2]
+              rw [this] at he; exact he
+            · rintro ⟨h1, h2⟩
+              apply he₀T
+              have : e = e₀ := by
+                rw [← h_out_e, ← h_out_e₀, h1, h2, Sym2.eq_swap]
+              rw [this] at he; exact he
+          -- Split T based on whether edge touches v₀
+          set touchesV : Sym2 V → Bool := fun e =>
+            decide ((Quot.out e).1 = v₀) || decide ((Quot.out e).2 = v₀)
+          set T_u := T.filter (fun e => !touchesV e)
+          set T_v := T.filter (fun e => touchesV e)
+          have h_T_disj : Disjoint T_u T_v := by
+            rw [Finset.disjoint_filter]; intro e _; simp
+          -- For e ∈ T_u: weight depends only on a (not on b)
+          have h_Tu_no_v : ∀ e ∈ T_u, (Quot.out e).1 ≠ v₀ ∧ (Quot.out e).2 ≠ v₀ := by
+            intro e he
+            have hmem := (Finset.mem_filter.mp he).2
+            simp only [T_u, touchesV] at hmem
+            constructor
+            · intro h; simp [h] at hmem
+            · intro h; simp [h] at hmem
+          -- For e ∈ T_v: touching v₀ but not u₀ (since both would make e = e₀)
+          have h_Tv_no_u : ∀ e ∈ T_v, (Quot.out e).1 ≠ u₀ ∧ (Quot.out e).2 ≠ u₀ := by
+            intro e he
+            have heT := (Finset.mem_filter.mp he).1
+            have h_touches : (Quot.out e).1 = v₀ ∨ (Quot.out e).2 = v₀ := by
+              simp only [T_v, Finset.mem_filter, touchesV, Bool.or_eq_true,
+                decide_eq_true_eq] at he
+              exact he.2
+            have h_nb := h_no_uv e heT
+            -- h_nb.1 : ¬(.1 = u₀ ∧ .2 = v₀)
+            -- h_nb.2 : ¬(.1 = v₀ ∧ .2 = u₀)
+            constructor
+            · intro h_eq  -- (Quot.out e).1 = u₀
+              rcases h_touches with h | h
+              · -- .1 = v₀, but also .1 = u₀, contradicts u₀ ≠ v₀
+                exact he₀_edge (h_eq.symm.trans h)
+              · -- .2 = v₀, and .1 = u₀ → contradicts h_nb.1
+                exact h_nb.1 ⟨h_eq, h⟩
+            · intro h_eq  -- (Quot.out e).2 = u₀
+              rcases h_touches with h | h
+              · -- .1 = v₀, and .2 = u₀ → contradicts h_nb.2
+                exact h_nb.2 ⟨h, h_eq⟩
+              · -- .2 = v₀, but also .2 = u₀, contradicts u₀ ≠ v₀
+                exact he₀_edge (h_eq.symm.trans h)
+          -- For e ∈ T_u: weight(e, a, b) = weight(e, a, b') for all b, b'
+          -- Helper: sub a b i doesn't depend on b when i ≠ v₀
+          have sub_indep_b : ∀ a b₁ b₂ i, i ≠ v₀ → sub a b₁ i = sub a b₂ i := by
+            intro a b₁ b₂ i hne
+            simp only [sub, dif_neg hne]
+          -- Helper: sub a b i doesn't depend on a when i ≠ u₀
+          have sub_indep_a : ∀ a₁ a₂ b i, i ≠ u₀ → sub a₁ b i = sub a₂ b i := by
+            intro a₁ a₂ b i hne
+            simp only [sub, dif_neg hne]
+          have h_Tu_indep : ∀ e ∈ T_u, ∀ a b₁ b₂,
+              (f e).toAEEqFun (sub a b₁ (Quot.out e).1, sub a b₁ (Quot.out e).2) =
+              (f e).toAEEqFun (sub a b₂ (Quot.out e).1, sub a b₂ (Quot.out e).2) := by
+            intro e he a b₁ b₂
+            have ⟨hne1, hne2⟩ := h_Tu_no_v e he
+            rw [sub_indep_b a b₁ b₂ _ hne1, sub_indep_b a b₁ b₂ _ hne2]
+          -- For e ∈ T_v: weight(e, a, b) = weight(e, a', b) for all a, a'
+          have h_Tv_indep : ∀ e ∈ T_v, ∀ a₁ a₂ b,
+              (f e).toAEEqFun (sub a₁ b (Quot.out e).1, sub a₁ b (Quot.out e).2) =
+              (f e).toAEEqFun (sub a₂ b (Quot.out e).1, sub a₂ b (Quot.out e).2) := by
+            intro e he a₁ a₂ b
+            have ⟨hne1, hne2⟩ := h_Tv_no_u e he
+            -- Since (.1) ≠ u₀ and (.2) ≠ u₀, the a argument is irrelevant
+            have h1 : sub a₁ b (Quot.out e).1 = sub a₂ b (Quot.out e).1 := by
+              simp only [sub, dif_neg hne1]
+            have h2 : sub a₁ b (Quot.out e).2 = sub a₂ b (Quot.out e).2 := by
+              simp only [sub, dif_neg hne2]
+            rw [h1, h2]
+          -- Define weight factors (clipped to [0,1])
+          haveI : Nonempty α := by
+            by_contra h; rw [not_nonempty_iff] at h
+            exact absurd (Measure.eq_zero_of_isEmpty μ) (IsProbabilityMeasure.ne_zero μ)
+          set b₀ := Classical.arbitrary α
+          set a₀ := Classical.arbitrary α
+          set f_raw : α → ℝ := fun a =>
+            ∏ e ∈ T_u, (f e).toAEEqFun
+              (sub a b₀ (Quot.out e).1, sub a b₀ (Quot.out e).2)
+          set g_raw : α → ℝ := fun b =>
+            ∏ e ∈ T_v, (f e).toAEEqFun
+              (sub a₀ b (Quot.out e).1, sub a₀ b (Quot.out e).2)
+          set f_clip : α → ℝ := fun a => max 0 (min 1 (f_raw a))
+          set g_clip : α → ℝ := fun b => max 0 (min 1 (g_raw b))
+          -- The original product factors: ∏_T w_e(sub a b) = f_raw(a) * g_raw(b)
+          have h_prod_factor : ∀ a b,
+              ∏ e ∈ T, (f e).toAEEqFun (sub a b (Quot.out e).1, sub a b (Quot.out e).2) =
+              f_raw a * g_raw b := by
+            intro a b
+            have h_split : T = T_u ∪ T_v := by
+              ext e; simp only [T_u, T_v, Finset.mem_union, Finset.mem_filter]
+              constructor
+              · intro he; by_cases h : touchesV e = true
+                · exact Or.inr ⟨he, h⟩
+                · exact Or.inl ⟨he, by simp [h]⟩
+              · rintro (⟨he, _⟩ | ⟨he, _⟩) <;> exact he
+            rw [h_split, Finset.prod_union h_T_disj]
+            congr 1
+            · apply Finset.prod_congr rfl; intro e he
+              exact h_Tu_indep e he a b b₀
+            · apply Finset.prod_congr rfl; intro e he
+              exact h_Tv_indep e he a a₀ b
+          -- Measurability helpers
+          have sub_a_meas : ∀ i, Measurable (fun a => sub a b₀ i) := by
+            intro i
+            by_cases h1 : i = u₀
+            · simp only [sub, dif_pos h1]; exact measurable_id
+            · simp only [sub, dif_neg h1]
+              by_cases h2 : i = v₀
+              · simp only [dif_pos h2]; exact measurable_const
+              · simp only [dif_neg h2]; exact measurable_const
+          have sub_b_meas : ∀ i, Measurable (fun b => sub a₀ b i) := by
+            intro i
+            by_cases h1 : i = u₀
+            · simp only [sub, dif_pos h1]; exact measurable_const
+            · simp only [sub, dif_neg h1]
+              by_cases h2 : i = v₀
+              · simp only [dif_pos h2]; exact measurable_id
+              · simp only [dif_neg h2]; exact measurable_const
+          have hf_raw_meas : Measurable f_raw := by
+            apply Finset.measurable_prod; intro e _
+            exact (f e).toAEEqFun.measurable.comp
+              (Measurable.prodMk (sub_a_meas _) (sub_a_meas _))
+          have hg_raw_meas : Measurable g_raw := by
+            apply Finset.measurable_prod; intro e _
+            exact (f e).toAEEqFun.measurable.comp
+              (Measurable.prodMk (sub_b_meas _) (sub_b_meas _))
+          have hf_clip_meas : Measurable f_clip :=
+            Measurable.max measurable_const (Measurable.min measurable_const hf_raw_meas)
+          have hg_clip_meas : Measurable g_clip :=
+            Measurable.max measurable_const (Measurable.min measurable_const hg_raw_meas)
+          -- Everywhere bounds for clipped functions
+          have hf_clip_bound : ∀ x, f_clip x ∈ Set.Icc 0 1 :=
+            fun x => ⟨le_max_left _ _, max_le zero_le_one (min_le_left _ _)⟩
+          have hg_clip_bound : ∀ x, g_clip x ∈ Set.Icc 0 1 :=
+            fun x => ⟨le_max_left _ _, max_le zero_le_one (min_le_left _ _)⟩
+          -- From h_pair_ae, derive: for a.e. pair, f_raw(pair u₀s) ∈ [0,1]
+          -- Each T_u edge eval doesn't depend on pair v₀s (by h_Tu_indep),
+          -- so from h_pair_ae, the eval with b₀ is in [0,1] for a.e. pair too.
+          have h_fraw_ae_pair : ∀ᵐ pair ∂π_pair, f_raw (pair u₀s) ∈ Set.Icc 0 1 := by
+            filter_upwards [h_pair_ae] with pair h_all
+            -- For each e ∈ T_u, the eval is in [0,1]
+            have h_each_Tu : ∀ e ∈ T_u, (f e).toAEEqFun
+                (sub (pair u₀s) b₀ (Quot.out e).1,
+                 sub (pair u₀s) b₀ (Quot.out e).2) ∈ Set.Icc 0 1 := by
+              intro e he
+              have heT := (Finset.mem_filter.mp he).1
+              -- h_all says the eval with equiv.symm(pair, rest) is in [0,1]
+              have h_bound := h_all e heT
+              -- Rewrite using h_equiv_sub to get sub form
+              simp_rw [h_equiv_sub pair] at h_bound
+              -- By h_Tu_indep, changing v₀s to b₀ doesn't matter
+              rw [h_Tu_indep e he (pair u₀s) (pair v₀s) b₀] at h_bound
+              exact h_bound
+            exact ⟨Finset.prod_nonneg (fun e he => (h_each_Tu e he).1),
+              Finset.prod_le_one (fun e he => (h_each_Tu e he).1)
+                (fun e he => (h_each_Tu e he).2)⟩
+          -- Similarly: for a.e. pair, g_raw(pair v₀s) ∈ [0,1]
+          have h_graw_ae_pair : ∀ᵐ pair ∂π_pair, g_raw (pair v₀s) ∈ Set.Icc 0 1 := by
+            filter_upwards [h_pair_ae] with pair h_all
+            have h_each_Tv : ∀ e ∈ T_v, (f e).toAEEqFun
+                (sub a₀ (pair v₀s) (Quot.out e).1,
+                 sub a₀ (pair v₀s) (Quot.out e).2) ∈ Set.Icc 0 1 := by
+              intro e he
+              have heT := (Finset.mem_filter.mp he).1
+              have h_bound := h_all e heT
+              simp_rw [h_equiv_sub pair] at h_bound
+              rw [h_Tv_indep e he (pair u₀s) a₀ (pair v₀s)] at h_bound
+              exact h_bound
+            exact ⟨Finset.prod_nonneg (fun e he => (h_each_Tv e he).1),
+              Finset.prod_le_one (fun e he => (h_each_Tv e he).1)
+                (fun e he => (h_each_Tv e he).2)⟩
+          -- A.e. under π_pair, f_clip = f_raw and g_clip = g_raw
+          have hf_eq_ae_pair : ∀ᵐ pair ∂π_pair,
+              f_clip (pair u₀s) = f_raw (pair u₀s) := by
+            filter_upwards [h_fraw_ae_pair] with pair ⟨ha0, ha1⟩
+            simp only [f_clip, min_eq_right ha1, max_eq_right ha0]
+          have hg_eq_ae_pair : ∀ᵐ pair ∂π_pair,
+              g_clip (pair v₀s) = g_raw (pair v₀s) := by
+            filter_upwards [h_graw_ae_pair] with pair ⟨hb0, hb1⟩
+            simp only [g_clip, min_eq_right hb1, max_eq_right hb0]
+          -- Now: rewrite integrand and use abs_weighted_pi_integral_diff_le
+          -- Step 1: Rewrite integral using h_integrand_eq and h_prod_factor
+          have h_integral_rw : ∫ pair, F (equiv.symm (pair, rest)) ∂π_pair =
+              ∫ pair : {i // p i} → α,
+                f_raw (pair u₀s) * g_raw (pair v₀s) *
+                (U.toAEEqFun (pair u₀s, pair v₀s) -
+                 W.toAEEqFun (pair u₀s, pair v₀s))
+              ∂π_pair := by
+            apply integral_congr_ae
+            filter_upwards with pair
+            rw [h_integrand_eq pair, h_prod_factor (pair u₀s) (pair v₀s)]
+          -- Step 2: Replace f_raw with f_clip and g_raw with g_clip (a.e. equal)
+          have h_integral_clip : ∫ pair : {i // p i} → α,
+                f_raw (pair u₀s) * g_raw (pair v₀s) *
+                (U.toAEEqFun (pair u₀s, pair v₀s) -
+                 W.toAEEqFun (pair u₀s, pair v₀s))
+              ∂π_pair =
+              ∫ pair : {i // p i} → α,
+                f_clip (pair u₀s) * g_clip (pair v₀s) *
+                (U.toAEEqFun (pair u₀s, pair v₀s) -
+                 W.toAEEqFun (pair u₀s, pair v₀s))
+              ∂π_pair := by
+            apply integral_congr_ae
+            filter_upwards [hf_eq_ae_pair, hg_eq_ae_pair] with pair hu hv
+            rw [hu, hv]
+          -- Step 3: Apply abs_weighted_pi_integral_diff_le
+          rw [h_integral_rw, h_integral_clip]
+          exact abs_weighted_pi_integral_diff_le U W u₀s v₀s huv_s
+            f_clip g_clip hf_clip_meas hg_clip_meas hf_clip_bound hg_clip_bound
+    _ = cutNormDiff U W := by
+        simp
 
 /-- Strengthened counting lemma with weighted prefix product.
 
