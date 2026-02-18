@@ -3327,10 +3327,9 @@ The FK iteration uses cut norm to guarantee exponential energy gain per step, wh
 L² defect only gives gain proportional to part measures.
 
 **What IS proved**: The qualitative version `energy_increment` (above) correctly
-shows `energy W Q > energy W P` — i.e., some strict increase exists. The
-`regularity` theorem below uses this sorry only for the explicit iteration bound
-(number of steps ≤ ⌈16/ε⁴⌉). The regularity theorem's existence claim is valid;
-only the explicit bound on partition size depends on this sorry.
+shows `energy W Q > energy W P` — i.e., some strict increase exists. However, the
+formal `regularity` theorem below still routes through this sorry for its
+termination argument (energy gain ≥ ε⁴/16 per step → at most ⌈16/ε⁴⌉ steps).
 
 **Possible fixes**:
 1. Reformulate using cut norm: replace the L² defect hypothesis with a cut norm

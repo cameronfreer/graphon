@@ -1018,7 +1018,7 @@ theorem cutDistance_le_one (U W : Graphon α μ) : cutDistance U W ≤ 1 := by
 
 This is the key property making cut distance a pseudometric.
 
-**Axiomatized**: The proof requires Rokhlin's theorem (every standard Borel
+**Sorry (Rokhlin)**: The proof requires Rokhlin's theorem (every standard Borel
 probability space is measure-theoretically isomorphic to [0,1] with Lebesgue
 measure), which is not yet available in Mathlib. The theorem itself is
 well-established; see Lovász [2012], Section 8.2.

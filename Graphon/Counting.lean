@@ -189,7 +189,51 @@ theorem homDensity_sub_le_completeGraph_two (U W : Graphon α μ) :
 
 /-! ### General counting lemma -/
 
-set_option maxHeartbeats 400000
+/-- For factored weights f(x_u)·g(x_v) with f,g ∈ [0,1] measurable, the weighted integral
+of (U - W) over `Measure.pi` is bounded by `cutNormDiff U W`.
+
+The key step is that the pair map `(x u, x v)` pushes forward `Measure.pi` to `μ.prod μ`
+(by coordinate independence), so we can convert to the iterated integral form and apply
+`abs_weighted_integral_diff_le`. -/
+private lemma abs_weighted_pi_integral_diff_le (U W : Graphon α μ) (u v : V) (huv : u ≠ v)
+    (f g : α → ℝ) (hf_meas : Measurable f) (hg_meas : Measurable g)
+    (hf_bound : ∀ x, f x ∈ Set.Icc 0 1) (hg_bound : ∀ x, g x ∈ Set.Icc 0 1) :
+    |∫ x : V → α, f (x u) * g (x v) *
+      (U.toAEEqFun (x u, x v) - W.toAEEqFun (x u, x v))
+    ∂Measure.pi (fun _ => μ)| ≤ cutNormDiff U W := by
+  set φ : (V → α) → α × α := fun x => (x u, x v)
+  have hφ_meas : Measurable φ :=
+    Measurable.prodMk (measurable_pi_apply _) (measurable_pi_apply _)
+  have h_map_eq : Measure.map φ (Measure.pi (fun _ : V => μ)) = μ.prod μ := by
+    have h_indep : ProbabilityTheory.IndepFun
+        (fun x : V → α => x u) (fun x : V → α => x v) (Measure.pi (fun _ : V => μ)) := by
+      have := (ProbabilityTheory.iIndepFun_pi (μ := fun _ : V => μ)
+        (fun _ => aemeasurable_id)).indepFun huv
+      simpa only [id] using this
+    rw [show φ = fun x => ((fun x : V → α => x u) x, (fun x : V → α => x v) x) from rfl]
+    rw [ProbabilityTheory.indepFun_iff_map_prod_eq_prod_map_map
+      (measurable_pi_apply _).aemeasurable (measurable_pi_apply _).aemeasurable |>.mp h_indep,
+      (measurePreserving_eval (fun _ : V => μ) u).map_eq,
+      (measurePreserving_eval (fun _ : V => μ) v).map_eq]
+  set h : α × α → ℝ := fun p => f p.1 * g p.2 * (U.toAEEqFun p - W.toAEEqFun p)
+  have h_comp : ∀ x : V → α, f (x u) * g (x v) *
+      (U.toAEEqFun (x u, x v) - W.toAEEqFun (x u, x v)) = h (φ x) := fun _ => rfl
+  simp_rw [h_comp]
+  have h_int : Integrable h (μ.prod μ) := by
+    apply Integrable.bdd_mul
+        ((SymmKernel.graphon_integrable U).sub (SymmKernel.graphon_integrable W))
+    · exact ((hf_meas.comp measurable_fst).mul
+        (hg_meas.comp measurable_snd)).aestronglyMeasurable
+    · exact Filter.Eventually.of_forall (fun p => by
+        rw [Real.norm_eq_abs, abs_of_nonneg (mul_nonneg (hf_bound p.1).1 (hg_bound p.2).1)]
+        exact mul_le_one₀ (hf_bound p.1).2 (hg_bound p.2).1 (hg_bound p.2).2)
+  have h_eq : ∫ x : V → α, h (φ x) ∂Measure.pi (fun _ => μ) =
+      ∫ p, h p ∂(μ.prod μ) := by
+    rw [← h_map_eq]
+    exact (integral_map hφ_meas.aemeasurable
+      (by rw [h_map_eq]; exact h_int.aestronglyMeasurable)).symm
+  rw [h_eq, integral_prod _ h_int]
+  exact abs_weighted_integral_diff_le U W f g hf_meas hg_meas hf_bound hg_bound
 
 /-- Key helper for the counting lemma: weighted integral of graphon difference
 bounded by cut norm.
@@ -198,13 +242,19 @@ Given a product of graphon evaluations at edges in `T` (each assigned an arbitra
 graphon via `f`), and a distinguished edge `e₀ ∉ T`, the integral of the product
 times `(U_{e₀} - W_{e₀})` is bounded by `cutNormDiff U W`.
 
-The proof requires Fubini on `Measure.pi` to integrate out all coordinates except
-the two endpoints of `e₀`, reducing to the separable case handled by
-`abs_weighted_integral_diff_le`. Under `Measure.pi`, coordinates are independent,
-so after integrating out vertices not in `e₀`, the weight factors into
-`f(x_u) * g(x_v)` where each factor is in [0,1].
+**Sorry (Fubini on `Measure.pi`)**: The proof requires decomposing `Measure.pi` via
+`measurePreserving_piEquivPiSubtypeProd` into "pair" coordinates `(x_u, x_v)` (endpoints
+of `e₀`) and "rest" coordinates, then applying Fubini (`integral_prod`). For each fixed
+rest assignment, edges in T partition into:
+- Edges between rest vertices → constant factor `C ∈ [0,1]`
+- Edges touching only `u` → product of `∫ graphon(x_u, ·) dμ`, a function of `x_u` in [0,1]
+- Edges touching only `v` → similarly, function of `x_v` in [0,1]
+- No edge touches both `u` and `v` (since `e₀ ∉ T`)
+By independence of coordinates under `Measure.pi`, the weight factors as
+`C · f(x_u) · g(x_v)`. Then `abs_weighted_pi_integral_diff_le` gives the bound.
 
-This corresponds to the key step in Lovasz [2012], Theorem 10.23. -/
+Once proved, this is the LAST sorry in the counting lemma chain
+(`homDensity_sub_le`). See Lovász [2012], Theorem 10.23. -/
 private lemma weighted_prod_graphon_diff_le
     (U W : Graphon α μ) (T : Finset (Sym2 V)) (e₀ : Sym2 V)
     (he₀T : e₀ ∉ T)
@@ -232,8 +282,125 @@ private lemma counting_integrable_term (U W : Graphon α μ)
       (Measure.pi (fun _ => μ)) := by
   -- The integrand is a product of [0,1]-valued terms times a difference in [-1,1],
   -- hence bounded in [-1,1]. On a finite measure space, bounded a.e. functions are integrable.
-  -- AEMeasurability of the integrand and a.e. membership in [-1,1] are both needed.
-  sorry
+  -- Helper: graphon eval at an edge is AEMeasurable w.r.t. Measure.pi
+  have graphon_eval_aem : ∀ (G : Graphon α μ) (e : Sym2 V),
+      (Quot.out e).1 ≠ (Quot.out e).2 →
+      AEMeasurable (fun x : V → α => G.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))
+        (Measure.pi (fun _ => μ)) := by
+    intro G e hne
+    have h_pair : Measurable (fun x : V → α => (x (Quot.out e).1, x (Quot.out e).2)) :=
+      Measurable.prodMk (measurable_pi_apply _) (measurable_pi_apply _)
+    have h_indep : ProbabilityTheory.iIndepFun (fun i (x : V → α) => x i)
+        (Measure.pi (fun _ : V => μ)) :=
+      ProbabilityTheory.iIndepFun_pi (fun _ => aemeasurable_id)
+    have h_indep_pair := h_indep.indepFun hne
+    have h_map : Measure.map (fun x => (x (Quot.out e).1, x (Quot.out e).2))
+        (Measure.pi (fun _ : V => μ)) =
+        (Measure.map (fun x => x (Quot.out e).1) (Measure.pi (fun _ : V => μ))).prod
+        (Measure.map (fun x => x (Quot.out e).2) (Measure.pi (fun _ : V => μ))) := by
+      rw [ProbabilityTheory.indepFun_iff_map_prod_eq_prod_map_map
+        (measurable_pi_apply _).aemeasurable (measurable_pi_apply _).aemeasurable] at h_indep_pair
+      exact h_indep_pair
+    have h_marg₁ : Measure.map (fun x => x (Quot.out e).1) (Measure.pi (fun _ : V => μ)) = μ :=
+      (MeasureTheory.measurePreserving_eval (fun _ : V => μ) (Quot.out e).1).map_eq
+    have h_marg₂ : Measure.map (fun x => x (Quot.out e).2) (Measure.pi (fun _ : V => μ)) = μ :=
+      (MeasureTheory.measurePreserving_eval (fun _ : V => μ) (Quot.out e).2).map_eq
+    have h_map_eq : Measure.map (fun x => (x (Quot.out e).1, x (Quot.out e).2))
+        (Measure.pi (fun _ : V => μ)) = μ.prod μ := by
+      rw [h_map, h_marg₁, h_marg₂]
+    have h_aem_map : AEMeasurable G.toAEEqFun
+        (Measure.map (fun x => (x (Quot.out e).1, x (Quot.out e).2))
+          (Measure.pi (fun _ : V => μ))) := by
+      rw [h_map_eq]; exact G.toAEEqFun.aemeasurable
+    exact h_aem_map.comp_measurable h_pair
+  -- AEMeasurability of product over R
+  have hR_aem : AEMeasurable (fun x : V → α =>
+      ∏ e ∈ R, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))
+      (Measure.pi (fun _ => μ)) :=
+    Finset.aemeasurable_fun_prod R (fun e he => graphon_eval_aem (f e) e (hR_edges e he))
+  -- AEMeasurability of each product over S
+  have hSU_aem : AEMeasurable (fun x : V → α =>
+      ∏ e ∈ S, U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))
+      (Measure.pi (fun _ => μ)) :=
+    Finset.aemeasurable_fun_prod S (fun e he => graphon_eval_aem U e (hS_edges e he))
+  have hSW_aem : AEMeasurable (fun x : V → α =>
+      ∏ e ∈ S, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))
+      (Measure.pi (fun _ => μ)) :=
+    Finset.aemeasurable_fun_prod S (fun e he => graphon_eval_aem W e (hS_edges e he))
+  -- AEMeasurability of the full integrand
+  have h_aem : AEMeasurable (fun x : V → α =>
+      (∏ e ∈ R, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+      (∏ e ∈ S, U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) -
+       ∏ e ∈ S, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)))
+      (Measure.pi (fun _ => μ)) :=
+    hR_aem.mul (hSU_aem.sub hSW_aem)
+  -- A.e. bound: each graphon eval is in [0,1] a.e., so products are in [0,1],
+  -- difference is in [-1,1], and the full product is in [-1,1].
+  have h_ae_bound : ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
+      (∏ e ∈ R, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+      (∏ e ∈ S, U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) -
+       ∏ e ∈ S, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) ∈
+      Set.Icc (-1 : ℝ) 1 := by
+    -- Collect a.e. bounds for all graphon evals at edges in R and S
+    have hR_ae : ∀ e ∈ R, ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
+        (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
+      fun e he => graphonEval_mem_Icc_ae (f e) (hR_edges e he)
+    have hSU_ae : ∀ e ∈ S, ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
+        U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
+      fun e he => graphonEval_mem_Icc_ae U (hS_edges e he)
+    have hSW_ae : ∀ e ∈ S, ∀ᵐ x ∂Measure.pi (fun _ : V => μ),
+        W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 :=
+      fun e he => graphonEval_mem_Icc_ae W (hS_edges e he)
+    -- Combine into one a.e. statement using Finset induction
+    have collect : ∀ (T : Finset (Sym2 V)) (g : Sym2 V → (V → α) → ℝ),
+        (∀ e ∈ T, ∀ᵐ x ∂Measure.pi (fun _ : V => μ), g e x ∈ Set.Icc 0 1) →
+        ∀ᵐ x ∂Measure.pi (fun _ : V => μ), ∀ e ∈ T, g e x ∈ Set.Icc 0 1 := by
+      intro T g hg
+      induction T using Finset.induction with
+      | empty => simp
+      | @insert a s' _ ih =>
+        have hs1 := hg a (Finset.mem_insert_self a s')
+        have hs2 := ih (fun e he => hg e (Finset.mem_insert_of_mem he))
+        filter_upwards [hs1, hs2] with x hx1 hx2 e he
+        rcases Finset.mem_insert.mp he with rfl | he'
+        · exact hx1
+        · exact hx2 e he'
+    have hR_all := collect R (fun e x => (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))
+      (fun e he => hR_ae e he)
+    have hSU_all := collect S (fun e x => U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))
+      (fun e he => hSU_ae e he)
+    have hSW_all := collect S (fun e x => W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))
+      (fun e he => hSW_ae e he)
+    filter_upwards [hR_all, hSU_all, hSW_all] with x hxR hxSU hxSW
+    -- Now prove the pointwise bound
+    have hR_prod_nn : 0 ≤ ∏ e ∈ R, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) :=
+      Finset.prod_nonneg (fun e he => (hxR e he).1)
+    have hR_prod_le : ∏ e ∈ R, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ≤ 1 :=
+      Finset.prod_le_one (fun e he => (hxR e he).1) (fun e he => (hxR e he).2)
+    have hSU_prod_nn : 0 ≤ ∏ e ∈ S, U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) :=
+      Finset.prod_nonneg (fun e he => (hxSU e he).1)
+    have hSU_prod_le : ∏ e ∈ S, U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ≤ 1 :=
+      Finset.prod_le_one (fun e he => (hxSU e he).1) (fun e he => (hxSU e he).2)
+    have hSW_prod_nn : 0 ≤ ∏ e ∈ S, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) :=
+      Finset.prod_nonneg (fun e he => (hxSW e he).1)
+    have hSW_prod_le : ∏ e ∈ S, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ≤ 1 :=
+      Finset.prod_le_one (fun e he => (hxSW e he).1) (fun e he => (hxSW e he).2)
+    -- The difference is in [-1, 1]
+    have h_diff_lower : -1 ≤ ∏ e ∈ S, U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) -
+        ∏ e ∈ S, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) := by linarith
+    have h_diff_upper : ∏ e ∈ S, U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) -
+        ∏ e ∈ S, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ≤ 1 := by linarith
+    -- Product of [0,1] and [-1,1] is in [-1,1]
+    set pR := ∏ e ∈ R, (f e).toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)
+    set d := ∏ e ∈ S, U.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) -
+             ∏ e ∈ S, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)
+    constructor
+    · -- Lower bound: pR * d ≥ -1
+      -- Since 0 ≤ pR ≤ 1 and -1 ≤ d ≤ 1, we have pR * d ≥ -1
+      nlinarith [sq_nonneg pR, sq_nonneg d]
+    · -- Upper bound: pR * d ≤ 1
+      nlinarith [sq_nonneg pR, sq_nonneg d]
+  exact Integrable.of_mem_Icc (-1) 1 h_aem h_ae_bound
 
 /-- Strengthened counting lemma with weighted prefix product.
 
