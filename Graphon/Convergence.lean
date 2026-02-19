@@ -131,7 +131,7 @@ end EquivalentConvergence
 
 section CompactnessChar
 
-variable [IsProbabilityMeasure μ]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α]
 
 /-- Every sequence has a convergent subsequence (sequential compactness). -/
 theorem exists_convergent_subsequence (W : ℕ → Graphon α μ) :
@@ -139,6 +139,7 @@ theorem exists_convergent_subsequence (W : ℕ → Graphon α μ) :
       ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W (φ n)) V < ε :=
   compact W
 
+omit [StandardBorelSpace α] in
 /-- The limit of a convergent sequence is unique up to weak isomorphism. -/
 theorem limit_unique [StandardBorelSpace α] (W : ℕ → Graphon α μ) (U V : Graphon α μ)
     (hU : ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) U < ε)
