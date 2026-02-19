@@ -488,21 +488,9 @@ theorem stepify_ae (P : MeasurablePartition α μ) (W : Graphon α μ) :
     ∀ᵐ p ∂(μ.prod μ), (stepify P W).toAEEqFun p = stepifyFun P W p :=
   AEEqFun.coeFn_mk _ _
 
-/-- cutNormDiff between W and its stepification is bounded by the L² defect.
-
-More precisely, `cutNormDiff W (stepify P W) ≤ √(defect W P)`.
-
-This follows from Cauchy-Schwarz: for any measurable S, T,
-|∫_{S×T} (W - step)| ≤ √(∫_{S×T} (W - step)²) · √(μ(S×T))
-                     ≤ √(defect W P) · 1.
-
-Note: `defect` is defined in `Graphon.Regularity`. -/
-theorem cutNormDiff_stepify_le (P : MeasurablePartition α μ) (W : Graphon α μ)
-    (defect_W_P : ℝ)
-    (h_defect : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
-      ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) ≤ defect_W_P) :
-    cutNormDiff W (stepify P W) ≤ Real.sqrt defect_W_P := by
-  sorry
+-- Note: cutNormDiff_stepify_le was removed because the regularity lemma
+-- (Regularity.lean) now provides `cutNormDiff W (stepify P W) ≤ ε` directly,
+-- making a separate Cauchy-Schwarz bound on the defect unnecessary.
 
 end Stepify
 

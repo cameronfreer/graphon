@@ -993,6 +993,17 @@ theorem cutDistance_self (W : Graphon α μ) : cutDistance W W = 0 := by
       exact (cutNormDiff_self W).symm
   · exact cutDistance_nonneg W W
 
+/-- Cut distance is bounded by cut norm difference (using identity maps). -/
+theorem cutDistance_le_cutNormDiff (U W : Graphon α μ) :
+    cutDistance U W ≤ cutNormDiff U W := by
+  unfold cutDistance
+  apply csInf_le
+  · use 0
+    intro d ⟨φ, ψ, hφ, hψ, hd⟩
+    rw [hd]
+    exact cutNormDiff_nonneg (pullback U φ hφ) (pullback W ψ hψ)
+  · exact ⟨id, id, MeasurePreserving.id μ, MeasurePreserving.id μ, by rw [pullback_id, pullback_id]⟩
+
 /-- Cut distance is bounded by 1. -/
 theorem cutDistance_le_one (U W : Graphon α μ) : cutDistance U W ≤ 1 := by
   unfold cutDistance
