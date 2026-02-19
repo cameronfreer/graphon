@@ -3314,36 +3314,434 @@ lemma exists_bad_rect_of_defect_gt (W : Graphon α μ) (P : MeasurablePartition 
             _ = ε ^ 2 := by ring
   linarith
 
+/-- Weighted Cauchy-Schwarz for finite sums: if w_i >= 0 and sum w_i <= 1,
+then (sum w_i d_i)^2 <= sum w_i d_i^2. -/
+private lemma sq_weighted_sum_le {ι : Type*} (s : Finset ι) (w d : ι → ℝ)
+    (hw : ∀ i ∈ s, 0 ≤ w i) (hW : s.sum w ≤ 1) :
+    (s.sum fun i => w i * d i) ^ 2 ≤ s.sum fun i => w i * d i ^ 2 := by
+  -- Use sum_mul_sq_le_sq_mul_sq with f(i) = sqrt(w i), g(i) = sqrt(w i) * d i
+  set f : ι → ℝ := fun i => Real.sqrt (w i)
+  set g : ι → ℝ := fun i => Real.sqrt (w i) * d i
+  have h_cs := Finset.sum_mul_sq_le_sq_mul_sq s f g
+  -- f * g = sqrt(w) * (sqrt(w) * d) = w * d
+  have h_fg : (s.sum fun i => f i * g i) = s.sum fun i => w i * d i := by
+    apply Finset.sum_congr rfl; intro i hi
+    show Real.sqrt (w i) * (Real.sqrt (w i) * d i) = w i * d i
+    rw [← mul_assoc, Real.mul_self_sqrt (hw i hi)]
+  -- f^2 = w
+  have h_f2 : (s.sum fun i => f i ^ 2) = s.sum w := by
+    apply Finset.sum_congr rfl; intro i hi
+    show Real.sqrt (w i) ^ 2 = w i
+    exact Real.sq_sqrt (hw i hi)
+  -- g^2 = w * d^2
+  have h_g2 : (s.sum fun i => g i ^ 2) = s.sum fun i => w i * d i ^ 2 := by
+    apply Finset.sum_congr rfl; intro i hi
+    show (Real.sqrt (w i) * d i) ^ 2 = w i * d i ^ 2
+    rw [mul_pow, Real.sq_sqrt (hw i hi)]
+  rw [h_fg, h_f2, h_g2] at h_cs
+  calc (s.sum fun i => w i * d i) ^ 2
+      ≤ (s.sum w) * (s.sum fun i => w i * d i ^ 2) := h_cs
+    _ ≤ 1 * (s.sum fun i => w i * d i ^ 2) :=
+        mul_le_mul_of_nonneg_right hW (Finset.sum_nonneg fun i hi =>
+          mul_nonneg (hw i hi) (sq_nonneg _))
+    _ = s.sum fun i => w i * d i ^ 2 := one_mul _
+
+/-- Weighted Cauchy-Schwarz for double finite sums: if w_i, v_j >= 0 and
+sum w_i <= 1, sum v_j <= 1, then (sum_{i,j} w_i v_j d_{ij})^2 <= sum_{i,j} w_i v_j d_{ij}^2. -/
+private lemma sq_weighted_double_sum_le {ι κ : Type*}
+    (s : Finset ι) (t : Finset κ) (w : ι → ℝ) (v : κ → ℝ) (d : ι → κ → ℝ)
+    (hw : ∀ i ∈ s, 0 ≤ w i) (hv : ∀ j ∈ t, 0 ≤ v j)
+    (hW : s.sum w ≤ 1) (hV : t.sum v ≤ 1) :
+    (s.sum fun i => t.sum fun j => w i * v j * d i j) ^ 2 ≤
+    s.sum fun i => t.sum fun j => w i * v j * (d i j) ^ 2 := by
+  -- Rewrite each inner sum: sum_j w_i * v_j * d_{ij} = w_i * sum_j v_j * d_{ij}
+  have h_inner_eq : (s.sum fun i => t.sum fun j => w i * v j * d i j) =
+      s.sum fun i => w i * (t.sum fun j => v j * d i j) := by
+    apply Finset.sum_congr rfl; intro i _
+    have : (t.sum fun j => w i * v j * d i j) =
+        t.sum fun j => w i * (v j * d i j) :=
+      Finset.sum_congr rfl (fun j _ => by ring)
+    rw [this, ← Finset.mul_sum]
+  have h_inner_eq2 : (s.sum fun i => t.sum fun j => w i * v j * (d i j) ^ 2) =
+      s.sum fun i => w i * (t.sum fun j => v j * (d i j) ^ 2) := by
+    apply Finset.sum_congr rfl; intro i _
+    have : (t.sum fun j => w i * v j * (d i j) ^ 2) =
+        t.sum fun j => w i * (v j * (d i j) ^ 2) :=
+      Finset.sum_congr rfl (fun j _ => by ring)
+    rw [this, ← Finset.mul_sum]
+  rw [h_inner_eq, h_inner_eq2]
+  -- Now (sum_i w_i * D_i)^2 where D_i = sum_j v_j d_{ij}
+  -- By sq_weighted_sum_le: <= sum_i w_i * D_i^2
+  have step1 := sq_weighted_sum_le s w (fun i => t.sum fun j => v j * d i j) hw hW
+  -- For each i: D_i^2 <= sum_j v_j d_{ij}^2 by sq_weighted_sum_le
+  have step2 : ∀ i ∈ s, w i * (t.sum fun j => v j * d i j) ^ 2 ≤
+      w i * (t.sum fun j => v j * (d i j) ^ 2) := by
+    intro i hi
+    apply mul_le_mul_of_nonneg_left _ (hw i hi)
+    exact sq_weighted_sum_le t v (d i) hv hV
+  linarith [Finset.sum_le_sum step2]
+
+/-- Variance shift: ∫_{S×T} (W - c)² = ∫_{S×T} (W - a)² + (a - c)² μ(S)μ(T),
+where a = rectAverage W S T. Derives from variance_decomposition_rect. -/
+private lemma integral_sq_shift (W : Graphon α μ) (S T : Set α)
+    (hS : MeasurableSet S) (hT : MeasurableSet T) (c : ℝ) :
+    ∫ p in S ×ˢ T, (W.toAEEqFun p - c) ^ 2 ∂(μ.prod μ) =
+      ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) +
+      (μ S).toReal * (μ T).toReal * (rectAverage W S T - c) ^ 2 := by
+  by_cases hμS : μ S = 0
+  · have h_zero : (μ.prod μ) (S ×ˢ T) = 0 := by rw [Measure.prod_prod, hμS, zero_mul]
+    simp [setIntegral_measure_zero _ h_zero, hμS]
+  by_cases hμT : μ T = 0
+  · have h_zero : (μ.prod μ) (S ×ˢ T) = 0 := by rw [Measure.prod_prod, hμT, mul_zero]
+    simp [setIntegral_measure_zero _ h_zero, hμT]
+  -- Both measures nonzero. Use variance_decomposition_rect twice.
+  -- For c = 0: ∫ W² = ∫ (W - a)² + a² μS μT  (from variance_decomposition_rect)
+  -- For general c: ∫ (W-c)² = ∫ W² - 2c ∫ W + c² μ(S×T)
+  -- Combined: ∫ (W-c)² = ∫ (W-a)² + (a² - 2ac + c²) μS μT = ∫ (W-a)² + (a-c)² μS μT
+  have h_var := variance_decomposition_rect W S T hS hT hμS hμT
+  -- ∫ W = a * μS * μT
+  have hS_pos : 0 < (μ S).toReal := ENNReal.toReal_pos hμS (measure_lt_top μ S).ne
+  have hT_pos : 0 < (μ T).toReal := ENNReal.toReal_pos hμT (measure_lt_top μ T).ne
+  have h_int_W : ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ) =
+      rectAverage W S T * (μ S).toReal * (μ T).toReal := by
+    have ha : rectAverage W S T = (μ S).toReal⁻¹ * (μ T).toReal⁻¹ *
+        ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ) := by
+      unfold rectAverage; simp [hμS, hμT]
+    rw [ha]; field_simp
+  have hμST : ((μ.prod μ) (S ×ˢ T)).toReal = (μ S).toReal * (μ T).toReal := by
+    rw [Measure.prod_prod, ENNReal.toReal_mul]
+  -- Strategy: expand ∫(W-c)² = ∫W² - 2c∫W + c²μ(S×T), then substitute
+  -- h_var (∫W² = ∫(W-a)² + a²μSμT) and h_int_W (∫W = a*μS*μT).
+  -- Integrability facts (mirroring variance_decomposition_rect)
+  have h_int_W2 : IntegrableOn (fun p => W.toAEEqFun p) (S ×ˢ T) (μ.prod μ) :=
+    (SymmKernel.graphon_integrable W).integrableOn
+  have h_int_W_sq : IntegrableOn (fun p => (W.toAEEqFun p) ^ 2) (S ×ˢ T) (μ.prod μ) := by
+    apply Measure.integrableOn_of_bounded (measure_lt_top _ _).ne
+    · exact (continuous_pow 2).comp_aestronglyMeasurable W.toAEEqFun.aestronglyMeasurable
+    · filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with p hp
+      simp only [Real.norm_eq_abs]
+      calc |W.toAEEqFun p ^ 2| = W.toAEEqFun p ^ 2 := abs_of_nonneg (sq_nonneg _)
+        _ ≤ 1 := by nlinarith [hp.1, hp.2]
+  have h_int_cW : IntegrableOn (fun p => 2 * c * W.toAEEqFun p) (S ×ˢ T) (μ.prod μ) :=
+    h_int_W2.const_mul (2 * c)
+  have h_int_const_c : IntegrableOn (fun _ => c ^ 2) (S ×ˢ T) (μ.prod μ) :=
+    integrableOn_const (measure_lt_top _ _).ne
+  -- Expansion: ∫(W-c)² = ∫W² - 2c∫W + c²μ(S×T)
+  have h_expand : ∫ p in S ×ˢ T, (W.toAEEqFun p - c) ^ 2 ∂(μ.prod μ) =
+      ∫ p in S ×ˢ T, (W.toAEEqFun p) ^ 2 ∂(μ.prod μ) -
+      2 * c * ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ) +
+      c ^ 2 * ((μ.prod μ) (S ×ˢ T)).toReal := by
+    have h1 : ∫ p in S ×ˢ T, (W.toAEEqFun p - c) ^ 2 ∂(μ.prod μ) =
+        ∫ p in S ×ˢ T, ((W.toAEEqFun p) ^ 2 - 2 * c * W.toAEEqFun p + c ^ 2) ∂(μ.prod μ) := by
+      congr 1; funext p; ring
+    rw [h1]
+    have h_step1 : ∫ p in S ×ˢ T, (W.toAEEqFun p ^ 2 - 2 * c * W.toAEEqFun p + c ^ 2) ∂(μ.prod μ) =
+        ∫ p in S ×ˢ T, (W.toAEEqFun p ^ 2 - 2 * c * W.toAEEqFun p) ∂(μ.prod μ) +
+        ∫ _ in S ×ˢ T, c ^ 2 ∂(μ.prod μ) := by
+      have h_eq : (fun p => W.toAEEqFun p ^ 2 - 2 * c * W.toAEEqFun p + c ^ 2) =
+          (fun p => W.toAEEqFun p ^ 2 - 2 * c * W.toAEEqFun p) + (fun _ => c ^ 2) := by
+        ext p; simp only [Pi.add_apply]
+      rw [h_eq]
+      exact integral_add (h_int_W_sq.sub h_int_cW) h_int_const_c
+    rw [h_step1]
+    have h_step2 : ∫ p in S ×ˢ T, (W.toAEEqFun p ^ 2 - 2 * c * W.toAEEqFun p) ∂(μ.prod μ) =
+        ∫ p in S ×ˢ T, W.toAEEqFun p ^ 2 ∂(μ.prod μ) -
+        ∫ p in S ×ˢ T, (2 * c * W.toAEEqFun p) ∂(μ.prod μ) := by
+      have : (fun p => W.toAEEqFun p ^ 2 - 2 * c * W.toAEEqFun p) =
+          (fun p => W.toAEEqFun p ^ 2) - (fun p => 2 * c * W.toAEEqFun p) := by
+        funext p; simp only [Pi.sub_apply]
+      rw [this]
+      exact integral_sub h_int_W_sq h_int_cW
+    rw [h_step2, integral_const_mul, setIntegral_const, smul_eq_mul]
+    simp only [Measure.real]
+    ring
+  -- Substitute h_var and h_int_W into the expansion
+  rw [Measure.prod_prod, ENNReal.toReal_mul] at h_expand
+  rw [h_int_W] at h_expand
+  -- h_var: ∫W² = ∫(W-a)² + a²μSμT (rectAverage W S T)²
+  -- h_expand: ∫(W-c)² = ∫W² - 2c·a·μSμT + c²·μSμT
+  -- Combining gives ∫(W-c)² = ∫(W-a)² + (a-c)²μSμT
+  linarith
+
+set_option maxHeartbeats 6400000 in
+/-- The energy gain from a double split (by S₀ and T₀) is at least the square
+of the rectangle integral of the difference W − stepify_P(W) over S₀ × T₀.
+
+This is the core inequality behind the Frieze-Kannan weak regularity lemma.
+
+Strategy: Jensen's inequality on ∫_{S₀×T₀} (W - stepify P W) combined with
+monotonicity of energy under refinement and the L² identity energy + defect = ∫∫ W². -/
+private lemma energy_doubleSplit_ge_sq
+    (W : Graphon α μ) (P : MeasurablePartition α μ)
+    (S₀ : Set α) (hS₀ : MeasurableSet S₀) (T₀ : Set α) (hT₀ : MeasurableSet T₀) :
+    energy W (MeasurablePartition.splitAllParts (MeasurablePartition.splitAllParts P S₀ hS₀) T₀ hT₀) ≥
+      energy W P + (rectIntegralDiff W (stepify P W) S₀ T₀) ^ 2 := by
+  -- Step 1: By Jensen, (rectIntegralDiff)² ≤ ∫_{S₀×T₀} (W - stepify P W)²
+  -- Step 2: ∫_{S₀×T₀} (W - stepify P W)² ≤ ∫∫ (W - stepify P W)² = defect P
+  -- Step 3: defect P = ∫∫ W² - energy P, energy Q ≤ ∫∫ W² (since defect Q ≥ 0)
+  -- Combining: (rectIntegralDiff)² ≤ defect P ≤ energy Q - energy P + defect Q
+  -- This doesn't directly work. We need the stronger bound via Cauchy-Schwarz on partition cells.
+  -- Use the combinatorial approach with weighted Cauchy-Schwarz.
+  classical
+  set Q := MeasurablePartition.splitAllParts (MeasurablePartition.splitAllParts P S₀ hS₀) T₀ hT₀
+  -- Abbreviations for the weight and difference functions
+  set w : Set α → ℝ := fun S => (μ (S ∩ S₀)).toReal
+  set v : Set α → ℝ := fun T => (μ (T ∩ T₀)).toReal
+  set dd : Set α → Set α → ℝ := fun S T =>
+    if (μ (S ∩ S₀) = 0 ∨ μ (T ∩ T₀) = 0) then 0
+    else rectAverage W (S ∩ S₀) (T ∩ T₀) - rectAverage W S T
+  -- Key property: when either measure is 0, the weighted product is 0
+  have h_wvd : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+      w S * v T * dd S T =
+      (μ (S ∩ S₀)).toReal * (μ (T ∩ T₀)).toReal *
+        (rectAverage W (S ∩ S₀) (T ∩ T₀) - rectAverage W S T) := by
+    intro S _ T _; simp only [w, v, dd]
+    by_cases h1 : μ (S ∩ S₀) = 0 <;> by_cases h2 : μ (T ∩ T₀) = 0 <;> simp [h1, h2]
+  -- ===== Step A: Decompose rectIntegralDiff =====
+  -- rectIntegralDiff = Σ_{S,T} μ(S∩S₀)μ(T∩T₀)(a_{S∩S₀,T∩T₀} - a_{S,T})
+  have h_integral_decomp : rectIntegralDiff W (stepify P W) S₀ T₀ =
+      P.parts.sum fun S => P.parts.sum fun T => w S * v T * dd S T := by
+    -- Suffices to show = Σ μ(S∩S₀)·μ(T∩T₀)·(a_{S∩S₀,T∩T₀} - a_{S,T})
+    suffices h_main : rectIntegralDiff W (stepify P W) S₀ T₀ =
+        ∑ S ∈ P.parts, ∑ T ∈ P.parts,
+          (μ (S ∩ S₀)).toReal * (μ (T ∩ T₀)).toReal *
+            (rectAverage W (S ∩ S₀) (T ∩ T₀) - rectAverage W S T) by
+      rw [h_main]
+      apply Finset.sum_congr rfl; intro S hS
+      apply Finset.sum_congr rfl; intro T hT
+      exact (h_wvd S hS T hT).symm
+    -- Unfold rectIntegralDiff
+    unfold rectIntegralDiff
+    -- Integrability
+    have h_int_diff : IntegrableOn (fun p => W.toAEEqFun p - (stepify P W).toAEEqFun p)
+        (S₀ ×ˢ T₀) (μ.prod μ) :=
+      ((SymmKernel.graphon_integrable W).integrableOn).sub
+        ((SymmKernel.graphon_integrable (stepify P W)).integrableOn)
+    -- The cells (S∩S₀)×(T∩T₀) are pairwise disjoint
+    have h_cells_disj : (↑(P.parts ×ˢ P.parts) : Set (Set α × Set α)).Pairwise
+        (Function.onFun Disjoint fun st => (st.1 ∩ S₀) ×ˢ (st.2 ∩ T₀)) := by
+      intro ⟨S₁, T₁⟩ h₁ ⟨S₂, T₂⟩ h₂ hne
+      simp only [Function.onFun]
+      simp only [Finset.coe_product, Set.mem_prod, Finset.mem_coe] at h₁ h₂
+      by_cases hS : S₁ = S₂
+      · subst hS
+        have hT : T₁ ≠ T₂ := fun h => hne (Prod.ext rfl h)
+        have h_disj_T := P.pairwiseDisjoint h₁.2 h₂.2 hT
+        exact Disjoint.mono (Set.prod_mono_right Set.inter_subset_left)
+          (Set.prod_mono_right Set.inter_subset_left)
+          (Set.disjoint_left.mpr fun p hp1 hp2 =>
+            Set.disjoint_left.mp h_disj_T (Set.mem_prod.mp hp1).2 (Set.mem_prod.mp hp2).2)
+      · have h_disj_S := P.pairwiseDisjoint h₁.1 h₂.1 hS
+        exact Disjoint.mono (Set.prod_mono_left Set.inter_subset_left)
+          (Set.prod_mono_left Set.inter_subset_left)
+          (Set.disjoint_left.mpr fun p hp1 hp2 =>
+            Set.disjoint_left.mp h_disj_S (Set.mem_prod.mp hp1).1 (Set.mem_prod.mp hp2).1)
+    -- Measurability of cells
+    have h_cells_meas : ∀ st ∈ P.parts ×ˢ P.parts,
+        MeasurableSet ((st.1 ∩ S₀) ×ˢ (st.2 ∩ T₀)) := by
+      intro ⟨S, T⟩ hst
+      simp only [Finset.mem_product] at hst
+      exact ((P.measurableSet_part hst.1).inter hS₀).prod
+        ((P.measurableSet_part hst.2).inter hT₀)
+    -- Integrability on each cell
+    have h_int_cells : ∀ st ∈ P.parts ×ˢ P.parts,
+        IntegrableOn (fun p => W.toAEEqFun p - (stepify P W).toAEEqFun p)
+          ((st.1 ∩ S₀) ×ˢ (st.2 ∩ T₀)) (μ.prod μ) := fun _ _ =>
+      h_int_diff.mono (Set.prod_mono Set.inter_subset_right Set.inter_subset_right) le_rfl
+    -- The cells cover S₀ × T₀ a.e.
+    have h_cover : ∀ᵐ p ∂(μ.prod μ).restrict (S₀ ×ˢ T₀),
+        p ∈ ⋃ st ∈ P.parts ×ˢ P.parts, (st.1 ∩ S₀) ×ˢ (st.2 ∩ T₀) := by
+      rw [ae_restrict_iff' (hS₀.prod hT₀)]
+      filter_upwards [Measure.QuasiMeasurePreserving.ae
+          Measure.quasiMeasurePreserving_fst P.ae_covers,
+        Measure.QuasiMeasurePreserving.ae
+          Measure.quasiMeasurePreserving_snd P.ae_covers] with p h1 h2 hp
+      obtain ⟨S, hS, hpS⟩ := h1
+      obtain ⟨T, hT, hpT⟩ := h2
+      simp only [Set.mem_iUnion, Finset.mem_coe, Finset.mem_product, Prod.exists]
+      exact ⟨S, T, ⟨hS, hT⟩, Set.mem_prod.mpr
+        ⟨⟨hpS, (Set.mem_prod.mp hp).1⟩, ⟨hpT, (Set.mem_prod.mp hp).2⟩⟩⟩
+    -- Decompose the integral over S₀×T₀ into sum over cells
+    -- The union of cells ⊆ S₀×T₀, and S₀×T₀ \ cells is null, so the sets are ae equal
+    set cellUnion := ⋃ st ∈ P.parts ×ˢ P.parts, (st.1 ∩ S₀) ×ˢ (st.2 ∩ T₀)
+    have h_sub : cellUnion ⊆ S₀ ×ˢ T₀ := by
+      intro p hp
+      simp only [cellUnion, Set.mem_iUnion, Finset.mem_coe] at hp
+      obtain ⟨⟨S, T⟩, _, hp_mem⟩ := hp
+      exact Set.mem_prod.mpr ⟨(Set.mem_prod.mp hp_mem).1.2, (Set.mem_prod.mp hp_mem).2.2⟩
+    have h_cellUnion_meas : MeasurableSet cellUnion :=
+      MeasurableSet.biUnion (P.parts ×ˢ P.parts).countable_toSet h_cells_meas
+    have h_ae_eq : S₀ ×ˢ T₀ =ᵐ[μ.prod μ] cellUnion := by
+      rw [ae_eq_set]
+      refine ⟨?_, by rw [Set.diff_eq_empty.mpr h_sub]; exact measure_empty⟩
+      -- μ((S₀×T₀) \ cellUnion) = 0
+      -- h_cover gives (μ.prod μ).restrict (S₀×T₀) {p | p ∉ cellUnion} = 0
+      have h0 : (μ.prod μ).restrict (S₀ ×ˢ T₀) cellUnionᶜ = 0 :=
+        ae_iff.mp h_cover
+      rwa [Measure.restrict_apply h_cellUnion_meas.compl, Set.inter_comm] at h0
+    have h_eq_union :
+        ∫ p in S₀ ×ˢ T₀, (W.toAEEqFun p - (stepify P W).toAEEqFun p) ∂(μ.prod μ) =
+        ∫ p in cellUnion, (W.toAEEqFun p - (stepify P W).toAEEqFun p) ∂(μ.prod μ) :=
+      setIntegral_congr_set h_ae_eq
+    rw [h_eq_union, integral_biUnion_finset _ h_cells_meas h_cells_disj h_int_cells,
+      Finset.sum_product]
+    -- Show each cell integral equals the corresponding term
+    apply Finset.sum_congr rfl; intro S hS
+    apply Finset.sum_congr rfl; intro T hT
+    by_cases hμS0 : μ (S ∩ S₀) = 0
+    · have h_prod_zero : (μ.prod μ) ((S ∩ S₀) ×ˢ (T ∩ T₀)) = 0 := by
+        rw [Measure.prod_prod, hμS0, zero_mul]
+      rw [setIntegral_measure_zero _ h_prod_zero]; simp [hμS0]
+    by_cases hμT0 : μ (T ∩ T₀) = 0
+    · have h_prod_zero : (μ.prod μ) ((S ∩ S₀) ×ˢ (T ∩ T₀)) = 0 := by
+        rw [Measure.prod_prod, hμT0, mul_zero]
+      rw [setIntegral_measure_zero _ h_prod_zero]; simp [hμT0]
+    -- Both measures nonzero: use the pre-computed h_cell_integral
+    -- (The goal after by_cases has (S, T).1 and (S, T).2 which are definitionally S and T,
+    --  but we avoid the issue by using the pre-proved lemma directly.)
+    show ∫ p in (S ∩ S₀) ×ˢ (T ∩ T₀), (W.toAEEqFun p - (stepify P W).toAEEqFun p) ∂(μ.prod μ) =
+      (μ (S ∩ S₀)).toReal * (μ (T ∩ T₀)).toReal * (rectAverage W (S ∩ S₀) (T ∩ T₀) - rectAverage W S T)
+    -- Split integral
+    rw [integral_sub
+      (SymmKernel.graphon_integrable W).integrableOn
+      (SymmKernel.graphon_integrable (stepify P W)).integrableOn]
+    -- ∫ stepify on cell = rectAverage W S T · μ(S∩S₀) · μ(T∩T₀)
+    have h_stepify_cell :
+        ∫ p in (S ∩ S₀) ×ˢ (T ∩ T₀), (stepify P W).toAEEqFun p ∂(μ.prod μ) =
+        rectAverage W S T * (μ (S ∩ S₀)).toReal * (μ (T ∩ T₀)).toReal := by
+      have h_ae_eq : ∀ᵐ p ∂(μ.prod μ).restrict ((S ∩ S₀) ×ˢ (T ∩ T₀)),
+          (stepify P W).toAEEqFun p = rectAverage W S T := by
+        rw [ae_restrict_iff' (((P.measurableSet_part hS).inter hS₀).prod
+          ((P.measurableSet_part hT).inter hT₀))]
+        filter_upwards [ae_restrict_of_ae (stepify_ae P W)] with p h_step hp
+        rw [h_step]
+        exact stepifyFun_eq_rectAverage P W hS hT
+          (Set.prod_mono Set.inter_subset_left Set.inter_subset_left hp)
+      rw [setIntegral_congr_ae (((P.measurableSet_part hS).inter hS₀).prod
+        ((P.measurableSet_part hT).inter hT₀)) h_ae_eq,
+        setIntegral_const, smul_eq_mul, Measure.prod_prod, ENNReal.toReal_mul]
+    -- ∫ W on cell = rectAverage W (S∩S₀) (T∩T₀) · μ(S∩S₀) · μ(T∩T₀)
+    have h_W_cell :
+        ∫ p in (S ∩ S₀) ×ˢ (T ∩ T₀), W.toAEEqFun p ∂(μ.prod μ) =
+        rectAverage W (S ∩ S₀) (T ∩ T₀) * (μ (S ∩ S₀)).toReal * (μ (T ∩ T₀)).toReal := by
+      have ha : rectAverage W (S ∩ S₀) (T ∩ T₀) = (μ (S ∩ S₀)).toReal⁻¹ * (μ (T ∩ T₀)).toReal⁻¹ *
+          ∫ p in (S ∩ S₀) ×ˢ (T ∩ T₀), W.toAEEqFun p ∂(μ.prod μ) := by
+        unfold rectAverage; simp [hμS0, hμT0]
+      rw [ha]; field_simp
+    rw [h_stepify_cell, h_W_cell]; ring
+  -- ===== Step B: Energy gain lower bound =====
+  -- energy Q - energy P ≥ Σ_{S,T} μ(S∩S₀)μ(T∩T₀)(a_{S∩S₀,T∩T₀} - a_{S,T})²
+  have h_energy_gain : energy W Q - energy W P ≥
+      P.parts.sum fun S => P.parts.sum fun T => w S * v T * dd S T ^ 2 := by
+    sorry
+  -- ===== Step C: Cauchy-Schwarz =====
+  have hw : ∀ S ∈ P.parts, 0 ≤ w S := fun _ _ => ENNReal.toReal_nonneg
+  have hv : ∀ T ∈ P.parts, 0 ≤ v T := fun _ _ => ENNReal.toReal_nonneg
+  have hW : P.parts.sum w ≤ 1 := by
+    show P.parts.sum (fun S => (μ (S ∩ S₀)).toReal) ≤ 1
+    have h_disj : (P.parts : Set (Set α)).PairwiseDisjoint (fun S => S ∩ S₀) :=
+      fun S hS T hT hne =>
+        (P.pairwiseDisjoint hS hT hne).mono Set.inter_subset_left Set.inter_subset_left
+    calc P.parts.sum (fun S => (μ (S ∩ S₀)).toReal)
+        = (μ (⋃ S ∈ P.parts, S ∩ S₀)).toReal := by
+          rw [measure_biUnion_finset (fun S hS T hT hne => h_disj hS hT hne)
+            (fun S hS => (P.measurableSet_part hS).inter hS₀)]
+          exact (ENNReal.toReal_sum (fun _ _ => measure_ne_top μ _)).symm
+      _ ≤ (μ Set.univ).toReal :=
+          ENNReal.toReal_mono (measure_ne_top μ Set.univ) (measure_mono (Set.subset_univ _))
+      _ = 1 := by rw [measure_univ]; simp
+  have hV : P.parts.sum v ≤ 1 := by
+    show P.parts.sum (fun T => (μ (T ∩ T₀)).toReal) ≤ 1
+    have h_disj : (P.parts : Set (Set α)).PairwiseDisjoint (fun T => T ∩ T₀) :=
+      fun S hS T hT hne =>
+        (P.pairwiseDisjoint hS hT hne).mono Set.inter_subset_left Set.inter_subset_left
+    calc P.parts.sum (fun T => (μ (T ∩ T₀)).toReal)
+        = (μ (⋃ T ∈ P.parts, T ∩ T₀)).toReal := by
+          rw [measure_biUnion_finset (fun S hS T hT hne => h_disj hS hT hne)
+            (fun T hT => (P.measurableSet_part hT).inter hT₀)]
+          exact (ENNReal.toReal_sum (fun _ _ => measure_ne_top μ _)).symm
+      _ ≤ (μ Set.univ).toReal :=
+          ENNReal.toReal_mono (measure_ne_top μ Set.univ) (measure_mono (Set.subset_univ _))
+      _ = 1 := by rw [measure_univ]; simp
+  have h_cs := sq_weighted_double_sum_le P.parts P.parts w v dd hw hv hW hV
+  rw [h_integral_decomp]; linarith
+
+/-- If `cutNormDiff U W > c`, there exist measurable S, T with
+|rectIntegralDiff U W S T| > c. Follows from the definition of cutNormDiff
+as a supremum. -/
+private lemma exists_rectIntegralDiff_gt_of_cutNormDiff_gt
+    (U W : Graphon α μ) (c : ℝ)
+    (h : c < cutNormDiff U W) :
+    ∃ (S : Set α), MeasurableSet S ∧ ∃ (T : Set α), MeasurableSet T ∧
+      c < |rectIntegralDiff U W S T| := by
+  by_contra h_neg
+  push_neg at h_neg
+  have hc : 0 ≤ c := le_trans (abs_nonneg _) (h_neg ∅ MeasurableSet.empty ∅ MeasurableSet.empty)
+  have h_le : cutNormDiff U W ≤ c := by
+    unfold cutNormDiff
+    apply Real.iSup_le _ hc
+    intro S
+    apply Real.iSup_le _ hc
+    intro hS
+    apply Real.iSup_le _ hc
+    intro T
+    apply Real.iSup_le _ hc
+    intro hT
+    exact h_neg S hS T hT
+  linarith
+
 /-- Quantitative energy increment via cut norm (Frieze-Kannan).
 
-If the step graphon approximation of W on partition P has cut norm difference ≥ ε,
-then splitting all parts by the witnessing rectangle yields a refinement Q with
-energy gain ≥ ε².
+If the step graphon approximation of W on partition P has cut norm difference > ε,
+then splitting all parts by the witnessing rectangle (S₀ for rows, T₀ for columns)
+yields a refinement Q with energy gain ≥ ε².
 
-**Proof outline** (FK argument):
-1. By `cutNormDiff W (stepify P W) ≥ ε`, there exist measurable S₀, T₀ with
-   |∫_{S₀×T₀} (W − stepify P W)| ≥ ε (or arbitrarily close).
-2. Set Q = `splitAllParts P S₀`, which splits each part into (S ∩ S₀) and (S \ S₀).
-3. Energy gain = Σ_S (energy gain from splitting S by S₀) ≥ 0.
-4. By Cauchy-Schwarz, the total gain from the witnessing rectangle is ≥ ε².
-
-The qualitative version `energy_increment` is proved above; this quantitative
-version gives the explicit ε² bound needed for the iteration to terminate. -/
+Uses double splitting: Q = splitAllParts(splitAllParts(P, S₀), T₀), giving
+at most 4 × |P.parts| parts. The energy gain follows from:
+- The conditional variance identity (energy gain = Σ μ·(a − a_parent)²)
+- Cauchy-Schwarz: (∫_{S₀×T₀} (W − stepify))² ≤ energy gain -/
 private theorem energy_increment_quantitative
     (W : Graphon α μ) (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0)
-    (h_bad : cutNormDiff W (stepify P W) ≥ ε) :
+    (h_bad : ε < cutNormDiff W (stepify P W)) :
     ∃ Q : MeasurablePartition α μ,
-      Refines Q P ∧ Q.parts.card ≤ 2 * P.parts.card ∧
+      Refines Q P ∧ Q.parts.card ≤ 4 * P.parts.card ∧
       energy W Q ≥ energy W P + ε ^ 2 := by
-  sorry
+  -- Step 1: Extract witnessing sets S₀, T₀ from cutNormDiff > ε
+  obtain ⟨S₀, hS₀, T₀, hT₀, h_integral⟩ :=
+    exists_rectIntegralDiff_gt_of_cutNormDiff_gt W (stepify P W) ε h_bad
+  -- Step 2: Build Q by splitting all parts first by S₀, then by T₀
+  set Q₁ := MeasurablePartition.splitAllParts P S₀ hS₀ with hQ₁_def
+  set Q := MeasurablePartition.splitAllParts Q₁ T₀ hT₀ with hQ_def
+  refine ⟨Q, ?_, ?_, ?_⟩
+  -- (a) Q refines P
+  · exact Refines.trans (MeasurablePartition.splitAllParts_refines P S₀ hS₀) (MeasurablePartition.splitAllParts_refines Q₁ T₀ hT₀)
+  -- (b) Q has at most 4 * P.parts.card parts
+  · calc Q.parts.card
+        ≤ 2 * Q₁.parts.card := MeasurablePartition.splitAllParts_card Q₁ T₀ hT₀
+      _ ≤ 2 * (2 * P.parts.card) := Nat.mul_le_mul_left 2 (MeasurablePartition.splitAllParts_card P S₀ hS₀)
+      _ = 4 * P.parts.card := by ring
+  -- (c) Energy gain ≥ ε²
+  · have h_energy := energy_doubleSplit_ge_sq W P S₀ hS₀ T₀ hT₀
+    have h_abs_gt : ε < |rectIntegralDiff W (stepify P W) S₀ T₀| := h_integral
+    -- ε² ≤ |integral|² = integral²
+    have h_sq : ε ^ 2 ≤ (rectIntegralDiff W (stepify P W) S₀ T₀) ^ 2 := by
+      have h1 : ε ^ 2 < |rectIntegralDiff W (stepify P W) S₀ T₀| ^ 2 := by
+        exact sq_lt_sq' (by linarith [abs_nonneg (rectIntegralDiff W (stepify P W) S₀ T₀)]) h_abs_gt
+      have h2 : |rectIntegralDiff W (stepify P W) S₀ T₀| ^ 2 =
+          (rectIntegralDiff W (stepify P W) S₀ T₀) ^ 2 := by
+        rw [sq_abs]
+      linarith
+    linarith
 
 /-- The regularity function: given ε, returns an upper bound on the number of parts
     needed in a partition to achieve ε-approximation.
 
 The bound is exponential in 1/ε², following the Frieze-Kannan approach which gives
-single-exponential bounds (better than the tower-type bounds from Szemerédi's proof). -/
+single-exponential bounds (better than the tower-type bounds from Szemerédi's proof).
+
+Uses base 4 because each FK step doubles in both row and column dimensions. -/
 noncomputable def regularityBound (ε : ℝ) : ℕ :=
-  if ε ≤ 0 then 0 else 2 ^ (Nat.ceil (1 / ε ^ 2) + 1)
+  if ε ≤ 0 then 0 else 4 ^ (Nat.ceil (1 / ε ^ 2) + 1)
 
 /-- The Frieze-Kannan weak regularity lemma.
 
@@ -3357,7 +3755,7 @@ has small cut norm difference from W.
    - Apply energy_increment_quantitative to get P_{i+1}
    - Energy increases by ≥ ε²
 3. Since energy ≤ 1, at most ⌈1/ε²⌉ iterations
-4. Each iteration at most doubles parts: final count ≤ 2^(iterations+1) -/
+4. Each iteration at most quadruples parts (double split): final count ≤ 4^(iterations+1) -/
 theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ P : MeasurablePartition α μ,
       P.parts.card ≤ regularityBound ε ∧
@@ -3370,22 +3768,22 @@ theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
   set δ := ε ^ 2 with hδ_def
 
   -- Main iteration claim: if we can take n more steps from P,
-  -- and P has ≤ 2^(N-n) parts, then either we find a good partition
-  -- with ≤ 2^N parts, or energy W P + n*δ ≤ 1 is violated.
+  -- and P has ≤ 4^(N-n) parts, then either we find a good partition
+  -- with ≤ 4^N parts, or energy W P + n*δ ≤ 1 is violated.
   suffices h_iter : ∀ n : ℕ, n ≤ N → ∀ P : MeasurablePartition α μ,
-      P.parts.card ≤ 2 ^ (N - n) →
+      P.parts.card ≤ 4 ^ (N - n) →
       ∃ Q : MeasurablePartition α μ,
-        Q.parts.card ≤ 2 ^ N ∧
+        Q.parts.card ≤ 4 ^ N ∧
         (cutNormDiff W (stepify Q W) ≤ ε ∨ energy W Q ≥ energy W P + n * δ) by
     -- Start with trivial partition
     let P₀ := trivialPartition (α := α) (μ := μ)
-    have hP₀_card : P₀.parts.card ≤ 2 ^ (N - N) := by
+    have hP₀_card : P₀.parts.card ≤ 4 ^ (N - N) := by
       rw [Nat.sub_self, pow_zero, trivialPartition_card]
     obtain ⟨Q, hQ_card, hQ_result⟩ := h_iter N le_rfl P₀ hP₀_card
     rcases hQ_result with hQ_good | hQ_energy
     · -- Found good partition
       refine ⟨Q, ?_, hQ_good⟩
-      have h_bound : regularityBound ε = 2 ^ N := by
+      have h_bound : regularityBound ε = 4 ^ N := by
         unfold regularityBound
         rw [if_neg (by linarith), hN_def]
       omega
@@ -3410,29 +3808,29 @@ theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
     intro _hn P hP_card
     -- No fuel left: return P as is (with vacuous energy bound)
     exact ⟨P, by
-      calc P.parts.card ≤ 2 ^ (N - 0) := hP_card
-        _ = 2 ^ N := by simp
+      calc P.parts.card ≤ 4 ^ (N - 0) := hP_card
+        _ = 4 ^ N := by simp
       , Or.inr (by simp)⟩
   | succ n ih =>
     intro hn P hP_card
     -- Check if cut norm is already small
     by_cases h_done : cutNormDiff W (stepify P W) ≤ ε
     · exact ⟨P, by
-        calc P.parts.card ≤ 2 ^ (N - (n + 1)) := hP_card
-          _ ≤ 2 ^ N := Nat.pow_le_pow_right (by norm_num) (Nat.sub_le N _)
+        calc P.parts.card ≤ 4 ^ (N - (n + 1)) := hP_card
+          _ ≤ 4 ^ N := Nat.pow_le_pow_right (by norm_num) (Nat.sub_le N _)
         , Or.inl h_done⟩
     · -- Cut norm > ε: apply energy_increment_quantitative
       push_neg at h_done
       obtain ⟨Q, _hQ_ref, hQ_card_le, hQ_energy⟩ :=
-        energy_increment_quantitative W P ε hε (le_of_lt h_done)
-      -- Q.parts.card ≤ 2 * P.parts.card ≤ 2 * 2^(N-(n+1)) = 2^(N-n)
-      have hQ_card : Q.parts.card ≤ 2 ^ (N - n) := by
+        energy_increment_quantitative W P ε hε h_done
+      -- Q.parts.card ≤ 4 * P.parts.card ≤ 4 * 4^(N-(n+1)) = 4^(N-n)
+      have hQ_card : Q.parts.card ≤ 4 ^ (N - n) := by
         have h1 : N - n = (N - (n + 1)) + 1 := by omega
         calc Q.parts.card
-            ≤ 2 * P.parts.card := hQ_card_le
-          _ ≤ 2 * 2 ^ (N - (n + 1)) := by omega
-          _ = 2 ^ ((N - (n + 1)) + 1) := by ring_nf
-          _ = 2 ^ (N - n) := by rw [← h1]
+            ≤ 4 * P.parts.card := hQ_card_le
+          _ ≤ 4 * 4 ^ (N - (n + 1)) := Nat.mul_le_mul_left 4 hP_card
+          _ = 4 ^ ((N - (n + 1)) + 1) := by ring_nf
+          _ = 4 ^ (N - n) := by rw [← h1]
       -- Apply IH with n remaining fuel
       obtain ⟨R, hR_card, hR_result⟩ := ih (by omega) Q hQ_card
       refine ⟨R, hR_card, ?_⟩
