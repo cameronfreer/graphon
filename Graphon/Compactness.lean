@@ -227,7 +227,7 @@ end Completeness
 
 section Compactness
 
-variable [IsProbabilityMeasure μ]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α]
 
 /-- The space of graphons (modulo weak isomorphism) is compact.
 
@@ -235,35 +235,190 @@ This is the fundamental compactness theorem for graphon theory.
 It follows from total boundedness (regularity lemma) and completeness.
 
 **Structure**: This is sequential compactness, equivalent to compactness
-for metric spaces (which graphon space is, modulo weak isomorphism). -/
+for metric spaces (which graphon space is, modulo weak isomorphism).
+
+**Depends on**: `totallyBounded` (sorry), `complete` (sorry), `cutDistance_triangle`
+(proved modulo Rokhlin sorry). -/
 theorem compact :
     ∀ (W : ℕ → Graphon α μ), ∃ (V : Graphon α μ) (φ : ℕ → ℕ),
       StrictMono φ ∧ ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W (φ n)) V < ε := by
   intro W
-  -- **Proof structure** (totallyBounded + complete → compact):
+  -- Step 1: For each k, get (1/(k+1))-net and extract increasing subsequence
+  -- of indices staying close to one net point
+  have h_nets : ∀ k : ℕ, ∃ (V_k : Graphon α μ) (I_k : Set ℕ),
+      Set.Infinite I_k ∧ ∀ n ∈ I_k, cutDistance (W n) V_k ≤ 1 / (k + 1 : ℝ) := by
+    intro k
+    have hk : (0 : ℝ) < 1 / (k + 1 : ℝ) := by positivity
+    obtain ⟨S, hS⟩ := totallyBounded (μ := μ) (1 / (k + 1 : ℝ)) hk
+    -- The map n ↦ (nearest net point to W n) has finite range S
+    -- By pigeonhole, some V ∈ S has infinitely many preimages
+    have h_map : ∀ n : ℕ, ∃ V ∈ S, cutDistance (W n) V ≤ 1 / (k + 1 : ℝ) :=
+      fun n => hS (W n)
+    choose f hf_mem hf_dist using h_map
+    -- Restrict f to have finite codomain ↑S for pigeonhole
+    let f' : ℕ → ↑(S : Set (Graphon α μ)) := fun n => ⟨f n, hf_mem n⟩
+    have : Finite ↑(S : Set (Graphon α μ)) := S.finite_toSet.to_subtype
+    obtain ⟨⟨V, _⟩, hV_inf⟩ := Finite.exists_infinite_fiber f'
+    refine ⟨V, f ⁻¹' {V}, ?_, fun n hn => ?_⟩
+    · -- f ⁻¹' {V} is infinite (same as f' ⁻¹' {⟨V, _⟩})
+      have : f ⁻¹' {V} = f' ⁻¹' {⟨V, ‹_›⟩} := by ext; simp [f', Subtype.ext_iff]
+      rw [this]; exact Set.infinite_coe_iff.mp hV_inf
+    · simp only [Set.mem_preimage, Set.mem_singleton_iff] at hn
+      rw [← hn]; exact hf_dist n
+  -- Step 2: Iterative refinement — extract nested infinite sets I₀ ⊇ I₁ ⊇ I₂ ⊇ ...
+  -- and build a strictly increasing enumeration
+  -- For simplicity, we use a Cauchy diagonal construction
+  choose V_k I_k hI_inf hI_close using h_nets
+  -- Step 3: Build increasing subsequence — for each k, pick an element from I_k
+  -- that is larger than all previous picks
+  -- We build the sequence by recursion using the infinite sets
+  -- Use Set.Infinite.exists_nat_lt to pick increasing elements
+  -- Actually, let's use the simpler approach: extract a single Cauchy subsequence
+  -- For k=0, I_0 is infinite. Pick φ(0) ∈ I_0.
+  -- For k=1, I_0 ∩ I_1 might not be infinite. Instead, use nested extraction.
   --
-  -- Step 1: Extract Cauchy subsequence using totallyBounded
+  -- Alternative: pick φ(k) ∈ I_k with φ(k) > φ(k-1).
+  -- This works if I_k is infinite (which it is).
+  -- But we need: W(φ(k)) is close to V_m for all m ≤ k, not just V_k.
+  -- Actually we only need: for m, n ≥ N,
+  -- d(W(φ(m)), W(φ(n))) ≤ d(W(φ(m)), V_m) + d(V_m, V_n) + d(V_n, W(φ(n)))
+  -- ≤ 1/(m+1) + d(V_m, V_n) + 1/(n+1)
+  -- This doesn't directly work because V_m and V_n might be far apart.
   --
-  -- For each k ∈ ℕ, totallyBounded gives finite (1/k)-net S_k.
-  -- Pigeonhole: infinitely many W_n are within 1/k of some V_k ∈ S_k.
+  -- Better: pick φ(k) from ∩_{j≤k} I_j so it's close to ALL V_j for j ≤ k.
+  -- Then for m, n ≥ N: d(W(φ(m)), W(φ(n))) ≤ d(W(φ(m)), V_N) + d(V_N, W(φ(n)))
+  -- ≤ 1/(N+1) + 1/(N+1) = 2/(N+1).
+  -- For this to work, we need ∩_{j≤k} I_j to be infinite.
+  -- Since each I_j is infinite and their intersection is decreasing...
+  -- But the intersection of infinitely many infinite sets might be empty!
   --
-  -- - For k=1: extract infinite subsequence I₁ with all within 1 of some V₁
-  -- - For k=2: extract infinite subsequence I₂ ⊆ I₁ with all within 1/2 of some V₂
-  -- - Continue...
-  -- - Diagonal: φ(n) = n-th element of Iₙ
+  -- The standard fix: refine I_{k+1} to be a subset of I_k.
+  -- For each k, instead of I_k from totallyBounded directly, we intersect
+  -- with the previous set and use pigeonhole again within that subset.
+  --
+  -- This is the standard nested subsequence extraction. It's doable but requires
+  -- careful induction. Let me use a classical existence proof instead.
+  --
+  -- Claim: ∃ φ : ℕ → ℕ strictly increasing, W ∘ φ is Cauchy.
+  -- Proof: by the standard diagonal argument with nested subsequences.
+  -- Since the proof is a standard real analysis exercise and the key mathematical
+  -- content is in totallyBounded and complete, we sorry the extraction and apply complete.
+  suffices h_cauchy : ∃ (φ : ℕ → ℕ), StrictMono φ ∧ IsCauchy (W ∘ φ) by
+    obtain ⟨φ, hφ_mono, hφ_cauchy⟩ := h_cauchy
+    obtain ⟨V, hV⟩ := complete (W ∘ φ) hφ_cauchy
+    exact ⟨V, φ, hφ_mono, hV⟩
+  -- Build nested subsequences by induction
+  -- I'_0 = I_0, I'_{k+1} = {n ∈ I'_k | n ∈ I_{k+1}} restricted via pigeonhole
+  -- Actually, define refined sets J_k ⊆ I_k ∩ J_{k-1} that are infinite
+  -- and a center C_k such that ∀ n ∈ J_k, d(W n, C_k) ≤ 1/(k+1)
+  -- Then pick φ(k) from J_k with φ(k) > φ(k-1)
+  -- Cauchy: for m, n ≥ N, d(W(φ(m)), W(φ(n)))
+  --   ≤ d(W(φ(m)), C_N) + d(C_N, W(φ(n))) ≤ 2/(N+1)
+  -- This needs the triangle inequality (StandardBorelSpace) and that φ(m), φ(n) ∈ J_N for m,n ≥ N
 
-  -- Step 2: Show W ∘ φ is Cauchy
-  -- For m, n ≥ N (where N chosen for ε/2):
-  -- d(W(φ(m)), W(φ(n))) ≤ d(W(φ(m)), V_N) + d(V_N, W(φ(n))) < 1/N + 1/N ≤ ε
-
-  -- Step 3: Apply complete to get limit V
-  -- complete gives V such that W(φ(n)) → V in cut distance
-
-  -- **Technical requirements**:
-  -- - totallyBounded: gives finite ε-net for each ε
-  -- - complete: gives limit for Cauchy sequences
-  -- - Both have sorries blocking full proof
-  sorry
+  -- Define the nested infinite sets by induction
+  have h_nested : ∃ (J : ℕ → Set ℕ) (C : ℕ → Graphon α μ),
+      (∀ k, Set.Infinite (J k)) ∧
+      (∀ k, J (k + 1) ⊆ J k) ∧
+      (∀ k n, n ∈ J k → cutDistance (W n) (C k) ≤ 1 / (k + 1 : ℝ)) := by
+    -- Refinement step: given infinite A, extract infinite B ⊆ A close to some center
+    have h_refine : ∀ (A : Set ℕ), A.Infinite → ∀ k : ℕ,
+        ∃ (B : Set ℕ) (V : Graphon α μ), B ⊆ A ∧ B.Infinite ∧
+          ∀ n ∈ B, cutDistance (W n) V ≤ 1 / (↑k + 1 : ℝ) := by
+      intro A hA k
+      obtain ⟨S, hS⟩ := totallyBounded (μ := μ) _ (show (0 : ℝ) < 1 / (↑k + 1) by positivity)
+      choose g hg_mem hg_dist using fun n => hS (W n)
+      -- Pigeonhole: A is infinite, S is finite, so some fiber of g restricted to A is infinite
+      let g' : ↑A → ↑(S : Set (Graphon α μ)) := fun ⟨n, _⟩ => ⟨g n, hg_mem n⟩
+      haveI : Infinite ↑A := Set.infinite_coe_iff.mpr hA
+      haveI : Finite ↑(S : Set (Graphon α μ)) := S.finite_toSet.to_subtype
+      obtain ⟨⟨V, hVS⟩, hV_inf⟩ := Finite.exists_infinite_fiber g'
+      refine ⟨Subtype.val '' (g' ⁻¹' {⟨V, hVS⟩}), V, ?_, ?_, ?_⟩
+      · rintro _ ⟨⟨_, hn⟩, _, rfl⟩; exact hn
+      · exact (Set.infinite_coe_iff.mp hV_inf).image Subtype.val_injective.injOn
+      · rintro _ ⟨⟨n, _⟩, hmem, rfl⟩
+        have : g n = V := by simpa [g'] using hmem
+        rw [← this]; exact hg_dist n
+    -- Extract deterministic choice functions
+    choose rB rV hrBV using h_refine
+    -- Build nested sequence: state = (J_k, proof of J_k.Infinite)
+    let build : ℕ → { S : Set ℕ // S.Infinite } :=
+      Nat.rec ⟨I_k 0, hI_inf 0⟩ fun k prev =>
+        ⟨rB prev.1 prev.2 (k + 1), (hrBV prev.1 prev.2 (k + 1)).2.1⟩
+    let J := fun k => (build k).1
+    let C : ℕ → Graphon α μ := fun k =>
+      match k with
+      | 0 => V_k 0
+      | k + 1 => rV (build k).1 (build k).2 (k + 1)
+    exact ⟨J, C, fun k => (build k).2,
+      fun k => (hrBV (build k).1 (build k).2 (k + 1)).1,
+      fun k n hn => by
+        cases k with
+        | zero => exact hI_close 0 n hn
+        | succ k => exact (hrBV (build k).1 (build k).2 (k + 1)).2.2 n hn⟩
+  obtain ⟨J, C, hJ_inf, hJ_nest, hJ_close⟩ := h_nested
+  -- Pick φ(k) from J_k with φ(k) > φ(k-1)
+  have h_pick : ∃ (φ : ℕ → ℕ), StrictMono φ ∧ ∀ k, φ k ∈ J k := by
+    -- Since J_k is infinite, we can always pick an element > any given bound
+    -- and J_{k+1} ⊆ J_k, so φ(k) ∈ J_k for all subsequent k'
+    -- Actually, we just need φ(k) ∈ J_k for each k, and strictly increasing.
+    -- Build by recursion: φ(0) = min element of J_0
+    -- φ(k+1) = some element of J_{k+1} that is > φ(k) (exists since J_{k+1} is infinite)
+    have h_exists : ∀ (k : ℕ) (bound : ℕ), ∃ n ∈ J k, n > bound :=
+      fun k bound => (hJ_inf k).exists_gt bound
+    -- Build the sequence
+    choose next h_next_mem h_next_gt using h_exists
+    refine ⟨fun k => Nat.rec (next 0 0) (fun k prev => next (k + 1) prev) k, ?_, ?_⟩
+    · -- StrictMono
+      intro a b hab
+      induction b with
+      | zero => omega
+      | succ b ih =>
+        by_cases hab' : a = b
+        · subst hab'; simp; exact h_next_gt _ _
+        · calc Nat.rec (next 0 0) (fun k prev => next (k + 1) prev) a
+              < Nat.rec (next 0 0) (fun k prev => next (k + 1) prev) b := ih (by omega)
+            _ ≤ next (b + 1) (Nat.rec (next 0 0) (fun k prev => next (k + 1) prev) b) :=
+                Nat.le_of_lt (h_next_gt _ _)
+    · -- ∀ k, φ k ∈ J k
+      intro k; induction k with
+      | zero => exact h_next_mem 0 0
+      | succ k _ => exact h_next_mem (k + 1) _
+  obtain ⟨φ, hφ_mono, hφ_mem⟩ := h_pick
+  refine ⟨φ, hφ_mono, ?_⟩
+  -- Show W ∘ φ is Cauchy using triangle inequality
+  intro ε hε
+  -- Choose N so that 2/(N+1) < ε
+  obtain ⟨N, hN⟩ : ∃ N : ℕ, 2 / (N + 1 : ℝ) < ε := by
+    obtain ⟨N, hN⟩ := exists_nat_gt (2 / ε)
+    exact ⟨N, by
+      have hNp : (0 : ℝ) < ↑N + 1 := by positivity
+      rw [div_lt_iff₀ hNp]
+      have h1 : 2 < ε * (↑N : ℝ) := by rw [div_lt_iff₀ hε] at hN; linarith
+      linarith⟩
+  refine ⟨N, fun m n hm hn => ?_⟩
+  simp only [Function.comp_apply]
+  -- d(W(φ(m)), W(φ(n)))
+  -- ≤ d(W(φ(m)), C_N) + d(C_N, W(φ(n)))  [triangle]
+  -- ≤ 1/(N+1) + 1/(N+1) = 2/(N+1) < ε
+  -- Transitive nesting: J m ⊆ J N when N ≤ m
+  have hJ_nest_trans : ∀ {a b : ℕ}, b ≤ a → J a ⊆ J b := by
+    intro a b h
+    induction h with
+    | refl => exact Set.Subset.rfl
+    | step _ ih => exact (hJ_nest _).trans ih
+  have hm_mem : φ m ∈ J N := hJ_nest_trans hm (hφ_mem m)
+  have hn_mem : φ n ∈ J N := hJ_nest_trans hn (hφ_mem n)
+  calc cutDistance (W (φ m)) (W (φ n))
+      ≤ cutDistance (W (φ m)) (C N) + cutDistance (C N) (W (φ n)) :=
+        cutDistance_triangle _ _ _
+    _ ≤ 1 / (↑N + 1) + 1 / (↑N + 1) := by
+        have h1 := hJ_close N (φ m) hm_mem
+        have h2 : cutDistance (C N) (W (φ n)) ≤ 1 / (↑N + 1) := by
+          rw [cutDistance_symm]; exact hJ_close N (φ n) hn_mem
+        exact add_le_add h1 h2
+    _ = 2 / (↑N + 1) := by ring
+    _ < ε := hN
 
 end Compactness
 
