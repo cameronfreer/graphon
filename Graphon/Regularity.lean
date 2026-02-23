@@ -3381,6 +3381,120 @@ private lemma sq_weighted_double_sum_le {ι κ : Type*}
     exact sq_weighted_sum_le t v (d i) hv hV
   linarith [Finset.sum_le_sum step2]
 
+/-- Decomposition of a full-space integral into a double sum over partition cells.
+This is the measure-theoretic fact that partition cells cover α × α a.e. -/
+private lemma integral_eq_sum_parts (P : MeasurablePartition α μ)
+    (f : α × α → ℝ) (hf : Integrable f (μ.prod μ)) :
+    ∫ p, f p ∂(μ.prod μ) =
+      ∑ S ∈ P.parts, ∑ T ∈ P.parts, ∫ p in S ×ˢ T, f p ∂(μ.prod μ) := by
+  -- Partition rectangles cover α × α a.e.
+  let rectUnion := ⋃ (st : Set α × Set α), ⋃ (_ : st ∈ P.parts ×ˢ P.parts), st.1 ×ˢ st.2
+  -- Measurability and disjointness
+  have h_meas_rect : ∀ st ∈ P.parts ×ˢ P.parts, MeasurableSet (st.1 ×ˢ st.2) := by
+    intro ⟨S, T⟩ hst; simp only [Finset.mem_product] at hst
+    exact (P.measurableSet_part hst.1).prod (P.measurableSet_part hst.2)
+  have h_disj : (↑(P.parts ×ˢ P.parts) : Set (Set α × Set α)).Pairwise
+      (Function.onFun Disjoint fun st => st.1 ×ˢ st.2) := by
+    intro ⟨S₁, T₁⟩ h₁ ⟨S₂, T₂⟩ h₂ hne
+    simp only [Function.onFun, Set.disjoint_iff_inter_eq_empty, Set.prod_inter_prod]
+    simp only [Finset.coe_product, Set.mem_prod, Finset.mem_coe] at h₁ h₂
+    by_cases hS : S₁ = S₂
+    · subst hS
+      have hT : T₁ ≠ T₂ := fun h => hne (Prod.ext rfl h)
+      have h_disj_T : Disjoint T₁ T₂ := P.pairwiseDisjoint h₁.2 h₂.2 hT
+      simp only [Set.inter_self, Set.disjoint_iff_inter_eq_empty.mp h_disj_T, Set.prod_empty]
+    · have h_disj_S : Disjoint S₁ S₂ := P.pairwiseDisjoint h₁.1 h₂.1 hS
+      simp only [Set.disjoint_iff_inter_eq_empty.mp h_disj_S, Set.empty_prod]
+  -- Cover a.e.
+  have h_ae_covers : ∀ᵐ p ∂(μ.prod μ), ∃ S ∈ P.parts, ∃ T ∈ P.parts, p ∈ S ×ˢ T := by
+    have h_meas : MeasurableSet {p : α × α | ∃ S ∈ P.parts, ∃ T ∈ P.parts, p ∈ S ×ˢ T} := by
+      have h_eq : {p : α × α | ∃ S ∈ P.parts, ∃ T ∈ P.parts, p ∈ S ×ˢ T} =
+          ⋃ S ∈ P.parts, ⋃ T ∈ P.parts, S ×ˢ T := by
+        ext p; simp only [Set.mem_setOf_eq, Set.mem_iUnion, exists_prop]
+      rw [h_eq]; exact MeasurableSet.biUnion P.parts.countable_toSet
+        (fun S hS => MeasurableSet.biUnion P.parts.countable_toSet
+          (fun T hT => (P.measurableSet_part hS).prod (P.measurableSet_part hT)))
+    rw [Measure.ae_prod_iff_ae_ae h_meas]
+    filter_upwards [P.ae_covers] with x hx
+    filter_upwards [P.ae_covers] with y hy
+    obtain ⟨S, hS, hxS⟩ := hx; obtain ⟨T, hT, hyT⟩ := hy
+    exact ⟨S, hS, T, hT, ⟨hxS, hyT⟩⟩
+  -- Define the union of all partition rectangles
+  let rectUnion := ⋃ S ∈ P.parts, ⋃ T ∈ P.parts, S ×ˢ T
+  -- ∫ f = ∫_{rectUnion} f
+  have h_int_eq : ∫ p, f p ∂(μ.prod μ) = ∫ p in rectUnion, f p ∂(μ.prod μ) := by
+    symm; apply setIntegral_eq_integral_of_ae_compl_eq_zero
+    filter_upwards [h_ae_covers] with p hp h_not_in
+    simp only [rectUnion, Set.mem_iUnion, not_exists] at h_not_in
+    obtain ⟨S, hS, T, hT, hp_mem⟩ := hp
+    exact absurd hp_mem (h_not_in S hS T hT)
+  -- Rewrite rectUnion as biUnion over product
+  have h_union_eq : rectUnion = ⋃ (st : Set α × Set α),
+      ⋃ (_ : st ∈ P.parts ×ˢ P.parts), st.1 ×ˢ st.2 := by
+    ext p; simp only [rectUnion, Set.mem_iUnion, Finset.mem_product, exists_prop, Prod.exists]
+    constructor
+    · rintro ⟨S, hS, T, hT, hp⟩; exact ⟨S, T, ⟨hS, hT⟩, hp⟩
+    · rintro ⟨S, T, ⟨hS, hT⟩, hp⟩; exact ⟨S, hS, T, hT, hp⟩
+  -- ∫_{rectUnion} f = ∑ ∫_{SxT} f
+  rw [h_int_eq, h_union_eq,
+    integral_biUnion_finset _ h_meas_rect h_disj (fun _ _ => hf.integrableOn),
+    Finset.sum_product]
+
+/-- The integral of (stepify P W) * g decomposes as a weighted sum over partition cells,
+where each weight is rectAverage W S T. This follows from the fact that stepify P W
+is a.e. equal to rectAverage W S T on each cell S × T. -/
+private lemma integral_stepify_mul_eq_sum (W : Graphon α μ) (P : MeasurablePartition α μ)
+    (g : α × α → ℝ) (hg : Integrable g (μ.prod μ)) :
+    ∫ p, (stepify P W).toAEEqFun p * g p ∂(μ.prod μ) =
+      ∑ S ∈ P.parts, ∑ T ∈ P.parts,
+        rectAverage W S T * ∫ p in S ×ˢ T, g p ∂(μ.prod μ) := by
+  -- Decompose integral into sum over partition cells
+  have hfg : Integrable (fun p => (stepify P W).toAEEqFun p * g p) (μ.prod μ) := by
+    apply hg.bdd_mul (stepify P W).toAEEqFun.aestronglyMeasurable
+    filter_upwards [(stepify P W).ae_mem_Icc] with p hp
+    rw [Real.norm_eq_abs]; exact abs_le.mpr ⟨by linarith [hp.1], hp.2⟩
+  rw [integral_eq_sum_parts P _ hfg]
+  -- On each cell, stepify P W = rectAverage a.e.
+  apply Finset.sum_congr rfl; intro S hS
+  apply Finset.sum_congr rfl; intro T hT
+  have hS_meas := P.measurableSet_part hS
+  have hT_meas := P.measurableSet_part hT
+  -- stepify P W = rectAverage W S T a.e. on S × T
+  have h_ae : ∀ᵐ p ∂(μ.prod μ),
+      p ∈ S ×ˢ T → (stepify P W).toAEEqFun p = rectAverage W S T := by
+    filter_upwards [stepify_ae P W] with p hp hmem
+    rw [hp]; exact stepifyFun_eq_rectAverage P W hS hT hmem
+  rw [setIntegral_congr_ae (hS_meas.prod hT_meas)
+    (h_ae.mono fun p hp hmem => by rw [hp hmem])]
+  exact integral_const_mul _ _
+
+/-- When ∫_{S×T} g = ∫_{S×T} W for all partition cells, the integral of
+(stepify P W) * g equals energy W P. -/
+private lemma integral_stepify_mul_eq_energy (W : Graphon α μ) (P : MeasurablePartition α μ)
+    (g : α × α → ℝ) (hg : Integrable g (μ.prod μ))
+    (h_eq : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+      ∫ p in S ×ˢ T, g p ∂(μ.prod μ) = ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ)) :
+    ∫ p, (stepify P W).toAEEqFun p * g p ∂(μ.prod μ) = energy W P := by
+  rw [integral_stepify_mul_eq_sum W P g hg]
+  unfold energy
+  apply Finset.sum_congr rfl; intro S hS
+  apply Finset.sum_congr rfl; intro T hT
+  rw [h_eq S hS T hT]
+  by_cases hμS : μ S = 0
+  · have : (μ.prod μ) (S ×ˢ T) = 0 := by rw [Measure.prod_prod, hμS, zero_mul]
+    simp [setIntegral_measure_zero _ this, hμS]
+  by_cases hμT : μ T = 0
+  · have : (μ.prod μ) (S ×ˢ T) = 0 := by rw [Measure.prod_prod, hμT, mul_zero]
+    simp [setIntegral_measure_zero _ this, hμT]
+  -- Both measures nonzero: ∫W = rectAverage * μS * μT
+  have ha : rectAverage W S T = (μ S).toReal⁻¹ * (μ T).toReal⁻¹ *
+      ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ) := by
+    unfold rectAverage; simp [hμS, hμT]
+  rw [ha]
+  have hμS_pos : (μ S).toReal ≠ 0 := ne_of_gt (ENNReal.toReal_pos hμS (measure_lt_top μ _).ne)
+  have hμT_pos : (μ T).toReal ≠ 0 := ne_of_gt (ENNReal.toReal_pos hμT (measure_lt_top μ _).ne)
+  field_simp
+
 /-- Variance shift: ∫_{S×T} (W - c)² = ∫_{S×T} (W - a)² + (a - c)² μ(S)μ(T),
 where a = rectAverage W S T. Derives from variance_decomposition_rect. -/
 private lemma integral_sq_shift (W : Graphon α μ) (S T : Set α)
@@ -3462,6 +3576,161 @@ private lemma integral_sq_shift (W : Graphon α μ) (S T : Set α)
   -- h_expand: ∫(W-c)² = ∫W² - 2c·a·μSμT + c²·μSμT
   -- Combining gives ∫(W-c)² = ∫(W-a)² + (a-c)²μSμT
   linarith
+
+/-- On any Q-cell U×V, the integral of stepify Q W equals the integral of W.
+This is the conditional expectation property: stepify Q W has the same integral
+as W on each Q-cell. -/
+private lemma setIntegral_stepify_eq_on_cell
+    (W : Graphon α μ) (Q : MeasurablePartition α μ) (U V : Set α)
+    (hU : U ∈ Q.parts) (hV : V ∈ Q.parts) :
+    ∫ p in U ×ˢ V, (stepify Q W).toAEEqFun p ∂(μ.prod μ) =
+    ∫ p in U ×ˢ V, W.toAEEqFun p ∂(μ.prod μ) := by
+  by_cases hμU : μ U = 0
+  · have h0 : (μ.prod μ) (U ×ˢ V) = 0 := by rw [Measure.prod_prod, hμU, zero_mul]
+    rw [setIntegral_measure_zero _ h0, setIntegral_measure_zero _ h0]
+  by_cases hμV : μ V = 0
+  · have h0 : (μ.prod μ) (U ×ˢ V) = 0 := by rw [Measure.prod_prod, hμV, mul_zero]
+    rw [setIntegral_measure_zero _ h0, setIntegral_measure_zero _ h0]
+  -- Both measures nonzero: stepify Q W = avg_Q(U,V) a.e. on U×V
+  have hU_meas := Q.measurableSet_part hU
+  have hV_meas := Q.measurableSet_part hV
+  have h_ae : ∀ᵐ p ∂(μ.prod μ),
+      p ∈ U ×ˢ V → (stepify Q W).toAEEqFun p = rectAverage W U V := by
+    filter_upwards [stepify_ae Q W] with p hp hmem
+    rw [hp]
+    exact stepifyFun_eq_rectAverage Q W hU hV hmem
+  rw [setIntegral_congr_ae (hU_meas.prod hV_meas) h_ae, setIntegral_const, smul_eq_mul]
+  -- ∫ W = rectAverage * μ(U) * μ(V) by definition
+  have ha : rectAverage W U V = (μ U).toReal⁻¹ * (μ V).toReal⁻¹ *
+      ∫ p in U ×ˢ V, W.toAEEqFun p ∂(μ.prod μ) := by
+    unfold rectAverage; simp [hμU, hμV]
+  rw [ha]
+  have hμU_pos : (μ U).toReal ≠ 0 := ne_of_gt (ENNReal.toReal_pos hμU (measure_lt_top μ _).ne)
+  have hμV_pos : (μ V).toReal ≠ 0 := ne_of_gt (ENNReal.toReal_pos hμV (measure_lt_top μ _).ne)
+  simp only [Measure.real, Measure.prod_prod, ENNReal.toReal_mul]
+  field_simp
+
+set_option maxHeartbeats 3200000 in
+/-- For a refinement Q of P, the integral of stepify Q W on any P-cell S×T
+equals the integral of W on S×T. This is the conditional expectation property:
+the stepification preserves integrals on any cell of the coarser partition. -/
+private lemma setIntegral_stepify_eq_on_refines_cell
+    (W : Graphon α μ) (P Q : MeasurablePartition α μ) (hQP : Refines Q P)
+    (S T : Set α) (hS : S ∈ P.parts) (hT : T ∈ P.parts) :
+    ∫ p in S ×ˢ T, (stepify Q W).toAEEqFun p ∂(μ.prod μ) =
+    ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ) := by
+  -- The Q-parts within S and T
+  haveI : DecidablePred (· ⊆ S) := Classical.decPred _
+  haveI : DecidablePred (· ⊆ T) := Classical.decPred _
+  set QS := Q.parts.filter (· ⊆ S) with hQS_def
+  set QT := Q.parts.filter (· ⊆ T) with hQT_def
+  -- Every Q-part in QS is a Q-part
+  have hQS_sub : ∀ U ∈ QS, U ∈ Q.parts := fun U hU => (Finset.mem_filter.mp hU).1
+  have hQT_sub : ∀ V ∈ QT, V ∈ Q.parts := fun V hV => (Finset.mem_filter.mp hV).1
+  -- Every Q-part in QS is a subset of S
+  have hQS_subset : ∀ U ∈ QS, U ⊆ S := fun U hU => (Finset.mem_filter.mp hU).2
+  have hQT_subset : ∀ V ∈ QT, V ⊆ T := fun V hV => (Finset.mem_filter.mp hV).2
+  -- Measurability
+  have hS_meas := P.measurableSet_part hS
+  have hT_meas := P.measurableSet_part hT
+  -- Step 1: The Q-cells in QS × QT are pairwise disjoint
+  have h_cells_disj : (↑(QS ×ˢ QT) : Set (Set α × Set α)).Pairwise
+      (Function.onFun Disjoint fun st => st.1 ×ˢ st.2) := by
+    intro ⟨U₁, V₁⟩ h₁ ⟨U₂, V₂⟩ h₂ hne
+    simp only [Function.onFun]
+    simp only [Finset.coe_product, Set.mem_prod, Finset.mem_coe] at h₁ h₂
+    by_cases hU : U₁ = U₂
+    · subst hU
+      have hV : V₁ ≠ V₂ := fun h => hne (Prod.ext rfl h)
+      exact Disjoint.mono (Set.prod_mono_right Subset.rfl)
+        (Set.prod_mono_right Subset.rfl)
+        (Set.disjoint_left.mpr fun p hp1 hp2 =>
+          Set.disjoint_left.mp
+            (Q.pairwiseDisjoint (hQT_sub V₁ h₁.2) (hQT_sub V₂ h₂.2) hV)
+            (Set.mem_prod.mp hp1).2 (Set.mem_prod.mp hp2).2)
+    · exact Disjoint.mono (Set.prod_mono_left Subset.rfl)
+        (Set.prod_mono_left Subset.rfl)
+        (Set.disjoint_left.mpr fun p hp1 hp2 =>
+          Set.disjoint_left.mp
+            (Q.pairwiseDisjoint (hQS_sub U₁ h₁.1) (hQS_sub U₂ h₂.1) hU)
+            (Set.mem_prod.mp hp1).1 (Set.mem_prod.mp hp2).1)
+  -- Step 2: Measurability of cells
+  have h_cells_meas : ∀ st ∈ QS ×ˢ QT, MeasurableSet (st.1 ×ˢ st.2) := by
+    intro ⟨U, V⟩ hst
+    simp only [Finset.mem_product] at hst
+    exact (Q.measurableSet_part (hQS_sub U hst.1)).prod
+      (Q.measurableSet_part (hQT_sub V hst.2))
+  -- Step 3: S × T is a.e. equal to the union of Q-cell products
+  set cellUnion := ⋃ st ∈ QS ×ˢ QT, st.1 ×ˢ st.2
+  have h_sub : cellUnion ⊆ S ×ˢ T := by
+    intro p hp
+    simp only [cellUnion, Set.mem_iUnion] at hp
+    obtain ⟨⟨U, V⟩, hst, hp_mem⟩ := hp
+    simp only [Finset.mem_coe, Finset.mem_product] at hst
+    exact Set.mem_prod.mpr
+      ⟨hQS_subset U hst.1 (Set.mem_prod.mp hp_mem).1,
+       hQT_subset V hst.2 (Set.mem_prod.mp hp_mem).2⟩
+  have h_cellUnion_meas : MeasurableSet cellUnion :=
+    MeasurableSet.biUnion (QS ×ˢ QT).countable_toSet h_cells_meas
+  -- Show a.e. coverage: every point in S × T is a.e. in some Q-cell within S × T
+  have h_cover : ∀ᵐ p ∂(μ.prod μ).restrict (S ×ˢ T),
+      p ∈ cellUnion := by
+    rw [ae_restrict_iff' (hS_meas.prod hT_meas)]
+    filter_upwards [Measure.QuasiMeasurePreserving.ae
+        Measure.quasiMeasurePreserving_fst Q.ae_covers,
+      Measure.QuasiMeasurePreserving.ae
+        Measure.quasiMeasurePreserving_snd Q.ae_covers] with p h1 h2 hp
+    obtain ⟨U, hU_mem, hpU⟩ := h1
+    obtain ⟨V, hV_mem, hpV⟩ := h2
+    -- U ⊆ S (because Q refines P and p ∈ U ∩ S)
+    have hU_sub_S : U ⊆ S := by
+      obtain ⟨S', hS'_mem, hU_sub⟩ := hQP U hU_mem
+      have hp1S' : p.1 ∈ S' := hU_sub hpU
+      have : S = S' := by
+        by_contra h
+        exact Set.disjoint_left.mp (P.pairwiseDisjoint hS hS'_mem h)
+          ((Set.mem_prod.mp hp).1) hp1S'
+      rw [this]; exact hU_sub
+    have hV_sub_T : V ⊆ T := by
+      obtain ⟨T', hT'_mem, hV_sub⟩ := hQP V hV_mem
+      have hp2T' : p.2 ∈ T' := hV_sub hpV
+      have : T = T' := by
+        by_contra h
+        exact Set.disjoint_left.mp (P.pairwiseDisjoint hT hT'_mem h)
+          ((Set.mem_prod.mp hp).2) hp2T'
+      rw [this]; exact hV_sub
+    simp only [cellUnion, Set.mem_iUnion, Finset.mem_coe, Finset.mem_product]
+    exact ⟨⟨U, V⟩, ⟨Finset.mem_filter.mpr ⟨hU_mem, hU_sub_S⟩,
+                      Finset.mem_filter.mpr ⟨hV_mem, hV_sub_T⟩⟩,
+           Set.mem_prod.mpr ⟨hpU, hpV⟩⟩
+  -- S × T =ᵐ cellUnion
+  have h_ae_eq : S ×ˢ T =ᵐ[μ.prod μ] cellUnion := by
+    rw [ae_eq_set]
+    refine ⟨?_, by rw [Set.diff_eq_empty.mpr h_sub]; exact measure_empty⟩
+    have h0 : (μ.prod μ).restrict (S ×ˢ T) cellUnionᶜ = 0 := ae_iff.mp h_cover
+    rwa [Measure.restrict_apply h_cellUnion_meas.compl, Set.inter_comm] at h0
+  -- Integrability of both integrands on each cell
+  have h_int_stepify : ∀ st ∈ QS ×ˢ QT,
+      IntegrableOn (fun p => (stepify Q W).toAEEqFun p) (st.1 ×ˢ st.2) (μ.prod μ) :=
+    fun _ _ => (SymmKernel.graphon_integrable (stepify Q W)).integrableOn
+  have h_int_W : ∀ st ∈ QS ×ˢ QT,
+      IntegrableOn (fun p => W.toAEEqFun p) (st.1 ×ˢ st.2) (μ.prod μ) :=
+    fun _ _ => (SymmKernel.graphon_integrable W).integrableOn
+  -- Step 4: Decompose and apply setIntegral_stepify_eq_on_cell
+  calc ∫ p in S ×ˢ T, (stepify Q W).toAEEqFun p ∂(μ.prod μ)
+      = ∫ p in cellUnion, (stepify Q W).toAEEqFun p ∂(μ.prod μ) :=
+        setIntegral_congr_set h_ae_eq
+    _ = ∑ st ∈ QS ×ˢ QT, ∫ p in st.1 ×ˢ st.2, (stepify Q W).toAEEqFun p ∂(μ.prod μ) :=
+        integral_biUnion_finset _ h_cells_meas h_cells_disj h_int_stepify
+    _ = ∑ st ∈ QS ×ˢ QT, ∫ p in st.1 ×ˢ st.2, W.toAEEqFun p ∂(μ.prod μ) := by
+        apply Finset.sum_congr rfl
+        intro ⟨U, V⟩ hst
+        simp only [Finset.mem_product] at hst
+        exact setIntegral_stepify_eq_on_cell W Q U V (hQS_sub U hst.1) (hQT_sub V hst.2)
+    _ = ∫ p in cellUnion, W.toAEEqFun p ∂(μ.prod μ) :=
+        (integral_biUnion_finset _ h_cells_meas h_cells_disj h_int_W).symm
+    _ = ∫ p in S ×ˢ T, W.toAEEqFun p ∂(μ.prod μ) :=
+        (setIntegral_congr_set h_ae_eq).symm
 
 set_option maxHeartbeats 6400000 in
 /-- The energy gain from a double split (by S₀ and T₀) is at least the square
@@ -3609,17 +3878,16 @@ private lemma energy_doubleSplit_ge_sq
     have h_stepify_cell :
         ∫ p in (S ∩ S₀) ×ˢ (T ∩ T₀), (stepify P W).toAEEqFun p ∂(μ.prod μ) =
         rectAverage W S T * (μ (S ∩ S₀)).toReal * (μ (T ∩ T₀)).toReal := by
-      have h_ae_eq : ∀ᵐ p ∂(μ.prod μ).restrict ((S ∩ S₀) ×ˢ (T ∩ T₀)),
-          (stepify P W).toAEEqFun p = rectAverage W S T := by
-        rw [ae_restrict_iff' (((P.measurableSet_part hS).inter hS₀).prod
-          ((P.measurableSet_part hT).inter hT₀))]
-        filter_upwards [ae_restrict_of_ae (stepify_ae P W)] with p h_step hp
+      have h_ae_eq : ∀ᵐ p ∂(μ.prod μ),
+          p ∈ (S ∩ S₀) ×ˢ (T ∩ T₀) → (stepify P W).toAEEqFun p = rectAverage W S T := by
+        filter_upwards [stepify_ae P W] with p h_step hp
         rw [h_step]
         exact stepifyFun_eq_rectAverage P W hS hT
           (Set.prod_mono Set.inter_subset_left Set.inter_subset_left hp)
       rw [setIntegral_congr_ae (((P.measurableSet_part hS).inter hS₀).prod
         ((P.measurableSet_part hT).inter hT₀)) h_ae_eq,
-        setIntegral_const, smul_eq_mul, Measure.prod_prod, ENNReal.toReal_mul]
+        setIntegral_const, smul_eq_mul]
+      simp only [Measure.real, Measure.prod_prod, ENNReal.toReal_mul]; ring
     -- ∫ W on cell = rectAverage W (S∩S₀) (T∩T₀) · μ(S∩S₀) · μ(T∩T₀)
     have h_W_cell :
         ∫ p in (S ∩ S₀) ×ˢ (T ∩ T₀), W.toAEEqFun p ∂(μ.prod μ) =
@@ -3627,14 +3895,142 @@ private lemma energy_doubleSplit_ge_sq
       have ha : rectAverage W (S ∩ S₀) (T ∩ T₀) = (μ (S ∩ S₀)).toReal⁻¹ * (μ (T ∩ T₀)).toReal⁻¹ *
           ∫ p in (S ∩ S₀) ×ˢ (T ∩ T₀), W.toAEEqFun p ∂(μ.prod μ) := by
         unfold rectAverage; simp [hμS0, hμT0]
-      rw [ha]; field_simp
+      rw [ha]
+      have hμS_pos : (μ (S ∩ S₀)).toReal ≠ 0 :=
+        ne_of_gt (ENNReal.toReal_pos hμS0 (measure_lt_top μ _).ne)
+      have hμT_pos : (μ (T ∩ T₀)).toReal ≠ 0 :=
+        ne_of_gt (ENNReal.toReal_pos hμT0 (measure_lt_top μ _).ne)
+      field_simp
     rw [h_stepify_cell, h_W_cell]; ring
-  -- ===== Step B: Energy gain lower bound =====
-  -- energy Q - energy P ≥ Σ_{S,T} μ(S∩S₀)μ(T∩T₀)(a_{S∩S₀,T∩T₀} - a_{S,T})²
-  have h_energy_gain : energy W Q - energy W P ≥
+  -- ===== Step B: Pythagorean identity + Jensen =====
+  -- We prove energy Q - energy P ≥ (rectIntegralDiff)² directly using:
+  -- (1) energy Q - energy P = defect P - defect Q  (from L² identity)
+  -- (2) defect P ≥ defect Q + (rid)²  (per-cell integral_sq_shift)
+  --
+  -- Part (2) uses: for each P-cell (S,T), the defect on S×T decomposes
+  -- (via integral_sq_shift on the sub-rectangle (S∩S₀)×(T∩T₀))
+  -- into a residual variance plus a correction ≥ w·v·dd².
+  -- Summing and applying Cauchy-Schwarz gives (rid)².
+  -- The residual variances collectively bound defect Q from below.
+  --
+  -- Actually, we use a simpler approach:
+  -- (rid)² ≤ Σ w·v·dd² (by Cauchy-Schwarz)
+  -- Σ w·v·dd² ≤ defect P (by per-cell integral_sq_shift)
+  -- So (rid)² ≤ defect P
+  -- Combined with energy Q - energy P = defect P - defect Q
+  -- we get energy Q - energy P = defect P - defect Q
+  -- But defect Q ≥ 0 means defect P - defect Q ≤ defect P, not ≥ rid².
+  -- THIS APPROACH IS INSUFFICIENT.
+  --
+  -- Instead, we prove the result directly via setIntegral_stepify_eq_on_cell.
+  -- Key identity: ∫_{S₀×T₀} stepify Q W = ∫_{S₀×T₀} W
+  -- (since S₀×T₀ can be decomposed into Q-cells).
+  -- This gives: rectIntegralDiff W (stepify P W) S₀ T₀
+  --           = ∫_{S₀×T₀} (W - stepify P W) = ∫_{S₀×T₀} (stepify Q W - stepify P W)
+  -- Then: (rid)² = (∫_{S₀×T₀} (stepify Q W - stepify P W))²
+  --             ≤ ∫ (stepify Q W - stepify P W)²  (by Jensen/probability measure)
+  --             = defect P - defect Q  (by Pythagorean identity)
+  --             = energy Q - energy P
+  --
+  -- Step B.1: ∫_{S₀×T₀} stepify Q W = ∫_{S₀×T₀} W
+  -- Decompose S₀×T₀ into cells (S∩S₀)×(T∩T₀) for S,T ∈ P.parts.
+  -- Each such cell is a union of Q-cells, and integral is preserved on each.
+  -- We use h_integral_decomp which already handles the decomposition.
+  -- Specifically, rid = Σ w·v·dd = Σ μ(S∩S₀)μ(T∩T₀)(avg(S∩S₀,T∩T₀) - avg_P(S,T))
+  -- This equals ∫_{S₀×T₀} (W - stepify P W) (already proved).
+  --
+  -- Step B.2: Per-cell bound using integral_sq_shift
+  -- For each P-cell (S,T):
+  -- ∫_{S×T}(W - avg_P)² ≥ ∫_{(S∩S₀)×(T∩T₀)}(W-avg_P)²
+  --                      = ∫_{(S∩S₀)×(T∩T₀)}(W-avg')² + μ(S∩S₀)μ(T∩T₀)(avg'-avg_P)²
+  -- where avg' = rectAverage W (S∩S₀) (T∩T₀).
+  -- So defect_rect(P,S,T) ≥ w·v·dd² and defect P ≥ Σ w·v·dd².
+  --
+  -- Step B.3: Cauchy-Schwarz: (Σ w·v·dd)² ≤ Σ w·v·dd² (weighted)
+  -- This gives (rid)² ≤ Σ w·v·dd² ≤ defect P.
+  --
+  -- Step B.4: Energy identity: energy Q - energy P = defect P - defect Q.
+  -- So energy Q ≥ energy P + (rid)² requires defect P - defect Q ≥ (rid)².
+  -- Since (rid)² ≤ defect P and defect Q ≥ 0, we only get defect P - defect Q ≥ (rid)² - defect Q.
+  -- THIS IS STILL NOT ENOUGH without defect Q ≤ 0.
+  --
+  -- THE FIX: Use setIntegral_stepify_eq_on_cell and the Pythagorean identity.
+  -- ∫(W - stepify P W)² = ∫(W - stepify Q W)² + ∫(stepify Q W - stepify P W)²
+  --                      + 2∫(W - stepify Q W)(stepify Q W - stepify P W)
+  -- Cross term vanishes (proved via setIntegral_stepify_eq_on_cell).
+  -- So defect P = defect Q + ∫(stepify Q W - stepify P W)²
+  -- and ∫(stepify Q W - stepify P W)² ≥ (∫_{S₀×T₀}(stepify Q W - stepify P W))²
+  --                                    = (∫_{S₀×T₀}(W - stepify P W))² = (rid)²
+  -- Therefore: defect P - defect Q ≥ (rid)² and energy Q - energy P ≥ (rid)².
+  --
+  -- IMPLEMENTATION: We prove (rid)² ≤ defect P - defect Q directly.
+  -- L² identity
+  have h_l2_P := l2_norm_eq_energy_add_defect W P
+  have h_l2_Q := l2_norm_eq_energy_add_defect W Q
+  -- energy Q - energy P = defect P - defect Q
+  have h_ediff : energy W Q - energy W P = defect W P - defect W Q := by linarith
+  -- defect P ≥ (rid)²: Jensen on S₀ × T₀
+  -- Integrability
+  have hW_int : Integrable W.toAEEqFun (μ.prod μ) := SymmKernel.graphon_integrable W
+  have hfP_int : Integrable (stepify P W).toAEEqFun (μ.prod μ) :=
+    SymmKernel.graphon_integrable (stepify P W)
+  have h_diff_int : Integrable (fun p => W.toAEEqFun p - (stepify P W).toAEEqFun p) (μ.prod μ) :=
+    hW_int.sub hfP_int
+  -- defect P = ∫(W - stepify P W)²  (integral over full space)
+  -- This follows from l2_norm_eq_energy_add_defect + algebraic manipulation.
+  -- Actually, defect P is defined as a sum over P-cells of ∫(W - avg)², which equals ∫(W - f_P)²
+  -- where f_P is the stepification, since f_P = avg on each cell a.e.
+  -- For now, we use the per-cell bound to get defect P ≥ (rid)²:
+  -- Per-cell bound: defect_rect(P,S,T) ≥ w·v·dd² by integral_sq_shift
+  have h_per_cell : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+      ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) ≥
+        w S * v T * dd S T ^ 2 := by
+    intro S hS T hT
+    by_cases hμS0 : μ (S ∩ S₀) = 0
+    · have : w S = 0 := by simp [w, hμS0]
+      simp [this]
+      exact setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
+    by_cases hμT0 : μ (T ∩ T₀) = 0
+    · have : v T = 0 := by simp [v, hμT0]
+      simp [this]
+      exact setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
+    have hS_meas := P.measurableSet_part hS
+    have hT_meas := P.measurableSet_part hT
+    have h_shift := integral_sq_shift W (S ∩ S₀) (T ∩ T₀)
+      (hS_meas.inter hS₀) (hT_meas.inter hT₀) (rectAverage W S T)
+    have h_mono : ∫ p in (S ∩ S₀) ×ˢ (T ∩ T₀),
+        (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) ≤
+        ∫ p in S ×ˢ T, (W.toAEEqFun p - rectAverage W S T) ^ 2 ∂(μ.prod μ) := by
+      apply setIntegral_mono_set
+      · apply Measure.integrableOn_of_bounded (measure_lt_top _ _).ne
+        · exact ((continuous_pow 2).comp_aestronglyMeasurable
+            ((SymmKernel.graphon_integrable W).sub
+              (integrable_const (rectAverage W S T))).aestronglyMeasurable)
+        · have hIcc := rectAverage_mem_Icc W S T hS_meas hT_meas
+          filter_upwards [ae_restrict_of_ae W.ae_mem_Icc] with p hp
+          simp only [Real.norm_eq_abs]
+          rw [show |(W.toAEEqFun p - rectAverage W S T) ^ 2| =
+            (W.toAEEqFun p - rectAverage W S T) ^ 2 from abs_of_nonneg (sq_nonneg _)]
+          exact (sq_le_one_iff_abs_le_one _).mpr
+            (abs_sub_le_iff.mpr ⟨by linarith [hp.2, hIcc.1], by linarith [hIcc.2, hp.1]⟩)
+      · exact ae_of_all _ fun _ => sq_nonneg _
+      · exact ae_of_all _ fun p hp =>
+          Set.prod_mono Set.inter_subset_left Set.inter_subset_left hp
+    have h_corr : (μ (S ∩ S₀)).toReal * (μ (T ∩ T₀)).toReal *
+        (rectAverage W (S ∩ S₀) (T ∩ T₀) - rectAverage W S T) ^ 2 =
+        w S * v T * dd S T ^ 2 := by simp [w, v, dd, hμS0, hμT0]
+    have h_res_nonneg : ∫ p in (S ∩ S₀) ×ˢ (T ∩ T₀),
+        (W.toAEEqFun p - rectAverage W (S ∩ S₀) (T ∩ T₀)) ^ 2 ∂(μ.prod μ) ≥ 0 :=
+      setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
+    linarith
+  -- Step B.2: defect P ≥ Σ w·v·dd²
+  have h_defect_ge_sum : defect W P ≥
       P.parts.sum fun S => P.parts.sum fun T => w S * v T * dd S T ^ 2 := by
-    sorry
-  -- ===== Step C: Cauchy-Schwarz =====
+    unfold defect
+    apply Finset.sum_le_sum; intro S hS
+    apply Finset.sum_le_sum; intro T hT
+    exact h_per_cell S hS T hT
+  -- Step B.3: Cauchy-Schwarz: (Σ w·v·dd)² ≤ Σ w·v·dd²
   have hw : ∀ S ∈ P.parts, 0 ≤ w S := fun _ _ => ENNReal.toReal_nonneg
   have hv : ∀ T ∈ P.parts, 0 ≤ v T := fun _ _ => ENNReal.toReal_nonneg
   have hW : P.parts.sum w ≤ 1 := by
@@ -3664,7 +4060,382 @@ private lemma energy_doubleSplit_ge_sq
           ENNReal.toReal_mono (measure_ne_top μ Set.univ) (measure_mono (Set.subset_univ _))
       _ = 1 := by rw [measure_univ]; simp
   have h_cs := sq_weighted_double_sum_le P.parts P.parts w v dd hw hv hW hV
-  rw [h_integral_decomp]; linarith
+  -- (rid)² ≤ Σ w·v·dd² ≤ defect P
+  have h_rid_le_defect : (rectIntegralDiff W (stepify P W) S₀ T₀) ^ 2 ≤ defect W P := by
+    rw [h_integral_decomp]; linarith
+  -- defect Q ≥ 0
+  have h_defect_Q_nonneg := defect_nonneg W Q
+  -- ===== Pythagorean approach =====
+  -- Step 1: Key fact: ∫_{S₀×T₀} stepify Q W = ∫_{S₀×T₀} W
+  -- This follows from the conditional expectation property of stepify:
+  -- S₀×T₀ is (a.e.) a union of cells (S∩S₀)×(T∩T₀) for S,T ∈ P.parts,
+  -- and each such cell is (a.e.) a union of Q-cells, on which the stepify integral
+  -- equals the W integral.
+  -- Since we already proved (in Step A) that the integral decomposition gives
+  -- rid = Σ w·v·dd = ∫_{S₀×T₀}(W - stepify P W), we just need:
+  -- ∫_{S₀×T₀} stepify Q W = ∫_{S₀×T₀} W.
+  -- Equivalently, ∫_{S₀×T₀} (stepify Q W - W) = 0.
+  -- Q refines P (transitively via P')
+  set P' := MeasurablePartition.splitAllParts P S₀ hS₀
+  have hQP' : Refines Q P' := MeasurablePartition.splitAllParts_refines P' T₀ hT₀
+  have hP'P : Refines P' P := MeasurablePartition.splitAllParts_refines P S₀ hS₀
+  have hQP : Refines Q P := hP'P.trans hQP'
+  have h_stepify_Q_preserves : ∫ p in S₀ ×ˢ T₀,
+      (stepify Q W).toAEEqFun p ∂(μ.prod μ) =
+      ∫ p in S₀ ×ˢ T₀, W.toAEEqFun p ∂(μ.prod μ) := by
+    -- For each S, T ∈ P.parts, the integral on the sub-cell (S∩S₀)×(T∩T₀) is preserved.
+    -- We show this by decomposing into Q-cell products and applying
+    -- setIntegral_stepify_eq_on_cell.
+    -- Step 1: Decompose S₀×T₀ into (S∩S₀)×(T∩T₀) cells.
+    -- (Same decomposition as Step A.)
+    -- pairwise disjointness of cells
+    have h_cells_disj' : (↑(P.parts ×ˢ P.parts) : Set (Set α × Set α)).Pairwise
+        (Function.onFun Disjoint fun st => (st.1 ∩ S₀) ×ˢ (st.2 ∩ T₀)) := by
+      intro ⟨S₁, T₁⟩ h₁ ⟨S₂, T₂⟩ h₂ hne
+      simp only [Function.onFun]
+      simp only [Finset.coe_product, Set.mem_prod, Finset.mem_coe] at h₁ h₂
+      by_cases hS : S₁ = S₂
+      · subst hS
+        have hT : T₁ ≠ T₂ := fun h => hne (Prod.ext rfl h)
+        exact Disjoint.mono (Set.prod_mono_right Set.inter_subset_left)
+          (Set.prod_mono_right Set.inter_subset_left)
+          (Set.disjoint_left.mpr fun p hp1 hp2 =>
+            Set.disjoint_left.mp (P.pairwiseDisjoint h₁.2 h₂.2 hT)
+              (Set.mem_prod.mp hp1).2 (Set.mem_prod.mp hp2).2)
+      · exact Disjoint.mono (Set.prod_mono_left Set.inter_subset_left)
+          (Set.prod_mono_left Set.inter_subset_left)
+          (Set.disjoint_left.mpr fun p hp1 hp2 =>
+            Set.disjoint_left.mp (P.pairwiseDisjoint h₁.1 h₂.1 hS)
+              (Set.mem_prod.mp hp1).1 (Set.mem_prod.mp hp2).1)
+    -- measurability of cells
+    have h_cells_meas' : ∀ st ∈ P.parts ×ˢ P.parts,
+        MeasurableSet ((st.1 ∩ S₀) ×ˢ (st.2 ∩ T₀)) := by
+      intro ⟨S, T⟩ hst
+      simp only [Finset.mem_product] at hst
+      exact ((P.measurableSet_part hst.1).inter hS₀).prod
+        ((P.measurableSet_part hst.2).inter hT₀)
+    -- cell union
+    set cellU := ⋃ st ∈ P.parts ×ˢ P.parts, (st.1 ∩ S₀) ×ˢ (st.2 ∩ T₀)
+    have h_sub' : cellU ⊆ S₀ ×ˢ T₀ := by
+      intro p hp
+      simp only [cellU, Set.mem_iUnion] at hp
+      obtain ⟨⟨S, T⟩, _, hp_mem⟩ := hp
+      exact Set.mem_prod.mpr ⟨(Set.mem_prod.mp hp_mem).1.2, (Set.mem_prod.mp hp_mem).2.2⟩
+    have h_cellU_meas : MeasurableSet cellU :=
+      MeasurableSet.biUnion (P.parts ×ˢ P.parts).countable_toSet h_cells_meas'
+    have h_cover' : ∀ᵐ p ∂(μ.prod μ).restrict (S₀ ×ˢ T₀), p ∈ cellU := by
+      rw [ae_restrict_iff' (hS₀.prod hT₀)]
+      filter_upwards [Measure.QuasiMeasurePreserving.ae
+          Measure.quasiMeasurePreserving_fst P.ae_covers,
+        Measure.QuasiMeasurePreserving.ae
+          Measure.quasiMeasurePreserving_snd P.ae_covers] with p h1 h2 hp
+      obtain ⟨S, hS, hpS⟩ := h1; obtain ⟨T, hT, hpT⟩ := h2
+      simp only [cellU, Set.mem_iUnion, Finset.mem_coe, Finset.mem_product, Prod.exists]
+      exact ⟨S, T, ⟨hS, hT⟩, Set.mem_prod.mpr
+        ⟨⟨hpS, (Set.mem_prod.mp hp).1⟩, ⟨hpT, (Set.mem_prod.mp hp).2⟩⟩⟩
+    have h_ae_eq' : S₀ ×ˢ T₀ =ᵐ[μ.prod μ] cellU := by
+      rw [ae_eq_set]
+      refine ⟨?_, by rw [Set.diff_eq_empty.mpr h_sub']; exact measure_empty⟩
+      have h0 : (μ.prod μ).restrict (S₀ ×ˢ T₀) cellUᶜ = 0 := ae_iff.mp h_cover'
+      rwa [Measure.restrict_apply h_cellU_meas.compl, Set.inter_comm] at h0
+    -- integrability on each cell
+    have h_int_stepQ : ∀ st ∈ P.parts ×ˢ P.parts,
+        IntegrableOn (fun p => (stepify Q W).toAEEqFun p) ((st.1 ∩ S₀) ×ˢ (st.2 ∩ T₀)) (μ.prod μ) :=
+      fun _ _ => (SymmKernel.graphon_integrable (stepify Q W)).integrableOn
+    have h_int_W' : ∀ st ∈ P.parts ×ˢ P.parts,
+        IntegrableOn (fun p => W.toAEEqFun p) ((st.1 ∩ S₀) ×ˢ (st.2 ∩ T₀)) (μ.prod μ) :=
+      fun _ _ => (SymmKernel.graphon_integrable W).integrableOn
+    -- Step 2: On each cell (S∩S₀)×(T∩T₀), the Q-cell products cover it a.e.
+    -- and setIntegral_stepify_eq_on_cell gives the equality.
+    have h_cell_eq : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+        ∫ p in (S ∩ S₀) ×ˢ (T ∩ T₀), (stepify Q W).toAEEqFun p ∂(μ.prod μ) =
+        ∫ p in (S ∩ S₀) ×ˢ (T ∩ T₀), W.toAEEqFun p ∂(μ.prod μ) := by
+      intro S hS T hT
+      -- The Q-parts within S∩S₀ and T∩T₀
+      haveI : DecidablePred (· ⊆ S ∩ S₀) := Classical.decPred _
+      haveI : DecidablePred (· ⊆ T ∩ T₀) := Classical.decPred _
+      set QA := Q.parts.filter (· ⊆ S ∩ S₀)
+      set QB := Q.parts.filter (· ⊆ T ∩ T₀)
+      have hQA_sub : ∀ U ∈ QA, U ∈ Q.parts := fun U hU => (Finset.mem_filter.mp hU).1
+      have hQB_sub : ∀ V ∈ QB, V ∈ Q.parts := fun V hV => (Finset.mem_filter.mp hV).1
+      have hQA_subset : ∀ U ∈ QA, U ⊆ S ∩ S₀ := fun U hU => (Finset.mem_filter.mp hU).2
+      have hQB_subset : ∀ V ∈ QB, V ⊆ T ∩ T₀ := fun V hV => (Finset.mem_filter.mp hV).2
+      -- Pairwise disjointness of Q-cells
+      have h_disj : (↑(QA ×ˢ QB) : Set (Set α × Set α)).Pairwise
+          (Function.onFun Disjoint fun st => st.1 ×ˢ st.2) := by
+        intro ⟨U₁, V₁⟩ h₁ ⟨U₂, V₂⟩ h₂ hne
+        simp only [Function.onFun, Finset.coe_product, Set.mem_prod, Finset.mem_coe] at h₁ h₂ ⊢
+        by_cases hU : U₁ = U₂
+        · subst hU; have hV : V₁ ≠ V₂ := fun h => hne (Prod.ext rfl h)
+          exact Disjoint.mono (Set.prod_mono_right Subset.rfl) (Set.prod_mono_right Subset.rfl)
+            (Set.disjoint_left.mpr fun p hp1 hp2 =>
+              Set.disjoint_left.mp (Q.pairwiseDisjoint (hQB_sub V₁ h₁.2) (hQB_sub V₂ h₂.2) hV)
+                (Set.mem_prod.mp hp1).2 (Set.mem_prod.mp hp2).2)
+        · exact Disjoint.mono (Set.prod_mono_left Subset.rfl) (Set.prod_mono_left Subset.rfl)
+            (Set.disjoint_left.mpr fun p hp1 hp2 =>
+              Set.disjoint_left.mp (Q.pairwiseDisjoint (hQA_sub U₁ h₁.1) (hQA_sub U₂ h₂.1) hU)
+                (Set.mem_prod.mp hp1).1 (Set.mem_prod.mp hp2).1)
+      -- Measurability
+      have h_meas : ∀ st ∈ QA ×ˢ QB, MeasurableSet (st.1 ×ˢ st.2) := by
+        intro ⟨U, V⟩ hst; simp only [Finset.mem_product] at hst
+        exact (Q.measurableSet_part (hQA_sub U hst.1)).prod (Q.measurableSet_part (hQB_sub V hst.2))
+      -- Q-cells cover (S∩S₀)×(T∩T₀) a.e.
+      set qUnion := ⋃ st ∈ QA ×ˢ QB, st.1 ×ˢ st.2
+      have h_qsub : qUnion ⊆ (S ∩ S₀) ×ˢ (T ∩ T₀) := by
+        intro p hp; simp only [qUnion, Set.mem_iUnion] at hp
+        obtain ⟨⟨U, V⟩, hst, hp_mem⟩ := hp
+        simp only [Finset.mem_coe, Finset.mem_product] at hst
+        exact Set.mem_prod.mpr ⟨hQA_subset U hst.1 (Set.mem_prod.mp hp_mem).1,
+          hQB_subset V hst.2 (Set.mem_prod.mp hp_mem).2⟩
+      have h_qmeas : MeasurableSet qUnion :=
+        MeasurableSet.biUnion (QA ×ˢ QB).countable_toSet h_meas
+      have h_qcover : ∀ᵐ p ∂(μ.prod μ).restrict ((S ∩ S₀) ×ˢ (T ∩ T₀)), p ∈ qUnion := by
+        rw [ae_restrict_iff' (((P.measurableSet_part hS).inter hS₀).prod
+          ((P.measurableSet_part hT).inter hT₀))]
+        filter_upwards [Measure.QuasiMeasurePreserving.ae
+            Measure.quasiMeasurePreserving_fst Q.ae_covers,
+          Measure.QuasiMeasurePreserving.ae
+            Measure.quasiMeasurePreserving_snd Q.ae_covers] with p h1 h2 hp
+        obtain ⟨U, hU_mem, hpU⟩ := h1; obtain ⟨V, hV_mem, hpV⟩ := h2
+        -- U ⊆ S ∩ S₀: By refinement Q → P', U ⊆ some P'-part.
+        -- Since p.1 ∈ U and p.1 ∈ S∩S₀ (a P'-part), by P'.pairwiseDisjoint U ⊆ S∩S₀.
+        have hU_sub : U ⊆ S ∩ S₀ := by
+          obtain ⟨S'', hS''_mem, hU_sub⟩ := hQP' U hU_mem
+          have hp1_S'' : p.1 ∈ S'' := hU_sub hpU
+          -- S ∩ S₀ is a P'-part
+          have hSS0_mem : S ∩ S₀ ∈ P'.parts := by
+            simp only [P', MeasurablePartition.splitAllParts]
+            exact Finset.mem_biUnion.mpr ⟨S, hS, Finset.mem_insert_self _ _⟩
+          have hSS0_eq : S ∩ S₀ = S'' := by
+            by_contra h
+            exact Set.disjoint_left.mp (P'.pairwiseDisjoint hSS0_mem hS''_mem h)
+              ((Set.mem_prod.mp hp).1) hp1_S''
+          rw [hSS0_eq]; exact hU_sub
+        -- V ⊆ T ∩ T₀: Q = splitAllParts P' T₀, so V = U'∩T₀ or U'\T₀ for some U' ∈ P'.parts.
+        -- Since p.2 ∈ V ∩ T₀, V = U'∩T₀ ⊆ T₀. Also U' ⊆ T' for some T'∈P, and p.2∈T, so T'=T.
+        have hV_sub : V ⊆ T ∩ T₀ := by
+          -- V ∈ Q.parts = P'.parts.biUnion (fun U' => {U' ∩ T₀, U' \ T₀})
+          simp only [Q, MeasurablePartition.splitAllParts] at hV_mem
+          rw [Finset.mem_biUnion] at hV_mem
+          obtain ⟨U', hU'_mem, hV_in⟩ := hV_mem
+          simp only [Finset.mem_insert, Finset.mem_singleton] at hV_in
+          rcases hV_in with rfl | rfl
+          · -- V = U' ∩ T₀, so V ⊆ T₀
+            -- Also U' ∈ P'.parts, and P' refines P, so U' ⊆ T' for some T'∈P
+            intro y hy
+            obtain ⟨T', hT'_mem, hU'_sub⟩ := hP'P U' hU'_mem
+            have hp2_T' : p.2 ∈ T' := hU'_sub hpV.1
+            have hT_eq : T = T' := by
+              by_contra h; exact Set.disjoint_left.mp (P.pairwiseDisjoint hT hT'_mem h)
+                ((Set.mem_prod.mp hp).2.1) hp2_T'
+            exact ⟨hT_eq ▸ hU'_sub hy.1, hy.2⟩
+          · -- V = U' \ T₀; but p.2 ∈ V and p.2 ∈ T₀ (from hp), contradiction
+            exfalso
+            exact hpV.2 (Set.mem_prod.mp hp).2.2
+        simp only [qUnion, Set.mem_iUnion, Finset.mem_coe, Finset.mem_product]
+        exact ⟨⟨U, V⟩, ⟨Finset.mem_filter.mpr ⟨hU_mem, hU_sub⟩,
+          Finset.mem_filter.mpr ⟨hV_mem, hV_sub⟩⟩, Set.mem_prod.mpr ⟨hpU, hpV⟩⟩
+      have h_qae : (S ∩ S₀) ×ˢ (T ∩ T₀) =ᵐ[μ.prod μ] qUnion := by
+        rw [ae_eq_set]
+        refine ⟨?_, by rw [Set.diff_eq_empty.mpr h_qsub]; exact measure_empty⟩
+        have h0 : (μ.prod μ).restrict ((S ∩ S₀) ×ˢ (T ∩ T₀)) qUnionᶜ = 0 := ae_iff.mp h_qcover
+        rwa [Measure.restrict_apply h_qmeas.compl, Set.inter_comm] at h0
+      -- Integrability on each Q-cell
+      have hI1 : ∀ st ∈ QA ×ˢ QB,
+          IntegrableOn (fun p => (stepify Q W).toAEEqFun p) (st.1 ×ˢ st.2) (μ.prod μ) :=
+        fun _ _ => (SymmKernel.graphon_integrable (stepify Q W)).integrableOn
+      have hI2 : ∀ st ∈ QA ×ˢ QB,
+          IntegrableOn (fun p => W.toAEEqFun p) (st.1 ×ˢ st.2) (μ.prod μ) :=
+        fun _ _ => (SymmKernel.graphon_integrable W).integrableOn
+      -- Conclude
+      calc ∫ p in (S ∩ S₀) ×ˢ (T ∩ T₀), (stepify Q W).toAEEqFun p ∂(μ.prod μ)
+          = ∫ p in qUnion, (stepify Q W).toAEEqFun p ∂(μ.prod μ) :=
+            setIntegral_congr_set h_qae
+        _ = ∑ st ∈ QA ×ˢ QB, ∫ p in st.1 ×ˢ st.2, (stepify Q W).toAEEqFun p ∂(μ.prod μ) :=
+            integral_biUnion_finset _ h_meas h_disj hI1
+        _ = ∑ st ∈ QA ×ˢ QB, ∫ p in st.1 ×ˢ st.2, W.toAEEqFun p ∂(μ.prod μ) := by
+            apply Finset.sum_congr rfl; intro ⟨U, V⟩ hst
+            simp only [Finset.mem_product] at hst
+            exact setIntegral_stepify_eq_on_cell W Q U V (hQA_sub U hst.1) (hQB_sub V hst.2)
+        _ = ∫ p in qUnion, W.toAEEqFun p ∂(μ.prod μ) :=
+            (integral_biUnion_finset _ h_meas h_disj hI2).symm
+        _ = ∫ p in (S ∩ S₀) ×ˢ (T ∩ T₀), W.toAEEqFun p ∂(μ.prod μ) :=
+            (setIntegral_congr_set h_qae).symm
+    -- Step 3: Sum up
+    calc ∫ p in S₀ ×ˢ T₀, (stepify Q W).toAEEqFun p ∂(μ.prod μ)
+        = ∫ p in cellU, (stepify Q W).toAEEqFun p ∂(μ.prod μ) :=
+          setIntegral_congr_set h_ae_eq'
+      _ = ∑ st ∈ P.parts ×ˢ P.parts,
+            ∫ p in (st.1 ∩ S₀) ×ˢ (st.2 ∩ T₀), (stepify Q W).toAEEqFun p ∂(μ.prod μ) :=
+          integral_biUnion_finset _ h_cells_meas' h_cells_disj' h_int_stepQ
+      _ = ∑ st ∈ P.parts ×ˢ P.parts,
+            ∫ p in (st.1 ∩ S₀) ×ˢ (st.2 ∩ T₀), W.toAEEqFun p ∂(μ.prod μ) := by
+          apply Finset.sum_congr rfl; intro ⟨S, T⟩ hst
+          simp only [Finset.mem_product] at hst
+          exact h_cell_eq S hst.1 T hst.2
+      _ = ∫ p in cellU, W.toAEEqFun p ∂(μ.prod μ) :=
+          (integral_biUnion_finset _ h_cells_meas' h_cells_disj' h_int_W').symm
+      _ = ∫ p in S₀ ×ˢ T₀, W.toAEEqFun p ∂(μ.prod μ) :=
+          (setIntegral_congr_set h_ae_eq').symm
+  -- Step 2: rid = ∫_{S₀×T₀}(stepify Q W - stepify P W)
+  have h_rid_eq : rectIntegralDiff W (stepify P W) S₀ T₀ =
+      ∫ p in S₀ ×ˢ T₀, ((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ∂(μ.prod μ) := by
+    unfold rectIntegralDiff
+    rw [integral_sub (SymmKernel.graphon_integrable W).integrableOn
+        (SymmKernel.graphon_integrable (stepify P W)).integrableOn,
+      integral_sub (SymmKernel.graphon_integrable (stepify Q W)).integrableOn
+        (SymmKernel.graphon_integrable (stepify P W)).integrableOn]
+    linarith
+  -- Step 3: (rid)² ≤ ∫(stepify Q W - stepify P W)² (Jensen + integral over subset)
+  -- Step 3a: (rid)² ≤ μ(S₀×T₀) · ∫_{S₀×T₀}(f_Q-f_P)² (Jensen on product measure)
+  -- Step 3b: μ(S₀×T₀) ≤ 1 (probability measure)
+  -- Step 3c: ∫_{S₀×T₀}(f_Q-f_P)² ≤ ∫(f_Q-f_P)² (integral over subset ≤ whole space)
+  -- For Jensen, use sq_setIntegral_le_measure_mul_setIntegral_sq on μ.prod μ.
+  have h_fQfP_int : IntegrableOn
+      (fun p => (stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) (S₀ ×ˢ T₀) (μ.prod μ) :=
+    ((SymmKernel.graphon_integrable (stepify Q W)).sub
+      (SymmKernel.graphon_integrable (stepify P W))).integrableOn
+  have h_fQfP_sq_int : IntegrableOn
+      (fun p => ((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ^ 2)
+      (S₀ ×ˢ T₀) (μ.prod μ) := by
+    apply Measure.integrableOn_of_bounded (measure_lt_top _ _).ne
+    · exact ((continuous_pow 2).comp_aestronglyMeasurable
+        ((SymmKernel.graphon_integrable (stepify Q W)).sub
+          (SymmKernel.graphon_integrable (stepify P W))).aestronglyMeasurable)
+    · filter_upwards [ae_restrict_of_ae (stepify Q W).ae_mem_Icc,
+        ae_restrict_of_ae (stepify P W).ae_mem_Icc] with p hQ hP
+      simp only [Real.norm_eq_abs]
+      rw [show |((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ^ 2| =
+        ((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ^ 2 from
+        abs_of_nonneg (sq_nonneg _)]
+      exact (sq_le_one_iff_abs_le_one _).mpr
+        (abs_sub_le_iff.mpr ⟨by linarith [hQ.2, hP.1], by linarith [hP.2, hQ.1]⟩)
+  -- Jensen on product measure (which is also a probability measure)
+  haveI : IsProbabilityMeasure (μ.prod μ) := Measure.prod.instIsProbabilityMeasure μ μ
+  have h_jensen := sq_setIntegral_le_measure_mul_setIntegral_sq
+    (μ := μ.prod μ)
+    (fun p => (stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p)
+    (S₀ ×ˢ T₀) h_fQfP_int h_fQfP_sq_int
+  -- μ(S₀×T₀) ≤ 1
+  have h_meas_le_one : ((μ.prod μ) (S₀ ×ˢ T₀)).toReal ≤ 1 := by
+    rw [Measure.prod_prod, ENNReal.toReal_mul]
+    calc (μ S₀).toReal * (μ T₀).toReal
+        ≤ 1 * 1 := by
+          apply mul_le_mul
+          · exact ENNReal.toReal_le_of_le_ofReal one_pos.le (by rw [ENNReal.ofReal_one]; exact prob_le_one)
+          · exact ENNReal.toReal_le_of_le_ofReal one_pos.le (by rw [ENNReal.ofReal_one]; exact prob_le_one)
+          · exact ENNReal.toReal_nonneg
+          · linarith
+      _ = 1 := mul_one 1
+  -- ∫_{S₀×T₀}(f_Q-f_P)² ≤ ∫(f_Q-f_P)²
+  -- Integrability of (f_Q - f_P)^2 on the full space
+  have h_fQfP_sq_integrable : Integrable
+      (fun p => ((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ^ 2) (μ.prod μ) := by
+    rw [← integrableOn_univ]
+    apply Measure.integrableOn_of_bounded (measure_lt_top _ _).ne
+    · exact ((continuous_pow 2).comp_aestronglyMeasurable
+        ((SymmKernel.graphon_integrable (stepify Q W)).sub
+          (SymmKernel.graphon_integrable (stepify P W))).aestronglyMeasurable)
+    · filter_upwards [ae_restrict_of_ae (stepify Q W).ae_mem_Icc,
+        ae_restrict_of_ae (stepify P W).ae_mem_Icc] with p hQ hP
+      simp only [Real.norm_eq_abs]
+      rw [show |((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ^ 2| =
+        ((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ^ 2 from
+        abs_of_nonneg (sq_nonneg _)]
+      exact (sq_le_one_iff_abs_le_one _).mpr
+        (abs_sub_le_iff.mpr ⟨by linarith [hQ.2, hP.1], by linarith [hP.2, hQ.1]⟩)
+  have h_sub_integral : ∫ p in S₀ ×ˢ T₀,
+      ((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ^ 2 ∂(μ.prod μ) ≤
+      ∫ p, ((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ^ 2 ∂(μ.prod μ) := by
+    apply setIntegral_le_integral h_fQfP_sq_integrable
+    exact ae_of_all _ fun _ => sq_nonneg _
+  -- Step 4: ∫(f_Q-f_P)² = defect P - defect Q (Pythagorean identity)
+  have h_pythagorean : ∫ p,
+      ((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ^ 2 ∂(μ.prod μ) =
+      defect W P - defect W Q := by
+    -- Use integral_stepify_mul_eq_energy to compute each component.
+    -- Key identities:
+    --   ∫f_P² = energy P
+    --   ∫f_Q² = energy Q
+    --   ∫f_P·f_Q = energy P (since Q refines P, integrals are preserved on P-cells)
+    -- Then ∫(f_Q-f_P)² = energy Q - 2·energy P + energy P = energy Q - energy P
+    --                   = defect P - defect Q (by h_ediff)
+    rw [← h_ediff]
+    -- Abbreviations
+    set fP := (stepify P W).toAEEqFun with hfP_def
+    set fQ := (stepify Q W).toAEEqFun with hfQ_def
+    have hfQ_int : Integrable fQ (μ.prod μ) := SymmKernel.graphon_integrable (stepify Q W)
+    -- The three integral identities
+    have h_fP_sq : ∫ p, fP p * fP p ∂(μ.prod μ) = energy W P :=
+      integral_stepify_mul_eq_energy W P _ hfP_int
+        (fun S hS T hT => setIntegral_stepify_eq_on_cell W P S T hS hT)
+    have h_fQ_sq : ∫ p, fQ p * fQ p ∂(μ.prod μ) = energy W Q :=
+      integral_stepify_mul_eq_energy W Q _ hfQ_int
+        (fun U hU V hV => setIntegral_stepify_eq_on_cell W Q U V hU hV)
+    have h_cross : ∫ p, fP p * fQ p ∂(μ.prod μ) = energy W P :=
+      integral_stepify_mul_eq_energy W P _ hfQ_int
+        (fun S hS T hT => setIntegral_stepify_eq_on_refines_cell W P Q hQP S T hS hT)
+    -- Integrability facts
+    have h_int_qq : Integrable (fun p => fQ p * fQ p) (μ.prod μ) := by
+      apply hfQ_int.bdd_mul fQ.aestronglyMeasurable
+      filter_upwards [(stepify Q W).ae_mem_Icc] with p hp
+      rw [Real.norm_eq_abs]; exact abs_le.mpr ⟨by linarith [hp.1], hp.2⟩
+    have h_int_pp : Integrable (fun p => fP p * fP p) (μ.prod μ) := by
+      apply hfP_int.bdd_mul fP.aestronglyMeasurable
+      filter_upwards [(stepify P W).ae_mem_Icc] with p hp
+      rw [Real.norm_eq_abs]; exact abs_le.mpr ⟨by linarith [hp.1], hp.2⟩
+    have h_int_pq : Integrable (fun p => fP p * fQ p) (μ.prod μ) := by
+      apply hfQ_int.bdd_mul fP.aestronglyMeasurable
+      filter_upwards [(stepify P W).ae_mem_Icc] with p hp
+      rw [Real.norm_eq_abs]; exact abs_le.mpr ⟨by linarith [hp.1], hp.2⟩
+    -- Compute ∫(f_Q-f_P)² directly
+    -- Expand ∫(f_Q-f_P)² = ∫f_Q² + ∫f_P² - 2∫(f_P·f_Q)
+    have h_int_result : ∫ p, (fQ p - fP p) ^ 2 ∂(μ.prod μ) =
+        ∫ p, fQ p * fQ p ∂(μ.prod μ) + ∫ p, fP p * fP p ∂(μ.prod μ) -
+        2 * ∫ p, fP p * fQ p ∂(μ.prod μ) := by
+      -- Rewrite (a-b)^2 as a*a + b*b - 2*(a*b)
+      have h1 : ∫ p, (fQ p - fP p) ^ 2 ∂(μ.prod μ) =
+          ∫ p, (fQ p * fQ p + fP p * fP p - 2 * (fP p * fQ p)) ∂(μ.prod μ) := by
+        congr 1; ext p; ring
+      rw [h1]
+      -- Split ∫(a + b - c) = ∫(a + b) - ∫c
+      have h_step1 : ∫ p, (fQ p * fQ p + fP p * fP p - 2 * (fP p * fQ p)) ∂(μ.prod μ) =
+          ∫ p, (fQ p * fQ p + fP p * fP p) ∂(μ.prod μ) -
+          ∫ p, 2 * (fP p * fQ p) ∂(μ.prod μ) := by
+        have : (fun p => fQ p * fQ p + fP p * fP p - 2 * (fP p * fQ p)) =
+            (fun p => fQ p * fQ p + fP p * fP p) - (fun p => 2 * (fP p * fQ p)) := by
+          ext p; simp [Pi.sub_apply]
+        rw [this]; exact integral_sub (h_int_qq.add h_int_pp) (h_int_pq.const_mul 2)
+      -- Split ∫(a + b) = ∫a + ∫b
+      have h_step2 : ∫ p, (fQ p * fQ p + fP p * fP p) ∂(μ.prod μ) =
+          ∫ p, fQ p * fQ p ∂(μ.prod μ) + ∫ p, fP p * fP p ∂(μ.prod μ) := by
+        have : (fun p => fQ p * fQ p + fP p * fP p) =
+            (fun p => fQ p * fQ p) + (fun p => fP p * fP p) := by
+          ext p; simp [Pi.add_apply]
+        rw [this]; exact integral_add h_int_qq h_int_pp
+      -- Pull out constant 2
+      have h_step3 : ∫ p, 2 * (fP p * fQ p) ∂(μ.prod μ) =
+          2 * ∫ p, fP p * fQ p ∂(μ.prod μ) := integral_const_mul _ _
+      linarith
+    rw [h_int_result, h_fQ_sq, h_fP_sq, h_cross]; ring
+  -- Combine: (rid)² ≤ defect P - defect Q = energy Q - energy P
+  have h_rid_le_diff : (rectIntegralDiff W (stepify P W) S₀ T₀) ^ 2 ≤ defect W P - defect W Q := by
+    rw [h_rid_eq]
+    calc (∫ p in S₀ ×ˢ T₀,
+            ((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ∂(μ.prod μ)) ^ 2
+        ≤ ((μ.prod μ) (S₀ ×ˢ T₀)).toReal *
+          ∫ p in S₀ ×ˢ T₀,
+            ((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ^ 2 ∂(μ.prod μ) := h_jensen
+      _ ≤ 1 * ∫ p in S₀ ×ˢ T₀,
+            ((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ^ 2 ∂(μ.prod μ) := by
+          apply mul_le_mul_of_nonneg_right h_meas_le_one
+          exact setIntegral_nonneg_of_ae_restrict (ae_of_all _ fun _ => sq_nonneg _)
+      _ = ∫ p in S₀ ×ˢ T₀,
+            ((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ^ 2 ∂(μ.prod μ) := one_mul _
+      _ ≤ ∫ p, ((stepify Q W).toAEEqFun p - (stepify P W).toAEEqFun p) ^ 2 ∂(μ.prod μ) :=
+          h_sub_integral
+      _ = defect W P - defect W Q := h_pythagorean
+  linarith [h_ediff]
 
 /-- If `cutNormDiff U W > c`, there exist measurable S, T with
 |rectIntegralDiff U W S T| > c. Follows from the definition of cutNormDiff
