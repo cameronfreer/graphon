@@ -51,6 +51,29 @@ section InverseCounting
 
 variable [IsProbabilityMeasure μ]
 
+/-- Algebraic determination of graphons by homomorphism densities:
+for any `ε > 0`, if two graphons have equal homomorphism densities for all finite
+graphs, then their cut distance is at most `ε`.
+
+**Sorry**: This is the core hard step of the inverse counting lemma
+(Lovász [2012] Theorem 10.31). The proof requires:
+1. Regularity lemma to approximate U, W by step graphons S_U, S_W
+2. Counting lemma to show S_U, S_W have approximately equal hom densities
+3. **Algebraic determination**: step graphon coefficients are uniquely determined
+   (up to partition relabeling) by their homomorphism density sequences. This is
+   a finite-dimensional moment problem: the polynomials `{t(F, ·) : F graph}`
+   separate step functions up to measure-preserving rearrangement.
+4. Construction of a near-optimal measure-preserving rearrangement from the
+   coefficient matching, yielding small cut distance.
+
+See Borgs--Chayes--Lovász--Sós--Vesztergombi [2008], Theorem 2.3. -/
+private theorem cutDistance_le_of_homDensity_eq_aux (U W : Graphon α μ)
+    (ε : ℝ) (hε : ε > 0)
+    (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
+         homDensity F U = homDensity F W) :
+    cutDistance U W ≤ ε := by
+  sorry
+
 /-- Two graphons with equal homomorphism densities for all graphs have
     cut distance zero (are weakly isomorphic).
 
@@ -58,18 +81,23 @@ This is the strong form of the inverse counting lemma. Quantifies over graphs on
 `Fin k` for all `k`, which suffices since every finite graph is isomorphic to one
 on `Fin k`.
 
-**Sorry**: The proof requires that homomorphism densities of ALL finite graphs
-determine a graphon up to weak isomorphism. This is a deep combinatorial result:
-step graphon coefficients are determined by their homomorphism density sequences
-(a finite-dimensional moment problem). The proof uses the fact that edge densities
-of all graphs form a complete system of polynomial invariants for step functions.
-See Lovász [2012], Theorem 10.31 and Borgs–Chayes–Lovász–Sós–Vesztergombi [2008]. -/
+The proof reduces to `cutDistance_le_of_homDensity_eq_aux`, which captures the
+hard algebraic content: homomorphism densities form a complete system of
+polynomial invariants for graphons (up to weak isomorphism).
+See Lovász [2012], Theorem 10.31 and Borgs--Chayes--Lovász--Sós--Vesztergombi [2008]. -/
 theorem cutDistance_zero_of_homDensity_eq
     (U W : Graphon α μ)
     (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
          homDensity F U = homDensity F W) :
     cutDistance U W = 0 := by
-  sorry
+  apply le_antisymm _ (cutDistance_nonneg U W)
+  -- For any ε > 0, cutDistance U W ≤ ε. Since cutDistance U W ≥ 0, this forces = 0.
+  by_contra h_pos
+  push_neg at h_pos
+  -- h_pos : 0 < cutDistance U W
+  have h_half : cutDistance U W / 2 > 0 := by linarith
+  have h_le := cutDistance_le_of_homDensity_eq_aux U W (cutDistance U W / 2) h_half h
+  linarith
 
 /-- The inverse counting lemma: similar homomorphism densities imply
     small cut distance.

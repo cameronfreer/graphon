@@ -300,24 +300,6 @@ theorem totallyBounded (ε : ℝ) (hε : ε > 0) :
   -- (error ≤ ε/2), then partition transfer (Rokhlin) maps to a net element.
   -- Triangle: cutDistance W (net element) ≤ ε/2 + ε/2 + 0 = ε.
   --
-  -- partition_transfer: step graphons on different partitions with matching
-  -- coefficient structure have cutDistance 0 (needs Rokhlin's theorem).
-  have partition_transfer :
-      ∀ (P Q : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
-        (hc_symm_P : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
-        (hc_mem_P : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T ∈ Set.Icc 0 1)
-        (c' : Set α → Set α → ℝ)
-        (hc'_symm_Q : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts, c' S T = c' T S)
-        (hc'_mem_Q : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts, c' S T ∈ Set.Icc 0 1)
-        (_hcard : P.parts.card = Q.parts.card)
-        (_h_coeff : ∃ (σ : Set α → Set α),
-          (∀ S ∈ P.parts, σ S ∈ Q.parts) ∧
-          (∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c' (σ S) (σ T))),
-        cutDistance (mkStepGraphon P c hc_symm_P hc_mem_P)
-                    (mkStepGraphon Q c' hc'_symm_Q hc'_mem_Q) = 0 := by
-    -- Follows from Rokhlin's theorem (axiomatized in CutDistance.lean):
-    -- measure-preserving bijection between partitions maps one step graphon to the other.
-    sorry
   -- Parameters
   set ε₂ := ε / 2 with hε₂_def
   have hε₂ : ε₂ > 0 := by positivity
@@ -494,9 +476,12 @@ theorem totallyBounded (ε : ℝ) (hε : ε > 0) :
             rw [hV_dist]; ring
         _ ≤ ε₂ + ε / 2 + 0 := by linarith [h_cd_step, h_cd_round]
         _ = ε := by rw [hε₂_def]; ring⟩
-  -- Partition transfer: V_round (grid step graphon on P_W) has cutDistance 0 from
-  -- some grid step graphon on P₀ with matching coefficient structure.
-  -- This requires Rokhlin's theorem (axiomatized in CutDistance.lean).
+  -- Partition transfer: V_round on P_W matches some net element on P₀.
+  -- By Rokhlin's theorem (standard Borel probability spaces are isomorphic to [0,1]),
+  -- there exists a MP bijection mapping P_W-cells to P₀-cells. Under this bijection,
+  -- V_round transfers to a step graphon on P₀ with the same grid coefficients,
+  -- which is in the net by construction. See `MeasurePreserving.exists_common_extension`
+  -- in `CutDistance.lean` for the underlying Rokhlin axiom.
   sorry
 
 end TotalBoundedness
@@ -511,27 +496,112 @@ variable [IsProbabilityMeasure μ] [StandardBorelSpace α]
 def IsCauchy (W : ℕ → Graphon α μ) : Prop :=
   ∀ ε > 0, ∃ N, ∀ m n, m ≥ N → n ≥ N → cutDistance (W m) (W n) < ε
 
+/-- A rapidly converging sequence of graphons (with `∑ cutDistance(W_{n+1}, W_n)` finite)
+has a limit in cutDistance.
+
+**Sorry**: This is the core limit construction for graphon completeness.
+The standard proof (Lovász [2012], Proposition 9.17) proceeds:
+1. For each precision k, regularity gives step approximation with ≤ M(k) parts
+2. Rectangle averages of W_n on the regularity partition are in [0,1]
+3. Diagonal extraction over increasing scales: extract subsequence where all averages converge
+4. Limiting averages define a step function at each scale
+5. Step functions form a Cauchy sequence in L² (for step functions on a fixed partition,
+   cut norm and L² norm are equivalent up to partition-dependent constants)
+6. L² completeness gives limit V
+7. V ∈ [0,1] a.e. and symmetric, hence a graphon
+8. cutDistance(W_n, V) → 0 via triangle through step approximations
+
+**Depends on**: Rokhlin's theorem (for aligning partitions across different graphons),
+which is already axiomatized as `MeasurePreserving.exists_common_extension`. -/
+private theorem exists_limit_of_rapid_convergence (W : ℕ → Graphon α μ)
+    (h_rapid : ∀ k : ℕ, cutDistance (W (k + 1)) (W k) ≤ 1 / 2 ^ k) :
+    ∃ V : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε := by
+  sorry
+
 /-- The space of graphons is complete with respect to cut distance.
 
 Every Cauchy sequence of graphons converges (modulo weak isomorphism).
 
-**Sorry**: The proof requires constructing a limit graphon from a Cauchy
-sequence in cutDistance. The standard approach uses diagonal extraction on
-step graphon coefficients (rectangle averages in [0,1]^k at each regularity
-scale) followed by L² limit construction. See Lovász [2012], Proposition 9.17.
+**Proof structure**: From the Cauchy sequence, extract a rapidly converging
+subsequence (with `cutDistance(W_{φ(k+1)}, W_{φ(k)}) ≤ 1/2^k`). Apply the
+limit construction for rapidly converging sequences. Then show the full Cauchy
+sequence converges to the same limit using the triangle inequality.
 
-The proof outline:
-1. For each precision k, regularity gives step approximation with ≤ k parts
-2. Rectangle averages form bounded sequences in [0,1]
-3. Diagonal extraction: extract subsequence where all averages converge
-4. Limiting averages define a step function at each scale
-5. Step functions form a Cauchy sequence in L² (Cauchy in cut norm ⟹ Cauchy in L¹)
-6. L² completeness (`MeasureTheory.Lp.instCompleteSpace`) gives limit V
-7. V ∈ [0,1] a.e. and symmetric, hence a graphon
-8. Show W_n → V in cutDistance via triangle through step approximations -/
+**Depends on**: `exists_limit_of_rapid_convergence` (sorry, diagonal extraction
++ L² limit), `cutDistance_triangle` (proved modulo Rokhlin). -/
 theorem complete (W : ℕ → Graphon α μ) (hW : IsCauchy W) :
     ∃ V : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε := by
-  sorry
+  -- Step 1: Extract a rapidly converging subsequence.
+  -- For each k, choose N_k such that d(W_m, W_n) < 1/2^k for m, n ≥ N_k.
+  have h_subseq : ∃ (φ : ℕ → ℕ), StrictMono φ ∧
+      ∀ k : ℕ, cutDistance (W (φ (k + 1))) (W (φ k)) ≤ 1 / 2 ^ k := by
+    -- Build φ by choosing N_k from the Cauchy property
+    have h_N : ∀ k : ℕ, ∃ N : ℕ, ∀ m n, m ≥ N → n ≥ N →
+        cutDistance (W m) (W n) < 1 / 2 ^ k := by
+      intro k
+      exact hW (1 / 2 ^ k) (by positivity)
+    choose N hN using h_N
+    -- Build strictly increasing φ with φ(k) ≥ N_k
+    -- φ(0) = N 0, φ(k+1) = max(φ(k) + 1, N(k+1))
+    let φ : ℕ → ℕ := fun k => Nat.rec (N 0) (fun k prev => max (prev + 1) (N (k + 1))) k
+    refine ⟨φ, ?_, ?_⟩
+    · -- StrictMono
+      intro a b hab
+      induction b with
+      | zero => omega
+      | succ b ih =>
+        by_cases h : a = b
+        · subst h
+          show φ a < max (φ a + 1) (N (a + 1))
+          omega
+        · calc φ a < φ b := ih (by omega)
+            _ ≤ max (φ b + 1) (N (b + 1)) - 1 + 1 := by omega
+            _ ≤ max (φ b + 1) (N (b + 1)) := by omega
+    · -- Rapid convergence
+      intro k
+      have hφk_ge : φ k ≥ N k := by
+        induction k with
+        | zero => show N 0 ≥ N 0; omega
+        | succ k ih =>
+          show max (φ k + 1) (N (k + 1)) ≥ N (k + 1)
+          omega
+      have hφsk_ge : φ (k + 1) ≥ N k := by
+        have h1 : φ (k + 1) ≥ φ k + 1 := by
+          show max (φ k + 1) (N (k + 1)) ≥ φ k + 1; omega
+        omega
+      exact le_of_lt (hN k (φ (k + 1)) (φ k) hφsk_ge hφk_ge)
+  obtain ⟨φ, hφ_mono, hφ_rapid⟩ := h_subseq
+  -- Step 2: Apply the limit construction for rapidly converging sequences.
+  obtain ⟨V, hV⟩ := exists_limit_of_rapid_convergence (W ∘ φ) (by
+    intro k; simp only [Function.comp_apply]; exact hφ_rapid k)
+  -- Step 3: Show the full Cauchy sequence converges to V.
+  -- Key: if a Cauchy sequence has a convergent subsequence, the full sequence converges.
+  refine ⟨V, fun ε hε => ?_⟩
+  -- Choose N₁: Cauchy tail bound ε/2
+  obtain ⟨N₁, hN₁⟩ := hW (ε / 2) (by linarith)
+  -- Choose N₂: subsequence within ε/2 of V
+  obtain ⟨N₂, hN₂⟩ := hV (ε / 2) (by linarith)
+  -- For n ≥ N₁, pick k ≥ N₂ with φ(k) ≥ N₁
+  -- Since φ is strictly increasing, φ(k) ≥ k for all k
+  have hφ_ge : ∀ k, φ k ≥ k := StrictMono.id_le hφ_mono
+  refine ⟨max N₁ N₂, fun n hn => ?_⟩
+  -- Use k = max N₁ N₂ as the bridge index (φ(k) ≥ k ≥ N₁)
+  set k := max N₁ N₂
+  have hk_ge_N₂ : k ≥ N₂ := le_max_right N₁ N₂
+  have hφk_ge_N₁ : φ k ≥ N₁ := le_trans (le_max_left N₁ N₂) (hφ_ge k)
+  have hn_ge_N₁ : n ≥ N₁ := le_trans (le_max_left N₁ N₂) hn
+  calc cutDistance (W n) V
+      ≤ cutDistance (W n) (W (φ k)) + cutDistance (W (φ k)) V :=
+        cutDistance_triangle (W n) (W (φ k)) V
+    _ < ε / 2 + ε / 2 := by
+        have h1 : cutDistance (W n) (W (φ k)) < ε / 2 :=
+          hN₁ n (φ k) hn_ge_N₁ hφk_ge_N₁
+        have h2 : cutDistance (W (φ k)) V < ε / 2 := by
+          have := hN₂ k hk_ge_N₂
+          simp only [Function.comp_apply] at this
+          exact this
+        exact add_lt_add h1 h2
+    _ = ε := by ring
 
 end Completeness
 
