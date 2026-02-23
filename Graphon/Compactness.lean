@@ -294,32 +294,209 @@ number of parts form an ε-net.
 6. Triangle: W within ε of nearest gridpoint -/
 theorem totallyBounded (ε : ℝ) (hε : ε > 0) :
     ∃ (S : Finset (Graphon α μ)), ∀ W : Graphon α μ, ∃ V ∈ S, cutDistance W V ≤ ε := by
-  -- Fix P₀ from regularity applied to zero graphon. For any W, regularity gives
-  -- P_W with cutNormDiff W (stepify P_W W) ≤ ε/2. Quantize coefficients on P_W
-  -- to a grid. The quantized step graphon (on P_W) can be mapped to a step graphon
-  -- on P₀ with the same coefficients via a measure-preserving rearrangement
-  -- (available on StandardBorelSpace). The finite net on P₀ has (N+1)^{k²} elements.
+  -- Proof (Lovász [2012], Proposition 9.15):
+  -- Fix a reference partition P₀. Build a finite net of grid step graphons on P₀.
+  -- For any W: regularity gives P_W with cutNormDiff ≤ ε/2, round coefficients
+  -- (error ≤ ε/2), then partition transfer (Rokhlin) maps to a net element.
+  -- Triangle: cutDistance W (net element) ≤ ε/2 + ε/2 + 0 = ε.
   --
-  -- Step 1: Fix reference partition P₀ and grid parameters
-  obtain ⟨P₀, hP₀_card, _⟩ := regularity (zero : Graphon α μ) (ε / 2) (half_pos hε)
-  set k := P₀.parts.card with hk_def
-  -- Grid spacing: ensures cutNormDiff between step graphon and its quantization ≤ ε/2
-  -- We quantize [0,1] into ⌈2/ε⌉ + 1 levels (spacing ≤ ε/2)
+  -- partition_transfer: step graphons on different partitions with matching
+  -- coefficient structure have cutDistance 0 (needs Rokhlin's theorem).
+  have partition_transfer :
+      ∀ (P Q : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
+        (hc_symm_P : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
+        (hc_mem_P : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T ∈ Set.Icc 0 1)
+        (c' : Set α → Set α → ℝ)
+        (hc'_symm_Q : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts, c' S T = c' T S)
+        (hc'_mem_Q : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts, c' S T ∈ Set.Icc 0 1)
+        (_hcard : P.parts.card = Q.parts.card)
+        (_h_coeff : ∃ (σ : Set α → Set α),
+          (∀ S ∈ P.parts, σ S ∈ Q.parts) ∧
+          (∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c' (σ S) (σ T))),
+        cutDistance (mkStepGraphon P c hc_symm_P hc_mem_P)
+                    (mkStepGraphon Q c' hc'_symm_Q hc'_mem_Q) = 0 := by
+    -- Follows from Rokhlin's theorem (axiomatized in CutDistance.lean):
+    -- measure-preserving bijection between partitions maps one step graphon to the other.
+    sorry
+  -- Parameters
+  set ε₂ := ε / 2 with hε₂_def
+  have hε₂ : ε₂ > 0 := by positivity
   set N := Nat.ceil (2 / ε) with hN_def
-  -- Step 2: Build the finite net as mkStepGraphon P₀ c for all grid functions c
-  -- A grid function maps pairs of parts to {0, 1/N, 2/N, ..., 1} ⊂ [0,1]
-  -- For each W:
-  --   (a) regularity gives P_W, cutNormDiff W (stepify P_W W) ≤ ε/2
-  --   (b) cutDistance W (stepify P_W W) ≤ ε/2
-  --   (c) round coefficients to grid, getting step graphon on P_W within ε/2 in cutNormDiff
-  --   (d) the rounded step graphon on P_W has cutDistance 0 to same coefficients on P₀
-  --       (via measure-preserving rearrangement of P_W to P₀)
-  --   (e) triangle: cutDistance W (gridpoint on P₀) ≤ ε/2 + ε/2 = ε
-  --
-  -- The formal construction of the finite net from grid functions and the
-  -- measure-preserving map between partitions (step d) requires infrastructure
-  -- for mapping between partitions on StandardBorelSpace, which in turn relies
-  -- on Rokhlin's theorem (already axiomatized in CutDistance.lean).
+  have hN_pos : 0 < N := Nat.ceil_pos.mpr (by positivity)
+  have hδ_le : (1 : ℝ) / N ≤ ε / 2 := by
+    have hN_le : (2 / ε : ℝ) ≤ N := Nat.le_ceil (2 / ε)
+    rw [div_le_div_iff₀ (Nat.cast_pos.mpr hN_pos) (by norm_num : (0:ℝ) < 2)]
+    rw [one_mul]
+    calc (2 : ℝ) = ε * (2 / ε) := by field_simp
+      _ ≤ ε * N := by apply mul_le_mul_of_nonneg_left hN_le hε.le
+  -- Fix reference partition P₀
+  obtain ⟨P₀, _, _⟩ := regularity (mkStepGraphon (trivialPartition (α := α) (μ := μ))
+    (fun _ _ => 1/2)
+    (fun _ _ _ _ => rfl)
+    (fun _ _ _ _ => ⟨by norm_num, by norm_num⟩)) ε₂ hε₂
+  -- Build finite net on P₀: all mkStepGraphon P₀ with symmetrized grid coefficients
+  classical
+  let toCoeff : (↑P₀.parts → ↑P₀.parts → Fin (N + 1)) → Set α → Set α → ℝ :=
+    fun f S T =>
+      if hS : S ∈ P₀.parts then
+        if hT : T ∈ P₀.parts then
+          ((f ⟨S, hS⟩ ⟨T, hT⟩ : ℕ) + (f ⟨T, hT⟩ ⟨S, hS⟩ : ℕ)) / (2 * N)
+        else 0
+      else 0
+  have htoCoeff_symm : ∀ f, ∀ S ∈ P₀.parts, ∀ T ∈ P₀.parts,
+      toCoeff f S T = toCoeff f T S := by
+    intro f S hS T hT
+    simp only [toCoeff, hS, hT, dif_pos]
+    ring
+  have htoCoeff_mem : ∀ f, ∀ S ∈ P₀.parts, ∀ T ∈ P₀.parts,
+      toCoeff f S T ∈ Set.Icc 0 1 := by
+    intro f S hS T hT
+    simp only [toCoeff, hS, hT, dif_pos, Set.mem_Icc]
+    constructor
+    · positivity
+    · have h1 : (f ⟨S, hS⟩ ⟨T, hT⟩ : ℕ) ≤ N := by omega
+      have h2 : (f ⟨T, hT⟩ ⟨S, hS⟩ : ℕ) ≤ N := by omega
+      rw [div_le_one (by positivity : (0 : ℝ) < 2 * N)]
+      have h1' : (↑(f ⟨S, hS⟩ ⟨T, hT⟩ : ℕ) : ℝ) ≤ (N : ℝ) := Nat.cast_le.mpr h1
+      have h2' : (↑(f ⟨T, hT⟩ ⟨S, hS⟩ : ℕ) : ℝ) ≤ (N : ℝ) := Nat.cast_le.mpr h2
+      linarith
+  let netMap : (↑P₀.parts → ↑P₀.parts → Fin (N + 1)) → Graphon α μ :=
+    fun f => mkStepGraphon P₀ (toCoeff f) (htoCoeff_symm f) (htoCoeff_mem f)
+  let net : Finset (Graphon α μ) := Finset.univ.image netMap
+  use net
+  -- For any W, find a close net element
+  intro W
+  obtain ⟨P_W, _, hP_W_close⟩ := regularity W ε₂ hε₂
+  -- cutDistance W (stepify P_W W) ≤ ε/2
+  have h_cd_step : cutDistance W (stepify P_W W) ≤ ε₂ :=
+    (cutDistance_le_cutNormDiff W (stepify P_W W)).trans hP_W_close
+  -- Round rectAverages to nearest grid point: ⌊a * N⌋ / N
+  let roundCoeff : Set α → Set α → ℝ := fun S T =>
+    if hS : S ∈ P_W.parts then
+      if hT : T ∈ P_W.parts then
+        (Nat.floor (rectAverage W S T * N) : ℝ) / N
+      else 0
+    else 0
+  have hround_symm : ∀ S ∈ P_W.parts, ∀ T ∈ P_W.parts, roundCoeff S T = roundCoeff T S := by
+    intro S hS T hT
+    simp only [roundCoeff, hS, hT, dif_pos]
+    congr 1
+    rw [rectAverage_symm W S T (P_W.measurableSet_part hS) (P_W.measurableSet_part hT)]
+  have hround_mem : ∀ S ∈ P_W.parts, ∀ T ∈ P_W.parts, roundCoeff S T ∈ Set.Icc 0 1 := by
+    intro S hS T hT
+    simp only [roundCoeff, hS, hT, dif_pos, Set.mem_Icc]
+    have h_avg := rectAverage_mem_Icc W S T (P_W.measurableSet_part hS) (P_W.measurableSet_part hT)
+    constructor
+    · positivity
+    · rw [div_le_one (Nat.cast_pos.mpr hN_pos)]
+      have : rectAverage W S T * N ≤ N := by nlinarith [h_avg.2]
+      exact_mod_cast Nat.floor_le_of_le (by exact_mod_cast this)
+  -- Coefficient difference: |rectAverage - roundCoeff| ≤ 1/N
+  have hround_close : ∀ S ∈ P_W.parts, ∀ T ∈ P_W.parts,
+      |rectAverage W S T - roundCoeff S T| ≤ 1 / (N : ℝ) := by
+    intro S hS T hT
+    simp only [roundCoeff, hS, hT, dif_pos]
+    have h_avg := rectAverage_mem_Icc W S T (P_W.measurableSet_part hS) (P_W.measurableSet_part hT)
+    have hN_pos' : (0 : ℝ) < N := Nat.cast_pos.mpr hN_pos
+    have h_nn : 0 ≤ rectAverage W S T * N := mul_nonneg h_avg.1 (Nat.cast_nonneg N)
+    have h_floor_le : (Nat.floor (rectAverage W S T * N) : ℝ) ≤ rectAverage W S T * N :=
+      Nat.floor_le h_nn
+    have h_lt_floor_add : rectAverage W S T * ↑N < (Nat.floor (rectAverage W S T * ↑N) : ℝ) + 1 :=
+      Nat.lt_floor_add_one _
+    rw [abs_le]
+    constructor
+    · -- lower bound: -(1/N) ≤ a - ⌊aN⌋/N
+      -- Since ⌊aN⌋ ≤ aN, we have ⌊aN⌋/N ≤ a, so a - ⌊aN⌋/N ≥ 0 ≥ -(1/N)
+      have h_sub_nn : 0 ≤ rectAverage W S T - (↑⌊rectAverage W S T * ↑N⌋₊ : ℝ) / N := by
+        rw [sub_nonneg, div_le_iff₀ hN_pos']
+        linarith
+      have h_inv_pos : (0 : ℝ) < 1 / N := div_pos one_pos hN_pos'
+      linarith
+    · -- upper bound: a - ⌊aN⌋/N ≤ 1/N, i.e., aN ≤ ⌊aN⌋ + 1
+      rw [sub_le_iff_le_add]
+      rw [show 1 / (↑N : ℝ) + (↑⌊rectAverage W S T * ↑N⌋₊ : ℝ) / ↑N =
+        (↑⌊rectAverage W S T * ↑N⌋₊ + 1) / ↑N from by ring]
+      rw [le_div_iff₀ hN_pos']
+      linarith
+  -- The rounded step graphon
+  set V_round := mkStepGraphon P_W roundCoeff hround_symm hround_mem
+  -- cutDistance (stepify P_W W) V_round ≤ ε/2
+  -- Key: stepifyFun P_W W = mkStepFun P_W (rectAverage W) pointwise (by definition),
+  -- so stepify and mkStepGraphon with rectAverage coefficients have the same AEEqFun.
+  -- Then cutNormDiff_mkStepGraphon_le bounds the grid rounding error.
+  -- rectAverage symmetry and [0,1] membership for mkStepGraphon
+  have hRA_symm : ∀ S ∈ P_W.parts, ∀ T ∈ P_W.parts,
+      rectAverage W S T = rectAverage W T S := by
+    intro S hS T hT
+    exact rectAverage_symm W S T (P_W.measurableSet_part hS) (P_W.measurableSet_part hT)
+  have hRA_mem : ∀ S ∈ P_W.parts, ∀ T ∈ P_W.parts,
+      rectAverage W S T ∈ Set.Icc 0 1 := by
+    intro S hS T hT
+    exact rectAverage_mem_Icc W S T (P_W.measurableSet_part hS) (P_W.measurableSet_part hT)
+  -- The step graphon with rectAverage coefficients
+  set V_avg := mkStepGraphon P_W (rectAverage W) hRA_symm hRA_mem
+  -- stepify and mkStepGraphon with rectAverage have the same underlying function
+  -- (stepifyFun P_W W = mkStepFun P_W (rectAverage W) by definition)
+  have h_stepify_eq_avg : ∀ᵐ p ∂(μ.prod μ),
+      (stepify P_W W).toAEEqFun p = V_avg.toAEEqFun p := by
+    -- Both AEEqFuns are mk'd from the same function (stepifyFun = mkStepFun for rectAverage)
+    have h_fun_eq : stepifyFun P_W W = mkStepFun P_W (rectAverage W) := rfl
+    have h1 := stepify_ae P_W W  -- stepify agrees with stepifyFun a.e.
+    have h2 : ∀ᵐ p ∂(μ.prod μ), V_avg.toAEEqFun p = mkStepFun P_W (rectAverage W) p :=
+      AEEqFun.coeFn_mk _ _
+    filter_upwards [h1, h2] with p hp1 hp2
+    rw [hp1, h_fun_eq, hp2]
+  -- cutNormDiff (stepify P_W W) V_avg = 0
+  have h_cn_zero : cutNormDiff (stepify P_W W) V_avg = 0 := by
+    unfold cutNormDiff rectIntegralDiff
+    apply le_antisymm
+    · apply Real.iSup_le _ le_rfl
+      intro S'; apply Real.iSup_le _ le_rfl
+      intro hS'; apply Real.iSup_le _ le_rfl
+      intro T'; apply Real.iSup_le _ le_rfl
+      intro hT'
+      have : ∀ᵐ p ∂(μ.prod μ),
+          (stepify P_W W).toAEEqFun p - V_avg.toAEEqFun p = 0 := by
+        filter_upwards [h_stepify_eq_avg] with p hp
+        rw [hp, sub_self]
+      have h_zero : ∫ p in S' ×ˢ T', ((stepify P_W W).toAEEqFun p - V_avg.toAEEqFun p) ∂(μ.prod μ) = 0 := by
+        rw [setIntegral_congr_ae (hS'.prod hT') (this.mono (fun p hp _ => hp))]
+        simp
+      rw [h_zero]
+      simp
+    · exact cutNormDiff_nonneg _ _
+  -- cutNormDiff V_avg V_round ≤ 1/N by cutNormDiff_mkStepGraphon_le
+  have h_cn_round : cutNormDiff V_avg V_round ≤ 1 / (N : ℝ) :=
+    cutNormDiff_mkStepGraphon_le P_W (rectAverage W) roundCoeff hRA_symm hRA_mem
+      hround_symm hround_mem (1 / N) hround_close
+  -- cutNormDiff (stepify P_W W) V_round ≤ 0 + 1/N = 1/N ≤ ε/2
+  have h_cd_round : cutDistance (stepify P_W W) V_round ≤ ε / 2 := by
+    calc cutDistance (stepify P_W W) V_round
+        ≤ cutNormDiff (stepify P_W W) V_round := cutDistance_le_cutNormDiff _ _
+      _ ≤ cutNormDiff (stepify P_W W) V_avg + cutNormDiff V_avg V_round :=
+          cutNormDiff_triangle _ _ _
+      _ = 0 + cutNormDiff V_avg V_round := by rw [h_cn_zero]
+      _ = cutNormDiff V_avg V_round := zero_add _
+      _ ≤ 1 / (N : ℝ) := h_cn_round
+      _ ≤ ε / 2 := hδ_le
+  -- Final assembly via triangle inequality
+  -- Need: exists V in net with cutDistance V_round V = 0 (partition transfer)
+  suffices h_exists_close : ∃ V ∈ net, cutDistance V_round V = 0 by
+    obtain ⟨V, hV_mem, hV_dist⟩ := h_exists_close
+    exact ⟨V, hV_mem, by
+      calc cutDistance W V
+          ≤ cutDistance W (stepify P_W W) + cutDistance (stepify P_W W) V :=
+            cutDistance_triangle W (stepify P_W W) V
+        _ ≤ cutDistance W (stepify P_W W) +
+            (cutDistance (stepify P_W W) V_round + cutDistance V_round V) := by
+            linarith [cutDistance_triangle (stepify P_W W) V_round V]
+        _ = cutDistance W (stepify P_W W) + cutDistance (stepify P_W W) V_round + 0 := by
+            rw [hV_dist]; ring
+        _ ≤ ε₂ + ε / 2 + 0 := by linarith [h_cd_step, h_cd_round]
+        _ = ε := by rw [hε₂_def]; ring⟩
+  -- Partition transfer: V_round (grid step graphon on P_W) has cutDistance 0 from
+  -- some grid step graphon on P₀ with matching coefficient structure.
+  -- This requires Rokhlin's theorem (axiomatized in CutDistance.lean).
   sorry
 
 end TotalBoundedness
@@ -338,49 +515,22 @@ def IsCauchy (W : ℕ → Graphon α μ) : Prop :=
 
 Every Cauchy sequence of graphons converges (modulo weak isomorphism).
 
-**Proof approach** (diagonal extraction, avoiding martingales):
-1. For each n, use regularity to get a step approximation of W n
-2. The step graphon coefficients (rectangle averages) live in [0,1]
-3. By compactness of [0,1]^k, extract subsequence where all coefficients converge
-4. Define limit V as the graphon with limiting coefficients
-5. Show W(φ(n)) → V in cut distance
+**Sorry**: The proof requires constructing a limit graphon from a Cauchy
+sequence in cutDistance. The standard approach uses diagonal extraction on
+step graphon coefficients (rectangle averages in [0,1]^k at each regularity
+scale) followed by L² limit construction. See Lovász [2012], Proposition 9.17.
 
-**Dependencies**:
-- regularity: gives step approximation with bounded partition
-- totallyBounded: provides finite ε-net structure
-- Both currently have sorries, blocking this proof -/
+The proof outline:
+1. For each precision k, regularity gives step approximation with ≤ k parts
+2. Rectangle averages form bounded sequences in [0,1]
+3. Diagonal extraction: extract subsequence where all averages converge
+4. Limiting averages define a step function at each scale
+5. Step functions form a Cauchy sequence in L² (Cauchy in cut norm ⟹ Cauchy in L¹)
+6. L² completeness (`MeasureTheory.Lp.instCompleteSpace`) gives limit V
+7. V ∈ [0,1] a.e. and symmetric, hence a graphon
+8. Show W_n → V in cutDistance via triangle through step approximations -/
 theorem complete (W : ℕ → Graphon α μ) (hW : IsCauchy W) :
     ∃ V : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε := by
-  -- **Proof structure** (diagonal extraction, no martingales):
-  --
-  -- Step 1: For each k ∈ ℕ, use regularity with ε = 1/(k+1) to get partitions
-  -- P_n,k for each W_n with ≤ regularityBound(1/(k+1)) parts
-
-  -- Step 2: Rectangle averages form bounded sequences
-  -- For fixed k, the sequence (rectAverage W_n S T)_{n ∈ ℕ} for each S,T ∈ P_k
-  -- lives in [0,1], which is compact
-
-  -- Step 3: Diagonal extraction
-  -- - For k=1: extract subsequence φ₁ where all k=1 rectangle averages converge
-  -- - For k=2: extract subsequence φ₂ of φ₁ where all k=2 averages converge
-  -- - Diagonal: φ(n) := φₙ(n) is a subsequence where ALL averages converge
-
-  -- Step 4: Limit construction
-  -- Define V by:
-  -- - For each k, limiting rectangle averages define a step function
-  -- - These step functions are Cauchy in L² (since W_n are Cauchy in cut norm)
-  -- - Take L² limit as V
-
-  -- Step 5: Show W(φ(n)) → V in cut distance
-  -- - Fix ε > 0, choose k large enough that 1/k < ε/3
-  -- - For n large: d(W(φ(n)), stepify_k W(φ(n))) < ε/3
-  -- - For n large: d(stepify_k W(φ(n)), stepify_k V) < ε/3 (coefficients converge)
-  -- - By triangle: d(W(φ(n)), V) < ε
-
-  -- **Technical requirements**:
-  -- - regularity: gives bounded partition with small defect
-  -- - stepify construction: convert rectangle averages to graphon
-  -- - cutNorm_stepify_sub_le: defect controls approximation quality
   sorry
 
 end Completeness

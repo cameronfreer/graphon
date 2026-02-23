@@ -56,36 +56,19 @@ variable [IsProbabilityMeasure μ]
 
 This is the strong form of the inverse counting lemma. Quantifies over graphs on
 `Fin k` for all `k`, which suffices since every finite graph is isomorphic to one
-on `Fin k`. -/
+on `Fin k`.
+
+**Sorry**: The proof requires that homomorphism densities of ALL finite graphs
+determine a graphon up to weak isomorphism. This is a deep combinatorial result:
+step graphon coefficients are determined by their homomorphism density sequences
+(a finite-dimensional moment problem). The proof uses the fact that edge densities
+of all graphs form a complete system of polynomial invariants for step functions.
+See Lovász [2012], Theorem 10.31 and Borgs–Chayes–Lovász–Sós–Vesztergombi [2008]. -/
 theorem cutDistance_zero_of_homDensity_eq
     (U W : Graphon α μ)
     (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
          homDensity F U = homDensity F W) :
     cutDistance U W = 0 := by
-  -- Show: for all ε > 0, cutDistance U W ≤ 2ε. Then cutDistance U W ≤ 0, hence = 0.
-  apply le_antisymm _ (cutDistance_nonneg U W)
-  -- For all ε > 0, cutDistance U W < 3ε
-  by_contra h_neg
-  push_neg at h_neg
-  -- h_neg : 0 < cutDistance U W
-  set δ := cutDistance U W / 3 with hδ_def
-  have hδ_pos : δ > 0 := by linarith
-  -- By regularity, approximate U and W by step graphons
-  obtain ⟨P_U, _, hP_U⟩ := regularity U δ hδ_pos
-  obtain ⟨P_W, _, hP_W⟩ := regularity W δ hδ_pos
-  -- cutDistance(U, stepify P_U U) ≤ cutNormDiff(U, stepify P_U U) ≤ δ
-  have h1 : cutDistance U (stepify P_U U) ≤ δ :=
-    le_trans (cutDistance_le_cutNormDiff U (stepify P_U U)) hP_U
-  -- Similarly for W
-  have h2 : cutDistance W (stepify P_W W) ≤ δ :=
-    le_trans (cutDistance_le_cutNormDiff W (stepify P_W W)) hP_W
-  -- Step graphons with equal hom densities have cutDistance = 0
-  -- (hom densities of step graphons determine their coefficients)
-  -- This is the deep combinatorial step: step graphons with the same hom
-  -- densities for all graphs must have cutDistance 0
-  -- For now, we express this as: cutDistance(stepify_U, stepify_W) ≤ δ
-  -- (which follows from the counting lemma + hom density closeness)
-  -- Full proof requires: step graphon coefficients determined by hom densities
   sorry
 
 /-- The inverse counting lemma: similar homomorphism densities imply

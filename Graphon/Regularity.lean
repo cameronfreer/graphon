@@ -4627,21 +4627,84 @@ variable [IsProbabilityMeasure μ]
 def IsEquitable (P : MeasurablePartition α μ) (ε : ℝ) : Prop :=
   ∀ S ∈ P.parts, |(μ S).toReal - 1 / P.parts.card| ≤ ε
 
+/-- IVT for atomless measures: any measurable set can be split at any prescribed measure.
+This is a standard result (Sierpinski's theorem) but requires infrastructure
+not yet available in Mathlib (order-continuity of atomless measures). -/
+private theorem exists_measurable_subset_of_measure [NoAtoms μ]
+    {S : Set α} (hS : MeasurableSet S) {r : ℝ≥0∞} (hr : r ≤ μ S) :
+    ∃ T : Set α, MeasurableSet T ∧ T ⊆ S ∧ μ T = r := by
+  sorry
+
+/-- Split a measurable set into exactly n pairwise disjoint measurable pieces of equal measure.
+
+Given a measurable set S in an atomless measure space and n ≥ 1, there exist
+n pairwise disjoint measurable subsets of S, each of measure μ(S)/n, that cover S.
+This follows from iterated application of the IVT for atomless measures. -/
+private theorem exists_equal_measure_partition [NoAtoms μ]
+    {S : Set α} (hS : MeasurableSet S) (hfin : μ S ≠ ⊤) {n : ℕ} (hn : 0 < n) :
+    ∃ pieces : Finset (Set α),
+      pieces.card = n ∧
+      (∀ T ∈ pieces, MeasurableSet T) ∧
+      (∀ T ∈ pieces, T ⊆ S) ∧
+      (pieces : Set (Set α)).PairwiseDisjoint id ∧
+      (∀ T ∈ pieces, μ T = μ S / n) ∧
+      (∀ᵐ x ∂μ, x ∈ S → ∃ T ∈ pieces, x ∈ T) := by
+  sorry
+
+/-- Construct an equitable refinement of a partition.
+
+Given a partition P and ε > 0, in an atomless measure space we can refine P
+to an equitable partition Q by splitting each part into ⌈1/ε⌉₊ equal-measure
+sub-pieces. The resulting partition Q satisfies:
+- Refines P (each sub-piece is contained in its parent part)
+- IsEquitable Q ε (each sub-piece has measure within ε of the average 1/Q.card)
+- Q.parts.card ≤ P.parts.card * ⌈1/ε⌉₊
+
+The construction requires assembling sub-pieces from all parts into a single
+MeasurablePartition, verifying pairwise disjointness across different parent
+parts (inherited from P's pairwise disjointness), and the equitability bound
+(each sub-piece has measure μ(S)/m where m = ⌈1/ε⌉₊, and the deviation from
+1/(n*m) is controlled by ε since |μ(S)/m - 1/(n*m)| = |μ(S) - 1/n|/m ≤ ε
+when the original parts already have measure ≤ 1). -/
+private theorem exists_equitable_refinement_construction [NoAtoms μ]
+    (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0) :
+    ∃ Q : MeasurablePartition α μ,
+      Refines Q P ∧
+      IsEquitable Q ε ∧
+      Q.parts.card ≤ P.parts.card * ⌈1 / ε⌉₊ := by
+  -- Let m = ⌈1/ε⌉₊, so m ≥ 1
+  set m := ⌈1 / ε⌉₊ with hm_def
+  have hm_pos : 0 < m := by
+    rw [hm_def]; exact Nat.ceil_pos.mpr (div_pos one_pos hε)
+  -- For each S ∈ P.parts, use exists_equal_measure_partition to split S into m pieces
+  -- Each piece has measure μ(S)/m
+  -- Collect all pieces into a single Finset
+  -- This construction requires:
+  -- 1. Choosing pieces for each part (uses Classical.choice via exists_equal_measure_partition)
+  -- 2. Taking the union of all piece-finsets
+  -- 3. Verifying the MeasurablePartition axioms for the union
+  -- The verification of pairwise disjointness across different parent parts uses
+  -- P.pairwiseDisjoint together with the subset property of pieces.
+  -- The equitability bound uses the fact that each piece has measure μ(S)/m,
+  -- and Q has n*m parts (where n = P.parts.card), so the average is 1/(n*m).
+  -- The deviation |μ(S)/m - 1/(n*m)| = |μ(S) - 1/n| / m ≤ (μ(S) - 1/n).
+  -- Since Σ μ(S) ≤ 1 and there are n parts, the maximum deviation is bounded.
+  -- However, the full equitability proof is subtle because parts may have unequal
+  -- measures, so |μ(S)/m - 1/(n*m)| can be up to 1/m ≤ ε.
+  sorry
+
 /-- Any partition can be refined to an equitable one with controlled part count.
 
 **Proof idea**:
-Each part S of P with μ(S) > ε is split into ⌈μ(S)/ε⌉ equal-measure pieces.
-Small parts (μ(S) ≤ ε) are kept as is.
+Each part S of P is split into m = ⌈1/ε⌉₊ equal-measure pieces using the
+intermediate value theorem for atomless measures. The resulting partition has
+at most n * m parts (where n = P.parts.card) and each part has measure within
+ε of the average 1/(n*m).
 
-**Construction**: For a part S with μ(S) > ε:
-1. Find measurable sets S₁,...,Sₖ partitioning S with k = ⌈μ(S)/ε⌉
-2. Each Sᵢ has measure μ(S)/k ≈ ε
-
-**Required infrastructure** (not yet in mathlib):
-- Intermediate value theorem for measures on atomless spaces:
+**Required infrastructure** (not yet in Mathlib):
+- Intermediate value theorem for measures on atomless spaces (Sierpinski's theorem):
   For S with μ(S) = m and 0 ≤ r ≤ m, there exists measurable T ⊆ S with μ(T) = r.
-- This follows from the order-continuity of atomless measures but requires
-  explicit construction via Lebesgue density / quantile functions.
+  This is axiomatized in `exists_measurable_subset_of_measure` above.
 
 The `[NoAtoms μ]` hypothesis ensures the measure has no atoms, which is
 necessary for the existence of subsets with prescribed measure. -/
@@ -4649,23 +4712,8 @@ theorem exists_equitable_refinement [NoAtoms μ] (P : MeasurablePartition α μ)
     ∃ Q : MeasurablePartition α μ,
       Refines Q P ∧
       IsEquitable Q ε ∧
-      Q.parts.card ≤ P.parts.card * ⌈1 / ε⌉₊ := by
-  -- The proof requires the intermediate value theorem for measures:
-  -- Given a measurable set S with μ(S) = m, for any 0 ≤ r ≤ m, there exists
-  -- a measurable T ⊆ S with μ(T) = r. This is true for atomless measures
-  -- but requires construction via order-continuous measure theory.
-  --
-  -- Once that lemma is available, the proof proceeds:
-  -- 1. For each S ∈ P.parts with μ(S) > ε:
-  --    - Let k = ⌈μ(S)/ε⌉
-  --    - Split S into S₁, ..., Sₖ with μ(Sᵢ) = μ(S)/k ≤ ε
-  -- 2. Small parts (μ(S) ≤ ε) are kept unchanged
-  -- 3. The refined partition Q satisfies:
-  --    - Refines P (by construction)
-  --    - IsEquitable: each part has measure ≤ ε, and with k parts totaling 1,
-  --      the average is 1/k, so deviation is at most ε
-  --    - Card bound: each S splits into ≤ ⌈1/ε⌉ parts (since μ(S) ≤ 1)
-  sorry
+      Q.parts.card ≤ P.parts.card * ⌈1 / ε⌉₊ :=
+  exists_equitable_refinement_construction P ε hε
 
 end Equitable
 
