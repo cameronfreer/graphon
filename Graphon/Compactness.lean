@@ -114,7 +114,167 @@ end Quotient
 
 section TotalBoundedness
 
-variable [IsProbabilityMeasure μ]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α]
+
+/-- Step graphon from explicit coefficients on a partition.
+
+Given a partition P and a symmetric coefficient function `c : Set α → Set α → ℝ`
+valued in [0,1], builds the step graphon constant on each rectangle with value c S T. -/
+noncomputable def mkStepFun (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ) :
+    α × α → ℝ :=
+  fun p => ∑ S ∈ P.parts, ∑ T ∈ P.parts,
+    (S ×ˢ T).indicator (fun _ => c S T) p
+
+omit [StandardBorelSpace α] in
+private theorem mkStepFun_measurable (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ) :
+    Measurable (mkStepFun P c) := by
+  unfold mkStepFun
+  apply Finset.measurable_sum; intro S hS
+  apply Finset.measurable_sum; intro T hT
+  exact measurable_const.indicator ((P.measurableSet_part hS).prod (P.measurableSet_part hT))
+
+omit [StandardBorelSpace α] in
+private theorem mkStepFun_eq_at (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
+    {p : α × α} {S : Set α} (hS : S ∈ P.parts) {T : Set α} (hT : T ∈ P.parts)
+    (hp : p ∈ S ×ˢ T) : mkStepFun P c p = c S T := by
+  unfold mkStepFun
+  rw [Finset.sum_eq_single_of_mem S hS, Finset.sum_eq_single_of_mem T hT]
+  · exact Set.indicator_of_mem hp _
+  · intro T' hT'_mem hT'_ne; apply Set.indicator_of_notMem; intro hp'
+    exact Set.disjoint_left.mp (P.pairwiseDisjoint (Finset.mem_coe.mpr hT)
+      (Finset.mem_coe.mpr hT'_mem) hT'_ne.symm) (Set.mem_prod.mp hp).2 (Set.mem_prod.mp hp').2
+  · intro S' hS'_mem hS'_ne; apply Finset.sum_eq_zero; intro T' _
+    apply Set.indicator_of_notMem; intro hp'
+    exact Set.disjoint_left.mp (P.pairwiseDisjoint (Finset.mem_coe.mpr hS)
+      (Finset.mem_coe.mpr hS'_mem) hS'_ne.symm) (Set.mem_prod.mp hp).1 (Set.mem_prod.mp hp').1
+
+omit [StandardBorelSpace α] in
+private theorem mkStepFun_symm (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
+    (hc : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S) (p : α × α) :
+    mkStepFun P c p.swap = mkStepFun P c p := by
+  simp only [mkStepFun]
+  have h_swap : ∀ (S T : Set α) (v : ℝ),
+      (S ×ˢ T).indicator (fun _ => v) p.swap = (T ×ˢ S).indicator (fun _ => v) p := by
+    intro S T v
+    by_cases hp : p.swap ∈ S ×ˢ T
+    · rw [Set.indicator_of_mem hp, Set.indicator_of_mem]
+      exact Set.mem_prod.mpr ⟨(Set.mem_prod.mp hp).2, (Set.mem_prod.mp hp).1⟩
+    · rw [Set.indicator_of_notMem hp, Set.indicator_of_notMem]; intro h
+      exact hp (Set.mem_prod.mpr ⟨(Set.mem_prod.mp h).2, (Set.mem_prod.mp h).1⟩)
+  simp_rw [h_swap]; rw [Finset.sum_comm]
+  apply Finset.sum_congr rfl; intro A hA
+  apply Finset.sum_congr rfl; intro B hB
+  congr 1; ext _; exact hc B hB A hA
+
+omit [StandardBorelSpace α] in
+private theorem mkStepFun_mem_Icc_ae (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
+    (hc : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T ∈ Set.Icc 0 1) :
+    ∀ᵐ p ∂(μ.prod μ), mkStepFun P c p ∈ Set.Icc 0 1 := by
+  have h_fst : ∀ᵐ p ∂(μ.prod μ), ∃ S ∈ P.parts, p.1 ∈ S :=
+    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst P.ae_covers
+  have h_snd : ∀ᵐ p ∂(μ.prod μ), ∃ T ∈ P.parts, p.2 ∈ T :=
+    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd P.ae_covers
+  filter_upwards [h_fst, h_snd] with p ⟨S, hS, hpS⟩ ⟨T, hT, hpT⟩
+  rw [mkStepFun_eq_at P c hS hT (Set.mem_prod.mpr ⟨hpS, hpT⟩)]
+  exact hc S hS T hT
+
+omit [StandardBorelSpace α] in
+/-- Build a `Graphon` from explicit coefficients on a partition. -/
+noncomputable def mkStepGraphon (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
+    (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
+    (hc_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T ∈ Set.Icc 0 1) :
+    Graphon α μ where
+  toSymmKernel := {
+    toAEEqFun := AEEqFun.mk (mkStepFun P c) (mkStepFun_measurable P c).aestronglyMeasurable
+    symm' := by
+      filter_upwards [AEEqFun.coeFn_mk (mkStepFun P c)
+        (mkStepFun_measurable P c).aestronglyMeasurable,
+        ae_prod_swap (AEEqFun.coeFn_mk (mkStepFun P c)
+          (mkStepFun_measurable P c).aestronglyMeasurable)] with p hp hp_swap
+      rw [hp_swap, hp]; exact mkStepFun_symm P c hc_symm p
+  }
+  ae_mem_Icc := by
+    filter_upwards [AEEqFun.coeFn_mk (mkStepFun P c)
+      (mkStepFun_measurable P c).aestronglyMeasurable,
+      mkStepFun_mem_Icc_ae P c hc_mem] with p hp h_Icc
+    rw [hp]; exact h_Icc
+
+omit [StandardBorelSpace α] in
+/-- cutNormDiff between step graphons on the same partition with close coefficients
+    is controlled by the coefficient difference. -/
+private theorem cutNormDiff_mkStepGraphon_le (P : MeasurablePartition α μ)
+    (c c' : Set α → Set α → ℝ)
+    (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
+    (hc_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T ∈ Set.Icc 0 1)
+    (hc'_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c' S T = c' T S)
+    (hc'_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c' S T ∈ Set.Icc 0 1)
+    (δ : ℝ) (hδ : ∀ S ∈ P.parts, ∀ T ∈ P.parts, |c S T - c' S T| ≤ δ) :
+    cutNormDiff (mkStepGraphon P c hc_symm hc_mem)
+               (mkStepGraphon P c' hc'_symm hc'_mem) ≤ δ := by
+  -- Derive 0 ≤ δ from hypotheses
+  have hδ_nn : 0 ≤ δ := by
+    -- P.parts is nonempty since we have IsProbabilityMeasure
+    have h_ne : P.parts.Nonempty := by
+      by_contra h
+      rw [Finset.not_nonempty_iff_eq_empty] at h
+      have h_ae := P.ae_covers
+      have : ∀ᵐ _ ∂μ, False := by
+        filter_upwards [h_ae] with x ⟨S, hS, _⟩
+        simp [h] at hS
+      exact absurd this (by
+        rw [Filter.eventually_false_iff_eq_bot]
+        exact (IsProbabilityMeasure.ae_neBot (μ := μ)).ne)
+    obtain ⟨S, hS⟩ := h_ne
+    exact le_trans (abs_nonneg _) (hδ S hS S hS)
+  -- Key: the pointwise difference of the step functions is bounded by δ a.e.
+  have h_diff_ae : ∀ᵐ p ∂(μ.prod μ), |mkStepFun P c p - mkStepFun P c' p| ≤ δ := by
+    have h_fst : ∀ᵐ p ∂(μ.prod μ), ∃ S ∈ P.parts, p.1 ∈ S :=
+      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst P.ae_covers
+    have h_snd : ∀ᵐ p ∂(μ.prod μ), ∃ T ∈ P.parts, p.2 ∈ T :=
+      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd P.ae_covers
+    filter_upwards [h_fst, h_snd] with p ⟨S, hS, hpS⟩ ⟨T, hT, hpT⟩
+    have hp : p ∈ S ×ˢ T := Set.mem_prod.mpr ⟨hpS, hpT⟩
+    rw [mkStepFun_eq_at P c hS hT hp, mkStepFun_eq_at P c' hS hT hp]
+    exact hδ S hS T hT
+  -- Connect AEEqFun to mkStepFun
+  set U := mkStepGraphon P c hc_symm hc_mem
+  set W := mkStepGraphon P c' hc'_symm hc'_mem
+  have hU_eq : ∀ᵐ p ∂(μ.prod μ), U.toAEEqFun p = mkStepFun P c p :=
+    AEEqFun.coeFn_mk (mkStepFun P c) (mkStepFun_measurable P c).aestronglyMeasurable
+  have hW_eq : ∀ᵐ p ∂(μ.prod μ), W.toAEEqFun p = mkStepFun P c' p :=
+    AEEqFun.coeFn_mk (mkStepFun P c') (mkStepFun_measurable P c').aestronglyMeasurable
+  -- The AEEqFun difference is bounded by δ a.e.
+  have h_ae_bound : ∀ᵐ p ∂(μ.prod μ), |U.toAEEqFun p - W.toAEEqFun p| ≤ δ := by
+    filter_upwards [hU_eq, hW_eq, h_diff_ae] with p hU hW hdiff
+    rw [hU, hW]; exact hdiff
+  -- Now unfold cutNormDiff and bound the iSup
+  unfold cutNormDiff
+  apply Real.iSup_le _ hδ_nn; intro S'
+  apply Real.iSup_le _ hδ_nn; intro _
+  apply Real.iSup_le _ hδ_nn; intro T'
+  apply Real.iSup_le _ hδ_nn; intro _
+  simp only [rectIntegralDiff]
+  -- |∫_{S'×T'} (U-W)| ≤ ∫_{S'×T'} |U-W| ≤ ∫_{S'×T'} δ = δ · μ(S'×T') ≤ δ
+  calc |∫ p in S' ×ˢ T', (U.toAEEqFun p - W.toAEEqFun p) ∂(μ.prod μ)|
+      ≤ ∫ p in S' ×ˢ T', |U.toAEEqFun p - W.toAEEqFun p| ∂(μ.prod μ) :=
+        abs_integral_le_integral_abs
+    _ ≤ ∫ _ in S' ×ˢ T', δ ∂(μ.prod μ) := by
+        apply setIntegral_mono_ae_restrict
+        · exact ((SymmKernel.graphon_integrable U).sub
+            (SymmKernel.graphon_integrable W)).abs.integrableOn
+        · exact integrable_const δ
+        · exact ae_restrict_of_ae h_ae_bound
+    _ = (μ.prod μ).real (S' ×ˢ T') * δ := by
+        rw [setIntegral_const, smul_eq_mul]
+    _ ≤ 1 * δ := by
+        apply mul_le_mul_of_nonneg_right _ hδ_nn
+        rw [Measure.real]
+        have h_le : (μ.prod μ) (S' ×ˢ T') ≤ 1 := by
+          calc (μ.prod μ) (S' ×ˢ T') ≤ (μ.prod μ) univ := measure_mono (subset_univ _)
+            _ = 1 := (inferInstance : IsProbabilityMeasure (μ.prod μ)).measure_univ
+        exact ENNReal.toReal_le_of_le_ofReal (by norm_num) (by
+          simp only [ENNReal.ofReal_one]; exact h_le)
+    _ = δ := one_mul δ
 
 /-- The space of graphons is totally bounded with respect to cut distance.
 
@@ -126,38 +286,40 @@ number of parts form an ε-net.
 
 **Proof outline**:
 1. Let k = regularityBound(ε/2) be the max number of partition parts
-2. Step graphons on k parts are determined by k² coefficients in [0,1]
-3. Discretize [0,1] into intervals of width δ (for suitable δ)
-4. This gives finitely many "grid" step graphons
-5. By regularity, any W has a step approximation S with defect ≤ (ε/2)²
-6. The grid point nearest to S is within ε/2 of S in cut distance
-7. Triangle: W is within ε of the grid point
-
-**Depends on**: regularity lemma (has sorry), step graphon construction -/
+2. For any W, regularity gives P_W with ≤ k parts and cutNormDiff ≤ ε/2
+3. stepify P_W W is a step graphon with coefficients in [0,1]
+4. Quantize coefficients to grid with spacing δ, giving ε/2 error in cutNormDiff
+5. Gridpoints on P_W = gridpoints on any other partition up to cutDistance 0
+   (via measure-preserving map between partitions, needs StandardBorelSpace)
+6. Triangle: W within ε of nearest gridpoint -/
 theorem totallyBounded (ε : ℝ) (hε : ε > 0) :
     ∃ (S : Finset (Graphon α μ)), ∀ W : Graphon α μ, ∃ V ∈ S, cutDistance W V ≤ ε := by
-  -- **Proof structure** (regularity → ε-net):
+  -- Fix P₀ from regularity applied to zero graphon. For any W, regularity gives
+  -- P_W with cutNormDiff W (stepify P_W W) ≤ ε/2. Quantize coefficients on P_W
+  -- to a grid. The quantized step graphon (on P_W) can be mapped to a step graphon
+  -- on P₀ with the same coefficients via a measure-preserving rearrangement
+  -- (available on StandardBorelSpace). The finite net on P₀ has (N+1)^{k²} elements.
   --
-  -- Step 1: Let k = regularityBound(ε/2), the max partition size from regularity
-  let k := regularityBound (ε / 2)
-
-  -- Step 2: Step graphons on ≤k parts are determined by ≤k² coefficients in [0,1]
-  -- Quantize [0,1] into grid with spacing δ = ε/(2k²)
-  -- This gives finitely many "grid" step graphons
-
-  -- Step 3: For any graphon W:
-  -- - By regularity, W has partition P with ≤k parts and defect ≤ (ε/2)²
-  -- - The stepified graphon stepify P W is ε/2-close to W in cut norm
-  -- - The grid point nearest to stepify P W differs by at most ε/2 in cut norm
-  -- - By triangle: d(W, grid) ≤ d(W, stepify) + d(stepify, grid) ≤ ε
-
-  -- **Technical requirements**:
-  -- - regularity: gives P with bounded parts and small defect
-  -- - defect_le_cutNorm: defect controls cut norm distance to stepification
-  -- - Grid construction: finite set of step graphons on ≤k parts
+  -- Step 1: Fix reference partition P₀ and grid parameters
+  obtain ⟨P₀, hP₀_card, _⟩ := regularity (zero : Graphon α μ) (ε / 2) (half_pos hε)
+  set k := P₀.parts.card with hk_def
+  -- Grid spacing: ensures cutNormDiff between step graphon and its quantization ≤ ε/2
+  -- We quantize [0,1] into ⌈2/ε⌉ + 1 levels (spacing ≤ ε/2)
+  set N := Nat.ceil (2 / ε) with hN_def
+  -- Step 2: Build the finite net as mkStepGraphon P₀ c for all grid functions c
+  -- A grid function maps pairs of parts to {0, 1/N, 2/N, ..., 1} ⊂ [0,1]
+  -- For each W:
+  --   (a) regularity gives P_W, cutNormDiff W (stepify P_W W) ≤ ε/2
+  --   (b) cutDistance W (stepify P_W W) ≤ ε/2
+  --   (c) round coefficients to grid, getting step graphon on P_W within ε/2 in cutNormDiff
+  --   (d) the rounded step graphon on P_W has cutDistance 0 to same coefficients on P₀
+  --       (via measure-preserving rearrangement of P_W to P₀)
+  --   (e) triangle: cutDistance W (gridpoint on P₀) ≤ ε/2 + ε/2 = ε
   --
-  -- The grid construction requires building Graphons from step functions,
-  -- which needs the full stepification machinery (currently deferred).
+  -- The formal construction of the finite net from grid functions and the
+  -- measure-preserving map between partitions (step d) requires infrastructure
+  -- for mapping between partitions on StandardBorelSpace, which in turn relies
+  -- on Rokhlin's theorem (already axiomatized in CutDistance.lean).
   sorry
 
 end TotalBoundedness
@@ -166,7 +328,7 @@ end TotalBoundedness
 
 section Completeness
 
-variable [IsProbabilityMeasure μ]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α]
 
 /-- A sequence of graphons is Cauchy with respect to cut distance. -/
 def IsCauchy (W : ℕ → Graphon α μ) : Prop :=

@@ -80,6 +80,20 @@ noncomputable def homDensityIntegrand (F : SimpleGraph V) [DecidableRel F.Adj]
 theorem homDensity_eq_integral (F : SimpleGraph V) [DecidableRel F.Adj] (W : Graphon α μ) :
     homDensity F W = ∫ x, homDensityIntegrand F W x ∂Measure.pi (fun _ => μ) := rfl
 
+/-- `homDensity` is independent of the `DecidableRel` instance used.
+
+Since `edgeFinset` is determined by `edgeSet` (a propositional `Set`),
+different `DecidableRel` instances for the same adjacency relation yield
+the same `homDensity`. -/
+theorem homDensity_congr_decRel (F : SimpleGraph V)
+    (inst₁ inst₂ : DecidableRel F.Adj) (W : Graphon α μ) :
+    @homDensity α _ μ V _ F inst₁ W = @homDensity α _ μ V _ F inst₂ W := by
+  unfold homDensity
+  congr 1; ext x; congr 1
+  apply Finset.ext
+  intro e
+  simp only [SimpleGraph.mem_edgeFinset]
+
 /-- The homomorphism density of the empty graph is 1.
 
 An empty graph has no edges, so the integrand is a product over an empty set,
@@ -315,5 +329,173 @@ theorem homDensity_mem_Icc (F : SimpleGraph V) [DecidableRel F.Adj] (W : Graphon
   ⟨homDensity_nonneg F W, homDensity_le_one F W⟩
 
 end HomDensity
+
+section HomDensityMap
+
+variable {V : Type*} [Fintype V] [DecidableEq V]
+variable {W' : Type*} [Fintype W'] [DecidableEq W']
+
+/-- Mapping a graph along an embedding preserves homomorphism density.
+
+If `σ : V ↪ W'` is an embedding and `F : SimpleGraph V`, then
+`homDensity (F.map σ) G = homDensity F G` for any graphon `G`.
+
+**Proof sketch**: The integrand of `homDensity (F.map σ) G` is
+`∏_{e' ∈ (F.map σ).edgeFinset} G(y(e'.1), y(e'.2))`.
+Since `(F.map σ).edgeFinset = F.edgeFinset.map σ.sym2Map`, this equals
+`∏_{e ∈ F.edgeFinset} G(y(σ(e.1)), y(σ(e.2)))`.
+The integrand depends on `y : W' → α` only through `y ∘ σ : V → α`.
+By splitting the product measure `μ^W'` via `piEquivPiSubtypeProd` into
+`μ^(range σ) × μ^(range σ)ᶜ` and using that the integrand is independent
+of the complement coordinates, the integral over the complement gives
+`μ(univ)^|W' \ range σ| = 1` (since `μ` is a probability measure),
+leaving `∫_{x : V → α} ∏_{e ∈ F.edgeFinset} G(x(e.1), x(e.2)) dμ^V = homDensity F G`.
+
+The proof uses `map_precomp_pi_eq`: the pushforward of `μ^W'` under `(· ∘ f)` equals `μ^V`. -/
+-- Increase heartbeats for the complex proof below
+theorem homDensity_map_embedding (F : SimpleGraph V) [DecidableRel F.Adj]
+    (f : V ↪ W') (G : Graphon α μ) :
+    homDensity (F.map f) G = homDensity F G := by
+  simp only [homDensity, SimpleGraph.edgeFinset_map, Finset.prod_map]
+  -- Now LHS = ∫ y, ∏ e ∈ F.edgeFinset,
+  --   G(y ((f.sym2Map e).out.1), y ((f.sym2Map e).out.2)) dμ^W'
+  -- RHS = ∫ x, ∏ e ∈ F.edgeFinset, G(x (e.out.1), x (e.out.2)) dμ^V
+  -- Step 1: Show the LHS integrand equals (RHS integrand) ∘ (· ∘ f), a.e.
+  -- For each e ∈ F.edgeFinset, f.sym2Map e = s(f a, f b) where e = s(a, b).
+  -- So (f.sym2Map e).out is either (f a, f b) or (f b, f a).
+  -- In either case, G(y out.1, y out.2) = G(y (f a), y (f b)) a.e. by symmetry.
+  have h_ae_eq : ∀ᵐ y ∂Measure.pi (fun _ : W' => μ),
+      ∏ e ∈ F.edgeFinset,
+        G.toAEEqFun (y ((f.sym2Map e).out.1), y ((f.sym2Map e).out.2)) =
+      ∏ e ∈ F.edgeFinset,
+        G.toAEEqFun (y (f (Quot.out e).1), y (f (Quot.out e).2)) := by
+    -- For each edge e, Quot.out(f.sym2Map e) is Sym2.Rel to (f out.1, f out.2)
+    have h_rel : ∀ e : Sym2 V,
+        Sym2.Rel W' (Quot.out (f.sym2Map e)) (f (Quot.out e).1, f (Quot.out e).2) := by
+      intro e
+      apply (Equivalence.quot_mk_eq_iff Sym2.Rel.is_equivalence _ _).mp
+      simp only [Quot.out_eq]
+      change f.sym2Map e = f.sym2Map (Quot.mk _ (Quot.out e))
+      congr 1; exact (Quot.out_eq e).symm
+    -- So either equal or swapped
+    have h_eq_or_swap : ∀ e : Sym2 V,
+        (Quot.out (f.sym2Map e) = (f (Quot.out e).1, f (Quot.out e).2)) ∨
+        (Quot.out (f.sym2Map e) = (f (Quot.out e).2, f (Quot.out e).1)) := by
+      intro e; rcases Sym2.rel_iff'.mp (h_rel e) with h | h
+      · left; exact h
+      · right; simpa [Prod.swap] using h
+    -- For each edge, factor equality holds a.e. (using G.symm_ae for swap case)
+    have h_factor_ae : ∀ e ∈ F.edgeFinset,
+        ∀ᵐ y ∂Measure.pi (fun _ : W' => μ),
+          G.toAEEqFun (y (Quot.out (f.sym2Map e)).1, y (Quot.out (f.sym2Map e)).2) =
+          G.toAEEqFun (y (f (Quot.out e).1), y (f (Quot.out e).2)) := by
+      intro e he
+      rcases h_eq_or_swap e with h | h
+      · filter_upwards with y; simp only [h]
+      · have hne : f (Quot.out e).1 ≠ f (Quot.out e).2 := by
+          intro heq; exact absurd (f.injective heq)
+            (edge_out_ne (SimpleGraph.mem_edgeFinset.mp he))
+        have h_qmp : Measure.QuasiMeasurePreserving
+            (fun x : W' → α => (x (f (Quot.out e).1), x (f (Quot.out e).2)))
+            (Measure.pi (fun _ : W' => μ)) (μ.prod μ) := by
+          refine ⟨Measurable.prodMk (measurable_pi_apply _) (measurable_pi_apply _), ?_⟩
+          have h_indep := (ProbabilityTheory.iIndepFun_pi (μ := fun _ : W' => μ)
+            (fun _ => aemeasurable_id)).indepFun hne
+          simp only [id_eq] at h_indep
+          rw [ProbabilityTheory.indepFun_iff_map_prod_eq_prod_map_map
+            (measurable_pi_apply _).aemeasurable
+            (measurable_pi_apply _).aemeasurable] at h_indep
+          rw [h_indep, (measurePreserving_eval (fun _ : W' => μ) _).map_eq,
+              (measurePreserving_eval (fun _ : W' => μ) _).map_eq]
+        filter_upwards [h_qmp.ae G.symm_ae] with y hy
+        conv_lhs =>
+          rw [show (Quot.out (f.sym2Map e)).1 = f (Quot.out e).2 from congrArg Prod.fst h,
+              show (Quot.out (f.sym2Map e)).2 = f (Quot.out e).1 from congrArg Prod.snd h]
+        exact hy
+    -- Finite intersection via induction on the edge set
+    have h_all : ∀ᵐ y ∂Measure.pi (fun _ : W' => μ), ∀ e ∈ F.edgeFinset,
+        G.toAEEqFun (y (Quot.out (f.sym2Map e)).1, y (Quot.out (f.sym2Map e)).2) =
+        G.toAEEqFun (y (f (Quot.out e).1), y (f (Quot.out e).2)) := by
+      have aux : ∀ (s : Finset (Sym2 V)),
+          (∀ e ∈ s, ∀ᵐ y ∂Measure.pi (fun _ : W' => μ),
+            G.toAEEqFun (y (Quot.out (f.sym2Map e)).1, y (Quot.out (f.sym2Map e)).2) =
+            G.toAEEqFun (y (f (Quot.out e).1), y (f (Quot.out e).2))) →
+          ∀ᵐ y ∂Measure.pi (fun _ : W' => μ), ∀ e ∈ s,
+            G.toAEEqFun (y (Quot.out (f.sym2Map e)).1, y (Quot.out (f.sym2Map e)).2) =
+            G.toAEEqFun (y (f (Quot.out e).1), y (f (Quot.out e).2)) := by
+        intro s; refine Finset.induction_on s (fun _ => by simp) (fun a s' _ ih hs => ?_)
+        simp only [Finset.mem_insert, forall_eq_or_imp] at hs ⊢
+        filter_upwards [hs.1, ih hs.2] with x hx1 hx2; exact ⟨hx1, hx2⟩
+      exact aux F.edgeFinset h_factor_ae
+    filter_upwards [h_all] with y hy
+    exact Finset.prod_congr rfl hy
+  -- Step 2: Change of variables
+  -- Measure.map (· ∘ f) μ^W' = μ^V, so ∫ y, g (y ∘ f) dμ^W' = ∫ x, g x dμ^V
+  have h_map : Measure.map (· ∘ ⇑f) (Measure.pi (fun _ : W' => μ)) =
+      Measure.pi (fun _ : V => μ) := by
+    have h_meas : Measurable (fun y : W' → α => y ∘ ⇑f) :=
+      measurable_pi_iff.mpr (fun v => measurable_pi_apply (f v))
+    symm; refine Measure.pi_eq (fun s hs => ?_)
+    rw [Measure.map_apply h_meas (MeasurableSet.pi Set.countable_univ (fun v _ => hs v))]
+    -- Preimage: (· ∘ f)⁻¹'(pi univ s) = pi univ t where t constrains only range f coords
+    have h_pre : (fun y : W' → α => y ∘ ⇑f) ⁻¹' (Set.pi Set.univ s) =
+        Set.pi Set.univ (fun w : W' => if h : w ∈ Set.range (⇑f) then
+          s (f.invOfMemRange ⟨w, h⟩) else Set.univ) := by
+      ext y; simp only [Set.mem_preimage, Set.mem_pi, Set.mem_univ, Function.comp, true_implies]
+      constructor
+      · intro hy w; by_cases hw : w ∈ Set.range (⇑f)
+        · simp only [hw, dif_pos]; obtain ⟨v, rfl⟩ := hw
+          rw [f.right_inv_of_invOfMemRange]; exact hy v
+        · simp only [hw, dif_neg, not_false_eq_true]; exact Set.mem_univ _
+      · intro hy v
+        have h1 := hy (f v)
+        simp only [Set.mem_range_self, dif_pos] at h1
+        rwa [f.right_inv_of_invOfMemRange] at h1
+    rw [h_pre, Measure.pi_pi]
+    -- Goal: ∏ w : W', μ (t w) = ∏ v : V, μ (s v)
+    -- Split: ∏ w, μ (t w) = (∏ w ∈ range f, μ (s (f⁻¹ w))) * (∏ w ∉ range f, 1)
+    trans (∏ v : V, μ (s v)) * 1
+    · rw [← Fintype.prod_subtype_mul_prod_subtype (fun w : W' => w ∈ Set.range (⇑f))]
+      congr 1
+      · -- Range f terms: reindex via f
+        -- Need to handle Fintype instance mismatch between Subtype.fintype and fintypeRange
+        have : Subtype.fintype (· ∈ Set.range (⇑f)) = fintypeRange (⇑f) :=
+          Subsingleton.elim _ _
+        rw [this]
+        refine (Fintype.prod_equiv (Equiv.ofInjective (⇑f) f.injective)
+          (fun v => μ (s v))
+          (fun w => μ (if h : (w : W') ∈ Set.range (⇑f) then
+            s (f.invOfMemRange ⟨↑w, h⟩) else Set.univ)) (fun v => ?_)).symm
+        simp only [Equiv.ofInjective_apply, Subtype.coe_mk, Set.mem_range_self, dif_pos,
+          f.right_inv_of_invOfMemRange]
+      · -- Complement terms: μ(univ) = 1
+        apply Finset.prod_eq_one; intro ⟨w, hw⟩ _
+        simp only [hw, dif_neg, not_false_eq_true, measure_univ]
+    · ring
+  -- Combine: ∫ y, LHS_integrand(y) dμ^W'
+  --        = ∫ y, RHS_integrand(y ∘ f) dμ^W'    (by step 1)
+  --        = ∫ x, RHS_integrand(x) dμ^V          (by step 2)
+  calc ∫ y, ∏ e ∈ F.edgeFinset,
+          G.toAEEqFun (y ((f.sym2Map e).out.1), y ((f.sym2Map e).out.2))
+        ∂Measure.pi (fun _ : W' => μ)
+      = ∫ y, ∏ e ∈ F.edgeFinset,
+          G.toAEEqFun (y (f (Quot.out e).1), y (f (Quot.out e).2))
+        ∂Measure.pi (fun _ : W' => μ) := by
+        exact integral_congr_ae h_ae_eq
+    _ = ∫ y, (fun x => ∏ e ∈ F.edgeFinset,
+          G.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) (y ∘ ⇑f)
+        ∂Measure.pi (fun _ : W' => μ) := by
+        rfl
+    _ = ∫ x, ∏ e ∈ F.edgeFinset,
+          G.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)
+        ∂Measure.pi (fun _ : V => μ) := by
+        rw [← h_map]
+        rw [integral_map]
+        · exact (measurable_pi_iff.mpr (fun v => measurable_pi_apply (f v))).aemeasurable
+        · rw [h_map]
+          exact (homDensityIntegrand_integrable F G).aestronglyMeasurable
+
+
+end HomDensityMap
 
 end Graphon

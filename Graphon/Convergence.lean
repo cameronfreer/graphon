@@ -54,9 +54,12 @@ variable [IsProbabilityMeasure μ]
 def IsConvergent (W : ℕ → Graphon α μ) : Prop :=
   ∃ V : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε
 
-/-- A sequence of graphons has convergent homomorphism densities for all graphs. -/
+/-- A sequence of graphons has convergent homomorphism densities for all graphs.
+
+Quantifies over graphs on `Fin k` for all `k : ℕ`; this is equivalent to
+quantifying over all finite types since every `Fintype` embeds into some `Fin k`. -/
 def HasConvergentHomDensities (W : ℕ → Graphon α μ) : Prop :=
-  ∀ (V : Type*) [Fintype V] [DecidableEq V] (F : SimpleGraph V) [DecidableRel F.Adj],
+  ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
     ∃ L : ℝ, ∀ ε > 0, ∃ N, ∀ n ≥ N, |homDensity F (W n) - L| < ε
 
 /-- Main theorem: cut distance convergence is equivalent to homomorphism
@@ -64,12 +67,12 @@ def HasConvergentHomDensities (W : ℕ → Graphon α μ) : Prop :=
 
 A sequence of graphons converges in cut distance if and only if all
 homomorphism densities converge. -/
-theorem converges_iff_homDensity (W : ℕ → Graphon α μ) :
+theorem converges_iff_homDensity [StandardBorelSpace α] (W : ℕ → Graphon α μ) :
     IsConvergent W ↔ HasConvergentHomDensities W := by
   constructor
   · -- Forward direction: counting lemma
     intro ⟨V, hV⟩
-    intro VV _ _ F _
+    intro k F _
     use homDensity F V
     intro ε hε
     -- By counting lemma: |t(F, Wₙ) - t(F, V)| ≤ |E(F)| · δ□(Wₙ, V)
@@ -81,8 +84,7 @@ theorem converges_iff_homDensity (W : ℕ → Graphon α μ) :
       intro n _
       have h_empty : F.edgeFinset = ∅ := Finset.card_eq_zero.mp hF
       simp only [homDensity_eq_integral, homDensityIntegrand, h_empty, Finset.prod_empty,
-          integral_const, smul_eq_mul, mul_one, Measure.pi_univ, measure_univ, ENNReal.toReal_one,
-          sub_self, abs_zero, hε]
+          integral_const, smul_eq_mul, mul_one, sub_self, abs_zero, hε]
     · -- Non-empty graph: use counting lemma
       have hcard_pos : (0 : ℝ) < F.edgeFinset.card := Nat.cast_pos.mpr (Nat.pos_of_ne_zero hF)
       obtain ⟨N, hN⟩ := hV (ε / F.edgeFinset.card) (div_pos hε hcard_pos)
@@ -94,11 +96,80 @@ theorem converges_iff_homDensity (W : ℕ → Graphon α μ) :
         _ < F.edgeFinset.card * (ε / F.edgeFinset.card) := by
             apply mul_lt_mul_of_pos_left (hN n hn) hcard_pos
         _ = ε := mul_div_cancel₀ ε (ne_of_gt hcard_pos)
-  · -- Backward direction: inverse counting lemma + completeness
+  · -- Backward direction: inverse counting lemma + compactness
     intro hconv
-    -- Use inverse counting to show sequence is Cauchy
-    -- Then use completeness to get limit
-    sorry
+    -- Step 1: Extract convergent subsequence by compactness
+    obtain ⟨V, φ, hφ_mono, hφ_conv⟩ := compact W
+    -- Step 2: By counting lemma (forward), the subsequence's hom densities converge to V's
+    -- Step 3: By uniqueness of convergent subsequence limits, the full sequence converges
+    -- V is the limit: show ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε
+    -- Use cutDistance_tendsto_iff_homDensity_tendsto (backward direction)
+    refine ⟨V, ?_⟩
+    rw [show (∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε) ↔
+        (∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
+         ∀ ε > 0, ∃ N, ∀ n ≥ N, |homDensity F (W n) - homDensity F V| < ε) from
+      cutDistance_tendsto_iff_homDensity_tendsto W V]
+    -- Need: ∀ k F on Fin k, ∀ ε > 0, ∃ N, ∀ n ≥ N, |t(F, W n) - t(F, V)| < ε
+    intro k F _ ε hε
+    -- hconv gives: ∃ L_F, hom densities of W converge to L_F
+    -- hφ_conv + counting lemma: hom densities of W ∘ φ converge to t(F, V)
+    -- By uniqueness: L_F = t(F, V)
+    -- So the full sequence hom densities converge to t(F, V)
+    -- Get the limit L_F from hconv
+    obtain ⟨L_F, hL_F⟩ := hconv k F
+    -- Show L_F = homDensity F V by using the subsequence
+    have hL_eq : L_F = homDensity F V := by
+      -- The subsequence W ∘ φ → V in cutDistance
+      -- By counting lemma: homDensity F (W (φ n)) → homDensity F V
+      -- But also homDensity F (W (φ n)) → L_F (subsequence of convergent sequence)
+      -- By uniqueness of limits: L_F = homDensity F V
+      by_contra h_ne
+      set δ := |L_F - homDensity F V| / 2 with hδ_def
+      have hδ_pos : δ > 0 := div_pos (abs_pos.mpr (sub_ne_zero.mpr h_ne)) two_pos
+      -- Get N₁ such that |t(F, W n) - L_F| < δ for n ≥ N₁
+      obtain ⟨N₁, hN₁⟩ := hL_F δ hδ_pos
+      -- Get N₂ such that |t(F, W(φ n)) - t(F, V)| < δ for n ≥ N₂
+      -- (from counting lemma applied to convergent subsequence)
+      by_cases hF_card : F.edgeFinset.card = 0
+      · -- Empty graph case: all homDensity F U are equal (constant integrand)
+        have h_empty : F.edgeFinset = ∅ := Finset.card_eq_zero.mp hF_card
+        have h_const : ∀ (U : Graphon α μ), homDensity F U = ∫ _ : Fin k → α, 1 ∂Measure.pi (fun _ => μ) := by
+          intro U; simp [homDensity_eq_integral, homDensityIntegrand, h_empty]
+        -- Since all hom densities are equal, L_F must be this constant
+        -- and homDensity F V is also this constant, so L_F = homDensity F V
+        apply h_ne
+        specialize hN₁ N₁ (le_refl _)
+        rw [h_const (W N₁), abs_sub_comm] at hN₁
+        -- hN₁ : |L_F - ∫ 1| < δ
+        -- Unfold δ = |L_F - homDensity F V| / 2 and rewrite homDensity F V
+        rw [hδ_def, h_const V] at hN₁
+        -- hN₁ : |L_F - ∫ 1| < |L_F - ∫ 1| / 2
+        rw [h_const V]
+        linarith [abs_nonneg (L_F - ∫ _ : Fin k → α, (1 : ℝ) ∂Measure.pi (fun _ => μ))]
+      · have hcard_pos : (0 : ℝ) < F.edgeFinset.card :=
+          Nat.cast_pos.mpr (Nat.pos_of_ne_zero hF_card)
+        obtain ⟨N₂, hN₂⟩ := hφ_conv (δ / F.edgeFinset.card) (div_pos hδ_pos hcard_pos)
+        set n := max N₁ N₂
+        have h1 : |homDensity F (W (φ n)) - L_F| < δ :=
+          hN₁ (φ n) (le_trans (le_trans (le_max_left _ _) (hφ_mono.id_le n)) (le_refl _))
+        have h2 : |homDensity F (W (φ n)) - homDensity F V| < δ := by
+          calc |homDensity F (W (φ n)) - homDensity F V|
+              ≤ F.edgeFinset.card * cutDistance (W (φ n)) V :=
+                homDensity_sub_le_of_cutDistance F (W (φ n)) V
+            _ < F.edgeFinset.card * (δ / F.edgeFinset.card) := by
+                apply mul_lt_mul_of_pos_left (hN₂ n (le_max_right _ _)) hcard_pos
+            _ = δ := mul_div_cancel₀ δ (ne_of_gt hcard_pos)
+        -- |L_F - t(F,V)| ≤ |L_F - t(F, W(φn))| + |t(F, W(φn)) - t(F,V)| < δ + δ = 2δ
+        -- But 2δ = |L_F - t(F,V)|, so |L_F - t(F,V)| < |L_F - t(F,V)|, contradiction
+        have h3 : |L_F - homDensity F V| ≤
+            |L_F - homDensity F (W (φ n))| + |homDensity F (W (φ n)) - homDensity F V| := by
+          calc |L_F - homDensity F V|
+              = |(L_F - homDensity F (W (φ n))) + (homDensity F (W (φ n)) - homDensity F V)| := by ring_nf
+            _ ≤ _ := abs_add_le _ _
+        rw [abs_sub_comm] at h1
+        linarith
+    rw [hL_eq] at hL_F
+    exact hL_F ε hε
 
 /-- Convergent sequences are Cauchy. -/
 theorem IsConvergent.isCauchy [StandardBorelSpace α] (W : ℕ → Graphon α μ) (h : IsConvergent W) :
@@ -115,7 +186,7 @@ theorem IsConvergent.isCauchy [StandardBorelSpace α] (W : ℕ → Graphon α μ
     _ = ε := add_halves ε
 
 /-- Cauchy sequences are convergent (completeness). -/
-theorem IsCauchy.isConvergent (W : ℕ → Graphon α μ) (h : IsCauchy W) :
+theorem IsCauchy.isConvergent [StandardBorelSpace α] (W : ℕ → Graphon α μ) (h : IsCauchy W) :
     IsConvergent W := by
   obtain ⟨V, hV⟩ := complete W h
   exact ⟨V, hV⟩
