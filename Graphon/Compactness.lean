@@ -476,12 +476,26 @@ theorem totallyBounded (ε : ℝ) (hε : ε > 0) :
             rw [hV_dist]; ring
         _ ≤ ε₂ + ε / 2 + 0 := by linarith [h_cd_step, h_cd_round]
         _ = ε := by rw [hε₂_def]; ring⟩
-  -- Partition transfer: V_round on P_W matches some net element on P₀.
-  -- By Rokhlin's theorem (standard Borel probability spaces are isomorphic to [0,1]),
-  -- there exists a MP bijection mapping P_W-cells to P₀-cells. Under this bijection,
-  -- V_round transfers to a step graphon on P₀ with the same grid coefficients,
-  -- which is in the net by construction. See `MeasurePreserving.exists_common_extension`
-  -- in `CutDistance.lean` for the underlying Rokhlin axiom.
+  -- **Partition transfer**: V_round on P_W matches some net element on P₀ in cutDistance 0.
+  --
+  -- **Proof sketch** (from Rokhlin's theorem):
+  -- 1. By `MeasurePreserving.exists_common_extension` (Rokhlin axiom, CutDistance.lean),
+  --    any standard Borel probability space (α, μ) is measure-theoretically isomorphic
+  --    to [0,1] with Lebesgue measure.
+  -- 2. Map P_W to a partition of [0,1] via a MP bijection ψ_W : α ≃ᵐ [0,1].
+  --    Similarly map P₀ via ψ₀.
+  -- 3. On [0,1], two measurable partitions with matching sorted cell-measure vectors
+  --    are related by a MP bijection (interval rearrangement).
+  -- 4. The composition ψ₀⁻¹ ∘ (rearrangement) ∘ ψ_W gives a MP bijection χ : α → α
+  --    mapping P_W-cells to P₀-cells with matching measures.
+  -- 5. pullback V_round χ is a step graphon on P₀ with the same grid coefficients,
+  --    hence in the net (choose f to match the coefficient matrix).
+  -- 6. cutDistance(V_round, pullback V_round χ) = 0 since one is a pullback of the other.
+  --
+  -- **Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin axiom).
+  -- The partition transfer is a direct consequence of the same axiom that
+  -- `cutDistance_triangle` depends on. Both derive from Rokhlin's classification
+  -- of standard Borel probability spaces.
   sorry
 
 end TotalBoundedness
@@ -500,19 +514,23 @@ def IsCauchy (W : ℕ → Graphon α μ) : Prop :=
 has a limit in cutDistance.
 
 **Sorry**: This is the core limit construction for graphon completeness.
-The standard proof (Lovász [2012], Proposition 9.17) proceeds:
-1. For each precision k, regularity gives step approximation with ≤ M(k) parts
-2. Rectangle averages of W_n on the regularity partition are in [0,1]
-3. Diagonal extraction over increasing scales: extract subsequence where all averages converge
-4. Limiting averages define a step function at each scale
-5. Step functions form a Cauchy sequence in L² (for step functions on a fixed partition,
-   cut norm and L² norm are equivalent up to partition-dependent constants)
-6. L² completeness gives limit V
-7. V ∈ [0,1] a.e. and symmetric, hence a graphon
-8. cutDistance(W_n, V) → 0 via triangle through step approximations
+The proof decomposes into two independent components:
 
-**Depends on**: Rokhlin's theorem (for aligning partitions across different graphons),
-which is already axiomatized as `MeasurePreserving.exists_common_extension`. -/
+(a) **Rokhlin alignment** (from `MeasurePreserving.exists_common_extension`):
+    Build aligned sequence `V_k := pullback (W k) (e_k)` via inductive application
+    of `exists_common_extension` and `cutDistance_lt_add_of_pos`, following the same
+    pattern as `cutDistance_triangle`. The aligned sequence satisfies
+    `cutNormDiff(V_k, V_{k+1}) ≤ cutDistance(W k, W(k+1)) + 1/3^k`, hence
+    `∑ cutNormDiff(V_k, V_{k+1}) < ∞`.
+
+(b) **cutNormDiff limit construction** (Radon-Nikodym on product spaces):
+    Given `∑ cutNormDiff(V_k, V_{k+1}) < ∞`, for each measurable S, T the sequence
+    `∫_{S×T} V_k` converges. The limiting functional extends to a signed measure
+    absolutely continuous w.r.t. μ ⊗ μ, whose Radon-Nikodym density V is the limit
+    graphon. Then `cutDistance(W k, V) ≤ cutNormDiff(V_k, V) → 0`.
+
+**Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin axiom, sorry'd
+in CutDistance.lean). See Lovász [2012], Proposition 9.17. -/
 private theorem exists_limit_of_rapid_convergence (W : ℕ → Graphon α μ)
     (h_rapid : ∀ k : ℕ, cutDistance (W (k + 1)) (W k) ≤ 1 / 2 ^ k) :
     ∃ V : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε := by
