@@ -1107,6 +1107,30 @@ theorem cutNormDiff_pullback_measurableEquiv (U W : Graphon α μ)
         ← rect_eq hS₀ hT₀]
     exact abs_rectIntegralDiff_le (pullback U e he) (pullback W e he) hS₀ hT₀
 
+/-- Cut distance from a graphon to its pullback by a MP bijection is zero.
+
+For any graphon V and measure-preserving bijection e, `δ□(V, V^e) = 0`.
+
+**Proof**: Use φ = id and ψ = e⁻¹ as witnesses in the cutDistance infimum.
+Then `V^id = V` and `(V^e)^{e⁻¹} = V^{e ∘ e⁻¹} = V^id = V`,
+so `‖V − V‖_□ = 0`. -/
+theorem cutDistance_pullback_eq_zero (V : Graphon α μ) (e : α ≃ᵐ α)
+    (he : MeasurePreserving e μ μ) :
+    cutDistance V (pullback V e he) = 0 := by
+  have he_symm : MeasurePreserving e.symm μ μ := he.symm e
+  apply le_antisymm
+  · have h_comp_eq : pullback V (↑e ∘ ↑e.symm) (he.comp he_symm) = V := by
+      apply Graphon.ext; apply SymmKernel.ext; apply AEEqFun.ext
+      filter_upwards [pullback_ae V (↑e ∘ ↑e.symm) (he.comp he_symm)] with p hp
+      rw [hp]; simp
+    unfold cutDistance
+    apply csInf_le
+    · use 0; intro d ⟨φ, ψ, hφ, hψ, hd⟩; rw [hd]; exact cutNormDiff_nonneg _ _
+    · refine ⟨id, ↑e.symm, MeasurePreserving.id μ, he_symm, ?_⟩
+      rw [pullback_id, pullback_pullback V (↑e) he (↑e.symm) he_symm, h_comp_eq,
+          cutNormDiff_self]
+  · exact cutDistance_nonneg _ _
+
 /-- For any ε > 0, there exist measure-preserving maps achieving cutDistance + ε. -/
 theorem cutDistance_lt_add_of_pos (U W : Graphon α μ) {ε : ℝ} (hε : 0 < ε) :
     ∃ (φ ψ : α → α) (hφ : MeasurePreserving φ μ μ) (hψ : MeasurePreserving ψ μ μ),

@@ -479,23 +479,17 @@ theorem totallyBounded (ε : ℝ) (hε : ε > 0) :
   -- **Partition transfer**: V_round on P_W matches some net element on P₀ in cutDistance 0.
   --
   -- **Proof sketch** (from Rokhlin's theorem):
-  -- 1. By `MeasurePreserving.exists_common_extension` (Rokhlin axiom, CutDistance.lean),
-  --    any standard Borel probability space (α, μ) is measure-theoretically isomorphic
-  --    to [0,1] with Lebesgue measure.
-  -- 2. Map P_W to a partition of [0,1] via a MP bijection ψ_W : α ≃ᵐ [0,1].
-  --    Similarly map P₀ via ψ₀.
-  -- 3. On [0,1], two measurable partitions with matching sorted cell-measure vectors
-  --    are related by a MP bijection (interval rearrangement).
-  -- 4. The composition ψ₀⁻¹ ∘ (rearrangement) ∘ ψ_W gives a MP bijection χ : α → α
-  --    mapping P_W-cells to P₀-cells with matching measures.
-  -- 5. pullback V_round χ is a step graphon on P₀ with the same grid coefficients,
-  --    hence in the net (choose f to match the coefficient matrix).
-  -- 6. cutDistance(V_round, pullback V_round χ) = 0 since one is a pullback of the other.
+  -- By Rokhlin's theorem (same axiom as `MeasurePreserving.exists_common_extension`),
+  -- any standard Borel probability space is isomorphic to [0,1] with Lebesgue measure.
+  -- This gives a MP bijection e : α ≃ᵐ α mapping P₀-cells into P_W-cells.
+  -- Then `pullback V_round e` is a step graphon on P₀ whose coefficients are the
+  -- same roundCoeff values (of the form m/N with m ≤ N). Choosing f with
+  -- f(a,b) = f(b,a) = m gives toCoeff f = m/N, matching the pullback coefficients.
+  -- By `cutDistance_pullback_eq_zero`, cutDistance V_round (pullback V_round e) = 0.
   --
-  -- **Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin axiom).
-  -- The partition transfer is a direct consequence of the same axiom that
-  -- `cutDistance_triangle` depends on. Both derive from Rokhlin's classification
-  -- of standard Borel probability spaces.
+  -- **Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin axiom,
+  -- sorry'd in CutDistance.lean). The partition transfer is a direct consequence
+  -- of the same axiom that `cutDistance_triangle` depends on.
   sorry
 
 end TotalBoundedness
@@ -510,31 +504,59 @@ variable [IsProbabilityMeasure μ] [StandardBorelSpace α]
 def IsCauchy (W : ℕ → Graphon α μ) : Prop :=
   ∀ ε > 0, ∃ N, ∀ m n, m ≥ N → n ≥ N → cutDistance (W m) (W n) < ε
 
+/-- Alignment + limit for rapidly converging graphon sequences.
+
+Given rapid cutDistance convergence (`∑ d(W_{k+1}, W_k) < ∞`), there exist
+measure-preserving maps `e_k` and a limit graphon `V` such that
+`cutNormDiff(pullback(W_k, e_k), V) → 0`.
+
+**Sorry**: The proof requires two independent components:
+
+(a) **Rokhlin alignment**: Build aligned maps `e_k` by inductive application of
+    `MeasurePreserving.exists_common_extension` (sorry'd in CutDistance.lean),
+    following the pattern of `cutDistance_triangle`. The aligned sequence satisfies
+    `∑ cutNormDiff(V_k, V_{k+1}) < ∞` where `V_k = pullback (W k) (e_k)`.
+
+(b) **Radon-Nikodym limit**: Given `∑ cutNormDiff(V_k, V_{k+1}) < ∞`, construct
+    the limit graphon via convergence of rectangle integrals and Radon-Nikodym
+    differentiation on the product space.
+
+See Lovász [2012], Proposition 9.17 for the mathematical argument.
+
+**Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin axiom). -/
+private theorem exists_aligned_cutNormDiff_limit
+    (W : ℕ → Graphon α μ)
+    (h_rapid : ∀ k : ℕ, cutDistance (W (k + 1)) (W k) ≤ 1 / 2 ^ k) :
+    ∃ (V : Graphon α μ) (e : (k : ℕ) → (α → α)) (he : ∀ k, MeasurePreserving (e k) μ μ),
+      ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (pullback (W n) (e n) (he n)) V < ε := by
+  sorry
+
 /-- A rapidly converging sequence of graphons (with `∑ cutDistance(W_{n+1}, W_n)` finite)
 has a limit in cutDistance.
 
-**Sorry**: This is the core limit construction for graphon completeness.
-The proof decomposes into two independent components:
-
-(a) **Rokhlin alignment** (from `MeasurePreserving.exists_common_extension`):
-    Build aligned sequence `V_k := pullback (W k) (e_k)` via inductive application
-    of `exists_common_extension` and `cutDistance_lt_add_of_pos`, following the same
-    pattern as `cutDistance_triangle`. The aligned sequence satisfies
-    `cutNormDiff(V_k, V_{k+1}) ≤ cutDistance(W k, W(k+1)) + 1/3^k`, hence
-    `∑ cutNormDiff(V_k, V_{k+1}) < ∞`.
-
-(b) **cutNormDiff limit construction** (Radon-Nikodym on product spaces):
-    Given `∑ cutNormDiff(V_k, V_{k+1}) < ∞`, for each measurable S, T the sequence
-    `∫_{S×T} V_k` converges. The limiting functional extends to a signed measure
-    absolutely continuous w.r.t. μ ⊗ μ, whose Radon-Nikodym density V is the limit
-    graphon. Then `cutDistance(W k, V) ≤ cutNormDiff(V_k, V) → 0`.
-
-**Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin axiom, sorry'd
-in CutDistance.lean). See Lovász [2012], Proposition 9.17. -/
+**Proof**: Apply `exists_aligned_cutNormDiff_limit` to get a limit graphon `V` and
+aligning maps `e_k` with `cutNormDiff(pullback (W k) (e_k), V) → 0`. Then
+`cutDistance(W k, V) ≤ cutNormDiff(pullback (W k) (e_k), V) → 0`, since the maps
+`(e_k, id)` are valid witnesses in the cutDistance infimum. -/
 private theorem exists_limit_of_rapid_convergence (W : ℕ → Graphon α μ)
     (h_rapid : ∀ k : ℕ, cutDistance (W (k + 1)) (W k) ≤ 1 / 2 ^ k) :
     ∃ V : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε := by
-  sorry
+  obtain ⟨V, e, he, hconv⟩ := exists_aligned_cutNormDiff_limit W h_rapid
+  refine ⟨V, fun ε hε => ?_⟩
+  obtain ⟨N, hN⟩ := hconv ε hε
+  refine ⟨N, fun n hn => ?_⟩
+  -- cutDistance(W n, V) ≤ cutNormDiff(pullback (W n) (e n), V) < ε
+  -- using (e n, id) as witnesses in the cutDistance infimum
+  have h_le : cutDistance (W n) V ≤ cutNormDiff (pullback (W n) (e n) (he n)) V := by
+    calc cutDistance (W n) V
+        ≤ cutNormDiff (pullback (W n) (e n) (he n))
+            (pullback V id (MeasurePreserving.id μ)) := by
+          unfold cutDistance
+          apply csInf_le
+          · use 0; intro d ⟨φ, ψ, hφ, hψ, hd⟩; rw [hd]; exact cutNormDiff_nonneg _ _
+          · exact ⟨e n, id, he n, MeasurePreserving.id μ, rfl⟩
+      _ = cutNormDiff (pullback (W n) (e n) (he n)) V := by rw [pullback_id]
+  linarith [hN n hn]
 
 /-- The space of graphons is complete with respect to cut distance.
 
@@ -545,8 +567,8 @@ subsequence (with `cutDistance(W_{φ(k+1)}, W_{φ(k)}) ≤ 1/2^k`). Apply the
 limit construction for rapidly converging sequences. Then show the full Cauchy
 sequence converges to the same limit using the triangle inequality.
 
-**Depends on**: `exists_limit_of_rapid_convergence` (sorry, diagonal extraction
-+ L² limit), `cutDistance_triangle` (proved modulo Rokhlin). -/
+**Depends on**: `exists_limit_of_rapid_convergence` (proved from
+`exists_aligned_cutNormDiff_limit`, sorry'd), `cutDistance_triangle` (proved modulo Rokhlin). -/
 theorem complete (W : ℕ → Graphon α μ) (hW : IsCauchy W) :
     ∃ V : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε := by
   -- Step 1: Extract a rapidly converging subsequence.
