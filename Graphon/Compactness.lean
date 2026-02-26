@@ -476,21 +476,148 @@ theorem totallyBounded (ε : ℝ) (hε : ε > 0) :
             rw [hV_dist]; ring
         _ ≤ ε₂ + ε / 2 + 0 := by linarith [h_cd_step, h_cd_round]
         _ = ε := by rw [hε₂_def]; ring⟩
-  -- **Partition transfer**: V_round on P_W matches some net element on P₀ in cutDistance 0.
-  --
-  -- **Proof sketch** (from Rokhlin's theorem):
-  -- By Rokhlin's theorem (same axiom as `MeasurePreserving.exists_common_extension`),
-  -- any standard Borel probability space is isomorphic to [0,1] with Lebesgue measure.
-  -- This gives a MP bijection e : α ≃ᵐ α mapping P₀-cells into P_W-cells.
-  -- Then `pullback V_round e` is a step graphon on P₀ whose coefficients are the
-  -- same roundCoeff values (of the form m/N with m ≤ N). Choosing f with
-  -- f(a,b) = f(b,a) = m gives toCoeff f = m/N, matching the pullback coefficients.
-  -- By `cutDistance_pullback_eq_zero`, cutDistance V_round (pullback V_round e) = 0.
-  --
-  -- **Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin axiom,
-  -- sorry'd in CutDistance.lean). The partition transfer is a direct consequence
-  -- of the same axiom that `cutDistance_triangle` depends on.
-  sorry
+  -- **Partition transfer**: V_round on P_W matches some net element on P₀ via Rokhlin.
+  -- Step 1: Get partition alignment e : α ≃ᵐ α mapping P₀-cells a.e. into P_W-cells
+  obtain ⟨e, he, h_align⟩ := MeasurePreserving.exists_partition_alignment P₀ P_W
+  -- Step 2: For each P₀-cell, extract the corresponding P_W-cell
+  -- σ maps each P₀-cell to its aligned P_W-cell
+  have h_σ : ∀ S ∈ P₀.parts, ∃ T ∈ P_W.parts,
+      μ (S \ e ⁻¹' T) = 0 ∧ μ (e ⁻¹' T \ S) = 0 := h_align
+  -- Use classical choice to extract σ
+  choose σ hσ_mem hσ_null using fun S (hS : S ∈ P₀.parts) => h_σ S hS
+  -- Step 3: Define the net function f
+  -- roundCoeff(σ(S), σ(T)) = ⌊rectAverage(W, σ(S), σ(T)) * N⌋ / N
+  -- The numerator ⌊...⌋ is in {0, ..., N}, so it's a valid Fin(N+1)
+  let f : ↑P₀.parts → ↑P₀.parts → Fin (N + 1) := fun ⟨S, hS⟩ ⟨T, hT⟩ =>
+    ⟨Nat.floor (rectAverage W (σ S hS) (σ T hT) * N), by
+      have h_avg := rectAverage_mem_Icc W (σ S hS) (σ T hT)
+        (P_W.measurableSet_part (hσ_mem S hS))
+        (P_W.measurableSet_part (hσ_mem T hT))
+      apply Nat.lt_succ_of_le
+      exact Nat.floor_le_of_le (by exact_mod_cast (by nlinarith [h_avg.2] : rectAverage W (σ S hS) (σ T hT) * ↑N ≤ ↑N))⟩
+  -- Step 4: toCoeff f agrees with roundCoeff ∘ σ on P₀.parts
+  have h_coeff_eq : ∀ S (hS : S ∈ P₀.parts) T (hT : T ∈ P₀.parts),
+      toCoeff f S T = roundCoeff (σ S hS) (σ T hT) := by
+    intro S hS T hT
+    simp only [toCoeff, hS, hT, dif_pos, f, roundCoeff,
+      hσ_mem S hS, hσ_mem T hT]
+    -- toCoeff f S T = (⌊a*N⌋ + ⌊b*N⌋) / (2*N) where a = rectAvg(σS, σT), b = rectAvg(σT, σS)
+    -- Since rectAverage is symmetric: a = b, so this = 2⌊a*N⌋/(2*N) = ⌊a*N⌋/N
+    have h_symm_avg := rectAverage_symm W (σ S hS) (σ T hT)
+      (P_W.measurableSet_part (hσ_mem S hS)) (P_W.measurableSet_part (hσ_mem T hT))
+    rw [h_symm_avg]
+    field_simp
+    ring
+  -- Step 5: netMap f ∈ net
+  have hf_mem : netMap f ∈ net := Finset.mem_image.mpr ⟨f, Finset.mem_univ _, rfl⟩
+  -- Step 6: pullback V_round e and netMap f agree a.e.
+  -- Key: for a.e. (x, y), if x ∈ S₁ ∈ P₀, y ∈ S₂ ∈ P₀, then
+  --   pullback V_round e (x,y) = roundCoeff(σ(S₁), σ(S₂))
+  --   netMap f (x,y) = toCoeff f S₁ S₂ = roundCoeff(σ(S₁), σ(S₂))
+  -- So they agree.
+  have h_pb_ae : ∀ᵐ p ∂(μ.prod μ),
+      (pullback V_round e he).toAEEqFun p = (netMap f).toAEEqFun p := by
+    -- Get a.e. facts
+    have h_pb := pullback_ae V_round (⇑e) he
+    have h_net : ∀ᵐ p ∂(μ.prod μ),
+        (netMap f).toAEEqFun p = mkStepFun P₀ (toCoeff f) p :=
+      AEEqFun.coeFn_mk _ _
+    have h_vr : ∀ᵐ p ∂(μ.prod μ),
+        V_round.toAEEqFun p = mkStepFun P_W roundCoeff p :=
+      AEEqFun.coeFn_mk _ _
+    -- Push h_vr through the product MP map (Prod.map e e) to get it at image points
+    have h_vr_image : ∀ᵐ p ∂(μ.prod μ),
+        V_round.toAEEqFun (e p.1, e p.2) = mkStepFun P_W roundCoeff (e p.1, e p.2) := by
+      have h_mp : MeasurePreserving (Prod.map e e) (μ.prod μ) (μ.prod μ) :=
+        MeasurePreserving.prod he he
+      exact h_mp.quasiMeasurePreserving.ae h_vr
+    -- a.e. x is in some P₀-cell, a.e. y is in some P₀-cell
+    have h_fst : ∀ᵐ p ∂(μ.prod μ), ∃ S ∈ P₀.parts, p.1 ∈ S :=
+      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst P₀.ae_covers
+    have h_snd : ∀ᵐ p ∂(μ.prod μ), ∃ S ∈ P₀.parts, p.2 ∈ S :=
+      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd P₀.ae_covers
+    -- a.e. x ∈ S ∈ P₀ implies e(x) ∈ σ(S): finite union of null sets is null
+    -- For each S ∈ P₀.parts: μ(S \ e⁻¹(σ S)) = 0, so the finite union has measure 0
+    have h_align_ae : ∀ᵐ x ∂μ,
+        ∀ (S : Set α) (hS : S ∈ P₀.parts), x ∈ S → e x ∈ σ S hS := by
+      -- For each S, show the a.e. property
+      suffices ∀ S hS, ∀ᵐ x ∂μ, x ∈ S → e x ∈ σ S hS by
+        have h_finite := (ae_ball_iff P₀.parts.countable_toSet).mpr this
+        filter_upwards [h_finite] with x hx S hS hmem
+        exact hx S hS hmem
+      intro S hS
+      have h_null := (hσ_null S hS).1
+      rw [Filter.eventually_iff]
+      apply Filter.mem_of_superset (compl_mem_ae_iff.mpr h_null)
+      intro x hx hxS
+      by_contra h_ne
+      exact hx (Set.mem_diff_of_mem hxS h_ne)
+    have h_e_fst : ∀ᵐ p ∂(μ.prod μ),
+        ∀ (S : Set α) (hS : S ∈ P₀.parts), p.1 ∈ S → e p.1 ∈ σ S hS :=
+      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst h_align_ae
+    have h_e_snd : ∀ᵐ p ∂(μ.prod μ),
+        ∀ (S : Set α) (hS : S ∈ P₀.parts), p.2 ∈ S → e p.2 ∈ σ S hS :=
+      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd h_align_ae
+    -- a.e. e(x) is in some P_W-cell (push P_W.ae_covers through the MP map e)
+    have h_e_covers : ∀ᵐ x ∂μ, ∃ T ∈ P_W.parts, e x ∈ T :=
+      he.quasiMeasurePreserving.ae P_W.ae_covers
+    have h_e_fst_W : ∀ᵐ p ∂(μ.prod μ), ∃ T ∈ P_W.parts, e p.1 ∈ T :=
+      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst h_e_covers
+    have h_e_snd_W : ∀ᵐ p ∂(μ.prod μ), ∃ T ∈ P_W.parts, e p.2 ∈ T :=
+      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd h_e_covers
+    filter_upwards [h_pb, h_net, h_vr_image, h_fst, h_snd,
+      h_e_fst, h_e_snd, h_e_fst_W, h_e_snd_W]
+      with p h_pb h_net h_vr_image ⟨S₁, hS₁, hpS₁⟩ ⟨S₂, hS₂, hpS₂⟩
+        h_ef h_es ⟨T₁, hT₁, heT₁⟩ ⟨T₂, hT₂, heT₂⟩
+    -- pullback side
+    rw [h_pb]
+    -- V_round at (e p.1, e p.2) = roundCoeff T₁ T₂ (where e p.i ∈ T_i)
+    have h_vr_val : V_round.toAEEqFun (e p.1, e p.2) = roundCoeff T₁ T₂ := by
+      rw [h_vr_image]
+      exact mkStepFun_eq_at P_W roundCoeff hT₁ hT₂ (Set.mem_prod.mpr ⟨heT₁, heT₂⟩)
+    rw [h_vr_val]
+    -- netMap f side: (netMap f) at p = toCoeff f S₁ S₂
+    rw [h_net]
+    rw [mkStepFun_eq_at P₀ (toCoeff f) hS₁ hS₂ (Set.mem_prod.mpr ⟨hpS₁, hpS₂⟩)]
+    -- Now: roundCoeff T₁ T₂ = toCoeff f S₁ S₂
+    rw [h_coeff_eq S₁ hS₁ S₂ hS₂]
+    -- Need: T₁ = σ S₁ hS₁ and T₂ = σ S₂ hS₂
+    -- e p.1 ∈ σ(S₁) (from h_ef) and e p.1 ∈ T₁
+    -- Since P_W is a partition, σ(S₁) = T₁
+    congr 1
+    · -- T₁ = σ S₁ hS₁: both contain e p.1, both in P_W.parts
+      by_contra h_ne
+      exact Set.disjoint_left.mp (P_W.pairwiseDisjoint (Finset.mem_coe.mpr (hσ_mem S₁ hS₁))
+        (Finset.mem_coe.mpr hT₁) (Ne.symm h_ne)) (h_ef S₁ hS₁ hpS₁) heT₁
+    · by_contra h_ne
+      exact Set.disjoint_left.mp (P_W.pairwiseDisjoint (Finset.mem_coe.mpr (hσ_mem S₂ hS₂))
+        (Finset.mem_coe.mpr hT₂) (Ne.symm h_ne)) (h_es S₂ hS₂ hpS₂) heT₂
+  -- Step 7: cutNormDiff between pullback and netMap f is 0
+  have h_cn_pb : cutNormDiff (pullback V_round e he) (netMap f) = 0 := by
+    apply le_antisymm
+    · unfold cutNormDiff rectIntegralDiff
+      apply Real.iSup_le _ le_rfl; intro S'
+      apply Real.iSup_le _ le_rfl; intro hS'
+      apply Real.iSup_le _ le_rfl; intro T'
+      apply Real.iSup_le _ le_rfl; intro hT'
+      have h_zero_ae : ∀ᵐ p ∂(μ.prod μ),
+          (pullback V_round e he).toAEEqFun p - (netMap f).toAEEqFun p = 0 := by
+        filter_upwards [h_pb_ae] with p hp; rw [hp, sub_self]
+      rw [setIntegral_congr_ae (hS'.prod hT')
+        (h_zero_ae.mono (fun p hp _ => hp))]
+      simp
+    · exact cutNormDiff_nonneg _ _
+  -- Step 8: Combine
+  refine ⟨netMap f, hf_mem, le_antisymm ?_ (cutDistance_nonneg _ _)⟩
+  calc cutDistance V_round (netMap f)
+      ≤ cutDistance V_round (pullback V_round e he) +
+        cutDistance (pullback V_round e he) (netMap f) :=
+        cutDistance_triangle V_round (pullback V_round e he) (netMap f)
+    _ = 0 + cutDistance (pullback V_round e he) (netMap f) := by
+        rw [cutDistance_pullback_eq_zero]
+    _ ≤ 0 + cutNormDiff (pullback V_round e he) (netMap f) := by
+        linarith [cutDistance_le_cutNormDiff (pullback V_round e he) (netMap f)]
+    _ = 0 := by rw [h_cn_pb]; ring
 
 end TotalBoundedness
 

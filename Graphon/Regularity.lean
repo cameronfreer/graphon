@@ -3229,25 +3229,6 @@ section Regularity
 
 variable [IsProbabilityMeasure μ]
 
-/-- The trivial partition with just {univ} as the only part. -/
-noncomputable def trivialPartition : MeasurablePartition α μ where
-  parts := {Set.univ}
-  measurable_parts := fun S hS => by
-    simp only [Finset.mem_singleton] at hS
-    rw [hS]
-    exact MeasurableSet.univ
-  pairwiseDisjoint := by
-    intro S hS T hT hne
-    simp only [Finset.coe_singleton, Set.mem_singleton_iff] at hS hT
-    -- Both S and T must be univ, but hne says S ≠ T - contradiction
-    exact absurd (hS.trans hT.symm) hne
-  ae_covers := by
-    filter_upwards with x
-    exact ⟨Set.univ, Finset.mem_singleton_self _, Set.mem_univ x⟩
-
-theorem trivialPartition_card : (trivialPartition (α := α) (μ := μ)).parts.card = 1 := by
-  simp [trivialPartition]
-
 /-- If the total defect exceeds ε², then there exists a "bad" rectangle (S,T)
     where the defect per unit area is at least ε². This is the contrapositive:
     if every rectangle has defect < ε² μ(S) μ(T), then total defect < ε².

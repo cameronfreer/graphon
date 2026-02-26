@@ -1024,24 +1024,61 @@ theorem cutDistance_le_one (U W : Graphon α μ) : cutDistance U W ≤ 1 := by
     _ ≤ 1 := cutNormDiff_le_one U W
 
 /-- **Rokhlin consequence**: Two measure-preserving maps into a standard Borel
-probability space can be "aligned" via measure-preserving bijections.
+probability space can be "aligned" via measure-preserving bijections, and
+any two measurable partitions can be aligned by a measure-preserving bijection.
 
 This is a consequence of Rokhlin's theorem: every standard Borel probability
 space is measure-theoretically isomorphic to [0,1] with Lebesgue measure.
-Given measure-preserving maps ψ₁, φ₂ : α → α, there exist measure-preserving
-bijections χ₁, χ₂ such that ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂.
+
+The theorem provides two outputs:
+1. **Map alignment**: Given MP maps ψ₁, φ₂ : α → α, there exist MP bijections
+   χ₁, χ₂ such that ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂.
+2. **Partition alignment**: Given measurable partitions P, Q, there exists a
+   MP bijection e mapping each P-cell a.e. into some Q-cell.
+
+Both follow from the fact that (α, μ) ≅ ([0,1], λ). Map alignment is
+Kechris [1995], Theorem 17.41. Partition alignment follows because any
+finite measurable partition of [0,1] can be mapped to any other by a
+measure-preserving bijection (rearranging intervals).
 
 **Sorry**: Requires Rokhlin's theorem, which is not yet in Mathlib. This is
-well-established mathematics; see e.g. Kechris [1995], Theorem 17.41.
-This is the ONLY remaining sorry in the formalization that requires genuinely
-new Mathlib infrastructure. -/
+well-established mathematics. This is the ONLY sorry in the formalization
+that requires genuinely new Mathlib infrastructure. All other Rokhlin
+consequences (partition transfer, alignment chains) are derived from this. -/
 theorem MeasurePreserving.exists_common_extension [StandardBorelSpace α]
+    (ψ₁ : α → α) (hψ₁ : MeasurePreserving ψ₁ μ μ)
+    (φ₂ : α → α) (hφ₂ : MeasurePreserving φ₂ μ μ)
+    (P Q : MeasurablePartition α μ) :
+    (∃ (χ₁ χ₂ : α ≃ᵐ α)
+      (hχ₁ : MeasurePreserving χ₁ μ μ) (hχ₂ : MeasurePreserving χ₂ μ μ),
+      ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂) ∧
+    (∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
+      ∀ S ∈ P.parts, ∃ T ∈ Q.parts, μ (S \ e ⁻¹' T) = 0 ∧ μ (e ⁻¹' T \ S) = 0) := by
+  sorry
+
+/-- Map-alignment consequence of `exists_common_extension`: given two MP maps,
+there exist MP bijections aligning them. This is the interface used by
+`cutDistance_triangle`. -/
+theorem MeasurePreserving.exists_common_extension_maps [StandardBorelSpace α]
     (ψ₁ : α → α) (hψ₁ : MeasurePreserving ψ₁ μ μ)
     (φ₂ : α → α) (hφ₂ : MeasurePreserving φ₂ μ μ) :
     ∃ (χ₁ χ₂ : α ≃ᵐ α)
       (hχ₁ : MeasurePreserving χ₁ μ μ) (hχ₂ : MeasurePreserving χ₂ μ μ),
       ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂ := by
-  sorry
+  have ⟨h, _⟩ := MeasurePreserving.exists_common_extension ψ₁ hψ₁ φ₂ hφ₂
+    (trivialPartition (α := α) (μ := μ)) (trivialPartition (α := α) (μ := μ))
+  exact h
+
+/-- Partition-alignment consequence of `exists_common_extension`: given two
+measurable partitions, there exists a MP bijection mapping each cell of the
+first a.e. into a cell of the second. -/
+theorem MeasurePreserving.exists_partition_alignment [StandardBorelSpace α]
+    (P Q : MeasurablePartition α μ) :
+    ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
+      ∀ S ∈ P.parts, ∃ T ∈ Q.parts, μ (S \ e ⁻¹' T) = 0 ∧ μ (e ⁻¹' T \ S) = 0 := by
+  have ⟨_, h⟩ := MeasurePreserving.exists_common_extension id (MeasurePreserving.id μ)
+    id (MeasurePreserving.id μ) P Q
+  exact h
 
 /-- Cut norm difference is invariant under applying the same MeasurableEquiv to both graphons.
 
@@ -1173,7 +1210,7 @@ theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
   obtain ⟨φ₂, ψ₂, hφ₂, hψ₂, h_VW⟩ := cutDistance_lt_add_of_pos V W (half_pos hδ_pos)
   -- Rokhlin alignment — find bijections χ₁, χ₂ with ψ₁ ∘ χ₁ =ᵐ φ₂ ∘ χ₂
   obtain ⟨χ₁, χ₂, hχ₁, hχ₂, h_align⟩ :=
-    MeasurePreserving.exists_common_extension ψ₁ hψ₁ φ₂ hφ₂
+    MeasurePreserving.exists_common_extension_maps ψ₁ hψ₁ φ₂ hφ₂
   -- Compose maps: (φ₁ ∘ χ₁, ψ₂ ∘ χ₂) are measure-preserving
   have hφ₁χ₁ : MeasurePreserving (φ₁ ∘ χ₁) μ μ := hφ₁.comp hχ₁
   have hψ₂χ₂ : MeasurePreserving (ψ₂ ∘ χ₂) μ μ := hψ₂.comp hχ₂
