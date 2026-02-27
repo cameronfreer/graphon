@@ -51,104 +51,26 @@ section InverseCounting
 
 variable [IsProbabilityMeasure μ]
 
-/-- **Algebraic determination of step graphons**: if two graphons have equal
-homomorphism densities for all graphs, then their step approximations (from
-the regularity lemma) have small cut distance, controllable by the regularity
-approximation parameter.
-
-The mathematical content:
-1. Equal hom densities of U, W + counting lemma → step approximations have
-   close hom densities (error controlled by regularity parameter)
-2. **Algebraic determination**: step graphon coefficient matrices are determined
-   (up to partition relabeling) by their homomorphism density sequences.
-   The polynomials `{t(F, ·) : F graph}` separate step functions up to
-   measure-preserving rearrangement.
-3. Close hom densities + algebraic determination → close coefficient matrices
-   → small cut distance
-
-**Sorry**: Requires the algebraic fact that homomorphism density polynomials
-separate points in the space of step graphon coefficient matrices. This is a
-finite-dimensional moment problem.
-See Borgs--Chayes--Lovász--Sós--Vesztergombi [2008], Theorem 2.3. -/
-private theorem cutDistance_step_approx_of_homDensity_eq [StandardBorelSpace α]
-    (U W : Graphon α μ)
-    (P_U P_W : MeasurablePartition α μ)
-    (δ : ℝ) (hδ : δ > 0)
-    (hU_approx : cutNormDiff U (stepify P_U U) ≤ δ)
-    (hW_approx : cutNormDiff W (stepify P_W W) ≤ δ)
-    (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
-         homDensity F U = homDensity F W) :
-    cutDistance (stepify P_U U) (stepify P_W W) ≤ δ := by
-  sorry
-
-/-- Algebraic determination of graphons by homomorphism densities:
-for any `ε > 0`, if two graphons have equal homomorphism densities for all finite
-graphs, then their cut distance is at most `ε`.
-
-The proof reduces to three components:
-1. **Regularity**: approximate U, W by step graphons S_U, S_W with cutNormDiff ≤ ε/3
-2. **Counting lemma** + **step graphon determination** (sorry'd in
-   `cutDistance_step_approx_of_homDensity_eq`): equal hom densities of U, W imply
-   small cut distance between their step approximations
-3. **Triangle inequality**: combine the three bounds
-
-See Lovász [2012], Theorem 10.31 and
-Borgs--Chayes--Lovász--Sós--Vesztergombi [2008], Theorem 2.3. -/
-private theorem cutDistance_le_of_homDensity_eq_aux [StandardBorelSpace α]
-    (U W : Graphon α μ)
-    (ε : ℝ) (hε : ε > 0)
-    (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
-         homDensity F U = homDensity F W) :
-    cutDistance U W ≤ ε := by
-  -- Step 1: Use regularity to approximate U and W by step graphons
-  have hε3 : ε / 3 > 0 := by linarith
-  obtain ⟨P_U, _, hU_approx⟩ := regularity U (ε / 3) hε3
-  obtain ⟨P_W, _, hW_approx⟩ := regularity W (ε / 3) hε3
-  -- Step 2: Bound each of the three segments
-  -- cutDistance U W ≤ d(U, S_U) + d(S_U, S_W) + d(S_W, W)
-  have hU_cd : cutDistance U (stepify P_U U) ≤ ε / 3 :=
-    le_trans (cutDistance_le_cutNormDiff U (stepify P_U U)) hU_approx
-  have hW_cd : cutDistance (stepify P_W W) W ≤ ε / 3 := by
-    rw [cutDistance_symm]
-    exact le_trans (cutDistance_le_cutNormDiff W (stepify P_W W)) hW_approx
-  -- Step 3: Step approximations are close (sorry'd — algebraic determination)
-  have h_step_close : cutDistance (stepify P_U U) (stepify P_W W) ≤ ε / 3 :=
-    cutDistance_step_approx_of_homDensity_eq U W P_U P_W (ε / 3) hε3
-      hU_approx hW_approx h
-  -- Step 4: Combine using triangle inequality
-  calc cutDistance U W
-      ≤ cutDistance U (stepify P_U U) + cutDistance (stepify P_U U) W :=
-        cutDistance_triangle U (stepify P_U U) W
-    _ ≤ cutDistance U (stepify P_U U) +
-        (cutDistance (stepify P_U U) (stepify P_W W) + cutDistance (stepify P_W W) W) := by
-        linarith [cutDistance_triangle (stepify P_U U) (stepify P_W W) W]
-    _ ≤ ε / 3 + (ε / 3 + ε / 3) := by linarith
-    _ = ε := by ring
-
-/-- Two graphons with equal homomorphism densities for all graphs have
-    cut distance zero (are weakly isomorphic).
+/-- **Algebraic determination**: two graphons with equal homomorphism densities
+for all finite graphs have cut distance zero (are weakly isomorphic).
 
 This is the strong form of the inverse counting lemma. Quantifies over graphs on
 `Fin k` for all `k`, which suffices since every finite graph is isomorphic to one
 on `Fin k`.
 
-The proof reduces to `cutDistance_le_of_homDensity_eq_aux`, which captures the
-hard algebraic content: homomorphism densities form a complete system of
-polynomial invariants for graphons (up to weak isomorphism).
-See Lovász [2012], Theorem 10.31 and Borgs--Chayes--Lovász--Sós--Vesztergombi [2008]. -/
+**Sorry**: This is a foundational axiom encoding the algebraic fact that
+homomorphism density polynomials separate points in the space of graphon
+coefficient matrices (up to measure-preserving rearrangement). The proof requires
+showing that the polynomial map `W ↦ (t(F, W))_F` is injective on the orbit
+space of graphons modulo weak isomorphism — a finite-dimensional moment problem.
+See Lovász [2012], Theorem 10.31 and
+Borgs--Chayes--Lovász--Sós--Vesztergombi [2008], Theorem 2.3. -/
 theorem cutDistance_zero_of_homDensity_eq [StandardBorelSpace α]
     (U W : Graphon α μ)
     (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
          homDensity F U = homDensity F W) :
     cutDistance U W = 0 := by
-  apply le_antisymm _ (cutDistance_nonneg U W)
-  -- For any ε > 0, cutDistance U W ≤ ε. Since cutDistance U W ≥ 0, this forces = 0.
-  by_contra h_pos
-  push_neg at h_pos
-  -- h_pos : 0 < cutDistance U W
-  have h_half : cutDistance U W / 2 > 0 := by linarith
-  have h_le := cutDistance_le_of_homDensity_eq_aux U W (cutDistance U W / 2) h_half h
-  linarith
+  sorry
 
 /-- The inverse counting lemma: similar homomorphism densities imply
     small cut distance.
