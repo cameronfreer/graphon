@@ -631,30 +631,161 @@ variable [IsProbabilityMeasure μ] [StandardBorelSpace α]
 def IsCauchy (W : ℕ → Graphon α μ) : Prop :=
   ∀ ε > 0, ∃ N, ∀ m n, m ≥ N → n ≥ N → cutDistance (W m) (W n) < ε
 
+/-- Given graphons `V_k` with rapidly decaying consecutive cut distances, there exist
+measure-preserving realignment maps `f_k` and a limit graphon `L` with
+`cutNormDiff(pullback(V_k, f_k), L) → 0`.
+
+This is the "coupling completeness" step: it converts cut-distance Cauchy convergence
+to cut-norm-difference convergence via realignment. Mathematically, this follows from
+weak* compactness of `[0,1]`-valued measurable functions combined with Rokhlin's
+theorem (see Lovász [2012], Proposition 9.17).
+
+**Sorry**: Requires L-infinity weak* compactness + Radon-Nikodym, not yet in Mathlib. -/
+private theorem exists_cutNormDiff_limit_of_cutDistance_rapid
+    (V : ℕ → Graphon α μ)
+    (h_rapid : ∀ k : ℕ, cutDistance (V (k + 1)) (V k) ≤ 1 / 2 ^ k + 1 / 3 ^ k) :
+    ∃ (L : Graphon α μ) (f : (k : ℕ) → (α → α)) (hf : ∀ k, MeasurePreserving (f k) μ μ),
+      ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (pullback (V n) (f n) (hf n)) L < ε := by
+  sorry
+
 /-- Alignment + limit for rapidly converging graphon sequences.
 
 Given rapid cutDistance convergence (`∑ d(W_{k+1}, W_k) < ∞`), there exist
 measure-preserving maps `e_k` and a limit graphon `V` such that
 `cutNormDiff(pullback(W_k, e_k), V) → 0`.
 
-**Sorry**: The proof has two components:
+**Proof structure**:
 
 (a) *Alignment chain* (Rokhlin-dependent): Build aligned maps `e_k` inductively via
     `exists_common_extension_maps`. At each step, near-optimal maps from
     `cutDistance_lt_add_of_pos` are aligned using Rokhlin bijections, yielding
-    `cutNormDiff(V_k, V_{k+1}) ≤ 1/2^k + 1/3^k` where `V_k = pullback (W k) (e_k)`.
+    `cutDistance(V_{k+1}, V_k) ≤ 1/2^k + 1/3^k` where `V_k = pullback (W k) (e_k)`.
 
-(b) *cutNormDiff limit* (pure measure theory): Given summable consecutive cutNormDiff,
-    rectangle integrals converge, Carathéodory extends to a signed measure, and
-    Radon-Nikodym gives the limit graphon. See Lovász [2012], Proposition 9.17.
+(b) *cutNormDiff limit* (sorry'd in `exists_cutNormDiff_limit_of_cutDistance_rapid`):
+    Given summable consecutive cutDistance, realign and extract limit with
+    cutNormDiff convergence. Requires L-infinity weak* compactness + Radon-Nikodym.
 
-**Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin axiom). -/
+**Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin axiom),
+`exists_cutNormDiff_limit_of_cutDistance_rapid` (sorry'd). -/
 private theorem exists_aligned_cutNormDiff_limit
     (W : ℕ → Graphon α μ)
     (h_rapid : ∀ k : ℕ, cutDistance (W (k + 1)) (W k) ≤ 1 / 2 ^ k) :
     ∃ (V : Graphon α μ) (e : (k : ℕ) → (α → α)) (he : ∀ k, MeasurePreserving (e k) μ μ),
       ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (pullback (W n) (e n) (he n)) V < ε := by
-  sorry
+  -- Step 1: Build alignment chain inductively.
+  -- At step k: get near-optimal (φ_k, ψ_k) for (W k, W (k+1)),
+  -- align e_k with φ_k via Rokhlin bijections χ₁, χ₂,
+  -- set e_{k+1} = ψ_k ∘ χ₂.
+  -- This gives cutDistance(V_{k+1}, V_k) ≤ 1/2^k + 1/3^k.
+  --
+  -- We package the inductive data as a function ℕ → Σ' (e : α → α), MeasurePreserving e μ μ.
+  have h_step : ∀ (k : ℕ) (e_k : α → α) (he_k : MeasurePreserving e_k μ μ),
+      ∃ (e_next : α → α) (he_next : MeasurePreserving e_next μ μ),
+        cutDistance (pullback (W (k + 1)) e_next he_next)
+                    (pullback (W k) e_k he_k) ≤ 1 / 2 ^ k + 1 / 3 ^ k := by
+    intro k e_k he_k
+    -- Get near-optimal maps for (W k, W (k+1)) with error 1/3^k
+    have h3k_pos : (0 : ℝ) < 1 / 3 ^ k := by positivity
+    obtain ⟨φ_k, ψ_k, hφ_k, hψ_k, h_opt⟩ := cutDistance_lt_add_of_pos (W k) (W (k + 1)) h3k_pos
+    -- Align e_k with φ_k via Rokhlin: get χ₁, χ₂ with e_k ∘ χ₁ =ᵐ φ_k ∘ χ₂
+    obtain ⟨χ₁, χ₂, hχ₁, hχ₂, h_align⟩ :=
+      MeasurePreserving.exists_common_extension_maps e_k he_k φ_k hφ_k
+    -- Define e_{k+1} = ψ_k ∘ χ₂
+    refine ⟨ψ_k ∘ ↑χ₂, hψ_k.comp hχ₂, ?_⟩
+    -- Show cutDistance(V_{k+1}, V_k) ≤ 1/2^k + 1/3^k
+    -- where V_k = pb(W k, e_k), V_{k+1} = pb(W (k+1), ψ_k ∘ χ₂)
+    -- Use (id, χ₁) as witnesses: cutDistance ≤ cutNormDiff(pb(V_{k+1}, id), pb(V_k, χ₁))
+    --   = cutNormDiff(V_{k+1}, pb(V_k, χ₁))
+    -- Key: pb(V_k, χ₁) = pb(W k, e_k ∘ χ₁) =ᵃᵉ pb(W k, φ_k ∘ χ₂)
+    -- And cutNormDiff(pb(W(k+1), ψ_k ∘ χ₂), pb(W k, φ_k ∘ χ₂))
+    --   = cutNormDiff(pb(W(k+1), ψ_k), pb(W k, φ_k))  [by invariance under χ₂]
+    --   < cutDistance(W k, W(k+1)) + 1/3^k ≤ 1/2^k + 1/3^k
+    have hψχ₂ : MeasurePreserving (ψ_k ∘ ↑χ₂) μ μ := hψ_k.comp hχ₂
+    have hφχ₂ : MeasurePreserving (φ_k ∘ ↑χ₂) μ μ := hφ_k.comp hχ₂
+    have heχ₁ : MeasurePreserving (e_k ∘ ↑χ₁) μ μ := he_k.comp hχ₁
+    -- pb(W k, e_k ∘ χ₁) = pb(W k, φ_k ∘ χ₂) by alignment
+    have h_align_pb : pullback (W k) (e_k ∘ ↑χ₁) heχ₁ = pullback (W k) (φ_k ∘ ↑χ₂) hφχ₂ := by
+      apply Graphon.ext; apply SymmKernel.ext; apply AEEqFun.ext
+      have h1 := pullback_ae (W k) (e_k ∘ ↑χ₁) heχ₁
+      have h2 := pullback_ae (W k) (φ_k ∘ ↑χ₂) hφχ₂
+      have h_prod_ae : ∀ᵐ p ∂(μ.prod μ),
+          (e_k (χ₁ p.1), e_k (χ₁ p.2)) = (φ_k (χ₂ p.1), φ_k (χ₂ p.2)) := by
+        have h_fst : ∀ᵐ p ∂(μ.prod μ), e_k (χ₁ p.1) = φ_k (χ₂ p.1) :=
+          Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst h_align
+        have h_snd : ∀ᵐ p ∂(μ.prod μ), e_k (χ₁ p.2) = φ_k (χ₂ p.2) :=
+          Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd h_align
+        filter_upwards [h_fst, h_snd] with p hp1 hp2
+        exact Prod.ext hp1 hp2
+      filter_upwards [h1, h2, h_prod_ae] with p hp1 hp2 hp_eq
+      rw [hp1, hp2]; simp only [Function.comp_apply] at hp_eq ⊢; rw [hp_eq]
+    -- cutNormDiff invariance under χ₂
+    have h_inv : cutNormDiff (pullback (W (k + 1)) (ψ_k ∘ ↑χ₂) hψχ₂)
+        (pullback (W k) (φ_k ∘ ↑χ₂) hφχ₂) =
+        cutNormDiff (pullback (W (k + 1)) ψ_k hψ_k) (pullback (W k) φ_k hφ_k) := by
+      rw [show pullback (W (k + 1)) (ψ_k ∘ ↑χ₂) hψχ₂ =
+            pullback (pullback (W (k + 1)) ψ_k hψ_k) χ₂ hχ₂ from
+            (pullback_pullback (W (k + 1)) ψ_k hψ_k (↑χ₂) hχ₂).symm,
+        show pullback (W k) (φ_k ∘ ↑χ₂) hφχ₂ =
+            pullback (pullback (W k) φ_k hφ_k) χ₂ hχ₂ from
+            (pullback_pullback (W k) φ_k hφ_k (↑χ₂) hχ₂).symm]
+      exact cutNormDiff_pullback_measurableEquiv _ _ χ₂ hχ₂
+    -- Now bound cutDistance using (id, χ₁) as witnesses
+    calc cutDistance (pullback (W (k + 1)) (ψ_k ∘ ↑χ₂) hψχ₂)
+            (pullback (W k) e_k he_k)
+        ≤ cutNormDiff
+            (pullback (pullback (W (k + 1)) (ψ_k ∘ ↑χ₂) hψχ₂) id (MeasurePreserving.id μ))
+            (pullback (pullback (W k) e_k he_k) χ₁ hχ₁) := by
+          unfold cutDistance
+          apply csInf_le
+          · use 0; intro d ⟨φ, ψ, hφ, hψ, hd⟩; rw [hd]; exact cutNormDiff_nonneg _ _
+          · exact ⟨id, ↑χ₁, MeasurePreserving.id μ, hχ₁, rfl⟩
+      _ = cutNormDiff (pullback (W (k + 1)) (ψ_k ∘ ↑χ₂) hψχ₂)
+            (pullback (W k) (e_k ∘ ↑χ₁) heχ₁) := by
+          rw [pullback_id, pullback_pullback (W k) e_k he_k (↑χ₁) hχ₁]
+      _ = cutNormDiff (pullback (W (k + 1)) (ψ_k ∘ ↑χ₂) hψχ₂)
+            (pullback (W k) (φ_k ∘ ↑χ₂) hφχ₂) := by
+          rw [h_align_pb]
+      _ = cutNormDiff (pullback (W (k + 1)) ψ_k hψ_k)
+            (pullback (W k) φ_k hφ_k) := h_inv
+      _ ≤ cutDistance (W k) (W (k + 1)) + 1 / 3 ^ k := le_of_lt (by
+          rw [cutNormDiff_symm]; exact h_opt)
+      _ ≤ 1 / 2 ^ k + 1 / 3 ^ k := by
+          have h_cd_sym : cutDistance (W k) (W (k + 1)) = cutDistance (W (k + 1)) (W k) :=
+            cutDistance_symm (W k) (W (k + 1))
+          linarith [h_rapid k]
+  -- Build the full sequence by recursion using choose to extract data from h_step
+  -- We use a dependent recursion to build (e_k, he_k) at each step.
+  -- Extract the next-step function from h_step
+  choose e_next he_next h_bound using h_step
+  -- Now e_next k e_k he_k gives the next map, he_next gives its MP proof,
+  -- and h_bound gives the cutDistance bound.
+  -- Build the sequence by recursion
+  let build : ℕ → PSigma (fun e : α → α => MeasurePreserving e μ μ) :=
+    Nat.rec ⟨id, MeasurePreserving.id μ⟩
+      (fun k prev => ⟨e_next k prev.1 prev.2, he_next k prev.1 prev.2⟩)
+  let e : (k : ℕ) → (α → α) := fun k => (build k).1
+  let he : ∀ k, MeasurePreserving (e k) μ μ := fun k => (build k).2
+  -- Prove the rapid convergence bound for the constructed sequence
+  have h_chain : ∀ k, cutDistance (pullback (W (k + 1)) (e (k + 1)) (he (k + 1)))
+      (pullback (W k) (e k) (he k)) ≤ 1 / 2 ^ k + 1 / 3 ^ k := by
+    intro k
+    -- e (k+1) = e_next k (build k).1 (build k).2 and he (k+1) = he_next k ...
+    -- The bound follows directly from h_bound
+    exact h_bound k (build k).1 (build k).2
+  -- Step 2: Apply the limit extraction (sorry'd)
+  let V_seq : ℕ → Graphon α μ := fun k => pullback (W k) (e k) (he k)
+  obtain ⟨L, f, hf, hconv⟩ := exists_cutNormDiff_limit_of_cutDistance_rapid V_seq h_chain
+  -- Step 3: Compose alignment maps: final e_k = e_k ∘ f_k
+  refine ⟨L, fun k => e k ∘ f k, fun k => (he k).comp (hf k), fun ε hε => ?_⟩
+  obtain ⟨N, hN⟩ := hconv ε hε
+  refine ⟨N, fun n hn => ?_⟩
+  -- cutNormDiff(pb(W n, e n ∘ f n), L) = cutNormDiff(pb(pb(W n, e n), f n), L)
+  --   = cutNormDiff(pb(V_seq n, f n), L) < ε
+  have h_comp : pullback (W n) (e n ∘ f n) ((he n).comp (hf n)) =
+      pullback (V_seq n) (f n) (hf n) :=
+    (pullback_pullback (W n) (e n) (he n) (f n) (hf n)).symm
+  rw [h_comp]
+  exact hN n hn
 
 /-- A rapidly converging sequence of graphons (with `∑ cutDistance(W_{n+1}, W_n)` finite)
 has a limit in cutDistance.
