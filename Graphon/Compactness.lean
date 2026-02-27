@@ -637,18 +637,16 @@ Given rapid cutDistance convergence (`∑ d(W_{k+1}, W_k) < ∞`), there exist
 measure-preserving maps `e_k` and a limit graphon `V` such that
 `cutNormDiff(pullback(W_k, e_k), V) → 0`.
 
-**Sorry**: The proof requires two independent components:
+**Sorry**: The proof has two components:
 
-(a) **Rokhlin alignment**: Build aligned maps `e_k` by inductive application of
-    `MeasurePreserving.exists_common_extension` (sorry'd in CutDistance.lean),
-    following the pattern of `cutDistance_triangle`. The aligned sequence satisfies
-    `∑ cutNormDiff(V_k, V_{k+1}) < ∞` where `V_k = pullback (W k) (e_k)`.
+(a) *Alignment chain* (Rokhlin-dependent): Build aligned maps `e_k` inductively via
+    `exists_common_extension_maps`. At each step, near-optimal maps from
+    `cutDistance_lt_add_of_pos` are aligned using Rokhlin bijections, yielding
+    `cutNormDiff(V_k, V_{k+1}) ≤ 1/2^k + 1/3^k` where `V_k = pullback (W k) (e_k)`.
 
-(b) **Radon-Nikodym limit**: Given `∑ cutNormDiff(V_k, V_{k+1}) < ∞`, construct
-    the limit graphon via convergence of rectangle integrals and Radon-Nikodym
-    differentiation on the product space.
-
-See Lovász [2012], Proposition 9.17 for the mathematical argument.
+(b) *cutNormDiff limit* (pure measure theory): Given summable consecutive cutNormDiff,
+    rectangle integrals converge, Carathéodory extends to a signed measure, and
+    Radon-Nikodym gives the limit graphon. See Lovász [2012], Proposition 9.17.
 
 **Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin axiom). -/
 private theorem exists_aligned_cutNormDiff_limit
