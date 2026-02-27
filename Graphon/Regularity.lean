@@ -4657,22 +4657,103 @@ private theorem exists_equitable_refinement_construction [NoAtoms μ]
   set m := ⌈1 / ε⌉₊ with hm_def
   have hm_pos : 0 < m := by
     rw [hm_def]; exact Nat.ceil_pos.mpr (div_pos one_pos hε)
-  -- For each S ∈ P.parts, use exists_equal_measure_partition to split S into m pieces
-  -- Each piece has measure μ(S)/m
-  -- Collect all pieces into a single Finset
-  -- This construction requires:
-  -- 1. Choosing pieces for each part (uses Classical.choice via exists_equal_measure_partition)
-  -- 2. Taking the union of all piece-finsets
-  -- 3. Verifying the MeasurablePartition axioms for the union
-  -- The verification of pairwise disjointness across different parent parts uses
-  -- P.pairwiseDisjoint together with the subset property of pieces.
-  -- The equitability bound uses the fact that each piece has measure μ(S)/m,
-  -- and Q has n*m parts (where n = P.parts.card), so the average is 1/(n*m).
-  -- The deviation |μ(S)/m - 1/(n*m)| = |μ(S) - 1/n| / m ≤ (μ(S) - 1/n).
-  -- Since Σ μ(S) ≤ 1 and there are n parts, the maximum deviation is bounded.
-  -- However, the full equitability proof is subtle because parts may have unequal
-  -- measures, so |μ(S)/m - 1/(n*m)| can be up to 1/m ≤ ε.
-  sorry
+  -- Key bound: 1/m ≤ ε
+  have hm_inv_le : (1 : ℝ) / m ≤ ε := by
+    rw [div_le_iff₀ (Nat.cast_pos.mpr hm_pos)]
+    calc (1 : ℝ) = (1 / ε) * ε := by field_simp
+      _ ≤ ↑m * ε := by
+        apply mul_le_mul_of_nonneg_right _ hε.le
+        exact Nat.le_ceil (1 / ε)
+      _ = ε * ↑m := by ring
+  classical
+  -- For each S ∈ P.parts, split S into m equal-measure pieces
+  -- Define a function that works without the membership proof (using dite)
+  have h_split : ∀ S ∈ P.parts, ∃ pieces : Finset (Set α),
+      pieces.card = m ∧
+      (∀ T ∈ pieces, MeasurableSet T) ∧
+      (∀ T ∈ pieces, T ⊆ S) ∧
+      (pieces : Set (Set α)).PairwiseDisjoint id ∧
+      (∀ T ∈ pieces, μ T = μ S / m) ∧
+      (∀ᵐ x ∂μ, x ∈ S → ∃ T ∈ pieces, x ∈ T) := by
+    intro S hS
+    exact exists_equal_measure_partition (P.measurableSet_part hS) (measure_ne_top μ S) hm_pos
+  choose g hg_card hg_meas hg_sub hg_disj hg_measure hg_covers using h_split
+  -- Create a non-dependent wrapper for biUnion
+  let f : Set α → Finset (Set α) := fun S => if h : S ∈ P.parts then g S h else ∅
+  have hf_eq : ∀ S (hS : S ∈ P.parts), f S = g S hS := fun S hS => dif_pos hS
+  -- Build Q as the biUnion of all piece-finsets
+  refine ⟨{
+    parts := P.parts.biUnion f
+    measurable_parts := ?_
+    pairwiseDisjoint := ?_
+    ae_covers := ?_
+  }, ?_, ?_, ?_⟩
+  -- measurable_parts
+  · intro T hT
+    rw [Finset.mem_biUnion] at hT
+    obtain ⟨S, hS, hTf⟩ := hT
+    rw [hf_eq S hS] at hTf
+    exact hg_meas S hS T hTf
+  -- pairwiseDisjoint
+  · intro T₁ hT₁ T₂ hT₂ hne
+    simp only [Finset.coe_biUnion, Set.mem_iUnion, Finset.mem_coe] at hT₁ hT₂
+    obtain ⟨S₁, hS₁, hT₁f⟩ := hT₁
+    obtain ⟨S₂, hS₂, hT₂f⟩ := hT₂
+    rw [hf_eq S₁ hS₁] at hT₁f
+    rw [hf_eq S₂ hS₂] at hT₂f
+    by_cases hS : S₁ = S₂
+    · subst hS
+      exact hg_disj S₁ hS₁ hT₁f hT₂f hne
+    · exact (P.pairwiseDisjoint hS₁ hS₂ hS).mono
+        (hg_sub S₁ hS₁ T₁ hT₁f) (hg_sub S₂ hS₂ T₂ hT₂f)
+  -- ae_covers
+  · have h_ae_list : ∀ S ∈ P.parts,
+        ∀ᵐ x ∂μ, x ∈ S → ∃ T ∈ P.parts.biUnion f, x ∈ T := by
+      intro S hS
+      filter_upwards [hg_covers S hS] with x hx hxS
+      obtain ⟨T, hTf, hxT⟩ := hx hxS
+      exact ⟨T, Finset.mem_biUnion.mpr ⟨S, hS, by rw [hf_eq S hS]; exact hTf⟩, hxT⟩
+    filter_upwards [P.ae_covers, (Filter.eventually_all_finset P.parts).mpr h_ae_list]
+        with x ⟨S, hS, hxS⟩ h_all
+    exact h_all S hS hxS
+  -- Refines
+  · intro T hT
+    rw [Finset.mem_biUnion] at hT
+    obtain ⟨S, hS, hTf⟩ := hT
+    rw [hf_eq S hS] at hTf
+    exact ⟨S, hS, hg_sub S hS T hTf⟩
+  -- IsEquitable
+  · intro T hT
+    rw [Finset.mem_biUnion] at hT
+    obtain ⟨S, hS, hTf⟩ := hT
+    rw [hf_eq S hS] at hTf
+    -- Both μ(T).toReal and 1/Q.parts.card are in [0, 1/m], so |a - b| ≤ 1/m ≤ ε
+    have hT_meas_le : (μ T).toReal ≤ 1 / (m : ℝ) := by
+      rw [hg_measure S hS T hTf, ENNReal.toReal_div, ENNReal.toReal_natCast]
+      apply div_le_div_of_nonneg_right _ (Nat.cast_pos.mpr hm_pos).le
+      calc (μ S).toReal ≤ (μ Set.univ).toReal :=
+            ENNReal.toReal_mono (measure_ne_top μ _) (μ.mono (Set.subset_univ _))
+        _ = 1 := by simp [measure_univ]
+    have hT_meas_nonneg : 0 ≤ (μ T).toReal := ENNReal.toReal_nonneg
+    have hcard_ge_m : m ≤ (P.parts.biUnion f).card := by
+      calc m = (f S).card := by rw [hf_eq S hS, hg_card S hS]
+        _ ≤ (P.parts.biUnion f).card :=
+          Finset.card_le_card (Finset.subset_biUnion_of_mem f hS)
+    have hinv_card_le : 1 / ((P.parts.biUnion f).card : ℝ) ≤ 1 / (m : ℝ) := by
+      exact div_le_div_of_nonneg_left one_pos.le (Nat.cast_pos.mpr hm_pos)
+        (Nat.cast_le.mpr hcard_ge_m)
+    have hinv_card_nonneg : 0 ≤ 1 / ((P.parts.biUnion f).card : ℝ) := by positivity
+    -- |a - b| ≤ max(a, b) for nonneg a, b; then max(a, b) ≤ 1/m ≤ ε
+    rw [abs_le]
+    constructor
+    · linarith
+    · linarith
+  -- card bound
+  · calc (P.parts.biUnion f).card
+        ≤ P.parts.sum (fun S => (f S).card) := Finset.card_biUnion_le
+      _ = P.parts.sum (fun _ => m) :=
+          Finset.sum_congr rfl (fun S hS => by rw [hf_eq S hS, hg_card S hS])
+      _ = P.parts.card * m := by simp [Finset.sum_const]
 
 /-- Any partition can be refined to an equitable one with controlled part count.
 
