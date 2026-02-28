@@ -4622,7 +4622,8 @@ Given a measurable set S in an atomless measure space and n ≥ 1, there exist
 n pairwise disjoint measurable subsets of S, each of measure μ(S)/n, that cover S.
 This follows from iterated application of the IVT for atomless measures. -/
 private theorem exists_equal_measure_partition [NoAtoms μ]
-    {S : Set α} (hS : MeasurableSet S) (hfin : μ S ≠ ⊤) {n : ℕ} (hn : 0 < n) :
+    {S : Set α} (hS : MeasurableSet S) (hfin : μ S ≠ ⊤) (hne : μ S ≠ 0)
+    {n : ℕ} (hn : 0 < n) :
     ∃ pieces : Finset (Set α),
       pieces.card = n ∧
       (∀ T ∈ pieces, MeasurableSet T) ∧
@@ -4630,7 +4631,111 @@ private theorem exists_equal_measure_partition [NoAtoms μ]
       (pieces : Set (Set α)).PairwiseDisjoint id ∧
       (∀ T ∈ pieces, μ T = μ S / n) ∧
       (∀ᵐ x ∂μ, x ∈ S → ∃ T ∈ pieces, x ∈ T) := by
-  sorry
+  -- Set q = μ S / n, the target measure for each piece
+  set q := μ S / (n : ℝ≥0∞) with hq_def
+  have hn_ne : (n : ℝ≥0∞) ≠ 0 := Nat.cast_ne_zero.mpr (Nat.pos_iff_ne_zero.mp hn)
+  have hn_top : (n : ℝ≥0∞) ≠ ⊤ := ENNReal.natCast_ne_top n
+  have hq_ne_top : q ≠ ⊤ := ENNReal.div_ne_top hfin hn_ne
+  have hq_pos : 0 < q := ENNReal.div_pos hne hn_top
+  -- Helper: carve m equal-measure pieces from a remainder R with μ R = m * q
+  suffices h_helper : ∀ (m : ℕ) (R : Set α),
+      MeasurableSet R → R ⊆ S → μ R = ↑m * q →
+      ∃ pieces : Finset (Set α),
+        pieces.card = m ∧
+        (∀ T ∈ pieces, MeasurableSet T) ∧
+        (∀ T ∈ pieces, T ⊆ R) ∧
+        (pieces : Set (Set α)).PairwiseDisjoint id ∧
+        (∀ T ∈ pieces, μ T = q) ∧
+        (∀ᵐ x ∂μ, x ∈ R → ∃ T ∈ pieces, x ∈ T) by
+    -- Invoke helper with m = n, R = S
+    have hmuS : μ S = ↑n * q := (ENNReal.mul_div_cancel hn_ne hn_top).symm
+    obtain ⟨pieces, hcard, hmeas, hsub, hdisj, hmu, hcov⟩ := h_helper n S hS Subset.rfl hmuS
+    exact ⟨pieces, hcard, hmeas, hsub, hdisj, hmu, hcov⟩
+  intro m
+  induction m with
+  | zero =>
+    intro R hR_meas _hR_sub hR_mu
+    refine ⟨∅, Finset.card_empty, by simp, by simp, by simp, by simp, ?_⟩
+    -- μ R = 0 * q = 0, so R is null → AE coverage is trivial
+    simp only [Nat.cast_zero, zero_mul] at hR_mu
+    rw [ae_iff]
+    apply measure_mono_null (fun x (hx : ¬ _) => ?_) (by rw [hR_mu])
+    exact (_root_.not_imp.mp hx).1
+  | succ m ih =>
+    intro R hR_meas hR_sub hR_mu
+    -- Show q ≤ μ R (since μ R = (m+1) * q ≥ q)
+    have hq_le : q ≤ μ R := by
+      rw [hR_mu]
+      exact le_mul_of_one_le_left (zero_le q)
+        (by exact_mod_cast Nat.one_le_iff_ne_zero.mpr (Nat.succ_ne_zero m))
+    -- Apply IVT oracle to get a piece T ⊆ R with μ T = q
+    obtain ⟨T, hT_meas, hT_sub, hT_mu⟩ := exists_measurable_subset_of_measure hR_meas hq_le
+    -- Set R' = R \ T
+    set R' := R \ T with hR'_def
+    have hR'_meas : MeasurableSet R' := hR_meas.diff hT_meas
+    have hR'_sub : R' ⊆ S := diff_subset.trans hR_sub
+    -- Compute μ R' = m * q
+    have hT_mu_ne_top : μ T ≠ ⊤ := by rw [hT_mu]; exact hq_ne_top
+    have hR'_mu : μ R' = ↑m * q := by
+      have h_diff := measure_diff hT_sub hT_meas.nullMeasurableSet hT_mu_ne_top
+      rw [h_diff, hR_mu, hT_mu]
+      rw [show (↑(m + 1) : ℝ≥0∞) = ↑m + 1 from by push_cast; ring]
+      rw [add_mul, one_mul]
+      exact ENNReal.add_sub_cancel_right hq_ne_top
+    -- Apply IH to R' to get m pieces
+    obtain ⟨pieces_old, hcard_old, hmeas_old, hsub_old, hdisj_old, hmu_old, hcov_old⟩ :=
+      ih R' hR'_meas hR'_sub hR'_mu
+    -- Show T ∉ pieces_old
+    have hT_notin : T ∉ pieces_old := by
+      intro hT_in
+      have hT_sub_R' : T ⊆ R' := hsub_old T hT_in
+      have hT_ne : μ T ≠ 0 := by rw [hT_mu]; exact ne_of_gt hq_pos
+      have hT_nonempty : T.Nonempty := nonempty_of_measure_ne_zero hT_ne
+      obtain ⟨x, hx⟩ := hT_nonempty
+      exact (hT_sub_R' hx).2 hx
+    -- Build pieces = {T} ∪ pieces_old via Finset.cons
+    refine ⟨Finset.cons T pieces_old hT_notin, ?_, ?_, ?_, ?_, ?_, ?_⟩
+    · -- card
+      rw [Finset.card_cons, hcard_old]
+    · -- measurable
+      intro U hU
+      rw [Finset.mem_cons] at hU
+      rcases hU with rfl | hU
+      · exact hT_meas
+      · exact hmeas_old U hU
+    · -- subset of R
+      intro U hU
+      rw [Finset.mem_cons] at hU
+      rcases hU with rfl | hU
+      · exact hT_sub
+      · exact (hsub_old U hU).trans diff_subset
+    · -- pairwise disjoint
+      intro U₁ hU₁ U₂ hU₂ hne₁₂
+      rw [Finset.mem_coe, Finset.mem_cons] at hU₁ hU₂
+      rcases hU₁ with rfl | hU₁ <;> rcases hU₂ with rfl | hU₂
+      · exact absurd rfl hne₁₂
+      · -- T vs U₂ ∈ pieces_old: U₂ ⊆ R' = R \ T, so Disjoint T U₂
+        exact disjoint_sdiff_self_right.mono_right (hsub_old U₂ hU₂)
+      · -- U₁ ∈ pieces_old vs T: symmetric
+        exact (disjoint_sdiff_self_right.mono_right (hsub_old U₁ hU₁)).symm
+      · -- Both in pieces_old: from IH
+        exact hdisj_old (Finset.mem_coe.mpr hU₁) (Finset.mem_coe.mpr hU₂) hne₁₂
+    · -- measure
+      intro U hU
+      rw [Finset.mem_cons] at hU
+      rcases hU with rfl | hU
+      · exact hT_mu
+      · exact hmu_old U hU
+    · -- AE coverage: x ∈ R → x ∈ T or x ∈ some piece from old
+      have hcov_old' := hcov_old
+      rw [ae_iff] at hcov_old' ⊢
+      apply measure_mono_null (fun x (hx : ¬ _) => ?_) hcov_old'
+      -- hx : ¬(x ∈ R → ∃ T ∈ cons ..., x ∈ T)
+      -- goal : ¬(x ∈ R' → ∃ T ∈ pieces_old, x ∈ T)
+      have ⟨hxR, hx_none⟩ := _root_.not_imp.mp hx
+      apply _root_.not_imp.mpr
+      exact ⟨⟨hxR, fun hxT => hx_none ⟨T, Finset.mem_cons_self T pieces_old, hxT⟩⟩,
+        fun ⟨U, hU, hxU⟩ => hx_none ⟨U, Finset.mem_cons_of_mem hU, hxU⟩⟩
 
 /-- Construct an equitable refinement of a partition.
 
@@ -4666,18 +4771,61 @@ private theorem exists_equitable_refinement_construction [NoAtoms μ]
         exact Nat.le_ceil (1 / ε)
       _ = ε * ↑m := by ring
   classical
-  -- For each S ∈ P.parts, split S into m equal-measure pieces
-  -- Define a function that works without the membership proof (using dite)
-  have h_split : ∀ S ∈ P.parts, ∃ pieces : Finset (Set α),
+  -- For each S ∈ P.parts with μ S ≠ 0, split into m equal-measure pieces
+  have h_split_pos : ∀ S ∈ P.parts, μ S ≠ 0 → ∃ pieces : Finset (Set α),
       pieces.card = m ∧
       (∀ T ∈ pieces, MeasurableSet T) ∧
       (∀ T ∈ pieces, T ⊆ S) ∧
       (pieces : Set (Set α)).PairwiseDisjoint id ∧
       (∀ T ∈ pieces, μ T = μ S / m) ∧
       (∀ᵐ x ∂μ, x ∈ S → ∃ T ∈ pieces, x ∈ T) := by
+    intro S hS hμS
+    exact exists_equal_measure_partition (P.measurableSet_part hS)
+      (measure_ne_top μ S) hμS hm_pos
+  choose gp hgp_card hgp_meas hgp_sub hgp_disj hgp_measure hgp_covers
+    using h_split_pos
+  -- Define g: for μ S = 0 use {S}, for μ S ≠ 0 use m-piece partition
+  let g : (S : Set α) → S ∈ P.parts → Finset (Set α) :=
+    fun S hS => if hμS : μ S = 0 then {S} else gp S hS hμS
+  -- Properties of g (split by μ S = 0 or not)
+  have hg_meas : ∀ S (hS : S ∈ P.parts), ∀ T ∈ g S hS, MeasurableSet T := by
+    intro S hS T hT
+    by_cases hμS : μ S = 0
+    · simp only [g, dif_pos hμS, Finset.mem_singleton] at hT; subst hT
+      exact P.measurableSet_part hS
+    · exact hgp_meas S hS hμS T (by simp only [g, dif_neg hμS] at hT; exact hT)
+  have hg_sub : ∀ S (hS : S ∈ P.parts), ∀ T ∈ g S hS, T ⊆ S := by
+    intro S hS T hT
+    by_cases hμS : μ S = 0
+    · simp only [g, dif_pos hμS, Finset.mem_singleton] at hT; subst hT; exact Set.Subset.rfl
+    · exact hgp_sub S hS hμS T (by simp only [g, dif_neg hμS] at hT; exact hT)
+  have hg_disj : ∀ S (hS : S ∈ P.parts),
+      ((g S hS : Set (Set α)).PairwiseDisjoint id) := by
     intro S hS
-    exact exists_equal_measure_partition (P.measurableSet_part hS) (measure_ne_top μ S) hm_pos
-  choose g hg_card hg_meas hg_sub hg_disj hg_measure hg_covers using h_split
+    by_cases hμS : μ S = 0
+    · simp only [g, dif_pos hμS]; intro a ha b hb hab
+      simp only [Finset.mem_coe, Finset.mem_singleton] at ha hb
+      exact absurd (ha.trans hb.symm) hab
+    · simp only [g, dif_neg hμS]; exact hgp_disj S hS hμS
+  have hg_measure : ∀ S (hS : S ∈ P.parts), ∀ T ∈ g S hS, μ T = μ S / m := by
+    intro S hS T hT
+    by_cases hμS : μ S = 0
+    · simp only [g, dif_pos hμS, Finset.mem_singleton] at hT; subst hT
+      rw [hμS]; simp only [ENNReal.zero_div]
+    · exact hgp_measure S hS hμS T (by simp only [g, dif_neg hμS] at hT; exact hT)
+  have hg_covers : ∀ S (hS : S ∈ P.parts),
+      ∀ᵐ x ∂μ, x ∈ S → ∃ T ∈ g S hS, x ∈ T := by
+    intro S hS
+    by_cases hμS : μ S = 0
+    · simp only [g, dif_pos hμS]
+      filter_upwards with x hxS
+      exact ⟨S, Finset.mem_singleton_self S, hxS⟩
+    · simp only [g, dif_neg hμS]; exact hgp_covers S hS hμS
+  have hg_card_le : ∀ S (hS : S ∈ P.parts), (g S hS).card ≤ m := by
+    intro S hS
+    by_cases hμS : μ S = 0
+    · simp only [g, dif_pos hμS, Finset.card_singleton]; omega
+    · simp only [g, dif_neg hμS]; exact le_of_eq (hgp_card S hS hμS)
   -- Create a non-dependent wrapper for biUnion
   let f : Set α → Finset (Set α) := fun S => if h : S ∈ P.parts then g S h else ∅
   have hf_eq : ∀ S (hS : S ∈ P.parts), f S = g S hS := fun S hS => dif_pos hS
@@ -4736,9 +4884,26 @@ private theorem exists_equitable_refinement_construction [NoAtoms μ]
         _ = 1 := by simp [measure_univ]
     have hT_meas_nonneg : 0 ≤ (μ T).toReal := ENNReal.toReal_nonneg
     have hcard_ge_m : m ≤ (P.parts.biUnion f).card := by
-      calc m = (f S).card := by rw [hf_eq S hS, hg_card S hS]
+      obtain ⟨S₀, hS₀, hμS₀⟩ : ∃ S₀ ∈ P.parts, μ S₀ ≠ 0 := by
+        by_contra h_all; push_neg at h_all
+        have h_not_in : ∀ S ∈ P.parts, ∀ᵐ x ∂μ, x ∉ S := by
+          intro S' hS'
+          rw [ae_iff, show ({x : α | ¬x ∉ S'} : Set α) = S' from Set.ext (fun _ => not_not)]
+          exact h_all S' hS'
+        have h_false : ∀ᵐ x ∂μ, False := by
+          filter_upwards [P.ae_covers,
+            (Filter.eventually_all_finset P.parts).mpr h_not_in]
+            with x ⟨S', hS', hxS'⟩ h_all'
+          exact h_all' S' hS' hxS'
+        rw [ae_iff, show ({x : α | ¬False} : Set α) = Set.univ from
+          Set.ext (fun _ => ⟨fun _ => trivial, fun _ => not_false⟩),
+          measure_univ] at h_false
+        exact one_ne_zero h_false
+      calc m = (f S₀).card := by
+              rw [hf_eq S₀ hS₀]; simp only [g, dif_neg hμS₀]
+              exact (hgp_card S₀ hS₀ hμS₀).symm
         _ ≤ (P.parts.biUnion f).card :=
-          Finset.card_le_card (Finset.subset_biUnion_of_mem f hS)
+          Finset.card_le_card (Finset.subset_biUnion_of_mem f hS₀)
     have hinv_card_le : 1 / ((P.parts.biUnion f).card : ℝ) ≤ 1 / (m : ℝ) := by
       exact div_le_div_of_nonneg_left one_pos.le (Nat.cast_pos.mpr hm_pos)
         (Nat.cast_le.mpr hcard_ge_m)
@@ -4751,8 +4916,8 @@ private theorem exists_equitable_refinement_construction [NoAtoms μ]
   -- card bound
   · calc (P.parts.biUnion f).card
         ≤ P.parts.sum (fun S => (f S).card) := Finset.card_biUnion_le
-      _ = P.parts.sum (fun _ => m) :=
-          Finset.sum_congr rfl (fun S hS => by rw [hf_eq S hS, hg_card S hS])
+      _ ≤ P.parts.sum (fun _ => m) :=
+          Finset.sum_le_sum (fun S hS => by rw [hf_eq S hS]; exact hg_card_le S hS)
       _ = P.parts.card * m := by simp [Finset.sum_const]
 
 /-- Any partition can be refined to an equitable one with controlled part count.
