@@ -705,41 +705,153 @@ private theorem cutDistance_lt_add_of_pos_onesided
     _ = cutNormDiff (pullback U φ hφ) (pullback W ψ hψ) := h_inv_χ₂
     _ < cutDistance U W + ε := h_opt
 
+/-- MeasurableEquiv variant of `cutDistance_lt_add_of_pos_onesided`: for any ε > 0,
+there exists a MeasurableEquiv σ with `cutNormDiff(pullback U σ, W) < cutDistance U W + ε`.
+
+**Proof**: Get MP map f from onesided, upgrade to MeasurableEquiv via Rokhlin
+(`exists_common_extension_maps f id`), transfer bound via `pullback_congr_ae`. -/
+private theorem cutDistance_lt_add_of_pos_equiv
+    (U W : Graphon α μ) {ε : ℝ} (hε : 0 < ε) :
+    ∃ (σ : α ≃ᵐ α) (hσ : MeasurePreserving σ μ μ),
+      cutNormDiff (pullback U σ hσ) W < cutDistance U W + ε := by
+  -- Get one-sided MP map witness
+  obtain ⟨f, hf, h_bound⟩ := cutDistance_lt_add_of_pos_onesided U W hε
+  -- Upgrade to MeasurableEquiv: align f with id via Rokhlin
+  obtain ⟨χ₁, χ₂, hχ₁, hχ₂, h_align⟩ :=
+    MeasurePreserving.exists_common_extension_maps f hf id (MeasurePreserving.id μ)
+  -- h_align : f ∘ χ₁ =ᵐ[μ] id ∘ χ₂ = χ₂
+  -- So f =ᶠ[ae μ] χ₂ ∘ χ₁⁻¹ = (χ₁.symm.trans χ₂)
+  have h_eq : f =ᶠ[ae μ] ↑(χ₁.symm.trans χ₂) := by
+    have h_simp : id ∘ ↑χ₂ = ↑χ₂ := Function.id_comp _
+    rw [h_simp] at h_align
+    -- f ∘ χ₁ =ᵐ χ₂ → f =ᵐ χ₂ ∘ χ₁⁻¹ = χ₁.symm.trans χ₂
+    have := hχ₁.symm.quasiMeasurePreserving.ae h_align
+    filter_upwards [this] with x hx
+    simp only [Function.comp_apply, MeasurableEquiv.apply_symm_apply] at hx
+    simp only [MeasurableEquiv.coe_trans, Function.comp_apply]
+    exact hx
+  -- Transfer bound via pullback_congr_ae
+  have hσ : MeasurePreserving (↑(χ₁.symm.trans χ₂)) μ μ := by
+    show MeasurePreserving (↑χ₂ ∘ ↑χ₁.symm) μ μ
+    exact hχ₂.comp hχ₁.symm
+  refine ⟨χ₁.symm.trans χ₂, hσ, ?_⟩
+  rw [← pullback_congr_ae U hf hσ h_eq]
+  exact h_bound
+
+/-- Telescoping realignment: given rapidly decaying consecutive cutDistances,
+construct MeasurableEquiv maps `f_k` such that consecutive `cutNormDiff` after
+pullback is summable.
+
+**Proof**: At each step k, get MeasurableEquiv σ_k from `cutDistance_lt_add_of_pos_equiv`
+with error 1/3^k. Build f_k by `Nat.rec`: f_0 = refl, f_{k+1} = f_k.trans σ_k.
+The telescoping bound uses `pullback_pullback` + `cutNormDiff_pullback_measurableEquiv`
+to cancel f_k, yielding cutNormDiff ≤ 1/2^k + 2/3^k which is summable. -/
+private theorem exists_cutNormDiff_cauchy_realignment
+    (V : ℕ → Graphon α μ)
+    (h_rapid : ∀ k, cutDistance (V (k + 1)) (V k) ≤ 1 / 2 ^ k + 1 / 3 ^ k) :
+    ∃ (f : ℕ → α ≃ᵐ α) (hf : ∀ k, MeasurePreserving (f k) μ μ)
+      (δ : ℕ → ℝ) (_ : Summable δ) (_ : ∀ k, 0 ≤ δ k),
+      ∀ k, cutNormDiff (pullback (V (k + 1)) (f (k + 1)) (hf (k + 1)))
+                        (pullback (V k) (f k) (hf k)) ≤ δ k := by
+  -- For each k, get MeasurableEquiv σ_k witnessing cutDistance bound
+  have h_witness : ∀ k, ∃ (σ : α ≃ᵐ α) (hσ : MeasurePreserving σ μ μ),
+      cutNormDiff (pullback (V (k + 1)) σ hσ) (V k) < cutDistance (V (k + 1)) (V k) + 1 / 3 ^ k := by
+    intro k
+    exact cutDistance_lt_add_of_pos_equiv (V (k + 1)) (V k) (by positivity)
+  choose σ hσ h_σ_bound using h_witness
+  -- Build f by recursion: f 0 = refl, f (k+1) = f k . trans (σ k)
+  -- Note: (e₁.trans e₂) x = e₂ (e₁ x), so ⇑(f_k.trans σ_k) = σ_k ∘ f_k
+  -- And pullback_pullback: pb(pb(W, σ_k), f_k) = pb(W, σ_k ∘ f_k) = pb(W, f_{k+1})
+  let f : ℕ → α ≃ᵐ α := fun k => Nat.rec (MeasurableEquiv.refl α) (fun k prev => prev.trans (σ k)) k
+  have hf : ∀ k, MeasurePreserving (f k) μ μ := by
+    intro k; induction k with
+    | zero => exact MeasurePreserving.id μ
+    | succ k ih =>
+      -- f (k+1) = (f k).trans (σ k), so ⇑(f (k+1)) = (σ k) ∘ (f k)
+      show MeasurePreserving (↑(σ k) ∘ ↑(f k)) μ μ
+      exact (hσ k).comp ih
+  -- Set δ k = 1/2^k + 2/3^k
+  let δ : ℕ → ℝ := fun k => 1 / 2 ^ k + 2 / 3 ^ k
+  have hδ_pos : ∀ k, 0 ≤ δ k := fun k => by positivity
+  have hδ_sum : Summable δ := by
+    apply Summable.add
+    · have : Summable (fun k : ℕ => ((1 : ℝ) / 2) ^ k) :=
+        summable_geometric_of_lt_one (by positivity) (by norm_num)
+      convert this using 1; ext k; rw [one_div, one_div, inv_pow]
+    · have h : Summable (fun k : ℕ => ((1 : ℝ) / 3) ^ k) :=
+        summable_geometric_of_lt_one (by positivity) (by norm_num)
+      have h2 := h.mul_left 2
+      simp only [one_div] at h2
+      convert h2 using 1; ext k; rw [inv_pow]; ring
+  refine ⟨f, hf, δ, hδ_sum, hδ_pos, fun k => ?_⟩
+  -- Key calc: f (k+1) = f k . trans (σ k), so ⇑(f (k+1)) = σ_k ∘ f_k
+  -- pb(V(k+1), f_{k+1}) = pb(V(k+1), σ_k ∘ f_k) = pb(pb(V(k+1), σ_k), f_k)
+  -- cutNormDiff(pb(V(k+1), f_{k+1}), pb(V_k, f_k))
+  --   = cutNormDiff(pb(pb(V(k+1), σ_k), f_k), pb(V_k, f_k))
+  --   = cutNormDiff(pb(V(k+1), σ_k), V_k)    [by cutNormDiff_pullback_measurableEquiv]
+  --   < cutDistance(V(k+1), V_k) + 1/3^k
+  --   ≤ 1/2^k + 1/3^k + 1/3^k = 1/2^k + 2/3^k = δ k
+  -- f (k+1) = (f k).trans (σ k), so pb(V(k+1), f_{k+1}) = pb(pb(V(k+1), σ_k), f_k)
+  have h_comp : pullback (V (k + 1)) (↑(σ k) ∘ ↑(f k)) ((hσ k).comp (hf k)) =
+      pullback (pullback (V (k + 1)) (σ k) (hσ k)) (↑(f k)) (hf k) :=
+    (pullback_pullback (V (k + 1)) (↑(σ k)) (hσ k) (↑(f k)) (hf k)).symm
+  -- The goal uses f (k+1) which is definitionally (σ k) ∘ (f k)
+  show cutNormDiff (pullback (V (k + 1)) (↑(σ k) ∘ ↑(f k)) ((hσ k).comp (hf k)))
+      (pullback (V k) (↑(f k)) (hf k)) ≤ δ k
+  calc cutNormDiff (pullback (V (k + 1)) (↑(σ k) ∘ ↑(f k)) ((hσ k).comp (hf k)))
+          (pullback (V k) (↑(f k)) (hf k))
+      = cutNormDiff (pullback (pullback (V (k + 1)) (σ k) (hσ k)) (↑(f k)) (hf k))
+          (pullback (V k) (↑(f k)) (hf k)) := by rw [h_comp]
+    _ = cutNormDiff (pullback (V (k + 1)) (σ k) (hσ k)) (V k) :=
+        cutNormDiff_pullback_measurableEquiv _ _ (f k) (hf k)
+    _ ≤ cutDistance (V (k + 1)) (V k) + 1 / 3 ^ k := le_of_lt (h_σ_bound k)
+    _ ≤ (1 / 2 ^ k + 1 / 3 ^ k) + 1 / 3 ^ k := by linarith [h_rapid k]
+    _ = δ k := by ring
+
+/-- Limit extraction from summable cutNormDiff Cauchy sequence.
+
+Given a sequence of graphons `A_k` with summable consecutive `cutNormDiff` bounds,
+there exists a limit graphon `L` with `cutNormDiff(A_k, L) → 0`.
+
+**Circularity guard**: This sorry is a *prerequisite* for completeness (`complete`) and
+must NOT use `complete`, `quotient_compact`, `exists_limit_of_rapid_convergence`,
+`exists_aligned_cutNormDiff_limit`, or `exists_cutNormDiff_limit_of_cutDistance_rapid`.
+
+**Gap**: Requires Banach-Alaoglu for L∞(α×α) to extract a weak* limit graphon,
+plus Radon-Nikodym assembly to show the limit is a graphon. Mathlib has
+`WeakDual.isCompact_closedBall` but not the assembly for the graphon setting. -/
+private theorem exists_cutNormDiff_limit_of_summable
+    (A : ℕ → Graphon α μ) (δ : ℕ → ℝ)
+    (hδ_pos : ∀ k, 0 ≤ δ k) (hδ_sum : Summable δ)
+    (h_bound : ∀ k, cutNormDiff (A (k + 1)) (A k) ≤ δ k) :
+    ∃ L : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (A n) L < ε := by
+  sorry
+
 /-- Given graphons `V_k` with rapidly decaying consecutive cut distances, there exist
 measure-preserving realignment maps `f_k` and a limit graphon `L` with
 `cutNormDiff(pullback(V_k, f_k), L) → 0`.
 
 This is the "coupling completeness" step: it converts cut-distance Cauchy convergence
-to cut-norm-difference convergence via realignment. Mathematically, this follows from
-weak* compactness of `[0,1]`-valued measurable functions combined with Rokhlin's
-theorem (see Lovász [2012], Proposition 9.17).
+to cut-norm-difference convergence via realignment.
 
-**Circularity guard**: This sorry is a *prerequisite* for completeness (`complete`) and
-must NOT use `complete`, `quotient_compact`, `exists_limit_of_rapid_convergence`, or
-any theorem downstream of `exists_aligned_cutNormDiff_limit`.
+**Proof**: Telescoping via `exists_cutNormDiff_cauchy_realignment` gives MeasurableEquiv
+maps with summable consecutive cutNormDiff bounds, then `exists_cutNormDiff_limit_of_summable`
+extracts the limit.
 
-**Proof roadmap**:
-1. *One-sided witnesses* (`cutDistance_lt_add_of_pos_onesided`, proved above): for each
-   consecutive pair, get σ_k with `cutNormDiff(pb(V_{k+1}, σ_k), V_k) < d + ε`.
-2. *Telescoping*: compose σ_k to get maps f_k with summable `cutNormDiff(pb(V_k, f_k))`.
-3. *Limit extraction*: from the summable cutNormDiff Cauchy sequence, extract a limit.
-
-**Gap 1 (MeasurableEquiv witnesses)**: Step 2 telescoping via
-`cutNormDiff_pullback_measurableEquiv` requires MeasurableEquiv witnesses. On
-StandardBorelSpace the cutDistance infimum is achievable by MeasurableEquivs (a Rokhlin
-consequence), but this stronger form is not yet proved.
-
-**Gap 2 (Analytical)**: Step 3 needs Banach-Alaoglu for L∞(α×α) to extract a weak*
-limit graphon, plus Radon-Nikodym to show the limit is a graphon. Mathlib has
-`WeakDual.isCompact_closedBall` but not the assembly for the graphon setting.
-
-**Sorry**: Requires resolution of both gaps above; not yet in Mathlib. -/
+**Depends on**: `exists_cutNormDiff_limit_of_summable` (sorry'd — Banach-Alaoglu gap). -/
 private theorem exists_cutNormDiff_limit_of_cutDistance_rapid
     (V : ℕ → Graphon α μ)
     (h_rapid : ∀ k : ℕ, cutDistance (V (k + 1)) (V k) ≤ 1 / 2 ^ k + 1 / 3 ^ k) :
     ∃ (L : Graphon α μ) (f : (k : ℕ) → (α → α)) (hf : ∀ k, MeasurePreserving (f k) μ μ),
       ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (pullback (V n) (f n) (hf n)) L < ε := by
-  sorry
+  -- Step 1: Telescoping realignment with MeasurableEquiv witnesses
+  obtain ⟨f_equiv, hf_equiv, δ, hδ_sum, hδ_pos, h_cauchy⟩ :=
+    exists_cutNormDiff_cauchy_realignment V h_rapid
+  -- Step 2: Extract limit from summable Cauchy sequence
+  let A : ℕ → Graphon α μ := fun k => pullback (V k) (f_equiv k) (hf_equiv k)
+  obtain ⟨L, hL⟩ := exists_cutNormDiff_limit_of_summable A δ hδ_pos hδ_sum h_cauchy
+  -- Step 3: Return witnesses (coerce MeasurableEquiv to function)
+  exact ⟨L, fun k => ↑(f_equiv k), fun k => hf_equiv k, hL⟩
 
 /-- Alignment + limit for rapidly converging graphon sequences.
 

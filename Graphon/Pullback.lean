@@ -182,6 +182,26 @@ theorem pullback_pullback {γ : Type*} [MeasurableSpace γ] {τ : Measure γ}
   apply SymmKernel.ext
   exact AEEqFun.ext h_eq
 
+/-- If two measure-preserving maps agree a.e., their pullbacks are equal.
+
+This is used to transfer cutNormDiff bounds from a general MP map to a
+MeasurableEquiv witness obtained via Rokhlin alignment. -/
+theorem pullback_congr_ae (W : Graphon α μ) {f g : α → α}
+    (hf : MeasurePreserving f μ μ) (hg : MeasurePreserving g μ μ)
+    (h : f =ᶠ[ae μ] g) : pullback W f hf = pullback W g hg := by
+  apply Graphon.ext; apply SymmKernel.ext; apply AEEqFun.ext
+  have h1 := pullback_ae W f hf
+  have h2 := pullback_ae W g hg
+  have h_prod_ae : ∀ᵐ p ∂(μ.prod μ), (f p.1, f p.2) = (g p.1, g p.2) := by
+    have h_fst : ∀ᵐ p ∂(μ.prod μ), f p.1 = g p.1 :=
+      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst h
+    have h_snd : ∀ᵐ p ∂(μ.prod μ), f p.2 = g p.2 :=
+      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd h
+    filter_upwards [h_fst, h_snd] with p hp1 hp2
+    exact Prod.ext hp1 hp2
+  filter_upwards [h1, h2, h_prod_ae] with p hp1 hp2 hp_eq
+  rw [hp1, hp2, hp_eq]
+
 /-! ### Weak isomorphism -/
 
 /-- Two graphons are weakly isomorphic if one is a pullback of the other.
