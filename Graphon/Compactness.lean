@@ -808,24 +808,140 @@ private theorem exists_cutNormDiff_cauchy_realignment
     _ ≤ (1 / 2 ^ k + 1 / 3 ^ k) + 1 / 3 ^ k := by linarith [h_rapid k]
     _ = δ k := by ring
 
+omit [StandardBorelSpace α] in
+set_option maxHeartbeats 800000 in
+/-- **Helper 1**: Summable consecutive bounds imply Cauchy in cutNormDiff.
+
+Telescoping + triangle inequality: for m ≥ n, `cutNormDiff(A m, A n) ≤ ∑ δ` over
+the intervening indices, bounded by the tail sum which vanishes. -/
+private lemma cutNormDiff_cauchy_of_summable
+    (A : ℕ → Graphon α μ) (δ : ℕ → ℝ)
+    (hδ_pos : ∀ k, 0 ≤ δ k) (hδ_sum : Summable δ)
+    (h_bound : ∀ k, cutNormDiff (A (k + 1)) (A k) ≤ δ k) :
+    ∀ ε > 0, ∃ N, ∀ m n, N ≤ m → N ≤ n → cutNormDiff (A m) (A n) ≤ ε := by
+  -- Step 1: Telescoping for n + d
+  have h_telescope : ∀ n d, cutNormDiff (A (n + d)) (A n) ≤ ∑ k ∈ Finset.range d, δ (n + k) := by
+    intro n d
+    induction d with
+    | zero => simp [cutNormDiff_self]
+    | succ d ih =>
+      have h1 : n + (d + 1) = (n + d) + 1 := by omega
+      calc cutNormDiff (A (n + (d + 1))) (A n)
+          = cutNormDiff (A ((n + d) + 1)) (A n) := by rw [h1]
+        _ ≤ cutNormDiff (A ((n + d) + 1)) (A (n + d)) + cutNormDiff (A (n + d)) (A n) :=
+            cutNormDiff_triangle _ _ _
+        _ ≤ δ (n + d) + ∑ k ∈ Finset.range d, δ (n + k) := add_le_add (h_bound _) ih
+        _ = ∑ k ∈ Finset.range d, δ (n + k) + δ (n + d) := by ring
+        _ = ∑ k ∈ Finset.range (d + 1), δ (n + k) := (Finset.sum_range_succ _ _).symm
+  -- Step 2: Finite sum ≤ tail tsum
+  have h_sum_le_tail : ∀ n d,
+      ∑ k ∈ Finset.range d, δ (n + k) ≤ ∑' k, δ (n + k) := by
+    intro n d
+    have hδ_shift : Summable (fun k => δ (n + k)) :=
+      hδ_sum.comp_injective (fun _ _ h => by omega)
+    exact hδ_shift.sum_le_tsum (Finset.range d) (fun k _ => hδ_pos _)
+  -- Step 3: Tail vanishes
+  have h_tail : ∀ ε > 0, ∃ N, ∀ n ≥ N, ∑' k, δ (n + k) ≤ ε := by
+    intro ε hε
+    have h_conv := hδ_sum.hasSum.tendsto_sum_nat
+    rw [Metric.tendsto_atTop] at h_conv
+    obtain ⟨N, hN⟩ := h_conv ε hε
+    refine ⟨N, fun n hn => ?_⟩
+    have h_shift : ∑' k, δ (n + k) = ∑' k, δ k - ∑ k ∈ Finset.range n, δ k := by
+      have h1 := ((summable_nat_add_iff n).mpr hδ_sum).hasSum
+      rw [hasSum_nat_add_iff n] at h1
+      have := h1.tsum_eq; simp only [add_comm] at this; linarith
+    rw [h_shift]
+    have h_le : ∑ k ∈ Finset.range n, δ k ≤ ∑' k, δ k :=
+      hδ_sum.sum_le_tsum _ (fun k _ => hδ_pos k)
+    have h_dist := hN n hn; rw [Real.dist_eq] at h_dist
+    have h_nonpos : ∑ k ∈ Finset.range n, δ k - ∑' k, δ k ≤ 0 := by linarith
+    rw [abs_of_nonpos h_nonpos] at h_dist; linarith
+  -- Step 4: Combine
+  intro ε hε
+  obtain ⟨N, hN⟩ := h_tail ε hε
+  refine ⟨N, fun m n hm hn => ?_⟩
+  rcases le_total m n with hmn | hnm
+  · rw [cutNormDiff_symm]
+    have heq : n = m + (n - m) := by omega
+    calc cutNormDiff (A n) (A m)
+        = cutNormDiff (A (m + (n - m))) (A m) := by rw [← heq]
+      _ ≤ ∑ k ∈ Finset.range (n - m), δ (m + k) := h_telescope m (n - m)
+      _ ≤ ∑' k, δ (m + k) := h_sum_le_tail m (n - m)
+      _ ≤ ε := hN m hm
+  · have heq : m = n + (m - n) := by omega
+    calc cutNormDiff (A m) (A n)
+        = cutNormDiff (A (n + (m - n))) (A n) := by rw [← heq]
+      _ ≤ ∑ k ∈ Finset.range (m - n), δ (n + k) := h_telescope n (m - n)
+      _ ≤ ∑' k, δ (n + k) := h_sum_le_tail n (m - n)
+      _ ≤ ε := hN n hn
+
+/-- **Helper 2**: Subsequential weak* limit extraction for bounded graphon sequences.
+
+Extract a subsequence and a limit graphon `L` with `cutNormDiff(A(φ n), L) → 0`.
+
+**Sorry**: Requires Banach-Alaoglu for L∞(α×α) to extract a weak* limit graphon,
+plus Radon-Nikodym assembly to show the limit is a graphon. Mathlib has
+`WeakDual.isCompact_closedBall` but not the full assembly for the graphon setting.
+
+**Circularity guard**: Must NOT use `complete`, `quotient_compact`,
+`exists_limit_of_rapid_convergence`, `exists_aligned_cutNormDiff_limit`, or
+`exists_cutNormDiff_limit_of_cutDistance_rapid`. -/
+private theorem exists_cutNormDiff_subseq_limit
+    (A : ℕ → Graphon α μ) :
+    ∃ (φ : ℕ → ℕ) (L : Graphon α μ),
+      StrictMono φ ∧ ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (A (φ n)) L < ε := by
+  sorry
+
+omit [StandardBorelSpace α] in
+/-- **Helper 3**: Cauchy + convergent subsequence → full convergence (in cutNormDiff).
+
+Standard pseudometric argument: if the sequence is Cauchy and a subsequence converges,
+then the full sequence converges to the same limit. -/
+private lemma cutNormDiff_cauchy_subseq_conv_imp_conv
+    (A : ℕ → Graphon α μ) (L : Graphon α μ) (φ : ℕ → ℕ)
+    (hφ : StrictMono φ)
+    (h_cauchy : ∀ ε > 0, ∃ N, ∀ m n, N ≤ m → N ≤ n → cutNormDiff (A m) (A n) ≤ ε)
+    (h_subseq : ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (A (φ n)) L < ε) :
+    ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (A n) L < ε := by
+  intro ε hε
+  have hε2 : ε / 2 > 0 := half_pos hε
+  obtain ⟨N₁, hN₁⟩ := h_cauchy (ε / 2) hε2
+  obtain ⟨N₂, hN₂⟩ := h_subseq (ε / 2) hε2
+  -- Take N₃ = max N₁ N₂; then φ N₃ ≥ N₃ ≥ N₁ and N₃ ≥ N₂
+  set N₃ := max N₁ N₂
+  refine ⟨max N₁ (φ N₃), fun n hn => ?_⟩
+  calc cutNormDiff (A n) L
+      ≤ cutNormDiff (A n) (A (φ N₃)) + cutNormDiff (A (φ N₃)) L :=
+        cutNormDiff_triangle _ _ _
+    _ < ε / 2 + ε / 2 := by
+        apply add_lt_add_of_le_of_lt
+        · exact hN₁ n (φ N₃) (le_trans (le_max_left _ _) hn)
+            (le_trans (le_max_left _ _) (hφ.id_le N₃))
+        · exact hN₂ N₃ (le_max_right _ _)
+    _ = ε := add_halves ε
+
 /-- Limit extraction from summable cutNormDiff Cauchy sequence.
 
 Given a sequence of graphons `A_k` with summable consecutive `cutNormDiff` bounds,
 there exists a limit graphon `L` with `cutNormDiff(A_k, L) → 0`.
 
-**Circularity guard**: This sorry is a *prerequisite* for completeness (`complete`) and
-must NOT use `complete`, `quotient_compact`, `exists_limit_of_rapid_convergence`,
-`exists_aligned_cutNormDiff_limit`, or `exists_cutNormDiff_limit_of_cutDistance_rapid`.
+**Proof**: Combines three helpers:
+1. `cutNormDiff_cauchy_of_summable` — summable bounds → Cauchy (proved)
+2. `exists_cutNormDiff_subseq_limit` — extract subsequential limit (sorry'd — Banach-Alaoglu)
+3. `cutNormDiff_cauchy_subseq_conv_imp_conv` — Cauchy + subseq → full convergence (proved)
 
-**Gap**: Requires Banach-Alaoglu for L∞(α×α) to extract a weak* limit graphon,
-plus Radon-Nikodym assembly to show the limit is a graphon. Mathlib has
-`WeakDual.isCompact_closedBall` but not the assembly for the graphon setting. -/
+**Circularity guard**: Must NOT use `complete`, `quotient_compact`,
+`exists_limit_of_rapid_convergence`, `exists_aligned_cutNormDiff_limit`, or
+`exists_cutNormDiff_limit_of_cutDistance_rapid`. -/
 private theorem exists_cutNormDiff_limit_of_summable
     (A : ℕ → Graphon α μ) (δ : ℕ → ℝ)
     (hδ_pos : ∀ k, 0 ≤ δ k) (hδ_sum : Summable δ)
     (h_bound : ∀ k, cutNormDiff (A (k + 1)) (A k) ≤ δ k) :
     ∃ L : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (A n) L < ε := by
-  sorry
+  have h_cauchy := cutNormDiff_cauchy_of_summable A δ hδ_pos hδ_sum h_bound
+  obtain ⟨φ, L, hφ, h_subseq⟩ := exists_cutNormDiff_subseq_limit A
+  exact ⟨L, cutNormDiff_cauchy_subseq_conv_imp_conv A L φ hφ h_cauchy h_subseq⟩
 
 /-- Given graphons `V_k` with rapidly decaying consecutive cut distances, there exist
 measure-preserving realignment maps `f_k` and a limit graphon `L` with
