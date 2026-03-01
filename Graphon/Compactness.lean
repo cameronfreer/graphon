@@ -876,13 +876,57 @@ private lemma cutNormDiff_cauchy_of_summable
       _ ≤ ∑' k, δ (n + k) := h_sum_le_tail n (m - n)
       _ ≤ ε := hN n hn
 
+open MeasurableSpace in
+/-- **Helper 2a**: Diagonal extraction — extract a subsequence where all rectangle
+averages on all countable partition depths converge simultaneously.
+
+Uses Tychonoff's theorem: the product space `[0,1]^I` (where `I` indexes all pairs
+of partition cells at all depths) is compact and first-countable, so every sequence
+has a convergent subsequence. Projecting gives coordinate-wise convergence. -/
+private theorem exists_subseq_all_rectAvg_converge
+    (A : ℕ → Graphon α μ) :
+    ∃ (φ : ℕ → ℕ), StrictMono φ ∧
+      ∀ (k : ℕ) (S : Set α) (_ : S ∈ countablePartition α k)
+        (T : Set α) (_ : T ∈ countablePartition α k),
+      ∃ (c : ℝ), c ∈ Set.Icc 0 1 ∧
+        Tendsto (fun n => rectAverage (A (φ n)) S T) atTop (nhds c) := by
+  haveI (k : ℕ) : Finite ↥(countablePartition α k) := finite_countablePartition α k
+  let I := Σ k : ℕ, ↥(countablePartition α k) × ↥(countablePartition α k)
+  let x : ℕ → (I → Set.Icc (0:ℝ) 1) := fun n i =>
+    ⟨rectAverage (A n) ↑i.2.1 ↑i.2.2,
+     rectAverage_mem_Icc _ _ _
+       (measurableSet_countablePartition _ i.2.1.2)
+       (measurableSet_countablePartition _ i.2.2.2)⟩
+  obtain ⟨L, φ, hφ, hconv⟩ := CompactSpace.tendsto_subseq x
+  refine ⟨φ, hφ, fun k S hS T hT => ?_⟩
+  have h_coord := (tendsto_pi_nhds.mp hconv) (⟨k, ⟨S, hS⟩, ⟨T, hT⟩⟩ : I)
+  exact ⟨↑(L ⟨k, ⟨S, hS⟩, ⟨T, hT⟩⟩), (L ⟨k, ⟨S, hS⟩, ⟨T, hT⟩⟩).2,
+    (continuous_subtype_val.tendsto _).comp h_coord⟩
+
+open MeasurableSpace in
+/-- **Helper 2b**: Given a subsequence with convergent rectangle averages on all
+countable partition pairs, construct a limit graphon and prove cutNormDiff convergence.
+
+**Sorry**: Requires extending convergence to all measurable rectangles (π-λ theorem),
+constructing a limit graphon via Radon-Nikodym, and proving cutNormDiff convergence.
+
+**Circularity guard**: Must NOT use `complete`, `quotient_compact`,
+`exists_limit_of_rapid_convergence`, `exists_aligned_cutNormDiff_limit`, or
+`exists_cutNormDiff_limit_of_cutDistance_rapid`. -/
+private theorem exists_graphon_limit_of_rectAvg_convergence
+    (A : ℕ → Graphon α μ) (φ : ℕ → ℕ) (hφ : StrictMono φ)
+    (h_conv : ∀ (k : ℕ) (S : Set α) (_ : S ∈ countablePartition α k)
+        (T : Set α) (_ : T ∈ countablePartition α k),
+      ∃ (c : ℝ), c ∈ Set.Icc 0 1 ∧
+        Tendsto (fun n => rectAverage (A (φ n)) S T) atTop (nhds c)) :
+    ∃ (L : Graphon α μ),
+      ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (A (φ n)) L < ε := by
+  sorry
+
 /-- **Helper 2**: Subsequential weak* limit extraction for bounded graphon sequences.
 
 Extract a subsequence and a limit graphon `L` with `cutNormDiff(A(φ n), L) → 0`.
-
-**Sorry**: Requires Banach-Alaoglu for L∞(α×α) to extract a weak* limit graphon,
-plus Radon-Nikodym assembly to show the limit is a graphon. Mathlib has
-`WeakDual.isCompact_closedBall` but not the full assembly for the graphon setting.
+Decomposed into diagonal extraction (Helper 2a) and limit construction (Helper 2b).
 
 **Circularity guard**: Must NOT use `complete`, `quotient_compact`,
 `exists_limit_of_rapid_convergence`, `exists_aligned_cutNormDiff_limit`, or
@@ -891,7 +935,9 @@ private theorem exists_cutNormDiff_subseq_limit
     (A : ℕ → Graphon α μ) :
     ∃ (φ : ℕ → ℕ) (L : Graphon α μ),
       StrictMono φ ∧ ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (A (φ n)) L < ε := by
-  sorry
+  obtain ⟨φ, hφ, h_conv⟩ := exists_subseq_all_rectAvg_converge A
+  obtain ⟨L, hL⟩ := exists_graphon_limit_of_rectAvg_convergence A φ hφ h_conv
+  exact ⟨φ, L, hφ, hL⟩
 
 omit [StandardBorelSpace α] in
 /-- **Helper 3**: Cauchy + convergent subsequence → full convergence (in cutNormDiff).
