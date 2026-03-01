@@ -4608,20 +4608,207 @@ variable [IsProbabilityMeasure μ]
 def IsEquitable (P : MeasurablePartition α μ) (ε : ℝ) : Prop :=
   ∀ S ∈ P.parts, |(μ S).toReal - 1 / P.parts.card| ≤ ε
 
+omit [IsProbabilityMeasure μ] in
+/-- Helper for Sierpinski's theorem: greedy binary thinning of a set.
+At each step, either include or exclude the n-th separating set,
+choosing whichever keeps the accumulated measure ≤ r. -/
+private noncomputable def ivtStep (μ : Measure α) (S : Set α) (C : ℕ → Set α) (r : ℝ≥0∞) :
+    ℕ → ℝ≥0∞ × Set α
+  | 0 => (0, S)
+  | n + 1 =>
+    let prev := ivtStep μ S C r n
+    if prev.1 + μ (prev.2 ∩ C n) ≤ r then
+      (prev.1 + μ (prev.2 ∩ C n), prev.2 \ C n)
+    else
+      (prev.1, prev.2 ∩ C n)
+
+set_option maxHeartbeats 800000
+
 /-- IVT for atomless measures: any measurable set can be split at any prescribed measure.
-This is a standard result (Sierpinski's theorem) but requires infrastructure
-not yet available in Mathlib (order-continuity of atomless measures). -/
-private theorem exists_measurable_subset_of_measure [NoAtoms μ]
+This is a standard result (Sierpinski's theorem). Given `[StandardBorelSpace α]`,
+we use a countable separating sequence to greedily construct the desired subset. -/
+private theorem exists_measurable_subset_of_measure [StandardBorelSpace α] [NoAtoms μ]
     {S : Set α} (hS : MeasurableSet S) {r : ℝ≥0∞} (hr : r ≤ μ S) :
     ∃ T : Set α, MeasurableSet T ∧ T ⊆ S ∧ μ T = r := by
-  sorry
+  -- Obtain a countable separating sequence of measurable sets
+  obtain ⟨C, hC_meas, hC_sep⟩ := exists_seq_separating α (p := MeasurableSet)
+    (s₀ := univ) MeasurableSet.univ (t := univ)
+  -- Use the greedy iterator
+  set step := ivtStep μ S C r with step_def
+  -- Extract the accumulator and remainder
+  let acc (n : ℕ) : ℝ≥0∞ := (step n).1
+  let R (n : ℕ) : Set α := (step n).2
+  -- Basic step equations
+  have step_zero : step 0 = (0, S) := by simp [step_def, ivtStep]
+  have step_succ : ∀ n, step (n + 1) =
+    if (step n).1 + μ ((step n).2 ∩ C n) ≤ r then
+      ((step n).1 + μ ((step n).2 ∩ C n), (step n).2 \ C n)
+    else
+      ((step n).1, (step n).2 ∩ C n) := fun n => by simp [step_def, ivtStep]
+  -- Invariants: R n is measurable, R n ⊆ S, acc n ≤ r, r - acc n ≤ μ (R n)
+  have inv : ∀ n, MeasurableSet (R n) ∧ R n ⊆ S ∧ acc n ≤ r ∧ r - acc n ≤ μ (R n) := by
+    intro n
+    induction n with
+    | zero =>
+      have h0 : step 0 = (0, S) := step_zero
+      refine ⟨?_, ?_, ?_, ?_⟩
+      · show MeasurableSet (step 0).2; rw [h0]; exact hS
+      · show (step 0).2 ⊆ S; rw [h0]
+      · show (step 0).1 ≤ r; rw [h0]; exact zero_le r
+      · show r - (step 0).1 ≤ μ (step 0).2; rw [h0]; simpa using hr
+    | succ n ih =>
+      obtain ⟨hR_meas, hR_sub, hacc_le, hgap⟩ := ih
+      -- Determine which branch step (n+1) takes
+      by_cases hcond : (step n).1 + μ ((step n).2 ∩ C n) ≤ r
+      · -- Case: include C n in the selection
+        have hR_eq : R (n + 1) = R n \ C n := by
+          show (step (n + 1)).2 = (step n).2 \ C n
+          rw [step_succ]; simp [hcond]
+        have hacc_eq : acc (n + 1) = acc n + μ (R n ∩ C n) := by
+          show (step (n + 1)).1 = (step n).1 + μ ((step n).2 ∩ C n)
+          rw [step_succ]; simp [hcond]
+        rw [show R (n + 1) = R n \ C n from hR_eq,
+            show acc (n + 1) = acc n + μ (R n ∩ C n) from hacc_eq]
+        refine ⟨hR_meas.diff (hC_meas n), diff_subset.trans hR_sub, hcond, ?_⟩
+        have h_split := measure_inter_add_diff (μ := μ) (R n) (hC_meas n)
+        rw [tsub_le_iff_right, add_comm (μ _)]
+        calc r ≤ μ (R n) + acc n := tsub_le_iff_right.mp hgap
+          _ = (μ (R n ∩ C n) + μ (R n \ C n)) + acc n := by rw [h_split]
+          _ = (acc n + μ (R n ∩ C n)) + μ (R n \ C n) := by ring
+      · -- Case: exclude C n from the selection
+        have hR_eq : R (n + 1) = R n ∩ C n := by
+          show (step (n + 1)).2 = (step n).2 ∩ C n
+          rw [step_succ]; simp [hcond]
+        have hacc_eq : acc (n + 1) = acc n := by
+          show (step (n + 1)).1 = (step n).1
+          rw [step_succ]; simp [hcond]
+        rw [show R (n + 1) = R n ∩ C n from hR_eq,
+            show acc (n + 1) = acc n from hacc_eq]
+        push_neg at hcond
+        refine ⟨hR_meas.inter (hC_meas n), inter_subset_left.trans hR_sub, hacc_le, ?_⟩
+        exact tsub_le_iff_right.mpr (le_of_lt (by rwa [add_comm] at hcond))
+  -- R is antitone: at each step, we take either a diff or intersection (both subsets)
+  have hR_step_le : ∀ n, R (n + 1) ⊆ R n := by
+    intro n
+    show (step (n + 1)).2 ⊆ (step n).2
+    rw [step_succ]
+    split
+    · exact diff_subset
+    · exact inter_subset_left
+  have hR_anti : Antitone R := antitone_nat_of_succ_le hR_step_le
+  -- Points in ⋂ R agree on all C n, hence are equal by separation
+  have hR_inter_sub : Set.Subsingleton (⋂ n, R n) := by
+    intro x hx y hy
+    apply hC_sep x (mem_univ _) y (mem_univ _)
+    intro n
+    have hx_succ : x ∈ (step (n + 1)).2 := mem_iInter.mp hx (n + 1)
+    have hy_succ : y ∈ (step (n + 1)).2 := mem_iInter.mp hy (n + 1)
+    rw [step_succ] at hx_succ hy_succ
+    split at hx_succ
+    · -- Case: R (n+1) = R n \ C n, so x ∉ C n
+      split at hy_succ
+      · exact iff_of_false hx_succ.2 hy_succ.2
+      · -- Contradiction: the if condition can't both hold and not hold
+        contradiction
+    · -- Case: R (n+1) = R n ∩ C n, so x ∈ C n
+      split at hy_succ
+      · contradiction
+      · exact iff_of_true hx_succ.2 hy_succ.2
+  -- μ(⋂ R) = 0 by NoAtoms + subsingleton
+  have hR_inter_zero : μ (⋂ n, R n) = 0 := hR_inter_sub.measure_zero μ
+  -- μ(R n) → 0
+  have hR_tendsto : Filter.Tendsto (μ ∘ R) Filter.atTop (nhds 0) := by
+    rw [← hR_inter_zero]
+    exact tendsto_measure_iInter_atTop
+      (fun n => (inv n).1.nullMeasurableSet) hR_anti
+      ⟨0, by show μ (step 0).2 ≠ ⊤; rw [step_zero]; exact measure_ne_top μ S⟩
+  -- ⨆ acc n = r
+  have hacc_sup : ⨆ n, acc n = r := by
+    apply le_antisymm
+    · exact iSup_le fun n => (inv n).2.2.1
+    · apply ENNReal.le_of_forall_pos_le_add
+      intro ε hε _
+      rw [ENNReal.tendsto_atTop_zero] at hR_tendsto
+      obtain ⟨N, hN⟩ := hR_tendsto ε (ENNReal.coe_pos.mpr hε)
+      have hN' := hN N (le_refl _)
+      have hacc_le_r := (inv N).2.2.1
+      have hgap := (inv N).2.2.2
+      calc r = (r - acc N) + acc N := (tsub_add_cancel_of_le hacc_le_r).symm
+        _ ≤ μ (R N) + acc N := by gcongr
+        _ ≤ ↑ε + acc N := by gcongr; exact hN'
+        _ ≤ ↑ε + ⨆ n, acc n := by gcongr; exact le_iSup acc N
+        _ = (⨆ n, acc n) + ↑ε := add_comm _ _
+  -- Define the selected pieces
+  let sel (n : ℕ) : Set α :=
+    if (step n).1 + μ ((step n).2 ∩ C n) ≤ r then (step n).2 ∩ C n else ∅
+  -- sel pieces are measurable
+  have hsel_meas : ∀ n, MeasurableSet (sel n) := by
+    intro n; simp only [sel]; split
+    · exact (inv n).1.inter (hC_meas n)
+    · exact MeasurableSet.empty
+  -- sel n ⊆ R n
+  have hsel_sub_R : ∀ n, sel n ⊆ R n := by
+    intro n; simp only [sel]; split
+    · exact inter_subset_left
+    · exact empty_subset _
+  -- sel n ⊆ S
+  have hsel_sub_S : ∀ n, sel n ⊆ S := fun n => (hsel_sub_R n).trans (inv n).2.1
+  -- Disjointness: sel n ⊆ R n, and R (n+1) is disjoint from sel n
+  have hsel_disj_R : ∀ n, Disjoint (sel n) (R (n + 1)) := by
+    intro n
+    simp only [sel]
+    split
+    · case isTrue h =>
+      -- sel n = R n ∩ C n, and in this case R (n+1) = R n \ C n
+      have hR_next : (step (n + 1)).2 = (step n).2 \ C n := by
+        rw [step_succ]; simp [h]
+      show Disjoint ((step n).2 ∩ C n) (step (n + 1)).2
+      rw [hR_next]
+      exact disjoint_of_subset_left inter_subset_right disjoint_sdiff_right
+    · -- sel n = ∅
+      exact empty_disjoint _
+  -- sel pieces are pairwise disjoint
+  have hsel_pairwise : Pairwise fun i j => Disjoint (sel i) (sel j) := by
+    intro m n hmn
+    rcases Nat.lt_or_gt_of_ne hmn with h | h
+    · exact Disjoint.mono_right (hsel_sub_R n)
+        (Disjoint.mono_right (hR_anti (Nat.succ_le_of_lt h)) (hsel_disj_R m))
+    · exact (Disjoint.mono_right (hsel_sub_R m)
+        (Disjoint.mono_right (hR_anti (Nat.succ_le_of_lt h)) (hsel_disj_R n))).symm
+  -- Accumulator equation: acc (n+1) = acc n + μ(sel n)
+  have hacc_step : ∀ n, acc (n + 1) = acc n + μ (sel n) := by
+    intro n
+    show (step (n + 1)).1 = (step n).1 + μ (sel n)
+    rw [step_succ]
+    simp only [sel]
+    split
+    · rfl
+    · simp [measure_empty]
+  -- Set T = ⋃ n, sel n
+  refine ⟨⋃ n, sel n, MeasurableSet.iUnion hsel_meas,
+    iUnion_subset hsel_sub_S, ?_⟩
+  -- μ(T) = ∑ μ(sel n) = ⨆ acc n = r
+  rw [measure_iUnion (fun i j hij => hsel_pairwise hij) hsel_meas]
+  have : ∑' n, μ (sel n) = ⨆ n, acc n := by
+    have hpartial : ∀ n, ∑ i ∈ Finset.range n, μ (sel i) = acc n := by
+      intro n
+      induction n with
+      | zero =>
+        simp only [Finset.range_zero, Finset.sum_empty]
+        show (0 : ℝ≥0∞) = (step 0).1
+        rw [step_zero]
+      | succ n ih =>
+        rw [Finset.sum_range_succ, ih, hacc_step]
+    rw [ENNReal.tsum_eq_iSup_nat]
+    congr 1; ext n; exact hpartial n
+  rw [this, hacc_sup]
 
 /-- Split a measurable set into exactly n pairwise disjoint measurable pieces of equal measure.
 
 Given a measurable set S in an atomless measure space and n ≥ 1, there exist
 n pairwise disjoint measurable subsets of S, each of measure μ(S)/n, that cover S.
 This follows from iterated application of the IVT for atomless measures. -/
-private theorem exists_equal_measure_partition [NoAtoms μ]
+private theorem exists_equal_measure_partition [StandardBorelSpace α] [NoAtoms μ]
     {S : Set α} (hS : MeasurableSet S) (hfin : μ S ≠ ⊤) (hne : μ S ≠ 0)
     {n : ℕ} (hn : 0 < n) :
     ∃ pieces : Finset (Set α),
@@ -4752,7 +4939,7 @@ parts (inherited from P's pairwise disjointness), and the equitability bound
 (each sub-piece has measure μ(S)/m where m = ⌈1/ε⌉₊, and the deviation from
 1/(n*m) is controlled by ε since |μ(S)/m - 1/(n*m)| = |μ(S) - 1/n|/m ≤ ε
 when the original parts already have measure ≤ 1). -/
-private theorem exists_equitable_refinement_construction [NoAtoms μ]
+private theorem exists_equitable_refinement_construction [StandardBorelSpace α] [NoAtoms μ]
     (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ Q : MeasurablePartition α μ,
       Refines Q P ∧
@@ -4935,7 +5122,7 @@ at most n * m parts (where n = P.parts.card) and each part has measure within
 
 The `[NoAtoms μ]` hypothesis ensures the measure has no atoms, which is
 necessary for the existence of subsets with prescribed measure. -/
-theorem exists_equitable_refinement [NoAtoms μ] (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0) :
+theorem exists_equitable_refinement [StandardBorelSpace α] [NoAtoms μ] (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ Q : MeasurablePartition α μ,
       Refines Q P ∧
       IsEquitable Q ε ∧
