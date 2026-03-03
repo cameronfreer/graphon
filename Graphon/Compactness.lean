@@ -972,6 +972,7 @@ private theorem exists_limit_measure_of_summable
               (ν (S ×ˢ T)).toReal| ≤ ∑' k, δ (n + k)) := by
   sorry
 
+omit [StandardBorelSpace α] in
 /-- **Helper 3**: Extract a graphon from a bounded symmetric measure via Radon-Nikodym.
 
 Given `ν ≤ μ × μ` with symmetric rectangle values, Radon-Nikodym gives density L with:
@@ -987,7 +988,64 @@ private theorem exists_graphon_of_bounded_measure
       ν (S ×ˢ T) = ν (T ×ˢ S)) :
     ∃ L : Graphon α μ, ∀ (S T : Set α), MeasurableSet S → MeasurableSet T →
       ∫ p in S ×ˢ T, L.toAEEqFun p ∂(μ.prod μ) = (ν (S ×ˢ T)).toReal := by
-  sorry
+  -- Step 1: Setup
+  have hν_fin : IsFiniteMeasure ν := isFiniteMeasure_of_le (μ.prod μ) hν
+  have hν_ac : ν ≪ μ.prod μ := Measure.absolutelyContinuous_of_le hν
+  -- Step 2: Radon-Nikodym derivative
+  set L₀ := ν.rnDeriv (μ.prod μ) with hL₀_def
+  have hL₀_meas : Measurable L₀ := Measure.measurable_rnDeriv ν (μ.prod μ)
+  have hL₀_le_one : L₀ ≤ᵐ[μ.prod μ] 1 := Measure.rnDeriv_le_one_of_le hν
+  -- Step 3: Convert to ℝ-valued function with [0,1] bounds
+  set L_fun : α × α → ℝ := fun p => (L₀ p).toReal with hL_fun_def
+  have hL_meas : Measurable L_fun := hL₀_meas.ennreal_toReal
+  have hL_mem_Icc : ∀ᵐ p ∂(μ.prod μ), L_fun p ∈ Set.Icc (0 : ℝ) 1 := by
+    filter_upwards [hL₀_le_one] with p hp
+    simp only [Set.mem_Icc, L_fun, Pi.one_apply] at hp ⊢
+    exact ⟨ENNReal.toReal_nonneg,
+      (ENNReal.toReal_mono ENNReal.one_ne_top hp).trans_eq ENNReal.toReal_one⟩
+  -- Step 4: Prove ν is swap-invariant (for RN symmetry)
+  have hν_swap : ν.map Prod.swap = ν := by
+    haveI : IsFiniteMeasure (ν.map Prod.swap) := by
+      constructor
+      rw [Measure.map_apply measurable_swap MeasurableSet.univ]
+      exact measure_lt_top ν _
+    exact Measure.ext_prod (fun {S} {T} hS hT => by
+      rw [Measure.map_apply measurable_swap (hS.prod hT),
+        Set.preimage_swap_prod, h_symm T S hT hS])
+  -- Step 5: RN density is swap-symmetric a.e.
+  have hL₀_symm : ∀ᵐ p ∂(μ.prod μ), L₀ p.swap = L₀ p := by
+    have h_swap_prod : Measure.map Prod.swap (μ.prod μ) = μ.prod μ := Measure.prod_swap
+    have h_emb := MeasurableEquiv.prodComm.measurableEmbedding.rnDeriv_map ν (μ.prod μ)
+    have h_eq : ⇑(MeasurableEquiv.prodComm : α × α ≃ᵐ α × α) = Prod.swap := rfl
+    rw [h_eq, hν_swap, h_swap_prod] at h_emb
+    exact h_emb
+  have hL_symm : ∀ᵐ p ∂(μ.prod μ), L_fun p.swap = L_fun p := by
+    filter_upwards [hL₀_symm] with p hp
+    simp only [L_fun, hp]
+  -- Step 6: Build the Graphon
+  set L_ae : (α × α) →ₘ[μ.prod μ] ℝ :=
+    AEEqFun.mk L_fun hL_meas.aestronglyMeasurable with hL_ae_def
+  have hL_coeFn := AEEqFun.coeFn_mk L_fun
+    (μ := μ.prod μ) hL_meas.aestronglyMeasurable
+  refine ⟨{
+    toSymmKernel := {
+      toAEEqFun := L_ae
+      symm' := by
+        have hL_swap := ae_prod_swap hL_coeFn
+        filter_upwards [hL_coeFn, hL_swap, hL_symm] with p hp hp_swap hp_sym
+        rw [hp_swap, hp, hp_sym]
+    }
+    ae_mem_Icc := by
+      filter_upwards [hL_coeFn, hL_mem_Icc] with p hp h_Icc
+      rw [hp]; exact h_Icc
+  }, fun S T hS hT => ?_⟩
+  -- Step 7: Rectangle integral = ν(S×T).toReal
+  have h_eq : ∫ p in S ×ˢ T, L_ae p ∂(μ.prod μ) = ∫ p in S ×ˢ T, L_fun p ∂(μ.prod μ) := by
+    apply setIntegral_congr_ae (hS.prod hT)
+    filter_upwards [hL_coeFn] with p hp _; exact hp
+  rw [h_eq]
+  rw [show L_fun = fun p => (ν.rnDeriv (μ.prod μ) p).toReal from rfl]
+  rw [Measure.setIntegral_toReal_rnDeriv' hν_ac (hS.prod hT), Measure.real]
 
 /-- Assemble helpers to construct limit graphon from summable cutNormDiff bounds.
 
