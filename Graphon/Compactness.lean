@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.CutDistance
 import Graphon.Regularity
+import Mathlib.MeasureTheory.Measure.Decomposition.RadonNikodym
 
 /-!
 # Compactness of Graphon Space
@@ -903,81 +904,117 @@ private theorem exists_subseq_all_rectAvg_converge
   exact ⟨↑(L ⟨k, ⟨S, hS⟩, ⟨T, hT⟩⟩), (L ⟨k, ⟨S, hS⟩, ⟨T, hT⟩⟩).2,
     (continuous_subtype_val.tendsto _).comp h_coord⟩
 
-open MeasurableSpace in
-/-- **Helper 2b**: Given a subsequence with convergent rectangle averages on all
-countable partition pairs, construct a limit graphon and prove cutNormDiff convergence.
+omit [StandardBorelSpace α] in
+/-- **Helper 1**: Rectangle integral differences telescope and are bounded by tail sums.
 
-**Sorry**: Requires extending convergence to all measurable rectangles (π-λ theorem),
-constructing a limit graphon via Radon-Nikodym, and proving cutNormDiff convergence.
+For `n ≤ m`, `|rectIntegralDiff(A n, A m, S, T)| ≤ ∑' k, δ(n + k)` via:
+- Triangle: `|rect(A n, A m)| ≤ Σ_{k=n}^{m-1} |rect(A k, A(k+1))|`
+- Each `|rect(A k, A(k+1))| ≤ cutNormDiff(A(k+1), A k) ≤ δ k`
+- Finite sum ≤ tail tsum -/
+private lemma rectIntegralDiff_le_tail_tsum
+    (A : ℕ → Graphon α μ) (δ : ℕ → ℝ)
+    (hδ_pos : ∀ k, 0 ≤ δ k) (hδ_sum : Summable δ)
+    (h_bound : ∀ k, cutNormDiff (A (k + 1)) (A k) ≤ δ k)
+    {n m : ℕ} (hnm : n ≤ m) {S T : Set α} (hS : MeasurableSet S) (hT : MeasurableSet T) :
+    |rectIntegralDiff (A n) (A m) S T| ≤ ∑' k, δ (n + k) := by
+  -- Telescope: bound by finite sum Σ_{j ∈ range(m-n)} δ(n+j)
+  have h_fin : |rectIntegralDiff (A n) (A m) S T| ≤
+      ∑ j ∈ Finset.range (m - n), δ (n + j) := by
+    induction m with
+    | zero =>
+      simp [Nat.le_zero.mp hnm, rectIntegralDiff]
+    | succ m ih =>
+      by_cases h : n ≤ m
+      · have h_tri := rectIntegralDiff_triangle (A n) (A m) (A (m + 1)) S T
+        have h_step : |rectIntegralDiff (A m) (A (m + 1)) S T| ≤ δ m := by
+          calc |rectIntegralDiff (A m) (A (m + 1)) S T|
+              ≤ cutNormDiff (A m) (A (m + 1)) := abs_rectIntegralDiff_le _ _ hS hT
+            _ = cutNormDiff (A (m + 1)) (A m) := cutNormDiff_symm _ _
+            _ ≤ δ m := h_bound m
+        have h_rng : m + 1 - n = (m - n) + 1 := by omega
+        rw [h_rng, Finset.sum_range_succ]
+        have h_idx : n + (m - n) = m := by omega
+        rw [h_idx]
+        calc |rectIntegralDiff (A n) (A (m + 1)) S T|
+            ≤ |rectIntegralDiff (A n) (A m) S T| +
+              |rectIntegralDiff (A m) (A (m + 1)) S T| := h_tri
+          _ ≤ ∑ j ∈ Finset.range (m - n), δ (n + j) + δ m := add_le_add (ih h) h_step
+      · push_neg at h
+        have heq : n = m + 1 := by omega
+        subst heq
+        simp only [Nat.sub_self, Finset.range_zero, Finset.sum_empty, rectIntegralDiff, sub_self,
+          integral_zero, abs_zero, le_refl]
+  -- Finite sum ≤ tail tsum
+  calc |rectIntegralDiff (A n) (A m) S T|
+      ≤ ∑ j ∈ Finset.range (m - n), δ (n + j) := h_fin
+    _ ≤ ∑' k, δ (n + k) := by
+        apply Summable.sum_le_tsum
+        · intro j _; exact hδ_pos (n + j)
+        · exact hδ_sum.comp_injective (fun _ _ h => by omega)
 
-**Circularity guard**: Must NOT use `complete`, `quotient_compact`,
-`exists_limit_of_rapid_convergence`, `exists_aligned_cutNormDiff_limit`, or
-`exists_cutNormDiff_limit_of_cutDistance_rapid`. -/
-private theorem exists_graphon_limit_of_rectAvg_convergence
-    (A : ℕ → Graphon α μ) (φ : ℕ → ℕ) (hφ : StrictMono φ)
-    (h_conv : ∀ (k : ℕ) (S : Set α) (_ : S ∈ countablePartition α k)
-        (T : Set α) (_ : T ∈ countablePartition α k),
-      ∃ (c : ℝ), c ∈ Set.Icc 0 1 ∧
-        Tendsto (fun n => rectAverage (A (φ n)) S T) atTop (nhds c)) :
-    ∃ (L : Graphon α μ),
-      ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (A (φ n)) L < ε := by
+/-- **Helper 2**: Construct a symmetric finite measure from setwise limits of `∫_E A(n)`,
+with tight rectangle integral bounds.
+
+For each measurable rectangle S × T, the sequence `∫_{S×T} A(n)` is Cauchy with error
+`≤ ∑' k, δ(n+k)` by `rectIntegralDiff_le_tail_tsum`. The limits define a set function
+on rectangles, extended to a measure via π-λ. The measure is ≤ μ×μ (since A(n) ∈ [0,1])
+and symmetric (from symmetry of each A(n)).
+
+**Depends on**: `exists_measure_of_rect_limits` (sorry'd — Caratheodory extension). -/
+private theorem exists_limit_measure_of_summable
+    (A : ℕ → Graphon α μ) (δ : ℕ → ℝ)
+    (hδ_pos : ∀ k, 0 ≤ δ k) (hδ_sum : Summable δ)
+    (h_bound : ∀ k, cutNormDiff (A (k + 1)) (A k) ≤ δ k) :
+    ∃ ν : Measure (α × α), ν ≤ μ.prod μ ∧
+      (∀ (S T : Set α), MeasurableSet S → MeasurableSet T → ν (S ×ˢ T) = ν (T ×ˢ S)) ∧
+      (∀ (S T : Set α), MeasurableSet S → MeasurableSet T →
+        ∀ n, |(∫ p in S ×ˢ T, (A n).toAEEqFun p ∂(μ.prod μ)) -
+              (ν (S ×ˢ T)).toReal| ≤ ∑' k, δ (n + k)) := by
   sorry
 
-/-- **Helper 2**: Subsequential weak* limit extraction for bounded graphon sequences.
+/-- **Helper 3**: Extract a graphon from a bounded symmetric measure via Radon-Nikodym.
 
-Extract a subsequence and a limit graphon `L` with `cutNormDiff(A(φ n), L) → 0`.
-Decomposed into diagonal extraction (Helper 2a) and limit construction (Helper 2b).
+Given `ν ≤ μ × μ` with symmetric rectangle values, Radon-Nikodym gives density L with:
+- `0 ≤ L ≤ 1` a.e. (from `ν ≤ μ × μ`)
+- `L(x,y) = L(y,x)` a.e. (from rectangle symmetry + π-λ uniqueness)
+- `∫_{S×T} L = ν(S×T).toReal` for all measurable S, T
+
+**Sorry**: Requires Radon-Nikodym derivative extraction (`ν.rnDeriv (μ.prod μ)`),
+density bound proof, and symmetry via π-λ uniqueness. -/
+private theorem exists_graphon_of_bounded_measure
+    (ν : Measure (α × α)) (hν : ν ≤ μ.prod μ)
+    (h_symm : ∀ (S T : Set α), MeasurableSet S → MeasurableSet T →
+      ν (S ×ˢ T) = ν (T ×ˢ S)) :
+    ∃ L : Graphon α μ, ∀ (S T : Set α), MeasurableSet S → MeasurableSet T →
+      ∫ p in S ×ˢ T, L.toAEEqFun p ∂(μ.prod μ) = (ν (S ×ˢ T)).toReal := by
+  sorry
+
+/-- Assemble helpers to construct limit graphon from summable cutNormDiff bounds.
 
 **Circularity guard**: Must NOT use `complete`, `quotient_compact`,
 `exists_limit_of_rapid_convergence`, `exists_aligned_cutNormDiff_limit`, or
 `exists_cutNormDiff_limit_of_cutDistance_rapid`. -/
-private theorem exists_cutNormDiff_subseq_limit
-    (A : ℕ → Graphon α μ) :
-    ∃ (φ : ℕ → ℕ) (L : Graphon α μ),
-      StrictMono φ ∧ ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (A (φ n)) L < ε := by
-  obtain ⟨φ, hφ, h_conv⟩ := exists_subseq_all_rectAvg_converge A
-  obtain ⟨L, hL⟩ := exists_graphon_limit_of_rectAvg_convergence A φ hφ h_conv
-  exact ⟨φ, L, hφ, hL⟩
-
-omit [StandardBorelSpace α] in
-/-- **Helper 3**: Cauchy + convergent subsequence → full convergence (in cutNormDiff).
-
-Standard pseudometric argument: if the sequence is Cauchy and a subsequence converges,
-then the full sequence converges to the same limit. -/
-private lemma cutNormDiff_cauchy_subseq_conv_imp_conv
-    (A : ℕ → Graphon α μ) (L : Graphon α μ) (φ : ℕ → ℕ)
-    (hφ : StrictMono φ)
-    (h_cauchy : ∀ ε > 0, ∃ N, ∀ m n, N ≤ m → N ≤ n → cutNormDiff (A m) (A n) ≤ ε)
-    (h_subseq : ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (A (φ n)) L < ε) :
-    ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (A n) L < ε := by
-  intro ε hε
-  have hε2 : ε / 2 > 0 := half_pos hε
-  obtain ⟨N₁, hN₁⟩ := h_cauchy (ε / 2) hε2
-  obtain ⟨N₂, hN₂⟩ := h_subseq (ε / 2) hε2
-  -- Take N₃ = max N₁ N₂; then φ N₃ ≥ N₃ ≥ N₁ and N₃ ≥ N₂
-  set N₃ := max N₁ N₂
-  refine ⟨max N₁ (φ N₃), fun n hn => ?_⟩
-  calc cutNormDiff (A n) L
-      ≤ cutNormDiff (A n) (A (φ N₃)) + cutNormDiff (A (φ N₃)) L :=
-        cutNormDiff_triangle _ _ _
-    _ < ε / 2 + ε / 2 := by
-        apply add_lt_add_of_le_of_lt
-        · exact hN₁ n (φ N₃) (le_trans (le_max_left _ _) hn)
-            (le_trans (le_max_left _ _) (hφ.id_le N₃))
-        · exact hN₂ N₃ (le_max_right _ _)
-    _ = ε := add_halves ε
+private theorem exists_graphon_of_summable_cutNormDiff
+    (A : ℕ → Graphon α μ) (δ : ℕ → ℝ)
+    (hδ_pos : ∀ k, 0 ≤ δ k) (hδ_sum : Summable δ)
+    (h_bound : ∀ k, cutNormDiff (A (k + 1)) (A k) ≤ δ k) :
+    ∃ L : Graphon α μ, ∀ (S T : Set α), MeasurableSet S → MeasurableSet T →
+      ∀ n, |rectIntegralDiff (A n) L S T| ≤ ∑' k, δ (n + k) := by
+  -- Step 1: Construct limit measure ν with tight rectangle bounds
+  obtain ⟨ν, hν_le, hν_symm, hν_rect⟩ :=
+    exists_limit_measure_of_summable A δ hδ_pos hδ_sum h_bound
+  -- Step 2: Extract graphon L from Radon-Nikodym derivative of ν
+  obtain ⟨L, hL⟩ := exists_graphon_of_bounded_measure ν hν_le hν_symm
+  -- Step 3: Bound |rectIntegralDiff(A n, L, S, T)| ≤ ∑' k, δ(n+k)
+  refine ⟨L, fun S T hS hT n => ?_⟩
+  -- rectIntegralDiff = ∫_{S×T} (A n) - ∫_{S×T} L = (∫_{S×T} A(n)) - ν(S×T).toReal
+  rw [rectIntegralDiff_eq, SymmKernel.rectIntegral, SymmKernel.rectIntegral, hL S T hS hT]
+  exact hν_rect S T hS hT n
 
 /-- Construction of a limit graphon from summable consecutive cutNormDiff bounds.
 
-For each measurable rectangle S × T, the sequence `∫_{S×T} A(n)` is Cauchy with errors
-bounded by tail sums `∑' k, δ(n + k)`. This lemma asserts existence of a graphon L whose
-rectangle integrals are within the same tail sum bound of each A(n).
-
-**Sorry**: The limiting set function `E ↦ lim_n ∫_E A(n)` defines a finite measure on α × α,
-absolutely continuous w.r.t. μ × μ. By Radon-Nikodym, it has a density L ∈ [0,1] a.e.
-Symmetry follows from symmetry of each A(n). This is a concrete measure-theoretic
-construction (Radon-Nikodym + π-λ extension from rectangles), replacing the earlier
-generic Banach-Alaoglu appeal.
+Chains `rectIntegralDiff_le_tail_tsum` (telescope bound on rectangles) with
+`exists_graphon_of_summable_cutNormDiff` (Radon-Nikodym limit construction).
 
 **Circularity guard**: Must NOT use `complete`, `quotient_compact`,
 `exists_limit_of_rapid_convergence`, `exists_aligned_cutNormDiff_limit`, or
@@ -988,7 +1025,8 @@ private theorem exists_graphon_with_limiting_rect_integrals
     (h_bound : ∀ k, cutNormDiff (A (k + 1)) (A k) ≤ δ k) :
     ∃ L : Graphon α μ, ∀ n (S T : Set α), MeasurableSet S → MeasurableSet T →
       |rectIntegralDiff (A n) L S T| ≤ ∑' k, δ (n + k) := by
-  sorry
+  obtain ⟨L, hL⟩ := exists_graphon_of_summable_cutNormDiff A δ hδ_pos hδ_sum h_bound
+  exact ⟨L, fun n S T hS hT => hL S T hS hT n⟩
 
 /-- Limit extraction from summable cutNormDiff Cauchy sequence.
 
