@@ -967,15 +967,37 @@ private lemma cutNormDiff_cauchy_subseq_conv_imp_conv
         · exact hN₂ N₃ (le_max_right _ _)
     _ = ε := add_halves ε
 
+/-- Construction of a limit graphon from summable consecutive cutNormDiff bounds.
+
+For each measurable rectangle S × T, the sequence `∫_{S×T} A(n)` is Cauchy with errors
+bounded by tail sums `∑' k, δ(n + k)`. This lemma asserts existence of a graphon L whose
+rectangle integrals are within the same tail sum bound of each A(n).
+
+**Sorry**: The limiting set function `E ↦ lim_n ∫_E A(n)` defines a finite measure on α × α,
+absolutely continuous w.r.t. μ × μ. By Radon-Nikodym, it has a density L ∈ [0,1] a.e.
+Symmetry follows from symmetry of each A(n). This is a concrete measure-theoretic
+construction (Radon-Nikodym + π-λ extension from rectangles), replacing the earlier
+generic Banach-Alaoglu appeal.
+
+**Circularity guard**: Must NOT use `complete`, `quotient_compact`,
+`exists_limit_of_rapid_convergence`, `exists_aligned_cutNormDiff_limit`, or
+`exists_cutNormDiff_limit_of_cutDistance_rapid`. -/
+private theorem exists_graphon_with_limiting_rect_integrals
+    (A : ℕ → Graphon α μ) (δ : ℕ → ℝ)
+    (hδ_pos : ∀ k, 0 ≤ δ k) (hδ_sum : Summable δ)
+    (h_bound : ∀ k, cutNormDiff (A (k + 1)) (A k) ≤ δ k) :
+    ∃ L : Graphon α μ, ∀ n (S T : Set α), MeasurableSet S → MeasurableSet T →
+      |rectIntegralDiff (A n) L S T| ≤ ∑' k, δ (n + k) := by
+  sorry
+
 /-- Limit extraction from summable cutNormDiff Cauchy sequence.
 
 Given a sequence of graphons `A_k` with summable consecutive `cutNormDiff` bounds,
 there exists a limit graphon `L` with `cutNormDiff(A_k, L) → 0`.
 
-**Proof**: Combines three helpers:
-1. `cutNormDiff_cauchy_of_summable` — summable bounds → Cauchy (proved)
-2. `exists_cutNormDiff_subseq_limit` — extract subsequential limit (sorry'd — Banach-Alaoglu)
-3. `cutNormDiff_cauchy_subseq_conv_imp_conv` — Cauchy + subseq → full convergence (proved)
+**Proof**: Uses `exists_graphon_with_limiting_rect_integrals` (sorry'd — Radon-Nikodym)
+to get a limit graphon L whose rectangle integrals are within tail sum of A(n)'s.
+Then `cutNormDiff(A_n, L) ≤ ∑' k, δ(n+k) → 0` by bounding the iSup defining cutNormDiff.
 
 **Circularity guard**: Must NOT use `complete`, `quotient_compact`,
 `exists_limit_of_rapid_convergence`, `exists_aligned_cutNormDiff_limit`, or
@@ -985,9 +1007,41 @@ private theorem exists_cutNormDiff_limit_of_summable
     (hδ_pos : ∀ k, 0 ≤ δ k) (hδ_sum : Summable δ)
     (h_bound : ∀ k, cutNormDiff (A (k + 1)) (A k) ≤ δ k) :
     ∃ L : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutNormDiff (A n) L < ε := by
-  have h_cauchy := cutNormDiff_cauchy_of_summable A δ hδ_pos hδ_sum h_bound
-  obtain ⟨φ, L, hφ, h_subseq⟩ := exists_cutNormDiff_subseq_limit A
-  exact ⟨L, cutNormDiff_cauchy_subseq_conv_imp_conv A L φ hφ h_cauchy h_subseq⟩
+  -- Get limit graphon whose rectangle integrals are within tail sum of A(n)'s
+  obtain ⟨L, hL⟩ := exists_graphon_with_limiting_rect_integrals A δ hδ_pos hδ_sum h_bound
+  refine ⟨L, fun ε hε => ?_⟩
+  -- cutNormDiff(A n, L) ≤ ∑' k, δ(n+k) by bounding each rectangle integral
+  have h_cn : ∀ n, cutNormDiff (A n) L ≤ ∑' k, δ (n + k) := by
+    intro n
+    have hδ_shift : Summable (fun k => δ (n + k)) :=
+      hδ_sum.comp_injective (fun _ _ h => by omega)
+    have h_tail_nn : 0 ≤ ∑' k, δ (n + k) := by
+      simpa using hδ_shift.sum_le_tsum (∅ : Finset ℕ) (fun k _ => hδ_pos (n + k))
+    unfold cutNormDiff
+    apply Real.iSup_le _ h_tail_nn; intro S
+    apply Real.iSup_le _ h_tail_nn; intro hS
+    apply Real.iSup_le _ h_tail_nn; intro T
+    apply Real.iSup_le _ h_tail_nn; intro hT
+    exact hL n S T hS hT
+  -- Tail tsum → 0 gives convergence
+  have h_tail : ∀ ε' > 0, ∃ N, ∀ n ≥ N, ∑' k, δ (n + k) < ε' := by
+    intro ε' hε'
+    have h_conv := hδ_sum.hasSum.tendsto_sum_nat
+    rw [Metric.tendsto_atTop] at h_conv
+    obtain ⟨N, hN⟩ := h_conv ε' hε'
+    refine ⟨N, fun n hn => ?_⟩
+    have h_shift : ∑' k, δ (n + k) = ∑' k, δ k - ∑ k ∈ Finset.range n, δ k := by
+      have h1 := ((summable_nat_add_iff n).mpr hδ_sum).hasSum
+      rw [hasSum_nat_add_iff n] at h1
+      have := h1.tsum_eq; simp only [add_comm] at this; linarith
+    rw [h_shift]
+    have h_le : ∑ k ∈ Finset.range n, δ k ≤ ∑' k, δ k :=
+      hδ_sum.sum_le_tsum _ (fun k _ => hδ_pos k)
+    have h_dist := hN n hn; rw [Real.dist_eq] at h_dist
+    have h_nonpos : ∑ k ∈ Finset.range n, δ k - ∑' k, δ k ≤ 0 := by linarith
+    rw [abs_of_nonpos h_nonpos] at h_dist; linarith
+  obtain ⟨N, hN⟩ := h_tail ε hε
+  exact ⟨N, fun n hn => lt_of_le_of_lt (h_cn n) (hN n hn)⟩
 
 /-- Given graphons `V_k` with rapidly decaying consecutive cut distances, there exist
 measure-preserving realignment maps `f_k` and a limit graphon `L` with
@@ -1000,7 +1054,8 @@ to cut-norm-difference convergence via realignment.
 maps with summable consecutive cutNormDiff bounds, then `exists_cutNormDiff_limit_of_summable`
 extracts the limit.
 
-**Depends on**: `exists_cutNormDiff_limit_of_summable` (sorry'd — Banach-Alaoglu gap). -/
+**Depends on**: `exists_cutNormDiff_limit_of_summable` (via `exists_graphon_with_limiting_rect_integrals`
+sorry — Radon-Nikodym construction). -/
 private theorem exists_cutNormDiff_limit_of_cutDistance_rapid
     (V : ℕ → Graphon α μ)
     (h_rapid : ∀ k : ℕ, cutDistance (V (k + 1)) (V k) ≤ 1 / 2 ^ k + 1 / 3 ^ k) :
@@ -1028,12 +1083,13 @@ measure-preserving maps `e_k` and a limit graphon `V` such that
     `cutDistance_lt_add_of_pos` are aligned using Rokhlin bijections, yielding
     `cutDistance(V_{k+1}, V_k) ≤ 1/2^k + 1/3^k` where `V_k = pullback (W k) (e_k)`.
 
-(b) *cutNormDiff limit* (sorry'd in `exists_cutNormDiff_limit_of_cutDistance_rapid`):
+(b) *cutNormDiff limit* (via `exists_cutNormDiff_limit_of_cutDistance_rapid`):
     Given summable consecutive cutDistance, realign and extract limit with
-    cutNormDiff convergence. Requires L-infinity weak* compactness + Radon-Nikodym.
+    cutNormDiff convergence. Now proved modulo `exists_graphon_with_limiting_rect_integrals`
+    (Radon-Nikodym sorry).
 
 **Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin axiom),
-`exists_cutNormDiff_limit_of_cutDistance_rapid` (sorry'd). -/
+`exists_graphon_with_limiting_rect_integrals` (Radon-Nikodym sorry). -/
 private theorem exists_aligned_cutNormDiff_limit
     (W : ℕ → Graphon α μ)
     (h_rapid : ∀ k : ℕ, cutDistance (W (k + 1)) (W k) ≤ 1 / 2 ^ k) :
