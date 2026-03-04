@@ -17,5 +17,6 @@ import Graphon.Counting
 import Graphon.Regularity
 import Graphon.Compactness
 import Graphon.Sampling
+import Graphon.MatrixDetermination
 import Graphon.InverseCounting
 import Graphon.Convergence
