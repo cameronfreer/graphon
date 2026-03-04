@@ -6,6 +6,7 @@ Authors: Cameron Freer
 import Graphon.CutDistance
 import Graphon.Regularity
 import Mathlib.MeasureTheory.Measure.Decomposition.RadonNikodym
+import Mathlib.Analysis.Normed.Group.Tannery
 
 /-!
 # Compactness of Graphon Space
@@ -952,6 +953,136 @@ private lemma rectIntegralDiff_le_tail_tsum
         · intro j _; exact hδ_pos (n + j)
         · exact hδ_sum.comp_injective (fun _ _ h => by omega)
 
+omit [StandardBorelSpace α] in
+/-- Setwise integral convergence for all measurable sets via π-λ.
+
+Given summable consecutive cutNormDiff bounds, the sequence `∫_E A(n) d(μ²)` converges
+for every measurable set E in the product, not just rectangles. The proof uses
+`MeasurableSpace.induction_on_inter` on the product π-system of measurable rectangles:
+- **Rectangles**: convergence from `cauchySeq_of_dist_le_of_summable` + cutNormDiff bounds
+- **Complement**: `∫_{Eᶜ} A(n) = ∫ A(n) - ∫_E A(n)` (both converge)
+- **Countable disjoint union**: `∫_{⋃ f_i} A(n) = ∑' ∫_{f_i} A(n)` and
+  `tendsto_tsum_of_dominated_convergence` with bound `(μ²)(f_i).toReal` -/
+private theorem setIntegral_tendsto_of_summable_cutNormDiff
+    (A : ℕ → Graphon α μ) (δ : ℕ → ℝ)
+    (hδ_pos : ∀ k, 0 ≤ δ k) (hδ_sum : Summable δ)
+    (h_bound : ∀ k, cutNormDiff (A (k + 1)) (A k) ≤ δ k) :
+    ∀ (E : Set (α × α)), MeasurableSet E →
+      ∃ L, Tendsto (fun n => ∫ p in E, (A n).toAEEqFun p ∂(μ.prod μ)) atTop (nhds L) ∧
+        0 ≤ L ∧ L ≤ (μ.prod μ E).toReal := by
+  -- Each A(n) is integrable and [0,1]-valued a.e.
+  have hA_int : ∀ n, Integrable ((A n).toAEEqFun) (μ.prod μ) :=
+    fun n => SymmKernel.graphon_integrable (A n)
+  have hA_le1 : ∀ n, ∀ᵐ p ∂(μ.prod μ), (A n).toAEEqFun p ≤ 1 :=
+    fun n => (A n).ae_le_one
+  -- Set integral bounds: 0 ≤ ∫_E A(n) ≤ (μ²)(E).toReal
+  have h_int_nn : ∀ n E, 0 ≤ ∫ p in E, (A n).toAEEqFun p ∂(μ.prod μ) :=
+    fun n E => setIntegral_nonneg_of_ae (A n).ae_nonneg
+  have h_int_le : ∀ n (E : Set (α × α)), MeasurableSet E →
+      ∫ p in E, (A n).toAEEqFun p ∂(μ.prod μ) ≤ (μ.prod μ E).toReal := by
+    intro n E _
+    calc ∫ p in E, (A n).toAEEqFun p ∂μ.prod μ
+        ≤ ∫ _ in E, (1 : ℝ) ∂μ.prod μ := by
+          apply setIntegral_mono_ae_restrict (hA_int n).integrableOn (integrable_const _)
+          exact ae_restrict_of_ae (hA_le1 n)
+      _ = (μ.prod μ E).toReal := by
+          rw [setIntegral_const, smul_eq_mul, mul_one]; rfl
+  -- Set integral norm bound
+  have h_norm_le : ∀ n (E : Set (α × α)), MeasurableSet E →
+      ‖∫ p in E, (A n).toAEEqFun p ∂(μ.prod μ)‖ ≤ (μ.prod μ E).toReal := by
+    intro n E hE
+    rw [Real.norm_eq_abs, abs_of_nonneg (h_int_nn n E)]
+    exact h_int_le n E hE
+  -- Consecutive rect distance bound: dist(∫_{S×T} A(n), ∫_{S×T} A(n+1)) ≤ δ(n)
+  have h_rect_dist : ∀ n (S T : Set α), MeasurableSet S → MeasurableSet T →
+      dist (∫ p in S ×ˢ T, (A n).toAEEqFun p ∂(μ.prod μ))
+           (∫ p in S ×ˢ T, (A (n + 1)).toAEEqFun p ∂(μ.prod μ)) ≤ δ n := by
+    intro n S T hS hT
+    rw [Real.dist_eq]
+    have hsub : ∫ p in S ×ˢ T, (A n).toAEEqFun p ∂μ.prod μ -
+        ∫ p in S ×ˢ T, (A (n + 1)).toAEEqFun p ∂μ.prod μ =
+        rectIntegralDiff (A n) (A (n + 1)) S T := by
+      simp only [rectIntegralDiff]
+      rw [integral_sub (hA_int n).integrableOn (hA_int (n + 1)).integrableOn]
+    rw [hsub]
+    calc |rectIntegralDiff (A n) (A (n + 1)) S T|
+        ≤ cutNormDiff (A n) (A (n + 1)) := abs_rectIntegralDiff_le _ _ hS hT
+      _ = cutNormDiff (A (n + 1)) (A n) := cutNormDiff_symm _ _
+      _ ≤ δ n := h_bound n
+  -- ===== Pi-lambda induction =====
+  refine MeasurableSpace.induction_on_inter generateFrom_prod.symm isPiSystem_prod ?_ ?_ ?_ ?_
+  -- Case 1: Empty
+  · exact ⟨0, by simp, le_refl _, by simp⟩
+  -- Case 2: Basic (rectangles in the generating pi-system)
+  · rintro _ ⟨S, hS, T, hT, rfl⟩
+    -- The sequence is Cauchy: dist(f n, f (n+1)) ≤ δ n
+    have h_cauchy : CauchySeq (fun n => ∫ p in S ×ˢ T, (A n).toAEEqFun p ∂(μ.prod μ)) :=
+      cauchySeq_of_dist_le_of_summable δ (fun n => h_rect_dist n S T hS hT) hδ_sum
+    -- Converges by completeness
+    refine ⟨_, h_cauchy.tendsto_limUnder, ?_, ?_⟩
+    · exact ge_of_tendsto' h_cauchy.tendsto_limUnder (fun n => h_int_nn n (S ×ˢ T))
+    · exact le_of_tendsto' h_cauchy.tendsto_limUnder (fun n => h_int_le n (S ×ˢ T) (hS.prod hT))
+  -- Case 3: Complement
+  · intro E hE ⟨L_E, hL_E, _, _⟩
+    -- First show ∫ A(n) converges (univ = univ × univ is a rectangle)
+    have h_univ_cauchy : CauchySeq (fun n => ∫ p, (A n).toAEEqFun p ∂(μ.prod μ)) := by
+      apply cauchySeq_of_dist_le_of_summable δ _ hδ_sum
+      intro n
+      have := h_rect_dist n univ univ MeasurableSet.univ MeasurableSet.univ
+      simp only [univ_prod_univ, setIntegral_univ] at this
+      exact this
+    have hL_all := h_univ_cauchy.tendsto_limUnder
+    -- ∫_{Eᶜ} A(n) = ∫ A(n) - ∫_E A(n)
+    have h_compl : ∀ n, ∫ p in Eᶜ, (A n).toAEEqFun p ∂(μ.prod μ) =
+        ∫ p, (A n).toAEEqFun p ∂(μ.prod μ) -
+        ∫ p in E, (A n).toAEEqFun p ∂(μ.prod μ) := by
+      intro n; have := integral_add_compl hE (hA_int n); linarith
+    set L_all := limUnder atTop (fun n => ∫ p, (A n).toAEEqFun p ∂(μ.prod μ))
+    refine ⟨L_all - L_E, ?_, ?_, ?_⟩
+    · exact (tendsto_congr h_compl).mpr (hL_all.sub hL_E)
+    · exact ge_of_tendsto' ((tendsto_congr h_compl).mpr (hL_all.sub hL_E))
+        (fun n => h_int_nn n Eᶜ)
+    · exact le_of_tendsto' ((tendsto_congr h_compl).mpr (hL_all.sub hL_E))
+        (fun n => h_int_le n Eᶜ hE.compl)
+  -- Case 4: Countable disjoint union
+  · intro f h_disj hf_meas ih
+    choose L_i hL_i hL_i_nn hL_i_le using fun i => ih i
+    -- Summability of the bound (μ²)(f i).toReal
+    have h_summable_bound : Summable (fun i => (μ.prod μ (f i)).toReal) := by
+      have h_ne_top : ∀ i, μ.prod μ (f i) ≠ ⊤ :=
+        fun i => ne_top_of_le_ne_top (measure_ne_top _ _) le_rfl
+      have h_tsum_ne_top : ∑' i, μ.prod μ (f i) ≠ ⊤ := by
+        rw [show ∑' i, μ.prod μ (f i) = μ.prod μ (⋃ i, f i) from
+          (measure_iUnion h_disj (fun i => hf_meas i)).symm]
+        exact ne_top_of_le_ne_top (measure_ne_top _ _) le_rfl
+      exact ENNReal.summable_toReal h_tsum_ne_top
+    have h_summable_L : Summable L_i :=
+      Summable.of_nonneg_of_le hL_i_nn hL_i_le h_summable_bound
+    -- ∫_{⋃ f_i} A(n) = ∑' ∫_{f_i} A(n)
+    have h_sum : ∀ n, ∫ p in ⋃ i, f i, (A n).toAEEqFun p ∂(μ.prod μ) =
+        ∑' i, ∫ p in f i, (A n).toAEEqFun p ∂(μ.prod μ) :=
+      fun n => integral_iUnion (fun i => hf_meas i) h_disj (hA_int n).integrableOn
+    -- Dominated convergence for tsum
+    have h_tsum_tendsto : Tendsto (fun n => ∑' i, ∫ p in f i, (A n).toAEEqFun p ∂(μ.prod μ))
+        atTop (nhds (∑' i, L_i i)) := by
+      exact tendsto_tsum_of_dominated_convergence h_summable_bound
+        (fun i => hL_i i) (Filter.Eventually.of_forall
+          (fun n i => h_norm_le n (f i) (hf_meas i)))
+    refine ⟨∑' i, L_i i, ?_, ?_, ?_⟩
+    · exact (tendsto_congr h_sum).mpr h_tsum_tendsto
+    · have : 0 ≤ ∑' i, L_i i := by
+        simpa using h_summable_L.sum_le_tsum (∅ : Finset ℕ) (fun k _ => hL_i_nn k)
+      exact this
+    · have h_ne_top : ∀ i, μ.prod μ (f i) ≠ ⊤ :=
+        fun i => ne_top_of_le_ne_top (measure_ne_top _ _) le_rfl
+      calc ∑' i, L_i i
+          ≤ ∑' i, (μ.prod μ (f i)).toReal :=
+            h_summable_L.tsum_le_tsum (fun i => hL_i_le i) h_summable_bound
+        _ = (μ.prod μ (⋃ i, f i)).toReal := by
+            rw [measure_iUnion h_disj (fun i => hf_meas i)]
+            exact (ENNReal.tsum_toReal_eq h_ne_top).symm
+
+omit [StandardBorelSpace α] in
 /-- **Helper 2**: Construct a symmetric finite measure from setwise limits of `∫_E A(n)`,
 with tight rectangle integral bounds.
 
@@ -960,7 +1091,7 @@ For each measurable rectangle S × T, the sequence `∫_{S×T} A(n)` is Cauchy w
 on rectangles, extended to a measure via π-λ. The measure is ≤ μ×μ (since A(n) ∈ [0,1])
 and symmetric (from symmetry of each A(n)).
 
-**Depends on**: `exists_measure_of_rect_limits` (sorry'd — Caratheodory extension). -/
+**Depends on**: `setIntegral_tendsto_of_summable_cutNormDiff` (π-λ convergence). -/
 private theorem exists_limit_measure_of_summable
     (A : ℕ → Graphon α μ) (δ : ℕ → ℝ)
     (hδ_pos : ∀ k, 0 ≤ δ k) (hδ_sum : Summable δ)
@@ -970,7 +1101,120 @@ private theorem exists_limit_measure_of_summable
       (∀ (S T : Set α), MeasurableSet S → MeasurableSet T →
         ∀ n, |(∫ p in S ×ˢ T, (A n).toAEEqFun p ∂(μ.prod μ)) -
               (ν (S ×ˢ T)).toReal| ≤ ∑' k, δ (n + k)) := by
-  sorry
+  -- Step 1: Get convergence for all measurable sets via π-λ helper
+  have h_conv := setIntegral_tendsto_of_summable_cutNormDiff A δ hδ_pos hδ_sum h_bound
+  -- Step 2: Choose limit values
+  choose c hc hc_nn hc_le using fun E hE => h_conv E hE
+  -- Auxiliary: integrability and bounds (reused below)
+  have hA_int : ∀ n, Integrable ((A n).toAEEqFun) (μ.prod μ) :=
+    fun n => SymmKernel.graphon_integrable (A n)
+  have h_norm_le : ∀ n (E : Set (α × α)), MeasurableSet E →
+      ‖∫ p in E, (A n).toAEEqFun p ∂(μ.prod μ)‖ ≤ (μ.prod μ E).toReal := by
+    intro n E _
+    rw [Real.norm_eq_abs, abs_of_nonneg (setIntegral_nonneg_of_ae (A n).ae_nonneg)]
+    calc ∫ p in E, (A n).toAEEqFun p ∂μ.prod μ
+        ≤ ∫ _ in E, (1 : ℝ) ∂μ.prod μ := by
+          apply setIntegral_mono_ae_restrict (hA_int n).integrableOn (integrable_const _)
+          exact ae_restrict_of_ae (A n).ae_le_one
+      _ = (μ.prod μ E).toReal := by
+          rw [setIntegral_const, smul_eq_mul, mul_one]; rfl
+  -- Step 3: c(∅, _) = 0
+  have hc_empty : c ∅ MeasurableSet.empty = 0 := by
+    have : Tendsto (fun n => ∫ p in (∅ : Set (α × α)), (A n).toAEEqFun p ∂(μ.prod μ))
+        atTop (nhds (c ∅ MeasurableSet.empty)) := hc ∅ MeasurableSet.empty
+    simp only [setIntegral_empty] at this
+    exact tendsto_nhds_unique this tendsto_const_nhds
+  -- Step 4: Sigma-additivity for c
+  have hc_additive : ∀ ⦃f : ℕ → Set (α × α)⦄ (hf : ∀ i, MeasurableSet (f i)),
+      Pairwise (Function.onFun Disjoint f) →
+      c (⋃ i, f i) (MeasurableSet.iUnion hf) = ∑' i, c (f i) (hf i) := by
+    intro f hf h_disj
+    -- The sequence for ⋃ f_i converges to c(⋃ f_i)
+    have h_union_tendsto := hc (⋃ i, f i) (MeasurableSet.iUnion hf)
+    -- Each ∫_{f_i} A(n) → c(f_i)
+    have h_i_tendsto : ∀ i, Tendsto (fun n => ∫ p in f i, (A n).toAEEqFun p ∂(μ.prod μ))
+        atTop (nhds (c (f i) (hf i))) := fun i => hc (f i) (hf i)
+    -- Summability of bound
+    have h_ne_top : ∀ i, μ.prod μ (f i) ≠ ⊤ :=
+      fun i => ne_top_of_le_ne_top (measure_ne_top _ _) le_rfl
+    have h_summable_bound : Summable (fun i => (μ.prod μ (f i)).toReal) := by
+      have : ∑' i, μ.prod μ (f i) ≠ ⊤ := by
+        rw [show ∑' i, μ.prod μ (f i) = μ.prod μ (⋃ i, f i) from
+          (measure_iUnion h_disj hf).symm]
+        exact ne_top_of_le_ne_top (measure_ne_top _ _) le_rfl
+      exact ENNReal.summable_toReal this
+    -- Summability of c(f_i)
+    have h_summable_c : Summable (fun i => c (f i) (hf i)) :=
+      Summable.of_nonneg_of_le (fun i => hc_nn (f i) (hf i))
+        (fun i => hc_le (f i) (hf i)) h_summable_bound
+    -- ∫_{⋃ f_i} A(n) = ∑' i, ∫_{f_i} A(n)
+    have h_split : ∀ n, ∫ p in ⋃ i, f i, (A n).toAEEqFun p ∂(μ.prod μ) =
+        ∑' i, ∫ p in f i, (A n).toAEEqFun p ∂(μ.prod μ) :=
+      fun n => integral_iUnion hf h_disj (hA_int n).integrableOn
+    -- ∑' → ∑' by Tannery
+    have h_tsum_tendsto : Tendsto (fun n => ∑' i, ∫ p in f i, (A n).toAEEqFun p ∂(μ.prod μ))
+        atTop (nhds (∑' i, c (f i) (hf i))) :=
+      tendsto_tsum_of_dominated_convergence h_summable_bound
+        h_i_tendsto (Filter.Eventually.of_forall (fun n i => h_norm_le n (f i) (hf i)))
+    -- By uniqueness of limits
+    exact tendsto_nhds_unique h_union_tendsto ((tendsto_congr h_split).mpr h_tsum_tendsto)
+  -- Step 5: Construct the measure
+  set ν := Measure.ofMeasurable (fun s hs => ENNReal.ofReal (c s hs))
+    (by simp [hc_empty])
+    (by
+      intro f hf h_disj
+      simp only []
+      rw [hc_additive hf h_disj]
+      exact ENNReal.ofReal_tsum_of_nonneg (fun i => hc_nn (f i) (hf i))
+        (Summable.of_nonneg_of_le (fun i => hc_nn (f i) (hf i))
+          (fun i => hc_le (f i) (hf i))
+          (ENNReal.summable_toReal (by
+            rw [show ∑' i, μ.prod μ (f i) = μ.prod μ (⋃ i, f i) from
+              (measure_iUnion h_disj hf).symm]
+            exact ne_top_of_le_ne_top (measure_ne_top _ _) le_rfl))))
+    with hν_def
+  refine ⟨ν, ?_, ?_, ?_⟩
+  -- Step 6: ν ≤ μ.prod μ
+  · exact Measure.le_iff.mpr fun E hE => by
+      rw [hν_def, Measure.ofMeasurable_apply E hE]
+      calc ENNReal.ofReal (c E hE)
+          ≤ ENNReal.ofReal (μ.prod μ E).toReal :=
+            ENNReal.ofReal_le_ofReal (hc_le E hE)
+        _ = μ.prod μ E :=
+            ENNReal.ofReal_toReal (ne_top_of_le_ne_top (measure_ne_top _ _) le_rfl)
+  -- Step 7: Symmetry on rectangles
+  · intro S T hS hT
+    rw [hν_def, Measure.ofMeasurable_apply _ (hS.prod hT),
+        Measure.ofMeasurable_apply _ (hT.prod hS)]
+    congr 1
+    -- c(S × T) = c(T × S) because the sequences are equal
+    have h_seq_eq : ∀ n, ∫ p in S ×ˢ T, (A n).toAEEqFun p ∂(μ.prod μ) =
+        ∫ p in T ×ˢ S, (A n).toAEEqFun p ∂(μ.prod μ) :=
+      fun n => SymmKernel.rectIntegral_symm (A n).toSymmKernel hS hT
+    exact tendsto_nhds_unique (hc (S ×ˢ T) (hS.prod hT))
+      ((tendsto_congr h_seq_eq).mpr (hc (T ×ˢ S) (hT.prod hS)))
+  -- Step 8: Rate bound on rectangles
+  · intro S T hS hT n
+    rw [hν_def, Measure.ofMeasurable_apply _ (hS.prod hT)]
+    -- ν(S×T).toReal = c(S×T, _) since c ≥ 0
+    rw [ENNReal.toReal_ofReal (hc_nn (S ×ˢ T) (hS.prod hT))]
+    -- Use dist_le_tsum_of_dist_le_of_tendsto
+    -- dist(f n, a) ≤ ∑' m, d(n + m) where d(k) = δ(k) and f(k) = ∫_{S×T} A(k)
+    rw [show |_ - _| = dist _ _ from (Real.dist_eq _ _).symm]
+    apply dist_le_tsum_of_dist_le_of_tendsto δ _ hδ_sum (hc (S ×ˢ T) (hS.prod hT))
+    -- dist(f n, f (n+1)) ≤ δ n
+    intro k
+    rw [Real.dist_eq]
+    have hsub : ∫ p in S ×ˢ T, (A k).toAEEqFun p ∂μ.prod μ -
+        ∫ p in S ×ˢ T, (A (k + 1)).toAEEqFun p ∂μ.prod μ =
+        rectIntegralDiff (A k) (A (k + 1)) S T := by
+      simp only [rectIntegralDiff]
+      rw [integral_sub (hA_int k).integrableOn (hA_int (k + 1)).integrableOn]
+    rw [hsub]
+    calc |rectIntegralDiff (A k) (A (k + 1)) S T|
+        ≤ cutNormDiff (A k) (A (k + 1)) := abs_rectIntegralDiff_le _ _ hS hT
+      _ = cutNormDiff (A (k + 1)) (A k) := cutNormDiff_symm _ _
+      _ ≤ δ k := h_bound k
 
 omit [StandardBorelSpace α] in
 /-- **Helper 3**: Extract a graphon from a bounded symmetric measure via Radon-Nikodym.
