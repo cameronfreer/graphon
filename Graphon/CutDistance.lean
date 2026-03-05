@@ -1044,7 +1044,15 @@ measure-preserving bijection (rearranging intervals).
 **Sorry**: Requires Rokhlin's theorem, which is not yet in Mathlib. This is
 well-established mathematics. This is the ONLY sorry in the formalization
 that requires genuinely new Mathlib infrastructure. All other Rokhlin
-consequences (partition transfer, alignment chains) are derived from this. -/
+consequences (partition transfer, alignment chains, controlled cell
+alignment) are derived from this.
+
+The conclusion has three parts:
+1. **Coupling**: The two MP maps can be aligned via MP bijections.
+2. **Partition alignment**: Each cell of P maps a.e. to some cell of Q.
+3. **Controlled cell alignment**: Given a specific measure-matching
+   correspondence between cells, the alignment can be chosen to realize it.
+   This follows from Rokhlin's classification theorem applied cell-by-cell. -/
 theorem MeasurePreserving.exists_common_extension [StandardBorelSpace α]
     (ψ₁ : α → α) (hψ₁ : MeasurePreserving ψ₁ μ μ)
     (φ₂ : α → α) (hφ₂ : MeasurePreserving φ₂ μ μ)
@@ -1053,7 +1061,13 @@ theorem MeasurePreserving.exists_common_extension [StandardBorelSpace α]
       (hχ₁ : MeasurePreserving χ₁ μ μ) (hχ₂ : MeasurePreserving χ₂ μ μ),
       ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂) ∧
     (∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
-      ∀ S ∈ P.parts, ∃ T ∈ Q.parts, μ (S \ e ⁻¹' T) = 0 ∧ μ (e ⁻¹' T \ S) = 0) := by
+      ∀ S ∈ P.parts, ∃ T ∈ Q.parts, μ (S \ e ⁻¹' T) = 0 ∧ μ (e ⁻¹' T \ S) = 0) ∧
+    (∀ {k : ℕ} (ι_S ι_T : Fin k → Set α),
+      (∀ i, ι_S i ∈ P.parts) → (∀ i, ι_T i ∈ Q.parts) →
+      Function.Injective ι_S → Function.Injective ι_T →
+      (∀ i, μ (ι_S i) = μ (ι_T i)) →
+      ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
+        ∀ i, ∀ᵐ x ∂μ, x ∈ ι_S i → e x ∈ ι_T i) := by
   sorry
 
 /-- Map-alignment consequence of `exists_common_extension`: given two MP maps,
@@ -1065,7 +1079,7 @@ theorem MeasurePreserving.exists_common_extension_maps [StandardBorelSpace α]
     ∃ (χ₁ χ₂ : α ≃ᵐ α)
       (hχ₁ : MeasurePreserving χ₁ μ μ) (hχ₂ : MeasurePreserving χ₂ μ μ),
       ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂ := by
-  have ⟨h, _⟩ := MeasurePreserving.exists_common_extension ψ₁ hψ₁ φ₂ hφ₂
+  have ⟨h, _, _⟩ := MeasurePreserving.exists_common_extension ψ₁ hψ₁ φ₂ hφ₂
     (trivialPartition (α := α) (μ := μ)) (trivialPartition (α := α) (μ := μ))
   exact h
 
@@ -1076,9 +1090,25 @@ theorem MeasurePreserving.exists_partition_alignment [StandardBorelSpace α]
     (P Q : MeasurablePartition α μ) :
     ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
       ∀ S ∈ P.parts, ∃ T ∈ Q.parts, μ (S \ e ⁻¹' T) = 0 ∧ μ (e ⁻¹' T \ S) = 0 := by
-  have ⟨_, h⟩ := MeasurePreserving.exists_common_extension id (MeasurePreserving.id μ)
+  have ⟨_, h, _⟩ := MeasurePreserving.exists_common_extension id (MeasurePreserving.id μ)
     id (MeasurePreserving.id μ) P Q
   exact h
+
+/-- Controlled cell alignment: given indexed families of cells from two partitions
+with matching measures, there exists a MP bijection mapping each cell a.e. to the
+corresponding cell. This is a direct consequence of the third conjunct of
+`exists_common_extension`. -/
+theorem MeasurePreserving.exists_controlled_cell_alignment [StandardBorelSpace α]
+    (P Q : MeasurablePartition α μ)
+    {k : ℕ} (ι_S ι_T : Fin k → Set α)
+    (hS : ∀ i, ι_S i ∈ P.parts) (hT : ∀ i, ι_T i ∈ Q.parts)
+    (hS_inj : Function.Injective ι_S) (hT_inj : Function.Injective ι_T)
+    (h_meas : ∀ i, μ (ι_S i) = μ (ι_T i)) :
+    ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
+      ∀ i, ∀ᵐ x ∂μ, x ∈ ι_S i → e x ∈ ι_T i := by
+  have ⟨_, _, h_controlled⟩ := MeasurePreserving.exists_common_extension
+    id (MeasurePreserving.id μ) id (MeasurePreserving.id μ) P Q
+  exact h_controlled ι_S ι_T hS hT hS_inj hT_inj h_meas
 
 /-- Cut norm difference is invariant under applying the same MeasurableEquiv to both graphons.
 

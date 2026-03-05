@@ -4485,6 +4485,43 @@ private theorem energy_increment_quantitative
       linarith
     linarith
 
+/-- **Pair energy increment**: If `cutNormDiff U (stepify P U) > δ`, then there exists
+a refinement Q of P with at most 4 times as many parts such that:
+1. `energy U Q ≥ energy U P + δ²` (the graphon that triggered the refinement gains energy)
+2. `energy V Q ≥ energy V P` for any other graphon V (energy is monotone under refinement)
+
+This is the key lemma for simultaneous regularity: we can refine for one graphon
+while ensuring the other's energy does not decrease. -/
+theorem energy_increment_pair
+    (U : Graphon α μ) (P : MeasurablePartition α μ) (δ : ℝ) (hδ : δ > 0)
+    (h_bad : δ < cutNormDiff U (stepify P U)) :
+    ∃ Q : MeasurablePartition α μ,
+      Refines Q P ∧ Q.parts.card ≤ 4 * P.parts.card ∧
+      energy U Q ≥ energy U P + δ ^ 2 ∧
+      ∀ V : Graphon α μ, energy V Q ≥ energy V P := by
+  obtain ⟨S₀, hS₀, T₀, hT₀, h_integral⟩ :=
+    exists_rectIntegralDiff_gt_of_cutNormDiff_gt U (stepify P U) δ h_bad
+  set Q₁ := MeasurablePartition.splitAllParts P S₀ hS₀ with hQ₁_def
+  set Q := MeasurablePartition.splitAllParts Q₁ T₀ hT₀ with hQ_def
+  refine ⟨Q, ?_, ?_, ?_, ?_⟩
+  · exact Refines.trans (MeasurablePartition.splitAllParts_refines P S₀ hS₀)
+      (MeasurablePartition.splitAllParts_refines Q₁ T₀ hT₀)
+  · calc Q.parts.card
+        ≤ 2 * Q₁.parts.card := MeasurablePartition.splitAllParts_card Q₁ T₀ hT₀
+      _ ≤ 2 * (2 * P.parts.card) :=
+          Nat.mul_le_mul_left 2 (MeasurablePartition.splitAllParts_card P S₀ hS₀)
+      _ = 4 * P.parts.card := by ring
+  · have h_energy := energy_doubleSplit_ge_sq U P S₀ hS₀ T₀ hT₀
+    have h_abs_gt : δ < |rectIntegralDiff U (stepify P U) S₀ T₀| := h_integral
+    have h_sq : δ ^ 2 ≤ (rectIntegralDiff U (stepify P U) S₀ T₀) ^ 2 := by
+      have h1 : δ ^ 2 < |rectIntegralDiff U (stepify P U) S₀ T₀| ^ 2 :=
+        sq_lt_sq' (by linarith [abs_nonneg (rectIntegralDiff U (stepify P U) S₀ T₀)]) h_abs_gt
+      linarith [sq_abs (rectIntegralDiff U (stepify P U) S₀ T₀)]
+    linarith
+  · intro V
+    have h_V := energy_doubleSplit_ge_sq V P S₀ hS₀ T₀ hT₀
+    linarith [sq_nonneg (rectIntegralDiff V (stepify P V) S₀ T₀)]
+
 /-- The regularity function: given ε, returns an upper bound on the number of parts
     needed in a partition to achieve ε-approximation.
 

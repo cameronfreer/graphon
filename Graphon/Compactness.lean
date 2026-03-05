@@ -204,7 +204,7 @@ noncomputable def mkStepGraphon (P : MeasurablePartition α μ) (c : Set α → 
 omit [StandardBorelSpace α] in
 /-- cutNormDiff between step graphons on the same partition with close coefficients
     is controlled by the coefficient difference. -/
-private theorem cutNormDiff_mkStepGraphon_le (P : MeasurablePartition α μ)
+theorem cutNormDiff_mkStepGraphon_le (P : MeasurablePartition α μ)
     (c c' : Set α → Set α → ℝ)
     (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
     (hc_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T ∈ Set.Icc 0 1)
