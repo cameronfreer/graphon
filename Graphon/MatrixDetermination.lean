@@ -77,6 +77,8 @@ theorem matrix_perm_of_weightedHomSum_eq {k : ℕ}
       weightedHomSum n F c w = weightedHomSum n F c' w) :
     ∃ π : Equiv.Perm (Fin k),
       (∀ i j, c i j = c' (π i) (π j)) ∧ (∀ i, w i = w (π i)) := by
-  sorry
+  rcases Nat.eq_zero_or_pos k with rfl | hk
+  · exact ⟨Equiv.refl _, nofun, nofun⟩
+  · sorry
 
 end Graphon
