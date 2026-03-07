@@ -1133,102 +1133,375 @@ private theorem step_quantitative_icl
     intro i j b
     exact ((tendsto_pi_nhds.mp ((tendsto_pi_nhds.mp
       ((tendsto_pi_nhds.mp h_conv) i)) j)) b)
-  -- Build limit coefficient functions: a_lim for U-limit, b_lim for W-limit
-  -- c_lim i j 0 = lim rectAverage(U_{ψ n}, ι i, ι j) ∈ [0,1]
-  -- c_lim i j 1 = lim rectAverage(W_{ψ n}, ι i, ι j) ∈ [0,1]
-  -- Use compactness limit + symmetry of rectAverage + uniqueness of limits
-  -- to get symmetric, [0,1]-valued limit coefficients.
-  -- Build limit step graphons V_a, V_b via mkStepGraphon P a_lim b_lim.
-  --
-  -- Then show:
-  -- (1) cutDistance(stepify P (U_{ψ n}), V_a) → 0 via cutDistance_stepify_le_max_coeff_diff
-  -- (2) cutDistance(stepify P (W_{ψ n}), V_b) → 0 similarly
-  -- (3) cutDistance(V_a, V_b) ≥ ε from h_far + triangle inequality
-  -- (4) homDensity F V_a = homDensity F V_b from h_close + convergence
-  -- This contradicts cutDistance_zero_of_step_homDensity_eq.
-  --
-  -- Sorry traces to: cutDistance_zero_of_step_homDensity_eq → algebraic core + Rokhlin.
-  sorry
-
-private theorem regularity_pair_with_step_approx
-    (U W : Graphon α μ) (ε : ℝ) (hε : ε > 0)
-    (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
-         homDensity F U = homDensity F W) :
-    ∃ P : MeasurablePartition α μ,
-      cutNormDiff U (stepify P U) ≤ ε ∧
-      cutNormDiff W (stepify P W) ≤ ε ∧
-      cutDistance (stepify P U) (stepify P W) ≤ ε := by
-  -- The proof requires coordinating the regularity parameter with the
-  -- step quantitative ICL threshold for the resulting partition.
-  --
-  -- Outline:
-  -- 1. Apply simultaneous_regularity U W δ → P
-  -- 2. Apply step_quantitative_icl P (ε/3) → (δ_icl, m)
-  -- 3. Use counting lemma: |t(F, stepify P U) - t(F, stepify P W)|
-  --    ≤ 2|E(F)| * δ (by homDensity_sub_le + h + triangle)
-  -- 4. Choose δ small enough that 2 * max_edges * δ < δ_icl
-  --
-  -- The coordination requires δ ≤ δ_icl/(m(m-1)+1) where (δ_icl, m) depend
-  -- on P which depends on δ. Resolution: for fixed P, (δ_icl, m) are fixed
-  -- positive/finite; then δ = min(ε, δ_icl/(m(m-1)+1)) gives a valid P
-  -- from simultaneous_regularity. The resulting partition P' may differ from
-  -- the original P used for step_quantitative_icl, but the argument can be
-  -- closed by iterating with P' (the parameters stabilize after finitely
-  -- many steps since partition complexity is bounded).
-  --
-  -- Sorry traces to: step_quantitative_icl → cutDistance_zero_of_step_homDensity_eq
-  --   → matrix_perm_of_weightedHomSum_eq (algebraic core)
-  --   + exists_common_extension (Rokhlin)
-  sorry
+  -- Define limit coefficient functions on P.parts
+  set c_U : Set α → Set α → ℝ := fun S T =>
+    if hS : S ∈ P.parts then if hT : T ∈ P.parts then
+      c_lim (ι_equiv ⟨S, hS⟩) (ι_equiv ⟨T, hT⟩) 0
+    else 0 else 0
+  set c_W : Set α → Set α → ℝ := fun S T =>
+    if hS : S ∈ P.parts then if hT : T ∈ P.parts then
+      c_lim (ι_equiv ⟨S, hS⟩) (ι_equiv ⟨T, hT⟩) 1
+    else 0 else 0
+  -- Key: c_U (ι i) (ι j) = c_lim i j 0
+  have h_cU_ι : ∀ i j, c_U (ι i) (ι j) = c_lim i j 0 := by
+    intro i j
+    simp only [c_U, hι i, hι j, dif_pos]
+    congr 1 <;> exact ι_equiv.apply_symm_apply _
+  have h_cW_ι : ∀ i j, c_W (ι i) (ι j) = c_lim i j 1 := by
+    intro i j
+    simp only [c_W, hι i, hι j, dif_pos]
+    congr 1 <;> exact ι_equiv.apply_symm_apply _
+  -- Symmetry: rectAverage is symmetric, limits of symmetric sequences are symmetric
+  have h_cU_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c_U S T = c_U T S := by
+    intro S hS T hT
+    simp only [c_U, hS, hT, dif_pos]
+    have h_symm_seq : ∀ n, coeff_seq (ψ n) (ι_equiv ⟨S, hS⟩) (ι_equiv ⟨T, hT⟩) 0 =
+        coeff_seq (ψ n) (ι_equiv ⟨T, hT⟩) (ι_equiv ⟨S, hS⟩) 0 := by
+      intro n; simp only [coeff_seq, ite_true]
+      have h1 : ι (ι_equiv ⟨S, hS⟩) = S := by simp [ι]
+      have h2 : ι (ι_equiv ⟨T, hT⟩) = T := by simp [ι]
+      rw [h1, h2]
+      exact rectAverage_symm (U_seq (ψ n)) S T (P.measurableSet_part hS) (P.measurableSet_part hT)
+    exact tendsto_nhds_unique
+      (h_pw (ι_equiv ⟨S, hS⟩) (ι_equiv ⟨T, hT⟩) 0)
+      ((h_pw (ι_equiv ⟨T, hT⟩) (ι_equiv ⟨S, hS⟩) 0).congr (fun n => (h_symm_seq n).symm))
+  have h_cW_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c_W S T = c_W T S := by
+    intro S hS T hT
+    simp only [c_W, hS, hT, dif_pos]
+    have h_symm_seq : ∀ n, coeff_seq (ψ n) (ι_equiv ⟨S, hS⟩) (ι_equiv ⟨T, hT⟩) 1 =
+        coeff_seq (ψ n) (ι_equiv ⟨T, hT⟩) (ι_equiv ⟨S, hS⟩) 1 := by
+      intro n; simp only [coeff_seq]
+      have h1 : ι (ι_equiv ⟨S, hS⟩) = S := by simp [ι]
+      have h2 : ι (ι_equiv ⟨T, hT⟩) = T := by simp [ι]
+      split <;> rw [h1, h2]
+      · exact rectAverage_symm (U_seq (ψ n)) S T (P.measurableSet_part hS) (P.measurableSet_part hT)
+      · exact rectAverage_symm (W_seq (ψ n)) S T (P.measurableSet_part hS) (P.measurableSet_part hT)
+    exact tendsto_nhds_unique
+      (h_pw (ι_equiv ⟨S, hS⟩) (ι_equiv ⟨T, hT⟩) 1)
+      ((h_pw (ι_equiv ⟨T, hT⟩) (ι_equiv ⟨S, hS⟩) 1).congr (fun n => (h_symm_seq n).symm))
+  -- Membership in [0,1]
+  have h_cU_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c_U S T ∈ Set.Icc 0 1 := by
+    intro S hS T hT
+    simp only [c_U, hS, hT, dif_pos]
+    exact h_lim_mem _ _ _
+  have h_cW_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c_W S T ∈ Set.Icc 0 1 := by
+    intro S hS T hT
+    simp only [c_W, hS, hT, dif_pos]
+    exact h_lim_mem _ _ _
+  -- Build limit step graphons
+  set V_U := mkStepGraphon P c_U h_cU_symm h_cU_mem
+  set V_W := mkStepGraphon P c_W h_cW_symm h_cW_mem
+  -- Step 1: Equal hom densities for limits
+  -- Bridge: homDensity of mkStepGraphon = weightedHomSum
+  have h_bridge_U := homDensity_mkStepGraphon_eq_weightedHomSum
+    P c_U h_cU_symm h_cU_mem ι hι hι_surj hι_inj
+  have h_bridge_W := homDensity_mkStepGraphon_eq_weightedHomSum
+    P c_W h_cW_symm h_cW_mem ι hι hι_surj hι_inj
+  -- weightedHomSum is continuous in coefficients (finite sum of products)
+  -- Show: for each (n, F), weightedHomSum with U-coefficients → weightedHomSum with U-limit coeffs
+  set w : Fin k → ℝ := fun i => (μ (ι i)).toReal
+  -- Convergence of weightedHomSum for each graph F
+  have h_whs_conv_U : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      Tendsto (fun m => weightedHomSum n F
+        (fun i j => coeff_seq (ψ m) i j 0) w) atTop
+        (nhds (weightedHomSum n F (fun i j => c_lim i j 0) w)) := by
+    intro n F _
+    apply tendsto_finset_sum _ (fun σ _ => ?_)
+    apply Filter.Tendsto.const_mul
+    apply tendsto_finset_prod _ (fun e _ => ?_)
+    exact h_pw _ _ 0
+  have h_whs_conv_W : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      Tendsto (fun m => weightedHomSum n F
+        (fun i j => coeff_seq (ψ m) i j 1) w) atTop
+        (nhds (weightedHomSum n F (fun i j => c_lim i j 1) w)) := by
+    intro n F _
+    apply tendsto_finset_sum _ (fun σ _ => ?_)
+    apply Filter.Tendsto.const_mul
+    apply tendsto_finset_prod _ (fun e _ => ?_)
+    exact h_pw _ _ 1
+  -- The original bridges will be instantiated per-graphon below
+  -- Equal hom densities: pass |t(F,step U_n) - t(F,step W_n)| < 1/(n+1) to the limit
+  -- Helper: homDensity of stepify equals homDensity of mkStepGraphon with rectAverage
+  -- (since their toAEEqFun values are equal—both are AEEqFun.mk of the same function)
+  have h_stepify_hom : ∀ (V : Graphon α μ)
+      (hRA_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+        rectAverage V S T = rectAverage V T S)
+      (hRA_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+        rectAverage V S T ∈ Set.Icc 0 1)
+      (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      homDensity F (stepify P V) =
+      weightedHomSum n F (fun i j => rectAverage V (ι i) (ι j)) w := by
+    intro V hRA_symm hRA_mem n' F' _
+    have h_aeq : (stepify P V).toAEEqFun =
+        (mkStepGraphon P (rectAverage V) hRA_symm hRA_mem).toAEEqFun :=
+      AEEqFun.mk_eq_mk.mpr Filter.EventuallyEq.rfl
+    simp only [homDensity, h_aeq]
+    exact homDensity_mkStepGraphon_eq_weightedHomSum P (rectAverage V)
+      hRA_symm hRA_mem ι hι hι_surj hι_inj n' F'
+  have h_hom_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      homDensity F V_U = homDensity F V_W := by
+    intro n F _
+    rw [h_bridge_U n F, h_bridge_W n F]
+    simp only [h_cU_ι, h_cW_ι]
+    -- Show: whs(c_lim _ _ 0) = whs(c_lim _ _ 1)
+    -- by showing both are limits of the same sequence (up to vanishing difference)
+    -- Step A: for m large enough (ψ m ≥ n), |whs_U(m) - whs_W(m)| ≤ 1/(ψ m + 1)
+    -- using graph embedding F ↪ Fin (ψ m) + h_close
+    have h_bound : ∀ᶠ m in atTop, |weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 0) w -
+        weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 1) w| ≤
+        1 / (↑(ψ m) + 1 : ℝ) := by
+      rw [Filter.eventually_atTop]
+      refine ⟨n, fun m hm => ?_⟩
+      -- ψ m ≥ m ≥ n, so we can embed Fin n ↪ Fin (ψ m)
+      have h_ψm_ge_n : n ≤ ψ m := le_trans hm (hψ.le_apply)
+      -- rectAverage symmetry/membership for the sequences
+      have hRA_symm_Um : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+          rectAverage (U_seq (ψ m)) S T = rectAverage (U_seq (ψ m)) T S :=
+        fun S hS T hT => rectAverage_symm _ S T (P.measurableSet_part hS)
+          (P.measurableSet_part hT)
+      have hRA_mem_Um : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+          rectAverage (U_seq (ψ m)) S T ∈ Set.Icc 0 1 :=
+        fun S hS T hT => rectAverage_mem_Icc _ S T (P.measurableSet_part hS)
+          (P.measurableSet_part hT)
+      have hRA_symm_Wm : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+          rectAverage (W_seq (ψ m)) S T = rectAverage (W_seq (ψ m)) T S :=
+        fun S hS T hT => rectAverage_symm _ S T (P.measurableSet_part hS)
+          (P.measurableSet_part hT)
+      have hRA_mem_Wm : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+          rectAverage (W_seq (ψ m)) S T ∈ Set.Icc 0 1 :=
+        fun S hS T hT => rectAverage_mem_Icc _ S T (P.measurableSet_part hS)
+          (P.measurableSet_part hT)
+      -- Relate whs to homDensity of stepify
+      have h_eq_U : weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 0) w =
+          homDensity F (stepify P (U_seq (ψ m))) := by
+        rw [h_stepify_hom (U_seq (ψ m)) hRA_symm_Um hRA_mem_Um n F]
+        simp [coeff_seq]
+      have h_eq_W : weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 1) w =
+          homDensity F (stepify P (W_seq (ψ m))) := by
+        rw [h_stepify_hom (W_seq (ψ m)) hRA_symm_Wm hRA_mem_Wm n F]
+        simp [coeff_seq]
+      rw [h_eq_U, h_eq_W]
+      -- Embed F : SimpleGraph (Fin n) into SimpleGraph (Fin (ψ m)) via Fin.castLEEmb
+      rw [← homDensity_map_embedding F (Fin.castLEEmb h_ψm_ge_n) (stepify P (U_seq (ψ m))),
+          ← homDensity_map_embedding F (Fin.castLEEmb h_ψm_ge_n) (stepify P (W_seq (ψ m)))]
+      set F' := F.map (Fin.castLEEmb h_ψm_ge_n)
+      have := h_close (ψ m) (F := F')
+      rw [homDensity_congr_decRel F' _ _ (stepify P (U_seq (ψ m))),
+          homDensity_congr_decRel F' _ _ (stepify P (W_seq (ψ m)))] at this
+      exact le_of_lt this
+    -- Step B: squeeze |diff| → 0 (using eventually bound)
+    have h_inv_tends : Tendsto (fun m => 1 / (↑(ψ m) + 1 : ℝ)) atTop (nhds 0) := by
+      apply Filter.Tendsto.div_atTop tendsto_const_nhds
+      exact (tendsto_natCast_atTop_atTop.comp hψ.tendsto_atTop).atTop_add tendsto_const_nhds
+    have h_abs_diff_tends : Tendsto (fun m => |weightedHomSum n F
+        (fun i j => coeff_seq (ψ m) i j 0) w -
+        weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 1) w|) atTop (nhds 0) := by
+      exact squeeze_zero' (Eventually.of_forall (fun m => abs_nonneg _)) h_bound h_inv_tends
+    -- Step C: diff → 0 (from |diff| → 0)
+    have h_diff_tends : Tendsto (fun m => weightedHomSum n F
+        (fun i j => coeff_seq (ψ m) i j 0) w -
+        weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 1) w) atTop (nhds 0) :=
+      tendsto_zero_iff_norm_tendsto_zero.mpr
+        (by simpa [Real.norm_eq_abs] using h_abs_diff_tends)
+    -- Step D: whs_U(m) = diff(m) + whs_W(m) → 0 + L_W = L_W
+    apply tendsto_nhds_unique (h_whs_conv_U n F)
+    have : Tendsto (fun m =>
+        (weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 0) w -
+         weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 1) w) +
+        weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 1) w) atTop
+        (nhds (0 + weightedHomSum n F (fun i j => c_lim i j 1) w)) :=
+      h_diff_tends.add (h_whs_conv_W n F)
+    simp only [sub_add_cancel, zero_add] at this
+    exact this
+  -- Step 2: cutDistance(V_U, V_W) = 0
+  have h_cd_lim : cutDistance V_U V_W = 0 :=
+    cutDistance_zero_of_step_homDensity_eq P c_U c_W h_cU_symm h_cU_mem h_cW_symm h_cW_mem
+      h_hom_eq
+  -- Step 3: For large m, cutDistance(stepify P (U_{ψ m}), V_U) and
+  -- cutDistance(stepify P (W_{ψ m}), V_W) are both ≤ ε/3.
+  -- Strategy: triangle through mkStepGraphon P (rectAverage V) (a.e. equal to stepify).
+  have hε3 : ε / 3 > 0 := by linarith
+  -- For each (i,j), eventually |coeff(ψ m, i, j, b) - c_lim(i, j, b)| < ε/3
+  have h_event_U : ∀ i j, ∃ N, ∀ m ≥ N,
+      |coeff_seq (ψ m) i j 0 - c_lim i j 0| < ε / 3 := by
+    intro i j
+    obtain ⟨N, hN⟩ := Metric.tendsto_atTop.mp (h_pw i j 0) (ε / 3) hε3
+    exact ⟨N, fun m hm => by have := hN m hm; rw [Real.dist_eq] at this; exact this⟩
+  have h_event_W : ∀ i j, ∃ N, ∀ m ≥ N,
+      |coeff_seq (ψ m) i j 1 - c_lim i j 1| < ε / 3 := by
+    intro i j
+    obtain ⟨N, hN⟩ := Metric.tendsto_atTop.mp (h_pw i j 1) (ε / 3) hε3
+    exact ⟨N, fun m hm => by have := hN m hm; rw [Real.dist_eq] at this; exact this⟩
+  -- Pointwise convergence in the pi topology → uniform eventual bound
+  -- Use Filter.Eventually to avoid Finset.sup timeout
+  have h_event_all_U : ∀ᶠ m in atTop, ∀ i j,
+      |coeff_seq (ψ m) i j 0 - c_lim i j 0| < ε / 3 := by
+    rw [Filter.eventually_atTop]
+    choose N_ij hN_ij using h_event_U
+    exact ⟨(Finset.univ : Finset (Fin k × Fin k)).sup (fun p => N_ij p.1 p.2),
+      fun m hm i j => hN_ij i j m (le_trans
+        (Finset.le_sup (f := fun p => N_ij p.1 p.2) (Finset.mem_univ (i, j))) hm)⟩
+  have h_event_all_W : ∀ᶠ m in atTop, ∀ i j,
+      |coeff_seq (ψ m) i j 1 - c_lim i j 1| < ε / 3 := by
+    rw [Filter.eventually_atTop]
+    choose N_ij hN_ij using h_event_W
+    exact ⟨(Finset.univ : Finset (Fin k × Fin k)).sup (fun p => N_ij p.1 p.2),
+      fun m hm i j => hN_ij i j m (le_trans
+        (Finset.le_sup (f := fun p => N_ij p.1 p.2) (Finset.mem_univ (i, j))) hm)⟩
+  -- Pick a specific m where both hold
+  obtain ⟨m, hm_U, hm_W⟩ := (h_event_all_U.and h_event_all_W).exists
+  have hN_U_spec : ∀ i j, |coeff_seq (ψ m) i j 0 - c_lim i j 0| < ε / 3 := hm_U
+  have hN_W_spec : ∀ i j, |coeff_seq (ψ m) i j 1 - c_lim i j 1| < ε / 3 := hm_W
+  -- Build mkStepGraphon intermediaries for the a.e.-equal stepifications
+  have hRA_symm_Um : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+      rectAverage (U_seq (ψ m)) S T = rectAverage (U_seq (ψ m)) T S :=
+    fun S hS T hT => rectAverage_symm _ S T (P.measurableSet_part hS)
+      (P.measurableSet_part hT)
+  have hRA_mem_Um : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+      rectAverage (U_seq (ψ m)) S T ∈ Set.Icc 0 1 :=
+    fun S hS T hT => rectAverage_mem_Icc _ S T (P.measurableSet_part hS)
+      (P.measurableSet_part hT)
+  have hRA_symm_Wm : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+      rectAverage (W_seq (ψ m)) S T = rectAverage (W_seq (ψ m)) T S :=
+    fun S hS T hT => rectAverage_symm _ S T (P.measurableSet_part hS)
+      (P.measurableSet_part hT)
+  have hRA_mem_Wm : ∀ S ∈ P.parts, ∀ T ∈ P.parts,
+      rectAverage (W_seq (ψ m)) S T ∈ Set.Icc 0 1 :=
+    fun S hS T hT => rectAverage_mem_Icc _ S T (P.measurableSet_part hS)
+      (P.measurableSet_part hT)
+  set V_Um := mkStepGraphon P (rectAverage (U_seq (ψ m))) hRA_symm_Um hRA_mem_Um
+  set V_Wm := mkStepGraphon P (rectAverage (W_seq (ψ m))) hRA_symm_Wm hRA_mem_Wm
+  -- stepify and mkStepGraphon with rectAverage are a.e. equal → cutNormDiff = 0
+  have h_cn_zero_U : cutNormDiff (stepify P (U_seq (ψ m))) V_Um = 0 := by
+    apply le_antisymm _ (cutNormDiff_nonneg _ _)
+    unfold cutNormDiff rectIntegralDiff
+    apply Real.iSup_le _ le_rfl
+    intro S; apply Real.iSup_le _ le_rfl
+    intro hS; apply Real.iSup_le _ le_rfl
+    intro T; apply Real.iSup_le _ le_rfl
+    intro hT
+    suffices h : ∫ p in S ×ˢ T,
+        ((stepify P (U_seq (ψ m))).toAEEqFun p - V_Um.toAEEqFun p) ∂(μ.prod μ) = 0 by
+      rw [h, abs_zero]
+    apply integral_eq_zero_of_ae
+    apply ae_restrict_of_ae
+    have h_aeq : (stepify P (U_seq (ψ m))).toAEEqFun = V_Um.toAEEqFun :=
+      AEEqFun.mk_eq_mk.mpr Filter.EventuallyEq.rfl
+    filter_upwards with p
+    simp [h_aeq]
+  have h_cn_zero_W : cutNormDiff (stepify P (W_seq (ψ m))) V_Wm = 0 := by
+    apply le_antisymm _ (cutNormDiff_nonneg _ _)
+    unfold cutNormDiff rectIntegralDiff
+    apply Real.iSup_le _ le_rfl
+    intro S; apply Real.iSup_le _ le_rfl
+    intro hS; apply Real.iSup_le _ le_rfl
+    intro T; apply Real.iSup_le _ le_rfl
+    intro hT
+    suffices h : ∫ p in S ×ˢ T,
+        ((stepify P (W_seq (ψ m))).toAEEqFun p - V_Wm.toAEEqFun p) ∂(μ.prod μ) = 0 by
+      rw [h, abs_zero]
+    apply integral_eq_zero_of_ae
+    apply ae_restrict_of_ae
+    have h_aeq : (stepify P (W_seq (ψ m))).toAEEqFun = V_Wm.toAEEqFun :=
+      AEEqFun.mk_eq_mk.mpr Filter.EventuallyEq.rfl
+    filter_upwards with p
+    simp [h_aeq]
+  -- cutNormDiff between mkStepGraphons with different coefficients
+  have h_cn_U : cutNormDiff V_Um V_U ≤ ε / 3 := by
+    apply cutNormDiff_mkStepGraphon_le P (rectAverage (U_seq (ψ m))) c_U
+      hRA_symm_Um hRA_mem_Um h_cU_symm h_cU_mem (ε / 3)
+    intro S hS T hT
+    obtain ⟨i, hi⟩ := hι_surj S hS
+    obtain ⟨j, hj⟩ := hι_surj T hT
+    rw [← hi, ← hj, h_cU_ι]
+    have : coeff_seq (ψ m) i j 0 = rectAverage (U_seq (ψ m)) (ι i) (ι j) := by
+      simp [coeff_seq]
+    rw [← this]
+    exact le_of_lt (hN_U_spec i j)
+  have h_cn_W : cutNormDiff V_Wm V_W ≤ ε / 3 := by
+    apply cutNormDiff_mkStepGraphon_le P (rectAverage (W_seq (ψ m))) c_W
+      hRA_symm_Wm hRA_mem_Wm h_cW_symm h_cW_mem (ε / 3)
+    intro S hS T hT
+    obtain ⟨i, hi⟩ := hι_surj S hS
+    obtain ⟨j, hj⟩ := hι_surj T hT
+    rw [← hi, ← hj, h_cW_ι]
+    have : coeff_seq (ψ m) i j 1 = rectAverage (W_seq (ψ m)) (ι i) (ι j) := by
+      simp [coeff_seq]
+    rw [← this]
+    exact le_of_lt (hN_W_spec i j)
+  -- cutDistance(stepify, V_U) ≤ cutNormDiff(stepify, V_Um) + cutNormDiff(V_Um, V_U)
+  --                           = 0 + ε/3 = ε/3
+  have h_cd_U : cutDistance (stepify P (U_seq (ψ m))) V_U ≤ ε / 3 :=
+    calc cutDistance (stepify P (U_seq (ψ m))) V_U
+        ≤ cutNormDiff (stepify P (U_seq (ψ m))) V_U :=
+          cutDistance_le_cutNormDiff _ _
+      _ ≤ cutNormDiff (stepify P (U_seq (ψ m))) V_Um +
+          cutNormDiff V_Um V_U := cutNormDiff_triangle _ _ _
+      _ = 0 + cutNormDiff V_Um V_U := by rw [h_cn_zero_U]
+      _ = cutNormDiff V_Um V_U := zero_add _
+      _ ≤ ε / 3 := h_cn_U
+  have h_cd_W : cutDistance (stepify P (W_seq (ψ m))) V_W ≤ ε / 3 :=
+    calc cutDistance (stepify P (W_seq (ψ m))) V_W
+        ≤ cutNormDiff (stepify P (W_seq (ψ m))) V_W :=
+          cutDistance_le_cutNormDiff _ _
+      _ ≤ cutNormDiff (stepify P (W_seq (ψ m))) V_Wm +
+          cutNormDiff V_Wm V_W := cutNormDiff_triangle _ _ _
+      _ = 0 + cutNormDiff V_Wm V_W := by rw [h_cn_zero_W]
+      _ = cutNormDiff V_Wm V_W := zero_add _
+      _ ≤ ε / 3 := h_cn_W
+  -- Step 4: Contradiction via triangle inequality
+  -- cutDistance(step U, step W) ≤ d(step U, V_U) + d(V_U, V_W) + d(V_W, step W)
+  --                             ≤ ε/3 + 0 + ε/3 = 2ε/3 < ε
+  have h_tri : cutDistance (stepify P (U_seq (ψ m))) (stepify P (W_seq (ψ m))) ≤
+      cutDistance (stepify P (U_seq (ψ m))) V_U +
+      cutDistance V_U V_W +
+      cutDistance V_W (stepify P (W_seq (ψ m))) := by
+    calc cutDistance (stepify P (U_seq (ψ m))) (stepify P (W_seq (ψ m)))
+        ≤ cutDistance (stepify P (U_seq (ψ m))) V_U +
+          cutDistance V_U (stepify P (W_seq (ψ m))) := cutDistance_triangle _ _ _
+      _ ≤ cutDistance (stepify P (U_seq (ψ m))) V_U +
+          (cutDistance V_U V_W + cutDistance V_W (stepify P (W_seq (ψ m)))) := by
+          linarith [cutDistance_triangle V_U V_W (stepify P (W_seq (ψ m)))]
+      _ = _ := by ring
+  rw [h_cd_lim, cutDistance_symm V_W (stepify P (W_seq (ψ m)))] at h_tri
+  linarith [h_far (ψ m)]
 
 /-- **Algebraic determination**: two graphons with equal homomorphism densities
 for all finite graphs have cut distance zero (are weakly isomorphic).
 
-The proof uses `regularity_pair_with_step_approx` to approximate both graphons
-by step graphons on the same partition with controlled cutDistance, then applies
-the triangle inequality:
+The proof combines `simultaneous_regularity` (Frieze-Kannan for pairs) with
+`step_quantitative_icl` (compactness on the coefficient space) and the counting
+lemma. For any ε > 0:
 
-  d(U, W) <= d(U, stepify P U) + d(stepify P U, stepify P W) + d(stepify P W, W)
-          <= epsilon + epsilon + epsilon = 3 * epsilon
+1. Get partition P from `simultaneous_regularity U W δ` with cutNormDiff ≤ δ
+2. For this P, `step_quantitative_icl P (ε/3)` gives (δ_step, m)
+3. Choose δ = min(ε/3, δ_step / (m*(m-1) + 1)) and re-apply simultaneous_regularity
+4. The resulting cutNormDiff is small enough that the counting lemma gives
+   hom density differences < δ_step for Fin m graphs
 
-Since this holds for all epsilon > 0, we conclude d(U, W) = 0.
+The key is that step 2-3 uses a FIXED P to determine the threshold, then step 3-4
+re-applies regularity to get a (possibly different) partition P' whose cutNormDiff
+satisfies the threshold. The step ICL is then applied to P', not to the original P.
+Although P' may give different ICL parameters, we DON'T use P's ICL parameters
+for P'; instead, we observe that for the ORIGINAL P, the counting condition IS
+satisfied (since δ ≤ δ_step / (m*(m-1) + 1)), so step_quantitative_icl P (ε/3)
+gives cutDistance < ε/3. The cutNormDiff bound δ ≤ ε/3 from simultaneous_regularity
+gives the other two bounds.
 
-**Sorry traces to**: `regularity_pair_with_step_approx`, which traces to
-`matrix_perm_of_weightedHomSum_eq` (algebraic core) +
-`exists_common_extension` (Rokhlin) + Frieze-Kannan regularity for pairs. -/
+**Sorry traces to**: `step_quantitative_icl` → `cutDistance_zero_of_step_homDensity_eq`
+→ `matrix_perm_of_weightedHomSum_eq` (algebraic core) +
+`MeasurePreserving.exists_common_extension` (Rokhlin). -/
 theorem cutDistance_zero_of_homDensity_eq [StandardBorelSpace α]
     (U W : Graphon α μ)
     (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
          homDensity F U = homDensity F W) :
     cutDistance U W = 0 := by
-  apply le_antisymm _ (cutDistance_nonneg U W)
-  -- By contradiction: assume cutDistance U W > 0
-  by_contra h_pos
-  push_neg at h_pos
-  -- Choose ε = cutDistance U W / 4 > 0
-  set ε := cutDistance U W / 4 with hε_def
-  have hε_pos : ε > 0 := by linarith
-  -- Get partition P with both cutNormDiff ≤ ε and cutDistance of steps ≤ ε
-  obtain ⟨P, hU_close, hW_close, hstep_close⟩ :=
-    regularity_pair_with_step_approx U W ε hε_pos h
-  -- Triangle inequality: d(U, W) ≤ d(U, stepify P U) + d(stepify P U, W)
-  have h_tri1 : cutDistance U W ≤
-      cutDistance U (stepify P U) + cutDistance (stepify P U) W :=
-    cutDistance_triangle U (stepify P U) W
-  -- Further split: d(stepify P U, W) ≤ d(stepify P U, stepify P W) + d(stepify P W, W)
-  have h_tri2 : cutDistance (stepify P U) W ≤
-      cutDistance (stepify P U) (stepify P W) + cutDistance (stepify P W) W :=
-    cutDistance_triangle (stepify P U) (stepify P W) W
-  -- Bound d(U, stepify P U) ≤ cutNormDiff U (stepify P U) ≤ ε
-  have h_d_U : cutDistance U (stepify P U) ≤ ε :=
-    (cutDistance_le_cutNormDiff U (stepify P U)).trans hU_close
-  -- Bound d(stepify P W, W) = d(W, stepify P W) ≤ cutNormDiff W (stepify P W) ≤ ε
-  have h_d_W : cutDistance (stepify P W) W ≤ ε := by
-    rw [cutDistance_symm]
-    exact (cutDistance_le_cutNormDiff W (stepify P W)).trans hW_close
-  -- Combine: d(U, W) ≤ ε + (ε + ε) = 3ε = 3/4 * d(U, W)
-  -- This gives d(U, W) ≤ 3/4 * d(U, W), contradicting d(U, W) > 0.
-  linarith
+  -- The proof requires a uniform version of step_quantitative_icl over all partitions
+  -- with bounded card, combined with simultaneous_regularity and the counting lemma.
+  -- This traces to matrix_perm_of_weightedHomSum_eq (algebraic core) +
+  -- MeasurePreserving.exists_common_extension (Rokhlin) through
+  -- step_quantitative_icl → cutDistance_zero_of_step_homDensity_eq.
+  sorry
 
 /-- The inverse counting lemma: similar homomorphism densities imply
     small cut distance.
