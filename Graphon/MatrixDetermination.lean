@@ -128,27 +128,183 @@ theorem weightedHomSum_perm_eq {k : ℕ} (n : ℕ) (F : SimpleGraph (Fin n))
   · congr 1; ext v; simp [Equiv.piCongrRight]
   · congr 1; ext e; simp [Equiv.piCongrRight]
 
+/-! ### Star graph formula -/
+
+/-- The edge finset of `starGraph m` consists of the edges `s(0, j.succ)` for `j : Fin m`. -/
+private theorem starGraph_edgeFinset (m : ℕ) :
+    (starGraph m).edgeFinset =
+      (Finset.univ : Finset (Fin m)).image
+        (fun j => s((0 : Fin (m + 1)), j.succ)) := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, Finset.mem_image, Finset.mem_univ, true_and]
+  constructor
+  · intro he
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      simp only [starGraph] at he
+      rcases he with ⟨rfl, hb⟩ | ⟨ha, rfl⟩
+      · exact ⟨b.pred hb, by simp [Fin.succ_pred]⟩
+      · exact ⟨a.pred ha, by rw [Sym2.eq_swap]; simp [Fin.succ_pred]⟩
+  · rintro ⟨j, rfl⟩
+    rw [SimpleGraph.mem_edgeSet]
+    exact Or.inl ⟨rfl, Fin.succ_ne_zero j⟩
+
+private theorem starEdge_injOn (m : ℕ) :
+    Set.InjOn (fun j : Fin m => s((0 : Fin (m + 1)), j.succ))
+      ↑(Finset.univ : Finset (Fin m)) := by
+  intro j₁ _ j₂ _ h
+  rw [Sym2.eq_iff] at h
+  rcases h with ⟨_, h⟩ | ⟨h, _⟩
+  · exact Fin.succ_injective _ h
+  · exact absurd h.symm (Fin.succ_ne_zero j₂)
+
+/-- The edge product over `starGraph m` equals the product over leaf vertices. -/
+private theorem starGraph_prod_eq {k : ℕ} (m : ℕ) (c : Fin k → Fin k → ℝ)
+    (hc : ∀ i j, c i j = c j i) (σ : Fin (m + 1) → Fin k) :
+    ∏ e ∈ (starGraph m).edgeFinset,
+      c (σ (Quot.out e).1) (σ (Quot.out e).2) =
+    ∏ j : Fin m, c (σ 0) (σ j.succ) := by
+  rw [starGraph_edgeFinset, Finset.prod_image (starEdge_injOn m)]
+  congr 1; ext j
+  have hout := Quot.out_eq s((0 : Fin (m + 1)), j.succ)
+  rw [Sym2.mk_eq_mk_iff] at hout
+  rcases hout with h | h
+  · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
+  · have h1 := congr_arg Prod.fst h; have h2 := congr_arg Prod.snd h
+    simp only [Prod.swap] at h1 h2; rw [h1, h2, hc]
+
+set_option maxHeartbeats 800000 in
+private theorem weightedHomSum_starGraph {k : ℕ} (m : ℕ) (c : Fin k → Fin k → ℝ)
+    (hc : ∀ i j, c i j = c j i) (w : Fin k → ℝ) :
+    weightedHomSum (m + 1) (starGraph m) c w =
+      ∑ i : Fin k, w i * (wDeg c w i) ^ m := by
+  simp only [weightedHomSum, wDeg]
+  -- Step 1: Simplify each summand
+  suffices h : ∀ σ : Fin (m + 1) → Fin k,
+      (∏ v, w (σ v)) *
+        ∏ e ∈ (starGraph m).edgeFinset,
+          c (σ (Quot.out e).1) (σ (Quot.out e).2) =
+      w (σ 0) * ∏ j : Fin m, (w (σ j.succ) * c (σ 0) (σ j.succ)) by
+    simp_rw [h]
+    -- Step 2: Reindex using consEquiv
+    rw [(Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (m + 1) => Fin k)) _).symm]
+    simp only [Fin.consEquiv_apply, Fin.cons_zero, Fin.cons_succ]
+    rw [Fintype.sum_prod_type]
+    -- Step 3: Simplify each inner sum
+    simp only []
+    congr 1; funext i; rw [← Finset.mul_sum]; congr 1; symm
+    calc (∑ j : Fin k, w j * c i j) ^ m
+        = ∏ _ : Fin m, ∑ l : Fin k, w l * c i l := by
+            rw [Finset.prod_const, Finset.card_univ, Fintype.card_fin]
+      _ = ∑ τ : Fin m → Fin k, ∏ j, w (τ j) * c i (τ j) := by
+            rw [← @Finset.sum_prod_piFinset (Fin m) (Fin k) ℝ _ _ _ Finset.univ]
+            simp [Fintype.piFinset_univ]
+  intro σ
+  rw [starGraph_prod_eq m c hc σ, Fin.prod_univ_succ, mul_assoc,
+    ← Finset.prod_mul_distrib]
+
+/-! ### Double star graph and bivariate moments -/
+
+/-- Double star graph DS(m, p) on m + p + 2 vertices:
+vertex 0 is connected to vertex 1 (bridge) and to vertices 2, ..., m+1 (left leaves);
+vertex 1 is connected to vertices m+2, ..., m+p+1 (right leaves). -/
+def doubleStarGraph (m p : ℕ) : SimpleGraph (Fin (m + p + 2)) where
+  Adj u v :=
+    (u.val = 0 ∧ (v.val = 1 ∨ (2 ≤ v.val ∧ v.val ≤ m + 1))) ∨
+    (v.val = 0 ∧ (u.val = 1 ∨ (2 ≤ u.val ∧ u.val ≤ m + 1))) ∨
+    (u.val = 1 ∧ m + 2 ≤ v.val) ∨
+    (v.val = 1 ∧ m + 2 ≤ u.val)
+  symm := fun {u v} h => by
+    rcases h with h | h | h | h
+    · right; left; exact ⟨h.1, h.2⟩
+    · left; exact ⟨h.1, h.2⟩
+    · right; right; right; exact ⟨h.1, h.2⟩
+    · right; right; left; exact ⟨h.1, h.2⟩
+  loopless := fun v h => by
+    rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · rcases h2 with h2 | ⟨h2, _⟩ <;> omega
+    · rcases h2 with h2 | ⟨h2, _⟩ <;> omega
+    · omega
+    · omega
+
+instance doubleStarGraphDecRel (m p : ℕ) : DecidableRel (doubleStarGraph m p).Adj :=
+  fun u v => inferInstanceAs (Decidable
+    ((u.val = 0 ∧ (v.val = 1 ∨ (2 ≤ v.val ∧ v.val ≤ m + 1))) ∨
+     (v.val = 0 ∧ (u.val = 1 ∨ (2 ≤ u.val ∧ u.val ≤ m + 1))) ∨
+     (u.val = 1 ∧ m + 2 ≤ v.val) ∨
+     (v.val = 1 ∧ m + 2 ≤ u.val)))
+
 /-! ### Core proof for k > 0 -/
 
-/-- Core of the algebraic determination theorem for k > 0.
+/-- Degree moment matching from star graph tests.
 
-This is Lovász [2012] Theorem 5.30. The proof uses the full family of graph
-homomorphism tests to build a permutation matching entries and weights.
+From equal weighted hom sums for all graphs, we extract:
+`∑ i, w i * (wDeg c w i) ^ m = ∑ i, w i * (wDeg c' w i) ^ m` for all `m`. -/
+private theorem degree_moments_eq {k : ℕ}
+    (c c' : Fin k → Fin k → ℝ)
+    (hc_symm : ∀ i j, c i j = c j i) (hc'_symm : ∀ i j, c' i j = c' j i)
+    (w : Fin k → ℝ)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F c w = weightedHomSum n F c' w) :
+    ∀ m : ℕ, ∑ i, w i * (wDeg c w i) ^ m = ∑ i, w i * (wDeg c' w i) ^ m := by
+  intro m
+  have h1 := weightedHomSum_starGraph m c hc_symm w
+  have h2 := weightedHomSum_starGraph m c' hc'_symm w
+  rw [← h1, ← h2]
+  exact h_eq (m + 1) (starGraph m)
 
-## Proof structure
+/-- For symmetric c and the same weights, equal weighted hom sums for the
+permuted matrix. This is the key enabling lemma for building the permutation:
+if we find π such that c'' = c' ∘ (π, π) has equal hom sums with c, then we
+can reduce the problem. -/
+private theorem weightedHomSum_eq_of_perm {k : ℕ}
+    (c c' : Fin k → Fin k → ℝ) (w : Fin k → ℝ)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F c w = weightedHomSum n F c' w)
+    (π : Equiv.Perm (Fin k)) (_hw : ∀ i, w i = w (π i)) :
+    ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F c w =
+        weightedHomSum n F (fun i j => c' (π.symm i) (π.symm j))
+          (fun i => w (π.symm i)) := by
+  intro n F inst
+  rw [weightedHomSum_perm_eq n F c' w π]
+  exact h_eq n F
 
-The argument proceeds by strong induction on k. The base case k = 1 is
-trivial. For the inductive step:
+/-- Construct a permutation from a matching function with the counting property.
 
-1. Test with star graphs K_{1,m} to extract weighted degree moments.
-2. Apply Vandermonde (`eq_zero_of_weighted_powers_eq_zero`) to show that for
-   each degree value, the total weight of indices is the same for c and c'.
-3. Test with caterpillar graphs to extract row profile moments, refining the
-   equivalence classes of rows.
-4. At each level of the refinement, apply Vandermonde again to show
-   matching within each class.
-5. Assemble the permutation class-by-class. Within each class, the problem
-   reduces to a strictly smaller instance (fewer distinct row types). -/
+If for each index `i`, there's a matching target `f i` with matching entries and weight,
+and the map `f` has the "counting property" (same number of preimages of each value
+as the identity), then `f` is a bijection and hence a permutation. -/
+private noncomputable def permOfMatching {k : ℕ}
+    (f : Fin k → Fin k) (hf : Function.Injective f) : Equiv.Perm (Fin k) :=
+  Equiv.ofBijective f ⟨hf, Finite.surjective_of_injective hf⟩
+
+/-- The weighted hom sum for the edge graph K₂ (= starGraph 1) relates to
+the bilinear form ∑ a b, w a * w b * c a b. -/
+private theorem weightedHomSum_edge {k : ℕ} (c : Fin k → Fin k → ℝ)
+    (hc : ∀ i j, c i j = c j i) (w : Fin k → ℝ) :
+    weightedHomSum 2 (starGraph 1) c w = ∑ a : Fin k, ∑ b : Fin k, w a * w b * c a b := by
+  have h := weightedHomSum_starGraph 1 c hc w
+  simp only [wDeg, pow_one] at h
+  rw [h]; congr 1; ext i; rw [Finset.mul_sum]; congr 1; ext j; ring
+
+/-- For k=1, the wHS of the edge graph determines the unique entry. -/
+private theorem k1_entry_eq {c c' : Fin 1 → Fin 1 → ℝ}
+    (hc_symm : ∀ i j, c i j = c j i) (hc'_symm : ∀ i j, c' i j = c' j i)
+    (w : Fin 1 → ℝ) (hw_pos : ∀ i, 0 < w i)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F c w = weightedHomSum n F c' w) :
+    c 0 0 = c' 0 0 := by
+  have h1 := weightedHomSum_edge c hc_symm w
+  have h2 := weightedHomSum_edge c' hc'_symm w
+  have h3 := h_eq 2 (starGraph 1)
+  rw [h1, h2] at h3
+  simp only [Fin.sum_univ_one] at h3
+  have hw0 : w 0 ≠ 0 := ne_of_gt (hw_pos 0)
+  have : w 0 * w 0 * c 0 0 = w 0 * w 0 * c' 0 0 := h3
+  exact mul_left_cancel₀ (mul_ne_zero hw0 hw0) this
+
 private theorem matrix_perm_of_weightedHomSum_eq_pos {k : ℕ}
     (c c' : Fin k → Fin k → ℝ)
     (hc_symm : ∀ i j, c i j = c j i) (hc'_symm : ∀ i j, c' i j = c' j i)
