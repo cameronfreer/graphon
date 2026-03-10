@@ -235,6 +235,267 @@ instance doubleStarGraphDecRel (m p : ℕ) : DecidableRel (doubleStarGraph m p).
      (u.val = 1 ∧ m + 2 ≤ v.val) ∨
      (v.val = 1 ∧ m + 2 ≤ u.val)))
 
+/-! ### Double star formula -/
+
+private theorem doubleStarGraph_edgeFinset (m p : ℕ) :
+    (doubleStarGraph m p).edgeFinset =
+      {s((0 : Fin (m+p+2)), ⟨1, by omega⟩)} ∪
+      (Finset.univ : Finset (Fin m)).image
+        (fun j => s((0 : Fin (m+p+2)), ⟨j.val + 2, by omega⟩)) ∪
+      (Finset.univ : Finset (Fin p)).image
+        (fun j => s((⟨1, by omega⟩ : Fin (m+p+2)), ⟨j.val + m + 2, by omega⟩)) := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, Finset.mem_union, Finset.mem_singleton,
+    Finset.mem_image, Finset.mem_univ, true_and]
+  constructor
+  · intro he
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      simp only [doubleStarGraph] at he
+      rcases he with ⟨ha, hb⟩ | ⟨hb, ha⟩ | ⟨ha, hb⟩ | ⟨hb, ha⟩
+      · rcases hb with hb | ⟨hb1, hb2⟩
+        · left; left
+          have h1 : a = 0 := by ext; exact ha
+          have h2 : b = ⟨1, by omega⟩ := by ext; exact hb
+          rw [h1, h2]
+        · left; right
+          refine ⟨⟨b.val - 2, by omega⟩, ?_⟩
+          have h1 : a = 0 := by ext; exact ha
+          have h3 : (⟨(⟨b.val - 2, by omega⟩ : Fin m).val + 2,
+              by omega⟩ : Fin (m+p+2)) = b := Fin.ext (by simp; omega)
+          rw [h1, h3]
+      · rcases ha with ha | ⟨ha1, ha2⟩
+        · left; left
+          have h1 : b = 0 := by ext; exact hb
+          have h2 : a = ⟨1, by omega⟩ := by ext; exact ha
+          rw [h1, h2, Sym2.eq_swap]
+        · left; right
+          refine ⟨⟨a.val - 2, by omega⟩, ?_⟩
+          have h1 : b = 0 := by ext; exact hb
+          have h3 : (⟨(⟨a.val - 2, by omega⟩ : Fin m).val + 2,
+              by omega⟩ : Fin (m+p+2)) = a := Fin.ext (by simp; omega)
+          rw [h1, h3, Sym2.eq_swap]
+      · right
+        refine ⟨⟨b.val - m - 2, by omega⟩, ?_⟩
+        have h1 : a = ⟨1, by omega⟩ := by ext; exact ha
+        have h3 : (⟨(⟨b.val - m - 2, by omega⟩ : Fin p).val + m + 2,
+            by omega⟩ : Fin (m+p+2)) = b := Fin.ext (by simp; omega)
+        rw [h1, h3]
+      · right
+        refine ⟨⟨a.val - m - 2, by omega⟩, ?_⟩
+        have h1 : b = ⟨1, by omega⟩ := by ext; exact hb
+        have h3 : (⟨(⟨a.val - m - 2, by omega⟩ : Fin p).val + m + 2,
+            by omega⟩ : Fin (m+p+2)) = a := Fin.ext (by simp; omega)
+        rw [h1, h3, Sym2.eq_swap]
+  · rintro ((rfl | ⟨j, rfl⟩) | ⟨j, rfl⟩)
+    · rw [SimpleGraph.mem_edgeSet]
+      exact Or.inl ⟨rfl, Or.inl rfl⟩
+    · rw [SimpleGraph.mem_edgeSet]
+      exact Or.inl ⟨rfl, Or.inr ⟨by simp, by simp⟩⟩
+    · rw [SimpleGraph.mem_edgeSet]
+      exact Or.inr (Or.inr (Or.inl ⟨rfl, by simp⟩))
+
+private theorem doubleStarEdge_left_injOn (m p : ℕ) :
+    Set.InjOn (fun j : Fin m => s((0 : Fin (m+p+2)), ⟨j.val + 2, by omega⟩))
+      ↑(Finset.univ : Finset (Fin m)) := by
+  intro j₁ _ j₂ _ h
+  rw [Sym2.eq_iff] at h
+  rcases h with ⟨_, h⟩ | ⟨h, _⟩
+  · exact Fin.ext (by have := congr_arg Fin.val h; simp at this; omega)
+  · exact absurd (congr_arg Fin.val h) (by simp)
+
+private theorem doubleStarEdge_right_injOn (m p : ℕ) :
+    Set.InjOn (fun j : Fin p => s((⟨1, by omega⟩ : Fin (m+p+2)), ⟨j.val + m + 2, by omega⟩))
+      ↑(Finset.univ : Finset (Fin p)) := by
+  intro j₁ _ j₂ _ h
+  rw [Sym2.eq_iff] at h
+  rcases h with ⟨_, h⟩ | ⟨h, _⟩
+  · exact Fin.ext (by have := congr_arg Fin.val h; simp at this; omega)
+  · exact absurd (congr_arg Fin.val h) (by simp)
+
+private theorem doubleStarGraph_bridge_left_disjoint (m p : ℕ) :
+    Disjoint
+      ({s((0 : Fin (m+p+2)), ⟨1, by omega⟩)} : Finset _)
+      ((Finset.univ : Finset (Fin m)).image
+        (fun j => s((0 : Fin (m+p+2)), ⟨j.val + 2, by omega⟩))) := by
+  rw [Finset.disjoint_left]
+  intro e he₁ he₂
+  rw [Finset.mem_singleton] at he₁
+  rw [Finset.mem_image] at he₂
+  obtain ⟨j, _, hj⟩ := he₂
+  rw [he₁] at hj; rw [Sym2.eq_iff] at hj
+  rcases hj with ⟨_, h⟩ | ⟨h, _⟩ <;> exact absurd (congr_arg Fin.val h) (by simp)
+
+private theorem doubleStarGraph_edgeFinset_disjoint (m p : ℕ) :
+    Disjoint
+      ({s((0 : Fin (m+p+2)), ⟨1, by omega⟩)} ∪
+        (Finset.univ : Finset (Fin m)).image
+          (fun j => s((0 : Fin (m+p+2)), ⟨j.val + 2, by omega⟩)))
+      ((Finset.univ : Finset (Fin p)).image
+        (fun j => s((⟨1, by omega⟩ : Fin (m+p+2)), ⟨j.val + m + 2, by omega⟩))) := by
+  rw [Finset.disjoint_left]
+  intro e he₁ he₂
+  rw [Finset.mem_union] at he₁
+  rw [Finset.mem_image] at he₂
+  obtain ⟨j₂, _, rfl⟩ := he₂
+  rcases he₁ with he₁ | he₁
+  · rw [Finset.mem_singleton] at he₁; rw [Sym2.eq_iff] at he₁
+    rcases he₁ with ⟨h, _⟩ | ⟨_, h⟩ <;> exact absurd (congr_arg Fin.val h) (by simp)
+  · rw [Finset.mem_image] at he₁; obtain ⟨j₁, _, hj₁⟩ := he₁; rw [Sym2.eq_iff] at hj₁
+    rcases hj₁ with ⟨h, _⟩ | ⟨_, h⟩ <;> exact absurd (congr_arg Fin.val h) (by simp)
+
+private theorem doubleStarGraph_prod_eq {k : ℕ} (m p : ℕ) (c : Fin k → Fin k → ℝ)
+    (hc : ∀ i j, c i j = c j i) (σ : Fin (m + p + 2) → Fin k) :
+    ∏ e ∈ (doubleStarGraph m p).edgeFinset,
+      c (σ (Quot.out e).1) (σ (Quot.out e).2) =
+    c (σ 0) (σ ⟨1, by omega⟩) *
+    (∏ j : Fin m, c (σ 0) (σ ⟨j.val + 2, by omega⟩)) *
+    (∏ j : Fin p, c (σ ⟨1, by omega⟩) (σ ⟨j.val + m + 2, by omega⟩)) := by
+  rw [doubleStarGraph_edgeFinset,
+    Finset.prod_union (doubleStarGraph_edgeFinset_disjoint m p),
+    Finset.prod_union (doubleStarGraph_bridge_left_disjoint m p),
+    Finset.prod_singleton,
+    Finset.prod_image (doubleStarEdge_left_injOn m p),
+    Finset.prod_image (doubleStarEdge_right_injOn m p)]
+  congr 1
+  · congr 1
+    · have hout := Quot.out_eq s((0 : Fin (m+p+2)), ⟨1, by omega⟩)
+      rw [Sym2.mk_eq_mk_iff] at hout
+      rcases hout with h | h
+      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
+      · have h1 := congr_arg Prod.fst h; have h2 := congr_arg Prod.snd h
+        simp only [Prod.swap] at h1 h2; rw [h1, h2, hc]
+    · congr 1; ext j
+      have hout := Quot.out_eq s((0 : Fin (m+p+2)), ⟨j.val + 2, by omega⟩)
+      rw [Sym2.mk_eq_mk_iff] at hout
+      rcases hout with h | h
+      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
+      · have h1 := congr_arg Prod.fst h; have h2 := congr_arg Prod.snd h
+        simp only [Prod.swap] at h1 h2; rw [h1, h2, hc]
+  · congr 1; ext j
+    have hout := Quot.out_eq s((⟨1, by omega⟩ : Fin (m+p+2)), ⟨j.val + m + 2, by omega⟩)
+    rw [Sym2.mk_eq_mk_iff] at hout
+    rcases hout with h | h
+    · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
+    · have h1 := congr_arg Prod.fst h; have h2 := congr_arg Prod.snd h
+      simp only [Prod.swap] at h1 h2; rw [h1, h2, hc]
+
+/-- The sum over `Fin (m + p) → Fin k` of a product that factors into independent
+left and right parts equals the product of the individual sums. -/
+private theorem sum_piFinAdd_factor {k m p : ℕ}
+    (f : (Fin m → Fin k) → ℝ) (g : (Fin p → Fin k) → ℝ) :
+    ∑ τ : Fin (m + p) → Fin k,
+      f (fun j => τ (Fin.castAdd p j)) * g (fun j => τ (Fin.natAdd m j)) =
+    (∑ τ : Fin m → Fin k, f τ) * (∑ τ : Fin p → Fin k, g τ) := by
+  let e : (Fin (m + p) → Fin k) ≃ (Fin m → Fin k) × (Fin p → Fin k) :=
+    (Equiv.arrowCongr finSumFinEquiv.symm (Equiv.refl (Fin k))).trans
+      (Equiv.sumArrowEquivProdArrow (Fin m) (Fin p) (Fin k))
+  have he : ∀ τ : Fin (m + p) → Fin k,
+      f (fun j => τ (Fin.castAdd p j)) * g (fun j => τ (Fin.natAdd m j)) =
+      f (e τ).1 * g (e τ).2 := fun _ => rfl
+  simp_rw [he]
+  have h1 : ∑ x, f (e x).1 * g (e x).2 =
+      ∑ x : (Fin m → Fin k) × (Fin p → Fin k), f x.1 * g x.2 :=
+    Equiv.sum_comp e (fun y => f y.1 * g y.2)
+  rw [h1, Fintype.sum_prod_type]
+  exact (Fintype.sum_mul_sum f g).symm
+
+set_option maxHeartbeats 2400000 in
+private theorem weightedHomSum_doubleStarGraph {k : ℕ} (m p : ℕ)
+    (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i) (w : Fin k → ℝ) :
+    weightedHomSum (m + p + 2) (doubleStarGraph m p) c w
+      = ∑ i : Fin k, w i * (wDeg c w i) ^ m * rowProfile c w i p := by
+  simp only [weightedHomSum, wDeg, rowProfile]
+  suffices h : ∀ σ : Fin (m + p + 2) → Fin k,
+      (∏ v, w (σ v)) *
+        ∏ e ∈ (doubleStarGraph m p).edgeFinset,
+          c (σ (Quot.out e).1) (σ (Quot.out e).2) =
+      w (σ 0) * w (σ (Fin.succ 0)) * c (σ 0) (σ (Fin.succ 0)) *
+      (∏ j : Fin m, w (σ (Fin.succ (Fin.succ (Fin.castAdd p j)))) *
+                     c (σ 0) (σ (Fin.succ (Fin.succ (Fin.castAdd p j))))) *
+      (∏ j : Fin p, w (σ (Fin.succ (Fin.succ (Fin.natAdd m j)))) *
+                     c (σ (Fin.succ 0)) (σ (Fin.succ (Fin.succ (Fin.natAdd m j))))) by
+    simp_rw [h]
+    -- Peel off σ(0) = i
+    rw [(Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (m + p + 2) => Fin k)) _).symm]
+    simp only [Fin.consEquiv_apply, Fin.cons_zero, Fin.cons_succ]
+    rw [Fintype.sum_prod_type]
+    congr 1; funext i
+    -- Peel off σ'(0) = b
+    rw [(Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (m + p + 1) => Fin k)) _).symm]
+    simp only [Fin.consEquiv_apply, Fin.cons_zero, Fin.cons_succ]
+    rw [Fintype.sum_prod_type]
+    simp only []
+    -- Rearrange multiplication within each summand
+    have hrearr : ∀ (b : Fin k) (τ : Fin (m + p) → Fin k),
+        (w i * w b * c i b * ∏ j, w (τ (Fin.castAdd p j)) * c i (τ (Fin.castAdd p j))) *
+          (∏ j, w (τ (Fin.natAdd m j)) * c b (τ (Fin.natAdd m j))) =
+        w i * (w b * c i b) *
+          ((∏ j, w (τ (Fin.castAdd p j)) * c i (τ (Fin.castAdd p j))) *
+           (∏ j, w (τ (Fin.natAdd m j)) * c b (τ (Fin.natAdd m j)))) :=
+      fun _ _ => by ring
+    simp_rw [hrearr, ← Finset.mul_sum]
+    have h_factor : ∀ b : Fin k,
+        ∑ τ : Fin (m + p) → Fin k,
+          (∏ j, w (τ (Fin.castAdd p j)) * c i (τ (Fin.castAdd p j))) *
+          (∏ j, w (τ (Fin.natAdd m j)) * c b (τ (Fin.natAdd m j))) =
+        (∑ τ : Fin m → Fin k, ∏ j, w (τ j) * c i (τ j)) *
+        (∑ τ : Fin p → Fin k, ∏ j, w (τ j) * c b (τ j)) :=
+      fun b => sum_piFinAdd_factor
+        (fun τL => ∏ j, w (τL j) * c i (τL j))
+        (fun τR => ∏ j, w (τR j) * c b (τR j))
+    simp_rw [h_factor]
+    -- Collapse power sums
+    have hpow : ∀ (c' : Fin k → ℝ) (n : ℕ),
+        ∑ τ : Fin n → Fin k, ∏ j, w (τ j) * c' (τ j) = (∑ j, w j * c' j) ^ n := by
+      intro c' n
+      symm; rw [show (∑ j, w j * c' j) ^ n = ∏ _ : Fin n, ∑ l, w l * c' l from by
+        rw [Finset.prod_const, Finset.card_univ, Fintype.card_fin],
+        ← @Finset.sum_prod_piFinset _ _ ℝ _ _ _ Finset.univ]
+      simp [Fintype.piFinset_univ]
+    have hpow_left : (∑ τ : Fin m → Fin k, ∏ j, w (τ j) * c i (τ j)) =
+        (∑ j, w j * c i j) ^ m := hpow (c i) m
+    have hpow_right : ∀ b : Fin k, (∑ τ : Fin p → Fin k, ∏ j, w (τ j) * c b (τ j)) =
+        (∑ j, w j * c b j) ^ p := fun b => hpow (c b) p
+    simp_rw [hpow_left, hpow_right]
+    -- Final rearrangement
+    have hfinal : ∀ b : Fin k,
+        w i * (w b * c i b) * ((∑ j, w j * c i j) ^ m * (∑ j, w j * c b j) ^ p) =
+        w i * (∑ j, w j * c i j) ^ m * (w b * c i b * (∑ j, w j * c b j) ^ p) :=
+      fun _ => by ring
+    simp_rw [hfinal, ← Finset.mul_sum]
+  -- Proof of suffices: combine vertex weights with edge products
+  intro σ
+  rw [doubleStarGraph_prod_eq m p c hc σ]
+  -- Convert Fin notations to match consEquiv-friendly form
+  have hfin1 : (⟨1, by omega⟩ : Fin (m + p + 2)) = Fin.succ 0 := rfl
+  have hfin_left : ∀ j : Fin m, (⟨j.val + 2, by omega⟩ : Fin (m + p + 2)) =
+      Fin.succ (Fin.succ (Fin.castAdd p j)) :=
+    fun _ => Fin.ext (by simp [Fin.val_succ, Fin.val_castAdd])
+  have hfin_right : ∀ j : Fin p, (⟨j.val + m + 2, by omega⟩ : Fin (m + p + 2)) =
+      Fin.succ (Fin.succ (Fin.natAdd m j)) :=
+    fun _ => Fin.ext (by simp [Fin.val_succ, Fin.val_natAdd]; omega)
+  simp_rw [hfin1, hfin_left, hfin_right]
+  rw [Fin.prod_univ_succ, Fin.prod_univ_succ, Fin.prod_univ_add]
+  simp only [Finset.prod_mul_distrib]
+  ring
+
+/-- Double-star moment matching from double-star graph tests. -/
+private theorem double_star_moments_eq {k : ℕ}
+    (c c' : Fin k → Fin k → ℝ)
+    (hc_symm : ∀ i j, c i j = c j i) (hc'_symm : ∀ i j, c' i j = c' j i)
+    (w : Fin k → ℝ)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F c w = weightedHomSum n F c' w) :
+    ∀ m p : ℕ, ∑ i, w i * (wDeg c w i) ^ m * rowProfile c w i p
+            = ∑ i, w i * (wDeg c' w i) ^ m * rowProfile c' w i p := by
+  intro m p
+  have h1 := weightedHomSum_doubleStarGraph m p c hc_symm w
+  have h2 := weightedHomSum_doubleStarGraph m p c' hc'_symm w
+  rw [← h1, ← h2]
+  exact h_eq (m + p + 2) (doubleStarGraph m p)
+
 /-! ### Core proof for k > 0 -/
 
 /-- Degree moment matching from star graph tests.
