@@ -675,10 +675,16 @@ private def profileBridgePos (m p : ℕ) {r : ℕ} (b : Fin r) :
     Fin (m + r * (p + 1) + 1) :=
   ⟨m + 1 + (p + 1) * b.val, by nlinarith [b.isLt]⟩
 
+@[simp] private theorem profileBridgePos_val (m p : ℕ) {r : ℕ} (b : Fin r) :
+    (profileBridgePos m p b).val = m + 1 + (p + 1) * b.val := rfl
+
 /-- Leaf vertex position in branch `b` of the profile star graph. -/
 private def profileLeafPos (m : ℕ) {r : ℕ} (p : ℕ) (b : Fin r) (l : Fin p) :
     Fin (m + r * (p + 1) + 1) :=
   ⟨m + 1 + (p + 1) * b.val + l.val + 1, by nlinarith [b.isLt, l.isLt]⟩
+
+@[simp] private theorem profileLeafPos_val (m : ℕ) {r : ℕ} (p : ℕ) (b : Fin r) (l : Fin p) :
+    (profileLeafPos m p b l).val = m + 1 + (p + 1) * b.val + l.val + 1 := rfl
 
 /-- Profile star graph PS(m, r, p) on `m + r*(p+1) + 1` vertices.
 
@@ -727,6 +733,143 @@ instance profileStarGraphDecRel (m r p : ℕ) :
       ∃ l : Fin p, v = profileLeafPos m p b l) ∨
     (∃ b : Fin r, v = profileBridgePos m p b ∧
       ∃ l : Fin p, u = profileLeafPos m p b l)))
+
+private theorem profileStarEdge_plain_injOn (m r p : ℕ) :
+    Set.InjOn
+      (fun j : Fin m => s((0 : Fin (m + r * (p + 1) + 1)), ⟨j.val + 1, by omega⟩))
+      ↑(Finset.univ : Finset (Fin m)) := by
+  intro j₁ _ j₂ _ h
+  rw [Sym2.eq_iff] at h
+  rcases h with ⟨_, h⟩ | ⟨h, _⟩
+  · exact Fin.ext (by have := congr_arg Fin.val h; simp at this; omega)
+  · exact absurd (congr_arg Fin.val h) (by simp)
+
+private theorem profileStarEdge_bridge_injOn (m r p : ℕ) :
+    Set.InjOn
+      (fun b : Fin r => s((0 : Fin (m + r * (p + 1) + 1)), profileBridgePos m p b))
+      ↑(Finset.univ : Finset (Fin r)) := by
+  intro b₁ _ b₂ _ h
+  rw [Sym2.eq_iff] at h
+  rcases h with ⟨_, h⟩ | ⟨h, _⟩
+  · have hv := congr_arg Fin.val h
+    rw [profileBridgePos_val, profileBridgePos_val] at hv
+    exact Fin.ext (Nat.eq_of_mul_eq_mul_left (by omega : 0 < p + 1) (by omega))
+  · have hv := congr_arg Fin.val h
+    rw [Fin.val_zero, profileBridgePos_val] at hv; omega
+
+private theorem profileStarEdge_branchLeaf_injOn (m r p : ℕ) :
+    Set.InjOn
+      (fun bl : Fin r × Fin p =>
+        s(profileBridgePos m p bl.1, profileLeafPos m p bl.1 bl.2))
+      ↑(Finset.univ : Finset (Fin r × Fin p)) := by
+  intro a₁ _ a₂ _ h
+  rw [Sym2.eq_iff] at h
+  rcases h with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩
+  · -- Same direction: bridge a₁.1 = bridge a₂.1 and leaf a₁ = leaf a₂
+    replace h₁ : (p + 1) * a₁.1.val = (p + 1) * a₂.1.val := by
+      have := congr_arg Fin.val h₁; simp only [profileBridgePos_val] at this; omega
+    replace h₂ : a₁.2.val = a₂.2.val := by
+      have := congr_arg Fin.val h₂; simp only [profileLeafPos_val] at this; omega
+    exact Prod.ext (Fin.ext (Nat.eq_of_mul_eq_mul_left (by omega) h₁)) (Fin.ext h₂)
+  · -- Cross direction: bridge a₁.1 = leaf a₂ and leaf a₁ = bridge a₂.1
+    replace h₁ : m + 1 + (p + 1) * a₁.1.val =
+        m + 1 + (p + 1) * a₂.1.val + a₂.2.val + 1 := by
+      have := congr_arg Fin.val h₁
+      simp only [profileBridgePos_val, profileLeafPos_val] at this; exact this
+    replace h₂ : m + 1 + (p + 1) * a₁.1.val + a₁.2.val + 1 =
+        m + 1 + (p + 1) * a₂.1.val := by
+      have := congr_arg Fin.val h₂
+      simp only [profileLeafPos_val, profileBridgePos_val] at this; exact this
+    omega
+
+private theorem profileStarGraph_disjoint_plain_bridge (m r p : ℕ) :
+    Disjoint
+      ((Finset.univ : Finset (Fin m)).image
+        (fun j => s((0 : Fin (m + r * (p + 1) + 1)), ⟨j.val + 1, by omega⟩)))
+      ((Finset.univ : Finset (Fin r)).image
+        (fun b => s((0 : Fin (m + r * (p + 1) + 1)), profileBridgePos m p b))) := by
+  rw [Finset.disjoint_left]
+  intro e he₁ he₂
+  rw [Finset.mem_image] at he₁ he₂
+  obtain ⟨j, _, rfl⟩ := he₁; obtain ⟨b, _, hb⟩ := he₂
+  rw [Sym2.eq_iff] at hb
+  rcases hb with ⟨_, h⟩ | ⟨h, _⟩
+  · have hv := congr_arg Fin.val h; simp at hv; have := j.isLt; omega
+  · have hv := congr_arg Fin.val h; simp at hv
+
+private theorem profileStarGraph_disjoint_top_branchLeaf (m r p : ℕ) :
+    Disjoint
+      ((Finset.univ : Finset (Fin m)).image
+        (fun j => s((0 : Fin (m + r * (p + 1) + 1)), ⟨j.val + 1, by omega⟩)) ∪
+       (Finset.univ : Finset (Fin r)).image
+        (fun b => s((0 : Fin (m + r * (p + 1) + 1)), profileBridgePos m p b)))
+      ((Finset.univ : Finset (Fin r × Fin p)).image
+        (fun bl => s(profileBridgePos m p bl.1, profileLeafPos m p bl.1 bl.2))) := by
+  rw [Finset.disjoint_left]
+  intro e he₁ he₂
+  rw [Finset.mem_union] at he₁; rw [Finset.mem_image] at he₂
+  obtain ⟨⟨b, l⟩, _, rfl⟩ := he₂
+  -- branchLeaf edges have both endpoints ≥ m+1; top edges have vertex 0
+  rcases he₁ with he₁ | he₁ <;> rw [Finset.mem_image] at he₁
+  · obtain ⟨j, _, hj⟩ := he₁; rw [Sym2.eq_iff] at hj
+    -- In both cases the first component gives 0 = bridge/leaf, impossible
+    rcases hj with ⟨h₁, _⟩ | ⟨h₁, _⟩ <;> {
+      rw [Fin.ext_iff] at h₁
+      simp only [Fin.val_zero, profileBridgePos_val, profileLeafPos_val] at h₁; omega }
+  · obtain ⟨b', _, hb'⟩ := he₁; rw [Sym2.eq_iff] at hb'
+    rcases hb' with ⟨h₁, _⟩ | ⟨h₁, _⟩ <;> {
+      rw [Fin.ext_iff] at h₁
+      simp only [Fin.val_zero, profileBridgePos_val, profileLeafPos_val] at h₁; omega }
+
+private theorem profileStarGraph_edgeFinset (m r p : ℕ) :
+    (profileStarGraph m r p).edgeFinset =
+      (Finset.univ : Finset (Fin m)).image
+        (fun j => s((0 : Fin (m + r * (p + 1) + 1)), ⟨j.val + 1, by omega⟩)) ∪
+      (Finset.univ : Finset (Fin r)).image
+        (fun b => s((0 : Fin (m + r * (p + 1) + 1)), profileBridgePos m p b)) ∪
+      (Finset.univ : Finset (Fin r × Fin p)).image
+        (fun bl => s(profileBridgePos m p bl.1, profileLeafPos m p bl.1 bl.2)) := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, Finset.mem_union, Finset.mem_image,
+    Finset.mem_univ, true_and]
+  constructor
+  · intro he
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      simp only [profileStarGraph] at he
+      rcases he with ⟨ha, hb1, hb2⟩ | ⟨hb, ha1, ha2⟩ |
+        ⟨br, ha, hbr⟩ | ⟨br, hb, har⟩ |
+        ⟨br, ha, l, hbl⟩ | ⟨br, hb, l, hal⟩
+      · left; left
+        exact ⟨⟨b.val - 1, by omega⟩, by
+          have h1 : a = 0 := by ext; exact ha
+          have h2 : (⟨(⟨b.val - 1, by omega⟩ : Fin m).val + 1, by omega⟩ :
+            Fin (m + r * (p + 1) + 1)) = b := Fin.ext (by simp; omega)
+          rw [h1, h2]⟩
+      · left; left
+        exact ⟨⟨a.val - 1, by omega⟩, by
+          have h1 : b = 0 := by ext; exact hb
+          have h2 : (⟨(⟨a.val - 1, by omega⟩ : Fin m).val + 1, by omega⟩ :
+            Fin (m + r * (p + 1) + 1)) = a := Fin.ext (by simp; omega)
+          rw [h1, h2, Sym2.eq_swap]⟩
+      · left; right
+        exact ⟨br, by
+          have h1 : a = 0 := by ext; exact ha
+          rw [h1, hbr]⟩
+      · left; right
+        exact ⟨br, by
+          have h1 : b = 0 := by ext; exact hb
+          rw [h1, har, Sym2.eq_swap]⟩
+      · right; exact ⟨⟨br, l⟩, by rw [ha, hbl]⟩
+      · right; exact ⟨⟨br, l⟩, by rw [hb, hal, Sym2.eq_swap]⟩
+  · rintro ((⟨j, rfl⟩ | ⟨b, rfl⟩) | ⟨⟨b, l⟩, rfl⟩)
+    · rw [SimpleGraph.mem_edgeSet]
+      exact Or.inl ⟨rfl, by simp, by simp⟩
+    · rw [SimpleGraph.mem_edgeSet]
+      exact Or.inr (Or.inr (Or.inl ⟨b, rfl, rfl⟩))
+    · rw [SimpleGraph.mem_edgeSet]
+      exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inl ⟨b, rfl, l, rfl⟩))))
 
 /-- For symmetric c and the same weights, equal weighted hom sums for the
 permuted matrix. This is the key enabling lemma for building the permutation:
