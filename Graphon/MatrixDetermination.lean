@@ -913,6 +913,21 @@ private theorem profileStarGraph_prod_eq {k : ℕ} (m r p : ℕ)
     · have h1 := congr_arg Prod.fst h; have h2 := congr_arg Prod.snd h
       simp only [Prod.swap] at h1 h2; rw [h1, h2, hc]
 
+/-- Sum over `Fin (r * n) → Fin k` of a product that factors into r independent
+blocks equals the product of the individual sums. -/
+private theorem sum_piProd_factor {k r n : ℕ}
+    (f : Fin r → (Fin n → Fin k) → ℝ) :
+    ∑ τ : Fin (r * n) → Fin k,
+      ∏ b : Fin r, f b (fun j => τ (finProdFinEquiv (b, j))) =
+    ∏ b : Fin r, ∑ τ_b : Fin n → Fin k, f b τ_b := by
+  let e : (Fin (r * n) → Fin k) ≃ (Fin r → Fin n → Fin k) :=
+    (Equiv.arrowCongr finProdFinEquiv.symm (Equiv.refl (Fin k))).trans
+      (Equiv.curry (Fin r) (Fin n) (Fin k))
+  have h1 : (∑ τ : Fin (r * n) → Fin k, ∏ b, f b (fun j => τ (finProdFinEquiv (b, j)))) =
+      ∑ σ : Fin r → Fin n → Fin k, ∏ b, f b (σ b) :=
+    Equiv.sum_comp e (fun σ => ∏ b, f b (σ b))
+  rw [h1, ← Fintype.prod_sum]
+
 /-- For symmetric c and the same weights, equal weighted hom sums for the
 permuted matrix. This is the key enabling lemma for building the permutation:
 if we find π such that c'' = c' ∘ (π, π) has equal hom sums with c, then we
