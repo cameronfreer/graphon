@@ -496,6 +496,67 @@ private theorem double_star_moments_eq {k : ℕ}
   rw [← h1, ← h2]
   exact h_eq (m + p + 2) (doubleStarGraph m p)
 
+/-! ### Classwise row-profile moment extraction -/
+
+/-- Rewrite `∑ i, g i * f(i)^m` by grouping indices by their `f` value. -/
+private theorem sum_fiberwise_mul_pow {k : ℕ} (g : Fin k → ℝ) (f : Fin k → ℝ) (m : ℕ) :
+    ∑ i, g i * f i ^ m =
+      ∑ d ∈ (Finset.univ : Finset (Fin k)).image f,
+        (∑ i ∈ Finset.univ.filter (fun i => f i = d), g i) * d ^ m := by
+  symm
+  calc ∑ d ∈ Finset.univ.image f,
+        (∑ i ∈ Finset.univ.filter (fun i => f i = d), g i) * d ^ m
+      = ∑ d ∈ Finset.univ.image f,
+        ∑ i ∈ Finset.univ.filter (fun i => f i = d), g i * d ^ m := by
+          congr 1; ext d; exact Finset.sum_mul ..
+    _ = ∑ d ∈ Finset.univ.image f,
+        ∑ i ∈ Finset.univ.filter (fun i => f i = d), g i * f i ^ m := by
+          congr 1; ext d; apply Finset.sum_congr rfl
+          intro i hi; rw [(Finset.mem_filter.mp hi).2]
+    _ = ∑ i ∈ Finset.univ.filter (fun i => f i ∈ Finset.univ.image f), g i * f i ^ m :=
+          Finset.sum_fiberwise_eq_sum_filter ..
+    _ = ∑ i, g i * f i ^ m := by
+          rw [Finset.filter_true_of_mem
+            (fun i _ => Finset.mem_image_of_mem f (Finset.mem_univ i))]
+
+/-- Vandermonde extraction for finset-indexed sums: if `∑ d ∈ S, A d * d^m = ∑ d ∈ S, A' d * d^m`
+for all `m : ℕ`, then `A d = A' d` for all `d ∈ S`. -/
+private theorem finset_weighted_powers_eq
+    (S : Finset ℝ) (A A' : ℝ → ℝ)
+    (h : ∀ m : ℕ, ∑ d ∈ S, A d * d ^ m = ∑ d ∈ S, A' d * d ^ m) :
+    ∀ d ∈ S, A d = A' d := by
+  -- Subtract to get ∑ d ∈ S, (A d - A' d) * d ^ m = 0
+  have h0 : ∀ m : ℕ, ∑ d ∈ S, (A d - A' d) * d ^ m = 0 := by
+    intro m; have := h m
+    simp only [sub_mul, Finset.sum_sub_distrib]; linarith
+  -- Enumerate S as Fin S.card
+  set L := S.card with hL
+  let e' : Fin L ≃ ↥S := (finCongr (Fintype.card_coe S).symm).trans (Fintype.equivFin ↥S).symm
+  let s : Fin L → ℝ := fun l => ((e' l : ↥S) : ℝ)
+  let a : Fin L → ℝ := fun l => A (s l) - A' (s l)
+  -- s is injective (distinct elements of S)
+  have hs : Function.Injective s := by
+    intro l₁ l₂ heq
+    exact e'.injective (Subtype.val_injective heq)
+  -- Transfer sum identity to Fin L
+  have h_transfer : ∀ (g' : ℝ → ℝ), ∑ d ∈ S, g' d = ∑ l : Fin L, g' (s l) := by
+    intro g'
+    rw [(Finset.sum_coe_sort S g').symm]
+    exact (Equiv.sum_comp e' (fun x : ↥S => g' x.val)).symm
+  have h1 : ∀ n : Fin L, ∑ l, a l * s l ^ (n : ℕ) = 0 := by
+    intro n
+    have := h0 (n : ℕ)
+    rw [h_transfer] at this; exact this
+  -- Apply Vandermonde
+  have h2 := eq_zero_of_weighted_powers_eq_zero s hs a h1
+  -- Extract pointwise equality
+  intro d hd
+  let l := e'.symm ⟨d, hd⟩
+  have hl : s l = d := congr_arg Subtype.val (e'.apply_symm_apply ⟨d, hd⟩)
+  have := congr_fun h2 l
+  simp only [a, Pi.zero_apply, sub_eq_zero] at this
+  rw [← hl]; exact this
+
 /-! ### Core proof for k > 0 -/
 
 /-- Degree moment matching from star graph tests.
@@ -514,6 +575,98 @@ private theorem degree_moments_eq {k : ℕ}
   have h2 := weightedHomSum_starGraph m c' hc'_symm w
   rw [← h1, ← h2]
   exact h_eq (m + 1) (starGraph m)
+
+/-- Total weight per degree class matches when weighted hom sums agree. -/
+private theorem degree_weight_class_eq {k : ℕ}
+    (c c' : Fin k → Fin k → ℝ) (hc_symm : ∀ i j, c i j = c j i)
+    (hc'_symm : ∀ i j, c' i j = c' j i)
+    (w : Fin k → ℝ) (hw_pos : ∀ i, 0 < w i)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F c w = weightedHomSum n F c' w) :
+    ∀ d : ℝ,
+      ∑ i ∈ Finset.univ.filter (fun i => wDeg c w i = d), w i
+    = ∑ i ∈ Finset.univ.filter (fun i => wDeg c' w i = d), w i := by
+  intro d
+  have hdeg := degree_moments_eq c c' hc_symm hc'_symm w h_eq
+  set S := Finset.univ.image (wDeg c w)
+  set S' := Finset.univ.image (wDeg c' w)
+  -- Fibers are empty outside image
+  have hA0 : ∀ d, d ∉ S →
+      (∑ i ∈ Finset.univ.filter (fun i => wDeg c w i = d), w i) = 0 := by
+    intro d hd; apply Finset.sum_eq_zero; intro i hi
+    exfalso; exact hd (Finset.mem_image.mpr ⟨i, Finset.mem_univ i, (Finset.mem_filter.mp hi).2⟩)
+  have hA'0 : ∀ d, d ∉ S' →
+      (∑ i ∈ Finset.univ.filter (fun i => wDeg c' w i = d), w i) = 0 := by
+    intro d hd; apply Finset.sum_eq_zero; intro i hi
+    exfalso; exact hd (Finset.mem_image.mpr ⟨i, Finset.mem_univ i, (Finset.mem_filter.mp hi).2⟩)
+  -- Extend moment identity to S ∪ S'
+  have hSS : ∀ m : ℕ,
+      ∑ d ∈ S ∪ S', (∑ i ∈ Finset.univ.filter (fun i => wDeg c w i = d), w i) * d ^ m =
+      ∑ d ∈ S ∪ S', (∑ i ∈ Finset.univ.filter (fun i => wDeg c' w i = d), w i) * d ^ m := by
+    intro m
+    rw [← Finset.sum_subset Finset.subset_union_left
+        (fun d _ hd => by rw [hA0 d hd, zero_mul]),
+      ← Finset.sum_subset Finset.subset_union_right
+        (fun d _ hd => by rw [hA'0 d hd, zero_mul])]
+    have h_m := hdeg m
+    rw [sum_fiberwise_mul_pow w (wDeg c w) m, sum_fiberwise_mul_pow w (wDeg c' w) m] at h_m
+    exact h_m
+  by_cases hd_mem : d ∈ S ∪ S'
+  · exact finset_weighted_powers_eq (S ∪ S') _ _ hSS d hd_mem
+  · rw [Finset.mem_union, not_or] at hd_mem
+    rw [hA0 d hd_mem.1, hA'0 d hd_mem.2]
+
+/-- Classwise row-profile moments: grouping by degree value, the total
+`w * rowProfile` sums match within each degree class. -/
+private theorem degree_class_rowProfile_moments_eq {k : ℕ}
+    (c c' : Fin k → Fin k → ℝ) (hc_symm : ∀ i j, c i j = c j i)
+    (hc'_symm : ∀ i j, c' i j = c' j i)
+    (w : Fin k → ℝ) (hw_pos : ∀ i, 0 < w i)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F c w = weightedHomSum n F c' w) :
+    ∀ (d : ℝ) (p : ℕ),
+      ∑ i ∈ Finset.univ.filter (fun i => wDeg c w i = d), w i * rowProfile c w i p
+    = ∑ i ∈ Finset.univ.filter (fun i => wDeg c' w i = d), w i * rowProfile c' w i p := by
+  intro d p
+  have hdsm := double_star_moments_eq c c' hc_symm hc'_symm w h_eq
+  set S := Finset.univ.image (wDeg c w)
+  set S' := Finset.univ.image (wDeg c' w)
+  -- Fibers are empty outside image
+  have hB0 : ∀ d, d ∉ S →
+      (∑ i ∈ Finset.univ.filter (fun i => wDeg c w i = d), w i * rowProfile c w i p) = 0 := by
+    intro d hd; apply Finset.sum_eq_zero; intro i hi
+    exfalso; exact hd (Finset.mem_image.mpr ⟨i, Finset.mem_univ i, (Finset.mem_filter.mp hi).2⟩)
+  have hB'0 : ∀ d, d ∉ S' →
+      (∑ i ∈ Finset.univ.filter (fun i => wDeg c' w i = d), w i * rowProfile c' w i p) = 0 := by
+    intro d hd; apply Finset.sum_eq_zero; intro i hi
+    exfalso; exact hd (Finset.mem_image.mpr ⟨i, Finset.mem_univ i, (Finset.mem_filter.mp hi).2⟩)
+  -- Bivariate fiberwise: ∑ i, w i * deg^m * rowProfile = ∑ d ∈ image, (∑ fiber, w * rowProfile) * d^m
+  have sum_fib : ∀ (c₀ : Fin k → Fin k → ℝ) (m₀ : ℕ),
+      ∑ i, w i * (wDeg c₀ w i) ^ m₀ * rowProfile c₀ w i p =
+        ∑ d ∈ Finset.univ.image (wDeg c₀ w),
+          (∑ i ∈ Finset.univ.filter (fun i => wDeg c₀ w i = d),
+            w i * rowProfile c₀ w i p) * d ^ m₀ := by
+    intro c₀ m₀
+    have := sum_fiberwise_mul_pow (fun i => w i * rowProfile c₀ w i p) (wDeg c₀ w) m₀
+    convert this using 1; congr 1; ext i; ring
+  -- Extend moment identity to S ∪ S'
+  have hSS : ∀ m : ℕ,
+      ∑ d ∈ S ∪ S',
+        (∑ i ∈ Finset.univ.filter (fun i => wDeg c w i = d), w i * rowProfile c w i p) * d ^ m =
+      ∑ d ∈ S ∪ S',
+        (∑ i ∈ Finset.univ.filter (fun i => wDeg c' w i = d), w i * rowProfile c' w i p) * d ^ m := by
+    intro m
+    rw [← Finset.sum_subset Finset.subset_union_left
+        (fun d _ hd => by rw [hB0 d hd, zero_mul]),
+      ← Finset.sum_subset Finset.subset_union_right
+        (fun d _ hd => by rw [hB'0 d hd, zero_mul])]
+    have h_m := hdsm m p
+    rw [sum_fib c m, sum_fib c' m] at h_m
+    exact h_m
+  by_cases hd_mem : d ∈ S ∪ S'
+  · exact finset_weighted_powers_eq (S ∪ S') _ _ hSS d hd_mem
+  · rw [Finset.mem_union, not_or] at hd_mem
+    rw [hB0 d hd_mem.1, hB'0 d hd_mem.2]
 
 /-- For symmetric c and the same weights, equal weighted hom sums for the
 permuted matrix. This is the key enabling lemma for building the permutation:
