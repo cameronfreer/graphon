@@ -871,6 +871,48 @@ private theorem profileStarGraph_edgeFinset (m r p : ℕ) :
     · rw [SimpleGraph.mem_edgeSet]
       exact Or.inr (Or.inr (Or.inr (Or.inr (Or.inl ⟨b, rfl, l, rfl⟩))))
 
+private theorem profileStarGraph_prod_eq {k : ℕ} (m r p : ℕ)
+    (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+    (σ : Fin (m + r * (p + 1) + 1) → Fin k) :
+    ∏ e ∈ (profileStarGraph m r p).edgeFinset,
+      c (σ (Quot.out e).1) (σ (Quot.out e).2) =
+    (∏ j : Fin m, c (σ 0) (σ ⟨j.val + 1, by omega⟩)) *
+    (∏ b : Fin r, c (σ 0) (σ (profileBridgePos m p b))) *
+    ∏ b : Fin r, ∏ l : Fin p,
+      c (σ (profileBridgePos m p b)) (σ (profileLeafPos m p b l)) := by
+  rw [profileStarGraph_edgeFinset,
+    Finset.prod_union (profileStarGraph_disjoint_top_branchLeaf m r p),
+    Finset.prod_union (profileStarGraph_disjoint_plain_bridge m r p),
+    Finset.prod_image (profileStarEdge_plain_injOn m r p),
+    Finset.prod_image (profileStarEdge_bridge_injOn m r p),
+    Finset.prod_image (profileStarEdge_branchLeaf_injOn m r p)]
+  congr 1
+  · congr 1
+    · congr 1; ext j
+      have hout := Quot.out_eq s((0 : Fin (m + r * (p + 1) + 1)), ⟨j.val + 1, by omega⟩)
+      rw [Sym2.mk_eq_mk_iff] at hout
+      rcases hout with h | h
+      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
+      · have h1 := congr_arg Prod.fst h; have h2 := congr_arg Prod.snd h
+        simp only [Prod.swap] at h1 h2; rw [h1, h2, hc]
+    · congr 1; ext b
+      have hout := Quot.out_eq
+        s((0 : Fin (m + r * (p + 1) + 1)), profileBridgePos m p b)
+      rw [Sym2.mk_eq_mk_iff] at hout
+      rcases hout with h | h
+      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
+      · have h1 := congr_arg Prod.fst h; have h2 := congr_arg Prod.snd h
+        simp only [Prod.swap] at h1 h2; rw [h1, h2, hc]
+  · rw [Fintype.prod_prod_type]
+    congr 1; ext b; congr 1; ext l
+    have hout := Quot.out_eq
+      s(profileBridgePos m p b, profileLeafPos m p b l)
+    rw [Sym2.mk_eq_mk_iff] at hout
+    rcases hout with h | h
+    · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
+    · have h1 := congr_arg Prod.fst h; have h2 := congr_arg Prod.snd h
+      simp only [Prod.swap] at h1 h2; rw [h1, h2, hc]
+
 /-- For symmetric c and the same weights, equal weighted hom sums for the
 permuted matrix. This is the key enabling lemma for building the permutation:
 if we find π such that c'' = c' ∘ (π, π) has equal hom sums with c, then we
