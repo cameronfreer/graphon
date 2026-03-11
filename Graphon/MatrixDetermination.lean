@@ -668,6 +668,66 @@ private theorem degree_class_rowProfile_moments_eq {k : ℕ}
   · rw [Finset.mem_union, not_or] at hd_mem
     rw [hB0 d hd_mem.1, hB'0 d hd_mem.2]
 
+/-! ### Profile star graph and row-profile power moments -/
+
+/-- Bridge vertex position in the profile star graph: vertex `m + 1 + (p+1)*b`. -/
+private def profileBridgePos (m p : ℕ) {r : ℕ} (b : Fin r) :
+    Fin (m + r * (p + 1) + 1) :=
+  ⟨m + 1 + (p + 1) * b.val, by nlinarith [b.isLt]⟩
+
+/-- Leaf vertex position in branch `b` of the profile star graph. -/
+private def profileLeafPos (m : ℕ) {r : ℕ} (p : ℕ) (b : Fin r) (l : Fin p) :
+    Fin (m + r * (p + 1) + 1) :=
+  ⟨m + 1 + (p + 1) * b.val + l.val + 1, by nlinarith [b.isLt, l.isLt]⟩
+
+/-- Profile star graph PS(m, r, p) on `m + r*(p+1) + 1` vertices.
+
+Root (vertex 0) connects to m plain leaves (vertices 1..m) and r bridge vertices.
+Each bridge vertex connects to p branch leaves. This graph produces the weighted
+homomorphism sum `∑ i, w i * (wDeg c w i)^m * (rowProfile c w i p)^r`. -/
+def profileStarGraph (m r p : ℕ) : SimpleGraph (Fin (m + r * (p + 1) + 1)) where
+  Adj u v :=
+    (u.val = 0 ∧ 1 ≤ v.val ∧ v.val ≤ m) ∨
+    (v.val = 0 ∧ 1 ≤ u.val ∧ u.val ≤ m) ∨
+    (∃ b : Fin r, u.val = 0 ∧ v = profileBridgePos m p b) ∨
+    (∃ b : Fin r, v.val = 0 ∧ u = profileBridgePos m p b) ∨
+    (∃ b : Fin r, u = profileBridgePos m p b ∧
+      ∃ l : Fin p, v = profileLeafPos m p b l) ∨
+    (∃ b : Fin r, v = profileBridgePos m p b ∧
+      ∃ l : Fin p, u = profileLeafPos m p b l)
+  symm := fun {u v} h => by
+    rcases h with h | h | ⟨b, h⟩ | ⟨b, h⟩ | ⟨b, h₁, l, h₂⟩ | ⟨b, h₁, l, h₂⟩
+    · right; left; exact h
+    · left; exact h
+    · right; right; right; left; exact ⟨b, h⟩
+    · right; right; left; exact ⟨b, h⟩
+    · right; right; right; right; right; exact ⟨b, h₁, l, h₂⟩
+    · right; right; right; right; left; exact ⟨b, h₁, l, h₂⟩
+  loopless := fun v h => by
+    simp only [profileBridgePos, profileLeafPos] at h
+    rcases h with ⟨h1, h2, _⟩ | ⟨h1, h2, _⟩ | ⟨b, h1, h2⟩ | ⟨b, h1, h2⟩ |
+      ⟨b, h1, l, h2⟩ | ⟨b, h1, l, h2⟩
+    · omega
+    · omega
+    · exact absurd (congr_arg Fin.val h2) (by simp; omega)
+    · exact absurd (congr_arg Fin.val h2) (by simp; omega)
+    · have h1v := congr_arg Fin.val h1; have h2v := congr_arg Fin.val h2
+      simp at h1v h2v; omega
+    · have h1v := congr_arg Fin.val h1; have h2v := congr_arg Fin.val h2
+      simp at h1v h2v; omega
+
+instance profileStarGraphDecRel (m r p : ℕ) :
+    DecidableRel (profileStarGraph m r p).Adj :=
+  fun u v => inferInstanceAs (Decidable (
+    (u.val = 0 ∧ 1 ≤ v.val ∧ v.val ≤ m) ∨
+    (v.val = 0 ∧ 1 ≤ u.val ∧ u.val ≤ m) ∨
+    (∃ b : Fin r, u.val = 0 ∧ v = profileBridgePos m p b) ∨
+    (∃ b : Fin r, v.val = 0 ∧ u = profileBridgePos m p b) ∨
+    (∃ b : Fin r, u = profileBridgePos m p b ∧
+      ∃ l : Fin p, v = profileLeafPos m p b l) ∨
+    (∃ b : Fin r, v = profileBridgePos m p b ∧
+      ∃ l : Fin p, u = profileLeafPos m p b l)))
+
 /-- For symmetric c and the same weights, equal weighted hom sums for the
 permuted matrix. This is the key enabling lemma for building the permutation:
 if we find π such that c'' = c' ∘ (π, π) has equal hom sums with c, then we
