@@ -928,6 +928,159 @@ private theorem sum_piProd_factor {k r n : ℕ}
     Equiv.sum_comp e (fun σ => ∏ b, f b (σ b))
   rw [h1, ← Fintype.prod_sum]
 
+set_option maxHeartbeats 4000000 in
+private theorem weightedHomSum_profileStarGraph {k : ℕ} (m r p : ℕ)
+    (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i) (w : Fin k → ℝ) :
+    weightedHomSum (m + r * (p + 1) + 1) (profileStarGraph m r p) c w
+      = ∑ i : Fin k, w i * (wDeg c w i) ^ m * (rowProfile c w i p) ^ r := by
+  simp only [weightedHomSum, wDeg, rowProfile]
+  suffices h : ∀ σ : Fin (m + r * (p + 1) + 1) → Fin k,
+      (∏ v, w (σ v)) *
+        ∏ e ∈ (profileStarGraph m r p).edgeFinset,
+          c (σ (Quot.out e).1) (σ (Quot.out e).2) =
+      w (σ 0) *
+      (∏ j : Fin m, w (σ (Fin.succ (Fin.castAdd (r * (p + 1)) j))) *
+                     c (σ 0) (σ (Fin.succ (Fin.castAdd (r * (p + 1)) j)))) *
+      ∏ b : Fin r, (
+        w (σ (Fin.succ (Fin.natAdd m (finProdFinEquiv (b, 0))))) *
+        c (σ 0) (σ (Fin.succ (Fin.natAdd m (finProdFinEquiv (b, 0))))) *
+        ∏ l : Fin p,
+          w (σ (Fin.succ (Fin.natAdd m (finProdFinEquiv (b, Fin.succ l))))) *
+          c (σ (Fin.succ (Fin.natAdd m (finProdFinEquiv (b, 0)))))
+            (σ (Fin.succ (Fin.natAdd m (finProdFinEquiv (b, Fin.succ l)))))) by
+    simp_rw [h]
+    -- Peel σ(0) = i
+    rw [(Equiv.sum_comp (Fin.consEquiv
+      (fun _ : Fin (m + r * (p + 1) + 1) => Fin k)) _).symm]
+    simp only [Fin.consEquiv_apply, Fin.cons_zero, Fin.cons_succ]
+    rw [Fintype.sum_prod_type]
+    congr 1; funext i
+    -- Rearrange to w i * (plain sum * branch sum)
+    have hrearr : ∀ (σ' : Fin (m + r * (p + 1)) → Fin k),
+        (w i * ∏ j : Fin m, w (σ' (Fin.castAdd (r * (p + 1)) j)) *
+          c i (σ' (Fin.castAdd (r * (p + 1)) j))) *
+          ∏ b : Fin r,
+            w (σ' (Fin.natAdd m (finProdFinEquiv (b, 0)))) *
+            c i (σ' (Fin.natAdd m (finProdFinEquiv (b, 0)))) *
+            ∏ l : Fin p,
+              w (σ' (Fin.natAdd m (finProdFinEquiv (b, Fin.succ l)))) *
+              c (σ' (Fin.natAdd m (finProdFinEquiv (b, 0))))
+                (σ' (Fin.natAdd m (finProdFinEquiv (b, Fin.succ l)))) =
+        w i * ((∏ j : Fin m, w (σ' (Fin.castAdd (r * (p + 1)) j)) *
+          c i (σ' (Fin.castAdd (r * (p + 1)) j))) *
+          ∏ b : Fin r,
+            w (σ' (Fin.natAdd m (finProdFinEquiv (b, 0)))) *
+            c i (σ' (Fin.natAdd m (finProdFinEquiv (b, 0)))) *
+            ∏ l : Fin p,
+              w (σ' (Fin.natAdd m (finProdFinEquiv (b, Fin.succ l)))) *
+              c (σ' (Fin.natAdd m (finProdFinEquiv (b, 0))))
+                (σ' (Fin.natAdd m (finProdFinEquiv (b, Fin.succ l))))) :=
+      fun _ => by ring
+    simp_rw [hrearr, ← Finset.mul_sum]
+    -- Factor plain × branch via sum_piFinAdd_factor
+    have h_split := sum_piFinAdd_factor (k := k)
+      (fun τL => ∏ j : Fin m, w (τL j) * c i (τL j))
+      (fun τR => ∏ b : Fin r,
+        w (τR (finProdFinEquiv (b, 0))) *
+        c i (τR (finProdFinEquiv (b, 0))) *
+        ∏ l : Fin p,
+          w (τR (finProdFinEquiv (b, Fin.succ l))) *
+          c (τR (finProdFinEquiv (b, 0)))
+            (τR (finProdFinEquiv (b, Fin.succ l))))
+    simp_rw [h_split]
+    -- Collapse power sums
+    have hpow : ∀ (c' : Fin k → ℝ) (n : ℕ),
+        ∑ τ : Fin n → Fin k, ∏ j, w (τ j) * c' (τ j) = (∑ j, w j * c' j) ^ n := by
+      intro c' n
+      symm; rw [show (∑ j, w j * c' j) ^ n = ∏ _ : Fin n, ∑ l, w l * c' l from by
+        rw [Finset.prod_const, Finset.card_univ, Fintype.card_fin],
+        ← @Finset.sum_prod_piFinset _ _ ℝ _ _ _ Finset.univ]
+      simp [Fintype.piFinset_univ]
+    -- Collapse plain power sum on LHS
+    rw [hpow (c i) m]
+    -- Prove: (wDeg)^m * (∑ τR, ∏ b, branch) = (wDeg)^m * (rowProfile)^r
+    -- Define the branch function for sum_piProd_factor
+    let f : Fin r → (Fin (p + 1) → Fin k) → ℝ := fun _ τ_b =>
+      w (τ_b 0) * c i (τ_b 0) *
+      ∏ l : Fin p, w (τ_b (Fin.succ l)) * c (τ_b 0) (τ_b (Fin.succ l))
+    -- The branch sum per block (f doesn't depend on b)
+    have h_branch_sum : ∀ b : Fin r,
+        (∑ τ_b : Fin (p + 1) → Fin k, f b τ_b) =
+        ∑ j : Fin k, w j * c i j * (∑ l, w l * c j l) ^ p := by
+      intro b
+      change (∑ τ_b : Fin (p + 1) → Fin k, w (τ_b 0) * c i (τ_b 0) *
+        ∏ l : Fin p, w (τ_b (Fin.succ l)) * c (τ_b 0) (τ_b (Fin.succ l))) = _
+      rw [(Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (p + 1) => Fin k)) _).symm]
+      simp only [Fin.consEquiv_apply, Fin.cons_zero, Fin.cons_succ]
+      rw [Fintype.sum_prod_type]
+      congr 1; funext j; dsimp only []
+      rw [← Finset.mul_sum, hpow (c j) p]
+    -- The full branch factorization
+    have h_full_branch :
+        (∑ τR : Fin (r * (p + 1)) → Fin k,
+          ∏ b : Fin r,
+            w (τR (finProdFinEquiv (b, 0))) *
+            c i (τR (finProdFinEquiv (b, 0))) *
+            ∏ l : Fin p,
+              w (τR (finProdFinEquiv (b, Fin.succ l))) *
+              c (τR (finProdFinEquiv (b, 0)))
+                (τR (finProdFinEquiv (b, Fin.succ l)))) =
+        (∑ j : Fin k, w j * c i j * (∑ l, w l * c j l) ^ p) ^ r := by
+      have h1 : ∀ (τR : Fin (r * (p + 1)) → Fin k),
+          ∏ b : Fin r,
+            w (τR (finProdFinEquiv (b, 0))) *
+            c i (τR (finProdFinEquiv (b, 0))) *
+            ∏ l : Fin p,
+              w (τR (finProdFinEquiv (b, Fin.succ l))) *
+              c (τR (finProdFinEquiv (b, 0)))
+                (τR (finProdFinEquiv (b, Fin.succ l))) =
+          ∏ b : Fin r, f b (fun j => τR (finProdFinEquiv (b, j))) :=
+        fun _ => rfl
+      simp_rw [h1, sum_piProd_factor f]
+      rw [show (∑ j : Fin k, w j * c i j * (∑ l, w l * c j l) ^ p) ^ r =
+          ∏ _ : Fin r, ∑ j, w j * c i j * (∑ l, w l * c j l) ^ p from by
+        rw [Finset.prod_const, Finset.card_univ, Fintype.card_fin]]
+      congr 1; funext b; exact h_branch_sum b
+    rw [h_full_branch, mul_assoc]
+  -- Proof of suffices: combine vertex weights with edge products
+  intro σ
+  rw [profileStarGraph_prod_eq m r p c hc σ]
+  -- Convert Fin positions
+  have hfin_plain : ∀ j : Fin m, (⟨j.val + 1, by omega⟩ : Fin (m + r * (p + 1) + 1)) =
+      Fin.succ (Fin.castAdd (r * (p + 1)) j) :=
+    fun _ => Fin.ext (by simp [Fin.val_succ, Fin.val_castAdd])
+  have hfin_bridge : ∀ b : Fin r, profileBridgePos m p b =
+      Fin.succ (Fin.natAdd m (finProdFinEquiv (b, (0 : Fin (p + 1))))) :=
+    fun b => by
+      apply Fin.ext
+      simp only [profileBridgePos_val, Fin.val_succ, Fin.val_natAdd]
+      have : (finProdFinEquiv (b, (0 : Fin (p + 1)))).val = (p + 1) * b.val := by
+        show (0 : Fin (p + 1)).val + (p + 1) * b.val = (p + 1) * b.val
+        simp
+      omega
+  have hfin_leaf : ∀ (b : Fin r) (l : Fin p), profileLeafPos m p b l =
+      Fin.succ (Fin.natAdd m (finProdFinEquiv (b, Fin.succ l))) :=
+    fun b l => by
+      apply Fin.ext
+      simp only [profileLeafPos_val, Fin.val_succ, Fin.val_natAdd]
+      have : (finProdFinEquiv (b, Fin.succ l)).val = l.val + 1 + (p + 1) * b.val := by
+        show (Fin.succ l).val + (p + 1) * b.val = l.val + 1 + (p + 1) * b.val
+        simp [Fin.val_succ]
+      omega
+  simp_rw [hfin_plain, hfin_bridge, hfin_leaf]
+  -- Split vertex weight product
+  rw [Fin.prod_univ_succ, Fin.prod_univ_add]
+  -- Split the r*(p+1) block via finProdFinEquiv
+  rw [show ∏ j : Fin (r * (p + 1)), w (σ ((Fin.natAdd m j).succ)) =
+      ∏ bj : Fin r × Fin (p + 1), w (σ ((Fin.natAdd m (finProdFinEquiv bj)).succ)) from
+    (Fintype.prod_equiv finProdFinEquiv _ _ (fun _ => rfl)).symm,
+    Fintype.prod_prod_type]
+  -- Peel bridge from each block
+  simp_rw [Fin.prod_univ_succ]
+  -- Use prod_mul_distrib to split/merge products and ring for rearrangement
+  simp only [Finset.prod_mul_distrib]
+  ring
+
 /-- For symmetric c and the same weights, equal weighted hom sums for the
 permuted matrix. This is the key enabling lemma for building the permutation:
 if we find π such that c'' = c' ∘ (π, π) has equal hom sums with c, then we
