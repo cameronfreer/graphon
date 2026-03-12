@@ -1081,6 +1081,150 @@ private theorem weightedHomSum_profileStarGraph {k : ℕ} (m r p : ℕ)
   simp only [Finset.prod_mul_distrib]
   ring
 
+/-- Profile-star moment matching: equal hom sums imply equal power-moment sums. -/
+private theorem profile_star_moments_eq {k : ℕ}
+    (c c' : Fin k → Fin k → ℝ)
+    (hc_symm : ∀ i j, c i j = c j i) (hc'_symm : ∀ i j, c' i j = c' j i)
+    (w : Fin k → ℝ)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F c w = weightedHomSum n F c' w) :
+    ∀ m r p : ℕ,
+      ∑ i, w i * (wDeg c w i) ^ m * (rowProfile c w i p) ^ r
+    = ∑ i, w i * (wDeg c' w i) ^ m * (rowProfile c' w i p) ^ r := by
+  intro m r p
+  rw [← weightedHomSum_profileStarGraph m r p c hc_symm w,
+      ← weightedHomSum_profileStarGraph m r p c' hc'_symm w]
+  exact h_eq _ _
+
+/-- Classwise row-profile power moments: within each degree class,
+`∑ w i * (rowProfile)^r` matches for all r. -/
+private theorem degree_class_rowProfile_power_moments_eq {k : ℕ}
+    (c c' : Fin k → Fin k → ℝ) (hc_symm : ∀ i j, c i j = c j i)
+    (hc'_symm : ∀ i j, c' i j = c' j i)
+    (w : Fin k → ℝ) (hw_pos : ∀ i, 0 < w i)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F c w = weightedHomSum n F c' w) :
+    ∀ (d : ℝ) (p r : ℕ),
+      ∑ i ∈ Finset.univ.filter (fun i => wDeg c w i = d),
+        w i * (rowProfile c w i p) ^ r
+    = ∑ i ∈ Finset.univ.filter (fun i => wDeg c' w i = d),
+        w i * (rowProfile c' w i p) ^ r := by
+  intro d p r
+  have hpsm := profile_star_moments_eq c c' hc_symm hc'_symm w h_eq
+  set S := Finset.univ.image (wDeg c w)
+  set S' := Finset.univ.image (wDeg c' w)
+  have hB0 : ∀ d, d ∉ S →
+      (∑ i ∈ Finset.univ.filter (fun i => wDeg c w i = d),
+        w i * (rowProfile c w i p) ^ r) = 0 := by
+    intro d hd; apply Finset.sum_eq_zero; intro i hi
+    exfalso; exact hd (Finset.mem_image.mpr ⟨i, Finset.mem_univ i, (Finset.mem_filter.mp hi).2⟩)
+  have hB'0 : ∀ d, d ∉ S' →
+      (∑ i ∈ Finset.univ.filter (fun i => wDeg c' w i = d),
+        w i * (rowProfile c' w i p) ^ r) = 0 := by
+    intro d hd; apply Finset.sum_eq_zero; intro i hi
+    exfalso; exact hd (Finset.mem_image.mpr ⟨i, Finset.mem_univ i, (Finset.mem_filter.mp hi).2⟩)
+  have sum_fib : ∀ (c₀ : Fin k → Fin k → ℝ) (m₀ : ℕ),
+      ∑ i, w i * (wDeg c₀ w i) ^ m₀ * (rowProfile c₀ w i p) ^ r =
+        ∑ d ∈ Finset.univ.image (wDeg c₀ w),
+          (∑ i ∈ Finset.univ.filter (fun i => wDeg c₀ w i = d),
+            w i * (rowProfile c₀ w i p) ^ r) * d ^ m₀ := by
+    intro c₀ m₀
+    have := sum_fiberwise_mul_pow (fun i => w i * (rowProfile c₀ w i p) ^ r) (wDeg c₀ w) m₀
+    convert this using 1; congr 1; ext i; ring
+  have hSS : ∀ m : ℕ,
+      ∑ d ∈ S ∪ S',
+        (∑ i ∈ Finset.univ.filter (fun i => wDeg c w i = d),
+          w i * (rowProfile c w i p) ^ r) * d ^ m =
+      ∑ d ∈ S ∪ S',
+        (∑ i ∈ Finset.univ.filter (fun i => wDeg c' w i = d),
+          w i * (rowProfile c' w i p) ^ r) * d ^ m := by
+    intro m
+    rw [← Finset.sum_subset Finset.subset_union_left
+        (fun d _ hd => by rw [hB0 d hd, zero_mul]),
+      ← Finset.sum_subset Finset.subset_union_right
+        (fun d _ hd => by rw [hB'0 d hd, zero_mul])]
+    have h_m := hpsm m r p
+    rw [sum_fib c m, sum_fib c' m] at h_m
+    exact h_m
+  by_cases hd_mem : d ∈ S ∪ S'
+  · exact finset_weighted_powers_eq (S ∪ S') _ _ hSS d hd_mem
+  · rw [Finset.mem_union, not_or] at hd_mem
+    rw [hB0 d hd_mem.1, hB'0 d hd_mem.2]
+
+/-- Total weight per (degree, rowProfile) class matches: Vandermonde on rowProfile
+values within each degree class separates row types completely. -/
+private theorem degree_rowProfile_weight_class_eq {k : ℕ}
+    (c c' : Fin k → Fin k → ℝ) (hc_symm : ∀ i j, c i j = c j i)
+    (hc'_symm : ∀ i j, c' i j = c' j i)
+    (w : Fin k → ℝ) (hw_pos : ∀ i, 0 < w i)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F c w = weightedHomSum n F c' w) :
+    ∀ (d : ℝ) (p : ℕ) (q : ℝ),
+      ∑ i ∈ Finset.univ.filter (fun i => wDeg c w i = d ∧ rowProfile c w i p = q), w i
+    = ∑ i ∈ Finset.univ.filter (fun i => wDeg c' w i = d ∧ rowProfile c' w i p = q), w i := by
+  intro d p q
+  have hpower := degree_class_rowProfile_power_moments_eq c c' hc_symm hc'_symm w hw_pos h_eq
+  -- Fix d, p. Group by rowProfile value within the degree class.
+  set Sd := Finset.univ.filter (fun i => wDeg c w i = d)
+  set Sd' := Finset.univ.filter (fun i => wDeg c' w i = d)
+  set T := Sd.image (fun i => rowProfile c w i p)
+  set T' := Sd'.image (fun i => rowProfile c' w i p)
+  have hC0 : ∀ q, q ∉ T →
+      (∑ i ∈ Finset.univ.filter (fun i => wDeg c w i = d ∧ rowProfile c w i p = q), w i) = 0 := by
+    intro q hq; apply Finset.sum_eq_zero; intro i hi
+    simp only [Finset.mem_filter] at hi
+    exact absurd (Finset.mem_image.mpr ⟨i, Finset.mem_filter.mpr ⟨Finset.mem_univ i, hi.2.1⟩, hi.2.2⟩) hq
+  have hC'0 : ∀ q, q ∉ T' →
+      (∑ i ∈ Finset.univ.filter (fun i => wDeg c' w i = d ∧ rowProfile c' w i p = q), w i) = 0 := by
+    intro q hq; apply Finset.sum_eq_zero; intro i hi
+    simp only [Finset.mem_filter] at hi
+    exact absurd (Finset.mem_image.mpr ⟨i, Finset.mem_filter.mpr ⟨Finset.mem_univ i, hi.2.1⟩, hi.2.2⟩) hq
+  -- Fiberwise decomposition: ∑_{wDeg=d} w i * rowProfile^r = ∑_{q ∈ T} (∑_{wDeg=d, rp=q} w i) * q^r
+  have sum_fib2 : ∀ (c₀ : Fin k → Fin k → ℝ) (r₀ : ℕ),
+      ∑ i ∈ Finset.univ.filter (fun i => wDeg c₀ w i = d), w i * (rowProfile c₀ w i p) ^ r₀ =
+        ∑ q ∈ (Finset.univ.filter (fun i => wDeg c₀ w i = d)).image (fun i => rowProfile c₀ w i p),
+          (∑ i ∈ Finset.univ.filter (fun i => wDeg c₀ w i = d ∧ rowProfile c₀ w i p = q),
+            w i) * q ^ r₀ := by
+    intro c₀ r₀
+    set S₀ := Finset.univ.filter (fun i => wDeg c₀ w i = d)
+    have hff : ∀ q, Finset.univ.filter (fun i => wDeg c₀ w i = d ∧ rowProfile c₀ w i p = q) =
+        S₀.filter (fun i => rowProfile c₀ w i p = q) := fun q => (Finset.filter_filter ..).symm
+    simp_rw [hff]
+    symm
+    calc ∑ q ∈ S₀.image (fun i => rowProfile c₀ w i p),
+            (∑ i ∈ S₀.filter (fun i => rowProfile c₀ w i p = q), w i) * q ^ r₀
+        = ∑ q ∈ S₀.image (fun i => rowProfile c₀ w i p),
+            ∑ i ∈ S₀.filter (fun i => rowProfile c₀ w i p = q), w i * q ^ r₀ := by
+              congr 1; ext q; exact Finset.sum_mul ..
+      _ = ∑ q ∈ S₀.image (fun i => rowProfile c₀ w i p),
+            ∑ i ∈ S₀.filter (fun i => rowProfile c₀ w i p = q),
+              w i * (rowProfile c₀ w i p) ^ r₀ := by
+              congr 1; ext q; apply Finset.sum_congr rfl
+              intro i hi; rw [(Finset.mem_filter.mp hi).2]
+      _ = ∑ i ∈ S₀.filter (fun i => rowProfile c₀ w i p ∈
+              S₀.image (fun i => rowProfile c₀ w i p)),
+            w i * (rowProfile c₀ w i p) ^ r₀ :=
+              Finset.sum_fiberwise_eq_sum_filter ..
+      _ = ∑ i ∈ S₀, w i * (rowProfile c₀ w i p) ^ r₀ := by
+              rw [Finset.filter_true_of_mem (fun i hi => Finset.mem_image_of_mem _ hi)]
+  have hTT : ∀ r₀ : ℕ,
+      ∑ q ∈ T ∪ T',
+        (∑ i ∈ Finset.univ.filter (fun i => wDeg c w i = d ∧ rowProfile c w i p = q), w i) * q ^ r₀ =
+      ∑ q ∈ T ∪ T',
+        (∑ i ∈ Finset.univ.filter (fun i => wDeg c' w i = d ∧ rowProfile c' w i p = q), w i) * q ^ r₀ := by
+    intro r₀
+    rw [← Finset.sum_subset Finset.subset_union_left
+        (fun q _ hq => by rw [hC0 q hq, zero_mul]),
+      ← Finset.sum_subset Finset.subset_union_right
+        (fun q _ hq => by rw [hC'0 q hq, zero_mul])]
+    have h_r := hpower d p r₀
+    rw [sum_fib2 c r₀, sum_fib2 c' r₀] at h_r
+    exact h_r
+  by_cases hq_mem : q ∈ T ∪ T'
+  · exact finset_weighted_powers_eq (T ∪ T') _ _ hTT q hq_mem
+  · rw [Finset.mem_union, not_or] at hq_mem
+    rw [hC0 q hq_mem.1, hC'0 q hq_mem.2]
+
 /-- For symmetric c and the same weights, equal weighted hom sums for the
 permuted matrix. This is the key enabling lemma for building the permutation:
 if we find π such that c'' = c' ∘ (π, π) has equal hom sums with c, then we
