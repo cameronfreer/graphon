@@ -1044,8 +1044,8 @@ simultaneous regularity is a standard extension of Frieze-Kannan and
 does not introduce any new axiom. -/
 /-- Simultaneous weak regularity lemma for a pair of graphons.
 
-For any δ > 0, there exists a partition P with bounded parts such that both
-`cutNormDiff U (stepify P U) ≤ δ` and `cutNormDiff W (stepify P W) ≤ δ`.
+For any δ > 0, there exists a partition P with at most `4 ^ (2 * (⌈1/δ²⌉ + 1))` parts
+such that both `cutNormDiff U (stepify P U) ≤ δ` and `cutNormDiff W (stepify P W) ≤ δ`.
 
 The proof runs the Frieze-Kannan energy increment for both graphons simultaneously:
 at each step, if either graphon has large cut norm difference, refine the partition.
@@ -1054,6 +1054,7 @@ graphon does not decrease the other's energy (monotonicity of energy under refin
 private theorem simultaneous_regularity [StandardBorelSpace α]
     (U W : Graphon α μ) (δ : ℝ) (hδ : δ > 0) :
     ∃ P : MeasurablePartition α μ,
+      P.parts.card ≤ 4 ^ (2 * (Nat.ceil (1 / δ ^ 2) + 1)) ∧
       cutNormDiff U (stepify P U) ≤ δ ∧
       cutNormDiff W (stepify P W) ≤ δ := by
   -- N = max number of iterations before combined energy exceeds 2
@@ -1070,9 +1071,9 @@ private theorem simultaneous_regularity [StandardBorelSpace α]
     let P₀ := trivialPartition (α := α) (μ := μ)
     have hP₀_card : P₀.parts.card ≤ 4 ^ (N - N) := by
       rw [Nat.sub_self, pow_zero, trivialPartition_card]
-    obtain ⟨Q, _, hQ_result⟩ := h_iter N le_rfl P₀ hP₀_card
+    obtain ⟨Q, hQ_card, hQ_result⟩ := h_iter N le_rfl P₀ hP₀_card
     rcases hQ_result with ⟨hU, hW⟩ | hQ_energy
-    · exact ⟨Q, hU, hW⟩
+    · exact ⟨Q, hQ_card, hU, hW⟩
     · exfalso
       have h1 : energy U Q ≤ 1 := energy_le_one U Q
       have h2 : energy W Q ≤ 1 := energy_le_one W Q
@@ -1649,29 +1650,56 @@ private theorem step_quantitative_icl
   rw [h_cd_lim, cutDistance_symm V_W (stepify P (W_seq (ψ m)))] at h_tri
   linarith [h_far (ψ m)]
 
+/-- **Bounded step inverse counting lemma**: uniform version of `step_quantitative_icl`
+over all partitions with at most K parts.
+
+For any cardinality bound K, accuracy ε > 0, there exist δ > 0 and graph size m such that
+for ANY partition P with `P.parts.card ≤ K`, if two step graphons on P have homomorphism
+densities within δ for all graphs on at most m vertices, their cut distance is less than ε.
+
+**Proof sketch**: The coefficient space of step graphons on a partition with ≤ K parts
+embeds into `[0,1]^{K² × 2} × [0,1]^K` (edge weights + part measures), which is compact.
+By contradiction, extract a sequence of counterexamples (Pₙ, Uₙ, Wₙ) with densities
+converging but cut distance bounded below. Pad all partitions to Fin K (adding zero-measure
+parts), pass to a convergent subsequence in the compact coefficient space, and construct
+limit step graphons on a common partition. The NoAtoms hypothesis ensures the limit
+partition can be realized as a MeasurablePartition. The existing `step_quantitative_icl`
+logic then gives the contradiction. -/
+private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0) :
+    ∃ (δ : ℝ) (_ : δ > 0) (m : ℕ),
+    ∀ (P : MeasurablePartition α μ), P.parts.card ≤ K →
+    ∀ (U W : Graphon α μ),
+      (∀ (F : SimpleGraph (Fin m)) [DecidableRel F.Adj],
+        |homDensity F (stepify P U) - homDensity F (stepify P W)| < δ) →
+      cutDistance (stepify P U) (stepify P W) < ε := by
+  sorry
+
 /-- **Algebraic determination**: two graphons with equal homomorphism densities
 for all finite graphs have cut distance zero (are weakly isomorphic).
 
-The proof combines `simultaneous_regularity` (Frieze-Kannan for pairs) with
-`step_quantitative_icl` (compactness on the coefficient space) and the counting
-lemma. For any ε > 0:
+The proof combines `simultaneous_regularity` (which gives a cardinality bound
+`K = 4 ^ (2 * (⌈1/δ²⌉ + 1))`) with `step_quantitative_icl_bounded K (ε/3)`
+(uniform compactness over all partitions with ≤ K parts) and the counting lemma.
+For any ε > 0:
 
-1. Get partition P from `simultaneous_regularity U W δ` with cutNormDiff ≤ δ
-2. For this P, `step_quantitative_icl P (ε/3)` gives (δ_step, m)
-3. Choose δ = min(ε/3, δ_step / (m*(m-1) + 1)) and re-apply simultaneous_regularity
-4. The resulting cutNormDiff is small enough that the counting lemma gives
-   hom density differences < δ_step for Fin m graphs
+1. Apply `step_quantitative_icl_bounded K (ε/3)` to get (δ_step, m) uniform over
+   all partitions with ≤ K parts
+2. Choose δ so that (a) δ ≤ ε/3 and (b) the counting lemma converts cutNormDiff ≤ δ
+   into hom density differences < δ_step for all graphs on ≤ m vertices
+3. Apply `simultaneous_regularity U W δ` to get partition P with P.parts.card ≤ K,
+   cutNormDiff U (stepify P U) ≤ δ, cutNormDiff W (stepify P W) ≤ δ
+4. By the counting lemma (step 2b), step graphons on P satisfy the δ_step condition,
+   so `step_quantitative_icl_bounded` gives cutDistance(stepify P U, stepify P W) < ε/3
+5. Triangle inequality: cutDistance(U, W) ≤ cutNormDiff(U, stepify P U) +
+   cutDistance(stepify P U, stepify P W) + cutNormDiff(W, stepify P W) < ε
 
-The key is that step 2-3 uses a FIXED P to determine the threshold, then step 3-4
-re-applies regularity to get a (possibly different) partition P' whose cutNormDiff
-satisfies the threshold. The step ICL is then applied to P', not to the original P.
-Although P' may give different ICL parameters, we DON'T use P's ICL parameters
-for P'; instead, we observe that for the ORIGINAL P, the counting condition IS
-satisfied (since δ ≤ δ_step / (m*(m-1) + 1)), so step_quantitative_icl P (ε/3)
-gives cutDistance < ε/3. The cutNormDiff bound δ ≤ ε/3 from simultaneous_regularity
-gives the other two bounds.
+The key insight is that `step_quantitative_icl_bounded` eliminates the circular
+dependency: δ_step and m depend only on K and ε, not on the specific partition P.
+The cardinality bound K from `simultaneous_regularity` depends only on the
+regularity parameter δ, which is chosen AFTER obtaining (δ_step, m).
 
-**Sorry traces to**: `step_quantitative_icl` → `cutDistance_zero_of_step_homDensity_eq`
+**Sorry traces to**: `step_quantitative_icl_bounded` (compactness over bounded partitions)
+→ `step_quantitative_icl` → `cutDistance_zero_of_step_homDensity_eq`
 → `matrix_quotient_of_weightedHomSum_eq` (algebraic core) +
 `MeasurePreserving.exists_common_extension` (Rokhlin). -/
 theorem cutDistance_zero_of_homDensity_eq [StandardBorelSpace α] [NoAtoms μ]
