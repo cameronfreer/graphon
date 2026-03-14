@@ -439,7 +439,283 @@ private theorem exists_type_class_mp_bijection
     ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
       ∀ i : Fin k', ∀ᵐ x ∂μ,
         x ∈ ι (embed i) → ∃ j : Fin k', type_c i = type_c' j ∧ e x ∈ ι (embed j) := by
-  sorry
+  classical
+  -- Handle trivial case
+  by_cases hk'0 : k' = 0
+  · subst hk'0
+    exact ⟨MeasurableEquiv.refl α, MeasurePreserving.id μ, fun i => i.elim0⟩
+  -- Measure finiteness helper
+  have h_ne_top : ∀ j : Fin k, μ (ι j) ≠ ⊤ :=
+    fun j => ne_top_of_le_ne_top (measure_ne_top μ _) (measure_mono (Set.subset_univ _))
+  -- Good types: source weight sum is positive (⟹ both fibers nonempty by h_weight)
+  let goodT : Finset (Fin T) := Finset.univ.filter (fun t =>
+    0 < ∑ i ∈ Finset.univ.filter (fun i : Fin k' => type_c i = t), (μ (ι (embed i))).toReal)
+  -- Type-class union for a given type function
+  let union_fn (tf : Fin k' → Fin T) (t : Fin T) : Set α :=
+    ⋃ i ∈ (Finset.univ.filter (fun i : Fin k' => tf i = t)), ι (embed i)
+  -- Waste set for a given type function
+  let waste_fn (tf : Fin k' → Fin T) : Set α :=
+    (⋃ i ∈ (Finset.univ.filter (fun i : Fin k' => tf i ∉ goodT)), ι (embed i)) ∪
+    (⋃ j ∈ (Finset.univ.filter (fun j : Fin k => j ∉ Finset.univ.image embed)), ι j)
+  -- Helper: disjoint biUnions from disjoint Finset indices
+  have disjoint_cells : ∀ (A B : Finset (Fin k)), Disjoint A B →
+      Disjoint (⋃ j ∈ A, ι j) (⋃ j ∈ B, ι j) := by
+    intro A B hAB
+    simp only [Set.disjoint_left]
+    intro x hxA hxB
+    obtain ⟨a, ha, hxa⟩ := Set.mem_iUnion₂.mp hxA
+    obtain ⟨b, hb, hxb⟩ := Set.mem_iUnion₂.mp hxB
+    have hab : a = b := by
+      by_contra hne
+      exact Set.disjoint_left.mp (P.pairwiseDisjoint (hι a) (hι b)
+        (fun h => hne (hι_inj h))) hxa hxb
+    exact Finset.disjoint_left.mp hAB ha (hab ▸ hb)
+  -- Cell index Finsets
+  let cells_union (tf : Fin k' → Fin T) (t : Fin T) : Finset (Fin k) :=
+    (Finset.univ.filter (fun i : Fin k' => tf i = t)).image embed
+  let cells_waste (tf : Fin k' → Fin T) : Finset (Fin k) :=
+    (Finset.univ.filter (fun i : Fin k' => tf i ∉ goodT)).image embed ∪
+    Finset.univ.filter (fun j : Fin k => j ∉ Finset.univ.image embed)
+  -- union_fn = biUnion over cells_union
+  have union_fn_eq : ∀ tf t, union_fn tf t = ⋃ j ∈ cells_union tf t, ι j := by
+    intro tf t; ext x
+    simp only [union_fn, cells_union, Set.mem_iUnion, Finset.mem_image, Finset.mem_filter,
+      Finset.mem_univ, true_and, exists_prop]
+    exact ⟨fun ⟨i, hi, hx⟩ => ⟨embed i, ⟨i, hi, rfl⟩, hx⟩,
+           fun ⟨_, ⟨i, hi, rfl⟩, hx⟩ => ⟨i, hi, hx⟩⟩
+  -- waste_fn = biUnion over cells_waste
+  have waste_fn_eq : ∀ tf, waste_fn tf = ⋃ j ∈ cells_waste tf, ι j := by
+    intro tf; ext x
+    simp only [waste_fn, cells_waste, Set.mem_union, Set.mem_iUnion, Finset.mem_union,
+      Finset.mem_image, Finset.mem_filter, Finset.mem_univ, true_and, exists_prop]
+    constructor
+    · rintro (⟨i, hi, hx⟩ | ⟨j, hj, hx⟩)
+      · exact ⟨embed i, Or.inl ⟨i, hi, rfl⟩, hx⟩
+      · exact ⟨j, Or.inr hj, hx⟩
+    · rintro ⟨j, hj | hj, hx⟩
+      · obtain ⟨i, hi, rfl⟩ := hj; exact Or.inl ⟨i, hi, hx⟩
+      · exact Or.inr ⟨j, hj, hx⟩
+  -- cells_union for different types are Finset-disjoint
+  have cells_union_disj : ∀ tf (t₁ t₂ : Fin T), t₁ ≠ t₂ →
+      Disjoint (cells_union tf t₁) (cells_union tf t₂) := by
+    intro tf t₁ t₂ hne; rw [Finset.disjoint_left]
+    intro j hj₁ hj₂
+    obtain ⟨i₁, hi₁, rfl⟩ := Finset.mem_image.mp hj₁
+    obtain ⟨i₂, hi₂, he⟩ := Finset.mem_image.mp hj₂
+    have h1 := (Finset.mem_filter.mp hi₁).2
+    have h2 := (Finset.mem_filter.mp hi₂).2
+    have h3 := hembed_inj he; subst h3
+    exact hne (h1.symm.trans h2)
+  -- cells_union vs cells_waste are Finset-disjoint
+  have cells_uw_disj : ∀ tf t, t ∈ goodT →
+      Disjoint (cells_union tf t) (cells_waste tf) := by
+    intro tf t ht; rw [Finset.disjoint_left]
+    intro j hj₁ hj₂
+    obtain ⟨i₁, hi₁, rfl⟩ := Finset.mem_image.mp hj₁
+    have h1 := (Finset.mem_filter.mp hi₁).2  -- tf i₁ = t
+    rcases Finset.mem_union.mp hj₂ with hj₂l | hj₂r
+    · -- embed i₁ ∈ image of bad-type cells
+      obtain ⟨i₂, hi₂, he⟩ := Finset.mem_image.mp hj₂l
+      have h3 := hembed_inj he; subst h3
+      exact (Finset.mem_filter.mp hi₂).2 (h1 ▸ ht)
+    · -- embed i₁ ∈ filter (∉ image embed), contradiction
+      exact absurd (Finset.mem_image.mpr ⟨i₁, Finset.mem_univ _, rfl⟩)
+        (Finset.mem_filter.mp hj₂r).2
+  -- Every cell index lands in waste or some union
+  have cells_cover : ∀ tf (j : Fin k),
+      j ∈ cells_waste tf ∨ ∃ t ∈ goodT, j ∈ cells_union tf t := by
+    intro tf j
+    by_cases hj : j ∈ Finset.univ.image embed
+    · obtain ⟨i, _, rfl⟩ := Finset.mem_image.mp hj
+      by_cases ht : tf i ∈ goodT
+      · exact Or.inr ⟨tf i, ht, Finset.mem_image.mpr
+          ⟨i, Finset.mem_filter.mpr ⟨Finset.mem_univ _, rfl⟩, rfl⟩⟩
+      · exact Or.inl (Finset.mem_union.mpr (Or.inl (Finset.mem_image.mpr
+          ⟨i, Finset.mem_filter.mpr ⟨Finset.mem_univ _, ht⟩, rfl⟩)))
+    · exact Or.inl (Finset.mem_union.mpr (Or.inr
+        (Finset.mem_filter.mpr ⟨Finset.mem_univ _, hj⟩)))
+  -- Build coarsened partition from a type function
+  -- (use let for definitional transparency)
+  let mkPartition (tf : Fin k' → Fin T)
+      (_ : ∀ t ∈ goodT, (Finset.univ.filter (fun i : Fin k' => tf i = t)).Nonempty) :
+      MeasurablePartition α μ := {
+    parts := insert (waste_fn tf) (goodT.image (union_fn tf))
+    measurable_parts := by
+      intro S hS
+      simp only [Finset.mem_insert, Finset.mem_image] at hS
+      rcases hS with rfl | ⟨t, _, rfl⟩
+      · -- waste_fn tf = union of two biUnions
+        apply MeasurableSet.union
+        · exact MeasurableSet.iUnion (fun i => MeasurableSet.iUnion fun _ =>
+            P.measurable_parts _ (hι (embed i)))
+        · exact MeasurableSet.iUnion (fun j => MeasurableSet.iUnion fun _ =>
+            P.measurable_parts _ (hι j))
+      · -- union_fn tf t = biUnion of measurable sets
+        exact MeasurableSet.iUnion (fun i => MeasurableSet.iUnion fun _ =>
+          P.measurable_parts _ (hι (embed i)))
+    pairwiseDisjoint := by
+      intro S hS T hT hST
+      simp only [Finset.coe_insert, Finset.coe_image, Set.mem_insert_iff,
+        Set.mem_image, Finset.mem_coe] at hS hT
+      rw [Function.onFun_apply, id, id]
+      rcases hS with rfl | ⟨t₁, ht₁, rfl⟩ <;> rcases hT with rfl | ⟨t₂, ht₂, rfl⟩
+      · exact absurd rfl hST
+      · rw [waste_fn_eq, union_fn_eq]
+        exact disjoint_cells _ _ (cells_uw_disj tf t₂ ht₂).symm
+      · rw [union_fn_eq, waste_fn_eq]
+        exact disjoint_cells _ _ (cells_uw_disj tf t₁ ht₁)
+      · rw [union_fn_eq, union_fn_eq]
+        exact disjoint_cells _ _ (cells_union_disj tf t₁ t₂ (fun h => hST (by rw [h])))
+    ae_covers := by
+      filter_upwards [P.ae_covers] with x ⟨S, hS, hxS⟩
+      obtain ⟨j, rfl⟩ := hι_surj S hS
+      rcases cells_cover tf j with hw | ⟨t, ht, hcell⟩
+      · exact ⟨waste_fn tf, Finset.mem_insert_self _ _,
+          (waste_fn_eq tf) ▸ Set.mem_biUnion hw hxS⟩
+      · exact ⟨union_fn tf t, Finset.mem_insert_of_mem (Finset.mem_image_of_mem _ ht),
+          (union_fn_eq tf t) ▸ Set.mem_biUnion hcell hxS⟩
+  }
+  -- Source fiber nonemptiness
+  have h_src_ne : ∀ t ∈ goodT,
+      (Finset.univ.filter (fun i : Fin k' => type_c i = t)).Nonempty := by
+    intro t ht
+    by_contra h
+    rw [Finset.not_nonempty_iff_eq_empty] at h
+    simp only [goodT, Finset.mem_filter, Finset.mem_univ, true_and] at ht
+    rw [h] at ht; simp at ht
+  -- Target fiber nonemptiness (from h_weight + positive source sum)
+  have h_tgt_ne : ∀ t ∈ goodT,
+      (Finset.univ.filter (fun i : Fin k' => type_c' i = t)).Nonempty := by
+    intro t ht
+    by_contra h
+    rw [Finset.not_nonempty_iff_eq_empty] at h
+    simp only [goodT, Finset.mem_filter, Finset.mem_univ, true_and] at ht
+    have := (h_weight t).symm; rw [h] at this; simp at this; linarith
+  let P_src := mkPartition type_c h_src_ne
+  let P_tgt := mkPartition type_c' h_tgt_ne
+  -- union membership in coarsened partition
+  have h_union_mem : ∀ (tf : Fin k' → Fin T) h_ne (t : Fin T), t ∈ goodT →
+      union_fn tf t ∈ (mkPartition tf h_ne).parts :=
+    fun _ _ t ht => Finset.mem_insert_of_mem (Finset.mem_image_of_mem _ ht)
+  -- Disjointness of union filters for measure_biUnion_finset
+  have h_embed_disj : ∀ (tf : Fin k' → Fin T) (t : Fin T),
+      Set.PairwiseDisjoint
+        (Finset.univ.filter (fun i : Fin k' => tf i = t) : Set (Fin k'))
+        (fun i => ι (embed i)) := by
+    intro tf t i₁ hi₁ i₂ hi₂ hne
+    exact P.pairwiseDisjoint (hι _) (hι _) (fun h => hne (hembed_inj (hι_inj h)))
+  -- Measure matching: μ(union_fn type_c t) = μ(union_fn type_c' t) for good t
+  have h_meas_match : ∀ t ∈ goodT, μ (union_fn type_c t) = μ (union_fn type_c' t) := by
+    intro t _
+    show μ (⋃ i ∈ Finset.univ.filter (type_c · = t), ι (embed i)) =
+         μ (⋃ i ∈ Finset.univ.filter (type_c' · = t), ι (embed i))
+    rw [measure_biUnion_finset (h_embed_disj type_c t)
+          (fun i _ => P.measurable_parts _ (hι (embed i))),
+        measure_biUnion_finset (h_embed_disj type_c' t)
+          (fun i _ => P.measurable_parts _ (hι (embed i)))]
+    have h_ne_s := ENNReal.sum_ne_top.mpr
+      (fun i (_ : i ∈ Finset.univ.filter (type_c · = t)) => h_ne_top (embed i))
+    have h_ne_t := ENNReal.sum_ne_top.mpr
+      (fun i (_ : i ∈ Finset.univ.filter (type_c' · = t)) => h_ne_top (embed i))
+    rw [← ENNReal.toReal_eq_toReal h_ne_s h_ne_t,
+        ENNReal.toReal_sum (fun i _ => h_ne_top (embed i)),
+        ENNReal.toReal_sum (fun i _ => h_ne_top (embed i))]
+    exact h_weight t
+  -- Injectivity: union_fn is injective on goodT for type_c and type_c'
+  -- Key: t ∈ goodT → μ(union) > 0 → union ≠ ∅; different types → disjoint → distinct
+  have h_pos_measure_src : ∀ t ∈ goodT, μ (union_fn type_c t) ≠ 0 := by
+    intro t ht
+    have h_pos := (Finset.mem_filter.mp ht).2
+    show μ (⋃ i ∈ Finset.univ.filter (type_c · = t), ι (embed i)) ≠ 0
+    rw [measure_biUnion_finset (h_embed_disj type_c t)
+      (fun i _ => P.measurable_parts _ (hι (embed i)))]
+    intro h_zero
+    have h_toReal := ENNReal.toReal_sum
+      (s := Finset.univ.filter (type_c · = t))
+      (fun i _ => h_ne_top (embed i))
+    linarith [h_toReal ▸ (show (0 : ℝ≥0∞).toReal = (0 : ℝ) from rfl) ▸
+      congr_arg ENNReal.toReal h_zero]
+  have h_pos_measure_tgt : ∀ t ∈ goodT, μ (union_fn type_c' t) ≠ 0 := by
+    intro t ht
+    rw [← h_meas_match t ht]; exact h_pos_measure_src t ht
+  -- Index good types by Fin
+  let eG := goodT.equivFin
+  -- Injectivity of src through equivFin
+  have h_src_inj : Function.Injective
+      (fun i : Fin goodT.card => union_fn type_c ((eG.symm i : ↥goodT).val)) := by
+    intro i₁ i₂ h_eq
+    by_contra hne
+    have hv : (eG.symm i₁ : ↥goodT).val ≠ (eG.symm i₂ : ↥goodT).val :=
+      fun he => hne (eG.symm.injective (Subtype.val_injective he))
+    have h_disj := disjoint_cells _ _ (cells_union_disj type_c _ _ hv)
+    have h_eq_expanded : ⋃ j ∈ cells_union type_c (eG.symm i₁).val, ι j =
+                         ⋃ j ∈ cells_union type_c (eG.symm i₂).val, ι j := by
+      rw [← union_fn_eq type_c (eG.symm i₁).val, ← union_fn_eq type_c (eG.symm i₂).val]
+      exact h_eq
+    rw [h_eq_expanded] at h_disj
+    have h_empty : ⋃ j ∈ cells_union type_c (eG.symm i₂).val, ι j = ⊥ := disjoint_self.mp h_disj
+    rw [← union_fn_eq type_c (eG.symm i₂).val] at h_empty
+    simp only [show (⊥ : Set α) = ∅ from rfl] at h_empty
+    exact h_pos_measure_src _ (eG.symm i₂).prop (h_empty ▸ measure_empty)
+  have h_tgt_inj : Function.Injective
+      (fun i : Fin goodT.card => union_fn type_c' ((eG.symm i : ↥goodT).val)) := by
+    intro i₁ i₂ h_eq
+    by_contra hne
+    have hv : (eG.symm i₁ : ↥goodT).val ≠ (eG.symm i₂ : ↥goodT).val :=
+      fun he => hne (eG.symm.injective (Subtype.val_injective he))
+    have h_disj := disjoint_cells _ _ (cells_union_disj type_c' _ _ hv)
+    have h_eq_expanded : ⋃ j ∈ cells_union type_c' (eG.symm i₁).val, ι j =
+                         ⋃ j ∈ cells_union type_c' (eG.symm i₂).val, ι j := by
+      rw [← union_fn_eq type_c' (eG.symm i₁).val, ← union_fn_eq type_c' (eG.symm i₂).val]
+      exact h_eq
+    rw [h_eq_expanded] at h_disj
+    have h_empty : ⋃ j ∈ cells_union type_c' (eG.symm i₂).val, ι j = ⊥ := disjoint_self.mp h_disj
+    rw [← union_fn_eq type_c' (eG.symm i₂).val] at h_empty
+    simp only [show (⊥ : Set α) = ∅ from rfl] at h_empty
+    exact h_pos_measure_tgt _ (eG.symm i₂).prop (h_empty ▸ measure_empty)
+  -- Apply controlled cell alignment
+  obtain ⟨e, he, h_align⟩ := MeasurePreserving.exists_controlled_cell_alignment P_src P_tgt
+    (fun i => union_fn type_c ((eG.symm i : ↥goodT).val))
+    (fun i => union_fn type_c' ((eG.symm i : ↥goodT).val))
+    (fun i => h_union_mem type_c h_src_ne _ (eG.symm i).prop)
+    (fun i => h_union_mem type_c' h_tgt_ne _ (eG.symm i).prop)
+    h_src_inj h_tgt_inj
+    (fun i => h_meas_match _ (eG.symm i).prop)
+  -- Derive conclusion
+  refine ⟨e, he, fun i => ?_⟩
+  by_cases h_good : type_c i ∈ goodT
+  · -- Good type: alignment maps union to union, extract target cell
+    set idx := eG ⟨type_c i, h_good⟩ with idx_def
+    have hidx : (eG.symm idx : ↥goodT).val = type_c i := by simp [idx_def]
+    filter_upwards [h_align idx] with x hx hxi
+    have hx_mem : x ∈ union_fn type_c ((eG.symm idx : ↥goodT).val) :=
+      hidx ▸ Set.mem_iUnion₂.mpr ⟨i, Finset.mem_filter.mpr ⟨Finset.mem_univ _, rfl⟩, hxi⟩
+    have : e x ∈ union_fn type_c' ((eG.symm idx : ↥goodT).val) := hx hx_mem
+    rw [hidx] at this
+    have h_eq := union_fn_eq type_c' (type_c i)
+    rw [h_eq] at this
+    obtain ⟨j, hj, hej⟩ := Set.mem_iUnion₂.mp this
+    -- j : Fin k from cells_union, need to find i' : Fin k' with embed i' = j
+    obtain ⟨i', hi'_embed⟩ := Finset.mem_image.mp hj
+    exact ⟨i', (Finset.mem_filter.mp hi'_embed.1).2.symm, hi'_embed.2 ▸ hej⟩
+  · -- Bad type: μ(ι(embed i)) = 0, conclusion is vacuously true
+    have h_zero : μ (ι (embed i)) = 0 := by
+      have h_sum_zero : ∑ j ∈ Finset.univ.filter (type_c · = type_c i),
+          (μ (ι (embed j))).toReal = 0 := by
+        by_contra h_pos; push_neg at h_pos
+        exact h_good (Finset.mem_filter.mpr ⟨Finset.mem_univ _,
+          lt_of_le_of_ne (Finset.sum_nonneg (fun _ _ => ENNReal.toReal_nonneg))
+            (Ne.symm h_pos)⟩)
+      have h_all_zero := (Finset.sum_eq_zero_iff_of_nonneg
+        (fun _ _ => ENNReal.toReal_nonneg)).mp h_sum_zero
+      have h_i_zero := h_all_zero i (Finset.mem_filter.mpr ⟨Finset.mem_univ _, rfl⟩)
+      exact ((ENNReal.toReal_eq_zero_iff _).mp h_i_zero).resolve_right (h_ne_top (embed i))
+    have h_ae : ∀ᵐ x ∂μ, x ∉ ι (embed i) := by
+      rw [ae_iff]
+      simp only [Set.compl_setOf, not_not]
+      exact h_zero
+    filter_upwards [h_ae] with x hx hxi
+    exact absurd hxi hx
 
 /-- **Algebraic determination for step graphons (measure-theoretic version).**
 
