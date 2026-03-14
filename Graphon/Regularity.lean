@@ -4664,7 +4664,7 @@ set_option maxHeartbeats 800000
 /-- IVT for atomless measures: any measurable set can be split at any prescribed measure.
 This is a standard result (Sierpinski's theorem). Given `[StandardBorelSpace α]`,
 we use a countable separating sequence to greedily construct the desired subset. -/
-private theorem exists_measurable_subset_of_measure [StandardBorelSpace α] [NoAtoms μ]
+theorem exists_measurable_subset_of_measure [StandardBorelSpace α] [NoAtoms μ]
     {S : Set α} (hS : MeasurableSet S) {r : ℝ≥0∞} (hr : r ≤ μ S) :
     ∃ T : Set α, MeasurableSet T ∧ T ⊆ S ∧ μ T = r := by
   -- Obtain a countable separating sequence of measurable sets

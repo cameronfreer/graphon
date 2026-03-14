@@ -1650,6 +1650,37 @@ private theorem step_quantitative_icl
   rw [h_cd_lim, cutDistance_symm V_W (stepify P (W_seq (ψ m)))] at h_tri
   linarith [h_far (ψ m)]
 
+/-- Build a `MeasurablePartition` with `K` cells having prescribed measures. -/
+private theorem exists_partition_with_measures {K : ℕ}
+    (w : Fin K → ℝ) (hw_nn : ∀ i, 0 ≤ w i) (hw_sum : ∑ i, w i = 1) :
+    ∃ (P : MeasurablePartition α μ) (ι : Fin K → Set α),
+      (∀ i, ι i ∈ P.parts) ∧
+      Function.Injective ι ∧
+      (∀ S ∈ P.parts, ∃ i, ι i = S) ∧
+      P.parts.card = K ∧
+      ∀ i, (μ (ι i)).toReal = w i := by
+  sorry
+
+/-- Weight stability for step graphons on different partitions with same coefficients.
+**Sorry traces to**: `MeasurePreserving.exists_common_extension` (Rokhlin). -/
+private theorem cutDistance_step_weight_le {K : ℕ}
+    (P Q : MeasurablePartition α μ)
+    (c_P c_Q : Set α → Set α → ℝ)
+    (hc_P_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c_P S T = c_P T S)
+    (hc_P_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c_P S T ∈ Set.Icc 0 1)
+    (hc_Q_symm : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts, c_Q S T = c_Q T S)
+    (hc_Q_mem : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts, c_Q S T ∈ Set.Icc 0 1)
+    (ι_P : Fin K → Set α) (ι_Q : Fin K → Set α)
+    (hι_P : ∀ i, ι_P i ∈ P.parts) (hι_Q : ∀ i, ι_Q i ∈ Q.parts)
+    (hι_P_surj : ∀ S ∈ P.parts, ∃ i, ι_P i = S)
+    (hι_Q_surj : ∀ S ∈ Q.parts, ∃ i, ι_Q i = S)
+    (h_coeff_eq : ∀ i j : Fin K, c_P (ι_P i) (ι_P j) = c_Q (ι_Q i) (ι_Q j)) :
+    cutDistance (mkStepGraphon P c_P hc_P_symm hc_P_mem)
+               (mkStepGraphon Q c_Q hc_Q_symm hc_Q_mem) ≤
+      2 * ∑ i : Fin K, |(μ (ι_P i)).toReal - (μ (ι_Q i)).toReal| := by
+  sorry
+
+set_option maxHeartbeats 800000 in
 /-- **Bounded step inverse counting lemma**: uniform version of `step_quantitative_icl`
 over all partitions with at most K parts.
 
@@ -1672,7 +1703,356 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
       (∀ (F : SimpleGraph (Fin m)) [DecidableRel F.Adj],
         |homDensity F (stepify P U) - homDensity F (stepify P W)| < δ) →
       cutDistance (stepify P U) (stepify P W) < ε := by
-  sorry
+  classical
+  by_contra h_neg
+  push_neg at h_neg
+  have h_seq : ∀ n : ℕ, ∃ (P_n : MeasurablePartition α μ) (_ : P_n.parts.card ≤ K)
+      (U_n W_n : Graphon α μ),
+      (∀ (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+        |homDensity F (stepify P_n U_n) - homDensity F (stepify P_n W_n)| <
+          1 / (↑n + 1 : ℝ)) ∧
+      cutDistance (stepify P_n U_n) (stepify P_n W_n) ≥ ε := by
+    intro n
+    obtain ⟨P_n, hP_n, U_n, W_n, h1, h2⟩ := h_neg (1 / (↑n + 1 : ℝ)) (by positivity) n
+    exact ⟨P_n, hP_n, U_n, W_n, h1, h2⟩
+  choose P_seq hP_card U_seq W_seq h_close h_far using h_seq
+  set pad : ∀ n : ℕ, Fin K → Set α := fun n i =>
+    if h : (i : ℕ) < (P_seq n).parts.card
+    then ((P_seq n).parts.equivFin.symm ⟨i, h⟩ : Set α)
+    else if hne : ∃ S, S ∈ (P_seq n).parts
+    then (hne.choose : Set α)
+    else Set.univ with pad_def
+  set w_seq : ℕ → Fin K → ℝ := fun n i =>
+    if (i : ℕ) < (P_seq n).parts.card
+    then (μ (pad n i)).toReal
+    else 0 with w_seq_def
+  set coeff_seq : ℕ → Fin K → Fin K → Fin 2 → ℝ := fun n i j b =>
+    if (i : ℕ) < (P_seq n).parts.card ∧ (j : ℕ) < (P_seq n).parts.card
+    then if b = 0
+      then rectAverage (U_seq n) (pad n i) (pad n j)
+      else rectAverage (W_seq n) (pad n i) (pad n j)
+    else 0 with coeff_seq_def
+  have h_pad_mem : ∀ (n : ℕ) (i : Fin K), (i : ℕ) < (P_seq n).parts.card →
+      pad n i ∈ (P_seq n).parts := by
+    intro n i hi; simp only [pad, dif_pos hi]
+    exact ((P_seq n).parts.equivFin.symm ⟨i, hi⟩).prop
+  have h_pad_inj : ∀ n, ∀ i j : Fin K,
+      (i : ℕ) < (P_seq n).parts.card → (j : ℕ) < (P_seq n).parts.card →
+      pad n i = pad n j → i = j := by
+    intro n i j hi hj hij
+    simp only [pad, dif_pos hi, dif_pos hj] at hij
+    have h_eq := (P_seq n).parts.equivFin.symm.injective (Subtype.val_injective hij)
+    exact Fin.ext (Fin.mk.inj_iff.mp h_eq)
+  have h_pad_surj : ∀ n, ∀ S ∈ (P_seq n).parts, ∃ i : Fin K,
+      (i : ℕ) < (P_seq n).parts.card ∧ pad n i = S := by
+    intro n S hS
+    set idx := (P_seq n).parts.equivFin ⟨S, hS⟩
+    have h_lt : (idx : ℕ) < (P_seq n).parts.card := idx.isLt
+    have h_lt_K : (idx : ℕ) < K := lt_of_lt_of_le h_lt (hP_card n)
+    refine ⟨⟨idx, h_lt_K⟩, h_lt, ?_⟩
+    simp only [pad, dif_pos h_lt]
+    have h_symm := (P_seq n).parts.equivFin.symm_apply_apply ⟨S, hS⟩
+    exact congrArg Subtype.val h_symm
+  have h_c_mem : ∀ n i j b, coeff_seq n i j b ∈ Set.Icc (0 : ℝ) 1 := by
+    intro n i j b; simp only [coeff_seq]
+    split
+    · rename_i h; split
+      · exact rectAverage_mem_Icc _ _ _ ((P_seq n).measurableSet_part (h_pad_mem n i h.1))
+            ((P_seq n).measurableSet_part (h_pad_mem n j h.2))
+      · exact rectAverage_mem_Icc _ _ _ ((P_seq n).measurableSet_part (h_pad_mem n i h.1))
+            ((P_seq n).measurableSet_part (h_pad_mem n j h.2))
+    · exact ⟨le_refl 0, zero_le_one⟩
+  have h_w_mem : ∀ (n : ℕ) (i : Fin K), w_seq n i ∈ Set.Icc (0 : ℝ) 1 := by
+    intro n i; simp only [w_seq]; split
+    · exact ⟨ENNReal.toReal_nonneg, by
+        have h1 : μ (pad n i) ≤ μ Set.univ := measure_mono (Set.subset_univ _)
+        rw [measure_univ] at h1
+        exact ENNReal.toReal_le_of_le_ofReal zero_le_one (by simpa using h1)⟩
+    · exact ⟨le_refl 0, zero_le_one⟩
+  have h_compact_cw :
+      IsCompact {f : (Fin K → Fin K → Fin 2 → ℝ) × (Fin K → ℝ) |
+        (∀ i j b, f.1 i j b ∈ Set.Icc 0 1) ∧ (∀ i, f.2 i ∈ Set.Icc 0 1)} :=
+    IsCompact.prod
+      (isCompact_pi_infinite (fun _ => isCompact_pi_infinite (fun _ =>
+        isCompact_pi_infinite (fun _ => isCompact_Icc))))
+      (isCompact_pi_infinite (fun _ => isCompact_Icc))
+  have h_data_mem : ∀ n, (coeff_seq n, w_seq n) ∈
+      {f : (Fin K → Fin K → Fin 2 → ℝ) × (Fin K → ℝ) |
+        (∀ i j b, f.1 i j b ∈ Set.Icc 0 1) ∧ (∀ i, f.2 i ∈ Set.Icc 0 1)} :=
+    fun n => ⟨h_c_mem n, h_w_mem n⟩
+  obtain ⟨⟨c_lim, w_lim⟩, ⟨h_clim_mem, h_wlim_mem⟩, ψ, hψ, h_conv⟩ :=
+    h_compact_cw.isSeqCompact h_data_mem
+  have h_pw_c : ∀ i j b, Tendsto (fun n => coeff_seq (ψ n) i j b) atTop
+      (nhds (c_lim i j b)) := by
+    intro i j b
+    exact ((tendsto_pi_nhds.mp ((tendsto_pi_nhds.mp ((tendsto_pi_nhds.mp
+      ((continuous_fst.tendsto _).comp h_conv)) i)) j)) b)
+  have h_pw_w : ∀ i, Tendsto (fun n => w_seq (ψ n) i) atTop (nhds (w_lim i)) := by
+    intro i; exact (tendsto_pi_nhds.mp ((continuous_snd.tendsto _).comp h_conv)) i
+  have h_wlim_nn : ∀ i, 0 ≤ w_lim i := fun i => (h_wlim_mem i).1
+  have h_wlim_sum : ∑ i : Fin K, w_lim i = 1 := by
+    have h_w_sum : ∀ n, ∑ i : Fin K, w_seq n i = 1 := by intro n; sorry
+    exact tendsto_nhds_unique
+      ((tendsto_finset_sum _ (fun i _ => h_pw_w i)).congr
+        (fun n => (h_w_sum (ψ n)).symm ▸ rfl))
+      tendsto_const_nhds
+  obtain ⟨P_lim, ι_lim, hι_lim_mem, hι_lim_inj, hι_lim_surj, hP_lim_card, hι_lim_meas⟩ :=
+    exists_partition_with_measures (μ := μ) w_lim h_wlim_nn h_wlim_sum
+  have hι_lim_bij : ∀ S ∈ P_lim.parts, ∃! i : Fin K, ι_lim i = S := by
+    intro S hS; obtain ⟨i, hi⟩ := hι_lim_surj S hS
+    exact ⟨i, hi, fun j hj => hι_lim_inj (hj.trans hi.symm)⟩
+  set ι_inv : ∀ S : Set α, S ∈ P_lim.parts → Fin K :=
+    fun S hS => (hι_lim_bij S hS).choose with ι_inv_def
+  have hι_inv_spec : ∀ S (hS : S ∈ P_lim.parts), ι_lim (ι_inv S hS) = S :=
+    fun S hS => (hι_lim_bij S hS).choose_spec.1
+  have hι_inv_lim : ∀ i, ι_inv (ι_lim i) (hι_lim_mem i) = i :=
+    fun i => hι_lim_inj ((hι_inv_spec (ι_lim i) (hι_lim_mem i)))
+  set c_U : Set α → Set α → ℝ := fun S T =>
+    if hS : S ∈ P_lim.parts then if hT : T ∈ P_lim.parts then
+      c_lim (ι_inv S hS) (ι_inv T hT) 0
+    else 0 else 0
+  set c_W : Set α → Set α → ℝ := fun S T =>
+    if hS : S ∈ P_lim.parts then if hT : T ∈ P_lim.parts then
+      c_lim (ι_inv S hS) (ι_inv T hT) 1
+    else 0 else 0
+  have h_cU_ι : ∀ i j, c_U (ι_lim i) (ι_lim j) = c_lim i j 0 := by
+    intro i j; simp only [c_U, hι_lim_mem i, hι_lim_mem j, dif_pos, hι_inv_lim]
+  have h_cW_ι : ∀ i j, c_W (ι_lim i) (ι_lim j) = c_lim i j 1 := by
+    intro i j; simp only [c_W, hι_lim_mem i, hι_lim_mem j, dif_pos, hι_inv_lim]
+  have h_cU_symm : ∀ S ∈ P_lim.parts, ∀ T ∈ P_lim.parts, c_U S T = c_U T S := by
+    intro S hS T hT; simp only [c_U, hS, hT, dif_pos]
+    set iS := ι_inv S hS; set iT := ι_inv T hT
+    have h_symm_seq : ∀ n, coeff_seq (ψ n) iS iT 0 = coeff_seq (ψ n) iT iS 0 := by
+      intro n; simp only [coeff_seq]
+      by_cases h1 : (iS : ℕ) < (P_seq (ψ n)).parts.card ∧ (iT : ℕ) < (P_seq (ψ n)).parts.card
+      · simp only [h1, ite_true]
+        exact rectAverage_symm (U_seq (ψ n)) _ _
+          ((P_seq (ψ n)).measurableSet_part (h_pad_mem (ψ n) iS h1.1))
+          ((P_seq (ψ n)).measurableSet_part (h_pad_mem (ψ n) iT h1.2))
+      · simp only [h1, ite_false]
+        have h2 : ¬((iT : ℕ) < (P_seq (ψ n)).parts.card ∧ (iS : ℕ) < (P_seq (ψ n)).parts.card) :=
+          fun h => h1 ⟨h.2, h.1⟩
+        simp [h2]
+    exact tendsto_nhds_unique (h_pw_c iS iT 0)
+      ((h_pw_c iT iS 0).congr (fun n => (h_symm_seq n).symm))
+  have h_cW_symm : ∀ S ∈ P_lim.parts, ∀ T ∈ P_lim.parts, c_W S T = c_W T S := by
+    intro S hS T hT; simp only [c_W, hS, hT, dif_pos]
+    set iS := ι_inv S hS; set iT := ι_inv T hT
+    have h_symm_seq : ∀ n, coeff_seq (ψ n) iS iT 1 = coeff_seq (ψ n) iT iS 1 := by
+      intro n; simp only [coeff_seq]
+      by_cases h1 : (iS : ℕ) < (P_seq (ψ n)).parts.card ∧ (iT : ℕ) < (P_seq (ψ n)).parts.card
+      · simp only [h1, ite_true]
+        simp only [show ¬((1 : Fin 2) = 0) from by decide, ite_false]
+        exact rectAverage_symm (W_seq (ψ n)) _ _
+          ((P_seq (ψ n)).measurableSet_part (h_pad_mem (ψ n) iS h1.1))
+          ((P_seq (ψ n)).measurableSet_part (h_pad_mem (ψ n) iT h1.2))
+      · simp only [h1, ite_false]
+        have h2 : ¬((iT : ℕ) < (P_seq (ψ n)).parts.card ∧ (iS : ℕ) < (P_seq (ψ n)).parts.card) :=
+          fun h => h1 ⟨h.2, h.1⟩
+        simp [h2]
+    exact tendsto_nhds_unique (h_pw_c iS iT 1)
+      ((h_pw_c iT iS 1).congr (fun n => (h_symm_seq n).symm))
+  have h_cU_mem : ∀ S ∈ P_lim.parts, ∀ T ∈ P_lim.parts, c_U S T ∈ Set.Icc 0 1 := by
+    intro S hS T hT; simp only [c_U, hS, hT, dif_pos]; exact h_clim_mem _ _ _
+  have h_cW_mem : ∀ S ∈ P_lim.parts, ∀ T ∈ P_lim.parts, c_W S T ∈ Set.Icc 0 1 := by
+    intro S hS T hT; simp only [c_W, hS, hT, dif_pos]; exact h_clim_mem _ _ _
+  set V_U := mkStepGraphon P_lim c_U h_cU_symm h_cU_mem
+  set V_W := mkStepGraphon P_lim c_W h_cW_symm h_cW_mem
+  have h_bridge_U := homDensity_mkStepGraphon_eq_weightedHomSum
+    P_lim c_U h_cU_symm h_cU_mem ι_lim hι_lim_mem hι_lim_surj hι_lim_inj
+  have h_bridge_W := homDensity_mkStepGraphon_eq_weightedHomSum
+    P_lim c_W h_cW_symm h_cW_mem ι_lim hι_lim_mem hι_lim_surj hι_lim_inj
+  set w_lim' : Fin K → ℝ := fun i => (μ (ι_lim i)).toReal
+  have h_w_eq : ∀ i, w_lim' i = w_lim i := fun i => hι_lim_meas i
+  have h_whs_conv_U : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      Tendsto (fun m => weightedHomSum n F
+        (fun i j => coeff_seq (ψ m) i j 0) (w_seq (ψ m))) atTop
+        (nhds (weightedHomSum n F (fun i j => c_lim i j 0) w_lim)) := by
+    intro n F _; apply tendsto_finset_sum _ (fun σ _ => ?_)
+    apply Filter.Tendsto.mul
+    · apply tendsto_finset_prod _ (fun v _ => ?_); exact h_pw_w (σ v)
+    · apply tendsto_finset_prod _ (fun e _ => ?_); exact h_pw_c _ _ 0
+  have h_whs_conv_W : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      Tendsto (fun m => weightedHomSum n F
+        (fun i j => coeff_seq (ψ m) i j 1) (w_seq (ψ m))) atTop
+        (nhds (weightedHomSum n F (fun i j => c_lim i j 1) w_lim)) := by
+    intro n F _; apply tendsto_finset_sum _ (fun σ _ => ?_)
+    apply Filter.Tendsto.mul
+    · apply tendsto_finset_prod _ (fun v _ => ?_); exact h_pw_w (σ v)
+    · apply tendsto_finset_prod _ (fun e _ => ?_); exact h_pw_c _ _ 1
+  have h_stepify_bridge : ∀ m : ℕ, ∀ (V : Graphon α μ) (b : Fin 2),
+      ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      n ≤ ψ m →
+      (hb : (b = 0 → V = U_seq (ψ m)) ∧ (b = 1 → V = W_seq (ψ m))) →
+      |homDensity F (stepify (P_seq (ψ m)) V) -
+       weightedHomSum n F (fun i j => coeff_seq (ψ m) i j b) (w_seq (ψ m))| = 0 := by
+    sorry
+  have h_hom_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      homDensity F V_U = homDensity F V_W := by
+    intro n F _
+    rw [h_bridge_U n F, h_bridge_W n F]; simp only [h_cU_ι, h_cW_ι]
+    conv_lhs => rw [show w_lim' = w_lim from funext h_w_eq]
+    conv_rhs => rw [show w_lim' = w_lim from funext h_w_eq]
+    have h_bound : ∀ᶠ m in atTop, |weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 0) (w_seq (ψ m)) -
+        weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 1) (w_seq (ψ m))| ≤
+        1 / (↑(ψ m) + 1 : ℝ) := by
+      sorry
+    have h_inv_tends : Tendsto (fun m => 1 / (↑(ψ m) + 1 : ℝ)) atTop (nhds 0) := by
+      apply Filter.Tendsto.div_atTop tendsto_const_nhds
+      exact (tendsto_natCast_atTop_atTop.comp hψ.tendsto_atTop).atTop_add tendsto_const_nhds
+    have h_abs_diff_tends : Tendsto (fun m => |weightedHomSum n F
+        (fun i j => coeff_seq (ψ m) i j 0) (w_seq (ψ m)) -
+        weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 1) (w_seq (ψ m))|) atTop (nhds 0) :=
+      squeeze_zero' (Eventually.of_forall (fun m => abs_nonneg _)) h_bound h_inv_tends
+    have h_diff_tends : Tendsto (fun m => weightedHomSum n F
+        (fun i j => coeff_seq (ψ m) i j 0) (w_seq (ψ m)) -
+        weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 1) (w_seq (ψ m))) atTop (nhds 0) :=
+      tendsto_zero_iff_norm_tendsto_zero.mpr
+        (by simpa [Real.norm_eq_abs] using h_abs_diff_tends)
+    apply tendsto_nhds_unique (h_whs_conv_U n F)
+    have : Tendsto (fun m =>
+        (weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 0) (w_seq (ψ m)) -
+         weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 1) (w_seq (ψ m))) +
+        weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 1) (w_seq (ψ m))) atTop
+        (nhds (0 + weightedHomSum n F (fun i j => c_lim i j 1) w_lim)) :=
+      h_diff_tends.add (h_whs_conv_W n F)
+    simp only [sub_add_cancel, zero_add] at this
+    exact this
+  have h_cd_lim : cutDistance V_U V_W = 0 :=
+    cutDistance_zero_of_step_homDensity_eq P_lim c_U c_W h_cU_symm h_cU_mem h_cW_symm h_cW_mem
+      h_hom_eq
+  have hε4 : ε / 4 > 0 := by linarith
+  have h_event_all_c : ∀ b, ∀ᶠ m in atTop, ∀ i j,
+      |coeff_seq (ψ m) i j b - c_lim i j b| < ε / 8 := by
+    intro b; rw [Filter.eventually_atTop]
+    have hε8 : ε / 8 > 0 := by linarith
+    have : ∀ i j, ∃ N, ∀ m ≥ N,
+        |coeff_seq (ψ m) i j b - c_lim i j b| < ε / 8 := by
+      intro i j
+      obtain ⟨N, hN⟩ := Metric.tendsto_atTop.mp (h_pw_c i j b) (ε / 8) hε8
+      exact ⟨N, fun m hm => by have := hN m hm; rw [Real.dist_eq] at this; exact this⟩
+    choose N_ij hN_ij using this
+    exact ⟨(Finset.univ : Finset (Fin K × Fin K)).sup (fun p => N_ij p.1 p.2),
+      fun m hm i j => hN_ij i j m (le_trans
+        (Finset.le_sup (f := fun p => N_ij p.1 p.2) (Finset.mem_univ (i, j))) hm)⟩
+  have h_event_all_w : ∀ᶠ m in atTop, ∀ i,
+      |w_seq (ψ m) i - w_lim i| < ε / (8 * (↑K + 1)) := by
+    rw [Filter.eventually_atTop]
+    have hε8K : ε / (8 * (↑K + 1)) > 0 := by positivity
+    have : ∀ i, ∃ N, ∀ m ≥ N,
+        |w_seq (ψ m) i - w_lim i| < ε / (8 * (↑K + 1)) := by
+      intro i
+      obtain ⟨N, hN⟩ := Metric.tendsto_atTop.mp (h_pw_w i) (ε / (8 * (↑K + 1))) hε8K
+      exact ⟨N, fun m hm => by have := hN m hm; rw [Real.dist_eq] at this; exact this⟩
+    choose N_i hN_i using this
+    exact ⟨(Finset.univ : Finset (Fin K)).sup N_i,
+      fun m hm i => hN_i i m (le_trans (Finset.le_sup (Finset.mem_univ i)) hm)⟩
+  obtain ⟨m, ⟨hm_c0, hm_c1⟩, hm_w⟩ :=
+    ((h_event_all_c 0).and (h_event_all_c 1)).and h_event_all_w |>.exists
+  set c_Um : Set α → Set α → ℝ := fun S T =>
+    if hS : S ∈ P_lim.parts then if hT : T ∈ P_lim.parts then
+      coeff_seq (ψ m) (ι_inv S hS) (ι_inv T hT) 0
+    else 0 else 0
+  set c_Wm : Set α → Set α → ℝ := fun S T =>
+    if hS : S ∈ P_lim.parts then if hT : T ∈ P_lim.parts then
+      coeff_seq (ψ m) (ι_inv S hS) (ι_inv T hT) 1
+    else 0 else 0
+  have h_cUm_ι : ∀ i j, c_Um (ι_lim i) (ι_lim j) = coeff_seq (ψ m) i j 0 := by
+    intro i j; simp only [c_Um, hι_lim_mem i, hι_lim_mem j, dif_pos, hι_inv_lim]
+  have h_cWm_ι : ∀ i j, c_Wm (ι_lim i) (ι_lim j) = coeff_seq (ψ m) i j 1 := by
+    intro i j; simp only [c_Wm, hι_lim_mem i, hι_lim_mem j, dif_pos, hι_inv_lim]
+  have h_cUm_symm : ∀ S ∈ P_lim.parts, ∀ T ∈ P_lim.parts, c_Um S T = c_Um T S := by
+    intro S hS T hT; simp only [c_Um, hS, hT, dif_pos]; simp only [coeff_seq]
+    set iS := ι_inv S hS; set iT := ι_inv T hT
+    by_cases h1 : (iS : ℕ) < (P_seq (ψ m)).parts.card ∧ (iT : ℕ) < (P_seq (ψ m)).parts.card
+    · simp only [h1, ite_true]
+      exact rectAverage_symm (U_seq (ψ m)) _ _
+        ((P_seq (ψ m)).measurableSet_part (h_pad_mem (ψ m) iS h1.1))
+        ((P_seq (ψ m)).measurableSet_part (h_pad_mem (ψ m) iT h1.2))
+    · simp only [h1, ite_false]
+      have h2 : ¬((iT : ℕ) < (P_seq (ψ m)).parts.card ∧ (iS : ℕ) < (P_seq (ψ m)).parts.card) :=
+        fun h => h1 ⟨h.2, h.1⟩
+      simp [h2]
+  have h_cWm_symm : ∀ S ∈ P_lim.parts, ∀ T ∈ P_lim.parts, c_Wm S T = c_Wm T S := by
+    intro S hS T hT; simp only [c_Wm, hS, hT, dif_pos]; simp only [coeff_seq]
+    set iS := ι_inv S hS; set iT := ι_inv T hT
+    by_cases h1 : (iS : ℕ) < (P_seq (ψ m)).parts.card ∧ (iT : ℕ) < (P_seq (ψ m)).parts.card
+    · simp only [h1, ite_true]
+      simp only [show ¬((1 : Fin 2) = 0) from by decide, ite_false]
+      exact rectAverage_symm (W_seq (ψ m)) _ _
+        ((P_seq (ψ m)).measurableSet_part (h_pad_mem (ψ m) iS h1.1))
+        ((P_seq (ψ m)).measurableSet_part (h_pad_mem (ψ m) iT h1.2))
+    · simp only [h1, ite_false]
+      have h2 : ¬((iT : ℕ) < (P_seq (ψ m)).parts.card ∧ (iS : ℕ) < (P_seq (ψ m)).parts.card) :=
+        fun h => h1 ⟨h.2, h.1⟩
+      simp [h2]
+  have h_cUm_mem : ∀ S ∈ P_lim.parts, ∀ T ∈ P_lim.parts, c_Um S T ∈ Set.Icc 0 1 := by
+    intro S hS T hT; simp only [c_Um, hS, hT, dif_pos]; exact h_c_mem _ _ _ _
+  have h_cWm_mem : ∀ S ∈ P_lim.parts, ∀ T ∈ P_lim.parts, c_Wm S T ∈ Set.Icc 0 1 := by
+    intro S hS T hT; simp only [c_Wm, hS, hT, dif_pos]; exact h_c_mem _ _ _ _
+  set G_Um := mkStepGraphon P_lim c_Um h_cUm_symm h_cUm_mem
+  set G_Wm := mkStepGraphon P_lim c_Wm h_cWm_symm h_cWm_mem
+  have h_cn_U : cutNormDiff G_Um V_U ≤ ε / 8 := by
+    apply cutNormDiff_mkStepGraphon_le P_lim c_Um c_U
+      h_cUm_symm h_cUm_mem h_cU_symm h_cU_mem (ε / 8)
+    intro S hS T hT
+    obtain ⟨i, hi⟩ := hι_lim_surj S hS; obtain ⟨j, hj⟩ := hι_lim_surj T hT
+    rw [← hi, ← hj, h_cUm_ι, h_cU_ι]; exact le_of_lt (hm_c0 i j)
+  have h_cn_W : cutNormDiff G_Wm V_W ≤ ε / 8 := by
+    apply cutNormDiff_mkStepGraphon_le P_lim c_Wm c_W
+      h_cWm_symm h_cWm_mem h_cW_symm h_cW_mem (ε / 8)
+    intro S hS T hT
+    obtain ⟨i, hi⟩ := hι_lim_surj S hS; obtain ⟨j, hj⟩ := hι_lim_surj T hT
+    rw [← hi, ← hj, h_cWm_ι, h_cW_ι]; exact le_of_lt (hm_c1 i j)
+  have h_weight_bound : 2 * ∑ i : Fin K, |w_seq (ψ m) i - w_lim i| < ε / 4 := by
+    have h_le : ∑ i : Fin K, |w_seq (ψ m) i - w_lim i| ≤
+        (Finset.univ : Finset (Fin K)).card • (ε / (8 * (↑K + 1))) :=
+      Finset.sum_le_card_nsmul _ _ _ (fun i _ => le_of_lt (hm_w i))
+    rw [Finset.card_univ, Fintype.card_fin, nsmul_eq_mul] at h_le
+    have hK1 : (0 : ℝ) < ↑K + 1 := by positivity
+    calc 2 * ∑ i : Fin K, |w_seq (ψ m) i - w_lim i|
+        ≤ 2 * (↑K * (ε / (8 * (↑K + 1)))) := by linarith
+      _ < 2 * ((↑K + 1) * (ε / (8 * (↑K + 1)))) := by
+          apply mul_lt_mul_of_pos_left _ two_pos
+          exact mul_lt_mul_of_pos_right (by linarith : (↑K : ℝ) < ↑K + 1)
+            (div_pos hε (by positivity))
+      _ = ε / 4 := by field_simp; ring
+  have h_cd_cross_U : cutDistance (stepify (P_seq (ψ m)) (U_seq (ψ m))) G_Um < ε / 4 := by
+    sorry
+  have h_cd_cross_W : cutDistance (stepify (P_seq (ψ m)) (W_seq (ψ m))) G_Wm < ε / 4 := by
+    sorry
+  have h_cd_coeff_U : cutDistance G_Um V_U ≤ ε / 8 :=
+    le_trans (cutDistance_le_cutNormDiff _ _) h_cn_U
+  have h_cd_coeff_W : cutDistance G_Wm V_W ≤ ε / 8 :=
+    le_trans (cutDistance_le_cutNormDiff _ _) h_cn_W
+  have h_cd_U : cutDistance (stepify (P_seq (ψ m)) (U_seq (ψ m))) V_U < ε / 2 :=
+    calc cutDistance (stepify (P_seq (ψ m)) (U_seq (ψ m))) V_U
+        ≤ cutDistance (stepify (P_seq (ψ m)) (U_seq (ψ m))) G_Um +
+          cutDistance G_Um V_U := cutDistance_triangle _ _ _
+      _ < ε / 4 + ε / 8 := by linarith [h_cd_cross_U, h_cd_coeff_U]
+      _ < ε / 2 := by linarith
+  have h_cd_W : cutDistance (stepify (P_seq (ψ m)) (W_seq (ψ m))) V_W < ε / 2 :=
+    calc cutDistance (stepify (P_seq (ψ m)) (W_seq (ψ m))) V_W
+        ≤ cutDistance (stepify (P_seq (ψ m)) (W_seq (ψ m))) G_Wm +
+          cutDistance G_Wm V_W := cutDistance_triangle _ _ _
+      _ < ε / 4 + ε / 8 := by linarith [h_cd_cross_W, h_cd_coeff_W]
+      _ < ε / 2 := by linarith
+  have h_tri : cutDistance (stepify (P_seq (ψ m)) (U_seq (ψ m)))
+      (stepify (P_seq (ψ m)) (W_seq (ψ m))) ≤
+      cutDistance (stepify (P_seq (ψ m)) (U_seq (ψ m))) V_U +
+      cutDistance V_U V_W +
+      cutDistance V_W (stepify (P_seq (ψ m)) (W_seq (ψ m))) := by
+    calc cutDistance (stepify (P_seq (ψ m)) (U_seq (ψ m)))
+          (stepify (P_seq (ψ m)) (W_seq (ψ m)))
+        ≤ cutDistance (stepify (P_seq (ψ m)) (U_seq (ψ m))) V_U +
+          cutDistance V_U (stepify (P_seq (ψ m)) (W_seq (ψ m))) :=
+          cutDistance_triangle _ _ _
+      _ ≤ cutDistance (stepify (P_seq (ψ m)) (U_seq (ψ m))) V_U +
+          (cutDistance V_U V_W + cutDistance V_W (stepify (P_seq (ψ m)) (W_seq (ψ m)))) := by
+          linarith [cutDistance_triangle V_U V_W (stepify (P_seq (ψ m)) (W_seq (ψ m)))]
+      _ = _ := by ring
+  rw [h_cd_lim, cutDistance_symm V_W (stepify (P_seq (ψ m)) (W_seq (ψ m)))] at h_tri
+  linarith [h_far (ψ m), h_cd_U, h_cd_W]
 
 /-- **Algebraic determination**: two graphons with equal homomorphism densities
 for all finite graphs have cut distance zero (are weakly isomorphic).
