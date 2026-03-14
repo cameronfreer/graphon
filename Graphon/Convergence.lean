@@ -67,7 +67,7 @@ def HasConvergentHomDensities (W : ℕ → Graphon α μ) : Prop :=
 
 A sequence of graphons converges in cut distance if and only if all
 homomorphism densities converge. -/
-theorem converges_iff_homDensity [StandardBorelSpace α] (W : ℕ → Graphon α μ) :
+theorem converges_iff_homDensity [StandardBorelSpace α] [NoAtoms μ] (W : ℕ → Graphon α μ) :
     IsConvergent W ↔ HasConvergentHomDensities W := by
   constructor
   · -- Forward direction: counting lemma
@@ -264,7 +264,7 @@ Moreover, any convergent sequence has a unique limit up to weak isomorphism,
 and every sequence has a convergent subsequence.
 
 **Hypothesis**: Requires `[StandardBorelSpace α]` for the Cauchy ↔ Convergent equivalence. -/
-theorem graphLimit_characterization [StandardBorelSpace α] (W : ℕ → Graphon α μ) :
+theorem graphLimit_characterization [StandardBorelSpace α] [NoAtoms μ] (W : ℕ → Graphon α μ) :
     (IsConvergent W ↔ HasConvergentHomDensities W) ∧
     (IsConvergent W ↔ IsCauchy W) ∧
     (∃ (V : Graphon α μ) (φ : ℕ → ℕ), StrictMono φ ∧ IsConvergent (W ∘ φ)) :=

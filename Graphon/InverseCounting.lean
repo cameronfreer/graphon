@@ -57,9 +57,9 @@ for all graphs have cut distance zero. This connects the measure-theoretic
 
 section StepInverseCounting
 
-variable [IsProbabilityMeasure μ] [StandardBorelSpace α]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
 
-omit [IsProbabilityMeasure μ] [StandardBorelSpace α] in
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
 /-- Local reproof of `mkStepFun_measurable` (which is private in Compactness.lean). -/
 private theorem mkStepFun_measurable' (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ) :
     Measurable (mkStepFun P c) := by
@@ -68,7 +68,7 @@ private theorem mkStepFun_measurable' (P : MeasurablePartition α μ) (c : Set �
   apply Finset.measurable_sum; intro T hT
   exact measurable_const.indicator ((P.measurableSet_part hS).prod (P.measurableSet_part hT))
 
-omit [IsProbabilityMeasure μ] [StandardBorelSpace α] in
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
 /-- Local reproof of `mkStepFun_eq_at` (which is private in Compactness.lean).
 For a point `p ∈ S ×ˢ T` with `S, T ∈ P.parts`, `mkStepFun P c p = c S T`. -/
 private theorem mkStepFun_eq_at' (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
@@ -372,7 +372,7 @@ private theorem pullback_mkStepGraphon_of_cell_perm
       (Set.mem_prod.mpr ⟨hi, hj⟩),
     h_coeff i j]
 
-omit [StandardBorelSpace α] in
+omit [StandardBorelSpace α] [NoAtoms μ] in
 /-- Two step graphons whose coefficients agree on all pairs of positive-measure cells
 are equal as Graphons (a.e. equal). -/
 private theorem mkStepGraphon_eq_of_ae_coeff
@@ -424,7 +424,8 @@ private theorem mkStepGraphon_eq_of_ae_coeff
 if type class weight sums match, there exists a MP bijection mapping each
 sub-enumerated cell to a cell in the corresponding type class.
 
-**Sorry traces to**: `MeasurePreserving.exists_common_extension` (Rokhlin's theorem). -/
+**Sorry traces to**: `MeasurePreserving.exists_common_extension` (Rokhlin's theorem).
+Requires `[NoAtoms μ]` for mass redistribution within type classes. -/
 private theorem exists_type_class_mp_bijection
     (P : MeasurablePartition α μ) {k k' : ℕ} (ι : Fin k → Set α)
     (hι : ∀ i, ι i ∈ P.parts) (hι_surj : ∀ S ∈ P.parts, ∃ i, ι i = S)
@@ -725,7 +726,7 @@ end StepInverseCounting
 
 section InverseCounting
 
-variable [IsProbabilityMeasure μ] [StandardBorelSpace α]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
 
 /- **Simultaneous step approximation with controlled cutDistance.**
 
@@ -1397,7 +1398,7 @@ gives the other two bounds.
 **Sorry traces to**: `step_quantitative_icl` → `cutDistance_zero_of_step_homDensity_eq`
 → `matrix_quotient_of_weightedHomSum_eq` (algebraic core) +
 `MeasurePreserving.exists_common_extension` (Rokhlin). -/
-theorem cutDistance_zero_of_homDensity_eq [StandardBorelSpace α]
+theorem cutDistance_zero_of_homDensity_eq [StandardBorelSpace α] [NoAtoms μ]
     (U W : Graphon α μ)
     (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
          homDensity F U = homDensity F W) :
@@ -1414,7 +1415,7 @@ theorem cutDistance_zero_of_homDensity_eq [StandardBorelSpace α]
 
 For any ε > 0, there exists δ > 0 and a finite set of graphs F₁,...,Fₖ
 such that if |t(Fᵢ, U) - t(Fᵢ, W)| < δ for all i, then δ□(U, W) < ε. -/
-theorem cutDistance_le_of_homDensity_close [StandardBorelSpace α] (ε : ℝ) (hε : ε > 0) :
+theorem cutDistance_le_of_homDensity_close [StandardBorelSpace α] [NoAtoms μ] (ε : ℝ) (hε : ε > 0) :
     ∃ (δ : ℝ) (_ : δ > 0) (k : ℕ),
     ∀ (U W : Graphon α μ),
       (∀ (F : SimpleGraph (Fin k)) [DecidableRel F.Adj], |homDensity F U - homDensity F W| < δ) →
@@ -1543,7 +1544,7 @@ theorem cutDistance_le_of_homDensity_close [StandardBorelSpace α] (ε : ℝ) (h
     densities converge.
 
 This is the fundamental characterization of graph limit convergence. -/
-theorem cutDistance_tendsto_iff_homDensity_tendsto [StandardBorelSpace α]
+theorem cutDistance_tendsto_iff_homDensity_tendsto [StandardBorelSpace α] [NoAtoms μ]
     (W : ℕ → Graphon α μ) (V : Graphon α μ) :
     (∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε) ↔
     (∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
@@ -1613,7 +1614,7 @@ theorem limit_unique_upto_weakIso [StandardBorelSpace α]
   · exact cutDistance_nonneg U V
 
 /-- Homomorphism densities determine the graphon up to weak isomorphism. -/
-theorem weaklyIsomorphic_of_homDensity_eq [StandardBorelSpace α]
+theorem weaklyIsomorphic_of_homDensity_eq [StandardBorelSpace α] [NoAtoms μ]
     (U W : Graphon α μ)
     (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
          homDensity F U = homDensity F W) :

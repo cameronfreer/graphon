@@ -2081,6 +2081,83 @@ private theorem k1_entry_eq {c c' : Fin 1 → Fin 1 → ℝ}
   have : w 0 * w 0 * c 0 0 = w 0 * w 0 * c' 0 0 := h3
   exact mul_left_cancel₀ (mul_ne_zero hw0 hw0) this
 
+/-- Row-equality block constancy: if c i₁ = c i₂ and c j₁ = c j₂ (as row functions),
+then c i₁ j₁ = c i₂ j₂, using symmetry of c. -/
+private theorem block_const_of_row_eq {k : ℕ}
+    (c : Fin k → Fin k → ℝ) (hc_symm : ∀ i j, c i j = c j i)
+    {i₁ i₂ j₁ j₂ : Fin k}
+    (hi : c i₁ = c i₂) (hj : c j₁ = c j₂) :
+    c i₁ j₁ = c i₂ j₂ := by
+  calc c i₁ j₁ = c i₂ j₁ := congr_fun hi j₁
+    _ = c j₁ i₂ := hc_symm i₂ j₁
+    _ = c j₂ i₂ := congr_fun hj i₂
+    _ = c i₂ j₂ := hc_symm j₂ i₂
+
+/-- When wDeg values are all distinct, rowProfile matching for all p implies
+the row functions agree. -/
+private theorem row_eq_of_rowProfile_eq_injective_wDeg {k : ℕ}
+    (c : Fin k → Fin k → ℝ) (w : Fin k → ℝ) (hw_pos : ∀ i, 0 < w i)
+    (h_inj : Function.Injective (wDeg c w))
+    {i₁ i₂ : Fin k}
+    (h_rp : ∀ p : ℕ, rowProfile c w i₁ p = rowProfile c w i₂ p) :
+    c i₁ = c i₂ := by
+  funext j
+  have h1 : ∀ p : Fin k, ∑ l, (w l * c i₁ l - w l * c i₂ l) * (wDeg c w l) ^ (p : ℕ) = 0 := by
+    intro p
+    have := h_rp p
+    simp only [rowProfile] at this
+    have hsub : ∀ l : Fin k,
+      (w l * c i₁ l - w l * c i₂ l) * (wDeg c w l) ^ (p : ℕ) =
+      w l * c i₁ l * (wDeg c w l) ^ (p : ℕ) -
+      w l * c i₂ l * (wDeg c w l) ^ (p : ℕ) := fun l => by ring
+    simp_rw [hsub, Finset.sum_sub_distrib]
+    linarith
+  have h2 : (fun l => w l * c i₁ l - w l * c i₂ l) = 0 :=
+    eq_zero_of_weighted_powers_eq_zero (wDeg c w) h_inj _ h1
+  have h3 := congr_fun h2 j
+  simp only [Pi.zero_apply, sub_eq_zero] at h3
+  exact mul_left_cancel₀ (ne_of_gt (hw_pos j)) h3
+
+/-- Weighted row-entry matching via Vandermonde: when wDeg c w is injective,
+rowProfile matching across c and c' gives that for each j, the weighted entry
+w j * c i j equals the sum over indices with matching degree in c'. -/
+private theorem weighted_entry_eq_of_injective_wDeg {k : ℕ}
+    (c c' : Fin k → Fin k → ℝ) (w : Fin k → ℝ)
+    (h_inj : Function.Injective (wDeg c w))
+    {i i' : Fin k}
+    (h_rp : ∀ p : ℕ, rowProfile c w i p = rowProfile c' w i' p)
+    (j : Fin k) :
+    w j * c i j = ∑ l ∈ Finset.univ.filter (fun l => wDeg c' w l = wDeg c w j),
+      w l * c' i' l := by
+  set S := Finset.univ.image (wDeg c w)
+  set S' := Finset.univ.image (wDeg c' w)
+  have h_fib : ∀ m : ℕ,
+      ∑ d ∈ S ∪ S', (∑ l ∈ Finset.univ.filter (fun l => wDeg c w l = d),
+        w l * c i l) * d ^ m =
+      ∑ d ∈ S ∪ S', (∑ l ∈ Finset.univ.filter (fun l => wDeg c' w l = d),
+        w l * c' i' l) * d ^ m := by
+    intro m
+    rw [← Finset.sum_subset Finset.subset_union_left (fun d _ hd => by
+      rw [show (∑ l ∈ Finset.univ.filter (fun l => wDeg c w l = d), w l * c i l) = 0 from
+        Finset.sum_eq_zero fun l hl => absurd (Finset.mem_image.mpr ⟨l, Finset.mem_univ l,
+          (Finset.mem_filter.mp hl).2⟩) hd, zero_mul]),
+     ← Finset.sum_subset Finset.subset_union_right (fun d _ hd => by
+      rw [show (∑ l ∈ Finset.univ.filter (fun l => wDeg c' w l = d), w l * c' i' l) = 0 from
+        Finset.sum_eq_zero fun l hl => absurd (Finset.mem_image.mpr ⟨l, Finset.mem_univ l,
+          (Finset.mem_filter.mp hl).2⟩) hd, zero_mul])]
+    have := h_rp m; simp only [rowProfile] at this
+    rw [sum_fiberwise_mul_pow (fun l => w l * c i l) (wDeg c w) m,
+        sum_fiberwise_mul_pow (fun l => w l * c' i' l) (wDeg c' w) m] at this
+    exact this
+  have hd_mem : wDeg c w j ∈ S ∪ S' :=
+    Finset.mem_union_left _ (Finset.mem_image.mpr ⟨j, Finset.mem_univ j, rfl⟩)
+  have h_eq_at_d := finset_weighted_powers_eq (S ∪ S') _ _ h_fib (wDeg c w j) hd_mem
+  rw [show Finset.univ.filter (fun l => wDeg c w l = wDeg c w j) = {j} from by
+    ext l; simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_singleton]
+    exact ⟨fun h => h_inj h, fun h => h ▸ rfl⟩,
+    Finset.sum_singleton] at h_eq_at_d
+  exact h_eq_at_d
+
 private theorem matrix_quotient_of_weightedHomSum_eq_pos {k : ℕ}
     (c c' : Fin k → Fin k → ℝ)
     (hc_symm : ∀ i j, c i j = c j i) (hc'_symm : ∀ i j, c' i j = c' j i)
@@ -2090,19 +2167,51 @@ private theorem matrix_quotient_of_weightedHomSum_eq_pos {k : ℕ}
       weightedHomSum n F c w = weightedHomSum n F c' w)
     (hk : 0 < k) :
     ∃ (T : ℕ) (type_c : Fin k → Fin T) (type_c' : Fin k → Fin T),
-      -- c is block-constant: entries depend only on types
       (∀ i₁ i₂ j₁ j₂, type_c i₁ = type_c i₂ → type_c j₁ = type_c j₂ →
         c i₁ j₁ = c i₂ j₂) ∧
-      -- c' is block-constant: entries depend only on types
       (∀ i₁ i₂ j₁ j₂, type_c' i₁ = type_c' i₂ → type_c' j₁ = type_c' j₂ →
         c' i₁ j₁ = c' i₂ j₂) ∧
-      -- Block entries match across c and c'
       (∀ i j i' j', type_c i = type_c' i' → type_c j = type_c' j' →
         c i j = c' i' j') ∧
-      -- Type class weights match
       (∀ t : Fin T,
         ∑ i ∈ Finset.univ.filter (fun i => type_c i = t), w i =
         ∑ i ∈ Finset.univ.filter (fun i => type_c' i = t), w i) := by
+  -- Base case: k = 1
+  obtain ⟨k, rfl⟩ : ∃ k', k = k' + 1 := ⟨k - 1, by omega⟩
+  rcases k with _ | k
+  · -- k = 1: unique entry determined by edge test
+    have h_ceq := k1_entry_eq hc_symm hc'_symm w hw_pos h_eq
+    have hfin1 : ∀ (i : Fin 1), i = 0 := fun i => Fin.ext (by omega)
+    exact ⟨1, fun _ => 0, fun _ => 0,
+      fun i₁ i₂ j₁ j₂ _ _ => by rw [hfin1 i₁, hfin1 i₂, hfin1 j₁, hfin1 j₂],
+      fun i₁ i₂ j₁ j₂ _ _ => by rw [hfin1 i₁, hfin1 i₂, hfin1 j₁, hfin1 j₂],
+      fun i j i' j' _ _ => by rw [hfin1 i, hfin1 j, hfin1 i', hfin1 j']; exact h_ceq,
+      fun _ => rfl⟩
+  -- General case: k ≥ 2
+  -- The algebraic core of Lovász [2012] Theorem 5.30.
+  --
+  -- The proof constructs type classification functions by matching row-function
+  -- equivalence classes across c and c'. The block values of the induced block
+  -- matrices must agree, and weight sums per type class must match.
+  --
+  -- Proof outline:
+  -- 1. Group indices by row function (block_const_of_row_eq for block constancy).
+  -- 2. Show block matrices B_c and B_c' are isomorphic via Vandermonde extraction
+  --    (joint_class_weight_eq, weighted_entry_eq_of_injective_wDeg).
+  -- 3. Construct the matching function f between c'-types and c-types.
+  -- 4. Define type_c = rowRep c, type_c' = f ∘ rowRep c', verify properties 1-4.
+  --
+  -- Step 2-3 requires the full graph algebra separation theorem: showing that
+  -- equal weighted hom sums for ALL graphs (not just star-type) implies the
+  -- row-function equivalence classes can be matched with agreeing block values.
+  -- The star/caterpillar/profile-star infrastructure (degree_weight_class_eq,
+  -- joint_class_weight_eq, joint_class_conditional_moments) handles the
+  -- "observable profile" matching but does not fully separate row functions
+  -- when wDeg has repeated values. The remaining separation requires triangle
+  -- and higher-order graph tests (general graph algebra arguments).
+  --
+  -- This is the content of Lovász [2012] Theorem 5.30, Section 5.2.
+  -- The formalization of the full graph algebra separation is not yet in Mathlib.
   sorry
 
 /-! ### Main theorem -/
