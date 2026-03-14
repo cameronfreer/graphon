@@ -52,7 +52,7 @@ namespace Graphon
 
 The algebraic core: step graphons on the same partition with equal hom densities
 for all graphs have cut distance zero. This connects the measure-theoretic
-`homDensity` to the finite `weightedHomSum` and uses `matrix_perm_of_weightedHomSum_eq`
+`homDensity` to the finite `weightedHomSum` and uses `matrix_quotient_of_weightedHomSum_eq`
 (the algebraic determination axiom) plus partition alignment (Rokhlin). -/
 
 section StepInverseCounting
@@ -420,6 +420,26 @@ private theorem mkStepGraphon_eq_of_ae_coeff
       mkStepFun_eq_at' P c₂ hS hT (Set.mem_prod.mpr ⟨hpS, hpT⟩)]
   exact h_agree S hS T hT hS_pos hT_pos
 
+/-- Given a partition with a sub-enumeration of cells and type class functions,
+if type class weight sums match, there exists a MP bijection mapping each
+sub-enumerated cell to a cell in the corresponding type class.
+
+**Sorry traces to**: `MeasurePreserving.exists_common_extension` (Rokhlin's theorem). -/
+private theorem exists_type_class_mp_bijection
+    (P : MeasurablePartition α μ) {k k' : ℕ} (ι : Fin k → Set α)
+    (hι : ∀ i, ι i ∈ P.parts) (hι_surj : ∀ S ∈ P.parts, ∃ i, ι i = S)
+    (hι_inj : Function.Injective ι)
+    (embed : Fin k' → Fin k)
+    (hembed_inj : Function.Injective embed)
+    {T : ℕ} (type_c type_c' : Fin k' → Fin T)
+    (h_weight : ∀ t : Fin T,
+      ∑ i ∈ Finset.univ.filter (fun i => type_c i = t), (μ (ι (embed i))).toReal =
+      ∑ i ∈ Finset.univ.filter (fun i => type_c' i = t), (μ (ι (embed i))).toReal) :
+    ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
+      ∀ i : Fin k', ∀ᵐ x ∂μ,
+        x ∈ ι (embed i) → ∃ j : Fin k', type_c i = type_c' j ∧ e x ∈ ι (embed j) := by
+  sorry
+
 /-- **Algebraic determination for step graphons (measure-theoretic version).**
 
 Given step graphons on the same partition with equal homomorphism densities for
@@ -434,17 +454,19 @@ The proof decomposes into three steps, each depending on a sorry'd axiom:
    a finite sum `weightedHomSum n F c_fin w` where `c_fin` is the coefficient
    matrix indexed by `Fin k` and `w` is the cell-measure vector.
 
-2. **Algebraic core**: Apply `matrix_perm_of_weightedHomSum_eq` to obtain a
-   permutation `π` of `Fin k` such that `c_fin i j = c_fin' (π i) (π j)` and
-   `w i = w (π i)`. This gives a permutation of partition cells with matching
-   coefficients and measures.
+2. **Algebraic core**: Restrict to positive-measure cells and apply
+   `matrix_quotient_of_weightedHomSum_eq` to obtain type class functions
+   `type_c, type_c' : Fin k' → Fin T` such that both matrices are
+   block-constant on type classes, entries match across matrices for
+   matching types, and type class weight sums match.
 
 3. **Measure-preserving realization**: Construct a measure-preserving bijection
-   `e : α ≃ᵐ α` that maps each cell `S_i` a.e. to cell `S_{π(i)}`, using
-   `MeasurePreserving.exists_partition_alignment` (Rokhlin). The pullback
-   `pullback (mkStepGraphon P c') e` then equals `mkStepGraphon P c` a.e.
+   `e : α ≃ᵐ α` via `exists_type_class_mp_bijection` that maps each cell
+   to a cell in the corresponding type class. Since the coefficients match
+   across type classes, the pullback `pullback (mkStepGraphon P c') e` then
+   equals `mkStepGraphon P c` a.e.
 
-**Sorry traces to**: `matrix_perm_of_weightedHomSum_eq` (algebraic core,
+**Sorry traces to**: `matrix_quotient_of_weightedHomSum_eq` (algebraic core,
 Lovász [2012] Theorem 5.30) + `MeasurePreserving.exists_common_extension`
 (Rokhlin's theorem). -/
 private theorem exists_pullback_eq_of_step_homDensity_eq
@@ -459,6 +481,7 @@ private theorem exists_pullback_eq_of_step_homDensity_eq
     ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
       pullback (mkStepGraphon P c' hc'_symm hc'_mem) e he =
       mkStepGraphon P c hc_symm hc_mem := by
+  classical
   -- Step 1: Enumerate P.parts as ι : Fin k → Set α
   set k := P.parts.card with hk_def
   let ι_equiv : ↥P.parts ≃ Fin k := P.parts.equivFin
@@ -480,306 +503,189 @@ private theorem exists_pullback_eq_of_step_homDensity_eq
     intro n F _
     rw [← h_bridge n F, ← h_bridge' n F]
     exact h_hom n F
-  -- Step 3: Split into positive-weight and zero-weight cells
-  -- Define the set of positive-measure cell indices
-  let pos_indices : Finset (Fin k) := Finset.univ.filter (fun i => 0 < (μ (ι i)).toReal)
-  -- Step 4: Apply algebraic core on positive-measure cells
-  -- For the full proof, we need to restrict to positive-measure cells,
-  -- apply matrix_perm_of_weightedHomSum_eq there, extend the permutation to all cells,
-  -- and then construct the MP bijection.
-  --
-  -- This is a non-trivial technical argument (filtering to a sub-enumeration,
-  -- showing the restricted weightedHomSum still determines the matrix, etc.)
-  -- that traces to the same axioms as the three helpers.
-  --
-  -- We proceed by cases on whether all weights are positive.
-  by_cases h_all_pos : ∀ i : Fin k, 0 < (μ (ι i)).toReal
-  · -- Case 1: All weights positive — direct chain
-    -- Symmetry of c_fin and c'_fin
-    have hc_fin_symm : ∀ i j : Fin k, c (ι i) (ι j) = c (ι j) (ι i) :=
-      fun i j => hc_symm (ι i) (hι i) (ι j) (hι j)
-    have hc'_fin_symm : ∀ i j : Fin k, c' (ι i) (ι j) = c' (ι j) (ι i) :=
-      fun i j => hc'_symm (ι i) (hι i) (ι j) (hι j)
-    -- Membership in [0,1]
-    have hc_fin_mem : ∀ i j : Fin k, c (ι i) (ι j) ∈ Set.Icc 0 1 :=
-      fun i j => hc_mem (ι i) (hι i) (ι j) (hι j)
-    have hc'_fin_mem : ∀ i j : Fin k, c' (ι i) (ι j) ∈ Set.Icc 0 1 :=
-      fun i j => hc'_mem (ι i) (hι i) (ι j) (hι j)
-    -- Apply algebraic core: get permutation π
-    obtain ⟨π, h_coeff_perm, h_weight_perm⟩ :=
-      matrix_perm_of_weightedHomSum_eq
-        (fun i j => c (ι i) (ι j)) (fun i j => c' (ι i) (ι j))
-        hc_fin_symm hc'_fin_symm hc_fin_mem hc'_fin_mem
-        (fun i => (μ (ι i)).toReal) h_all_pos h_whs_eq
-    -- Weight equality means μ(ι i) = μ(ι(π i))
-    have h_meas_eq : ∀ i, μ (ι i) = μ (ι (π i)) := by
-      intro i
-      have := h_weight_perm i
-      rwa [ENNReal.toReal_eq_toReal_iff'] at this
-      · exact ne_top_of_le_ne_top (measure_ne_top μ Set.univ)
-            (measure_mono (Set.subset_univ _))
-      · exact ne_top_of_le_ne_top (measure_ne_top μ Set.univ)
-            (measure_mono (Set.subset_univ _))
-    -- Construct MP bijection via exists_cell_permuting_mp_bijection
-    obtain ⟨e, he, h_cell⟩ := exists_cell_permuting_mp_bijection P ι hι hι_surj hι_inj π h_meas_eq
-    -- Apply pullback_mkStepGraphon_of_cell_perm
-    exact ⟨e, he, pullback_mkStepGraphon_of_cell_perm P c c' hc_symm hc_mem hc'_symm hc'_mem
-      ι hι hι_surj hι_inj π h_coeff_perm e he h_cell⟩
-  · -- Case 2: Some weights are zero
-    classical
-    -- Step 2a: Sub-enumerate positive-measure cells
-    set pos_idx := Finset.univ.filter (fun i : Fin k => 0 < (μ (ι i)).toReal) with hpos_idx_def
-    set k' := pos_idx.card with hk'_def
-    -- Equivalence between pos_idx and Fin k'
-    let e_pos : ↥pos_idx ≃ Fin k' := pos_idx.equivFin
-    -- Embedding of positive indices back into Fin k
-    let embed : Fin k' → Fin k := fun j => (e_pos.symm j : Fin k)
-    have hembed_mem : ∀ j, embed j ∈ pos_idx := fun j => (e_pos.symm j).prop
-    have hembed_pos : ∀ j, 0 < (μ (ι (embed j))).toReal := by
-      intro j; exact (Finset.mem_filter.mp (hembed_mem j)).2
-    have hembed_inj : Function.Injective embed := by
-      intro j₁ j₂ h; exact e_pos.symm.injective (Subtype.val_injective h)
-    -- Define restricted coefficient matrices and weights on Fin k'
-    let c_pos : Fin k' → Fin k' → ℝ := fun i j => c (ι (embed i)) (ι (embed j))
-    let c'_pos : Fin k' → Fin k' → ℝ := fun i j => c' (ι (embed i)) (ι (embed j))
-    let w_pos : Fin k' → ℝ := fun j => (μ (ι (embed j))).toReal
-    -- Symmetry and bounds for restricted matrices
-    have hc_pos_symm : ∀ i j : Fin k', c_pos i j = c_pos j i :=
-      fun i j => hc_symm _ (hι _) _ (hι _)
-    have hc'_pos_symm : ∀ i j : Fin k', c'_pos i j = c'_pos j i :=
-      fun i j => hc'_symm _ (hι _) _ (hι _)
-    have hc_pos_mem : ∀ i j : Fin k', c_pos i j ∈ Set.Icc 0 1 :=
-      fun i j => hc_mem _ (hι _) _ (hι _)
-    have hc'_pos_mem : ∀ i j : Fin k', c'_pos i j ∈ Set.Icc 0 1 :=
-      fun i j => hc'_mem _ (hι _) _ (hι _)
-    -- Step 2b: Show restricted weightedHomSum equality
-    -- Terms where σ(v) maps to a zero-weight cell vanish (weight product = 0).
-    -- So weightedHomSum on Fin k with zero weights = weightedHomSum on Fin k' with positive weights.
-    have h_whs_restrict : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
-        weightedHomSum n F c_pos w_pos = weightedHomSum n F c'_pos w_pos := by
-      intro n F _
-      -- Both equal the corresponding full-size weightedHomSum (zero-weight terms vanish)
-      -- The full-size sums are equal by h_whs_eq.
-      -- This is a combinatorial identity: filtering zero-weight terms from a sum.
-      -- We prove it by showing each full sum equals the restricted sum.
-      have h_vanish : ∀ (M : Fin k → Fin k → ℝ) (σ : Fin n → Fin k),
-          (∃ v, σ v ∉ pos_idx) →
-          (∏ v : Fin n, (μ (ι (σ v))).toReal) * ∏ e ∈ F.edgeFinset,
-            M (σ (Quot.out e).1) (σ (Quot.out e).2) = 0 := by
-        intro M σ ⟨v, hv⟩
-        apply mul_eq_zero_of_left
-        apply Finset.prod_eq_zero (Finset.mem_univ v)
-        have hv' : ¬(0 < (μ (ι (σ v))).toReal) := by
-          intro hpos; exact hv (Finset.mem_filter.mpr ⟨Finset.mem_univ _, hpos⟩)
-        linarith [ENNReal.toReal_nonneg (a := μ (ι (σ v)))]
-      -- Define the injection from (Fin n → Fin k') to (Fin n → Fin k) via embed
-      have h_sum_eq : ∀ (M : Fin k → Fin k → ℝ),
-          weightedHomSum n F M (fun i => (μ (ι i)).toReal) =
-          weightedHomSum n F (fun i j => M (embed i) (embed j))
-            (fun j => (μ (ι (embed j))).toReal) := by
-        intro M
-        simp only [weightedHomSum]
-        -- Split the sum over Fin n → Fin k into:
-        -- (a) σ with range ⊆ pos_idx: these correspond bijectively to Fin n → Fin k'
-        -- (b) σ with some value outside pos_idx: these vanish
-        rw [← Finset.sum_filter_add_sum_filter_not (s := Finset.univ)
-            (p := fun σ : Fin n → Fin k => ∀ v, σ v ∈ pos_idx)]
-        have h_bad_zero : (∑ x ∈ Finset.univ.filter
-            (fun σ : Fin n → Fin k => ¬∀ v, σ v ∈ pos_idx),
-            (∏ v : Fin n, (μ (ι (x v))).toReal) *
-            ∏ e ∈ F.edgeFinset, M (x (Quot.out e).1) (x (Quot.out e).2)) = 0 := by
-          apply Finset.sum_eq_zero; intro σ hσ
-          simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hσ
-          push_neg at hσ; exact h_vanish M σ hσ
-        rw [h_bad_zero, add_zero]
-        -- Now biject: ∑ (good filtered Fin k) = ∑ (univ Fin k')
-        symm
-        apply Finset.sum_nbij (fun (τ : Fin n → Fin k') => embed ∘ τ)
-        · intro τ _
-          simp only [Finset.mem_filter, Finset.mem_univ, true_and, Function.comp]
-          intro v; exact hembed_mem (τ v)
-        · intro τ₁ τ₂ _ _ h
-          exact funext (fun v => hembed_inj (congr_fun h v))
-        · -- SurjOn: for σ in filtered, find τ in univ with embed ∘ τ = σ
-          intro σ hσ
-          rw [Finset.coe_filter] at hσ
-          obtain ⟨_, hσ_pos⟩ := hσ
-          exact ⟨fun v => e_pos ⟨σ v, hσ_pos v⟩, Finset.mem_coe.mpr (Finset.mem_univ _),
-            funext (fun v => by simp [embed, Function.comp])⟩
-        · intro τ _; simp [Function.comp]
-      rw [← h_sum_eq (fun i j => c (ι i) (ι j)),
-          ← h_sum_eq (fun i j => c' (ι i) (ι j))]
-      exact h_whs_eq n F
-    -- Step 2c: Apply algebraic core on positive-weight sub-matrix
-    obtain ⟨π', h_coeff_perm', h_weight_perm'⟩ :=
-      matrix_perm_of_weightedHomSum_eq c_pos c'_pos
-        hc_pos_symm hc'_pos_symm hc_pos_mem hc'_pos_mem w_pos hembed_pos h_whs_restrict
-    -- Step 2d: Extend π' to a permutation of Fin k (identity on zero-measure cells)
-    -- First, embed maps pos indices into Fin k. We need to extend π' to all of Fin k.
-    -- π' permutes Fin k', and embed : Fin k' → Fin k embeds into Fin k.
-    -- Define π on pos_idx via embed ∘ π' ∘ embed⁻¹, identity elsewhere.
-    -- embed ∘ π' ∘ e_pos gives a function pos_idx → Fin k that lands in pos_idx
-    -- (because π' permutes Fin k' and embed maps back).
-    have h_perm_lands : ∀ j : Fin k', embed (π' j) ∈ pos_idx :=
-      fun j => hembed_mem (π' j)
-    -- Build the permutation on Fin k
-    -- We define it using Equiv.Perm.extendDomainEquiv or manually
-    -- Manual approach: define a function f : Fin k → Fin k
-    let f : Fin k → Fin k := fun i =>
-      if h : i ∈ pos_idx then embed (π' (e_pos ⟨i, h⟩))
-      else i
-    have hf_inj : Function.Injective f := by
-      intro i₁ i₂ hf_eq
-      by_cases h₁ : i₁ ∈ pos_idx <;> by_cases h₂ : i₂ ∈ pos_idx
-      · -- Both positive
-        simp only [f, h₁, h₂, dite_true] at hf_eq
-        -- hf_eq : embed (π' (e_pos ⟨i₁, h₁⟩)) = embed (π' (e_pos ⟨i₂, h₂⟩))
-        have h1 := hembed_inj hf_eq  -- π' (e_pos ⟨i₁, h₁⟩) = π' (e_pos ⟨i₂, h₂⟩)
-        have h2 := π'.injective h1    -- e_pos ⟨i₁, h₁⟩ = e_pos ⟨i₂, h₂⟩
-        have h3 : (⟨i₁, h₁⟩ : ↥pos_idx) = ⟨i₂, h₂⟩ := e_pos.injective h2
-        exact congr_arg Subtype.val h3
-      · -- i₁ positive, i₂ not: embed (π' ...) = i₂, contradicts i₂ ∉ pos_idx
-        simp only [f, h₁, dite_true, h₂, dite_false] at hf_eq
-        exact absurd (hf_eq ▸ hembed_mem _) h₂
-      · -- i₁ not, i₂ positive: symmetric
-        simp only [f, h₁, dite_false, h₂, dite_true] at hf_eq
-        exact absurd (hf_eq.symm ▸ hembed_mem _) h₁
-      · -- Both not positive: f = id on both
-        simp only [f, h₁, dite_false, h₂] at hf_eq
-        exact hf_eq
-    have hf_surj : Function.Surjective f := by
-      intro i
-      by_cases h : i ∈ pos_idx
-      · -- i ∈ pos_idx: take preimage = embed (π'⁻¹ (e_pos ⟨i, h⟩))
-        refine ⟨embed (π'⁻¹ (e_pos ⟨i, h⟩)), ?_⟩
-        show f (embed (π'⁻¹ (e_pos ⟨i, h⟩))) = i
-        have h_mem : embed (π'⁻¹ (e_pos ⟨i, h⟩)) ∈ pos_idx := hembed_mem _
-        simp only [f, h_mem, dite_true]
-        -- Goal: embed (π' (e_pos ⟨embed (π'⁻¹ (e_pos ⟨i, h⟩)), h_mem⟩)) = i
-        -- Step 1: e_pos ⟨embed x, _⟩ = x (embed x = (e_pos.symm x).val)
-        set x := π'⁻¹ (e_pos ⟨i, h⟩) with hx_def
-        have h_sub_eq : (⟨embed x, h_mem⟩ : ↥pos_idx) = e_pos.symm x :=
-          Subtype.ext rfl
-        have h_epos_cancel : e_pos ⟨embed x, h_mem⟩ = x := by
-          rw [h_sub_eq, e_pos.apply_symm_apply]
-        rw [h_epos_cancel, hx_def]
-        -- Goal: embed (π' (π'⁻¹ (e_pos ⟨i, h⟩))) = i
-        -- π' (π'⁻¹ x) = x since π'⁻¹ = π'.symm
-        change embed (π' (π'.symm (e_pos ⟨i, h⟩))) = i
-        rw [Equiv.apply_symm_apply]
-        -- Goal: embed (e_pos ⟨i, h⟩) = i
-        show (e_pos.symm (e_pos ⟨i, h⟩) : Fin k) = i
+  -- Step 3: Restrict to positive-measure cells
+  set pos_idx := Finset.univ.filter (fun i : Fin k => 0 < (μ (ι i)).toReal) with hpos_idx_def
+  set k' := pos_idx.card with hk'_def
+  -- Equivalence between pos_idx and Fin k'
+  let e_pos : ↥pos_idx ≃ Fin k' := pos_idx.equivFin
+  -- Embedding of positive indices back into Fin k
+  let embed : Fin k' → Fin k := fun j => (e_pos.symm j : Fin k)
+  have hembed_mem : ∀ j, embed j ∈ pos_idx := fun j => (e_pos.symm j).prop
+  have hembed_pos : ∀ j, 0 < (μ (ι (embed j))).toReal := by
+    intro j; exact (Finset.mem_filter.mp (hembed_mem j)).2
+  have hembed_inj : Function.Injective embed := by
+    intro j₁ j₂ h; exact e_pos.symm.injective (Subtype.val_injective h)
+  -- Define restricted coefficient matrices and weights on Fin k'
+  let c_pos : Fin k' → Fin k' → ℝ := fun i j => c (ι (embed i)) (ι (embed j))
+  let c'_pos : Fin k' → Fin k' → ℝ := fun i j => c' (ι (embed i)) (ι (embed j))
+  let w_pos : Fin k' → ℝ := fun j => (μ (ι (embed j))).toReal
+  -- Symmetry and bounds for restricted matrices
+  have hc_pos_symm : ∀ i j : Fin k', c_pos i j = c_pos j i :=
+    fun i j => hc_symm _ (hι _) _ (hι _)
+  have hc'_pos_symm : ∀ i j : Fin k', c'_pos i j = c'_pos j i :=
+    fun i j => hc'_symm _ (hι _) _ (hι _)
+  have hc_pos_mem : ∀ i j : Fin k', c_pos i j ∈ Set.Icc 0 1 :=
+    fun i j => hc_mem _ (hι _) _ (hι _)
+  have hc'_pos_mem : ∀ i j : Fin k', c'_pos i j ∈ Set.Icc 0 1 :=
+    fun i j => hc'_mem _ (hι _) _ (hι _)
+  -- Step 4: Show restricted weightedHomSum equality
+  -- Terms where σ(v) maps to a zero-weight cell vanish (weight product = 0).
+  -- So weightedHomSum on Fin k with zero weights = weightedHomSum on Fin k' with positive weights.
+  have h_whs_restrict : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F c_pos w_pos = weightedHomSum n F c'_pos w_pos := by
+    intro n F _
+    -- Both equal the corresponding full-size weightedHomSum (zero-weight terms vanish)
+    -- The full-size sums are equal by h_whs_eq.
+    -- This is a combinatorial identity: filtering zero-weight terms from a sum.
+    -- We prove it by showing each full sum equals the restricted sum.
+    have h_vanish : ∀ (M : Fin k → Fin k → ℝ) (σ : Fin n → Fin k),
+        (∃ v, σ v ∉ pos_idx) →
+        (∏ v : Fin n, (μ (ι (σ v))).toReal) * ∏ e ∈ F.edgeFinset,
+          M (σ (Quot.out e).1) (σ (Quot.out e).2) = 0 := by
+      intro M σ ⟨v, hv⟩
+      apply mul_eq_zero_of_left
+      apply Finset.prod_eq_zero (Finset.mem_univ v)
+      have hv' : ¬(0 < (μ (ι (σ v))).toReal) := by
+        intro hpos; exact hv (Finset.mem_filter.mpr ⟨Finset.mem_univ _, hpos⟩)
+      linarith [ENNReal.toReal_nonneg (a := μ (ι (σ v)))]
+    -- Define the injection from (Fin n → Fin k') to (Fin n → Fin k) via embed
+    have h_sum_eq : ∀ (M : Fin k → Fin k → ℝ),
+        weightedHomSum n F M (fun i => (μ (ι i)).toReal) =
+        weightedHomSum n F (fun i j => M (embed i) (embed j))
+          (fun j => (μ (ι (embed j))).toReal) := by
+      intro M
+      simp only [weightedHomSum]
+      -- Split the sum over Fin n → Fin k into:
+      -- (a) σ with range ⊆ pos_idx: these correspond bijectively to Fin n → Fin k'
+      -- (b) σ with some value outside pos_idx: these vanish
+      rw [← Finset.sum_filter_add_sum_filter_not (s := Finset.univ)
+          (p := fun σ : Fin n → Fin k => ∀ v, σ v ∈ pos_idx)]
+      have h_bad_zero : (∑ x ∈ Finset.univ.filter
+          (fun σ : Fin n → Fin k => ¬∀ v, σ v ∈ pos_idx),
+          (∏ v : Fin n, (μ (ι (x v))).toReal) *
+          ∏ e ∈ F.edgeFinset, M (x (Quot.out e).1) (x (Quot.out e).2)) = 0 := by
+        apply Finset.sum_eq_zero; intro σ hσ
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hσ
+        push_neg at hσ; exact h_vanish M σ hσ
+      rw [h_bad_zero, add_zero]
+      -- Now biject: ∑ (good filtered Fin k) = ∑ (univ Fin k')
+      symm
+      apply Finset.sum_nbij (fun (τ : Fin n → Fin k') => embed ∘ τ)
+      · intro τ _
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and, Function.comp]
+        intro v; exact hembed_mem (τ v)
+      · intro τ₁ τ₂ _ _ h
+        exact funext (fun v => hembed_inj (congr_fun h v))
+      · -- SurjOn: for σ in filtered, find τ in univ with embed ∘ τ = σ
+        intro σ hσ
+        rw [Finset.coe_filter] at hσ
+        obtain ⟨_, hσ_pos⟩ := hσ
+        exact ⟨fun v => e_pos ⟨σ v, hσ_pos v⟩, Finset.mem_coe.mpr (Finset.mem_univ _),
+          funext (fun v => by simp [embed, Function.comp])⟩
+      · intro τ _; simp [Function.comp]
+    rw [← h_sum_eq (fun i j => c (ι i) (ι j)),
+        ← h_sum_eq (fun i j => c' (ι i) (ι j))]
+    exact h_whs_eq n F
+  -- Step 5: Apply algebraic core (quotient form) on positive-weight sub-matrix
+  obtain ⟨T_count, type_c, type_c', _, _, h_entry, h_type_weight⟩ :=
+    matrix_quotient_of_weightedHomSum_eq c_pos c'_pos
+      hc_pos_symm hc'_pos_symm hc_pos_mem hc'_pos_mem w_pos hembed_pos h_whs_restrict
+  -- Step 6: Construct MP bijection via type class matching
+  obtain ⟨e, he, h_cell_type⟩ := exists_type_class_mp_bijection P ι hι hι_surj hι_inj
+    embed hembed_inj type_c type_c' h_type_weight
+  -- Step 7: Show pullback matches a.e.
+  -- The pullback of mkStepGraphon P c' by e equals mkStepGraphon P c a.e.
+  -- For a.e. (x,y): x ∈ ι(embed i), y ∈ ι(embed j) for positive-measure cells,
+  -- e maps x to ι(embed i') with type_c i = type_c' i',
+  -- e maps y to ι(embed j') with type_c j = type_c' j',
+  -- so c(ι(embed i), ι(embed j)) = c'(ι(embed i'), ι(embed j')) by h_entry.
+  -- For zero-measure cells, a.e. no point lands there.
+  refine ⟨e, he, ?_⟩
+  apply Graphon.ext; apply SymmKernel.ext; apply AEEqFun.ext
+  -- LHS a.e.: pullback value
+  have h_pb := pullback_ae (mkStepGraphon P c' hc'_symm hc'_mem) (⇑e) he
+  -- mkStepGraphon values a.e.
+  have h_c'_ae : ∀ᵐ q ∂(μ.prod μ),
+      (mkStepGraphon P c' hc'_symm hc'_mem).toAEEqFun q = mkStepFun P c' q :=
+    AEEqFun.coeFn_mk (mkStepFun P c') (mkStepFun_measurable' P c').aestronglyMeasurable
+  have h_c'_lifted : ∀ᵐ p ∂(μ.prod μ),
+      (mkStepGraphon P c' hc'_symm hc'_mem).toAEEqFun (e p.1, e p.2) =
+      mkStepFun P c' (e p.1, e p.2) := by
+    have hqmp : Measure.QuasiMeasurePreserving (Prod.map e e) (μ.prod μ) (μ.prod μ) :=
+      (SymmKernel.measurePreserving_prodMap_self he).quasiMeasurePreserving
+    exact hqmp.ae h_c'_ae
+  have h_c_ae : ∀ᵐ p ∂(μ.prod μ),
+      (mkStepGraphon P c hc_symm hc_mem).toAEEqFun p = mkStepFun P c p :=
+    AEEqFun.coeFn_mk (mkStepFun P c) (mkStepFun_measurable' P c).aestronglyMeasurable
+  -- For a.e. x, x is in a positive-measure cell (null cells are negligible)
+  have h_non_null : ∀ᵐ x ∂μ, ∃ S ∈ P.parts, x ∈ S ∧ μ S ≠ 0 := by
+    have h_null_union : μ (⋃ S ∈ P.parts.filter (fun S => μ S = 0), S) = 0 :=
+      le_antisymm
+        ((measure_biUnion_finset_le _ _).trans_eq
+          (Finset.sum_eq_zero (fun S hS => (Finset.mem_filter.mp hS).2)))
+        (zero_le _)
+    have h_not_in_null : ∀ᵐ x ∂μ,
+        x ∉ ⋃ S ∈ P.parts.filter (fun S => μ S = 0), S :=
+      compl_mem_ae_iff.mpr h_null_union
+    filter_upwards [P.ae_covers, h_not_in_null] with x ⟨S, hS, hxS⟩ hx_not_null
+    exact ⟨S, hS, hxS, fun h_eq =>
+      hx_not_null (Set.mem_biUnion (Finset.mem_filter.mpr ⟨hS, h_eq⟩) hxS)⟩
+  -- For a.e. x, x is in some ι(embed i) (a positive-measure cell)
+  have h_pos_cell : ∀ᵐ x ∂μ, ∃ i : Fin k', x ∈ ι (embed i) := by
+    filter_upwards [h_non_null] with x ⟨S, hS, hxS, hμS⟩
+    obtain ⟨idx, hidx⟩ := hι_surj S hS
+    have h_pos : 0 < (μ (ι idx)).toReal := by
+      rw [hidx]; exact ENNReal.toReal_pos hμS
+        (ne_top_of_le_ne_top (measure_ne_top μ Set.univ) (measure_mono (Set.subset_univ _)))
+    have h_mem : idx ∈ pos_idx := Finset.mem_filter.mpr ⟨Finset.mem_univ _, h_pos⟩
+    exact ⟨e_pos ⟨idx, h_mem⟩, by
+      have : embed (e_pos ⟨idx, h_mem⟩) = idx := by
+        show (e_pos.symm (e_pos ⟨idx, h_mem⟩) : Fin k) = idx
         simp [Equiv.symm_apply_apply]
-      · exact ⟨i, show f i = i from dif_neg h⟩
-    let π : Equiv.Perm (Fin k) := Equiv.ofBijective f ⟨hf_inj, hf_surj⟩
-    -- Helper: embed (e_pos ⟨i, h⟩) = i
-    have hembed_cancel : ∀ (i : Fin k) (h : i ∈ pos_idx),
-        embed (e_pos ⟨i, h⟩) = i := by
-      intro i h; show (e_pos.symm (e_pos ⟨i, h⟩) : Fin k) = i
-      simp [Equiv.symm_apply_apply]
-    -- Step 2e: Show coefficient permutation on positive-measure pairs
-    have h_coeff_pos : ∀ i j : Fin k, i ∈ pos_idx → j ∈ pos_idx →
-        c (ι i) (ι j) = c' (ι (π i)) (ι (π j)) := by
-      intro i j hi hj
-      show c (ι i) (ι j) = c' (ι (f i)) (ι (f j))
-      simp only [f, hi, hj, dite_true]
-      have := h_coeff_perm' (e_pos ⟨i, hi⟩) (e_pos ⟨j, hj⟩)
-      simp only [c_pos, c'_pos, hembed_cancel i hi, hembed_cancel j hj] at this
-      exact this
-    -- Step 2f: Show weight permutation (μ(ι i) = μ(ι(π i))) for all i
-    have h_meas_eq : ∀ i, μ (ι i) = μ (ι (π i)) := by
-      intro i
-      show μ (ι i) = μ (ι (f i))
-      by_cases h : i ∈ pos_idx
-      · simp only [f, h, dite_true]
-        have hw := h_weight_perm' (e_pos ⟨i, h⟩)
-        simp only [w_pos] at hw
-        rw [hembed_cancel i h] at hw
-        rwa [ENNReal.toReal_eq_toReal_iff'] at hw
-        · exact ne_top_of_le_ne_top (measure_ne_top μ Set.univ)
-              (measure_mono (Set.subset_univ _))
-        · exact ne_top_of_le_ne_top (measure_ne_top μ Set.univ)
-              (measure_mono (Set.subset_univ _))
-      · simp [f, h]
-    -- Step 2g: Construct MP bijection
-    obtain ⟨e, he, h_cell⟩ := exists_cell_permuting_mp_bijection P ι hι hι_surj hι_inj π h_meas_eq
-    -- Step 2h: Define modified coefficients c_mod
-    -- c_mod agrees with c on positive-measure pairs, and with c' ∘ π elsewhere.
-    -- For S ∈ P.parts, ι_equiv gives the index in Fin k.
-    -- Use a classical definition: for any pair (S, T), check membership and measures.
-    let c_mod : Set α → Set α → ℝ := fun S T =>
-      if hST : S ∈ P.parts ∧ T ∈ P.parts ∧ (μ S = 0 ∨ μ T = 0) then
-        c' (ι (π (ι_equiv ⟨S, hST.1⟩))) (ι (π (ι_equiv ⟨T, hST.2.1⟩)))
-      else c S T
-    -- c_mod is symmetric on P.parts
-    have hc_mod_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c_mod S T = c_mod T S := by
-      intro S hS T hT
-      show c_mod S T = c_mod T S
-      by_cases hzero : μ S = 0 ∨ μ T = 0
-      · have hcond_ST : S ∈ P.parts ∧ T ∈ P.parts ∧ (μ S = 0 ∨ μ T = 0) := ⟨hS, hT, hzero⟩
-        have hcond_TS : T ∈ P.parts ∧ S ∈ P.parts ∧ (μ T = 0 ∨ μ S = 0) :=
-          ⟨hT, hS, hzero.symm⟩
-        simp only [c_mod, dif_pos hcond_ST, dif_pos hcond_TS]
-        exact hc'_symm _ (hι _) _ (hι _)
-      · have hcond_ST : ¬(S ∈ P.parts ∧ T ∈ P.parts ∧ (μ S = 0 ∨ μ T = 0)) := by tauto
-        have hcond_TS : ¬(T ∈ P.parts ∧ S ∈ P.parts ∧ (μ T = 0 ∨ μ S = 0)) := by tauto
-        simp only [c_mod, dif_neg hcond_ST, dif_neg hcond_TS]
-        exact hc_symm S hS T hT
-    -- c_mod is bounded on P.parts
-    have hc_mod_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c_mod S T ∈ Set.Icc 0 1 := by
-      intro S hS T hT
-      show c_mod S T ∈ _
-      by_cases hzero : μ S = 0 ∨ μ T = 0
-      · have hcond : S ∈ P.parts ∧ T ∈ P.parts ∧ (μ S = 0 ∨ μ T = 0) := ⟨hS, hT, hzero⟩
-        simp only [c_mod, dif_pos hcond]
-        exact hc'_mem _ (hι _) _ (hι _)
-      · have hcond : ¬(S ∈ P.parts ∧ T ∈ P.parts ∧ (μ S = 0 ∨ μ T = 0)) := by tauto
-        simp only [c_mod, dif_neg hcond]
-        exact hc_mem S hS T hT
-    -- Step 2i: mkStepGraphon P c = mkStepGraphon P c_mod (agree on positive-measure pairs)
-    have h_graphon_eq : mkStepGraphon P c hc_symm hc_mem =
-        mkStepGraphon P c_mod hc_mod_symm hc_mod_mem := by
-      apply mkStepGraphon_eq_of_ae_coeff
-      intro S hS T hT hμS hμT
-      show c S T = c_mod S T
-      have hcond : ¬(S ∈ P.parts ∧ T ∈ P.parts ∧ (μ S = 0 ∨ μ T = 0)) := by tauto
-      simp only [c_mod, dif_neg hcond]
-    -- Step 2j: ∀ i j, c_mod (ι i) (ι j) = c' (ι (π i)) (ι (π j))
-    have h_coeff_mod : ∀ i j, c_mod (ι i) (ι j) = c' (ι (π i)) (ι (π j)) := by
-      intro i j
-      show c_mod (ι i) (ι j) = c' (ι (π i)) (ι (π j))
-      by_cases hzero : μ (ι i) = 0 ∨ μ (ι j) = 0
-      · -- Zero-measure case: c_mod uses c' ∘ π by definition
-        have hcond : (ι i) ∈ P.parts ∧ (ι j) ∈ P.parts ∧ (μ (ι i) = 0 ∨ μ (ι j) = 0) :=
-          ⟨hι i, hι j, hzero⟩
-        simp only [c_mod, dif_pos hcond]
-        -- Need: ι_equiv ⟨ι i, _⟩ = i (since ⟨ι i, _⟩ = ι_equiv.symm i by Subtype.ext)
-        have hi_eq : (ι_equiv ⟨ι i, hcond.1⟩ : Fin k) = i := by
-          have : (⟨ι i, hcond.1⟩ : ↥P.parts) = ι_equiv.symm i := Subtype.ext rfl
-          rw [this, ι_equiv.apply_symm_apply]
-        have hj_eq : (ι_equiv ⟨ι j, hcond.2.1⟩ : Fin k) = j := by
-          have : (⟨ι j, hcond.2.1⟩ : ↥P.parts) = ι_equiv.symm j := Subtype.ext rfl
-          rw [this, ι_equiv.apply_symm_apply]
-        rw [hi_eq, hj_eq]
-      · -- Positive-measure case: c_mod = c, use permutation relation
-        have hcond : ¬((ι i) ∈ P.parts ∧ (ι j) ∈ P.parts ∧ (μ (ι i) = 0 ∨ μ (ι j) = 0)) := by
-          tauto
-        simp only [c_mod, dif_neg hcond]
-        push_neg at hzero
-        have hi_pos : i ∈ pos_idx :=
-          Finset.mem_filter.mpr ⟨Finset.mem_univ _, ENNReal.toReal_pos hzero.1
-            (ne_top_of_le_ne_top (measure_ne_top μ Set.univ)
-              (measure_mono (Set.subset_univ _)))⟩
-        have hj_pos : j ∈ pos_idx :=
-          Finset.mem_filter.mpr ⟨Finset.mem_univ _, ENNReal.toReal_pos hzero.2
-            (ne_top_of_le_ne_top (measure_ne_top μ Set.univ)
-              (measure_mono (Set.subset_univ _)))⟩
-        exact h_coeff_pos i j hi_pos hj_pos
-    -- Step 2k: Apply pullback_mkStepGraphon_of_cell_perm with c_mod
-    have h_pullback := pullback_mkStepGraphon_of_cell_perm P c_mod c'
-      hc_mod_symm hc_mod_mem hc'_symm hc'_mem ι hι hι_surj hι_inj π h_coeff_mod e he h_cell
-    -- Combine: pullback c' e = mkStepGraphon P c_mod = mkStepGraphon P c
-    exact ⟨e, he, h_pullback ▸ h_graphon_eq.symm⟩
+      rw [this, hidx]; exact hxS⟩
+  -- Lift to product measure
+  have h_fst_pos : ∀ᵐ p ∂(μ.prod μ), ∃ i : Fin k', p.1 ∈ ι (embed i) :=
+    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst h_pos_cell
+  have h_snd_pos : ∀ᵐ p ∂(μ.prod μ), ∃ j : Fin k', p.2 ∈ ι (embed j) :=
+    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd h_pos_cell
+  -- Lift h_cell_type to product measure
+  have h_cell_fst : ∀ i : Fin k', ∀ᵐ p ∂(μ.prod μ),
+      p.1 ∈ ι (embed i) → ∃ j : Fin k', type_c i = type_c' j ∧ e p.1 ∈ ι (embed j) :=
+    fun i => Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst (h_cell_type i)
+  have h_cell_snd : ∀ i : Fin k', ∀ᵐ p ∂(μ.prod μ),
+      p.2 ∈ ι (embed i) → ∃ j : Fin k', type_c i = type_c' j ∧ e p.2 ∈ ι (embed j) :=
+    fun i => Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd (h_cell_type i)
+  -- Combine all cell type conditions
+  have h_cell_all_fst : ∀ᵐ p ∂(μ.prod μ), ∀ i : Fin k',
+      p.1 ∈ ι (embed i) → ∃ j : Fin k', type_c i = type_c' j ∧ e p.1 ∈ ι (embed j) := by
+    rw [Filter.eventually_all]; exact h_cell_fst
+  have h_cell_all_snd : ∀ᵐ p ∂(μ.prod μ), ∀ i : Fin k',
+      p.2 ∈ ι (embed i) → ∃ j : Fin k', type_c i = type_c' j ∧ e p.2 ∈ ι (embed j) := by
+    rw [Filter.eventually_all]; exact h_cell_snd
+  -- Now combine everything
+  filter_upwards [h_pb, h_c'_lifted, h_c_ae, h_fst_pos, h_snd_pos,
+      h_cell_all_fst, h_cell_all_snd] with p h_pb_p h_c'_p h_c_p
+      ⟨i, hi⟩ ⟨j, hj⟩ h_e_fst h_e_snd
+  -- LHS: pullback value = mkStepFun P c' (e p.1, e p.2)
+  rw [h_pb_p, h_c'_p]
+  -- RHS: mkStepGraphon P c value = mkStepFun P c (p.1, p.2)
+  rw [h_c_p]
+  -- Now: mkStepFun P c' (e p.1, e p.2) = mkStepFun P c (p.1, p.2)
+  -- We know: p.1 ∈ ι(embed i), p.2 ∈ ι(embed j)
+  -- By h_e_fst: ∃ i', type_c i = type_c' i' ∧ e p.1 ∈ ι(embed i')
+  -- By h_e_snd: ∃ j', type_c j = type_c' j' ∧ e p.2 ∈ ι(embed j')
+  obtain ⟨i', hti, he_fst⟩ := h_e_fst i hi
+  obtain ⟨j', htj, he_snd⟩ := h_e_snd j hj
+  rw [mkStepFun_eq_at' P c' (hι (embed i')) (hι (embed j'))
+      (Set.mem_prod.mpr ⟨he_fst, he_snd⟩),
+    mkStepFun_eq_at' P c (hι (embed i)) (hι (embed j))
+      (Set.mem_prod.mpr ⟨hi, hj⟩)]
+  -- c(ι(embed i), ι(embed j)) = c'(ι(embed i'), ι(embed j'))
+  -- by h_entry with type_c i = type_c' i' and type_c j = type_c' j'
+  -- h_entry : ∀ i j i' j', type_c i = type_c' i' → type_c j = type_c' j' →
+  --           c_pos i j = c'_pos i' j'
+  -- c_pos i j = c(ι(embed i), ι(embed j)) and c'_pos i' j' = c'(ι(embed i'), ι(embed j'))
+  exact (h_entry i j i' j' hti htj).symm
 
 /-- Step graphons on the same partition with equal hom densities for all graphs
 have cut distance zero.
@@ -789,7 +695,7 @@ measure-preserving bijection `e` with `pullback (mkStepGraphon P c') e = mkStepG
 Then `cutDistance_pullback_eq_zero` gives `cutDistance W' (pullback W' e) = 0`,
 and substituting the pullback equality yields the result.
 
-**Sorry traces to**: `matrix_perm_of_weightedHomSum_eq` (algebraic core) +
+**Sorry traces to**: `matrix_quotient_of_weightedHomSum_eq` (algebraic core) +
 `MeasurePreserving.exists_common_extension` (Rokhlin). -/
 private theorem cutDistance_zero_of_step_homDensity_eq
     (P : MeasurablePartition α μ) (c c' : Set α → Set α → ℝ)
@@ -854,7 +760,7 @@ For partitions with at most K cells, the quantitative step ICL gives parameters
 as delta decreases, this constrains delta from below. A solution always exists
 because for fixed K, the step ICL gives fixed positive delta_step.
 
-**Sorry traces to**: `matrix_perm_of_weightedHomSum_eq` (algebraic core,
+**Sorry traces to**: `matrix_quotient_of_weightedHomSum_eq` (algebraic core,
 Lovasz [2012] Theorem 5.30) + `MeasurePreserving.exists_common_extension`
 (Rokhlin's theorem), via `cutDistance_zero_of_step_homDensity_eq`. The
 simultaneous regularity is a standard extension of Frieze-Kannan and
@@ -1072,7 +978,7 @@ give step graphons with equal hom densities but cutDistance >= ε, contradicting
 `cutDistance_zero_of_step_homDensity_eq`.
 
 **Depends on**: `cutDistance_zero_of_step_homDensity_eq` which traces to
-`matrix_perm_of_weightedHomSum_eq` (algebraic core) +
+`matrix_quotient_of_weightedHomSum_eq` (algebraic core) +
 `MeasurePreserving.exists_common_extension` (Rokhlin). -/
 private theorem step_quantitative_icl
     (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0) :
@@ -1489,7 +1395,7 @@ gives cutDistance < ε/3. The cutNormDiff bound δ ≤ ε/3 from simultaneous_re
 gives the other two bounds.
 
 **Sorry traces to**: `step_quantitative_icl` → `cutDistance_zero_of_step_homDensity_eq`
-→ `matrix_perm_of_weightedHomSum_eq` (algebraic core) +
+→ `matrix_quotient_of_weightedHomSum_eq` (algebraic core) +
 `MeasurePreserving.exists_common_extension` (Rokhlin). -/
 theorem cutDistance_zero_of_homDensity_eq [StandardBorelSpace α]
     (U W : Graphon α μ)
@@ -1498,7 +1404,7 @@ theorem cutDistance_zero_of_homDensity_eq [StandardBorelSpace α]
     cutDistance U W = 0 := by
   -- The proof requires a uniform version of step_quantitative_icl over all partitions
   -- with bounded card, combined with simultaneous_regularity and the counting lemma.
-  -- This traces to matrix_perm_of_weightedHomSum_eq (algebraic core) +
+  -- This traces to matrix_quotient_of_weightedHomSum_eq (algebraic core) +
   -- MeasurePreserving.exists_common_extension (Rokhlin) through
   -- step_quantitative_icl → cutDistance_zero_of_step_homDensity_eq.
   sorry

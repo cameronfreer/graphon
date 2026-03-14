@@ -23,8 +23,9 @@ This is a purely finite, combinatorial statement with no measure theory.
 
 ## Main results
 
-* `Graphon.matrix_perm_of_weightedHomSum_eq` - Equal weighted hom sums imply
-  permutation equivalence (Lovász [2012] Theorem 5.30)
+* `Graphon.matrix_quotient_of_weightedHomSum_eq` - Equal weighted hom sums imply
+  quotient equivalence: matching block-constant type classes with equal weights
+  (Lovász [2012] Theorem 5.30, correct weighted formulation)
 
 ## References
 
@@ -2080,7 +2081,7 @@ private theorem k1_entry_eq {c c' : Fin 1 → Fin 1 → ℝ}
   have : w 0 * w 0 * c 0 0 = w 0 * w 0 * c' 0 0 := h3
   exact mul_left_cancel₀ (mul_ne_zero hw0 hw0) this
 
-private theorem matrix_perm_of_weightedHomSum_eq_pos {k : ℕ}
+private theorem matrix_quotient_of_weightedHomSum_eq_pos {k : ℕ}
     (c c' : Fin k → Fin k → ℝ)
     (hc_symm : ∀ i j, c i j = c j i) (hc'_symm : ∀ i j, c' i j = c' j i)
     (hc_mem : ∀ i j, c i j ∈ Set.Icc 0 1) (hc'_mem : ∀ i j, c' i j ∈ Set.Icc 0 1)
@@ -2088,58 +2089,70 @@ private theorem matrix_perm_of_weightedHomSum_eq_pos {k : ℕ}
     (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
       weightedHomSum n F c w = weightedHomSum n F c' w)
     (hk : 0 < k) :
-    ∃ π : Equiv.Perm (Fin k),
-      (∀ i j, c i j = c' (π i) (π j)) ∧ (∀ i, w i = w (π i)) := by
+    ∃ (T : ℕ) (type_c : Fin k → Fin T) (type_c' : Fin k → Fin T),
+      -- c is block-constant: entries depend only on types
+      (∀ i₁ i₂ j₁ j₂, type_c i₁ = type_c i₂ → type_c j₁ = type_c j₂ →
+        c i₁ j₁ = c i₂ j₂) ∧
+      -- c' is block-constant: entries depend only on types
+      (∀ i₁ i₂ j₁ j₂, type_c' i₁ = type_c' i₂ → type_c' j₁ = type_c' j₂ →
+        c' i₁ j₁ = c' i₂ j₂) ∧
+      -- Block entries match across c and c'
+      (∀ i j i' j', type_c i = type_c' i' → type_c j = type_c' j' →
+        c i j = c' i' j') ∧
+      -- Type class weights match
+      (∀ t : Fin T,
+        ∑ i ∈ Finset.univ.filter (fun i => type_c i = t), w i =
+        ∑ i ∈ Finset.univ.filter (fun i => type_c' i = t), w i) := by
   sorry
 
 /-! ### Main theorem -/
 
-/-- **Algebraic determination for finite matrices.**
+/-- **Algebraic determination for finite matrices (quotient form).**
 
 If two symmetric matrices with entries in [0,1] have equal weighted homomorphism
-sums for ALL graphs on ALL vertex counts, then they are related by a permutation
-of indices (that also preserves weights).
+sums for ALL graphs on ALL vertex counts, then they have the same "type quotient":
+there exist type classification functions such that both matrices are block-constant
+on type classes, the block matrices agree, and the total weight per type class matches.
 
-This is Lovász [2012] Theorem 5.30 restricted to the weighted setting.
+This is the correct formulation of Lovász [2012] Theorem 5.30 for the weighted setting.
+The permutation formulation (`∃ π, c i j = c' (π i) (π j) ∧ w i = w (π i)`) is false
+when type classes have different cardinalities but equal total weights. The quotient
+formulation is what's needed for the measure-theoretic inverse counting lemma, where
+atomless measures allow mass redistribution within type classes.
 
 ## Proof outline (Lovász [2012], Section 5.2)
 
-The proof proceeds by building a permutation that simultaneously matches
-matrix entries and weights, using an induction on the structure of the
-"row profile" of the matrix.
-
-1. **Star graph moment extraction**: Testing with K_{1,m} yields the moment
-   identity `∑ᵢ wᵢ · dᵢᵐ = ∑ᵢ wᵢ · d'ᵢᵐ` where dᵢ = ∑ⱼ wⱼ c(i,j).
+1. **Star graph moment extraction**: Testing with K_{1,m} yields degree moments.
 
 2. **Vandermonde argument** (`eq_zero_of_weighted_powers_eq_zero`): From the
-   moment equalities, deduce that for each degree value v, the total weight
-   of indices with that degree is the same for c and c'.
+   moment equalities, deduce class weight matching for degree classes.
 
-3. **Caterpillar graph tests**: Testing with caterpillar graphs (paths with
-   pendant edges) extracts the row profiles `rowProfile c w i m`. Vandermonde
-   applied to these shows that the multiset of (weight, row-type) pairs is
-   the same for c and c'.
+3. **Caterpillar/multi-profile tests**: Extract the full row profile via double
+   star graphs and multi-profile stars. Hierarchical Vandermonde shows that the
+   matrix is block-constant on type classes (defined by degree + all row profiles).
 
-4. **Inductive row matching**: Build π by matching rows within each type
-   class. For rows of the same type, the entries toward other type classes
-   are identical, so matching reduces to a smaller instance of the same
-   problem. Terminate by `eq_zero_of_weighted_powers_eq_zero` at the base. -/
-theorem matrix_perm_of_weightedHomSum_eq {k : ℕ}
+4. **Cross-matrix matching**: Show that the block matrices agree between c and c'
+   by comparing conditional moments within each type class. -/
+theorem matrix_quotient_of_weightedHomSum_eq {k : ℕ}
     (c c' : Fin k → Fin k → ℝ)
     (hc_symm : ∀ i j, c i j = c j i) (hc'_symm : ∀ i j, c' i j = c' j i)
     (hc_mem : ∀ i j, c i j ∈ Set.Icc 0 1) (hc'_mem : ∀ i j, c' i j ∈ Set.Icc 0 1)
     (w : Fin k → ℝ) (hw_pos : ∀ i, 0 < w i)
     (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
       weightedHomSum n F c w = weightedHomSum n F c' w) :
-    ∃ π : Equiv.Perm (Fin k),
-      (∀ i j, c i j = c' (π i) (π j)) ∧ (∀ i, w i = w (π i)) := by
+    ∃ (T : ℕ) (type_c : Fin k → Fin T) (type_c' : Fin k → Fin T),
+      (∀ i₁ i₂ j₁ j₂, type_c i₁ = type_c i₂ → type_c j₁ = type_c j₂ →
+        c i₁ j₁ = c i₂ j₂) ∧
+      (∀ i₁ i₂ j₁ j₂, type_c' i₁ = type_c' i₂ → type_c' j₁ = type_c' j₂ →
+        c' i₁ j₁ = c' i₂ j₂) ∧
+      (∀ i j i' j', type_c i = type_c' i' → type_c j = type_c' j' →
+        c i j = c' i' j') ∧
+      (∀ t : Fin T,
+        ∑ i ∈ Finset.univ.filter (fun i => type_c i = t), w i =
+        ∑ i ∈ Finset.univ.filter (fun i => type_c' i = t), w i) := by
   rcases Nat.eq_zero_or_pos k with rfl | hk
-  · exact ⟨Equiv.refl _, nofun, nofun⟩
-  · -- k > 0: Lovász [2012] Theorem 5.30
-    -- The full proof uses ALL graph homomorphism tests to build a
-    -- permutation π simultaneously matching entries and weights.
-    -- Steps: star graph moments → Vandermonde → degree class matching →
-    -- caterpillar tests → row profile matching → inductive assembly.
-    exact matrix_perm_of_weightedHomSum_eq_pos c c' hc_symm hc'_symm hc_mem hc'_mem w hw_pos h_eq hk
+  · exact ⟨0, nofun, nofun, nofun, nofun, nofun, nofun⟩
+  · exact matrix_quotient_of_weightedHomSum_eq_pos c c' hc_symm hc'_symm
+      hc_mem hc'_mem w hw_pos h_eq hk
 
 end Graphon
