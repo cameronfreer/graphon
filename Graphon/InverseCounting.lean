@@ -1659,7 +1659,174 @@ private theorem exists_partition_with_measures {K : ℕ}
       (∀ S ∈ P.parts, ∃ i, ι i = S) ∧
       P.parts.card = K ∧
       ∀ i, (μ (ι i)).toReal = w i := by
-  sorry
+  -- K = 0 impossible
+  rcases Nat.eq_zero_or_pos K with rfl | hK_pos
+  · simp at hw_sum
+  -- Derive Infinite α
+  haveI : Infinite α := by
+    by_contra h; rw [not_infinite_iff_finite] at h; haveI := h
+    exact absurd (Set.Finite.measure_zero Set.finite_univ μ) (by simp [measure_univ])
+  -- K distinct points
+  set ξ : Fin K → α := (Infinite.natEmbedding α) ∘ Fin.val
+  have hξ_inj : Function.Injective ξ := (Infinite.natEmbedding α).injective.comp Fin.val_injective
+  -- Reserve set R (finite, null, measurable)
+  have hR_finite : (Set.range ξ).Finite := Set.finite_range ξ
+  have hR_meas : MeasurableSet (Set.range ξ) := hR_finite.measurableSet
+  have hR_null : μ (Set.range ξ) = 0 := hR_finite.measure_zero μ
+  -- Working set S₀ = univ \ R
+  set S₀ := Set.univ \ Set.range ξ with hS₀_def
+  have hS₀_meas : MeasurableSet S₀ := MeasurableSet.univ.diff hR_meas
+  have hS₀_eq : μ S₀ = 1 := by
+    have : μ Set.univ = μ S₀ + μ (Set.range ξ) := by
+      rw [← measure_union (Set.disjoint_sdiff_left) hR_meas, Set.diff_union_self,
+          Set.union_eq_self_of_subset_right (Set.subset_univ _)]
+    rw [measure_univ, hR_null, add_zero] at this; exact this.symm
+  -- Recursive carving of S₀: build C_i ⊆ S₀ with μ(C_i) = ofReal(w i)
+  -- Process indices 0..K-2 by IVT, last index absorbs remainder
+  suffices h_carve : ∃ C : Fin K → Set α,
+      (∀ i, MeasurableSet (C i)) ∧ (∀ i, C i ⊆ S₀) ∧
+      (∀ i j, i ≠ j → Disjoint (C i) (C j)) ∧
+      μ (S₀ \ ⋃ i, C i) = 0 ∧ (∀ i, μ (C i) = ENNReal.ofReal (w i)) by
+    obtain ⟨C, hCm, hCs, hCd, hCcov, hCe⟩ := h_carve
+    -- Decorate: ι i = C i ∪ {ξ i}
+    set ι : Fin K → Set α := fun i => C i ∪ {ξ i}
+    -- ι i are pairwise disjoint
+    have hι_disj : ∀ i j, i ≠ j → Disjoint (ι i) (ι j) := by
+      intro i j hij
+      apply Disjoint.union_left
+      · apply Disjoint.union_right
+        · exact hCd i j hij
+        · rw [Set.disjoint_left]; intro x hx hξ
+          rw [Set.mem_singleton_iff] at hξ; subst hξ
+          exact (hCs i hx).2 ⟨j, rfl⟩
+      · apply Disjoint.union_right
+        · rw [Set.disjoint_left]; intro x hx hC
+          rw [Set.mem_singleton_iff] at hx; subst hx
+          exact (hCs j hC).2 ⟨i, rfl⟩
+        · rw [Set.disjoint_left]; intro x hx hy
+          rw [Set.mem_singleton_iff] at hx hy
+          exact hij (hξ_inj (hx ▸ hy))
+    -- ι is injective
+    have hι_inj : Function.Injective ι := by
+      intro i j hij
+      by_contra hne
+      exact Set.disjoint_left.mp (hι_disj i j hne) (Set.mem_union_right _ (Set.mem_singleton _))
+        (hij ▸ Set.mem_union_right _ (Set.mem_singleton _))
+    -- ι i are measurable
+    have hι_meas : ∀ i, MeasurableSet (ι i) :=
+      fun i => (hCm i).union (measurableSet_singleton _)
+    -- μ(ι i) = ofReal(w i) (singleton has measure 0)
+    have hι_measure : ∀ i, μ (ι i) = ENNReal.ofReal (w i) := by
+      intro i; show μ (C i ∪ {ξ i}) = _
+      have h_disj : Disjoint (C i) {ξ i} := by
+        rw [Set.disjoint_left]; intro x hx hξ
+        rw [Set.mem_singleton_iff] at hξ; subst hξ
+        exact (hCs i hx).2 ⟨i, rfl⟩
+      rw [measure_union h_disj (measurableSet_singleton _),
+          MeasureTheory.NoAtoms.measure_singleton, add_zero, hCe i]
+    -- Build MeasurablePartition
+    haveI : DecidableEq (Set α) := Classical.decEq _
+    set parts := Finset.image ι Finset.univ
+    have h_card : parts.card = K := by
+      rw [Finset.card_image_of_injective _ hι_inj, Finset.card_univ, Fintype.card_fin]
+    refine ⟨⟨parts, fun S hS => ?_, ?_, ?_⟩, ι, ?_, hι_inj, ?_, h_card, ?_⟩
+    -- measurable_parts
+    · obtain ⟨i, _, rfl⟩ := Finset.mem_image.mp (show S ∈ Finset.image ι Finset.univ from hS)
+      exact hι_meas i
+    -- pairwiseDisjoint
+    · intro S hS T hT hne
+      obtain ⟨i, _, rfl⟩ := Finset.mem_image.mp (show S ∈ Finset.image ι Finset.univ from hS)
+      obtain ⟨j, _, rfl⟩ := Finset.mem_image.mp (show T ∈ Finset.image ι Finset.univ from hT)
+      exact hι_disj i j (fun h => hne (congrArg ι h))
+    -- ae_covers: complement ⊆ S₀ \ ⋃ C i, which is null
+    · rw [ae_iff]
+      refine le_antisymm ?_ (zero_le _)
+      calc μ {x | ¬∃ S ∈ parts, x ∈ S}
+          ≤ μ (S₀ \ ⋃ i, C i) := measure_mono (fun x hx => by
+            push_neg at hx -- hx : ∀ S ∈ parts, x ∉ S
+            refine ⟨⟨Set.mem_univ _, fun hxR => ?_⟩, fun hxC => ?_⟩
+            · obtain ⟨j, rfl⟩ := hxR
+              exact hx (ι j) (Finset.mem_image.mpr ⟨j, Finset.mem_univ _, rfl⟩)
+                (Set.mem_union_right _ rfl)
+            · rw [Set.mem_iUnion] at hxC; obtain ⟨i, hi⟩ := hxC
+              exact hx (ι i) (Finset.mem_image.mpr ⟨i, Finset.mem_univ _, rfl⟩)
+                (Set.mem_union_left _ hi))
+        _ = 0 := hCcov
+    -- ι i ∈ parts
+    · exact fun i => Finset.mem_image.mpr ⟨i, Finset.mem_univ _, rfl⟩
+    -- surjectivity
+    · intro S hS; obtain ⟨i, _, rfl⟩ := Finset.mem_image.mp hS; exact ⟨i, rfl⟩
+    -- measures
+    · intro i; rw [hι_measure i, ENNReal.toReal_ofReal (hw_nn i)]
+  -- Now prove h_carve: build C by recursion on K
+  -- Helper: carve n cells from measurable set S with prescribed measures
+  suffices h_gen : ∀ (n : ℕ) (S : Set α) (hS : MeasurableSet S) (hS_ne_top : μ S ≠ ⊤)
+      (w' : Fin n → ℝ) (hw'_nn : ∀ i, 0 ≤ w' i)
+      (hw'_sum : ENNReal.ofReal (∑ i, w' i) = μ S),
+      ∃ C : Fin n → Set α,
+        (∀ i, MeasurableSet (C i)) ∧ (∀ i, C i ⊆ S) ∧
+        (∀ i j, i ≠ j → Disjoint (C i) (C j)) ∧
+        μ (S \ ⋃ i, C i) = 0 ∧ (∀ i, μ (C i) = ENNReal.ofReal (w' i)) by
+    have hS₀_ne_top : μ S₀ ≠ ⊤ := by rw [hS₀_eq]; exact ENNReal.one_ne_top
+    have hw_ofReal : ENNReal.ofReal (∑ i, w i) = μ S₀ := by
+      rw [hS₀_eq, hw_sum, ENNReal.ofReal_one]
+    exact h_gen K S₀ hS₀_meas hS₀_ne_top w hw_nn hw_ofReal
+  intro n; induction n with
+  | zero =>
+    intro S hS hS_ne_top w' _ hw'_sum
+    refine ⟨Fin.elim0, fun i => i.elim0, fun i => i.elim0,
+      fun i => i.elim0, ?_, fun i => i.elim0⟩
+    simp only [Set.iUnion_of_empty, Set.diff_empty]; simpa using hw'_sum.symm
+  | succ n ih =>
+    intro S hS hS_ne_top w' hw'_nn hw'_sum
+    -- Carve first cell C₀ ⊆ S with μ(C₀) = ENNReal.ofReal(w' 0)
+    have h_w0_le : ENNReal.ofReal (w' 0) ≤ μ S := by
+      rw [← hw'_sum]; apply ENNReal.ofReal_le_ofReal
+      exact Finset.single_le_sum (fun i _ => hw'_nn i) (Finset.mem_univ 0)
+    obtain ⟨C₀, hC₀m, hC₀s, hC₀e⟩ := exists_measurable_subset_of_measure hS h_w0_le
+    -- Remaining space S' = S \ C₀
+    set S' := S \ C₀ with hS'_def
+    have hS'm : MeasurableSet S' := hS.diff hC₀m
+    have hS'_ne_top : μ S' ≠ ⊤ := ne_top_of_le_ne_top hS_ne_top (measure_mono diff_subset)
+    have hw'_rest_sum : ENNReal.ofReal (∑ i : Fin n, w' i.succ) = μ S' := by
+      rw [measure_diff hC₀s hC₀m.nullMeasurableSet (by rw [hC₀e]; exact ENNReal.ofReal_ne_top),
+          hC₀e, ← hw'_sum, Fin.sum_univ_succ,
+          ENNReal.ofReal_add (hw'_nn 0) (Finset.sum_nonneg (fun i _ => hw'_nn _))]
+      exact (ENNReal.add_sub_cancel_left ENNReal.ofReal_ne_top).symm
+    obtain ⟨C', hC'm, hC's, hC'd, hC'cov, hC'e⟩ :=
+      ih S' hS'm hS'_ne_top (fun i => w' i.succ) (fun i => hw'_nn _) hw'_rest_sum
+    refine ⟨Fin.cons C₀ C', ?_, ?_, ?_, ?_, ?_⟩
+    -- Measurable
+    · intro i; refine Fin.cases ?_ (fun j => ?_) i
+      · rw [Fin.cons_zero]; exact hC₀m
+      · rw [Fin.cons_succ]; exact hC'm j
+    -- Subset
+    · intro i; refine Fin.cases ?_ (fun j => ?_) i
+      · rw [Fin.cons_zero]; exact hC₀s
+      · rw [Fin.cons_succ]; exact (hC's j).trans diff_subset
+    -- Disjoint: introduce hij AFTER case split so types are correct
+    · intro i j
+      refine Fin.cases ?_ (fun i' => ?_) i <;> refine Fin.cases ?_ (fun j' => ?_) j <;>
+        intro hij <;> simp only [Fin.cons_zero, Fin.cons_succ]
+      · exact absurd rfl hij
+      · exact Set.disjoint_of_subset_right (hC's _) disjoint_sdiff_right
+      · exact (Set.disjoint_of_subset_right (hC's _) disjoint_sdiff_right).symm
+      · exact hC'd _ _ (fun h => hij (congrArg Fin.succ h))
+    -- Coverage: S \ ⋃ i, Fin.cons C₀ C' i = 0
+    · -- S \ ⋃ i, T i = S' \ ⋃ i, C' i where T i = Fin.cons C₀ C'
+      -- Key: ⋃ i, T i = C₀ ∪ ⋃ j, C' j, so S \ (C₀ ∪ ⋃ C') = (S \ C₀) \ ⋃ C' = S' \ ⋃ C'
+      suffices h : ∀ x, x ∈ S \ ⋃ i, @Fin.cons _ (fun _ => Set α) C₀ C' i →
+          x ∈ S' \ ⋃ j, C' j by
+        exact le_antisymm (le_trans (measure_mono h) (le_of_eq hC'cov)) (zero_le _)
+      intro x ⟨hxS, hxU⟩
+      simp only [Set.mem_iUnion, not_exists] at hxU
+      refine ⟨⟨hxS, fun hxC₀ => hxU 0 (by rw [Fin.cons_zero]; exact hxC₀)⟩, ?_⟩
+      simp only [Set.mem_iUnion, not_exists]
+      intro j hj; exact hxU j.succ (by rw [Fin.cons_succ]; exact hj)
+    -- Measures match
+    · intro i; refine Fin.cases ?_ (fun j => ?_) i
+      · rw [Fin.cons_zero]; exact hC₀e
+      · rw [Fin.cons_succ]; exact hC'e j
 
 /-- Weight stability for step graphons on different partitions with same coefficients.
 **Sorry traces to**: `MeasurePreserving.exists_common_extension` (Rokhlin). -/
