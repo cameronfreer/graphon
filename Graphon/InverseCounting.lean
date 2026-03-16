@@ -2335,6 +2335,10 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
           exact mul_lt_mul_of_pos_right (by linarith : (↑K : ℝ) < ↑K + 1)
             (div_pos hε (by positivity))
       _ = ε / 4 := by field_simp; ring
+  -- **Sorry traces to**: `cutDistance_step_weight_le` → `exists_common_extension` (Rokhlin).
+  -- Proof sketch: triangle through P_mid (built via exists_partition_with_measures with
+  -- weights w_seq(ψm)). Part 1: cutDistance(stepify, G_mid) = 0 via cell alignment (Rokhlin).
+  -- Part 2: cutDistance(G_mid, G_Um) ≤ 2*∑|w_seq-w_lim| < ε/4 by h_weight_bound.
   have h_cd_cross_U : cutDistance (stepify (P_seq (ψ m)) (U_seq (ψ m))) G_Um < ε / 4 := by
     sorry
   have h_cd_cross_W : cutDistance (stepify (P_seq (ψ m)) (W_seq (ψ m))) G_Wm < ε / 4 := by
