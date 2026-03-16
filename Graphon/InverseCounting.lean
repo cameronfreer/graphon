@@ -1791,7 +1791,60 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
     intro i; exact (tendsto_pi_nhds.mp ((continuous_snd.tendsto _).comp h_conv)) i
   have h_wlim_nn : ∀ i, 0 ≤ w_lim i := fun i => (h_wlim_mem i).1
   have h_wlim_sum : ∑ i : Fin K, w_lim i = 1 := by
-    have h_w_sum : ∀ n, ∑ i : Fin K, w_seq n i = 1 := by intro n; sorry
+    have h_w_sum : ∀ n, ∑ i : Fin K, w_seq n i = 1 := by
+      intro n
+      -- The sum over Fin K splits into active (i.val < parts.card) giving
+      -- ∑ S ∈ parts, (μ S).toReal, and padded giving 0.
+      -- Then partition coverage gives ∑ = 1.
+      --
+      -- Step 1: Rewrite each term to its if-then-else form
+      conv_lhs => arg 2; ext i; rw [show w_seq n i =
+        if (i : ℕ) < (P_seq n).parts.card then (μ (pad n i)).toReal else 0 from rfl]
+      -- Step 2: Use Finset.sum_ite to split
+      simp_rw [Finset.sum_ite]
+      simp only [Finset.sum_const_zero, add_zero]
+      -- Step 3: Reindex the filtered sum to ∑ S ∈ parts using sum_bij
+      -- Define inverse: for S ∈ parts, find the index via equivFin
+      have h_reindex :
+          ∑ x ∈ Finset.univ.filter (fun i : Fin K => (i : ℕ) < (P_seq n).parts.card),
+            (μ (pad n x)).toReal =
+          (P_seq n).parts.sum (fun S => (μ S).toReal) := by
+        apply Finset.sum_bij (fun i (hi : i ∈ _) => pad n i)
+        · intro i hi
+          exact h_pad_mem n i ((Finset.mem_filter.mp hi).2)
+        · intro i₁ hi₁ i₂ hi₂ h
+          exact h_pad_inj n i₁ i₂ ((Finset.mem_filter.mp hi₁).2)
+            ((Finset.mem_filter.mp hi₂).2) h
+        · intro S hS
+          obtain ⟨i, hi_lt, hi_eq⟩ := h_pad_surj n S hS
+          exact ⟨i, Finset.mem_filter.mpr ⟨Finset.mem_univ _, hi_lt⟩, hi_eq⟩
+        · intro _ _; rfl
+      rw [h_reindex]
+      -- Step 4: Show ∑ S ∈ parts, (μ S).toReal = 1 using partition properties
+      have h_ne_top : ∀ S ∈ (P_seq n).parts, μ S ≠ ⊤ :=
+        fun S _ => ne_top_of_le_ne_top (measure_ne_top μ _) (measure_mono (Set.subset_univ _))
+      rw [← ENNReal.toReal_sum (fun S hS => h_ne_top S hS)]
+      rw [show ∑ S ∈ (P_seq n).parts, μ S = μ (⋃ S ∈ (P_seq n).parts, id S) from
+        (measure_biUnion_finset
+          (fun S hS T hT hne => (P_seq n).pairwiseDisjoint hS hT hne)
+          (fun S hS => (P_seq n).measurableSet_part hS)).symm]
+      simp only [id_eq]
+      have h_meas_union : MeasurableSet (⋃ S ∈ (P_seq n).parts, S) :=
+        MeasurableSet.biUnion (P_seq n).parts.countable_toSet
+          (fun S hS => (P_seq n).measurableSet_part hS)
+      have h_ae := (P_seq n).ae_covers
+      rw [ae_iff] at h_ae
+      have h_null : μ ((⋃ S ∈ (P_seq n).parts, S)ᶜ) = 0 := by
+        refine le_antisymm ?_ (zero_le _)
+        calc μ ((⋃ S ∈ (P_seq n).parts, S)ᶜ)
+            ≤ μ {x | ¬∃ S ∈ (P_seq n).parts, x ∈ S} := by
+              apply measure_mono; intro x hx
+              simp only [Set.mem_compl_iff, Set.mem_iUnion, not_exists] at hx
+              exact fun ⟨S, hSP, hxS⟩ => hx S hSP hxS
+          _ = 0 := h_ae
+      rw [show μ (⋃ S ∈ (P_seq n).parts, S) = μ Set.univ from by
+        rw [← measure_add_measure_compl h_meas_union, h_null, add_zero]]
+      simp [measure_univ]
     exact tendsto_nhds_unique
       ((tendsto_finset_sum _ (fun i _ => h_pw_w i)).congr
         (fun n => (h_w_sum (ψ n)).symm ▸ rfl))
