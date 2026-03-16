@@ -2106,7 +2106,87 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
       (hb : (b = 0 → V = U_seq (ψ m)) ∧ (b = 1 → V = W_seq (ψ m))) →
       |homDensity F (stepify (P_seq (ψ m)) V) -
        weightedHomSum n F (fun i j => coeff_seq (ψ m) i j b) (w_seq (ψ m))| = 0 := by
-    sorry
+    intro m V b n F _ _hn hb
+    rw [abs_eq_zero, sub_eq_zero]
+    set P := P_seq (ψ m)
+    set k := P.parts.card with hk_def
+    have hk_le : k ≤ K := hP_card (ψ m)
+    -- Partition enumeration
+    set ι_P : Fin k → Set α := fun i => (P.parts.equivFin.symm i : Set α)
+    have hι_P : ∀ i, ι_P i ∈ P.parts := fun i => (P.parts.equivFin.symm i).prop
+    have hι_P_surj : ∀ S ∈ P.parts, ∃ i, ι_P i = S :=
+      fun S hS => ⟨P.parts.equivFin ⟨S, hS⟩, by simp [ι_P]⟩
+    have hι_P_inj : Function.Injective ι_P :=
+      fun _ _ hij => P.parts.equivFin.symm.injective (Subtype.val_injective hij)
+    -- rectAverage symmetry and membership
+    have hRA_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, rectAverage V S T = rectAverage V T S :=
+      fun S hS T hT => rectAverage_symm V S T (P.measurableSet_part hS) (P.measurableSet_part hT)
+    have hRA_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, rectAverage V S T ∈ Set.Icc 0 1 :=
+      fun S hS T hT => rectAverage_mem_Icc V S T (P.measurableSet_part hS) (P.measurableSet_part hT)
+    -- Bridge: homDensity = whs on Fin k
+    have h_bridge : homDensity F (stepify P V) =
+        weightedHomSum n F (fun i j => rectAverage V (ι_P i) (ι_P j))
+          (fun i => (μ (ι_P i)).toReal) := by
+      have h_aeq : (stepify P V).toAEEqFun =
+          (mkStepGraphon P (rectAverage V) hRA_symm hRA_mem).toAEEqFun :=
+        AEEqFun.mk_eq_mk.mpr Filter.EventuallyEq.rfl
+      simp only [homDensity, h_aeq]
+      exact homDensity_mkStepGraphon_eq_weightedHomSum P (rectAverage V)
+        hRA_symm hRA_mem ι_P hι_P hι_P_surj hι_P_inj n F
+    rw [h_bridge]
+    -- Zero-weight vanishing: whs Fin k = whs Fin K
+    -- Embedding Fin k ↪ Fin K
+    set embed : Fin k → Fin K := fun i => ⟨i.val, lt_of_lt_of_le i.isLt hk_le⟩
+    have hembed_inj : Function.Injective embed :=
+      fun _ _ h => Fin.ext (Fin.mk.inj_iff.mp h)
+    -- pad(embed i) = ι_P i for active indices
+    have h_pad_eq : ∀ i : Fin k, pad (ψ m) (embed i) = ι_P i := by
+      intro i; show pad (ψ m) ⟨i.val, _⟩ = ι_P i
+      simp only [pad]; rw [dif_pos i.isLt]
+    -- Weight and coefficient matching
+    have h_w_eq : ∀ i : Fin k, w_seq (ψ m) (embed i) = (μ (ι_P i)).toReal := by
+      intro i; show (if (embed i : ℕ) < k then _ else _) = _
+      rw [if_pos i.isLt, h_pad_eq]
+    have h_c_eq : ∀ i j : Fin k,
+        coeff_seq (ψ m) (embed i) (embed j) b = rectAverage V (ι_P i) (ι_P j) := by
+      intro i j
+      show (if (embed i : ℕ) < k ∧ (embed j : ℕ) < k then _ else _) = _
+      rw [if_pos ⟨i.isLt, j.isLt⟩, h_pad_eq, h_pad_eq]
+      fin_cases b
+      · simp only [ite_true]; exact (hb.1 rfl).symm ▸ rfl
+      · simp only [show ¬((1 : Fin 2) = 0) from by decide, ite_false]; exact (hb.2 rfl).symm ▸ rfl
+    -- Zero-weight vanishing and reindexing
+    simp only [weightedHomSum]
+    rw [← Finset.sum_filter_add_sum_filter_not Finset.univ
+      (fun σ : Fin n → Fin K => ∀ v, (σ v : ℕ) < k)]
+    -- Bad terms vanish (some σ(v) ≥ k means w_seq = 0)
+    have h_bad : ∑ σ ∈ Finset.univ.filter (fun σ : Fin n → Fin K => ¬∀ v, (σ v : ℕ) < k),
+        (∏ v, w_seq (ψ m) (σ v)) * ∏ e ∈ F.edgeFinset,
+          coeff_seq (ψ m) (σ (Quot.out e).1) (σ (Quot.out e).2) b = 0 := by
+      apply Finset.sum_eq_zero; intro σ hσ
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and, not_forall] at hσ
+      obtain ⟨v, hv⟩ := hσ
+      apply mul_eq_zero_of_left; apply Finset.prod_eq_zero (Finset.mem_univ v)
+      show (if (σ v : ℕ) < k then _ else _) = _
+      rw [if_neg hv]
+    rw [h_bad, add_zero]
+    -- Good terms biject with Fin n → Fin k
+    have h_reindex : ∑ τ : Fin n → Fin k,
+        (∏ v : Fin n, (μ (ι_P (τ v))).toReal) *
+        ∏ e ∈ F.edgeFinset, rectAverage V (ι_P (τ (Quot.out e).1)) (ι_P (τ (Quot.out e).2)) =
+        ∑ σ ∈ Finset.univ.filter (fun σ : Fin n → Fin K => ∀ v, (σ v : ℕ) < k),
+        (∏ v : Fin n, w_seq (ψ m) (σ v)) *
+        ∏ e ∈ F.edgeFinset, coeff_seq (ψ m) (σ (Quot.out e).1) (σ (Quot.out e).2) b := by
+      apply Finset.sum_nbij (fun (τ : Fin n → Fin k) v => embed (τ v))
+      · intro τ _; exact Finset.mem_filter.mpr ⟨Finset.mem_univ _, fun v => (τ v).isLt⟩
+      · intro τ₁ _ τ₂ _ h; exact funext fun v => hembed_inj (congr_fun h v)
+      · intro σ hσ
+        have hσ' := (Finset.mem_filter.mp hσ).2
+        exact ⟨fun v => ⟨(σ v).val, hσ' v⟩, Finset.mem_univ _, funext (fun v => Fin.ext rfl)⟩
+      · intro τ _; congr 1
+        · exact Finset.prod_congr rfl (fun v _ => (h_w_eq (τ v)).symm)
+        · exact Finset.prod_congr rfl (fun e _ => (h_c_eq _ _).symm)
+    exact h_reindex
   have h_hom_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
       homDensity F V_U = homDensity F V_W := by
     intro n F _
