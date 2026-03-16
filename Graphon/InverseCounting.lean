@@ -1828,6 +1828,118 @@ private theorem exists_partition_with_measures {K : ℕ}
       · rw [Fin.cons_zero]; exact hC₀e
       · rw [Fin.cons_succ]; exact hC'e j
 
+/-- If two graphons agree a.e. off a "strip" `E × univ ∪ univ × E`, then their
+cut norm difference is at most `2 * (μ E).toReal`. -/
+private theorem cutNormDiff_le_of_ae_agree_off_strip (U W : Graphon α μ)
+    (E : Set α) (hE : MeasurableSet E)
+    (h_agree : ∀ᵐ p ∂(μ.prod μ), p.1 ∉ E → p.2 ∉ E →
+        U.toAEEqFun p = W.toAEEqFun p) :
+    cutNormDiff U W ≤ 2 * (μ E).toReal := by
+  -- Peel the 4-level iSup
+  unfold cutNormDiff
+  have h_bound_nn : 0 ≤ 2 * (μ E).toReal := by positivity
+  apply Real.iSup_le _ h_bound_nn; intro S
+  apply Real.iSup_le _ h_bound_nn; intro hS
+  apply Real.iSup_le _ h_bound_nn; intro T
+  apply Real.iSup_le _ h_bound_nn; intro hT
+  -- Goal: |rectIntegralDiff U W S T| ≤ 2 * (μ E).toReal
+  simp only [rectIntegralDiff]
+  -- Abbreviations for the integrand
+  set f := fun p : α × α => U.toAEEqFun p - W.toAEEqFun p with hf_def
+  -- Integrability of f
+  have hf_int : Integrable f (μ.prod μ) :=
+    (SymmKernel.graphon_integrable U).sub (SymmKernel.graphon_integrable W)
+  -- |f| ≤ 1 a.e.
+  have hf_le_one : ∀ᵐ p ∂(μ.prod μ), |f p| ≤ 1 := by
+    filter_upwards [U.ae_mem_Icc, W.ae_mem_Icc] with p hU hW
+    rw [abs_le]; exact ⟨by linarith [hU.1, hW.2], by linarith [hU.2, hW.1]⟩
+  -- Measurability facts
+  have hSE := hS.inter hE
+  have hSdE := hS.diff hE
+  have hTE := hT.inter hE
+  have hTdE := hT.diff hE
+  -- Key decomposition: S ×ˢ T = (S ∩ E) ×ˢ T ∪ (S \ E) ×ˢ T
+  have h_ST_decomp : S ×ˢ T = ((S ∩ E) ×ˢ T) ∪ ((S \ E) ×ˢ T) := by
+    rw [← Set.union_prod, Set.inter_union_diff]
+  -- Further decompose (S \ E) ×ˢ T = (S \ E) ×ˢ (T ∩ E) ∪ (S \ E) ×ˢ (T \ E)
+  have h_SdET_decomp : (S \ E) ×ˢ T = ((S \ E) ×ˢ (T ∩ E)) ∪ ((S \ E) ×ˢ (T \ E)) := by
+    rw [← Set.prod_union, Set.inter_union_diff]
+  -- Disjointness
+  have h_disj1 : Disjoint ((S ∩ E) ×ˢ T) ((S \ E) ×ˢ T) :=
+    disjoint_inf_sdiff.set_prod_left T T
+  have h_disj2 : Disjoint ((S \ E) ×ˢ (T ∩ E)) ((S \ E) ×ˢ (T \ E)) :=
+    disjoint_inf_sdiff.set_prod_right (S \ E) (S \ E)
+  -- Split the integral over S ×ˢ T into two pieces
+  have h_int1 : IntegrableOn f ((S ∩ E) ×ˢ T) (μ.prod μ) := hf_int.integrableOn
+  have h_int2 : IntegrableOn f ((S \ E) ×ˢ T) (μ.prod μ) := hf_int.integrableOn
+  have h_int3 : IntegrableOn f ((S \ E) ×ˢ (T ∩ E)) (μ.prod μ) := hf_int.integrableOn
+  have h_int4 : IntegrableOn f ((S \ E) ×ˢ (T \ E)) (μ.prod μ) := hf_int.integrableOn
+  -- On (S \ E) ×ˢ (T \ E), f = 0 a.e. by h_agree
+  have h_zero : ∫ p in (S \ E) ×ˢ (T \ E), f p ∂(μ.prod μ) = 0 := by
+    apply setIntegral_eq_zero_of_ae_eq_zero
+    filter_upwards [h_agree] with p hp hpmem
+    have hp1 : p.1 ∉ E := hpmem.1.2
+    have hp2 : p.2 ∉ E := hpmem.2.2
+    simp [hf_def, hp hp1 hp2]
+  -- Bound piece 1: |(S ∩ E) ×ˢ T| ≤ μ(E).toReal
+  have hE_ne_top : μ E ≠ ⊤ := measure_ne_top μ E
+  have h_piece1 : |∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)| ≤ (μ E).toReal := by
+    calc |∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)|
+        ≤ ∫ p in (S ∩ E) ×ˢ T, |f p| ∂(μ.prod μ) := abs_integral_le_integral_abs
+      _ ≤ ∫ _ in (S ∩ E) ×ˢ T, (1 : ℝ) ∂(μ.prod μ) := by
+          apply setIntegral_mono_ae_restrict
+          · exact hf_int.abs.integrableOn
+          · exact integrable_const 1
+          · exact ae_restrict_of_ae hf_le_one
+      _ = ((μ.prod μ) ((S ∩ E) ×ˢ T)).toReal := by
+          rw [setIntegral_const, smul_eq_mul, mul_one]; rfl
+      _ = (μ (S ∩ E) * μ T).toReal := by rw [Measure.prod_prod]
+      _ ≤ (μ E * 1).toReal := by
+          apply ENNReal.toReal_mono (by rw [mul_one]; exact hE_ne_top)
+          exact mul_le_mul' (measure_mono Set.inter_subset_right)
+            (by rw [← measure_univ (μ := μ)]; exact measure_mono (subset_univ _))
+      _ = (μ E).toReal := by rw [mul_one]
+  -- Bound piece 2: |(S \ E) ×ˢ (T ∩ E)| ≤ μ(E).toReal
+  have h_piece2 : |∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)| ≤ (μ E).toReal := by
+    calc |∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)|
+        ≤ ∫ p in (S \ E) ×ˢ (T ∩ E), |f p| ∂(μ.prod μ) := abs_integral_le_integral_abs
+      _ ≤ ∫ _ in (S \ E) ×ˢ (T ∩ E), (1 : ℝ) ∂(μ.prod μ) := by
+          apply setIntegral_mono_ae_restrict
+          · exact hf_int.abs.integrableOn
+          · exact integrable_const 1
+          · exact ae_restrict_of_ae hf_le_one
+      _ = ((μ.prod μ) ((S \ E) ×ˢ (T ∩ E))).toReal := by
+          rw [setIntegral_const, smul_eq_mul, mul_one]; rfl
+      _ = (μ (S \ E) * μ (T ∩ E)).toReal := by rw [Measure.prod_prod]
+      _ ≤ (1 * μ E).toReal := by
+          apply ENNReal.toReal_mono (by rw [one_mul]; exact hE_ne_top)
+          exact mul_le_mul'
+            (by rw [← measure_univ (μ := μ)]; exact measure_mono (subset_univ _))
+            (measure_mono Set.inter_subset_right)
+      _ = (μ E).toReal := by rw [one_mul]
+  -- Split the second integral (S \ E) ×ˢ T into two sub-parts
+  have h_split2 : ∫ p in (S \ E) ×ˢ T, f p ∂(μ.prod μ) =
+      (∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)) +
+      (∫ p in (S \ E) ×ˢ (T \ E), f p ∂(μ.prod μ)) := by
+    rw [h_SdET_decomp, setIntegral_union h_disj2 (hSdE.prod hTdE) h_int3 h_int4]
+  -- Now assemble: split integral and use triangle inequality
+  have h_main_split : ∫ p in S ×ˢ T, f p ∂(μ.prod μ) =
+      (∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)) +
+      (∫ p in (S \ E) ×ˢ T, f p ∂(μ.prod μ)) := by
+    rw [h_ST_decomp]; exact setIntegral_union h_disj1 (hSdE.prod hT) h_int1 h_int2
+  calc |∫ p in S ×ˢ T, f p ∂(μ.prod μ)|
+      = |(∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)) +
+         ((∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)) +
+          (∫ p in (S \ E) ×ˢ (T \ E), f p ∂(μ.prod μ)))| := by
+        rw [h_main_split, h_split2]
+    _ = |(∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)) +
+         (∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ))| := by
+        rw [h_zero, add_zero]
+    _ ≤ |∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)| +
+        |∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)| := abs_add_le _ _
+    _ ≤ (μ E).toReal + (μ E).toReal := add_le_add h_piece1 h_piece2
+    _ = 2 * (μ E).toReal := by ring
+
 /-- Weight stability for step graphons on different partitions with same coefficients.
 **Sorry traces to**: `MeasurePreserving.exists_common_extension` (Rokhlin). -/
 private theorem cutDistance_step_weight_le {K : ℕ}
@@ -1839,13 +1951,412 @@ private theorem cutDistance_step_weight_le {K : ℕ}
     (hc_Q_mem : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts, c_Q S T ∈ Set.Icc 0 1)
     (ι_P : Fin K → Set α) (ι_Q : Fin K → Set α)
     (hι_P : ∀ i, ι_P i ∈ P.parts) (hι_Q : ∀ i, ι_Q i ∈ Q.parts)
+    (hι_P_inj : Function.Injective ι_P) (hι_Q_inj : Function.Injective ι_Q)
     (hι_P_surj : ∀ S ∈ P.parts, ∃ i, ι_P i = S)
     (hι_Q_surj : ∀ S ∈ Q.parts, ∃ i, ι_Q i = S)
     (h_coeff_eq : ∀ i j : Fin K, c_P (ι_P i) (ι_P j) = c_Q (ι_Q i) (ι_Q j)) :
     cutDistance (mkStepGraphon P c_P hc_P_symm hc_P_mem)
                (mkStepGraphon Q c_Q hc_Q_symm hc_Q_mem) ≤
       2 * ∑ i : Fin K, |(μ (ι_P i)).toReal - (μ (ι_Q i)).toReal| := by
-  sorry
+  -- Step 0: Abbreviate the two step graphons
+  set W_P := mkStepGraphon P c_P hc_P_symm hc_P_mem with hW_P_def
+  set W_Q := mkStepGraphon Q c_Q hc_Q_symm hc_Q_mem with hW_Q_def
+  -- Step 1: Build matched subsets M_P i ⊆ ι_P i and M_Q i ⊆ ι_Q i
+  -- with μ(M_P i) = μ(M_Q i) = min(μ(ι_P i), μ(ι_Q i))
+  have h_matched : ∀ i : Fin K, ∃ (MP_i MQ_i : Set α),
+      MeasurableSet MP_i ∧ MeasurableSet MQ_i ∧
+      MP_i ⊆ ι_P i ∧ MQ_i ⊆ ι_Q i ∧
+      μ MP_i = min (μ (ι_P i)) (μ (ι_Q i)) ∧
+      μ MQ_i = min (μ (ι_P i)) (μ (ι_Q i)) := by
+    intro i
+    have hP_meas := P.measurableSet_part (hι_P i)
+    have hQ_meas := Q.measurableSet_part (hι_Q i)
+    obtain ⟨MP_i, hMP_m, hMP_s, hMP_e⟩ :=
+      exists_measurable_subset_of_measure (μ := μ) hP_meas (min_le_left _ _)
+    obtain ⟨MQ_i, hMQ_m, hMQ_s, hMQ_e⟩ :=
+      exists_measurable_subset_of_measure (μ := μ) hQ_meas (min_le_right _ _)
+    exact ⟨MP_i, MQ_i, hMP_m, hMQ_m, hMP_s, hMQ_s, hMP_e, hMQ_e⟩
+  choose M_P M_Q hM_P_meas hM_Q_meas hM_P_sub hM_Q_sub hM_P_eq hM_Q_eq using h_matched
+  -- Step 2: Sorry the alignment — traces to Rokhlin/exists_common_extension
+  -- We need e : α ≃ᵐ α, MP, mapping M_Q i into M_P i a.e.
+  have h_align : ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
+      ∀ i : Fin K, ∀ᵐ x ∂μ, x ∈ M_Q i → e x ∈ M_P i := by
+    sorry -- traces to MeasurePreserving.exists_common_extension (Rokhlin)
+  obtain ⟨e, he, h_cell⟩ := h_align
+  -- Step 3: Use φ = e, ψ = id as cutDistance witnesses.
+  -- For a.e. (x,y) with x ∈ M_Q(i), y ∈ M_Q(j):
+  --   pullback(W_P, e)(x,y) = W_P(e x, e y) = c_P(ι_P i, ι_P j) = c_Q(ι_Q i, ι_Q j) = W_Q(x,y)
+  -- Waste set
+  set E_Q := Set.univ \ ⋃ i, M_Q i with hE_Q_def
+  have hE_Q_meas : MeasurableSet E_Q :=
+    MeasurableSet.univ.diff (MeasurableSet.iUnion (fun i => hM_Q_meas i))
+  -- Step 3a: cutDistance ≤ cutNormDiff(pullback W_P e, W_Q)
+  have h_cd_le : cutDistance W_P W_Q ≤
+      cutNormDiff (pullback W_P (⇑e) he) (pullback W_Q id (MeasurePreserving.id μ)) := by
+    unfold cutDistance
+    apply csInf_le
+    · use 0; intro d ⟨φ, ψ, hφ, hψ, hd⟩; rw [hd]; exact cutNormDiff_nonneg _ _
+    · exact ⟨⇑e, id, he, MeasurePreserving.id μ, rfl⟩
+  rw [pullback_id] at h_cd_le
+  -- Step 3b: Show pullback W_P e and W_Q agree a.e. off the strip E_Q
+  have h_agree : ∀ᵐ p ∂(μ.prod μ), p.1 ∉ E_Q → p.2 ∉ E_Q →
+      (pullback W_P (⇑e) he).toAEEqFun p = W_Q.toAEEqFun p := by
+    -- Collect a.e. facts
+    have h_pb := pullback_ae W_P (⇑e) he
+    have h_P_ae : ∀ᵐ q ∂(μ.prod μ),
+        W_P.toAEEqFun q = mkStepFun P c_P q :=
+      AEEqFun.coeFn_mk (mkStepFun P c_P) (mkStepFun_measurable' P c_P).aestronglyMeasurable
+    have h_P_lifted : ∀ᵐ p ∂(μ.prod μ),
+        W_P.toAEEqFun (e p.1, e p.2) = mkStepFun P c_P (e p.1, e p.2) := by
+      exact (SymmKernel.measurePreserving_prodMap_self he).quasiMeasurePreserving.ae h_P_ae
+    have h_Q_ae : ∀ᵐ p ∂(μ.prod μ),
+        W_Q.toAEEqFun p = mkStepFun Q c_Q p :=
+      AEEqFun.coeFn_mk (mkStepFun Q c_Q) (mkStepFun_measurable' Q c_Q).aestronglyMeasurable
+    -- Cell alignment facts lifted to product measure
+    have h_cell_fst : ∀ i, ∀ᵐ p ∂(μ.prod μ), p.1 ∈ M_Q i → e p.1 ∈ M_P i :=
+      fun i => Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst (h_cell i)
+    have h_cell_snd : ∀ i, ∀ᵐ p ∂(μ.prod μ), p.2 ∈ M_Q i → e p.2 ∈ M_P i :=
+      fun i => Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd (h_cell i)
+    have h_cell_all_fst : ∀ᵐ p ∂(μ.prod μ), ∀ i, p.1 ∈ M_Q i → e p.1 ∈ M_P i := by
+      rw [Filter.eventually_all]; exact h_cell_fst
+    have h_cell_all_snd : ∀ᵐ p ∂(μ.prod μ), ∀ i, p.2 ∈ M_Q i → e p.2 ∈ M_P i := by
+      rw [Filter.eventually_all]; exact h_cell_snd
+    -- Combine
+    filter_upwards [h_pb, h_P_lifted, h_Q_ae, h_cell_all_fst, h_cell_all_snd]
+      with p h_pb_p h_P_p h_Q_p h_e_fst h_e_snd
+    intro h1_not h2_not
+    -- p.1 ∉ E_Q means p.1 ∈ ⋃ i, M_Q i
+    have h1_in : p.1 ∈ ⋃ i, M_Q i := by
+      simp only [hE_Q_def, Set.mem_diff, Set.mem_univ, true_and, not_not] at h1_not
+      exact h1_not
+    have h2_in : p.2 ∈ ⋃ i, M_Q i := by
+      simp only [hE_Q_def, Set.mem_diff, Set.mem_univ, true_and, not_not] at h2_not
+      exact h2_not
+    rw [Set.mem_iUnion] at h1_in h2_in
+    obtain ⟨i, hi⟩ := h1_in
+    obtain ⟨j, hj⟩ := h2_in
+    -- e(p.1) ∈ M_P(i) ⊆ ι_P(i) and e(p.2) ∈ M_P(j) ⊆ ι_P(j)
+    have he_fst : e p.1 ∈ M_P i := h_e_fst i hi
+    have he_snd : e p.2 ∈ M_P j := h_e_snd j hj
+    -- LHS: pullback W_P e at (p.1, p.2) = W_P(e p.1, e p.2) = mkStepFun P c_P (e p.1, e p.2)
+    rw [h_pb_p, h_P_p]
+    -- = c_P(ι_P i, ι_P j) by mkStepFun_eq_at'
+    rw [mkStepFun_eq_at' P c_P (hι_P i) (hι_P j)
+        (Set.mem_prod.mpr ⟨hM_P_sub i he_fst, hM_P_sub j he_snd⟩)]
+    -- RHS: W_Q at (p.1, p.2) = mkStepFun Q c_Q (p.1, p.2) = c_Q(ι_Q i, ι_Q j)
+    rw [h_Q_p, mkStepFun_eq_at' Q c_Q (hι_Q i) (hι_Q j)
+        (Set.mem_prod.mpr ⟨hM_Q_sub i hi, hM_Q_sub j hj⟩)]
+    -- c_P(ι_P i, ι_P j) = c_Q(ι_Q i, ι_Q j) by h_coeff_eq
+    exact h_coeff_eq i j
+  -- Step 3c: Apply strip helper
+  have h_strip := cutNormDiff_le_of_ae_agree_off_strip
+    (pullback W_P (⇑e) he) W_Q E_Q hE_Q_meas h_agree
+  -- Step 4: Bound waste measure μ(E_Q).toReal ≤ ∑ i, |w_P i - w_Q i|
+  -- Since E_Q = univ \ ⋃ i, M_Q i, and ⋃ ι_Q i covers ae univ,
+  -- we have E_Q =ae ⋃ i, (ι_Q i \ M_Q i), and these are disjoint.
+  -- μ(ι_Q i \ M_Q i) = μ(ι_Q i) - min(μ(ι_P i), μ(ι_Q i))
+  --                   = max(0, μ(ι_Q i) - μ(ι_P i))  [in ENNReal, = (μ(ι_Q i) - μ(ι_P i))⁺]
+  -- ∑ max(0, (μ(ι_Q i)).toReal - (μ(ι_P i)).toReal) ≤ ∑ |(μ(ι_P i)).toReal - (μ(ι_Q i)).toReal|
+  -- Direct approach: bound μ(E_Q) ≤ ∑ μ(ι_Q i \ M_Q i), then convert to Real
+  suffices h_waste : (μ E_Q).toReal ≤ ∑ i : Fin K, |(μ (ι_P i)).toReal - (μ (ι_Q i)).toReal| by
+    linarith [h_cd_le, h_strip]
+  -- E_Q ⊆ (⋃ i, (ι_Q i \ M_Q i)) ∪ (univ \ ⋃ i, ι_Q i)
+  -- The second part has measure 0 by ae_covers of Q
+  -- Bound μ(E_Q)
+  have h_EQ_bound : μ E_Q ≤ ∑ i : Fin K, (μ (ι_Q i) - μ (M_Q i)) := by
+    -- E_Q = univ \ ⋃ i, M_Q i ⊆ (univ \ ⋃ i, ι_Q i) ∪ ⋃ i, (ι_Q i \ M_Q i)
+    have h_sub : E_Q ⊆ (Set.univ \ ⋃ i, ι_Q i) ∪ ⋃ i, (ι_Q i \ M_Q i) := by
+      intro x hx
+      rw [hE_Q_def, Set.mem_diff] at hx
+      by_cases hx_union : x ∈ ⋃ i, ι_Q i
+      · right
+        rw [Set.mem_iUnion] at hx_union ⊢
+        obtain ⟨i, hi⟩ := hx_union
+        exact ⟨i, hi, fun hmq => hx.2 (Set.mem_iUnion.mpr ⟨i, hmq⟩)⟩
+      · exact Or.inl ⟨hx.1, hx_union⟩
+    calc μ E_Q ≤ μ ((Set.univ \ ⋃ i, ι_Q i) ∪ ⋃ i, (ι_Q i \ M_Q i)) := measure_mono h_sub
+      _ ≤ μ (Set.univ \ ⋃ i, ι_Q i) + μ (⋃ i, (ι_Q i \ M_Q i)) := measure_union_le _ _
+      _ = 0 + μ (⋃ i, (ι_Q i \ M_Q i)) := by
+          congr 1
+          -- univ \ ⋃ i, ι_Q i has measure 0 by Q.ae_covers
+          apply le_antisymm _ (zero_le _)
+          -- ⋃ S ∈ Q.parts, S ⊇ ⋃ i, ι_Q i since hι_Q_surj gives that every part is some ι_Q i
+          have h_eq : ⋃ i, ι_Q i = ⋃ S ∈ Q.parts, S := by
+            ext x; simp only [Set.mem_iUnion, Set.mem_iUnion]; constructor
+            · rintro ⟨i, hi⟩; exact ⟨ι_Q i, hι_Q i, hi⟩
+            · rintro ⟨S, hS, hx⟩; obtain ⟨i, hi⟩ := hι_Q_surj S hS; exact ⟨i, hi ▸ hx⟩
+          rw [h_eq]
+          -- μ(univ \ ⋃ S ∈ Q.parts, S) = 0 by Q.ae_covers
+          have h_compl_null : μ {x | ¬∃ S ∈ Q.parts, x ∈ S} = 0 := by
+            have h_ae := Q.ae_covers; rwa [ae_iff] at h_ae
+          calc μ (Set.univ \ ⋃ S ∈ Q.parts, S)
+              ≤ μ {x | ¬∃ S ∈ Q.parts, x ∈ S} := by
+                apply measure_mono; intro x hx
+                simp only [Set.mem_diff, Set.mem_iUnion, Set.mem_setOf_eq] at hx ⊢
+                exact fun ⟨S, hS, hxS⟩ => hx.2 ⟨S, hS, hxS⟩
+              _ = 0 := h_compl_null
+      _ ≤ ∑ i : Fin K, μ (ι_Q i \ M_Q i) := by
+          rw [zero_add]
+          calc μ (⋃ i, (ι_Q i \ M_Q i))
+              ≤ ∑' i, μ (ι_Q i \ M_Q i) := measure_iUnion_le _
+            _ = ∑ i : Fin K, μ (ι_Q i \ M_Q i) :=
+                tsum_eq_sum (fun i hi => absurd (Finset.mem_univ i) hi)
+      _ = ∑ i : Fin K, (μ (ι_Q i) - μ (M_Q i)) := by
+          congr 1; ext i
+          rw [measure_diff (hM_Q_sub i) (hM_Q_meas i).nullMeasurableSet (measure_ne_top μ _)]
+  -- Convert to Real
+  have h_ne_top : ∀ i : Fin K, μ (ι_Q i) ≠ ⊤ := fun i => measure_ne_top μ _
+  have h_M_ne_top : ∀ i : Fin K, μ (M_Q i) ≠ ⊤ := fun i => measure_ne_top μ _
+  have h_diff_le : ∀ i : Fin K, μ (M_Q i) ≤ μ (ι_Q i) :=
+    fun i => measure_mono (hM_Q_sub i)
+  -- μ(E_Q).toReal ≤ (∑ i, (μ(ι_Q i) - μ(M_Q i))).toReal
+  --              = ∑ i, (μ(ι_Q i) - μ(M_Q i)).toReal
+  --              = ∑ i, ((μ(ι_Q i)).toReal - (μ(M_Q i)).toReal)
+  --              = ∑ i, ((μ(ι_Q i)).toReal - min((μ(ι_P i)).toReal, (μ(ι_Q i)).toReal))
+  --              = ∑ i, max(0, (μ(ι_Q i)).toReal - (μ(ι_P i)).toReal)
+  --              ≤ ∑ i, |(μ(ι_P i)).toReal - (μ(ι_Q i)).toReal|
+  have h_sum_ne_top : ∑ i : Fin K, (μ (ι_Q i) - μ (M_Q i)) ≠ ⊤ := by
+    apply ne_top_of_le_ne_top (measure_ne_top μ Set.univ)
+    calc ∑ i : Fin K, (μ (ι_Q i) - μ (M_Q i))
+        ≤ ∑ i : Fin K, μ (ι_Q i) :=
+          Finset.sum_le_sum (fun i _ => tsub_le_self)
+      _ ≤ μ Set.univ := by
+          have h_disj : PairwiseDisjoint (↑(Finset.univ : Finset (Fin K))) ι_Q :=
+            fun i _ j _ hij => Q.pairwiseDisjoint (hι_Q i) (hι_Q j)
+              (fun h => hij (hι_Q_inj h))
+          have h_meas : ∀ i ∈ (Finset.univ : Finset (Fin K)), MeasurableSet (ι_Q i) :=
+            fun i _ => Q.measurableSet_part (hι_Q i)
+          rw [← measure_biUnion_finset h_disj h_meas]
+          exact measure_mono (Set.subset_univ _)
+  calc (μ E_Q).toReal
+      ≤ (∑ i : Fin K, (μ (ι_Q i) - μ (M_Q i))).toReal :=
+        ENNReal.toReal_mono h_sum_ne_top h_EQ_bound
+    _ = ∑ i : Fin K, (μ (ι_Q i) - μ (M_Q i)).toReal := by
+        rw [ENNReal.toReal_sum (fun i _ => ENNReal.sub_ne_top (h_ne_top i))]
+    _ = ∑ i : Fin K, ((μ (ι_Q i)).toReal - (μ (M_Q i)).toReal) := by
+        congr 1; ext i
+        exact ENNReal.toReal_sub_of_le (h_diff_le i) (h_ne_top i)
+    _ ≤ ∑ i : Fin K, |(μ (ι_P i)).toReal - (μ (ι_Q i)).toReal| := by
+        apply Finset.sum_le_sum; intro i _
+        -- (μ(ι_Q i)).toReal - (μ(M_Q i)).toReal ≤ |(μ(ι_P i)).toReal - (μ(ι_Q i)).toReal|
+        -- where μ(M_Q i) = min(μ(ι_P i), μ(ι_Q i))
+        -- Case split on which measure is larger
+        rcases le_total (μ (ι_P i)) (μ (ι_Q i)) with h_le | h_le
+        · -- μ(ι_P i) ≤ μ(ι_Q i), so min = μ(ι_P i)
+          rw [hM_Q_eq i, min_eq_left h_le]
+          have h_le_r := ENNReal.toReal_mono (h_ne_top i) h_le
+          rw [abs_sub_comm, abs_of_nonneg (sub_nonneg.mpr h_le_r)]
+        · -- μ(ι_Q i) ≤ μ(ι_P i), so min = μ(ι_Q i)
+          rw [hM_Q_eq i, min_eq_right h_le, sub_self]
+          exact abs_nonneg _
+
+set_option maxHeartbeats 1600000 in
+/-- Cross-partition weight stability: `cutDistance(stepify P V, mkStepGraphon Q c_Q) ≤ 2∑|w-w_Q|`.
+
+Given partition P with k ≤ K cells (padded to Fin K) and partition Q with K cells,
+if the coefficient matrices agree (matching rectAverage of V on active P cells),
+then the cutDistance is bounded by twice the sum of weight differences.
+
+**Sorry traces to**: `MeasurePreserving.exists_common_extension` (Rokhlin) via
+`exists_controlled_cell_alignment` for cell alignment between the intermediate
+partition P_mid and P. -/
+private theorem cutDistance_cross_partition_weight_le {K : ℕ}
+    (P : MeasurablePartition α μ) (V : Graphon α μ) (hP_le : P.parts.card ≤ K)
+    (Q : MeasurablePartition α μ) (c_Q : Set α → Set α → ℝ)
+    (hc_Q_symm : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts, c_Q S T = c_Q T S)
+    (hc_Q_mem : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts, c_Q S T ∈ Set.Icc 0 1)
+    (ι_Q : Fin K → Set α) (hι_Q : ∀ i, ι_Q i ∈ Q.parts)
+    (hι_Q_inj : Function.Injective ι_Q)
+    (hι_Q_surj : ∀ S ∈ Q.parts, ∃ i, ι_Q i = S)
+    (pad_fn : Fin K → Set α)
+    (h_pad_mem : ∀ i : Fin K, (i : ℕ) < P.parts.card → pad_fn i ∈ P.parts)
+    (h_pad_inj : ∀ i j : Fin K, (i : ℕ) < P.parts.card → (j : ℕ) < P.parts.card →
+                  pad_fn i = pad_fn j → i = j)
+    (h_pad_surj : ∀ S ∈ P.parts, ∃ i : Fin K, (i : ℕ) < P.parts.card ∧ pad_fn i = S)
+    (w : Fin K → ℝ)
+    (hw_def : ∀ i, w i = if (i : ℕ) < P.parts.card then (μ (pad_fn i)).toReal else 0)
+    (hw_nn : ∀ i, 0 ≤ w i) (hw_sum : ∑ i, w i = 1)
+    (h_coeff : ∀ i j : Fin K, c_Q (ι_Q i) (ι_Q j) =
+        if (i : ℕ) < P.parts.card ∧ (j : ℕ) < P.parts.card
+        then rectAverage V (pad_fn i) (pad_fn j) else 0) :
+    cutDistance (stepify P V) (mkStepGraphon Q c_Q hc_Q_symm hc_Q_mem) ≤
+      2 * ∑ i : Fin K, |w i - (μ (ι_Q i)).toReal| := by
+  classical
+  set k := P.parts.card with hk_def
+  -- Build P_mid with K cells via exists_partition_with_measures
+  obtain ⟨P_mid, ι_mid, hι_mid_mem, hι_mid_inj, hι_mid_surj, hP_mid_card, hι_mid_meas⟩ :=
+    exists_partition_with_measures (μ := μ) w hw_nn hw_sum
+  -- Build c_mid on P_mid: c_mid(ι_mid i, ι_mid j) = c_Q(ι_Q i, ι_Q j)
+  have hι_mid_bij : ∀ S ∈ P_mid.parts, ∃! i : Fin K, ι_mid i = S := by
+    intro S hS; obtain ⟨i, hi⟩ := hι_mid_surj S hS
+    exact ⟨i, hi, fun j hj => hι_mid_inj (hj.trans hi.symm)⟩
+  set ι_mid_inv : ∀ S : Set α, S ∈ P_mid.parts → Fin K :=
+    fun S hS => (hι_mid_bij S hS).choose
+  have hι_mid_inv_spec : ∀ S (hS : S ∈ P_mid.parts), ι_mid (ι_mid_inv S hS) = S :=
+    fun S hS => (hι_mid_bij S hS).choose_spec.1
+  have hι_mid_inv_eq : ∀ i, ι_mid_inv (ι_mid i) (hι_mid_mem i) = i :=
+    fun i => hι_mid_inj (hι_mid_inv_spec (ι_mid i) (hι_mid_mem i))
+  set c_mid : Set α → Set α → ℝ := fun S T =>
+    if hS : S ∈ P_mid.parts then if hT : T ∈ P_mid.parts then
+      c_Q (ι_Q (ι_mid_inv S hS)) (ι_Q (ι_mid_inv T hT))
+    else 0 else 0
+  have h_cmid_ι : ∀ i j, c_mid (ι_mid i) (ι_mid j) = c_Q (ι_Q i) (ι_Q j) := by
+    intro i j; simp only [c_mid, hι_mid_mem i, hι_mid_mem j, dif_pos, hι_mid_inv_eq]
+  have h_cmid_symm : ∀ S ∈ P_mid.parts, ∀ T ∈ P_mid.parts, c_mid S T = c_mid T S := by
+    intro S hS T hT; simp only [c_mid, hS, hT, dif_pos]
+    exact hc_Q_symm _ (hι_Q _) _ (hι_Q _)
+  have h_cmid_mem : ∀ S ∈ P_mid.parts, ∀ T ∈ P_mid.parts, c_mid S T ∈ Set.Icc 0 1 := by
+    intro S hS T hT; simp only [c_mid, hS, hT, dif_pos]
+    exact hc_Q_mem _ (hι_Q _) _ (hι_Q _)
+  set G_mid := mkStepGraphon P_mid c_mid h_cmid_symm h_cmid_mem
+  -- Part 1: cutDistance(stepify P V, G_mid) ≤ 0
+  -- Use alignment between P_mid and P via exists_controlled_cell_alignment
+  have h_part1 : cutDistance (stepify P V) G_mid ≤ 0 := by
+    -- Build embedding Fin k → Fin K
+    set embed : Fin k → Fin K := fun i => ⟨i.val, lt_of_lt_of_le i.isLt hP_le⟩
+    have hembed_inj : Function.Injective embed :=
+      fun _ _ h => Fin.ext (Fin.mk.inj_iff.mp h)
+    -- Active P_mid cells: ι_mid(embed i)
+    have h_meas_match : ∀ i : Fin k, μ (ι_mid (embed i)) = μ (pad_fn (embed i)) := by
+      intro i
+      have h_w : (μ (ι_mid (embed i))).toReal = w (embed i) := hι_mid_meas (embed i)
+      have h_active : (embed i : ℕ) < k := i.isLt
+      rw [hw_def, if_pos h_active] at h_w
+      rw [← ENNReal.toReal_eq_toReal_iff' (measure_ne_top μ _) (measure_ne_top μ _)]
+      exact h_w
+    -- ι_mid ∘ embed is injective into P_mid.parts
+    have hι_mid_embed_inj : Function.Injective (fun i : Fin k => ι_mid (embed i)) :=
+      hι_mid_inj.comp hembed_inj
+    -- pad_fn ∘ embed gives active P cells, injective
+    have h_pad_embed_inj : Function.Injective (fun i : Fin k => pad_fn (embed i)) := by
+      intro a b h; exact Fin.ext (Fin.mk.inj_iff.mp (h_pad_inj (embed a) (embed b) a.isLt b.isLt h))
+    -- Get alignment: maps P cells to P_mid cells
+    obtain ⟨e, he, h_align⟩ := MeasurePreserving.exists_controlled_cell_alignment
+      P P_mid (fun i : Fin k => pad_fn (embed i)) (fun i : Fin k => ι_mid (embed i))
+      (fun i => h_pad_mem (embed i) i.isLt) (fun i => hι_mid_mem (embed i))
+      h_pad_embed_inj hι_mid_embed_inj (fun i => (h_meas_match i).symm)
+    -- cutDistance(G_mid, stepify) ≤ cutNormDiff(pullback(G_mid, e), stepify)
+    -- Use symmetry: cutDistance(stepify, G_mid) = cutDistance(G_mid, stepify)
+    rw [cutDistance_symm]
+    -- cutDistance ≤ cutNormDiff of pullback witnesses
+    have h_cd_le : cutDistance G_mid (stepify P V) ≤
+        cutNormDiff (pullback G_mid (⇑e) he)
+          (pullback (stepify P V) id (MeasurePreserving.id μ)) := by
+      unfold cutDistance; apply csInf_le
+      · use 0; intro d ⟨φ, ψ, hφ, hψ, hd⟩; rw [hd]; exact cutNormDiff_nonneg _ _
+      · exact ⟨⇑e, id, he, MeasurePreserving.id μ, rfl⟩
+    rw [pullback_id] at h_cd_le
+    -- Waste set E_P = univ \ ⋃ S ∈ P.parts, S (has measure 0)
+    set E_P := Set.univ \ ⋃ S ∈ P.parts, S with hE_P_def
+    have hE_P_meas : MeasurableSet E_P :=
+      MeasurableSet.univ.diff (MeasurableSet.biUnion P.parts.countable_toSet
+        (fun S hS => P.measurableSet_part hS))
+    have hE_P_null : μ E_P = 0 := by
+      have h_ae := P.ae_covers; rw [ae_iff] at h_ae
+      refine le_antisymm ?_ (zero_le _)
+      calc μ E_P ≤ μ {x | ¬∃ S ∈ P.parts, x ∈ S} := by
+            apply measure_mono; intro x hx
+            rw [hE_P_def, Set.mem_diff] at hx
+            simp only [Set.mem_setOf_eq]
+            exact fun ⟨S, hS, hxS⟩ =>
+              hx.2 (Set.mem_biUnion hS hxS)
+        _ = 0 := h_ae
+    -- Show agreement a.e. off E_P
+    have h_agree : ∀ᵐ p ∂(μ.prod μ), p.1 ∉ E_P → p.2 ∉ E_P →
+        (pullback G_mid (⇑e) he).toAEEqFun p = (stepify P V).toAEEqFun p := by
+      -- Collect a.e. facts
+      have h_pb := pullback_ae G_mid (⇑e) he
+      have h_mid_ae : ∀ᵐ q ∂(μ.prod μ),
+          G_mid.toAEEqFun q = mkStepFun P_mid c_mid q :=
+        AEEqFun.coeFn_mk (mkStepFun P_mid c_mid)
+          (mkStepFun_measurable' P_mid c_mid).aestronglyMeasurable
+      have h_mid_lifted : ∀ᵐ p ∂(μ.prod μ),
+          G_mid.toAEEqFun (e p.1, e p.2) = mkStepFun P_mid c_mid (e p.1, e p.2) :=
+        (SymmKernel.measurePreserving_prodMap_self he).quasiMeasurePreserving.ae h_mid_ae
+      have h_step_ae := stepify_ae P V
+      -- Cell alignment lifted to product measure
+      have h_align_fst : ∀ i : Fin k, ∀ᵐ p ∂(μ.prod μ),
+          p.1 ∈ pad_fn (embed i) → e p.1 ∈ ι_mid (embed i) :=
+        fun i => Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst (h_align i)
+      have h_align_snd : ∀ i : Fin k, ∀ᵐ p ∂(μ.prod μ),
+          p.2 ∈ pad_fn (embed i) → e p.2 ∈ ι_mid (embed i) :=
+        fun i => Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd (h_align i)
+      have h_align_all_fst : ∀ᵐ p ∂(μ.prod μ), ∀ i : Fin k,
+          p.1 ∈ pad_fn (embed i) → e p.1 ∈ ι_mid (embed i) := by
+        rw [Filter.eventually_all]; exact h_align_fst
+      have h_align_all_snd : ∀ᵐ p ∂(μ.prod μ), ∀ i : Fin k,
+          p.2 ∈ pad_fn (embed i) → e p.2 ∈ ι_mid (embed i) := by
+        rw [Filter.eventually_all]; exact h_align_snd
+      -- Combine
+      filter_upwards [h_pb, h_mid_lifted, h_step_ae, h_align_all_fst, h_align_all_snd]
+        with p h_pb_p h_mid_p h_step_p h_e_fst h_e_snd
+      intro h1_not h2_not
+      -- p.1 ∉ E_P means p.1 ∈ ⋃ S ∈ P.parts, S, so p.1 ∈ some P cell
+      have h1_in : ∃ S ∈ P.parts, p.1 ∈ S := by
+        have h_mem : p.1 ∈ ⋃ S ∈ P.parts, S := by
+          by_contra h_nmem
+          exact h1_not ⟨Set.mem_univ _, h_nmem⟩
+        obtain ⟨S, hS, hxS⟩ := Set.mem_iUnion₂.mp h_mem
+        exact ⟨S, hS, hxS⟩
+      have h2_in : ∃ S ∈ P.parts, p.2 ∈ S := by
+        have h_mem : p.2 ∈ ⋃ S ∈ P.parts, S := by
+          by_contra h_nmem
+          exact h2_not ⟨Set.mem_univ _, h_nmem⟩
+        obtain ⟨S, hS, hxS⟩ := Set.mem_iUnion₂.mp h_mem
+        exact ⟨S, hS, hxS⟩
+      obtain ⟨S, hS, hpS⟩ := h1_in
+      obtain ⟨T, hT, hpT⟩ := h2_in
+      -- Find active indices a, b with pad_fn(embed a) = S, pad_fn(embed b) = T
+      obtain ⟨ia, hia_lt, hia_eq⟩ := h_pad_surj S hS
+      obtain ⟨ib, hib_lt, hib_eq⟩ := h_pad_surj T hT
+      set a : Fin k := ⟨(ia : ℕ), hia_lt⟩ with ha_def
+      set b : Fin k := ⟨(ib : ℕ), hib_lt⟩ with hb_def
+      have ha_embed : embed a = ia := Fin.ext rfl
+      have hb_embed : embed b = ib := Fin.ext rfl
+      -- p.1 ∈ pad_fn(embed a) and p.2 ∈ pad_fn(embed b)
+      have hp1 : p.1 ∈ pad_fn (embed a) := ha_embed ▸ hia_eq ▸ hpS
+      have hp2 : p.2 ∈ pad_fn (embed b) := hb_embed ▸ hib_eq ▸ hpT
+      -- Alignment: e(p.1) ∈ ι_mid(embed a), e(p.2) ∈ ι_mid(embed b)
+      have he1 : e p.1 ∈ ι_mid (embed a) := h_e_fst a hp1
+      have he2 : e p.2 ∈ ι_mid (embed b) := h_e_snd b hp2
+      -- LHS: pullback G_mid e at p = G_mid(e p.1, e p.2) = mkStepFun P_mid c_mid (e p.1, e p.2)
+      --     = c_mid(ι_mid(embed a), ι_mid(embed b))
+      --     = c_Q(ι_Q(embed a), ι_Q(embed b))
+      --     = rectAverage V (pad_fn(embed a)) (pad_fn(embed b))  [by h_coeff, since a, b active]
+      rw [h_pb_p, h_mid_p,
+          mkStepFun_eq_at' P_mid c_mid (hι_mid_mem (embed a)) (hι_mid_mem (embed b))
+            (Set.mem_prod.mpr ⟨he1, he2⟩),
+          h_cmid_ι, h_coeff,
+          if_pos ⟨ha_embed ▸ hia_lt, hb_embed ▸ hib_lt⟩]
+      -- RHS: stepify P V at p = stepifyFun P V p = rectAverage V S T
+      --     = rectAverage V (pad_fn(embed a)) (pad_fn(embed b))
+      rw [h_step_p, stepifyFun_eq_rectAverage P V hS hT (Set.mem_prod.mpr ⟨hpS, hpT⟩),
+          ← hia_eq, ← hib_eq, ha_embed, hb_embed]
+    -- Apply strip helper
+    have h_strip := cutNormDiff_le_of_ae_agree_off_strip
+      (pullback G_mid (⇑e) he) (stepify P V) E_P hE_P_meas h_agree
+    rw [hE_P_null, ENNReal.toReal_zero, mul_zero] at h_strip
+    linarith [h_cd_le]
+  -- Part 2: cutDistance(G_mid, mkStepGraphon Q c_Q) ≤ 2∑|w - w_Q|
+  -- by cutDistance_step_weight_le with matching coefficients
+  have h_part2 : cutDistance G_mid (mkStepGraphon Q c_Q hc_Q_symm hc_Q_mem) ≤
+      2 * ∑ i : Fin K, |w i - (μ (ι_Q i)).toReal| := by
+    have h_coeff_eq : ∀ i j : Fin K,
+        c_mid (ι_mid i) (ι_mid j) = c_Q (ι_Q i) (ι_Q j) := h_cmid_ι
+    calc cutDistance G_mid (mkStepGraphon Q c_Q hc_Q_symm hc_Q_mem)
+        ≤ 2 * ∑ i : Fin K, |(μ (ι_mid i)).toReal - (μ (ι_Q i)).toReal| :=
+          cutDistance_step_weight_le P_mid Q c_mid c_Q h_cmid_symm h_cmid_mem
+            hc_Q_symm hc_Q_mem ι_mid ι_Q hι_mid_mem hι_Q hι_mid_inj hι_Q_inj
+            hι_mid_surj hι_Q_surj h_coeff_eq
+      _ = 2 * ∑ i : Fin K, |w i - (μ (ι_Q i)).toReal| := by
+          congr 1; congr 1; ext i; rw [hι_mid_meas i]
+  -- Part 3: Triangle inequality
+  calc cutDistance (stepify P V) (mkStepGraphon Q c_Q hc_Q_symm hc_Q_mem)
+      ≤ cutDistance (stepify P V) G_mid +
+        cutDistance G_mid (mkStepGraphon Q c_Q hc_Q_symm hc_Q_mem) :=
+        cutDistance_triangle _ _ _
+    _ ≤ 0 + 2 * ∑ i : Fin K, |w i - (μ (ι_Q i)).toReal| := add_le_add h_part1 h_part2
+    _ = 2 * ∑ i : Fin K, |w i - (μ (ι_Q i)).toReal| := zero_add _
 
 set_option maxHeartbeats 800000 in
 /-- **Bounded step inverse counting lemma**: uniform version of `step_quantitative_icl`
@@ -1957,61 +2468,61 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
   have h_pw_w : ∀ i, Tendsto (fun n => w_seq (ψ n) i) atTop (nhds (w_lim i)) := by
     intro i; exact (tendsto_pi_nhds.mp ((continuous_snd.tendsto _).comp h_conv)) i
   have h_wlim_nn : ∀ i, 0 ≤ w_lim i := fun i => (h_wlim_mem i).1
+  have h_w_sum : ∀ n, ∑ i : Fin K, w_seq n i = 1 := by
+    intro n
+    -- The sum over Fin K splits into active (i.val < parts.card) giving
+    -- ∑ S ∈ parts, (μ S).toReal, and padded giving 0.
+    -- Then partition coverage gives ∑ = 1.
+    --
+    -- Step 1: Rewrite each term to its if-then-else form
+    conv_lhs => arg 2; ext i; rw [show w_seq n i =
+      if (i : ℕ) < (P_seq n).parts.card then (μ (pad n i)).toReal else 0 from rfl]
+    -- Step 2: Use Finset.sum_ite to split
+    simp_rw [Finset.sum_ite]
+    simp only [Finset.sum_const_zero, add_zero]
+    -- Step 3: Reindex the filtered sum to ∑ S ∈ parts using sum_bij
+    -- Define inverse: for S ∈ parts, find the index via equivFin
+    have h_reindex :
+        ∑ x ∈ Finset.univ.filter (fun i : Fin K => (i : ℕ) < (P_seq n).parts.card),
+          (μ (pad n x)).toReal =
+        (P_seq n).parts.sum (fun S => (μ S).toReal) := by
+      apply Finset.sum_bij (fun i (hi : i ∈ _) => pad n i)
+      · intro i hi
+        exact h_pad_mem n i ((Finset.mem_filter.mp hi).2)
+      · intro i₁ hi₁ i₂ hi₂ h
+        exact h_pad_inj n i₁ i₂ ((Finset.mem_filter.mp hi₁).2)
+          ((Finset.mem_filter.mp hi₂).2) h
+      · intro S hS
+        obtain ⟨i, hi_lt, hi_eq⟩ := h_pad_surj n S hS
+        exact ⟨i, Finset.mem_filter.mpr ⟨Finset.mem_univ _, hi_lt⟩, hi_eq⟩
+      · intro _ _; rfl
+    rw [h_reindex]
+    -- Step 4: Show ∑ S ∈ parts, (μ S).toReal = 1 using partition properties
+    have h_ne_top : ∀ S ∈ (P_seq n).parts, μ S ≠ ⊤ :=
+      fun S _ => ne_top_of_le_ne_top (measure_ne_top μ _) (measure_mono (Set.subset_univ _))
+    rw [← ENNReal.toReal_sum (fun S hS => h_ne_top S hS)]
+    rw [show ∑ S ∈ (P_seq n).parts, μ S = μ (⋃ S ∈ (P_seq n).parts, id S) from
+      (measure_biUnion_finset
+        (fun S hS T hT hne => (P_seq n).pairwiseDisjoint hS hT hne)
+        (fun S hS => (P_seq n).measurableSet_part hS)).symm]
+    simp only [id_eq]
+    have h_meas_union : MeasurableSet (⋃ S ∈ (P_seq n).parts, S) :=
+      MeasurableSet.biUnion (P_seq n).parts.countable_toSet
+        (fun S hS => (P_seq n).measurableSet_part hS)
+    have h_ae := (P_seq n).ae_covers
+    rw [ae_iff] at h_ae
+    have h_null : μ ((⋃ S ∈ (P_seq n).parts, S)ᶜ) = 0 := by
+      refine le_antisymm ?_ (zero_le _)
+      calc μ ((⋃ S ∈ (P_seq n).parts, S)ᶜ)
+          ≤ μ {x | ¬∃ S ∈ (P_seq n).parts, x ∈ S} := by
+            apply measure_mono; intro x hx
+            simp only [Set.mem_compl_iff, Set.mem_iUnion, not_exists] at hx
+            exact fun ⟨S, hSP, hxS⟩ => hx S hSP hxS
+        _ = 0 := h_ae
+    rw [show μ (⋃ S ∈ (P_seq n).parts, S) = μ Set.univ from by
+      rw [← measure_add_measure_compl h_meas_union, h_null, add_zero]]
+    simp [measure_univ]
   have h_wlim_sum : ∑ i : Fin K, w_lim i = 1 := by
-    have h_w_sum : ∀ n, ∑ i : Fin K, w_seq n i = 1 := by
-      intro n
-      -- The sum over Fin K splits into active (i.val < parts.card) giving
-      -- ∑ S ∈ parts, (μ S).toReal, and padded giving 0.
-      -- Then partition coverage gives ∑ = 1.
-      --
-      -- Step 1: Rewrite each term to its if-then-else form
-      conv_lhs => arg 2; ext i; rw [show w_seq n i =
-        if (i : ℕ) < (P_seq n).parts.card then (μ (pad n i)).toReal else 0 from rfl]
-      -- Step 2: Use Finset.sum_ite to split
-      simp_rw [Finset.sum_ite]
-      simp only [Finset.sum_const_zero, add_zero]
-      -- Step 3: Reindex the filtered sum to ∑ S ∈ parts using sum_bij
-      -- Define inverse: for S ∈ parts, find the index via equivFin
-      have h_reindex :
-          ∑ x ∈ Finset.univ.filter (fun i : Fin K => (i : ℕ) < (P_seq n).parts.card),
-            (μ (pad n x)).toReal =
-          (P_seq n).parts.sum (fun S => (μ S).toReal) := by
-        apply Finset.sum_bij (fun i (hi : i ∈ _) => pad n i)
-        · intro i hi
-          exact h_pad_mem n i ((Finset.mem_filter.mp hi).2)
-        · intro i₁ hi₁ i₂ hi₂ h
-          exact h_pad_inj n i₁ i₂ ((Finset.mem_filter.mp hi₁).2)
-            ((Finset.mem_filter.mp hi₂).2) h
-        · intro S hS
-          obtain ⟨i, hi_lt, hi_eq⟩ := h_pad_surj n S hS
-          exact ⟨i, Finset.mem_filter.mpr ⟨Finset.mem_univ _, hi_lt⟩, hi_eq⟩
-        · intro _ _; rfl
-      rw [h_reindex]
-      -- Step 4: Show ∑ S ∈ parts, (μ S).toReal = 1 using partition properties
-      have h_ne_top : ∀ S ∈ (P_seq n).parts, μ S ≠ ⊤ :=
-        fun S _ => ne_top_of_le_ne_top (measure_ne_top μ _) (measure_mono (Set.subset_univ _))
-      rw [← ENNReal.toReal_sum (fun S hS => h_ne_top S hS)]
-      rw [show ∑ S ∈ (P_seq n).parts, μ S = μ (⋃ S ∈ (P_seq n).parts, id S) from
-        (measure_biUnion_finset
-          (fun S hS T hT hne => (P_seq n).pairwiseDisjoint hS hT hne)
-          (fun S hS => (P_seq n).measurableSet_part hS)).symm]
-      simp only [id_eq]
-      have h_meas_union : MeasurableSet (⋃ S ∈ (P_seq n).parts, S) :=
-        MeasurableSet.biUnion (P_seq n).parts.countable_toSet
-          (fun S hS => (P_seq n).measurableSet_part hS)
-      have h_ae := (P_seq n).ae_covers
-      rw [ae_iff] at h_ae
-      have h_null : μ ((⋃ S ∈ (P_seq n).parts, S)ᶜ) = 0 := by
-        refine le_antisymm ?_ (zero_le _)
-        calc μ ((⋃ S ∈ (P_seq n).parts, S)ᶜ)
-            ≤ μ {x | ¬∃ S ∈ (P_seq n).parts, x ∈ S} := by
-              apply measure_mono; intro x hx
-              simp only [Set.mem_compl_iff, Set.mem_iUnion, not_exists] at hx
-              exact fun ⟨S, hSP, hxS⟩ => hx S hSP hxS
-          _ = 0 := h_ae
-      rw [show μ (⋃ S ∈ (P_seq n).parts, S) = μ Set.univ from by
-        rw [← measure_add_measure_compl h_meas_union, h_null, add_zero]]
-      simp [measure_univ]
     exact tendsto_nhds_unique
       ((tendsto_finset_sum _ (fun i _ => h_pw_w i)).congr
         (fun n => (h_w_sum (ψ n)).symm ▸ rfl))
@@ -2340,9 +2851,37 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
   -- weights w_seq(ψm)). Part 1: cutDistance(stepify, G_mid) = 0 via cell alignment (Rokhlin).
   -- Part 2: cutDistance(G_mid, G_Um) ≤ 2*∑|w_seq-w_lim| < ε/4 by h_weight_bound.
   have h_cd_cross_U : cutDistance (stepify (P_seq (ψ m)) (U_seq (ψ m))) G_Um < ε / 4 := by
-    sorry
+    -- Apply the cross-partition weight lemma
+    have h_le := cutDistance_cross_partition_weight_le
+      (P_seq (ψ m)) (U_seq (ψ m)) (hP_card (ψ m))
+      P_lim c_Um h_cUm_symm h_cUm_mem
+      ι_lim hι_lim_mem hι_lim_inj hι_lim_surj
+      (pad (ψ m)) (h_pad_mem (ψ m)) (h_pad_inj (ψ m)) (h_pad_surj (ψ m))
+      (w_seq (ψ m)) (fun i => rfl) (fun i => (h_w_mem (ψ m) i).1) (h_w_sum (ψ m))
+      (fun i j => by
+        rw [h_cUm_ι]; show coeff_seq (ψ m) i j 0 = _
+        simp only [coeff_seq_def, show (0 : Fin 2) = 0 from rfl, ite_true])
+    calc cutDistance (stepify (P_seq (ψ m)) (U_seq (ψ m))) G_Um
+        ≤ 2 * ∑ i : Fin K, |w_seq (ψ m) i - (μ (ι_lim i)).toReal| := h_le
+      _ = 2 * ∑ i : Fin K, |w_seq (ψ m) i - w_lim i| := by
+          congr 1; congr 1; ext i; rw [hι_lim_meas i]
+      _ < ε / 4 := h_weight_bound
   have h_cd_cross_W : cutDistance (stepify (P_seq (ψ m)) (W_seq (ψ m))) G_Wm < ε / 4 := by
-    sorry
+    -- Apply the cross-partition weight lemma
+    have h_le := cutDistance_cross_partition_weight_le
+      (P_seq (ψ m)) (W_seq (ψ m)) (hP_card (ψ m))
+      P_lim c_Wm h_cWm_symm h_cWm_mem
+      ι_lim hι_lim_mem hι_lim_inj hι_lim_surj
+      (pad (ψ m)) (h_pad_mem (ψ m)) (h_pad_inj (ψ m)) (h_pad_surj (ψ m))
+      (w_seq (ψ m)) (fun i => rfl) (fun i => (h_w_mem (ψ m) i).1) (h_w_sum (ψ m))
+      (fun i j => by
+        rw [h_cWm_ι]; show coeff_seq (ψ m) i j 1 = _
+        simp only [coeff_seq_def, show ¬((1 : Fin 2) = 0) from by decide, ite_false])
+    calc cutDistance (stepify (P_seq (ψ m)) (W_seq (ψ m))) G_Wm
+        ≤ 2 * ∑ i : Fin K, |w_seq (ψ m) i - (μ (ι_lim i)).toReal| := h_le
+      _ = 2 * ∑ i : Fin K, |w_seq (ψ m) i - w_lim i| := by
+          congr 1; congr 1; ext i; rw [hι_lim_meas i]
+      _ < ε / 4 := h_weight_bound
   have h_cd_coeff_U : cutDistance G_Um V_U ≤ ε / 8 :=
     le_trans (cutDistance_le_cutNormDiff _ _) h_cn_U
   have h_cd_coeff_W : cutDistance G_Wm V_W ≤ ε / 8 :=
