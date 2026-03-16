@@ -2196,7 +2196,25 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
     have h_bound : ∀ᶠ m in atTop, |weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 0) (w_seq (ψ m)) -
         weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 1) (w_seq (ψ m))| ≤
         1 / (↑(ψ m) + 1 : ℝ) := by
-      sorry
+      rw [Filter.eventually_atTop]
+      refine ⟨n, fun m hm => ?_⟩
+      have h_ψm_ge_n : n ≤ ψ m := le_trans hm hψ.le_apply
+      -- Use h_stepify_bridge to convert whs to homDensity
+      have h_eq_U := h_stepify_bridge m (U_seq (ψ m)) 0 n F h_ψm_ge_n ⟨fun _ => rfl, fun h => absurd h (by decide)⟩
+      have h_eq_W := h_stepify_bridge m (W_seq (ψ m)) 1 n F h_ψm_ge_n ⟨fun h => absurd h (by decide), fun _ => rfl⟩
+      rw [abs_eq_zero] at h_eq_U h_eq_W
+      rw [show weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 0) (w_seq (ψ m)) =
+        homDensity F (stepify (P_seq (ψ m)) (U_seq (ψ m))) from (sub_eq_zero.mp h_eq_U).symm,
+        show weightedHomSum n F (fun i j => coeff_seq (ψ m) i j 1) (w_seq (ψ m)) =
+        homDensity F (stepify (P_seq (ψ m)) (W_seq (ψ m))) from (sub_eq_zero.mp h_eq_W).symm]
+      -- Embed F : Fin n → Fin (ψ m) via Fin.castLEEmb
+      rw [← homDensity_map_embedding F (Fin.castLEEmb h_ψm_ge_n) (stepify (P_seq (ψ m)) (U_seq (ψ m))),
+          ← homDensity_map_embedding F (Fin.castLEEmb h_ψm_ge_n) (stepify (P_seq (ψ m)) (W_seq (ψ m)))]
+      set F' := F.map (Fin.castLEEmb h_ψm_ge_n)
+      have := h_close (ψ m) (F := F')
+      rw [homDensity_congr_decRel F' _ _ (stepify (P_seq (ψ m)) (U_seq (ψ m))),
+          homDensity_congr_decRel F' _ _ (stepify (P_seq (ψ m)) (W_seq (ψ m)))] at this
+      exact le_of_lt this
     have h_inv_tends : Tendsto (fun m => 1 / (↑(ψ m) + 1 : ℝ)) atTop (nhds 0) := by
       apply Filter.Tendsto.div_atTop tendsto_const_nhds
       exact (tendsto_natCast_atTop_atTop.comp hψ.tendsto_atTop).atTop_add tendsto_const_nhds
