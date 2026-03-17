@@ -1941,7 +1941,7 @@ private theorem cutNormDiff_le_of_ae_agree_off_strip (U W : Graphon α μ)
     _ = 2 * (μ E).toReal := by ring
 
 /-- Weight stability for step graphons on different partitions with same coefficients.
-**Sorry traces to**: `MeasurePreserving.exists_common_extension` (Rokhlin). -/
+Uses `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin) for partition alignment. -/
 private theorem cutDistance_step_weight_le {K : ℕ}
     (P Q : MeasurablePartition α μ)
     (c_P c_Q : Set α → Set α → ℝ)
@@ -1981,7 +1981,159 @@ private theorem cutDistance_step_weight_le {K : ℕ}
   -- We need e : α ≃ᵐ α, MP, mapping M_Q i into M_P i a.e.
   have h_align : ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
       ∀ i : Fin K, ∀ᵐ x ∂μ, x ∈ M_Q i → e x ∈ M_P i := by
-    sorry -- traces to MeasurePreserving.exists_common_extension (Rokhlin)
+    classical
+    -- Filter to "good" indices where M_Q has positive measure
+    let good : Finset (Fin K) := Finset.univ.filter (fun i => μ (M_Q i) ≠ 0)
+    -- Good indices have positive M_Q and M_P measure
+    have h_good_pos : ∀ i ∈ good, μ (M_Q i) ≠ 0 := by
+      intro i hi; exact (Finset.mem_filter.mp hi).2
+    have h_good_pos_P : ∀ i ∈ good, μ (M_P i) ≠ 0 := by
+      intro i hi
+      have := (Finset.mem_filter.mp hi).2
+      rw [hM_Q_eq] at this; rw [hM_P_eq]; exact this
+    -- Re-index good indices as Fin good.card
+    let eG := good.orderIsoOfFin rfl
+    -- Define indexed families for good cells
+    let src : Fin good.card → Set α := fun j => M_Q (eG j).val
+    let tgt : Fin good.card → Set α := fun j => M_P (eG j).val
+    -- Helper: eG maps to good indices
+    have heG_good : ∀ j : Fin good.card, (eG j).val ∈ good := fun j => (eG j).prop
+    -- Prove measure matching
+    have h_meas_eq : ∀ j : Fin good.card, μ (src j) = μ (tgt j) := by
+      intro j; show μ (M_Q (eG j).val) = μ (M_P (eG j).val)
+      rw [hM_Q_eq, hM_P_eq]
+    -- Helper for injectivity: distinct good indices give disjoint M_Q/M_P cells
+    have h_idx_ne_of_ne : ∀ j₁ j₂ : Fin good.card, j₁ ≠ j₂ →
+        (eG j₁).val ≠ (eG j₂).val := by
+      intro j₁ j₂ h_ne h_same
+      exact h_ne (eG.injective (Subtype.ext h_same))
+    -- Prove injectivity of src: good M_Q cells lie in distinct Q-cells
+    have hsrc_inj : Function.Injective src := by
+      intro j₁ j₂ (h_eq : M_Q (eG j₁).val = M_Q (eG j₂).val)
+      by_contra h_ne
+      have h_disj_Q : Disjoint (ι_Q (eG j₁).val) (ι_Q (eG j₂).val) :=
+        Q.pairwiseDisjoint (hι_Q _) (hι_Q _)
+          (fun h => h_idx_ne_of_ne j₁ j₂ h_ne (hι_Q_inj h))
+      have h_disj_MQ : Disjoint (M_Q (eG j₁).val) (M_Q (eG j₂).val) :=
+        h_disj_Q.mono (hM_Q_sub _) (hM_Q_sub _)
+      -- Equal + disjoint → self-disjoint → empty → measure 0
+      have h_self_disj : Disjoint (M_Q (eG j₁).val) (M_Q (eG j₁).val) :=
+        h_eq ▸ h_disj_MQ
+      have : M_Q (eG j₁).val = ∅ :=
+        Set.eq_empty_of_forall_notMem (fun x hx => Set.disjoint_left.mp h_self_disj hx hx)
+      exact h_good_pos _ (heG_good j₁) (by rw [this, measure_empty])
+    -- Prove injectivity of tgt: good M_P cells lie in distinct P-cells
+    have htgt_inj : Function.Injective tgt := by
+      intro j₁ j₂ (h_eq : M_P (eG j₁).val = M_P (eG j₂).val)
+      by_contra h_ne
+      have h_disj_P : Disjoint (ι_P (eG j₁).val) (ι_P (eG j₂).val) :=
+        P.pairwiseDisjoint (hι_P _) (hι_P _)
+          (fun h => h_idx_ne_of_ne j₁ j₂ h_ne (hι_P_inj h))
+      have h_disj_MP : Disjoint (M_P (eG j₁).val) (M_P (eG j₂).val) :=
+        h_disj_P.mono (hM_P_sub _) (hM_P_sub _)
+      have h_self_disj : Disjoint (M_P (eG j₁).val) (M_P (eG j₁).val) :=
+        h_eq ▸ h_disj_MP
+      have : M_P (eG j₁).val = ∅ :=
+        Set.eq_empty_of_forall_notMem (fun x hx => Set.disjoint_left.mp h_self_disj hx hx)
+      exact h_good_pos_P _ (heG_good j₁) (by rw [this, measure_empty])
+    -- Build MeasurablePartition for source (M_Q good cells + waste)
+    let waste_src := Set.univ \ ⋃ j : Fin good.card, src j
+    have h_waste_src_meas : MeasurableSet waste_src :=
+      MeasurableSet.univ.diff (MeasurableSet.iUnion (fun j => hM_Q_meas _))
+    let P_src : MeasurablePartition α μ := {
+      parts := insert waste_src (Finset.univ.image src)
+      measurable_parts := by
+        intro S hS
+        rw [Finset.mem_insert] at hS
+        rcases hS with rfl | hS'
+        · exact h_waste_src_meas
+        · obtain ⟨j, _, rfl⟩ := Finset.mem_image.mp hS'
+          exact hM_Q_meas _
+      pairwiseDisjoint := by
+        intro S hS T hT hST
+        simp only [Finset.coe_insert, Finset.coe_image, Set.mem_insert_iff,
+          Set.mem_image, Finset.mem_coe, Finset.mem_univ, true_and] at hS hT
+        rw [Function.onFun_apply, id, id]
+        rcases hS with rfl | ⟨j₁, rfl⟩ <;> rcases hT with rfl | ⟨j₂, rfl⟩
+        · exact absurd rfl hST
+        · exact Set.disjoint_sdiff_left.mono_right (Set.subset_iUnion _ j₂)
+        · exact (Set.disjoint_sdiff_left.mono_right (Set.subset_iUnion _ j₁)).symm
+        · have hj_ne : j₁ ≠ j₂ := fun h => hST (congrArg src h)
+          have h_disj_Q : Disjoint (ι_Q (eG j₁).val) (ι_Q (eG j₂).val) :=
+            Q.pairwiseDisjoint (hι_Q _) (hι_Q _)
+              (fun h => h_idx_ne_of_ne j₁ j₂ hj_ne (hι_Q_inj h))
+          exact h_disj_Q.mono (hM_Q_sub _) (hM_Q_sub _)
+      ae_covers := by
+        apply Filter.Eventually.of_forall; intro x
+        by_cases hx : x ∈ ⋃ j : Fin good.card, src j
+        · obtain ⟨j, hxj⟩ := Set.mem_iUnion.mp hx
+          exact ⟨src j, Finset.mem_insert_of_mem
+            (Finset.mem_image_of_mem _ (Finset.mem_univ j)), hxj⟩
+        · exact ⟨waste_src, Finset.mem_insert_self _ _,
+            Set.mem_diff_of_mem (Set.mem_univ _) hx⟩
+    }
+    -- Build MeasurablePartition for target (M_P good cells + waste)
+    let waste_tgt := Set.univ \ ⋃ j : Fin good.card, tgt j
+    have h_waste_tgt_meas : MeasurableSet waste_tgt :=
+      MeasurableSet.univ.diff (MeasurableSet.iUnion (fun j => hM_P_meas _))
+    let P_tgt : MeasurablePartition α μ := {
+      parts := insert waste_tgt (Finset.univ.image tgt)
+      measurable_parts := by
+        intro S hS
+        rw [Finset.mem_insert] at hS
+        rcases hS with rfl | hS'
+        · exact h_waste_tgt_meas
+        · obtain ⟨j, _, rfl⟩ := Finset.mem_image.mp hS'
+          exact hM_P_meas _
+      pairwiseDisjoint := by
+        intro S hS T hT hST
+        simp only [Finset.coe_insert, Finset.coe_image, Set.mem_insert_iff,
+          Set.mem_image, Finset.mem_coe, Finset.mem_univ, true_and] at hS hT
+        rw [Function.onFun_apply, id, id]
+        rcases hS with rfl | ⟨j₁, rfl⟩ <;> rcases hT with rfl | ⟨j₂, rfl⟩
+        · exact absurd rfl hST
+        · exact Set.disjoint_sdiff_left.mono_right (Set.subset_iUnion _ j₂)
+        · exact (Set.disjoint_sdiff_left.mono_right (Set.subset_iUnion _ j₁)).symm
+        · have hj_ne : j₁ ≠ j₂ := fun h => hST (congrArg tgt h)
+          have h_disj_P : Disjoint (ι_P (eG j₁).val) (ι_P (eG j₂).val) :=
+            P.pairwiseDisjoint (hι_P _) (hι_P _)
+              (fun h => h_idx_ne_of_ne j₁ j₂ hj_ne (hι_P_inj h))
+          exact h_disj_P.mono (hM_P_sub _) (hM_P_sub _)
+      ae_covers := by
+        apply Filter.Eventually.of_forall; intro x
+        by_cases hx : x ∈ ⋃ j : Fin good.card, tgt j
+        · obtain ⟨j, hxj⟩ := Set.mem_iUnion.mp hx
+          exact ⟨tgt j, Finset.mem_insert_of_mem
+            (Finset.mem_image_of_mem _ (Finset.mem_univ j)), hxj⟩
+        · exact ⟨waste_tgt, Finset.mem_insert_self _ _,
+            Set.mem_diff_of_mem (Set.mem_univ _) hx⟩
+    }
+    -- Prove membership in partition parts
+    have hsrc_mem : ∀ j, src j ∈ P_src.parts :=
+      fun j => Finset.mem_insert_of_mem (Finset.mem_image_of_mem _ (Finset.mem_univ j))
+    have htgt_mem : ∀ j, tgt j ∈ P_tgt.parts :=
+      fun j => Finset.mem_insert_of_mem (Finset.mem_image_of_mem _ (Finset.mem_univ j))
+    -- Apply controlled cell alignment
+    obtain ⟨e, he, h_good_align⟩ := MeasurePreserving.exists_controlled_cell_alignment
+      P_src P_tgt src tgt hsrc_mem htgt_mem hsrc_inj htgt_inj h_meas_eq
+    -- Extend to all i : Fin K
+    refine ⟨e, he, fun i => ?_⟩
+    by_cases hi : i ∈ good
+    · -- Good case: find the corresponding good index j
+      have hj : ∃ j : Fin good.card, (eG j).val = i := by
+        exact ⟨eG.symm ⟨i, hi⟩, by simp [OrderIso.apply_symm_apply]⟩
+      obtain ⟨j, hj_val⟩ := hj
+      have h_src_j : src j = M_Q i := by show M_Q (eG j).val = M_Q i; rw [hj_val]
+      have h_tgt_j : tgt j = M_P i := by show M_P (eG j).val = M_P i; rw [hj_val]
+      have := h_good_align j
+      rw [h_src_j, h_tgt_j] at this
+      exact this
+    · -- Bad case: μ(M_Q i) = 0, so ∀ᵐ x, x ∉ M_Q i; implication vacuous
+      have hi_zero : μ (M_Q i) = 0 := by
+        simp only [good, Finset.mem_filter, Finset.mem_univ, true_and, not_not] at hi; exact hi
+      have : (M_Q i)ᶜ ∈ ae μ := by rw [mem_ae_iff]; simpa using hi_zero
+      filter_upwards [this] with x hx h_abs
+      exact absurd h_abs hx
   obtain ⟨e, he, h_cell⟩ := h_align
   -- Step 3: Use φ = e, ψ = id as cutDistance witnesses.
   -- For a.e. (x,y) with x ∈ M_Q(i), y ∈ M_Q(j):
