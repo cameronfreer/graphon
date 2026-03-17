@@ -21,16 +21,18 @@ can be approximated by a step graphon in cut norm.
 
 ## Implementation notes
 
-The regularity lemma is one of the central results in graphon theory. It is the
-continuous analogue of Szemerédi's regularity lemma for graphs.
+The Frieze–Kannan weak regularity lemma is one of the central results in graphon
+theory. It provides a step-function approximation in cut norm with single-exponential
+bounds on the number of parts (better than the tower-type bounds from Szemerédi's
+strong regularity lemma).
 
 The number of parts in the partition depends only on ε, not on the graphon.
 This is crucial for applications to graph limits.
 
 ## References
 
-* [L. Lovász, *Large Networks and Graph Limits*][lovasz2012], Section 9.2
-* Szemerédi, E. (1978). Regular partitions of graphs.
+* [L. Lovász, *Large Networks and Graph Limits*][lovasz2012], Corollary 9.13
+* Frieze, A. & Kannan, R. (1999). Quick approximation to matrices and applications.
 -/
 
 open MeasureTheory Set Filter Finset

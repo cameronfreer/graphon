@@ -31,13 +31,13 @@ mathematical inputs (no custom axioms are introduced):
     The $k = 1$ case is fully proved; the $k \ge 2$ case requires graph
     algebra separation arguments that are partially built.
     Used by: inverse counting lemma core.
-  \item \textbf{Algebraic determination axiom}
+  \item \textbf{Determination pending theorem}
     (\texttt{cutDistance\_zero\_of\_homDensity\_eq}):
     depends on both of the above.
     Used by: convergence equivalence.
 \end{enumerate}
-All other results are fully proved.  These \texttt{sorry}s will be
-replaced with proofs.
+All other declarations contain no additional \texttt{sorry}s.
+These three \texttt{sorry}s will be replaced with proofs.
 
 \section{Main Results}
 
@@ -56,8 +56,10 @@ The formalization establishes:
     Small cut distance implies similar homomorphism densities
     (Theorem~\ref{thm:counting-lemma}).
   \item \textbf{Compactness.}
-    The graphon space is totally bounded (Theorem~\ref{thm:totallyBounded})
-    and complete (Theorem~\ref{thm:complete}) in cut distance.
+    The cut-distance quotient modulo weak isomorphism is a compact metric
+    space; concretely, the graphon pseudometric space is totally bounded
+    (Theorem~\ref{thm:totallyBounded}) and complete
+    (Theorem~\ref{thm:complete}).
   \item \textbf{Inverse counting lemma.}
     For any $\varepsilon > 0$, finitely many test graphs control cut distance
     up to $\varepsilon$ (Theorem~\ref{thm:inverse-counting}),
@@ -208,11 +210,11 @@ The counting lemma: $|t(F, U) - t(F, W)| \le |E(F)| \cdot \|U - W\|_\square$
 
 \chapter{Compactness}
 
-The graphon space is compact in the cut distance pseudometric
-(Lov\'asz~\cite[Theorem~9.23]{lovasz2012}).  This is proved by showing
-total boundedness (via the regularity lemma and grid quantization) and
+The cut-distance quotient modulo weak isomorphism is a compact metric space
+(Lov\'asz~\cite[Theorem~9.23]{lovasz2012}).  Concretely, we prove total
+boundedness (via the regularity lemma and grid quantization) and
 completeness (via a direct limit construction from rapidly converging
-subsequences).
+subsequences) of the graphon pseudometric space.
 
 \section{Total Boundedness}
 

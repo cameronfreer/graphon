@@ -32,9 +32,9 @@ Three remaining `sorry` declarations, driven by two main missing mathematical in
 |----------------|-----------------|---------|----------|
 | **Rokhlin's theorem** (isomorphism of standard Borel probability spaces) | `exists_common_extension` | Cut distance triangle inequality, partition alignment, compactness | Mathlib has `PolishSpace.measurableEquiv` but not the measure-preserving version; proving this is in progress |
 | **Algebraic determination** (Lov&aacute;sz Theorem 5.30, k&ge;2) | `matrix_quotient_of_weightedHomSum_eq` (positive-weight case) | Inverse counting lemma core | The k=1 case is fully proved; the k&ge;2 case requires graph algebra separation arguments that are partially built |
-| **Algebraic determination axiom** (depends on the above two) | `cutDistance_zero_of_homDensity_eq` | Convergence equivalence | Proved modulo Rokhlin + algebraic determination |
+| **Determination pending theorem** (depends on the above two) | `cutDistance_zero_of_homDensity_eq` | Convergence equivalence | Proved modulo Rokhlin + algebraic determination |
 
-All other results &mdash; including the regularity lemma, counting lemma, compactness, and the full convergence equivalence &mdash; are fully proved.
+All other declarations contain no additional `sorry`s.
 
 ## Components
 

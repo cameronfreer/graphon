@@ -25,9 +25,9 @@ Three remaining `sorry` declarations, driven by two main missing mathematical in
 |----------------|----------|-------|
 | **Rokhlin's theorem** | `exists_common_extension` | Mathlib has `PolishSpace.measurableEquiv` but not the measure-preserving version |
 | **Algebraic determination** (k≥2) | `matrix_quotient_of_weightedHomSum_eq` (positive-weight case) | k=1 fully proved; k≥2 needs graph algebra separation |
-| **Algebraic determination axiom** | `cutDistance_zero_of_homDensity_eq` | Depends on both of the above |
+| **Determination pending theorem** | `cutDistance_zero_of_homDensity_eq` | Depends on both of the above |
 
-All other results — including the regularity lemma, counting lemma, compactness, and convergence equivalence — are fully proved. No custom axioms are introduced.
+All other declarations contain no additional `sorry`s. No custom axioms are introduced.
 
 ## Files
 
