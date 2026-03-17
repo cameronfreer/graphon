@@ -32,8 +32,10 @@ in Lean 4 using Mathlib.
 * `Graphon.Basic` — Graphon definition, symmetry, boundedness
 * `Graphon.Pullback` — Pullback under measure-preserving maps
 * `Graphon.Step` — Measurable partitions, step functions
+* `Graphon.HomDensity` — Homomorphism density definition
+* `Graphon.CutNorm` — Cut norm, graphon integrability
 * `Graphon.Approximation` — Rectangle averages, cut norm approximation
-* `Graphon.CutDistance` — Cut norm, cut distance, pseudometric properties
+* `Graphon.CutDistance` — Cut distance, pseudometric properties
 * `Graphon.Regularity` — Energy increment, Frieze–Kannan weak regularity lemma
 * `Graphon.Counting` — Homomorphism density, counting lemma
 * `Graphon.Compactness` — Total boundedness, completeness

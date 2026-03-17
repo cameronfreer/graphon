@@ -240,11 +240,11 @@ and every sequence has a convergent subsequence.
 theorem graphLimit_characterization [StandardBorelSpace α] [NoAtoms μ] (W : ℕ → Graphon α μ) :
     (IsConvergent W ↔ HasConvergentHomDensities W) ∧
     (IsConvergent W ↔ IsCauchy W) ∧
-    (∃ (V : Graphon α μ) (φ : ℕ → ℕ), StrictMono φ ∧ IsConvergent (W ∘ φ)) :=
+    (∃ (φ : ℕ → ℕ), StrictMono φ ∧ IsConvergent (W ∘ φ)) :=
   ⟨converges_iff_homDensity W,
    (isCauchy_iff_isConvergent W).symm,
-   let ⟨V, φ, hφ, hconv⟩ := exists_convergent_subsequence W
-   ⟨V, φ, hφ, ⟨V, hconv⟩⟩⟩
+   let ⟨_, φ, hφ, hconv⟩ := exists_convergent_subsequence W
+   ⟨φ, hφ, ⟨_, hconv⟩⟩⟩
 
 end Summary
 

@@ -11,7 +11,7 @@ import Mathlib.Analysis.Convex.SpecificFunctions.Deriv
 /-!
 # Regularity Lemma for Graphons
 
-This file states the regularity lemma for graphons, which says that any graphon
+This file proves the regularity lemma for graphons, which says that any graphon
 can be approximated by a step graphon in cut norm.
 
 ## Main results
