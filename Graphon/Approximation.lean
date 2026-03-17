@@ -29,8 +29,8 @@ Given a measurable partition P of α, the stepified graphon takes the average va
 on each rectangle S × T for S, T ∈ P:
 `(stepify P W)(x, y) = (1/(μ(S)μ(T))) ∫_{S×T} W dμ×μ` for x ∈ S, y ∈ T
 
-The full stepification construction requires building an AEEqFun from piecewise
-definitions, which is deferred to future work.
+The stepification `stepify P W` constructs the step-function approximation as an
+`AEEqFun`, with `stepify_ae` providing the pointwise characterization.
 
 ## References
 

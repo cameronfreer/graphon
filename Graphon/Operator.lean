@@ -14,15 +14,18 @@ import Mathlib.MeasureTheory.Integral.Prod
 This file defines the integral operator associated with a graphon and proves
 basic properties.
 
+**Experimental**: This module provides a pointwise kernel operator definition.
+The full L² operator API (continuous linear map, Hilbert-Schmidt, compactness)
+is future work.
+
 ## Main definitions
 
-* `Graphon.kernelOp` - The integral operator `T_W : L²(α, μ) → L²(α, μ)` defined by
-  `(T_W f)(x) = ∫ W(x,y) f(y) dμ(y)`
+* `Graphon.kernelOpFun` — Pointwise kernel operator `(T_W f)(x) = ∫ W(x,y) f(y) dμ(y)`
 
 ## Main results
 
-* `Graphon.kernelOp_linear` - The kernel operator is linear
-* `Graphon.kernelOp_symmetric` - Self-adjointness: `⟨T_W f, g⟩ = ⟨f, T_W g⟩`
+* `Graphon.kernelOpFun_symmetric` — Symmetry of the bilinear form
+* `Graphon.kernelOpFun_bound_ae` — Pointwise bound by ‖f‖₁
 
 ## Implementation notes
 
@@ -267,7 +270,7 @@ The full development of the L² operator `T_W : Lp ℝ 2 μ →L[ℝ] Lp ℝ 2 �
 3. Proving self-adjointness in the inner product sense
 4. Hilbert-Schmidt property and compactness
 
-These will be developed in future phases.
+These are not yet implemented.
 -/
 
 end Graphon

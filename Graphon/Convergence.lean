@@ -10,13 +10,14 @@ import Graphon.Sampling
 # Convergence of Graph Sequences
 
 This file establishes the main theorems characterizing convergence in the
-graphon space, completing the formalization of Lovász's graph limit theory.
+graphon space, bringing together the counting lemma, inverse counting lemma,
+and compactness results.
 
 ## Main results
 
-* `Graphon.converges_iff_homDensity` - Cut distance convergence ⟺ hom density convergence
-* `Graphon.exists_limit` - Every Cauchy sequence has a limit (completeness)
-* `Graphon.subsequence_converges` - Every sequence has a convergent subsequence (compactness)
+* `Graphon.converges_iff_homDensity` — Cut distance convergence ⟺ hom density convergence
+* `Graphon.exists_convergent_subsequence` — Every sequence has a convergent subsequence (compactness)
+* `Graphon.isCauchy_iff_isConvergent` — Cauchy ⟺ convergent
 
 ## Implementation notes
 
@@ -219,33 +220,6 @@ theorem limit_unique [StandardBorelSpace α] (W : ℕ → Graphon α μ) (U V : 
   limit_unique_upto_weakIso W U V hU hV
 
 end CompactnessChar
-
-/-! ### Graph sequence limits -/
-
-section GraphLimits
-
-variable [IsProbabilityMeasure μ]
-
-/-- A graph sequence is convergent if its associated graphon sequence converges. -/
-def GraphSequence.IsConvergent (n : ℕ → ℕ) (G : ∀ i, SimpleGraph (Fin (n i))) : Prop :=
-  ∀ (V : Type*) [Fintype V] [DecidableEq V] (F : SimpleGraph V) [DecidableRel F.Adj],
-    ∃ (L : ℝ), ∀ (ε : ℝ), ε > 0 → ∃ (N : ℕ), ∀ (i : ℕ), i ≥ N → True
-    -- Note: Full definition needs graphon conversion for variable-size graphs
-    -- Would be: |t(F, G i) - L| < ε
-
-/-- The limit of a convergent graph sequence is a graphon.
-
-Every convergent graph sequence converges to some graphon W such that
-t(F, Gₙ) → t(F, W) for all F. -/
-theorem GraphSequence.exists_limit (n : ℕ → ℕ) (G : ∀ i, SimpleGraph (Fin (n i)))
-    (hconv : GraphSequence.IsConvergent n G) :
-    ∃ (W : Graphon α μ), True :=
-  -- Note: The actual content of the theorem (that the limit has the expected
-  -- homomorphism density limits) is captured by the True placeholder.
-  -- The full statement would need machinery for variable-size graph graphons.
-  ⟨zero, trivial⟩
-
-end GraphLimits
 
 /-! ### Summary theorems -/
 

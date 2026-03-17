@@ -20,3 +20,30 @@ import Graphon.Sampling
 import Graphon.MatrixDetermination
 import Graphon.InverseCounting
 import Graphon.Convergence
+
+/-!
+# Graphon Theory
+
+A formalization of graphon theory — the theory of limits of dense graph sequences —
+in Lean 4 using Mathlib.
+
+## Stable core
+
+* `Graphon.Basic` — Graphon definition, symmetry, boundedness
+* `Graphon.Pullback` — Pullback under measure-preserving maps
+* `Graphon.Step` — Measurable partitions, step functions
+* `Graphon.Approximation` — Rectangle averages, cut norm approximation
+* `Graphon.CutDistance` — Cut norm, cut distance, pseudometric properties
+* `Graphon.Regularity` — Energy increment, Frieze–Kannan weak regularity lemma
+* `Graphon.Counting` — Homomorphism density, counting lemma
+* `Graphon.Compactness` — Total boundedness, completeness
+* `Graphon.MatrixDetermination` — Algebraic determination of step graphons
+* `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
+* `Graphon.Convergence` — Top-level convergence characterization
+
+## Experimental
+
+* `Graphon.Operations` — Pointwise product (direct sum and operator product are future work)
+* `Graphon.Operator` — Kernel operator pointwise definition (full L² API is future work)
+* `Graphon.Sampling` — Expected edge density (concentration bounds are future work)
+-/

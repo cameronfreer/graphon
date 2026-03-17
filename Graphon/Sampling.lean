@@ -9,18 +9,20 @@ import Graphon.CutDistance
 /-!
 # Sampling Random Graphs from Graphons
 
-This file defines how to sample random graphs from graphons and proves
-concentration bounds for homomorphism densities.
+This file defines expected edge density for graphon sampling. Concentration
+bounds and the full random graph sampling API are future work.
+
+**Experimental**: Concentration bounds and the full random graph sampling API
+are future work.
 
 ## Main definitions
 
-* `Graphon.sampleGraph` - Sample a random graph G(n, W) from a graphon W
-* `Graphon.sampleGraphExpectedDensity` - Expected edge density of sampled graph
+* `Graphon.sampleGraphExpectedDensity` — Expected edge density of sampled graph
 
 ## Main results
 
-* `Graphon.sampleGraph_edgeDensity_expectation` - E[edgeDensity(G(n,W))] = ∫∫ W
-* `Graphon.sampleGraph_homDensity_concentration` - Concentration around t(F,W)
+* `Graphon.sampleGraphExpectedDensity_eq` — Expected density equals ∫∫ W
+* `Graphon.sampleGraphExpectedDensity_mem_Icc` — Expected density is in [0, 1]
 
 ## Implementation notes
 
@@ -30,8 +32,8 @@ The sampling process for G(n, W) is:
 
 This is a two-level randomness: first the positions, then the edges.
 
-The key result is that for large n, the homomorphism density of the sampled
-graph concentrates around t(F, W) with high probability.
+The key result established here is that the expected edge density equals the
+integral of the graphon. Concentration and convergence results are future work.
 
 ## References
 
@@ -93,79 +95,5 @@ theorem sampleGraphExpectedDensity_mem_Icc (W : Graphon α μ) :
           simp [h_prob.measure_univ]
 
 end Sampling
-
-/-! ### Concentration bounds -/
-
-section Concentration
-
-variable [IsProbabilityMeasure μ]
-
-/-- Variance bound for edge density in sampled graphs.
-
-The variance of the edge density of G(n, W) is O(1/n). -/
-theorem sampleGraph_edgeDensity_variance_bound (W : Graphon α μ) (n : ℕ) (hn : n ≥ 2) :
-    ∃ C : ℝ, C > 0 ∧ True := by
-  -- The variance is bounded by 1/n (from Hoeffding/McDiarmid)
-  -- Full statement would involve defining variance properly
-  exact ⟨1, one_pos, trivial⟩
-
-/-- Concentration of homomorphism density in sampled graphs.
-
-For any graph F and graphon W, the homomorphism density of a graph
-G(n, W) sampled from W concentrates around t(F, W) as n → ∞.
-
-Specifically, P[|t(F, G(n,W)) - t(F, W)| > ε] → 0 as n → ∞. -/
-theorem sampleGraph_homDensity_concentration (F : SimpleGraph V) [DecidableRel F.Adj]
-    (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
-    ∃ N : ℕ, ∀ n ≥ N, True := by
-  -- The concentration follows from:
-  -- 1. Azuma's inequality for the edge randomness (given positions)
-  -- 2. McDiarmid's inequality for the position randomness
-  -- 3. Union bound combining both sources
-  exact ⟨1, fun _ _ => trivial⟩
-
-/-- The sampled graph converges to the graphon in cut distance.
-
-More precisely, as n → ∞, the graphon W_{G(n,W)} associated to the
-sampled graph converges to W in cut distance (in probability). -/
-theorem sampleGraph_cutDistance_convergence (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
-    ∃ N : ℕ, ∀ n ≥ N, True := by
-  -- This follows from:
-  -- 1. Concentration of homomorphism densities
-  -- 2. Inverse counting lemma (small cut distance ↔ similar hom densities)
-  exact ⟨1, fun _ _ => trivial⟩
-
-end Concentration
-
-/-! ### Graph sequence convergence -/
-
-section GraphSequence
-
-variable [IsProbabilityMeasure μ]
-
-/-- A sequence of graphs converges to a graphon if the associated graphon
-sequence converges in cut distance.
-
-This formalizes the notion of graph limits from Lovász. -/
-def GraphSequenceConverges (n : ℕ → ℕ) (G : ∀ i, SimpleGraph (Fin (n i))) (W : Graphon α μ) : Prop :=
-  ∀ (ε : ℝ), ε > 0 → ∃ (N : ℕ), ∀ (i : ℕ), i ≥ N → True
-  -- Note: Full definition requires graphon on variable-size Fin n
-  -- Would be: cutDistance (ofSimpleGraph (n i) (G i)) W < ε
-
-/-- Equivalent characterization: convergence in homomorphism densities.
-
-A graph sequence converges to W iff t(F, Gₙ) → t(F, W) for all F. -/
-theorem graphSequenceConverges_iff_homDensity (n : ℕ → ℕ) (G : ∀ i, SimpleGraph (Fin (n i)))
-    (W : Graphon α μ) :
-    GraphSequenceConverges n G W ↔
-    ∀ (F : SimpleGraph (Fin 2)) [DecidableRel F.Adj], True := by
-  -- This equivalence is the main theorem of graph limit theory
-  -- Proof uses counting lemma in one direction, inverse counting in other
-  simp only [GraphSequenceConverges]
-  constructor
-  · intro _ _ _; trivial
-  · intro _; intro _ _; exact ⟨0, fun _ _ => trivial⟩
-
-end GraphSequence
 
 end Graphon

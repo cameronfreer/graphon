@@ -754,8 +754,7 @@ of deviating by ε from the mean is at least some constant.
 2. Split by the median: S₁ = {x ∈ S : f(x) ≤ median}, S₂ = S \ S₁
 3. If variance is high, at least one of S₁ or S₂ has average differing from m
 
-This lemma is stated but not yet proven; filling it requires careful
-measure-theoretic arguments. -/
+Proof: Uses a Chebyshev-type argument to find a measurable cut. -/
 theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
     (hf_meas : Measurable f) (hf_int : IntegrableOn f S μ) (hμS : μ S ≠ 0)
     (m : ℝ) (hm : m = (μ S).toReal⁻¹ * ∫ x in S, f x ∂μ)
@@ -5159,10 +5158,8 @@ intermediate value theorem for atomless measures. The resulting partition has
 at most n * m parts (where n = P.parts.card) and each part has measure within
 ε of the average 1/(n*m).
 
-**Required infrastructure** (not yet in Mathlib):
-- Intermediate value theorem for measures on atomless spaces (Sierpinski's theorem):
-  For S with μ(S) = m and 0 ≤ r ≤ m, there exists measurable T ⊆ S with μ(T) = r.
-  This is axiomatized in `exists_measurable_subset_of_measure` above.
+The intermediate value theorem for atomless measures (Sierpinski's theorem) is
+proved above as `exists_measurable_subset_of_measure`.
 
 The `[NoAtoms μ]` hypothesis ensures the measure has no atoms, which is
 necessary for the existence of subsets with prescribed measure. -/
@@ -5174,23 +5171,5 @@ theorem exists_equitable_refinement [StandardBorelSpace α] [NoAtoms μ] (P : Me
   exists_equitable_refinement_construction P ε hε
 
 end Equitable
-
-/-! ### Step graphon density -/
-
-section StepDense
-
-variable [IsProbabilityMeasure μ]
-
-/-- Step graphons are dense in the space of graphons with respect to cut norm.
-
-For any graphon W and ε > 0, there exists a step graphon S with
-cut norm difference at most ε. -/
-theorem step_graphons_dense (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
-    ∃ (P : MeasurablePartition α μ), True := by
-  -- This follows from the regularity lemma
-  obtain ⟨P, _⟩ := regularity W ε hε
-  exact ⟨P, trivial⟩
-
-end StepDense
 
 end Graphon

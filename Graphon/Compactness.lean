@@ -12,28 +12,31 @@ import Mathlib.Analysis.Normed.Group.Tannery
 /-!
 # Compactness of Graphon Space
 
-This file develops the compactness properties of the space of graphons
-with respect to cut distance.
+This file develops compactness of the graphon pseudometric space (total
+boundedness and completeness), from which compactness of the cut-distance
+quotient modulo weak isomorphism follows.
 
 ## Main definitions
 
-* `Graphon.Quotient` - The quotient of graphons by weak isomorphism (δ□ = 0)
-* `Graphon.cutDistanceQuotient` - Cut distance as a proper metric on the quotient
+* `Graphon.WeaklyIsomorphic` — Weak isomorphism (cut distance zero)
+* `Graphon.mkStepGraphon` — Step graphon from partition and coefficients
+* `Graphon.IsCauchy` — Cauchy sequence in cut distance
 
 ## Main results
 
-* `Graphon.cutDistance_quotient_metric` - Cut distance is a metric on the quotient
-* `Graphon.quotient_compact` - The quotient space is compact
+* `Graphon.totallyBounded` — Finite ε-net in cut distance
+* `Graphon.complete` — Cauchy sequences converge
+* `Graphon.compact` — Every sequence has a convergent subsequence
 
 ## Implementation notes
 
-The space of graphons modulo weak isomorphism, equipped with cut distance,
-is a compact metric space. This is the fundamental compactness result that
-enables the theory of graph limits.
+The cut-distance quotient modulo weak isomorphism is a compact metric space.
+Concretely, we prove total boundedness and completeness of the graphon
+pseudometric space.
 
 The compactness follows from:
 1. The regularity lemma gives total boundedness
-2. Completeness follows from a martingale convergence argument
+2. Completeness follows from a direct limit construction via Radon–Nikodym
 
 ## References
 

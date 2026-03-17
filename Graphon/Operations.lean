@@ -8,8 +8,8 @@ import Graphon.Pullback
 /-!
 # Operations on Graphons
 
-This file defines basic operations on graphons: pointwise product and
-properties of the complement (already defined in Basic.lean).
+**Experimental**: This module defines basic operations on graphons: pointwise
+product and properties of the complement (already defined in Basic.lean).
 
 ## Main definitions
 
@@ -30,7 +30,7 @@ If `W₁` and `W₂` are graphon limits of graph sequences `G_n` and `H_n`, then
 
 The direct sum operation (combining two graphons on disjoint probability spaces)
 and operator product (composition via integral operators) are more complex and
-will be developed in later phases.
+are not yet implemented.
 
 ## References
 
