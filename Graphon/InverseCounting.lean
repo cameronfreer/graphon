@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.Counting
 import Graphon.Compactness
 import Graphon.MatrixDetermination
@@ -3112,6 +3113,8 @@ theorem cutDistance_zero_of_homDensity_eq [StandardBorelSpace α] [NoAtoms μ]
 
 For any ε > 0, there exists δ > 0 and a finite set of graphs F₁,...,Fₖ
 such that if |t(Fᵢ, U) - t(Fᵢ, W)| < δ for all i, then δ□(U, W) < ε. -/
+@[blueprint "thm:inverse-counting"
+  (title := /-- Inverse counting lemma -/)]
 theorem cutDistance_le_of_homDensity_close [StandardBorelSpace α] [NoAtoms μ] (ε : ℝ) (hε : ε > 0) :
     ∃ (δ : ℝ) (_ : δ > 0) (k : ℕ),
     ∀ (U W : Graphon α μ),
@@ -3241,6 +3244,8 @@ theorem cutDistance_le_of_homDensity_close [StandardBorelSpace α] [NoAtoms μ] 
     densities converge.
 
 This is the fundamental characterization of graph limit convergence. -/
+@[blueprint "thm:convergence-equiv"
+  (title := /-- Convergence equivalence -/)]
 theorem cutDistance_tendsto_iff_homDensity_tendsto [StandardBorelSpace α] [NoAtoms μ]
     (W : ℕ → Graphon α μ) (V : Graphon α μ) :
     (∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε) ↔

@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.Approximation
 import Mathlib.Analysis.Convex.Integral
 import Mathlib.Analysis.Convex.SpecificFunctions.Deriv
@@ -3043,6 +3044,8 @@ then splitting S (or T) into two parts by an appropriate cut strictly
 increases the energy.
 
 This is the key step that drives the regularity iteration. -/
+@[blueprint "thm:energy-increment"
+  (title := /-- Energy increment lemma -/)]
 theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
     (ε : ℝ) (hε : ε > 0)
     (h_bad : ∃ S ∈ P.parts, ∃ T ∈ P.parts, μ S ≠ 0 ∧ μ T ≠ 0 ∧
@@ -4545,6 +4548,8 @@ has small cut norm difference from W.
    - Energy increases by ≥ ε²
 3. Since energy ≤ 1, at most ⌈1/ε²⌉ iterations
 4. Each iteration at most quadruples parts (double split): final count ≤ 4^(iterations+1) -/
+@[blueprint "thm:regularity"
+  (title := /-- Szemer\u00e9di regularity lemma -/)]
 theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ P : MeasurablePartition α μ,
       P.parts.card ≤ regularityBound ε ∧

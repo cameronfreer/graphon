@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.HomDensity
 import Mathlib.Dynamics.Ergodic.MeasurePreserving
 
@@ -114,6 +115,8 @@ This operation is fundamental for defining the cut distance:
 `δ□(U, W) = inf_φ ‖U - W^φ‖_□`
 
 Key property: `t(F, W^φ) = t(F, W)` for all graphs F (proved in `homDensity_pullback`). -/
+@[blueprint "def:pullback"
+  (title := /-- Pullback of a graphon -/)]
 def pullback (W : Graphon β ν) (φ : α → β) (hφ : MeasurePreserving φ μ ν) :
     Graphon α μ where
   toSymmKernel := W.toSymmKernel.pullback φ hφ

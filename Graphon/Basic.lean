@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Mathlib.MeasureTheory.Function.AEEqFun
 import Mathlib.MeasureTheory.Measure.Prod
 import Mathlib.Topology.UnitInterval
@@ -90,6 +91,8 @@ The `IsProbabilityMeasure` constraint ensures:
 - `μ.prod μ` is a probability measure on the product space
 - Swap is measure-preserving (needed for symmetry properties)
 - Integrals give meaningful densities -/
+@[blueprint "def:graphon"
+  (title := /-- Graphon -/)]
 structure Graphon (α : Type*) [MeasurableSpace α] (μ : Measure α)
     extends SymmKernel α μ where
   /-- Values lie in [0,1] a.e. -/

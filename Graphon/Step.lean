@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.Basic
 import Mathlib.Order.Partition.Finpartition
 import Mathlib.Combinatorics.SimpleGraph.Density
@@ -51,6 +52,8 @@ variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
 
 This is a finite collection of pairwise disjoint measurable sets that cover
 the space almost everywhere. Used to define step graphons. -/
+@[blueprint "def:measurablePartition"
+  (title := /-- Measurable partition -/)]
 structure MeasurablePartition (α : Type*) [MeasurableSpace α] (μ : Measure α) where
   /-- The parts of the partition as a finset of sets -/
   parts : Finset (Set α)

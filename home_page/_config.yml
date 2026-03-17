@@ -1,0 +1,16 @@
+# Site settings
+
+title: Graphon Theory in Lean 4
+email: freer@mit.edu
+description: by Cameron Freer
+baseurl: ""
+url: "https://cameronfreer.github.io/graphon"
+twitter_username:
+github_username: cameronfreer
+repository: cameronfreer/graphon
+
+# Build settings
+remote_theme: pages-themes/cayman@v0.2.0
+plugins:
+  - jekyll-remote-theme
+  - jekyll-github-metadata

@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.HomDensity
 import Graphon.CutDistance
 
@@ -896,6 +897,8 @@ For any graph F and graphons U, W on the same probability space:
 `|t(F, U) - t(F, W)| ≤ |E(F)| · ‖U - W‖_□`
 
 This is the key result showing that cut norm controls homomorphism densities. -/
+@[blueprint "thm:counting-lemma"
+  (title := /-- Counting lemma -/)]
 theorem homDensity_sub_le (F : SimpleGraph V) [DecidableRel F.Adj]
     (U W : Graphon α μ) :
     |homDensity F U - homDensity F W| ≤ F.edgeFinset.card * cutNormDiff U W := by

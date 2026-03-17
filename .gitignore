@@ -5,3 +5,16 @@ build/
 *.olean
 .DS_Store
 .claude/
+.worktrees/
+blueprint/web/
+blueprint/print/
+blueprint/lean_decls
+blueprint/src/*.aux
+blueprint/src/*.bbl
+blueprint/src/*.blg
+blueprint/src/*.log
+blueprint/src/*.out
+blueprint/src/*.pdf
+blueprint/src/*.toc
+blueprint/src/*.paux
+_site/

@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.Step
 import Mathlib.Combinatorics.SimpleGraph.Maps
 import Mathlib.Combinatorics.SimpleGraph.Finite
@@ -68,6 +69,8 @@ over all vertex mappings, the choice of representative does not affect the resul
 
 For a finite graph `G` on `n` vertices, `t(F, W_G) = hom(F, G) / n^|V(F)|`
 where `hom(F, G)` is the number of graph homomorphisms from `F` to `G`. -/
+@[blueprint "def:homDensity"
+  (title := /-- Homomorphism density -/)]
 noncomputable def homDensity (F : SimpleGraph V) [DecidableRel F.Adj] (W : Graphon α μ) : ℝ :=
   ∫ x : V → α, ∏ e ∈ F.edgeFinset, W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)
     ∂Measure.pi (fun _ => μ)

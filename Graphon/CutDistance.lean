@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.CutNorm
 import Graphon.Pullback
 import Mathlib.MeasureTheory.Constructions.Polish.Basic
@@ -81,6 +82,8 @@ variable [IsProbabilityMeasure μ]
 `‖U - W‖_□ = sup_{S,T measurable} |∫_{S×T} (U - W)|`
 
 Since graphons take values in [0,1], their difference takes values in [-1,1]. -/
+@[blueprint "def:cutNormDiff"
+  (title := /-- Cut norm difference -/)]
 noncomputable def cutNormDiff (U W : Graphon α μ) : ℝ :=
   ⨆ (S : Set α) (hS : MeasurableSet S) (T : Set α) (hT : MeasurableSet T),
     |rectIntegralDiff U W S T|
@@ -957,11 +960,15 @@ which uses measure-preserving maps from a common probability space to both graph
 The one-sided definition `inf_φ ‖U - W^φ‖_□` requires `[StandardBorelSpace α]` to prove
 symmetry (via invertibility of measure-preserving maps). The two-sided definition avoids
 this requirement while giving the same value on standard Borel spaces. -/
+@[blueprint "def:cutDistance"
+  (title := /-- Cut distance -/)]
 noncomputable def cutDistance (U W : Graphon α μ) : ℝ :=
   sInf {d : ℝ | ∃ (φ ψ : α → α) (hφ : MeasurePreserving φ μ μ) (hψ : MeasurePreserving ψ μ μ),
         d = cutNormDiff (pullback U φ hφ) (pullback W ψ hψ)}
 
 /-- Cut distance is non-negative. -/
+@[blueprint "thm:cutDistance-nonneg"
+  (title := /-- Non-negativity of cut distance -/)]
 theorem cutDistance_nonneg (U W : Graphon α μ) : 0 ≤ cutDistance U W := by
   unfold cutDistance
   apply Real.sInf_nonneg
@@ -977,6 +984,8 @@ theorem cutDistance_set_nonempty (U W : Graphon α μ) :
    id, id, MeasurePreserving.id μ, MeasurePreserving.id μ, rfl⟩
 
 /-- Cut distance of a graphon to itself is zero. -/
+@[blueprint "thm:cutDistance-self"
+  (title := /-- Cut distance to self is zero -/)]
 theorem cutDistance_self (W : Graphon α μ) : cutDistance W W = 0 := by
   unfold cutDistance
   apply le_antisymm
@@ -1181,6 +1190,8 @@ For any graphon V and measure-preserving bijection e, `δ□(V, V^e) = 0`.
 **Proof**: Use φ = id and ψ = e⁻¹ as witnesses in the cutDistance infimum.
 Then `V^id = V` and `(V^e)^{e⁻¹} = V^{e ∘ e⁻¹} = V^id = V`,
 so `‖V − V‖_□ = 0`. -/
+@[blueprint "thm:cutDistance-pullback-eq-zero"
+  (title := /-- Pullback invariance of cut distance -/)]
 theorem cutDistance_pullback_eq_zero (V : Graphon α μ) (e : α ≃ᵐ α)
     (he : MeasurePreserving e μ μ) :
     cutDistance V (pullback V e he) = 0 := by
@@ -1226,6 +1237,8 @@ This is the key property making cut distance a pseudometric.
 5. Take ε → 0.
 
 **Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin sorry). -/
+@[blueprint "thm:cutDistance-triangle"
+  (title := /-- Triangle inequality for cut distance -/)]
 theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
     cutDistance U W ≤ cutDistance U V + cutDistance V W := by
   -- Suffices to show: for all ε > 0, d(U,W) ≤ d(U,V) + d(V,W) + ε
@@ -1303,6 +1316,8 @@ theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
 
 With the two-sided definition, this is immediate by swapping φ and ψ
 and using the symmetry of cutNormDiff. No StandardBorelSpace needed! -/
+@[blueprint "thm:cutDistance-symm"
+  (title := /-- Symmetry of cut distance -/)]
 theorem cutDistance_symm (U W : Graphon α μ) : cutDistance U W = cutDistance W U := by
   unfold cutDistance
   congr 1

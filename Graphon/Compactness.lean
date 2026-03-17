@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.CutDistance
 import Graphon.Regularity
 import Mathlib.MeasureTheory.Measure.Decomposition.RadonNikodym
@@ -182,6 +183,8 @@ private theorem mkStepFun_mem_Icc_ae (P : MeasurablePartition α μ) (c : Set α
 
 omit [StandardBorelSpace α] in
 /-- Build a `Graphon` from explicit coefficients on a partition. -/
+@[blueprint "def:mkStepGraphon"
+  (title := /-- Step graphon from coefficients -/)]
 noncomputable def mkStepGraphon (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
     (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
     (hc_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T ∈ Set.Icc 0 1) :
@@ -294,6 +297,8 @@ number of parts form an ε-net.
 5. Gridpoints on P_W = gridpoints on any other partition up to cutDistance 0
    (via measure-preserving map between partitions, needs StandardBorelSpace)
 6. Triangle: W within ε of nearest gridpoint -/
+@[blueprint "thm:totallyBounded"
+  (title := /-- Total boundedness of graphon space -/)]
 theorem totallyBounded (ε : ℝ) (hε : ε > 0) :
     ∃ (S : Finset (Graphon α μ)), ∀ W : Graphon α μ, ∃ V ∈ S, cutDistance W V ≤ ε := by
   -- Proof (Lovász [2012], Proposition 9.15):
@@ -1588,6 +1593,8 @@ sequence converges to the same limit using the triangle inequality.
 
 **Depends on**: `exists_limit_of_rapid_convergence` (proved from
 `exists_aligned_cutNormDiff_limit`, sorry'd), `cutDistance_triangle` (proved modulo Rokhlin). -/
+@[blueprint "thm:complete"
+  (title := /-- Completeness of graphon space -/)]
 theorem complete (W : ℕ → Graphon α μ) (hW : IsCauchy W) :
     ∃ V : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε := by
   -- Step 1: Extract a rapidly converging subsequence.

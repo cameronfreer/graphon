@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.Step
 import Graphon.CutDistance
 
@@ -458,6 +459,8 @@ theorem stepifyFun_mem_Icc_ae (P : MeasurablePartition α μ) (W : Graphon α μ
 
 This is the step graphon that equals `rectAverage W S T` on each rectangle `S × T`
 for parts `S, T ∈ P.parts`. -/
+@[blueprint "def:stepify"
+  (title := /-- Stepification of a graphon -/)]
 noncomputable def stepify (P : MeasurablePartition α μ) (W : Graphon α μ) :
     Graphon α μ where
   toSymmKernel := {

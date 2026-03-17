@@ -1,0 +1,230 @@
+% Blueprint content for the graphon theory formalization
+
+% Load generated node definitions from LeanArchitect
+\input{../../.lake/build/blueprint/library/Graphon}
+
+\chapter{Graphons}
+
+This project formalizes the theory of graphons --- limits of dense graph sequences ---
+in Lean~4 using Mathlib, following Lov\'asz~\cite{lovasz2012}.
+
+A \emph{graphon} is a symmetric measurable function $W : [0,1]^2 \to [0,1]$
+(more generally, on an arbitrary probability space).  Graphons arise as the
+natural limit objects for convergent sequences of dense graphs.
+
+\section{Main Results}
+
+The formalization establishes:
+\begin{itemize}
+  \item \textbf{Cut distance metric.}
+    Cut distance is a pseudometric: non-negativity, symmetry
+    (Proposition~\ref{thm:cutDistance-symm}), and the triangle inequality
+    (Theorem~\ref{thm:cutDistance-triangle}).
+  \item \textbf{Regularity lemma.}
+    Every graphon admits a step approximation of bounded complexity
+    (Theorem~\ref{thm:regularity}), following Szemer\'edi~\cite{szemerédi1978}.
+  \item \textbf{Counting lemma.}
+    Small cut distance implies similar homomorphism densities
+    (Theorem~\ref{thm:counting-lemma}).
+  \item \textbf{Compactness.}
+    The graphon space is totally bounded (Theorem~\ref{thm:totallyBounded})
+    and complete (Theorem~\ref{thm:complete}) in cut distance.
+  \item \textbf{Inverse counting lemma.}
+    Similar homomorphism densities imply small cut distance
+    (Theorem~\ref{thm:inverse-counting}).
+  \item \textbf{Convergence equivalence.}
+    Cut distance convergence is equivalent to convergence of all
+    homomorphism densities (Theorem~\ref{thm:convergence-equiv}).
+\end{itemize}
+
+\section{Graphon Definition}
+
+A graphon on a probability space $(\alpha, \mu)$ is a symmetric measurable
+function taking values in $[0,1]$ a.e., following
+Lov\'asz~\cite[Definition~7.1]{lovasz2012}.
+
+\inputleannode{def:graphon}
+
+
+\chapter{Cut Distance}
+
+The \emph{cut distance} is the fundamental metric on graphon space, measuring
+how close two graphons are after optimal rearrangement of the underlying
+probability space.  The development follows
+Lov\'asz~\cite[Chapter~8]{lovasz2012} and
+Borgs--Chayes--Lov\'asz--S\'os--Vesztergombi~\cite{borgs2008}.
+
+\section{Cut Norm}
+
+The cut norm of the difference of two graphons, defined as the supremum
+of $|\int_{S \times T} (U - W)|$ over measurable sets $S, T$.
+
+\inputleannode{def:cutNormDiff}
+
+\section{Pullback}
+
+The pullback of a graphon under a measure-preserving map, fundamental to
+the definition of cut distance.  Following
+Lov\'asz~\cite[Section~8.2]{lovasz2012}.
+
+\inputleannode{def:pullback}
+
+\section{Cut Distance Definition}
+
+The cut distance between two graphons, defined as the infimum of
+$\|U^\varphi - W^\psi\|_\square$ over measure-preserving maps $\varphi, \psi$.
+This two-sided formulation avoids the need for invertibility
+(Lov\'asz~\cite[Section~8.2]{lovasz2012}).
+
+\inputleannode{def:cutDistance}
+
+\section{Metric Properties}
+
+Cut distance is a pseudometric on graphon space
+(Lov\'asz~\cite[Lemma~8.9, Lemma~8.10]{lovasz2012}).
+
+\inputleannode{thm:cutDistance-nonneg}
+
+\inputleannode{thm:cutDistance-self}
+
+\inputleannode{thm:cutDistance-symm}
+
+The triangle inequality uses Rokhlin's theorem (that standard Borel
+probability spaces are isomorphic) to align measure-preserving witnesses.
+
+\inputleannode{thm:cutDistance-triangle}
+
+Pullback by a measure-preserving bijection preserves cut distance
+(Lov\'asz~\cite[Lemma~8.10]{lovasz2012}).
+
+\inputleannode{thm:cutDistance-pullback-eq-zero}
+
+
+\chapter{Partitions and Step Graphons}
+
+Step graphons --- graphons that are constant on rectangles of a partition ---
+are the finite-dimensional building blocks of graphon theory.
+
+\section{Measurable Partitions}
+
+A finite partition of the probability space into measurable sets that
+cover almost everywhere.
+
+\inputleannode{def:measurablePartition}
+
+\section{Stepification}
+
+The stepification $W_P$ of a graphon $W$ with respect to a partition $P$
+replaces $W$ on each rectangle $S \times T$ by its average
+(Lov\'asz~\cite[Section~9.2]{lovasz2012}).
+
+\inputleannode{def:stepify}
+
+\section{Step Graphons from Coefficients}
+
+A step graphon built from explicit coefficients on a partition.
+
+\inputleannode{def:mkStepGraphon}
+
+
+\chapter{Regularity}
+
+The Szemer\'edi regularity lemma for graphons: every graphon can be
+approximated by a step graphon of bounded complexity.
+Following Lov\'asz~\cite[Lemma~9.16]{lovasz2012}
+and Szemer\'edi~\cite{szemerédi1978}.
+
+\section{Energy Increment}
+
+The energy increment lemma: if a partition $P$ does not approximate $W$ well,
+then a refinement $Q$ has strictly higher energy
+(Lov\'asz~\cite[Lemma~9.13]{lovasz2012}).
+
+\inputleannode{thm:energy-increment}
+
+\section{Regularity Lemma}
+
+The regularity lemma: for any $\varepsilon > 0$, every graphon admits a
+partition $P$ with at most $\mathrm{regularityBound}(\varepsilon)$ parts such that
+$\|W - W_P\|_\square \le \varepsilon$.
+
+\inputleannode{thm:regularity}
+
+
+\chapter{Homomorphism Densities and the Counting Lemma}
+
+Homomorphism densities encode the local structure of a graphon.
+The counting lemma shows that small cut distance implies similar
+homomorphism densities.  Following
+Lov\'asz~\cite[Chapter~5 and Section~10.1]{lovasz2012}.
+
+\section{Homomorphism Density}
+
+For a finite graph $F$ and a graphon $W$, the homomorphism density
+$t(F, W) = \int \prod_{uv \in E(F)} W(x_u, x_v) \, d\mu^{V(F)}$
+(Lov\'asz~\cite[Equation~(5.29)]{lovasz2012}).
+
+\inputleannode{def:homDensity}
+
+\section{Counting Lemma}
+
+The counting lemma: $|t(F, U) - t(F, W)| \le |E(F)| \cdot \|U - W\|_\square$
+(Lov\'asz~\cite[Lemma~10.23]{lovasz2012}).
+
+\inputleannode{thm:counting-lemma}
+
+
+\chapter{Compactness}
+
+The graphon space is compact in the cut distance metric
+(Lov\'asz~\cite[Theorem~9.23]{lovasz2012}).  This is proved by showing
+total boundedness (via the regularity lemma and grid quantization) and
+completeness (via a direct limit construction from rapidly converging
+subsequences).
+
+\section{Total Boundedness}
+
+For any $\varepsilon > 0$, there exists a finite $\varepsilon$-net in cut distance.
+The construction uses the regularity lemma to approximate any graphon by
+a step graphon, then quantizes coefficients to a grid
+(Lov\'asz~\cite[Proposition~9.15]{lovasz2012}).
+
+\inputleannode{thm:totallyBounded}
+
+\section{Completeness}
+
+Every Cauchy sequence in cut distance has a limit graphon.
+The proof extracts a rapidly converging subsequence, builds the limit
+graphon via Radon--Nikodym, and shows the full sequence converges
+(Lov\'asz~\cite[Theorem~9.22]{lovasz2012}).
+
+\inputleannode{thm:complete}
+
+
+\chapter{Inverse Counting Lemma and Convergence}
+
+The inverse counting lemma is the converse of the counting lemma:
+if all homomorphism densities are similar, then the graphons are close
+in cut distance.  Together with the counting lemma, this gives the
+fundamental convergence equivalence
+(Lov\'asz~\cite[Section~10.6 and Theorem~11.5]{lovasz2012}).
+
+\section{Inverse Counting Lemma}
+
+For any $\varepsilon > 0$, there exist $\delta > 0$ and a finite family of
+test graphs such that $\delta$-close homomorphism densities imply
+$\varepsilon$-close cut distance
+(Lov\'asz~\cite[Theorem~10.34]{lovasz2012}).
+
+\inputleannode{thm:inverse-counting}
+
+\section{Convergence Equivalence}
+
+A sequence of graphons converges in cut distance if and only if all
+homomorphism densities converge
+(Lov\'asz~\cite[Theorem~11.5]{lovasz2012}).
+
+\inputleannode{thm:convergence-equiv}
+
+\bibliographystyle{amsalpha}
+\bibliography{refs}

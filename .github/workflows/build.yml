@@ -1,0 +1,113 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    name: Build project and blueprint
+    steps:
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be
+        with:
+          tool-cache: false
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: false
+          docker-images: false
+          swap-storage: false
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build Lean project and blueprint
+        uses: leanprover/lean-action@c544e89643240c6b398f14a431bcdc6309e36b3e
+        with:
+          build: true
+          build-args: ":blueprint :blueprintJson"
+          use-github-cache: true
+          use-mathlib-cache: true
+
+      - name: Install blueprint dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y graphviz libgraphviz-dev texlive-latex-extra texlive-xetex texlive-fonts-recommended texlive-fonts-extra latexmk
+          pip install leanblueprint
+
+      - name: Generate bibliography for web
+        run: |
+          cd blueprint/src
+          pdflatex -interaction=nonstopmode print.tex || true
+          bibtex print
+          cp print.bbl web.bbl
+
+      - name: Build blueprint website
+        run: leanblueprint web
+
+      - name: Check blueprint declarations
+        run: lake exe checkdecls blueprint/lean_decls
+
+      - name: Build blueprint PDF
+        run: leanblueprint pdf
+
+      - name: Build API docs
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        run: |
+          cd docbuild
+          lake build Graphon:docs
+
+      - name: Set up Ruby
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: home_page
+
+      - name: Build homepage
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        run: |
+          cd home_page
+          bundle exec jekyll build --baseurl "/graphon" --destination ../_site
+
+      - name: Assemble site
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        run: |
+          mkdir -p _site/blueprint
+          cp -r blueprint/web/* _site/blueprint/
+          cp blueprint/print/print.pdf _site/blueprint/blueprint.pdf
+          cp -r docbuild/.lake/build/doc _site/docs
+
+      - name: Upload Pages artifact
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    name: Deploy to GitHub Pages
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
