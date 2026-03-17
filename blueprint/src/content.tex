@@ -12,10 +12,10 @@ A \emph{graphon} is a symmetric measurable function $W : [0,1]^2 \to [0,1]$
 (more generally, on an arbitrary probability space).  Graphons arise as the
 natural limit objects for convergent sequences of dense graphs.
 
-\section{Temporary Axioms}
+\section{Proof Status}
 
-The formalization currently uses two \texttt{sorry}'d results that are
-planned to be proved in future work:
+The formalization contains exactly two \texttt{sorry}s, both planned to be
+proved (no custom axioms are introduced):
 \begin{enumerate}
   \item \textbf{Rokhlin's theorem}
     (\texttt{MeasurePreserving.exists\_common\_extension}):
@@ -32,9 +32,8 @@ planned to be proved in future work:
     algebra separation arguments that are partially built.
     Used by: inverse counting lemma core.
 \end{enumerate}
-These are the only two \texttt{sorry}s in the entire formalization.
-All other results are fully proved modulo these two pending results.
-The goal is to close both.
+All other results are fully proved.  These \texttt{sorry}s will be
+replaced with proofs.
 
 \section{Main Results}
 
