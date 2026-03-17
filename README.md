@@ -31,19 +31,24 @@ All other declarations contain no additional `sorry`s. No custom axioms are intr
 
 ## Files
 
-| File | Contents |
-|------|----------|
-| `Graphon/Basic.lean` | Graphon definition, symmetry, boundedness, AE equivalence |
-| `Graphon/Pullback.lean` | Pullback under measure-preserving maps |
-| `Graphon/Step.lean` | Measurable partitions, step functions, stepification |
-| `Graphon/Approximation.lean` | Rectangle averages, cut norm approximation, partition splitting |
-| `Graphon/CutDistance.lean` | Cut norm, cut distance, pseudometric properties, Rokhlin interface |
-| `Graphon/Regularity.lean` | Energy, energy increment, Frieze–Kannan weak regularity lemma |
-| `Graphon/Counting.lean` | Homomorphism density, counting lemma |
-| `Graphon/Compactness.lean` | Total boundedness, completeness, limit construction |
-| `Graphon/MatrixDetermination.lean` | Algebraic determination of step graphons |
-| `Graphon/InverseCounting.lean` | Inverse counting lemma, convergence equivalence |
-| `Graphon/Convergence.lean` | Top-level convergence characterization |
+| File | Status | Contents |
+|------|--------|----------|
+| `Graphon/Basic.lean` | Core | Graphon definition, symmetry, boundedness, AE equivalence |
+| `Graphon/Pullback.lean` | Core | Pullback under measure-preserving maps |
+| `Graphon/Step.lean` | Core | Measurable partitions, step functions, stepification |
+| `Graphon/HomDensity.lean` | Core | Homomorphism density definition and basic properties |
+| `Graphon/CutNorm.lean` | Core | Cut norm, graphon integrability |
+| `Graphon/Approximation.lean` | Core | Rectangle averages, cut norm approximation, partition splitting |
+| `Graphon/CutDistance.lean` | Core | Cut distance, pseudometric properties, Rokhlin interface |
+| `Graphon/Regularity.lean` | Core | Energy, energy increment, Frieze–Kannan weak regularity lemma |
+| `Graphon/Counting.lean` | Core | Homomorphism density, counting lemma |
+| `Graphon/Compactness.lean` | Core | Total boundedness, completeness, limit construction |
+| `Graphon/MatrixDetermination.lean` | Core | Algebraic determination of step graphons |
+| `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
+| `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
+| `Graphon/Operations.lean` | Experimental | Pointwise product |
+| `Graphon/Operator.lean` | Experimental | Kernel operator (pointwise definition) |
+| `Graphon/Sampling.lean` | Experimental | Expected edge density |
 
 ## Design Decisions
 
