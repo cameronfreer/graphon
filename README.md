@@ -82,6 +82,17 @@ lake build
 - Frieze, A. & Kannan, R. "Quick Approximation to Matrices and Applications." *Combinatorica* 19(2), 175–220, 1999.
 - Borgs, C., Chayes, J. T., Lovász, L., Sós, V. T., & Vesztergombi, K. "Convergent sequences of dense graphs I." *Advances in Mathematics* 219(6), 1801–1851, 2008.
 
+## Citation
+
+```bibtex
+@software{freer2026graphon,
+  author = {Cameron Freer},
+  title = {Graphon Theory in {Lean} 4},
+  url = {https://github.com/cameronfreer/graphon},
+  year = {2026}
+}
+```
+
 ## License
 
 Apache 2.0
