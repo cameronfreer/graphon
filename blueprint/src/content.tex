@@ -14,8 +14,8 @@ natural limit objects for convergent sequences of dense graphs.
 
 \section{Proof Status}
 
-The formalization contains exactly two \texttt{sorry}s, both planned to be
-proved (no custom axioms are introduced):
+Three remaining \texttt{sorry} declarations, driven by two main missing
+mathematical inputs (no custom axioms are introduced):
 \begin{enumerate}
   \item \textbf{Rokhlin's theorem}
     (\texttt{MeasurePreserving.exists\_common\_extension}):
@@ -26,11 +26,15 @@ proved (no custom axioms are introduced):
     Used by: cut distance triangle inequality, partition alignment,
     compactness.
   \item \textbf{Algebraic determination} for $k \ge 2$
-    (\texttt{matrix\_quotient\_of\_weightedHomSum\_eq\_pos}):
+    (\texttt{matrix\_quotient\_of\_weightedHomSum\_eq}, positive-weight case):
     Lov\'asz~\cite[Theorem~5.30]{lovasz2012}, quotient form.
     The $k = 1$ case is fully proved; the $k \ge 2$ case requires graph
     algebra separation arguments that are partially built.
     Used by: inverse counting lemma core.
+  \item \textbf{Algebraic determination axiom}
+    (\texttt{cutDistance\_zero\_of\_homDensity\_eq}):
+    depends on both of the above.
+    Used by: convergence equivalence.
 \end{enumerate}
 All other results are fully proved.  These \texttt{sorry}s will be
 replaced with proofs.
@@ -39,13 +43,15 @@ replaced with proofs.
 
 The formalization establishes:
 \begin{itemize}
-  \item \textbf{Cut distance metric.}
+  \item \textbf{Cut distance pseudometric.}
     Cut distance is a pseudometric: non-negativity, symmetry
     (Proposition~\ref{thm:cutDistance-symm}), and the triangle inequality
     (Theorem~\ref{thm:cutDistance-triangle}).
-  \item \textbf{Regularity lemma.}
+  \item \textbf{Frieze--Kannan weak regularity lemma.}
     Every graphon admits a step approximation of bounded complexity
-    (Theorem~\ref{thm:regularity}), following Szemer\'edi~\cite{szemerédi1978}.
+    (Theorem~\ref{thm:regularity}), following
+    Frieze--Kannan~\cite{friezekannan1999} and
+    Lov\'asz~\cite[Corollary~9.13]{lovasz2012}.
   \item \textbf{Counting lemma.}
     Small cut distance implies similar homomorphism densities
     (Theorem~\ref{thm:counting-lemma}).
@@ -53,8 +59,9 @@ The formalization establishes:
     The graphon space is totally bounded (Theorem~\ref{thm:totallyBounded})
     and complete (Theorem~\ref{thm:complete}) in cut distance.
   \item \textbf{Inverse counting lemma.}
-    Similar homomorphism densities imply small cut distance
-    (Theorem~\ref{thm:inverse-counting}).
+    For any $\varepsilon > 0$, finitely many test graphs control cut distance
+    up to $\varepsilon$ (Theorem~\ref{thm:inverse-counting}),
+    following Lov\'asz~\cite[Lemma~10.32]{lovasz2012}.
   \item \textbf{Convergence equivalence.}
     Cut distance convergence is equivalent to convergence of all
     homomorphism densities (Theorem~\ref{thm:convergence-equiv}).
@@ -71,7 +78,7 @@ Lov\'asz~\cite[Definition~7.1]{lovasz2012}.
 
 \chapter{Cut Distance}
 
-The \emph{cut distance} is the fundamental metric on graphon space, measuring
+The \emph{cut distance} is the fundamental pseudometric on graphon space, measuring
 how close two graphons are after optimal rearrangement of the underlying
 probability space.  The development follows
 Lov\'asz~\cite[Chapter~8]{lovasz2012} and
@@ -104,7 +111,7 @@ This two-sided formulation avoids the need for invertibility
 \section{Metric Properties}
 
 Cut distance is a pseudometric on graphon space
-(Lov\'asz~\cite[Lemma~8.9, Lemma~8.10]{lovasz2012}).
+(Lov\'asz~\cite[Theorem~8.13, Corollary~8.14]{lovasz2012}).
 
 \inputleannode{thm:cutDistance-nonneg}
 
@@ -120,7 +127,7 @@ probability spaces are isomorphic) to align measure-preserving witnesses.
 \inputleannode{thm:cutDistance-triangle}
 
 Pullback by a measure-preserving bijection preserves cut distance
-(Lov\'asz~\cite[Lemma~8.10]{lovasz2012}).
+(Lov\'asz~\cite[Section~8.2]{lovasz2012}).
 
 \inputleannode{thm:cutDistance-pullback-eq-zero}
 
@@ -154,16 +161,16 @@ A step graphon built from explicit coefficients on a partition.
 
 \chapter{Regularity}
 
-The Szemer\'edi regularity lemma for graphons: every graphon can be
+The Frieze--Kannan weak regularity lemma for graphons: every graphon can be
 approximated by a step graphon of bounded complexity.
-Following Lov\'asz~\cite[Lemma~9.16]{lovasz2012}
-and Szemer\'edi~\cite{szemerédi1978}.
+Following Frieze--Kannan~\cite{friezekannan1999} and
+Lov\'asz~\cite[Corollary~9.13]{lovasz2012}.
 
 \section{Energy Increment}
 
 The energy increment lemma: if a partition $P$ does not approximate $W$ well,
 then a refinement $Q$ has strictly higher energy
-(Lov\'asz~\cite[Lemma~9.13]{lovasz2012}).
+(Lov\'asz~\cite[Lemma~9.11]{lovasz2012}).
 
 \inputleannode{thm:energy-increment}
 
@@ -201,7 +208,7 @@ The counting lemma: $|t(F, U) - t(F, W)| \le |E(F)| \cdot \|U - W\|_\square$
 
 \chapter{Compactness}
 
-The graphon space is compact in the cut distance metric
+The graphon space is compact in the cut distance pseudometric
 (Lov\'asz~\cite[Theorem~9.23]{lovasz2012}).  This is proved by showing
 total boundedness (via the regularity lemma and grid quantization) and
 completeness (via a direct limit construction from rapidly converging
@@ -212,7 +219,7 @@ subsequences).
 For any $\varepsilon > 0$, there exists a finite $\varepsilon$-net in cut distance.
 The construction uses the regularity lemma to approximate any graphon by
 a step graphon, then quantizes coefficients to a grid
-(Lov\'asz~\cite[Proposition~9.15]{lovasz2012}).
+(Lov\'asz~\cite[Section~9.3]{lovasz2012}).
 
 \inputleannode{thm:totallyBounded}
 
@@ -221,7 +228,7 @@ a step graphon, then quantizes coefficients to a grid
 Every Cauchy sequence in cut distance has a limit graphon.
 The proof extracts a rapidly converging subsequence, builds the limit
 graphon via Radon--Nikodym, and shows the full sequence converges
-(Lov\'asz~\cite[Theorem~9.22]{lovasz2012}).
+(Lov\'asz~\cite[Section~9.3]{lovasz2012}).
 
 \inputleannode{thm:complete}
 
@@ -239,8 +246,8 @@ fundamental convergence equivalence
 For any $\varepsilon > 0$, there exist $\delta > 0$ and a finite family of
 test graphs such that $\delta$-close homomorphism densities imply
 $\varepsilon$-close cut distance
-(Lov\'asz~\cite[Theorem~10.34]{lovasz2012}).
-\emph{Status:} proved modulo both temporary axioms (Rokhlin for partition
+(Lov\'asz~\cite[Lemma~10.32]{lovasz2012}).
+\emph{Status:} proved modulo both temporary \texttt{sorry}s (Rokhlin for partition
 alignment, algebraic determination for the step graphon core).
 
 \inputleannode{thm:inverse-counting}

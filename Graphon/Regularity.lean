@@ -4549,7 +4549,7 @@ has small cut norm difference from W.
 3. Since energy ≤ 1, at most ⌈1/ε²⌉ iterations
 4. Each iteration at most quadruples parts (double split): final count ≤ 4^(iterations+1) -/
 @[blueprint "thm:regularity"
-  (title := /-- Szemer\u00e9di regularity lemma -/)]
+  (title := /-- Frieze–Kannan weak regularity lemma -/)]
 theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ P : MeasurablePartition α μ,
       P.parts.card ≤ regularityBound ε ∧

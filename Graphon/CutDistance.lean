@@ -1051,10 +1051,10 @@ finite measurable partition of [0,1] can be mapped to any other by a
 measure-preserving bijection (rearranging intervals).
 
 **Sorry**: Requires Rokhlin's theorem, which is not yet in Mathlib. This is
-well-established mathematics. This is the ONLY sorry in the formalization
-that requires genuinely new Mathlib infrastructure. All other Rokhlin
-consequences (partition transfer, alignment chains, controlled cell
-alignment) are derived from this.
+well-established mathematics. This is one of three `sorry` declarations in
+the formalization and the only one that requires genuinely new Mathlib
+infrastructure. All other Rokhlin consequences (partition transfer,
+alignment chains, controlled cell alignment) are derived from this.
 
 The conclusion has three parts:
 1. **Coupling**: The two MP maps can be aligned via MP bijections.
