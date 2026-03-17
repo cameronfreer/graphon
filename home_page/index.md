@@ -24,16 +24,16 @@ The formalization covers:
 - **Compactness** &mdash; Total boundedness via partition grids (`totallyBounded`), completeness via limit construction (`complete`).
 - **Inverse counting** &mdash; Step inverse counting, quantitative inverse counting lemma (`cutDistance_le_of_homDensity_close`), and convergence equivalence (`cutDistance_tendsto_iff_homDensity_tendsto`).
 
-## Axioms
+## Temporary Axioms
 
-The formalization uses two mathematical axioms beyond Lean's type theory:
+The formalization currently uses two `sorry`'d results that are planned to be proved in future work:
 
-| Axiom | Status | Used by |
-|-------|--------|---------|
-| **Rokhlin's theorem** (isomorphism of standard Borel probability spaces) | sorry'd (`exists_common_extension`) | Cut distance triangle inequality, partition alignment, compactness |
-| **Algebraic determination** (Lov&aacute;sz Theorem 5.30, k&ge;2) | sorry'd (`matrix_quotient_of_weightedHomSum_eq_pos`) | Inverse counting lemma core |
+| Result | Status | Used by | Notes |
+|--------|--------|---------|-------|
+| **Rokhlin's theorem** (isomorphism of standard Borel probability spaces) | `sorry` (`exists_common_extension`) | Cut distance triangle inequality, partition alignment, compactness | Mathlib has `PolishSpace.measurableEquiv` but not the measure-preserving version; proving this is in progress |
+| **Algebraic determination** (Lov&aacute;sz Theorem 5.30, k&ge;2) | `sorry` (`matrix_quotient_of_weightedHomSum_eq_pos`) | Inverse counting lemma core | The k=1 case is fully proved; the k&ge;2 case requires graph algebra separation arguments that are partially built |
 
-All other results are fully proved.
+These are the only two `sorry`s in the entire formalization. All other results &mdash; including the regularity lemma, counting lemma, compactness, and the full convergence equivalence &mdash; are fully proved modulo these two pending results. The goal is to close both.
 
 ## Components
 

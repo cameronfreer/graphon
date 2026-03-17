@@ -12,6 +12,30 @@ A \emph{graphon} is a symmetric measurable function $W : [0,1]^2 \to [0,1]$
 (more generally, on an arbitrary probability space).  Graphons arise as the
 natural limit objects for convergent sequences of dense graphs.
 
+\section{Temporary Axioms}
+
+The formalization currently uses two \texttt{sorry}'d results that are
+planned to be proved in future work:
+\begin{enumerate}
+  \item \textbf{Rokhlin's theorem}
+    (\texttt{MeasurePreserving.exists\_common\_extension}):
+    any two standard Borel probability spaces admit a common
+    measure-preserving extension.  Mathlib provides
+    \texttt{PolishSpace.measurableEquiv} (the measurable isomorphism)
+    but not the measure-preserving version; proving this is in progress.
+    Used by: cut distance triangle inequality, partition alignment,
+    compactness.
+  \item \textbf{Algebraic determination} for $k \ge 2$
+    (\texttt{matrix\_quotient\_of\_weightedHomSum\_eq\_pos}):
+    Lov\'asz~\cite[Theorem~5.30]{lovasz2012}, quotient form.
+    The $k = 1$ case is fully proved; the $k \ge 2$ case requires graph
+    algebra separation arguments that are partially built.
+    Used by: inverse counting lemma core.
+\end{enumerate}
+These are the only two \texttt{sorry}s in the entire formalization.
+All other results are fully proved modulo these two pending results.
+The goal is to close both.
+
 \section{Main Results}
 
 The formalization establishes:
@@ -91,6 +115,8 @@ Cut distance is a pseudometric on graphon space
 
 The triangle inequality uses Rokhlin's theorem (that standard Borel
 probability spaces are isomorphic) to align measure-preserving witnesses.
+\emph{Status:} proved modulo a \texttt{sorry}'d Rokhlin interface
+(\texttt{exists\_common\_extension}), which is planned to be proved in future work.
 
 \inputleannode{thm:cutDistance-triangle}
 
@@ -215,6 +241,8 @@ For any $\varepsilon > 0$, there exist $\delta > 0$ and a finite family of
 test graphs such that $\delta$-close homomorphism densities imply
 $\varepsilon$-close cut distance
 (Lov\'asz~\cite[Theorem~10.34]{lovasz2012}).
+\emph{Status:} proved modulo both temporary axioms (Rokhlin for partition
+alignment, algebraic determination for the step graphon core).
 
 \inputleannode{thm:inverse-counting}
 
