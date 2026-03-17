@@ -29,7 +29,8 @@ is future work.
 
 ## Implementation notes
 
-The kernel operator is central to spectral theory of graphons. The key facts are:
+The kernel operator is central to spectral theory of graphons. Background facts
+(not yet formalized here):
 - `T_W` is a Hilbert-Schmidt operator (hence compact) when W ∈ L²
 - `T_W` is self-adjoint since W is symmetric
 - The eigenvalues of `T_W` are related to homomorphism densities

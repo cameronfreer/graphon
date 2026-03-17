@@ -4,14 +4,13 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.InverseCounting
-import Graphon.Sampling
 
 /-!
-# Convergence of Graph Sequences
+# Convergence of Graphon Sequences
 
-This file establishes the main theorems characterizing convergence in the
-graphon space, bringing together the counting lemma, inverse counting lemma,
-and compactness results.
+This file establishes the main theorems characterizing convergence of
+graphon sequences in cut distance, bringing together the counting lemma,
+inverse counting lemma, and compactness results.
 
 ## Main results
 
@@ -27,10 +26,10 @@ This file brings together the key results:
 - Compactness: every sequence has convergent subsequence
 - Completeness: Cauchy sequences converge
 
-The main theorem is that the following are equivalent for a sequence Gₙ:
-1. (Gₙ) converges in cut distance to some graphon W
-2. (t(F, Gₙ)) converges for all graphs F
-3. (Gₙ) is Cauchy in cut distance
+The main theorem is that the following are equivalent for a graphon sequence (Wₙ):
+1. (Wₙ) converges in cut distance to some graphon W
+2. (t(F, Wₙ)) converges for all finite graphs F
+3. (Wₙ) is Cauchy in cut distance
 
 ## References
 

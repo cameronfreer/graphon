@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.HomDensity
-import Graphon.CutDistance
+import Graphon.CutNorm
 
 /-!
 # Sampling Random Graphs from Graphons
@@ -45,7 +45,6 @@ open MeasureTheory Set Filter Finset
 open scoped ENNReal
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-variable {V : Type*} [Fintype V] [DecidableEq V]
 
 namespace Graphon
 
