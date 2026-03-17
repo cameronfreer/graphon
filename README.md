@@ -1,6 +1,6 @@
-# Graphon Library for Lean 4
+# Graphons in Lean 4
 
-A formalization of graphon theory in Lean 4 with Mathlib, based on Part 3 of Lovász's *Large Networks and Graph Limits*.
+A formalization of graphons in Lean 4 with Mathlib, based on Part 3 of Lovász's *Large Networks and Graph Limits*.
 
 **[Homepage](https://cameronfreer.github.io/graphon/)** · **[Blueprint](https://cameronfreer.github.io/graphon/blueprint/)** · **[API docs](https://cameronfreer.github.io/graphon/docs/)** · **[Dependency graph](https://cameronfreer.github.io/graphon/blueprint/dep_graph_document.html)**
 

@@ -1,7 +1,7 @@
 ---
 ---
 
-A Lean 4 formalization of **graphon theory** &mdash; the theory of limits of dense graph sequences &mdash; building on [Mathlib](https://leanprover-community.github.io/mathlib4/).
+A Lean 4 formalization of **graphons** &mdash; the theory of limits of dense graph sequences &mdash; building on [Mathlib](https://leanprover-community.github.io/mathlib4/).
 
 ## Main Results
 

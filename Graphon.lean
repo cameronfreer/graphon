@@ -22,9 +22,9 @@ import Graphon.InverseCounting
 import Graphon.Convergence
 
 /-!
-# Graphon Theory
+# Graphons in Lean 4
 
-A formalization of graphon theory — the theory of limits of dense graph sequences —
+A formalization of graphons — the theory of limits of dense graph sequences —
 in Lean 4 using Mathlib.
 
 ## Stable core
