@@ -2158,6 +2158,172 @@ private theorem weighted_entry_eq_of_injective_wDeg {k : ℕ}
     Finset.sum_singleton] at h_eq_at_d
   exact h_eq_at_d
 
+/-! ### Row-class machinery for collapse -/
+
+/-- The set of distinct row functions of a matrix. -/
+private noncomputable def rowImage {k : ℕ} (c : Fin k → Fin k → ℝ) : Finset (Fin k → ℝ) :=
+  Finset.univ.image c
+
+/-- Number of distinct rows (= number of row equivalence classes). -/
+private noncomputable def numRowClasses {k : ℕ} (c : Fin k → Fin k → ℝ) : ℕ :=
+  Fintype.card ↥(rowImage c)
+
+private theorem mem_rowImage {k : ℕ} (c : Fin k → Fin k → ℝ) (i : Fin k) :
+    c i ∈ rowImage c :=
+  Finset.mem_image.mpr ⟨i, Finset.mem_univ _, rfl⟩
+
+/-- Bijection between the subtype of distinct row functions and `Fin T`. -/
+private noncomputable def rowImageEquiv {k : ℕ} (c : Fin k → Fin k → ℝ) :
+    ↥(rowImage c) ≃ Fin (numRowClasses c) :=
+  Fintype.equivFin _
+
+/-- Map each index to its row equivalence class. -/
+private noncomputable def rowClassMap {k : ℕ} (c : Fin k → Fin k → ℝ) :
+    Fin k → Fin (numRowClasses c) :=
+  fun i => rowImageEquiv c ⟨c i, mem_rowImage c i⟩
+
+/-- A representative index for each row equivalence class. -/
+private noncomputable def rowClassRep {k : ℕ} (c : Fin k → Fin k → ℝ) :
+    Fin (numRowClasses c) → Fin k :=
+  fun s => (Finset.mem_image.mp ((rowImageEquiv c).symm s).prop).choose
+
+/-- The representative's row function matches the class it represents. -/
+private theorem rowClassRep_row {k : ℕ} (c : Fin k → Fin k → ℝ)
+    (s : Fin (numRowClasses c)) :
+    c (rowClassRep c s) = ((rowImageEquiv c).symm s : ↥(rowImage c)).val :=
+  (Finset.mem_image.mp ((rowImageEquiv c).symm s).prop).choose_spec.2
+
+private theorem rowClassMap_rep {k : ℕ} (c : Fin k → Fin k → ℝ)
+    (s : Fin (numRowClasses c)) :
+    rowClassMap c (rowClassRep c s) = s := by
+  unfold rowClassMap
+  have h := rowClassRep_row c s
+  have : (⟨c (rowClassRep c s), mem_rowImage c _⟩ : ↥(rowImage c)) =
+      (rowImageEquiv c).symm s := Subtype.ext h
+  rw [this, Equiv.apply_symm_apply]
+
+/-- `c (rep (rcm i)) = c i` as row functions. -/
+private theorem row_of_rep_classMap {k : ℕ} (c : Fin k → Fin k → ℝ) (i : Fin k) :
+    c (rowClassRep c (rowClassMap c i)) = c i := by
+  have h := rowClassRep_row c (rowClassMap c i)
+  rw [h]; simp [rowClassMap, Equiv.symm_apply_apply]
+
+/-- Same row class iff same row function. -/
+private theorem rowClassMap_eq_iff {k : ℕ} (c : Fin k → Fin k → ℝ) (i j : Fin k) :
+    rowClassMap c i = rowClassMap c j ↔ c i = c j := by
+  constructor
+  · intro h
+    have h1 := row_of_rep_classMap c i
+    have h2 := row_of_rep_classMap c j
+    rw [h] at h1; exact h1.symm.trans h2
+  · intro h
+    show rowImageEquiv c ⟨c i, mem_rowImage c i⟩ = rowImageEquiv c ⟨c j, mem_rowImage c j⟩
+    exact congr_arg (rowImageEquiv c) (Subtype.ext h)
+
+/-- Collapsed matrix on row classes. -/
+private noncomputable def collapsedMatrix {k : ℕ} (c : Fin k → Fin k → ℝ) :
+    Fin (numRowClasses c) → Fin (numRowClasses c) → ℝ :=
+  fun s t => c (rowClassRep c s) (rowClassRep c t)
+
+/-- Collapsed weights: total weight per row class. -/
+private noncomputable def collapsedWeights {k : ℕ} (c : Fin k → Fin k → ℝ)
+    (w : Fin k → ℝ) : Fin (numRowClasses c) → ℝ :=
+  fun s => ∑ i ∈ Finset.univ.filter (fun i => rowClassMap c i = s), w i
+
+/-! ### Structural lemmas for collapsed matrix -/
+
+private theorem collapsedMatrix_symm {k : ℕ} (c : Fin k → Fin k → ℝ)
+    (hc_symm : ∀ i j, c i j = c j i) (s t : Fin (numRowClasses c)) :
+    collapsedMatrix c s t = collapsedMatrix c t s :=
+  hc_symm _ _
+
+private theorem collapsedMatrix_mem {k : ℕ} (c : Fin k → Fin k → ℝ)
+    (hc_mem : ∀ i j, c i j ∈ Set.Icc 0 1) (s t : Fin (numRowClasses c)) :
+    collapsedMatrix c s t ∈ Set.Icc 0 1 :=
+  hc_mem _ _
+
+private theorem collapsedWeights_pos {k : ℕ} (c : Fin k → Fin k → ℝ)
+    (w : Fin k → ℝ) (hw_pos : ∀ i, 0 < w i) (s : Fin (numRowClasses c)) :
+    0 < collapsedWeights c w s := by
+  apply Finset.sum_pos
+  · exact fun i _ => hw_pos i
+  · exact ⟨rowClassRep c s,
+      Finset.mem_filter.mpr ⟨Finset.mem_univ _, rowClassMap_rep c s⟩⟩
+
+/-- Distinct row classes have distinct collapsed rows (twin-free). -/
+private theorem collapsed_twin_free {k : ℕ} (c : Fin k → Fin k → ℝ)
+    (hc_symm : ∀ i j, c i j = c j i) (s₁ s₂ : Fin (numRowClasses c))
+    (hs : s₁ ≠ s₂) :
+    collapsedMatrix c s₁ ≠ collapsedMatrix c s₂ := by
+  intro h_eq
+  apply hs
+  have h_row : c (rowClassRep c s₁) ≠ c (rowClassRep c s₂) := by
+    intro h
+    exact hs (by rw [← rowClassMap_rep c s₁, ← rowClassMap_rep c s₂,
+      (rowClassMap_eq_iff c _ _).mpr h])
+  exfalso; apply h_row; funext j
+  have h_at := congr_fun h_eq (rowClassMap c j)
+  simp only [collapsedMatrix] at h_at
+  have h1 := block_const_of_row_eq c hc_symm
+    (rfl : c (rowClassRep c s₁) = c (rowClassRep c s₁)) (row_of_rep_classMap c j).symm
+  have h2 := block_const_of_row_eq c hc_symm
+    (rfl : c (rowClassRep c s₂) = c (rowClassRep c s₂)) (row_of_rep_classMap c j).symm
+  linarith
+
+/-! ### Weighted hom sum is preserved by row collapse -/
+
+set_option maxHeartbeats 800000 in
+private theorem weightedHomSum_collapse {k : ℕ}
+    (c : Fin k → Fin k → ℝ) (hc_symm : ∀ i j, c i j = c j i)
+    (w : Fin k → ℝ) (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj] :
+    weightedHomSum n F c w =
+    weightedHomSum n F (collapsedMatrix c) (collapsedWeights c w) := by
+  simp only [weightedHomSum, collapsedMatrix, collapsedWeights]
+  symm
+  -- Step 1: Convert filter sums to conditional sums
+  simp_rw [Finset.sum_filter]
+  -- Step 2: Product of sums → sum of products (Fintype.prod_sum)
+  simp_rw [Fintype.prod_sum]
+  -- Step 3: Distribute multiplication into sum
+  simp_rw [Finset.sum_mul]
+  -- Step 4: Swap sums (τ, σ) → (σ, τ)
+  rw [Finset.sum_comm]
+  -- Step 5: Evaluate inner sum for each σ (only τ = rcm ∘ σ survives)
+  congr 1; ext σ
+  have h_ind : ∀ τ : Fin n → Fin (numRowClasses c),
+      (∏ v : Fin n, if rowClassMap c (σ v) = τ v then w (σ v) else (0 : ℝ)) =
+      if τ = fun v => rowClassMap c (σ v) then ∏ v, w (σ v) else 0 := by
+    intro τ; by_cases h : τ = fun v => rowClassMap c (σ v)
+    · subst h; simp
+    · rw [if_neg h]
+      obtain ⟨v, hv⟩ : ∃ v, ¬(rowClassMap c (σ v) = τ v) := by
+        by_contra hall; push_neg at hall; exact h (funext hall).symm
+      exact Finset.prod_eq_zero (Finset.mem_univ v) (if_neg hv)
+  simp_rw [h_ind, ite_mul, zero_mul]
+  simp only [Finset.sum_ite_eq', Finset.mem_univ, ite_true]
+  congr 1; apply Finset.prod_congr rfl; intro e _
+  exact block_const_of_row_eq c hc_symm (row_of_rep_classMap c _) (row_of_rep_classMap c _)
+
+/-! ### Twin-free bijection (deferred to Phase 2) -/
+
+/-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
+have equal weighted hom sums for all graphs, there is a permutation matching weights and
+entries. This is the core of Lovász [2012] Theorem 5.30 for the twin-free case. -/
+private theorem twinfree_bijection_of_weightedHomSum_eq {T T' : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (hB_symm : ∀ i j, B i j = B j i) (hB'_symm : ∀ i j, B' i j = B' j i)
+    (hB_mem : ∀ i j, B i j ∈ Set.Icc 0 1) (hB'_mem : ∀ i j, B' i j ∈ Set.Icc 0 1)
+    (hW_pos : ∀ i, 0 < W i) (hW'_pos : ∀ i, 0 < W' i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    (htwin' : ∀ i j : Fin T', i ≠ j → B' i ≠ B' j)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F B W = weightedHomSum n F B' W') :
+    ∃ π : Fin T ≃ Fin T',
+      (∀ i, W i = W' (π i)) ∧
+      (∀ i j, B i j = B' (π i) (π j)) := by
+  sorry
+
 private theorem matrix_quotient_of_weightedHomSum_eq_pos {k : ℕ}
     (c c' : Fin k → Fin k → ℝ)
     (hc_symm : ∀ i j, c i j = c j i) (hc'_symm : ∀ i j, c' i j = c' j i)
@@ -2188,31 +2354,54 @@ private theorem matrix_quotient_of_weightedHomSum_eq_pos {k : ℕ}
       fun i j i' j' _ _ => by rw [hfin1 i, hfin1 j, hfin1 i', hfin1 j']; exact h_ceq,
       fun _ => rfl⟩
   -- General case: k ≥ 2
-  -- The algebraic core of Lovász [2012] Theorem 5.30.
-  --
-  -- The proof constructs type classification functions by matching row-function
-  -- equivalence classes across c and c'. The block values of the induced block
-  -- matrices must agree, and weight sums per type class must match.
-  --
-  -- Proof outline:
-  -- 1. Group indices by row function (block_const_of_row_eq for block constancy).
-  -- 2. Show block matrices B_c and B_c' are isomorphic via Vandermonde extraction
-  --    (joint_class_weight_eq, weighted_entry_eq_of_injective_wDeg).
-  -- 3. Construct the matching function f between c'-types and c-types.
-  -- 4. Define type_c = rowRep c, type_c' = f ∘ rowRep c', verify properties 1-4.
-  --
-  -- Step 2-3 requires the full graph algebra separation theorem: showing that
-  -- equal weighted hom sums for ALL graphs (not just star-type) implies the
-  -- row-function equivalence classes can be matched with agreeing block values.
-  -- The star/caterpillar/profile-star infrastructure (degree_weight_class_eq,
-  -- joint_class_weight_eq, joint_class_conditional_moments) handles the
-  -- "observable profile" matching but does not fully separate row functions
-  -- when wDeg has repeated values. The remaining separation requires triangle
-  -- and higher-order graph tests (general graph algebra arguments).
-  --
-  -- This is the content of Lovász [2012] Theorem 5.30, Section 5.2.
-  -- The formalization of the full graph algebra separation is not yet in Mathlib.
-  sorry
+  -- Row collapse decomposes the problem into a twin-free sub-problem.
+  -- Collapse both c and c' by row equivalence classes, transfer hom sums,
+  -- apply the twin-free bijection, then compose with rowClassMap.
+  have h_coll : ∀ (n₀ : ℕ) (F₀ : SimpleGraph (Fin n₀)) [DecidableRel F₀.Adj],
+      weightedHomSum n₀ F₀ (collapsedMatrix c) (collapsedWeights c w) =
+      weightedHomSum n₀ F₀ (collapsedMatrix c') (collapsedWeights c' w) := by
+    intro n₀ F₀ _
+    rw [← weightedHomSum_collapse c hc_symm, ← weightedHomSum_collapse c' hc'_symm]
+    exact h_eq n₀ F₀
+  obtain ⟨π, hπ_w, hπ_B⟩ := twinfree_bijection_of_weightedHomSum_eq
+    (collapsedMatrix c) (collapsedWeights c w)
+    (collapsedMatrix c') (collapsedWeights c' w)
+    (collapsedMatrix_symm c hc_symm) (collapsedMatrix_symm c' hc'_symm)
+    (collapsedMatrix_mem c hc_mem) (collapsedMatrix_mem c' hc'_mem)
+    (collapsedWeights_pos c w hw_pos) (collapsedWeights_pos c' w hw_pos)
+    (collapsed_twin_free c hc_symm) (collapsed_twin_free c' hc'_symm)
+    h_coll
+  refine ⟨numRowClasses c, rowClassMap c, fun i => π.symm (rowClassMap c' i),
+    -- Property 1: c is block-constant on type_c classes
+    fun i₁ i₂ j₁ j₂ hi hj =>
+      block_const_of_row_eq c hc_symm
+        ((rowClassMap_eq_iff c i₁ i₂).mp hi) ((rowClassMap_eq_iff c j₁ j₂).mp hj),
+    -- Property 2: c' is block-constant on type_c' classes
+    fun i₁ i₂ j₁ j₂ hi hj =>
+      block_const_of_row_eq c' hc'_symm
+        ((rowClassMap_eq_iff c' i₁ i₂).mp (π.symm.injective hi))
+        ((rowClassMap_eq_iff c' j₁ j₂).mp (π.symm.injective hj)),
+    -- Property 3: cross-matrix matching
+    fun i j i' j' hi hj => ?_, fun t => ?_⟩
+  -- Property 3: c i j = c' i' j' when types match
+  · have hi' : π (rowClassMap c i) = rowClassMap c' i' := by rwa [Equiv.eq_symm_apply] at hi
+    have hj' : π (rowClassMap c j) = rowClassMap c' j' := by rwa [Equiv.eq_symm_apply] at hj
+    calc c i j
+        = collapsedMatrix c (rowClassMap c i) (rowClassMap c j) :=
+          block_const_of_row_eq c hc_symm
+            (row_of_rep_classMap c i).symm (row_of_rep_classMap c j).symm
+      _ = collapsedMatrix c' (π (rowClassMap c i)) (π (rowClassMap c j)) := hπ_B _ _
+      _ = collapsedMatrix c' (rowClassMap c' i') (rowClassMap c' j') := by rw [hi', hj']
+      _ = c' i' j' :=
+          (block_const_of_row_eq c' hc'_symm
+            (row_of_rep_classMap c' i').symm (row_of_rep_classMap c' j').symm).symm
+  -- Property 4: weight sums per type class match
+  · have h_wt := hπ_w t
+    simp only [collapsedWeights] at h_wt ⊢
+    rw [show Finset.univ.filter (fun i => π.symm (rowClassMap c' i) = t) =
+        Finset.univ.filter (fun i => rowClassMap c' i = π t) from by
+      ext i; simp [Equiv.symm_apply_eq]]
+    exact h_wt
 
 /-! ### Main theorem -/
 
