@@ -2304,7 +2304,319 @@ private theorem weightedHomSum_collapse {k : ℕ}
   congr 1; apply Finset.prod_congr rfl; intro e _
   exact block_const_of_row_eq c hc_symm (row_of_rep_classMap c _) (row_of_rep_classMap c _)
 
-/-! ### Twin-free bijection (deferred to Phase 2) -/
+/-! ### 1-labeled quantum graph evaluation -/
+
+/-- Rooted evaluation: fix vertex 0 at color `i`, sum over all colorings of non-root vertices.
+This is the "1-labeled" quantum graph evaluation from Lovász [2012] §5.2. -/
+noncomputable def rootedEval {k : ℕ} (n : ℕ) (F : SimpleGraph (Fin (n + 1)))
+    [DecidableRel F.Adj] (c : Fin k → Fin k → ℝ) (w : Fin k → ℝ)
+    (i : Fin k) : ℝ :=
+  ∑ σ : Fin n → Fin k,
+    let τ : Fin (n + 1) → Fin k := Fin.cons i σ
+    (∏ v : Fin n, w (σ v)) *
+    ∏ e ∈ F.edgeFinset, c (τ (Quot.out e).1) (τ (Quot.out e).2)
+
+/-- Summing `rootedEval` over all root colors with weights recovers `weightedHomSum`. -/
+private theorem rootedEval_weighted_sum {k : ℕ} (n : ℕ)
+    (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (c : Fin k → Fin k → ℝ) (w : Fin k → ℝ) :
+    ∑ i, w i * rootedEval n F c w i = weightedHomSum (n + 1) F c w := by
+  simp only [rootedEval, weightedHomSum]
+  conv_rhs =>
+    rw [(Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (n + 1) => Fin k)) _).symm]
+  simp only [Fin.consEquiv_apply]
+  rw [Fintype.sum_prod_type]
+  congr 1; ext i
+  rw [Finset.mul_sum]
+  congr 1; ext σ
+  rw [Fin.prod_univ_succ]
+  simp only [Fin.cons_zero, Fin.cons_succ]
+  ring
+
+/-! ### Root attachment -/
+
+/-- Attach a new root vertex (vertex 0) to the old root (vertex 1) by an edge.
+Old vertices of `G` are shifted up by 1 in the new graph. -/
+private def rootAttach (n : ℕ) (G : SimpleGraph (Fin (n + 1))) :
+    SimpleGraph (Fin (n + 2)) where
+  Adj u v :=
+    (u.val = 0 ∧ v.val = 1) ∨ (u.val = 1 ∧ v.val = 0) ∨
+    (1 ≤ u.val ∧ 1 ≤ v.val ∧
+      G.Adj ⟨u.val - 1, by omega⟩ ⟨v.val - 1, by omega⟩)
+  symm := by
+    intro u v h
+    rcases h with ⟨hu, hv⟩ | ⟨hu, hv⟩ | ⟨hu, hv, hadj⟩
+    · right; left; exact ⟨hv, hu⟩
+    · left; exact ⟨hv, hu⟩
+    · right; right; exact ⟨hv, hu, G.symm hadj⟩
+  loopless := by
+    intro v h
+    rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨_, _, hadj⟩
+    · omega
+    · omega
+    · exact G.loopless _ hadj
+
+private instance rootAttachDecRel (n : ℕ) (G : SimpleGraph (Fin (n + 1)))
+    [DecidableRel G.Adj] : DecidableRel (rootAttach n G).Adj :=
+  fun u v =>
+    inferInstanceAs (Decidable
+      ((u.val = 0 ∧ v.val = 1) ∨ (u.val = 1 ∧ v.val = 0) ∨
+       (1 ≤ u.val ∧ 1 ≤ v.val ∧
+        G.Adj ⟨u.val - 1, by omega⟩ ⟨v.val - 1, by omega⟩)))
+
+/-- The edge finset of `rootAttach n G` is the bridge edge plus shifted `G`-edges. -/
+private theorem rootAttach_edgeFinset (n : ℕ) (G : SimpleGraph (Fin (n + 1)))
+    [DecidableRel G.Adj] :
+    (rootAttach n G).edgeFinset =
+      insert s((0 : Fin (n + 2)), ⟨1, by omega⟩)
+        (G.edgeFinset.map (Fin.succEmb (n + 1)).sym2Map) := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, Finset.mem_insert, Finset.mem_map,
+    Function.Embedding.sym2Map_apply]
+  constructor
+  · intro he
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      change ((a.val = 0 ∧ b.val = 1) ∨ (a.val = 1 ∧ b.val = 0) ∨
+        (1 ≤ a.val ∧ 1 ≤ b.val ∧
+          G.Adj ⟨a.val - 1, by omega⟩ ⟨b.val - 1, by omega⟩)) at he
+      rcases he with ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb, hadj⟩
+      · left; exact Sym2.eq_iff.mpr (Or.inl ⟨Fin.ext ha, Fin.ext hb⟩)
+      · left; exact Sym2.eq_iff.mpr (Or.inr ⟨Fin.ext ha, Fin.ext hb⟩)
+      · right
+        refine ⟨s(⟨a.val - 1, by omega⟩, ⟨b.val - 1, by omega⟩), hadj, ?_⟩
+        simp only [Sym2.map_pair_eq, Fin.coe_succEmb]
+        exact Sym2.eq_iff.mpr
+          (Or.inl ⟨Fin.ext (by simp [Fin.val_succ]; omega),
+                   Fin.ext (by simp [Fin.val_succ]; omega)⟩)
+  · intro he
+    rcases he with rfl | ⟨e', he', rfl⟩
+    · -- Bridge edge: s(0, ⟨1,_⟩) is in rootAttach
+      rw [SimpleGraph.mem_edgeSet]
+      exact Or.inl ⟨rfl, rfl⟩
+    · -- Shifted G-edge
+      induction e' using Sym2.ind with
+      | _ a b =>
+        rw [SimpleGraph.mem_edgeSet] at he'
+        simp only [Sym2.map_pair_eq, Fin.coe_succEmb, SimpleGraph.mem_edgeSet]
+        exact Or.inr (Or.inr ⟨by simp [Fin.val_succ], by simp [Fin.val_succ],
+          by convert he' using 2⟩)
+
+/-- The bridge edge is not a shifted `G`-edge. -/
+private theorem rootAttach_bridge_not_mem_shifted (n : ℕ)
+    (G : SimpleGraph (Fin (n + 1))) [DecidableRel G.Adj] :
+    s((0 : Fin (n + 2)), ⟨1, by omega⟩) ∉
+      G.edgeFinset.map (Fin.succEmb (n + 1)).sym2Map := by
+  intro hmem
+  rw [Finset.mem_map] at hmem
+  obtain ⟨e, _, he⟩ := hmem
+  induction e using Sym2.ind with
+  | _ a b =>
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, Fin.coe_succEmb] at he
+    rw [Sym2.eq_iff] at he
+    rcases he with ⟨h1, _⟩ | ⟨_, h1⟩ <;>
+      exact absurd (congr_arg Fin.val h1) (by simp [Fin.val_succ])
+
+/-- The edge product over `rootAttach n G` equals the bridge term times the shifted
+`G`-edge product (requires symmetric matrix). -/
+private theorem rootAttach_prod_eq {k : ℕ} (n : ℕ) (G : SimpleGraph (Fin (n + 1)))
+    [DecidableRel G.Adj] (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+    (τ : Fin (n + 2) → Fin k) :
+    ∏ e ∈ (rootAttach n G).edgeFinset,
+      c (τ (Quot.out e).1) (τ (Quot.out e).2) =
+    c (τ 0) (τ (Fin.succ (0 : Fin (n + 1)))) *
+    ∏ e ∈ G.edgeFinset,
+      c (τ (Fin.succ (Quot.out e).1)) (τ (Fin.succ (Quot.out e).2)) := by
+  have h1eq : (⟨1, by omega⟩ : Fin (n + 2)) = Fin.succ (0 : Fin (n + 1)) :=
+    Fin.ext (by simp)
+  rw [rootAttach_edgeFinset,
+    Finset.prod_insert (rootAttach_bridge_not_mem_shifted n G),
+    Finset.prod_map G.edgeFinset (Fin.succEmb (n + 1)).sym2Map]
+  congr 1
+  · -- Bridge edge: resolve Quot.out
+    have hout := Quot.out_eq s((0 : Fin (n + 2)), ⟨1, by omega⟩)
+    rw [Sym2.mk_eq_mk_iff] at hout
+    rcases hout with h | h
+    · rw [congr_arg Prod.fst h, congr_arg Prod.snd h, h1eq]
+    · have h1 := congr_arg Prod.fst h; have h2 := congr_arg Prod.snd h
+      simp only [Prod.swap] at h1 h2
+      rw [h1, h2, h1eq, hc]
+  · congr 1; ext e
+    -- Shifted edge: resolve Quot.out of mapped edge (use symmetry of c)
+    induction e using Sym2.ind with
+    | _ a b =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, Fin.coe_succEmb]
+      have hout := Quot.out_eq s(Fin.succ a, Fin.succ b)
+      rw [Sym2.mk_eq_mk_iff] at hout
+      have hout' := Quot.out_eq s(a, b)
+      rw [Sym2.mk_eq_mk_iff] at hout'
+      rcases hout with h | h <;> rcases hout' with h' | h'
+      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
+            congr_arg Prod.fst h', congr_arg Prod.snd h']
+      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
+        simp only [Prod.swap] at h'
+        rw [congr_arg Prod.fst h', congr_arg Prod.snd h', hc]
+      · simp only [Prod.swap] at h
+        rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
+            congr_arg Prod.fst h', congr_arg Prod.snd h', hc]
+      · simp only [Prod.swap] at h h'
+        rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
+            congr_arg Prod.fst h', congr_arg Prod.snd h']
+
+set_option maxHeartbeats 1600000 in
+/-- Root attachment realizes the weighted adjacency operator:
+`rootedEval(rootAttach G)(i) = ∑ⱼ wⱼ c(i,j) rootedEval(G)(j)`. -/
+private theorem rootedEval_rootAttach {k : ℕ} (n : ℕ)
+    (G : SimpleGraph (Fin (n + 1))) [DecidableRel G.Adj]
+    (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+    (w : Fin k → ℝ) (i : Fin k) :
+    rootedEval (n + 1) (rootAttach n G) c w i =
+    ∑ j, w j * c i j * rootedEval n G c w j := by
+  simp only [rootedEval]
+  -- Step 1: Rewrite each summand
+  -- After simp only [rootedEval], both sides are sums. We first simplify
+  -- each LHS summand using edge product decomposition, then reindex.
+  -- Step 1: Reindex the LHS sum: decompose σ into (j, σ') via Fin.consEquiv.
+  rw [(Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (n + 1) => Fin k)) _).symm]
+  simp only [Fin.consEquiv_apply]
+  rw [Fintype.sum_prod_type]
+  congr 1; ext j; rw [Finset.mul_sum]; congr 1; ext σ'
+  -- Step 2: Normalize: (Fin.consEquiv ...) (j, σ') = Fin.cons j σ'
+  have h_eq : (Fin.consEquiv (fun _ : Fin (n + 1) => Fin k)) (j, σ') = Fin.cons j σ' := rfl
+  simp only [h_eq]
+  -- Factor the edge product using rootAttach_prod_eq.
+  have h_edges := rootAttach_prod_eq n G c hc (Fin.cons i (Fin.cons j σ'))
+  simp only [Fin.cons_zero, Fin.cons_succ] at h_edges
+  rw [h_edges]
+  -- Step 3: Simplify weight product, then ring.
+  simp only [Fin.cons_zero, Fin.cons_succ, Fin.prod_univ_succ]
+  ring
+
+/-! ### Sorry targets: gluing and fullness -/
+
+/-- Graph gluing at the root produces pointwise multiplication of rootedEval.
+This is the algebraic content of "1-labeled quantum graphs form an algebra". -/
+private theorem rootedEval_glue_exists (n₁ n₂ : ℕ)
+    (F₁ : SimpleGraph (Fin (n₁ + 1))) (F₂ : SimpleGraph (Fin (n₂ + 1)))
+    [DecidableRel F₁.Adj] [DecidableRel F₂.Adj] :
+    ∃ (n₃ : ℕ) (F₃ : SimpleGraph (Fin (n₃ + 1))) (_ : DecidableRel F₃.Adj),
+      ∀ {k : ℕ} (c : Fin k → Fin k → ℝ) (w : Fin k → ℝ) (i : Fin k),
+        rootedEval n₃ F₃ c w i = rootedEval n₁ F₁ c w i * rootedEval n₂ F₂ c w i := by
+  sorry
+
+/-- The rootedEval algebra is full for twin-free matrices:
+the W-orthogonal complement of {rootedEval(G)} is trivial.
+This is Lovász [2012] §5.2 (finite Stone-Weierstrass for twin-free matrices). -/
+private theorem eval_algebra_span_full {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB_symm : ∀ i j, B i j = B j i)
+    (hB_mem : ∀ i j, B i j ∈ Set.Icc 0 1)
+    (hW_pos : ∀ i, 0 < W i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    (f : Fin T → ℝ)
+    (hf : ∀ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj],
+      ∑ i, W i * f i * rootedEval n F B W i = 0) :
+    f = 0 := by
+  sorry
+
+/-! ### Gram matching and bijection construction -/
+
+/-- Gram matching: equal weightedHomSum implies equal W-inner products of rootedEval. -/
+private theorem gram_from_heq {T T' : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F B W = weightedHomSum n F B' W')
+    (n₁ n₂ : ℕ) (F₁ : SimpleGraph (Fin (n₁ + 1))) (F₂ : SimpleGraph (Fin (n₂ + 1)))
+    [DecidableRel F₁.Adj] [DecidableRel F₂.Adj] :
+    ∑ i, W i * rootedEval n₁ F₁ B W i * rootedEval n₂ F₂ B W i =
+    ∑ j, W' j * rootedEval n₁ F₁ B' W' j * rootedEval n₂ F₂ B' W' j := by
+  obtain ⟨n₃, F₃, inst₃, hF₃⟩ := rootedEval_glue_exists n₁ n₂ F₁ F₂
+  have lhs : ∀ i, W i * rootedEval n₁ F₁ B W i * rootedEval n₂ F₂ B W i =
+      W i * @rootedEval _ n₃ F₃ inst₃ B W i := fun i => by rw [hF₃]; ring
+  have rhs : ∀ j, W' j * rootedEval n₁ F₁ B' W' j * rootedEval n₂ F₂ B' W' j =
+      W' j * @rootedEval _ n₃ F₃ inst₃ B' W' j := fun j => by rw [hF₃]; ring
+  simp_rw [lhs, @rootedEval_weighted_sum _ n₃ F₃ inst₃,
+    @h_eq (n₃ + 1) F₃ inst₃, ← @rootedEval_weighted_sum _ n₃ F₃ inst₃, ← rhs]
+
+/-- Transfer permutation: from Gram matching and fullness, construct a bijection
+matching weights and rootedEval values pointwise. This encapsulates the algebraic
+core of Lovász [2012] §5.2: basis selection → transfer vectors → Gram isometry →
+multiplicativity → idempotent analysis → indicator vectors → permutation. -/
+private theorem exists_transfer_perm {T T' : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (hW_pos : ∀ i, 0 < W i) (hW'_pos : ∀ j, 0 < W' j)
+    (h_gram : ∀ (n₁ n₂ : ℕ) (F₁ : SimpleGraph (Fin (n₁ + 1)))
+      (F₂ : SimpleGraph (Fin (n₂ + 1)))
+      [DecidableRel F₁.Adj] [DecidableRel F₂.Adj],
+      ∑ i, W i * rootedEval n₁ F₁ B W i * rootedEval n₂ F₂ B W i =
+      ∑ j, W' j * rootedEval n₁ F₁ B' W' j * rootedEval n₂ F₂ B' W' j)
+    (h_full : ∀ f : Fin T → ℝ,
+      (∀ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj],
+        ∑ i, W i * f i * rootedEval n F B W i = 0) → f = 0)
+    (h_full' : ∀ f : Fin T' → ℝ,
+      (∀ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj],
+        ∑ j, W' j * f j * rootedEval n F B' W' j = 0) → f = 0) :
+    ∃ π : Fin T ≃ Fin T',
+      (∀ i, W i = W' (π i)) ∧
+      (∀ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj] (i : Fin T),
+        rootedEval n F B' W' (π i) = rootedEval n F B W i) := by
+  sorry
+
+/-- Main bijection construction from Gram matching, fullness, and multiplicativity.
+Constructs the bijection π : Fin T ≃ Fin T' via transfer vectors and idempotent
+analysis (Lovász [2012] §5.2). Entry matching derived via rootedEval_rootAttach. -/
+private theorem bijection_of_full_eval1Alg {T T' : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (hB_symm : ∀ i j, B i j = B j i) (hB'_symm : ∀ i j, B' i j = B' j i)
+    (hB_mem : ∀ i j, B i j ∈ Set.Icc 0 1) (hB'_mem : ∀ i j, B' i j ∈ Set.Icc 0 1)
+    (hW_pos : ∀ i, 0 < W i) (hW'_pos : ∀ j, 0 < W' j)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    (htwin' : ∀ i j : Fin T', i ≠ j → B' i ≠ B' j)
+    (h_gram : ∀ (n₁ n₂ : ℕ) (F₁ : SimpleGraph (Fin (n₁ + 1)))
+      (F₂ : SimpleGraph (Fin (n₂ + 1)))
+      [DecidableRel F₁.Adj] [DecidableRel F₂.Adj],
+      ∑ i, W i * rootedEval n₁ F₁ B W i * rootedEval n₂ F₂ B W i =
+      ∑ j, W' j * rootedEval n₁ F₁ B' W' j * rootedEval n₂ F₂ B' W' j)
+    (h_full : ∀ f : Fin T → ℝ,
+      (∀ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj],
+        ∑ i, W i * f i * rootedEval n F B W i = 0) → f = 0)
+    (h_full' : ∀ f : Fin T' → ℝ,
+      (∀ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj],
+        ∑ j, W' j * f j * rootedEval n F B' W' j = 0) → f = 0) :
+    ∃ π : Fin T ≃ Fin T',
+      (∀ i, W i = W' (π i)) ∧
+      (∀ i j, B i j = B' (π i) (π j)) := by
+  obtain ⟨π, hπ_w, hπ_eval⟩ := exists_transfer_perm B W B' W' hW_pos hW'_pos
+    h_gram h_full h_full'
+  refine ⟨π, hπ_w, fun i j => ?_⟩
+  -- Entry matching: B(i,j) = B'(π i, π j) via rootedEval_rootAttach + transfer + h_full
+  have hf : (fun m : Fin T => B i m - B' (π i) (π m)) = 0 := by
+    apply h_full; intro n G _
+    -- Goal: ∑ m, W m * (B i m - B' (π i) (π m)) * rootedEval n G B W m = 0
+    -- From transfer identity at rootAttach G:
+    have htr := hπ_eval (n + 1) (rootAttach n G) i
+    rw [rootedEval_rootAttach n G B' hB'_symm, rootedEval_rootAttach n G B hB_symm] at htr
+    -- htr: ∑ l, W' l * B'(π i, l) * re(B',W',l) = ∑ m, W m * B(i,m) * re(B,W,m)
+    -- Reindex LHS with π, substitute weight/eval matching
+    have h_ri : ∑ l, W' l * B' (π i) l * rootedEval n G B' W' l =
+        ∑ m, W m * B' (π i) (π m) * rootedEval n G B W m := by
+      rw [(Equiv.sum_comp π (fun l => W' l * B' (π i) l * rootedEval n G B' W' l)).symm]
+      congr 1; ext m; rw [← hπ_w, hπ_eval]
+    rw [h_ri] at htr
+    -- htr: ∑ m, W m * B'(π i, π m) * re m = ∑ m, W m * B(i,m) * re m
+    -- Factor difference and use htr
+    have h_eq : ∀ m, W m * (B i m - B' (π i) (π m)) * rootedEval n G B W m =
+        W m * B i m * rootedEval n G B W m -
+        W m * B' (π i) (π m) * rootedEval n G B W m := fun m => by ring
+    simp_rw [h_eq, Finset.sum_sub_distrib]
+    linarith
+  exact sub_eq_zero.mp (congr_fun hf j)
+
+/-! ### Twin-free bijection -/
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
 have equal weighted hom sums for all graphs, there is a permutation matching weights and
@@ -2321,8 +2633,12 @@ private theorem twinfree_bijection_of_weightedHomSum_eq {T T' : ℕ}
       weightedHomSum n F B W = weightedHomSum n F B' W') :
     ∃ π : Fin T ≃ Fin T',
       (∀ i, W i = W' (π i)) ∧
-      (∀ i j, B i j = B' (π i) (π j)) := by
-  sorry
+      (∀ i j, B i j = B' (π i) (π j)) :=
+  bijection_of_full_eval1Alg B W B' W' hB_symm hB'_symm hB_mem hB'_mem
+    hW_pos hW'_pos htwin htwin'
+    (gram_from_heq B W B' W' h_eq)
+    (eval_algebra_span_full B W hB_symm hB_mem hW_pos htwin)
+    (eval_algebra_span_full B' W' hB'_symm hB'_mem hW'_pos htwin')
 
 private theorem matrix_quotient_of_weightedHomSum_eq_pos {k : ℕ}
     (c c' : Fin k → Fin k → ℝ)
