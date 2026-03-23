@@ -2493,6 +2493,191 @@ private theorem rootedEval_rootAttach {k : ℕ} (n : ℕ)
   simp only [Fin.cons_zero, Fin.cons_succ, Fin.prod_univ_succ]
   ring
 
+/-! ### Graph gluing -/
+
+private def rootGlueEmb₁ (n₁ n₂ : ℕ) : Fin (n₁ + 1) ↪ Fin (n₁ + n₂ + 1) where
+  toFun v := ⟨v.val, by omega⟩
+  inj' a b h := Fin.ext (by simpa using congr_arg Fin.val h)
+
+private def rootGlueEmb₂ (n₁ n₂ : ℕ) : Fin (n₂ + 1) ↪ Fin (n₁ + n₂ + 1) where
+  toFun v := if v.val = 0 then ⟨0, by omega⟩ else ⟨n₁ + v.val, by omega⟩
+  inj' a b h := by
+    simp only at h
+    by_cases ha : a.val = 0 <;> by_cases hb : b.val = 0 <;>
+      simp [ha, hb] at h <;> exact Fin.ext (by omega)
+
+private def rootGlue (n₁ n₂ : ℕ) (F₁ : SimpleGraph (Fin (n₁ + 1)))
+    (F₂ : SimpleGraph (Fin (n₂ + 1))) : SimpleGraph (Fin (n₁ + n₂ + 1)) where
+  Adj u v :=
+    (∃ (_ : u.val ≤ n₁) (_ : v.val ≤ n₁),
+      F₁.Adj ⟨u.val, by omega⟩ ⟨v.val, by omega⟩) ∨
+    ((u.val = 0 ∨ n₁ < u.val) ∧ (v.val = 0 ∨ n₁ < v.val) ∧
+      F₂.Adj ⟨if u.val = 0 then 0 else u.val - n₁, by have := u.isLt; split_ifs <;> omega⟩
+            ⟨if v.val = 0 then 0 else v.val - n₁, by have := v.isLt; split_ifs <;> omega⟩)
+  symm := by
+    intro u v h
+    rcases h with ⟨hu, hv, hadj⟩ | ⟨hu, hv, hadj⟩
+    · left; exact ⟨hv, hu, by convert F₁.symm hadj using 2 <;> exact Fin.ext rfl⟩
+    · right; exact ⟨hv, hu, F₂.symm hadj⟩
+  loopless := by
+    intro v h
+    rcases h with ⟨_, _, hadj⟩ | ⟨_, _, hadj⟩
+    · exact F₁.loopless _ hadj
+    · exact F₂.loopless _ hadj
+
+private instance rootGlueDecRel (n₁ n₂ : ℕ) (F₁ : SimpleGraph (Fin (n₁ + 1)))
+    (F₂ : SimpleGraph (Fin (n₂ + 1))) [DecidableRel F₁.Adj] [DecidableRel F₂.Adj] :
+    DecidableRel (rootGlue n₁ n₂ F₁ F₂).Adj :=
+  fun u v => inferInstanceAs (Decidable
+    ((∃ (_ : u.val ≤ n₁) (_ : v.val ≤ n₁),
+      F₁.Adj ⟨u.val, by omega⟩ ⟨v.val, by omega⟩) ∨
+     ((u.val = 0 ∨ n₁ < u.val) ∧ (v.val = 0 ∨ n₁ < v.val) ∧
+      F₂.Adj ⟨if u.val = 0 then 0 else u.val - n₁, by have := u.isLt; split_ifs <;> omega⟩
+            ⟨if v.val = 0 then 0 else v.val - n₁, by have := v.isLt; split_ifs <;> omega⟩)))
+
+private theorem rootGlue_edgeFinset (n₁ n₂ : ℕ) (F₁ : SimpleGraph (Fin (n₁ + 1)))
+    (F₂ : SimpleGraph (Fin (n₂ + 1))) [DecidableRel F₁.Adj] [DecidableRel F₂.Adj] :
+    (rootGlue n₁ n₂ F₁ F₂).edgeFinset =
+      F₁.edgeFinset.map (rootGlueEmb₁ n₁ n₂).sym2Map ∪
+      F₂.edgeFinset.map (rootGlueEmb₂ n₁ n₂).sym2Map := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, Finset.mem_union, Finset.mem_map,
+    Function.Embedding.sym2Map_apply]
+  constructor
+  · intro he
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      change ((∃ (_ : a.val ≤ n₁) (_ : b.val ≤ n₁), _) ∨ _) at he
+      rcases he with ⟨ha, hb, hadj⟩ | ⟨ha, hb, hadj⟩
+      · left
+        refine ⟨s(⟨a.val, by omega⟩, ⟨b.val, by omega⟩), hadj, ?_⟩
+        simp only [Sym2.map_pair_eq, rootGlueEmb₁]
+        exact Sym2.eq_iff.mpr (Or.inl ⟨Fin.ext rfl, Fin.ext rfl⟩)
+      · right
+        refine ⟨s(⟨if a.val = 0 then 0 else a.val - n₁, by have := a.isLt; split_ifs <;> omega⟩,
+                  ⟨if b.val = 0 then 0 else b.val - n₁, by have := b.isLt; split_ifs <;> omega⟩),
+                hadj, ?_⟩
+        simp only [Sym2.map_pair_eq, rootGlueEmb₂]
+        apply Sym2.eq_iff.mpr; left; constructor
+        · apply Fin.ext
+          show (if (if a.val = 0 then 0 else a.val - n₁) = 0 then 0
+                else n₁ + (if a.val = 0 then 0 else a.val - n₁)) = a.val
+          rcases ha with ha₀ | ha₁
+          · simp [ha₀]
+          · simp only [if_neg (show ¬ a.val = 0 from by omega),
+                       if_neg (show ¬ (a.val - n₁ = 0) from by omega)]
+            omega
+        · apply Fin.ext
+          show (if (if b.val = 0 then 0 else b.val - n₁) = 0 then 0
+                else n₁ + (if b.val = 0 then 0 else b.val - n₁)) = b.val
+          rcases hb with hb₀ | hb₁
+          · simp [hb₀]
+          · simp only [if_neg (show ¬ b.val = 0 from by omega),
+                       if_neg (show ¬ (b.val - n₁ = 0) from by omega)]
+            omega
+  · intro he
+    rcases he with ⟨e', he', rfl⟩ | ⟨e', he', rfl⟩
+    · induction e' using Sym2.ind with
+      | _ a b =>
+        simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at he'
+        simp only [Sym2.map_pair_eq, rootGlueEmb₁, SimpleGraph.mem_edgeSet,
+          rootGlue, Function.Embedding.coeFn_mk]
+        exact Or.inl ⟨by have := a.isLt; omega, by have := b.isLt; omega,
+               by convert he' using 2 <;> exact Fin.ext (by simp)⟩
+    · induction e' using Sym2.ind with
+      | _ a b =>
+        simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at he'
+        simp only [Sym2.map_pair_eq, SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
+        show (rootGlue n₁ n₂ F₁ F₂).Adj (rootGlueEmb₂ n₁ n₂ a) (rootGlueEmb₂ n₁ n₂ b)
+        apply Or.inr
+        refine ⟨?_, ?_, ?_⟩
+        · show (if a.val = 0 then 0 else n₁ + a.val) = 0 ∨
+               n₁ < (if a.val = 0 then 0 else n₁ + a.val)
+          split_ifs with ha <;> omega
+        · show (if b.val = 0 then 0 else n₁ + b.val) = 0 ∨
+               n₁ < (if b.val = 0 then 0 else n₁ + b.val)
+          split_ifs with hb <;> omega
+        · simp only [rootGlueEmb₂, Function.Embedding.coeFn_mk]
+          convert he' using 2 <;> split_ifs <;> omega
+
+private theorem rootGlue_edgeFinset_disjoint (n₁ n₂ : ℕ)
+    (F₁ : SimpleGraph (Fin (n₁ + 1))) (F₂ : SimpleGraph (Fin (n₂ + 1)))
+    [DecidableRel F₁.Adj] [DecidableRel F₂.Adj] :
+    Disjoint
+      (F₁.edgeFinset.map (rootGlueEmb₁ n₁ n₂).sym2Map)
+      (F₂.edgeFinset.map (rootGlueEmb₂ n₁ n₂).sym2Map) := by
+  rw [Finset.disjoint_left]
+  intro e he₁ he₂
+  rw [Finset.mem_map] at he₁ he₂
+  obtain ⟨e₁, he₁', rfl⟩ := he₁
+  obtain ⟨e₂, he₂', he₂eq⟩ := he₂
+  induction e₁ using Sym2.ind with
+  | _ a₁ b₁ =>
+    simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at he₁'
+    induction e₂ using Sym2.ind with
+    | _ a₂ b₂ =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq,
+        rootGlueEmb₁, rootGlueEmb₂, Function.Embedding.coeFn_mk] at he₂eq
+      have hne := F₁.ne_of_adj he₁'
+      have ha₁ := a₁.isLt; have hb₁ := b₁.isLt
+      rw [Sym2.eq_iff] at he₂eq
+      rcases he₂eq with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> {
+        have h1v := congr_arg Fin.val h1
+        have h2v := congr_arg Fin.val h2
+        simp only [Fin.val_mk] at h1v h2v
+        by_cases ha₂ : a₂.val = 0 <;> by_cases hb₂ : b₂.val = 0 <;>
+          simp only [ha₂, hb₂, ite_true, ite_false, Fin.val_mk] at h1v h2v <;>
+          (first | omega | exact absurd (Fin.ext (by omega)) hne |
+                   exact absurd (Fin.ext (by omega)) (Ne.symm hne))
+      }
+
+set_option maxHeartbeats 1600000 in
+private theorem rootGlue_prod_eq {k : ℕ} (n₁ n₂ : ℕ)
+    (F₁ : SimpleGraph (Fin (n₁ + 1))) (F₂ : SimpleGraph (Fin (n₂ + 1)))
+    [DecidableRel F₁.Adj] [DecidableRel F₂.Adj]
+    (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+    (σ : Fin (n₁ + n₂ + 1) → Fin k) :
+    ∏ e ∈ (rootGlue n₁ n₂ F₁ F₂).edgeFinset,
+      c (σ (Quot.out e).1) (σ (Quot.out e).2) =
+    (∏ e ∈ F₁.edgeFinset,
+      c (σ (rootGlueEmb₁ n₁ n₂ (Quot.out e).1))
+        (σ (rootGlueEmb₁ n₁ n₂ (Quot.out e).2))) *
+    (∏ e ∈ F₂.edgeFinset,
+      c (σ (rootGlueEmb₂ n₁ n₂ (Quot.out e).1))
+        (σ (rootGlueEmb₂ n₁ n₂ (Quot.out e).2))) := by
+  rw [rootGlue_edgeFinset,
+    Finset.prod_union (rootGlue_edgeFinset_disjoint n₁ n₂ F₁ F₂)]
+  have prod_map_eq : ∀ {n : ℕ} {F : SimpleGraph (Fin (n + 1))} [DecidableRel F.Adj]
+      (emb : Fin (n + 1) ↪ Fin (n₁ + n₂ + 1)),
+      ∏ e ∈ F.edgeFinset.map emb.sym2Map,
+        c (σ (Quot.out e).1) (σ (Quot.out e).2) =
+      ∏ e ∈ F.edgeFinset,
+        c (σ (emb (Quot.out e).1)) (σ (emb (Quot.out e).2)) := by
+    intro n F _ emb
+    rw [Finset.prod_map]
+    congr 1; ext e
+    induction e using Sym2.ind with
+    | _ a b =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, Function.comp_apply]
+      have hout_new := Quot.out_eq (Sym2.map emb s(a, b))
+      rw [Sym2.map_pair_eq] at hout_new
+      have hout_old := Quot.out_eq s(a, b)
+      rw [Sym2.mk_eq_mk_iff] at hout_new hout_old
+      rcases hout_new with hn | hn <;> rcases hout_old with ho | ho <;> {
+        rw [congr_arg Prod.fst hn, congr_arg Prod.snd hn,
+            congr_arg Prod.fst ho, congr_arg Prod.snd ho]
+        first | rfl | (simp only [Prod.swap] at *; rw [hc])
+      }
+  congr 1
+  · exact prod_map_eq (rootGlueEmb₁ n₁ n₂)
+  · exact prod_map_eq (rootGlueEmb₂ n₁ n₂)
+
+/-- rootedEval of the trivial graph (0 non-root vertices, no edges) is 1. -/
+private theorem rootedEval_trivial {k : ℕ} (c : Fin k → Fin k → ℝ) (w : Fin k → ℝ)
+    (i : Fin k) : rootedEval 0 (⊥ : SimpleGraph (Fin 1)) c w i = 1 := by
+  simp [rootedEval, SimpleGraph.edgeFinset]
+
 /-! ### Sorry targets: gluing and fullness -/
 
 /-- Graph gluing at the root produces pointwise multiplication of rootedEval.
@@ -2501,9 +2686,67 @@ private theorem rootedEval_glue_exists (n₁ n₂ : ℕ)
     (F₁ : SimpleGraph (Fin (n₁ + 1))) (F₂ : SimpleGraph (Fin (n₂ + 1)))
     [DecidableRel F₁.Adj] [DecidableRel F₂.Adj] :
     ∃ (n₃ : ℕ) (F₃ : SimpleGraph (Fin (n₃ + 1))) (_ : DecidableRel F₃.Adj),
-      ∀ {k : ℕ} (c : Fin k → Fin k → ℝ) (w : Fin k → ℝ) (i : Fin k),
+      ∀ {k : ℕ} (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+        (w : Fin k → ℝ) (i : Fin k),
         rootedEval n₃ F₃ c w i = rootedEval n₁ F₁ c w i * rootedEval n₂ F₂ c w i := by
-  sorry
+  refine ⟨n₁ + n₂, rootGlue n₁ n₂ F₁ F₂, rootGlueDecRel n₁ n₂ F₁ F₂, ?_⟩
+  intro k c hc w i
+  simp only [rootedEval]
+  have h_emb₁ : ∀ σ : Fin (n₁ + n₂) → Fin k, ∀ v : Fin (n₁ + 1),
+      Fin.cons i σ (rootGlueEmb₁ n₁ n₂ v) =
+      Fin.cons i (fun j => σ (Fin.castAdd n₂ j)) v := by
+    intro σ v
+    rcases Fin.eq_zero_or_eq_succ v with rfl | ⟨j, rfl⟩
+    · simp [rootGlueEmb₁, Fin.cons_zero]
+    · simp only [Fin.cons_succ, rootGlueEmb₁, Function.Embedding.coeFn_mk]
+      show σ ⟨j.val, by have := j.isLt; omega⟩ = σ (Fin.castAdd n₂ j)
+      congr 1; exact Fin.ext (by simp [Fin.castAdd])
+  have h_emb₂ : ∀ σ : Fin (n₁ + n₂) → Fin k, ∀ v : Fin (n₂ + 1),
+      Fin.cons i σ (rootGlueEmb₂ n₁ n₂ v) =
+      Fin.cons i (fun j => σ (Fin.natAdd n₁ j)) v := by
+    intro σ v
+    rcases Fin.eq_zero_or_eq_succ v with rfl | ⟨j, rfl⟩
+    · simp [rootGlueEmb₂, Fin.cons_zero]
+    · simp only [Fin.cons_succ, rootGlueEmb₂, Function.Embedding.coeFn_mk,
+        if_neg (show (Fin.succ j).val ≠ 0 from Nat.succ_ne_zero _)]
+      show σ ⟨n₁ + j.val, by have := j.isLt; omega⟩ = σ (Fin.natAdd n₁ j)
+      congr 1; exact Fin.ext (by simp [Fin.natAdd])
+  suffices h_factor : ∀ σ : Fin (n₁ + n₂) → Fin k,
+      (∏ v : Fin (n₁ + n₂), w (σ v)) *
+        (∏ e ∈ (rootGlue n₁ n₂ F₁ F₂).edgeFinset,
+          c (Fin.cons i σ (Quot.out e).1) (Fin.cons i σ (Quot.out e).2)) =
+      ((∏ v : Fin n₁, w (σ (Fin.castAdd n₂ v))) *
+        ∏ e ∈ F₁.edgeFinset,
+          c (Fin.cons i (fun j => σ (Fin.castAdd n₂ j)) (Quot.out e).1)
+            (Fin.cons i (fun j => σ (Fin.castAdd n₂ j)) (Quot.out e).2)) *
+      ((∏ v : Fin n₂, w (σ (Fin.natAdd n₁ v))) *
+        ∏ e ∈ F₂.edgeFinset,
+          c (Fin.cons i (fun j => σ (Fin.natAdd n₁ j)) (Quot.out e).1)
+            (Fin.cons i (fun j => σ (Fin.natAdd n₁ j)) (Quot.out e).2)) by
+    simp_rw [h_factor]; exact sum_piFinAdd_factor _ _
+  intro σ
+  have h_wt : ∏ v : Fin (n₁ + n₂), w (σ v) =
+      (∏ v : Fin n₁, w (σ (Fin.castAdd n₂ v))) *
+      (∏ v : Fin n₂, w (σ (Fin.natAdd n₁ v))) := by
+    rw [← Fintype.prod_sum_type]
+    exact (Fintype.prod_equiv finSumFinEquiv.symm _ _ (fun x => by
+      cases x with | inl a => simp [finSumFinEquiv] | inr b => simp [finSumFinEquiv])).symm
+  have h_edges := rootGlue_prod_eq n₁ n₂ F₁ F₂ c hc (Fin.cons i σ)
+  have h_f1 : (∏ e ∈ F₁.edgeFinset,
+      c (Fin.cons i σ (rootGlueEmb₁ n₁ n₂ (Quot.out e).1))
+        (Fin.cons i σ (rootGlueEmb₁ n₁ n₂ (Quot.out e).2))) =
+    (∏ e ∈ F₁.edgeFinset,
+      c (Fin.cons i (fun j => σ (Fin.castAdd n₂ j)) (Quot.out e).1)
+        (Fin.cons i (fun j => σ (Fin.castAdd n₂ j)) (Quot.out e).2)) := by
+    congr 1; ext e; rw [h_emb₁ σ (Quot.out e).1, h_emb₁ σ (Quot.out e).2]
+  have h_f2 : (∏ e ∈ F₂.edgeFinset,
+      c (Fin.cons i σ (rootGlueEmb₂ n₁ n₂ (Quot.out e).1))
+        (Fin.cons i σ (rootGlueEmb₂ n₁ n₂ (Quot.out e).2))) =
+    (∏ e ∈ F₂.edgeFinset,
+      c (Fin.cons i (fun j => σ (Fin.natAdd n₁ j)) (Quot.out e).1)
+        (Fin.cons i (fun j => σ (Fin.natAdd n₁ j)) (Quot.out e).2)) := by
+    congr 1; ext e; rw [h_emb₂ σ (Quot.out e).1, h_emb₂ σ (Quot.out e).2]
+  rw [h_wt, h_edges, h_f1, h_f2]; ring
 
 /-- The rootedEval algebra is full for twin-free matrices:
 the W-orthogonal complement of {rootedEval(G)} is trivial.
@@ -2526,6 +2769,7 @@ private theorem eval_algebra_span_full {T : ℕ}
 private theorem gram_from_heq {T T' : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (hB_symm : ∀ i j, B i j = B j i) (hB'_symm : ∀ i j, B' i j = B' j i)
     (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
       weightedHomSum n F B W = weightedHomSum n F B' W')
     (n₁ n₂ : ℕ) (F₁ : SimpleGraph (Fin (n₁ + 1))) (F₂ : SimpleGraph (Fin (n₂ + 1)))
@@ -2534,9 +2778,9 @@ private theorem gram_from_heq {T T' : ℕ}
     ∑ j, W' j * rootedEval n₁ F₁ B' W' j * rootedEval n₂ F₂ B' W' j := by
   obtain ⟨n₃, F₃, inst₃, hF₃⟩ := rootedEval_glue_exists n₁ n₂ F₁ F₂
   have lhs : ∀ i, W i * rootedEval n₁ F₁ B W i * rootedEval n₂ F₂ B W i =
-      W i * @rootedEval _ n₃ F₃ inst₃ B W i := fun i => by rw [hF₃]; ring
+      W i * @rootedEval _ n₃ F₃ inst₃ B W i := fun i => by rw [hF₃ B hB_symm]; ring
   have rhs : ∀ j, W' j * rootedEval n₁ F₁ B' W' j * rootedEval n₂ F₂ B' W' j =
-      W' j * @rootedEval _ n₃ F₃ inst₃ B' W' j := fun j => by rw [hF₃]; ring
+      W' j * @rootedEval _ n₃ F₃ inst₃ B' W' j := fun j => by rw [hF₃ B' hB'_symm]; ring
   simp_rw [lhs, @rootedEval_weighted_sum _ n₃ F₃ inst₃,
     @h_eq (n₃ + 1) F₃ inst₃, ← @rootedEval_weighted_sum _ n₃ F₃ inst₃, ← rhs]
 
@@ -2547,6 +2791,7 @@ multiplicativity → idempotent analysis → indicator vectors → permutation. 
 private theorem exists_transfer_perm {T T' : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (hB_symm : ∀ i j, B i j = B j i) (hB'_symm : ∀ i j, B' i j = B' j i)
     (hW_pos : ∀ i, 0 < W i) (hW'_pos : ∀ j, 0 < W' j)
     (h_gram : ∀ (n₁ n₂ : ℕ) (F₁ : SimpleGraph (Fin (n₁ + 1)))
       (F₂ : SimpleGraph (Fin (n₂ + 1)))
@@ -2590,7 +2835,7 @@ private theorem bijection_of_full_eval1Alg {T T' : ℕ}
     ∃ π : Fin T ≃ Fin T',
       (∀ i, W i = W' (π i)) ∧
       (∀ i j, B i j = B' (π i) (π j)) := by
-  obtain ⟨π, hπ_w, hπ_eval⟩ := exists_transfer_perm B W B' W' hW_pos hW'_pos
+  obtain ⟨π, hπ_w, hπ_eval⟩ := exists_transfer_perm B W B' W' hB_symm hB'_symm hW_pos hW'_pos
     h_gram h_full h_full'
   refine ⟨π, hπ_w, fun i j => ?_⟩
   -- Entry matching: B(i,j) = B'(π i, π j) via rootedEval_rootAttach + transfer + h_full
@@ -2636,7 +2881,7 @@ private theorem twinfree_bijection_of_weightedHomSum_eq {T T' : ℕ}
       (∀ i j, B i j = B' (π i) (π j)) :=
   bijection_of_full_eval1Alg B W B' W' hB_symm hB'_symm hB_mem hB'_mem
     hW_pos hW'_pos htwin htwin'
-    (gram_from_heq B W B' W' h_eq)
+    (gram_from_heq B W B' W' hB_symm hB'_symm h_eq)
     (eval_algebra_span_full B W hB_symm hB_mem hW_pos htwin)
     (eval_algebra_span_full B' W' hB'_symm hB'_mem hW'_pos htwin')
 
