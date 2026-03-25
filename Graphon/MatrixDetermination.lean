@@ -2845,6 +2845,30 @@ private theorem labeledEval2_edge {k : ℕ}
   · simp [ha, hb]
   · simp [ha, hb, hc]
 
+/-- 2-labeled gluing: gluing two 2-labeled graphs at both labeled vertices produces
+pointwise multiplication of labeledEval2 values. This is the algebra structure
+for 2-labeled quantum graphs, analogous to `rootedEval_glue_exists` for 1-labeled. -/
+private theorem labeledEval2_glue_exists (n₁ n₂ : ℕ)
+    (F₁ : SimpleGraph (Fin (n₁ + 2))) (F₂ : SimpleGraph (Fin (n₂ + 2)))
+    [DecidableRel F₁.Adj] [DecidableRel F₂.Adj] :
+    ∃ (n₃ : ℕ) (F₃ : SimpleGraph (Fin (n₃ + 2))) (_ : DecidableRel F₃.Adj),
+      ∀ {k : ℕ} (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+        (w : Fin k → ℝ) (i j : Fin k),
+        labeledEval2 n₃ F₃ c w i j =
+          labeledEval2 n₁ F₁ c w i j * labeledEval2 n₂ F₂ c w i j := by
+  sorry
+
+/-- Equal weighted hom sums transfer to 2-labeled evaluation sums. -/
+private theorem labeledEval2_eq_of_weightedHomSum_eq {T T' : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F B W = weightedHomSum n F B' W')
+    (n : ℕ) (F : SimpleGraph (Fin (n + 2))) [DecidableRel F.Adj] :
+    ∑ i, ∑ j, W i * W j * labeledEval2 n F B W i j =
+    ∑ i, ∑ j, W' i * W' j * labeledEval2 n F B' W' i j := by
+  rw [labeledEval2_weighted_sum, h_eq, ← labeledEval2_weighted_sum]
+
 /-! ### Twin-free bijection -/
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
