@@ -2745,6 +2745,106 @@ private theorem rootedEval_glue_exists (n₁ n₂ : ℕ)
     congr 1; ext e; rw [h_emb₂ σ (Quot.out e).1, h_emb₂ σ (Quot.out e).2]
   rw [h_wt, h_edges, h_f1, h_f2]; ring
 
+/-! ### 2-Labeled evaluation -/
+
+/-- 2-labeled evaluation: fix vertices 0 and 1 at colors `i` and `j` respectively,
+sum over all colorings of the remaining `n` unlabeled vertices.
+Labeled vertices carry no weight factor (consistent with rootedEval where the root
+is unweighted). This is the "2-labeled quantum graph evaluation" needed for
+orbit-breaking: unlike 1-labeled rootedEval, which is invariant under (B,W)-automorphisms,
+2-labeled evaluation can probe individual entries B(i,j) via the edge graph. -/
+noncomputable def labeledEval2 {k : ℕ} (n : ℕ) (F : SimpleGraph (Fin (n + 2)))
+    [DecidableRel F.Adj] (c : Fin k → Fin k → ℝ) (w : Fin k → ℝ)
+    (i j : Fin k) : ℝ :=
+  ∑ σ : Fin n → Fin k,
+    let τ : Fin (n + 2) → Fin k := Fin.cons i (Fin.cons j σ)
+    (∏ v : Fin n, w (σ v)) *
+    ∏ e ∈ F.edgeFinset, c (τ (Quot.out e).1) (τ (Quot.out e).2)
+
+/-- Summing `labeledEval2` over the second label with weight recovers `rootedEval`.
+This is the bridge from 2-labeled to 1-labeled, and the key sanity check that
+the weighted/unweighted convention is coherent. -/
+private theorem labeledEval2_weighted_sum_snd {k : ℕ} (n : ℕ)
+    (F : SimpleGraph (Fin (n + 2))) [DecidableRel F.Adj]
+    (c : Fin k → Fin k → ℝ) (w : Fin k → ℝ) (i : Fin k) :
+    ∑ j, w j * labeledEval2 n F c w i j = rootedEval (n + 1) F c w i := by
+  simp only [labeledEval2, rootedEval, Finset.mul_sum]
+  -- LHS: ∑ j, ∑ σ : Fin n → Fin k, w j * (∏ w(σ v)) * ∏ c(...)
+  -- RHS: ∑ τ : Fin (n+1) → Fin k, (∏ v : Fin (n+1), w(τ v)) * ∏ c(Fin.cons i τ ...)
+  -- Bridge: τ = Fin.cons j σ via Fin.consEquiv
+  conv_rhs =>
+    rw [(Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (n + 1) => Fin k)) _).symm]
+  simp only [Fin.consEquiv_apply]
+  rw [Fintype.sum_prod_type]
+  congr 1; ext j
+  -- LHS: ∑ σ, w j * ((∏ w(σ v)) * ∏ c(...Fin.cons i (Fin.cons j σ)...))
+  -- RHS: ∑ σ, (∏ v, w(Fin.cons j σ v)) * ∏ c(...Fin.cons i (consEquiv (j,σ))...)
+  -- Key insight: Fin.consEquiv (j,σ) = Fin.cons j σ, but Lean needs help seeing this.
+  congr 1; ext σ
+  -- Normalize both sides: unfold consEquiv, simplify Fin.cons, use ring
+  have hce : (Fin.consEquiv (fun _ : Fin (n + 1) => Fin k)) (j, σ) = Fin.cons j σ := by
+    ext v; simp [Fin.consEquiv_apply]
+  rw [hce, Fin.prod_univ_succ]
+  simp only [Fin.cons_zero, Fin.cons_succ, Prod.fst, Prod.snd]
+  ring
+
+/-- Double bridge: summing `labeledEval2` over both labels with weights recovers
+`weightedHomSum`. -/
+private theorem labeledEval2_weighted_sum {k : ℕ} (n : ℕ)
+    (F : SimpleGraph (Fin (n + 2))) [DecidableRel F.Adj]
+    (c : Fin k → Fin k → ℝ) (w : Fin k → ℝ) :
+    ∑ i, ∑ j, w i * w j * labeledEval2 n F c w i j =
+      weightedHomSum (n + 2) F c w := by
+  have : ∑ i, ∑ j, w i * w j * labeledEval2 n F c w i j =
+      ∑ i, w i * (∑ j, w j * labeledEval2 n F c w i j) := by
+    congr 1; ext i; rw [Finset.mul_sum]; congr 1; ext j; ring
+  rw [this]
+  simp_rw [labeledEval2_weighted_sum_snd]
+  exact rootedEval_weighted_sum (n + 1) F c w
+
+/-- The 2-labeled evaluation of the edge graph (single edge between vertices 0 and 1,
+no unlabeled vertices) directly reads the matrix entry c(i,j). This is the key
+orbit-breaking property: 1-labeled rootedEval cannot probe individual entries. -/
+private theorem labeledEval2_edge {k : ℕ}
+    (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+    (w : Fin k → ℝ) (i j : Fin k) :
+    labeledEval2 0 (⊤ : SimpleGraph (Fin 2)) c w i j = c i j := by
+  simp only [labeledEval2]
+  rw [Fintype.sum_unique]
+  simp only [Finset.univ_eq_empty, Finset.prod_empty, one_mul]
+  -- Edge product: single edge {0,1} in the complete graph on Fin 2
+  -- Use the same edgeFinset characterization as starGraph/K₂ proofs in the file
+  -- The complete graph on Fin 2 has exactly one edge: {0, 1}
+  -- We need to evaluate the edge product at that single edge.
+  -- Evaluate on the single edge of the complete graph on Fin 2.
+  -- Use the same K₂ edge finset pattern as weightedHomSum_edge (L2059).
+  have hedge : (⊤ : SimpleGraph (Fin 2)).edgeFinset = {s(0, 1)} := by
+    rw [Finset.eq_singleton_iff_unique_mem]; constructor
+    · simp [SimpleGraph.mem_edgeFinset, SimpleGraph.top_adj]
+    · intro e he
+      simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at he
+      exact Sym2.ind (fun a b h => by fin_cases a <;> fin_cases b <;> simp_all) e he
+  rw [hedge, Finset.prod_singleton]
+  -- Evaluate Fin.cons i (Fin.cons j _) at the Quot.out of s(0,1)
+  -- The Quot.out gives some pair (a,b) with s(a,b) = s(0,1). So {a,b} = {0,1}.
+  -- In either orientation, Fin.cons i (Fin.cons j _) maps 0→i and 1→j, giving c(i,j).
+  -- We use the same Quot.out resolution as starGraph_prod_eq / rootAttach_prod_eq.
+  convert rfl using 1
+  set p := Quot.out s((0 : Fin 2), (1 : Fin 2))
+  -- We need: c(τ(p.1), τ(p.2)) = c(i,j) where τ = Fin.cons i (Fin.cons j default)
+  -- The map τ satisfies τ 0 = i and τ 1 = j.
+  let τ : Fin 2 → Fin k := Fin.cons i (Fin.cons j (default : Fin 0 → Fin k))
+  have h0 : τ 0 = i := by simp [τ, Fin.cons_zero]
+  have h1 : τ 1 = j := by simp [τ, Fin.cons_succ, Fin.cons_zero]
+  -- Quot.out s(0,1) is some (a,b) with s(a,b) = s(0,1), so (a,b) = (0,1) or (1,0).
+  have hout := Quot.out_eq s((0 : Fin 2), (1 : Fin 2))
+  have key : (p.1 = 0 ∧ p.2 = 1) ∨ (p.1 = 1 ∧ p.2 = 0) := by
+    have := Sym2.eq_iff.mp hout
+    rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> [left; right] <;> exact ⟨h1, h2⟩
+  rcases key with ⟨ha, hb⟩ | ⟨ha, hb⟩
+  · simp [ha, hb]
+  · simp [ha, hb, hc]
+
 /-! ### Twin-free bijection -/
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
