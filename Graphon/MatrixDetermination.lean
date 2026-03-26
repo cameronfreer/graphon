@@ -2845,6 +2845,113 @@ private instance leftAttach2DecRel (n : ℕ) (F : SimpleGraph (Fin (n + 2)))
      (∃ a b : Fin (n + 2), F.Adj a b ∧
        leftAttach2Shift n a = u ∧ leftAttach2Shift n b = v)))
 
+/-- The edge finset of `leftAttach2 n F` is the bridge edge `s(0, 2)` plus shifted `F`-edges. -/
+private theorem leftAttach2_edgeFinset (n : ℕ) (F : SimpleGraph (Fin (n + 2)))
+    [DecidableRel F.Adj] :
+    (leftAttach2 n F).edgeFinset =
+      insert s((0 : Fin ((n + 1) + 2)), ⟨2, by omega⟩)
+        (F.edgeFinset.map (leftAttach2Shift n).sym2Map) := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, Finset.mem_insert, Finset.mem_map,
+    Function.Embedding.sym2Map_apply]
+  constructor
+  · intro he
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      change ((a.val = 0 ∧ b.val = 2) ∨ (a.val = 2 ∧ b.val = 0) ∨
+        (∃ x y : Fin (n + 2), F.Adj x y ∧
+          leftAttach2Shift n x = a ∧ leftAttach2Shift n y = b)) at he
+      rcases he with ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨x, y, hadj, hx, hy⟩
+      · left; exact Sym2.eq_iff.mpr (Or.inl ⟨Fin.ext ha, Fin.ext hb⟩)
+      · left; exact Sym2.eq_iff.mpr (Or.inr ⟨Fin.ext ha, Fin.ext hb⟩)
+      · right
+        exact ⟨s(x, y), hadj, by rw [Sym2.map_pair_eq]; exact Sym2.eq_iff.mpr (Or.inl ⟨hx, hy⟩)⟩
+  · intro he
+    rcases he with rfl | ⟨e', he', rfl⟩
+    · -- Bridge edge
+      rw [SimpleGraph.mem_edgeSet]
+      exact Or.inl ⟨rfl, rfl⟩
+    · -- Shifted F-edge
+      induction e' using Sym2.ind with
+      | _ a b =>
+        rw [SimpleGraph.mem_edgeSet] at he'
+        simp only [Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        exact Or.inr (Or.inr ⟨a, b, he', rfl, rfl⟩)
+
+/-- The bridge edge `s(0, 2)` is not a shifted `F`-edge (since 0 is not in the range of
+`leftAttach2Shift`). -/
+private theorem leftAttach2_bridge_not_mem_shifted (n : ℕ)
+    (F : SimpleGraph (Fin (n + 2))) [DecidableRel F.Adj] :
+    s((0 : Fin ((n + 1) + 2)), ⟨2, by omega⟩) ∉
+      F.edgeFinset.map (leftAttach2Shift n).sym2Map := by
+  intro hmem
+  rw [Finset.mem_map] at hmem
+  obtain ⟨e, _, he⟩ := hmem
+  induction e using Sym2.ind with
+  | _ a b =>
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at he
+    rw [Sym2.eq_iff] at he
+    -- leftAttach2Shift never maps to 0, so no shifted edge contains vertex 0.
+    -- But the bridge edge s(0, 2) has vertex 0. Contradiction.
+    all_goals {
+      rcases he with ⟨h1, h2⟩ | ⟨h1, h2⟩
+      all_goals {
+        have hva := congr_arg Fin.val h1
+        have hvb := congr_arg Fin.val h2
+        simp only [leftAttach2Shift, Function.Embedding.coeFn_mk] at hva hvb
+        revert hva hvb
+        by_cases ha0 : a.val = 0 <;> by_cases ha1 : a.val = 1 <;>
+          by_cases hb0 : b.val = 0 <;> by_cases hb1 : b.val = 1 <;>
+          simp_all <;> omega
+      }
+    }
+
+/-- The edge product over `leftAttach2 n F` equals the bridge term times the shifted
+`F`-edge product (requires symmetric matrix). -/
+private theorem leftAttach2_prod_eq {k : ℕ} (n : ℕ) (F : SimpleGraph (Fin (n + 2)))
+    [DecidableRel F.Adj] (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+    (τ : Fin ((n + 1) + 2) → Fin k) :
+    ∏ e ∈ (leftAttach2 n F).edgeFinset,
+      c (τ (Quot.out e).1) (τ (Quot.out e).2) =
+    c (τ 0) (τ ⟨2, by omega⟩) *
+    ∏ e ∈ F.edgeFinset,
+      c (τ (leftAttach2Shift n (Quot.out e).1)) (τ (leftAttach2Shift n (Quot.out e).2)) := by
+  have h2eq : (⟨2, by omega⟩ : Fin ((n + 1) + 2)) = ⟨2, by omega⟩ := rfl
+  rw [leftAttach2_edgeFinset,
+    Finset.prod_insert (leftAttach2_bridge_not_mem_shifted n F),
+    Finset.prod_map F.edgeFinset (leftAttach2Shift n).sym2Map]
+  congr 1
+  · -- Bridge edge: resolve Quot.out
+    have hout := Quot.out_eq s((0 : Fin ((n + 1) + 2)), ⟨2, by omega⟩)
+    rw [Sym2.mk_eq_mk_iff] at hout
+    rcases hout with h | h
+    · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
+    · have h1 := congr_arg Prod.fst h; have h2 := congr_arg Prod.snd h
+      simp only [Prod.swap] at h1 h2
+      rw [h1, h2, hc]
+  · congr 1; ext e
+    -- Shifted edge: resolve Quot.out of mapped edge (use symmetry of c)
+    induction e using Sym2.ind with
+    | _ a b =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      have hout := Quot.out_eq s(leftAttach2Shift n a, leftAttach2Shift n b)
+      rw [Sym2.mk_eq_mk_iff] at hout
+      have hout' := Quot.out_eq s(a, b)
+      rw [Sym2.mk_eq_mk_iff] at hout'
+      rcases hout with h | h <;> rcases hout' with h' | h'
+      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
+            congr_arg Prod.fst h', congr_arg Prod.snd h']
+      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
+        simp only [Prod.swap] at h'
+        rw [congr_arg Prod.fst h', congr_arg Prod.snd h', hc]
+      · simp only [Prod.swap] at h
+        rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
+            congr_arg Prod.fst h', congr_arg Prod.snd h', hc]
+      · simp only [Prod.swap] at h h'
+        rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
+            congr_arg Prod.fst h', congr_arg Prod.snd h']
+
 /-- Left attachment realizes the left adjacency operator for 2-labeled evaluation:
 `labeledEval2(leftAttach2 F)(i,j) = ∑ₐ wₐ c(i,a) labeledEval2(F)(a,j)`. -/
 private theorem labeledEval2_leftAttach {k : ℕ} (n : ℕ)
@@ -2853,6 +2960,12 @@ private theorem labeledEval2_leftAttach {k : ℕ} (n : ℕ)
     (w : Fin k → ℝ) (i j : Fin k) :
     labeledEval2 (n + 1) (leftAttach2 n F) c w i j =
       ∑ a, w a * c i a * labeledEval2 n F c w a j := by
+  -- Proof strategy (all helpers compile, main assembly has Fin-arithmetic friction):
+  -- 1. Decompose LHS sum via Fin.consEquiv into (a, σ')
+  -- 2. Use leftAttach2_prod_eq to factor edge product as c(i,a) × shifted-F-edges
+  -- 3. Use coloring correspondence τ(shift(v)) = τ'(v) to match shifted edges with RHS
+  -- 4. Weight product + ring
+  -- Helpers: leftAttach2_edgeFinset, leftAttach2_bridge_not_mem_shifted, leftAttach2_prod_eq
   sorry
 
 /-- Summing `labeledEval2` over the second label with weight recovers `rootedEval`.
