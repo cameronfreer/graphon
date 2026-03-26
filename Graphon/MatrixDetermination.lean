@@ -2799,6 +2799,62 @@ private theorem labeledEval2_perm_eq {k : ℕ} (n : ℕ)
        c (τ (Quot.out x).1) (τ (Quot.out x).2)
   rw [hτ, hτ, hc]
 
+/-! ### 2-labeled left attachment -/
+
+/-- Shift embedding for left attachment: maps Fin(n+2) → Fin(n+3) by
+0 ↦ 2 (F's label 0 becomes unlabeled), 1 ↦ 1 (label 1 stays), v+2 ↦ v+3. -/
+private def leftAttach2Shift (n : ℕ) : Fin (n + 2) ↪ Fin (n + 3) where
+  toFun v :=
+    if v.val = 0 then ⟨2, by omega⟩
+    else if v.val = 1 then ⟨1, by omega⟩
+    else ⟨v.val + 1, by omega⟩
+  inj' a b h := by
+    simp only at h
+    by_cases ha : a.val = 0 <;> by_cases hb : b.val = 0 <;>
+      by_cases ha1 : a.val = 1 <;> by_cases hb1 : b.val = 1 <;>
+      simp_all <;> exact Fin.ext (by omega)
+
+/-- Left attachment for 2-labeled graphs: add a new vertex 0 connected by an edge
+to F's old label 0 (which becomes unlabeled vertex 2). Label 1 stays fixed.
+The new graph is on Fin((n+1)+2) with n+1 unlabeled vertices. -/
+private def leftAttach2 (n : ℕ) (F : SimpleGraph (Fin (n + 2))) :
+    SimpleGraph (Fin ((n + 1) + 2)) where
+  Adj u v :=
+    -- Bridge edge: {0, 2}
+    (u.val = 0 ∧ v.val = 2) ∨ (u.val = 2 ∧ v.val = 0) ∨
+    -- Shifted F-edges
+    (∃ a b : Fin (n + 2), F.Adj a b ∧
+      leftAttach2Shift n a = u ∧ leftAttach2Shift n b = v)
+  symm := by
+    intro u v h
+    rcases h with ⟨hu, hv⟩ | ⟨hu, hv⟩ | ⟨a, b, hadj, ha, hb⟩
+    · right; left; exact ⟨hv, hu⟩
+    · left; exact ⟨hv, hu⟩
+    · right; right; exact ⟨b, a, F.symm hadj, hb, ha⟩
+  loopless := by
+    intro v h
+    rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨a, b, hadj, ha, hb⟩
+    · omega
+    · omega
+    · have := (leftAttach2Shift n).injective (ha ▸ hb); exact F.loopless _ (this ▸ hadj)
+
+private instance leftAttach2DecRel (n : ℕ) (F : SimpleGraph (Fin (n + 2)))
+    [DecidableRel F.Adj] : DecidableRel (leftAttach2 n F).Adj :=
+  fun u v => inferInstanceAs (Decidable
+    ((u.val = 0 ∧ v.val = 2) ∨ (u.val = 2 ∧ v.val = 0) ∨
+     (∃ a b : Fin (n + 2), F.Adj a b ∧
+       leftAttach2Shift n a = u ∧ leftAttach2Shift n b = v)))
+
+/-- Left attachment realizes the left adjacency operator for 2-labeled evaluation:
+`labeledEval2(leftAttach2 F)(i,j) = ∑ₐ wₐ c(i,a) labeledEval2(F)(a,j)`. -/
+private theorem labeledEval2_leftAttach {k : ℕ} (n : ℕ)
+    (F : SimpleGraph (Fin (n + 2))) [DecidableRel F.Adj]
+    (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+    (w : Fin k → ℝ) (i j : Fin k) :
+    labeledEval2 (n + 1) (leftAttach2 n F) c w i j =
+      ∑ a, w a * c i a * labeledEval2 n F c w a j := by
+  sorry
+
 /-- Summing `labeledEval2` over the second label with weight recovers `rootedEval`.
 This is the bridge from 2-labeled to 1-labeled, and the key sanity check that
 the weighted/unweighted convention is coherent. -/
