@@ -2761,6 +2761,44 @@ noncomputable def labeledEval2 {k : ℕ} (n : ℕ) (F : SimpleGraph (Fin (n + 2)
     (∏ v : Fin n, w (σ v)) *
     ∏ e ∈ F.edgeFinset, c (τ (Quot.out e).1) (τ (Quot.out e).2)
 
+/-- 2-labeled evaluation is invariant under (c,w)-automorphisms applied to both labels
+simultaneously. This is the easy direction of the orbit theorem (CT-1):
+the column span of the 2-labeled connection matrix is contained in the space
+of Aut(c,w)-invariant functions on (Fin k)². -/
+private theorem labeledEval2_perm_eq {k : ℕ} (n : ℕ)
+    (F : SimpleGraph (Fin (n + 2))) [DecidableRel F.Adj]
+    (c : Fin k → Fin k → ℝ) (w : Fin k → ℝ)
+    (π : Equiv.Perm (Fin k))
+    (hc : ∀ i j, c (π i) (π j) = c i j) (hw : ∀ i, w (π i) = w i)
+    (i j : Fin k) :
+    labeledEval2 n F c w (π i) (π j) = labeledEval2 n F c w i j := by
+  simp only [labeledEval2]
+  -- Reindex: substitute σ = π ∘ σ' via Equiv.piCongrRight
+  let e : (Fin n → Fin k) ≃ (Fin n → Fin k) :=
+    Equiv.piCongrRight (fun _ => π)
+  rw [(Equiv.sum_comp e _).symm]
+  congr 1; ext σ'
+  -- After reindex, LHS has σ = e σ' = (fun v => π (σ' v)). Simplify.
+  have he : e σ' = fun v => π (σ' v) := by ext v; simp [e]
+  -- Weight product: ∏ w(e σ' v) = ∏ w(π (σ' v)) = ∏ w(σ' v) by hw
+  have hw_prod : ∏ v : Fin n, w (e σ' v) = ∏ v : Fin n, w (σ' v) := by
+    congr 1; ext v; rw [he]; exact hw (σ' v)
+  -- Edge product: Fin.cons(π i, Fin.cons(π j, e σ')) = π ∘ Fin.cons(i, Fin.cons(j, σ'))
+  let τ' : Fin (n + 2) → Fin k := Fin.cons (π i) (Fin.cons (π j) (e σ'))
+  let τ : Fin (n + 2) → Fin k := Fin.cons i (Fin.cons j σ')
+  have hτ : ∀ v : Fin (n + 2), τ' v = π (τ v) := by
+    intro v; simp only [τ', τ, he]
+    rcases Fin.eq_zero_or_eq_succ v with rfl | ⟨w, rfl⟩
+    · simp [Fin.cons_zero]
+    · rcases Fin.eq_zero_or_eq_succ w with rfl | ⟨u, rfl⟩
+      · simp [Fin.cons_succ, Fin.cons_zero]
+      · simp [Fin.cons_succ]
+  rw [hw_prod]; congr 1
+  apply Finset.prod_congr rfl; intro x _
+  show c (τ' (Quot.out x).1) (τ' (Quot.out x).2) =
+       c (τ (Quot.out x).1) (τ (Quot.out x).2)
+  rw [hτ, hτ, hc]
+
 /-- Summing `labeledEval2` over the second label with weight recovers `rootedEval`.
 This is the bridge from 2-labeled to 1-labeled, and the key sanity check that
 the weighted/unweighted convention is coherent. -/
