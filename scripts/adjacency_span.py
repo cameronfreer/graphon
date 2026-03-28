@@ -228,6 +228,84 @@ def make_test_cases():
     return cases
 
 
+def enumerate_simple_graphs(n_vertices: int):
+    """Enumerate all simple graphs on Fin(n_vertices) as adjacency matrices."""
+    # Edges are unordered pairs {i,j} with i < j. There are n*(n-1)/2 possible edges.
+    n_edges = n_vertices * (n_vertices - 1) // 2
+    edges = [(i, j) for i in range(n_vertices) for j in range(i + 1, n_vertices)]
+    for mask in range(1 << n_edges):
+        adj = np.zeros((n_vertices, n_vertices), dtype=int)
+        for bit, (i, j) in enumerate(edges):
+            if mask & (1 << bit):
+                adj[i][j] = 1
+                adj[j][i] = 1
+        yield adj
+
+
+def labeled_eval2(n_unlabeled: int, adj: np.ndarray, B: np.ndarray, W: np.ndarray,
+                  i: int, j: int) -> float:
+    """Compute labeledEval2 for a graph on Fin(n_unlabeled + 2) with labels 0->i, 1->j.
+
+    Sum over all colorings sigma : Fin(n_unlabeled) -> Fin(T) of unlabeled vertices.
+    """
+    T = B.shape[0]
+    n = n_unlabeled
+    total = 0.0
+
+    # Iterate over all colorings of unlabeled vertices
+    for coloring_idx in range(T ** n):
+        # Decode coloring
+        sigma = []
+        idx = coloring_idx
+        for _ in range(n):
+            sigma.append(idx % T)
+            idx //= T
+
+        # Full coloring: tau(0)=i, tau(1)=j, tau(2+v)=sigma[v]
+        tau = [i, j] + sigma
+
+        # Weight product: prod over unlabeled vertices
+        weight = 1.0
+        for v in range(n):
+            weight *= W[sigma[v]]
+
+        # Edge product: prod over edges of the graph
+        edge_prod = 1.0
+        n_verts = n + 2
+        for u in range(n_verts):
+            for v in range(u + 1, n_verts):
+                if adj[u][v]:
+                    edge_prod *= B[tau[u]][tau[v]]
+
+        total += weight * edge_prod
+    return total
+
+
+def compute_graph_eval_span(B: np.ndarray, W: np.ndarray, max_unlabeled: int = 3,
+                            tol: float = 1e-10) -> int:
+    """Compute dimension of span of actual simple-graph 2-labeled evaluations.
+
+    Enumerates all 2-labeled simple graphs with up to max_unlabeled unlabeled vertices.
+    """
+    T = B.shape[0]
+    vectors = []
+
+    for n in range(max_unlabeled + 1):
+        n_verts = n + 2
+        for adj in enumerate_simple_graphs(n_verts):
+            # Compute the evaluation vector (i,j) -> labeledEval2(n, adj, B, W, i, j)
+            vec = np.zeros(T * T)
+            for i in range(T):
+                for j in range(T):
+                    vec[i * T + j] = labeled_eval2(n, adj, B, W, i, j)
+            vectors.append(vec)
+
+    if not vectors:
+        return 0
+    mat = np.vstack(vectors)
+    return np.linalg.matrix_rank(mat, tol=tol)
+
+
 def run_tests():
     cases = make_test_cases()
     all_pass = True
@@ -247,15 +325,23 @@ def run_tests():
         span_dim = compute_span(tc.B, tc.W)
         span_dim_no_mult = compute_span_no_mult(tc.B, tc.W)
 
-        status = "PASS" if span_dim == n_orbits_direct else "FAIL"
-        if status == "FAIL":
+        # Actual graph evaluation span (up to 2 unlabeled vertices for speed)
+        max_unlab = 2 if T <= 3 else 2
+        graph_span = compute_graph_eval_span(tc.B, tc.W, max_unlabeled=max_unlab)
+
+        status_alg = "PASS" if span_dim == n_orbits_direct else "FAIL"
+        status_graph = "PASS" if graph_span == n_orbits_direct else "FAIL"
+        if status_alg == "FAIL" or status_graph == "FAIL":
             all_pass = False
 
-        print(f"[{status}] {tc.name}")
+        print(f"[alg:{status_alg} graph:{status_graph}] {tc.name}")
         print(f"       T={T}  |Aut|={len(auts)}  orbits={n_orbits_direct}"
-              f"  span(L,R,*)={span_dim}  span(L,R)={span_dim_no_mult}")
-        if status == "FAIL":
-            print(f"       *** MISMATCH: span(L,R,*)={span_dim} != orbits={n_orbits_direct} ***")
+              f"  span(L,R,*)={span_dim}  span(L,R)={span_dim_no_mult}"
+              f"  graphEval(≤{max_unlab})={graph_span}")
+        if status_alg == "FAIL":
+            print(f"       *** ALG MISMATCH ***")
+        if status_graph == "FAIL":
+            print(f"       *** GRAPH EVAL MISMATCH (need more unlabeled?) ***")
         print()
 
     if all_pass:
