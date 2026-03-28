@@ -3299,6 +3299,53 @@ private theorem labeledEval2_eq_of_weightedHomSum_eq {T T' : ℕ}
     ∑ i, ∑ j, W' i * W' j * labeledEval2 n F B' W' i j := by
   rw [labeledEval2_weighted_sum, h_eq, ← labeledEval2_weighted_sum]
 
+/-! ### Automorphism invariance layer -/
+
+/-- A permutation π is a weighted automorphism of (B, W) if it preserves both the weight
+vector and the matrix entries. -/
+private def IsWeightedAutomorphism {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (π : Equiv.Perm (Fin T)) : Prop :=
+  (∀ i, W (π i) = W i) ∧ (∀ i j, B (π i) (π j) = B i j)
+
+/-- The subspace of pair functions invariant under all (B,W)-automorphisms. -/
+private def pairInvariantSubspace {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    Submodule ℝ (Fin T → Fin T → ℝ) where
+  carrier := {f | ∀ (π : Equiv.Perm (Fin T)),
+    IsWeightedAutomorphism B W π → ∀ i j, f (π i) (π j) = f i j}
+  zero_mem' := fun _ _ _ _ => rfl
+  add_mem' := fun {f g} hf hg π haut i j => by
+    simp only [Pi.add_apply]; rw [hf π haut i j, hg π haut i j]
+  smul_mem' := fun r f hf π haut i j => by
+    simp only [Pi.smul_apply, smul_eq_mul]; rw [hf π haut i j]
+
+/-- The set of all 2-labeled evaluation functions. -/
+private def eval2Set {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    Set (Fin T → Fin T → ℝ) :=
+  {f | ∃ (n : ℕ) (F : SimpleGraph (Fin (n + 2))) (_ : DecidableRel F.Adj),
+    f = fun i j => @labeledEval2 T n F ‹_› B W i j}
+
+/-- The linear span of all 2-labeled evaluation functions. -/
+private noncomputable def eval2Span {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    Submodule ℝ (Fin T → Fin T → ℝ) :=
+  Submodule.span ℝ (eval2Set B W)
+
+/-- Every 2-labeled evaluation function is pair-invariant (easy direction of CT-1). -/
+private theorem labeledEval2_isPairInvariant {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (n : ℕ) (F : SimpleGraph (Fin (n + 2))) [DecidableRel F.Adj] :
+    (fun i j => labeledEval2 n F B W i j) ∈ pairInvariantSubspace B W := by
+  intro π ⟨hw, hc⟩ i j
+  exact labeledEval2_perm_eq n F B W π hc hw i j
+
+/-- The evaluation span is contained in the pair-invariant subspace (easy inclusion of CT-1). -/
+private theorem eval2Span_le_pairInvariantSubspace {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    eval2Span B W ≤ pairInvariantSubspace B W := by
+  apply Submodule.span_le.mpr
+  intro f ⟨n, F, inst, hf⟩
+  rw [hf]
+  exact @labeledEval2_isPairInvariant T B W n F inst
+
 /-! ### Twin-free bijection -/
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
