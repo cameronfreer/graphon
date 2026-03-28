@@ -2814,6 +2814,21 @@ private def leftAttach2Shift (n : ℕ) : Fin (n + 2) ↪ Fin (n + 3) where
       by_cases ha1 : a.val = 1 <;> by_cases hb1 : b.val = 1 <;>
       simp_all <;> exact Fin.ext (by omega)
 
+private lemma leftAttach2Shift_zero (n : ℕ) :
+    leftAttach2Shift n (0 : Fin (n + 2)) =
+    Fin.succ (Fin.succ (0 : Fin (n + 1))) := by
+  ext; simp [leftAttach2Shift, Nat.mod_eq_of_lt (show 2 < n + 3 by omega)]
+
+private lemma leftAttach2Shift_succ_zero (n : ℕ) :
+    leftAttach2Shift n (Fin.succ (0 : Fin (n + 1))) =
+    (Fin.succ (0 : Fin (n + 2)) : Fin (n + 3)) := by
+  ext; simp [leftAttach2Shift, Fin.val_succ]
+
+private lemma leftAttach2Shift_succ_succ (n : ℕ) (u : Fin n) :
+    leftAttach2Shift n (Fin.succ (Fin.succ u)) =
+    Fin.succ (Fin.succ (Fin.succ u)) := by
+  ext; simp [leftAttach2Shift, Fin.val_succ]
+
 /-- Left attachment for 2-labeled graphs: add a new vertex 0 connected by an edge
 to F's old label 0 (which becomes unlabeled vertex 2). Label 1 stays fixed.
 The new graph is on Fin((n+1)+2) with n+1 unlabeled vertices. -/
@@ -2960,13 +2975,34 @@ private theorem labeledEval2_leftAttach {k : ℕ} (n : ℕ)
     (w : Fin k → ℝ) (i j : Fin k) :
     labeledEval2 (n + 1) (leftAttach2 n F) c w i j =
       ∑ a, w a * c i a * labeledEval2 n F c w a j := by
-  -- Proof strategy (all helpers compile, main assembly has Fin-arithmetic friction):
-  -- 1. Decompose LHS sum via Fin.consEquiv into (a, σ')
-  -- 2. Use leftAttach2_prod_eq to factor edge product as c(i,a) × shifted-F-edges
-  -- 3. Use coloring correspondence τ(shift(v)) = τ'(v) to match shifted edges with RHS
-  -- 4. Weight product + ring
-  -- Helpers: leftAttach2_edgeFinset, leftAttach2_bridge_not_mem_shifted, leftAttach2_prod_eq
-  sorry
+  simp only [labeledEval2]
+  conv_lhs =>
+    rw [(Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (n + 1) => Fin k)) _).symm]
+  simp only [Fin.consEquiv_apply]
+  rw [Fintype.sum_prod_type]
+  congr 1; ext a; rw [Finset.mul_sum]; congr 1; ext σ'
+  have hce : (Fin.consEquiv (fun _ : Fin (n + 1) => Fin k)) (a, σ') = Fin.cons a σ' := by
+    ext v; simp [Fin.consEquiv_apply]
+  simp only [hce, Prod.fst, Prod.snd]
+  rw [leftAttach2_prod_eq n F c hc]
+  -- Coloring correspondence: τ(shift(v)) = τ'(v)
+  have hshift (v : Fin (n + 2)) :
+      (Fin.cons i (Fin.cons j (Fin.cons a σ')) : Fin ((n + 1) + 2) → Fin k)
+        (leftAttach2Shift n v) =
+      (Fin.cons a (Fin.cons j σ') : Fin (n + 2) → Fin k) v := by
+    rcases Fin.eq_zero_or_eq_succ v with rfl | ⟨w, rfl⟩
+    · rw [leftAttach2Shift_zero]; rfl
+    · rcases Fin.eq_zero_or_eq_succ w with rfl | ⟨u, rfl⟩
+      · rw [leftAttach2Shift_succ_zero]; rfl
+      · rw [leftAttach2Shift_succ_succ]; rfl
+  simp_rw [hshift]
+  have h0 : (Fin.cons i (Fin.cons j (Fin.cons a σ')) : Fin ((n + 1) + 2) → Fin k) 0 = i := rfl
+  have h2 : (Fin.cons i (Fin.cons j (Fin.cons a σ')) : Fin ((n + 1) + 2) → Fin k)
+      ⟨2, by omega⟩ = a := rfl
+  conv_lhs => arg 2; arg 1; rw [h0, h2]
+  rw [Fin.prod_univ_succ]
+  simp only [Fin.cons_zero, Fin.cons_succ]
+  ring
 
 /-- Summing `labeledEval2` over the second label with weight recovers `rootedEval`.
 This is the bridge from 2-labeled to 1-labeled, and the key sanity check that
