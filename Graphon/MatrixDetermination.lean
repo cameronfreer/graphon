@@ -3004,6 +3004,199 @@ private theorem labeledEval2_leftAttach {k : ℕ} (n : ℕ)
   simp only [Fin.cons_zero, Fin.cons_succ]
   ring
 
+/-! ### 2-labeled right attachment -/
+
+/-- Shift embedding for right attachment: maps Fin(n+2) → Fin(n+3) by
+0 ↦ 0 (label 0 stays), 1 ↦ 2 (F's label 1 becomes unlabeled), v+2 ↦ v+3. -/
+private def rightAttach2Shift (n : ℕ) : Fin (n + 2) ↪ Fin (n + 3) where
+  toFun v :=
+    if v.val = 0 then ⟨0, by omega⟩
+    else if v.val = 1 then ⟨2, by omega⟩
+    else ⟨v.val + 1, by omega⟩
+  inj' a b h := by
+    simp only at h
+    by_cases ha : a.val = 0 <;> by_cases hb : b.val = 0 <;>
+      by_cases ha1 : a.val = 1 <;> by_cases hb1 : b.val = 1 <;>
+      simp_all <;> exact Fin.ext (by omega)
+
+private lemma rightAttach2Shift_zero (n : ℕ) :
+    rightAttach2Shift n (0 : Fin (n + 2)) = (0 : Fin (n + 3)) := by
+  ext; simp [rightAttach2Shift]
+
+private lemma rightAttach2Shift_succ_zero (n : ℕ) :
+    rightAttach2Shift n (Fin.succ (0 : Fin (n + 1))) =
+    Fin.succ (Fin.succ (0 : Fin (n + 1))) := by
+  ext; simp [rightAttach2Shift, Fin.val_succ, Nat.mod_eq_of_lt (show 2 < n + 3 by omega)]
+
+private lemma rightAttach2Shift_succ_succ (n : ℕ) (u : Fin n) :
+    rightAttach2Shift n (Fin.succ (Fin.succ u)) =
+    Fin.succ (Fin.succ (Fin.succ u)) := by
+  ext; simp [rightAttach2Shift, Fin.val_succ]
+
+/-- Right attachment for 2-labeled graphs: add a new vertex 1 connected by an edge
+to F's old label 1 (which becomes unlabeled vertex 2). Label 0 stays fixed.
+The new graph is on Fin((n+1)+2) with n+1 unlabeled vertices. -/
+private def rightAttach2 (n : ℕ) (F : SimpleGraph (Fin (n + 2))) :
+    SimpleGraph (Fin ((n + 1) + 2)) where
+  Adj u v :=
+    -- Bridge edge: {1, 2}
+    (u.val = 1 ∧ v.val = 2) ∨ (u.val = 2 ∧ v.val = 1) ∨
+    -- Shifted F-edges
+    (∃ a b : Fin (n + 2), F.Adj a b ∧
+      rightAttach2Shift n a = u ∧ rightAttach2Shift n b = v)
+  symm := by
+    intro u v h
+    rcases h with ⟨hu, hv⟩ | ⟨hu, hv⟩ | ⟨a, b, hadj, ha, hb⟩
+    · right; left; exact ⟨hv, hu⟩
+    · left; exact ⟨hv, hu⟩
+    · right; right; exact ⟨b, a, F.symm hadj, hb, ha⟩
+  loopless := by
+    intro v h
+    rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨a, b, hadj, ha, hb⟩
+    · omega
+    · omega
+    · have := (rightAttach2Shift n).injective (ha ▸ hb); exact F.loopless _ (this ▸ hadj)
+
+private instance rightAttach2DecRel (n : ℕ) (F : SimpleGraph (Fin (n + 2)))
+    [DecidableRel F.Adj] : DecidableRel (rightAttach2 n F).Adj :=
+  fun u v => inferInstanceAs (Decidable
+    ((u.val = 1 ∧ v.val = 2) ∨ (u.val = 2 ∧ v.val = 1) ∨
+     (∃ a b : Fin (n + 2), F.Adj a b ∧
+       rightAttach2Shift n a = u ∧ rightAttach2Shift n b = v)))
+
+private theorem rightAttach2_edgeFinset (n : ℕ) (F : SimpleGraph (Fin (n + 2)))
+    [DecidableRel F.Adj] :
+    (rightAttach2 n F).edgeFinset =
+      insert s((⟨1, by omega⟩ : Fin ((n + 1) + 2)), ⟨2, by omega⟩)
+        (F.edgeFinset.map (rightAttach2Shift n).sym2Map) := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, Finset.mem_insert, Finset.mem_map,
+    Function.Embedding.sym2Map_apply]
+  constructor
+  · intro he
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      change ((a.val = 1 ∧ b.val = 2) ∨ (a.val = 2 ∧ b.val = 1) ∨
+        (∃ x y : Fin (n + 2), F.Adj x y ∧
+          rightAttach2Shift n x = a ∧ rightAttach2Shift n y = b)) at he
+      rcases he with ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨x, y, hadj, hx, hy⟩
+      · left; exact Sym2.eq_iff.mpr (Or.inl ⟨Fin.ext ha, Fin.ext hb⟩)
+      · left; exact Sym2.eq_iff.mpr (Or.inr ⟨Fin.ext ha, Fin.ext hb⟩)
+      · right
+        exact ⟨s(x, y), hadj, by rw [Sym2.map_pair_eq]; exact Sym2.eq_iff.mpr (Or.inl ⟨hx, hy⟩)⟩
+  · intro he
+    rcases he with rfl | ⟨e', he', rfl⟩
+    · rw [SimpleGraph.mem_edgeSet]
+      exact Or.inl ⟨rfl, rfl⟩
+    · induction e' using Sym2.ind with
+      | _ a b =>
+        rw [SimpleGraph.mem_edgeSet] at he'
+        simp only [Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        exact Or.inr (Or.inr ⟨a, b, he', rfl, rfl⟩)
+
+private theorem rightAttach2_bridge_not_mem_shifted (n : ℕ)
+    (F : SimpleGraph (Fin (n + 2))) [DecidableRel F.Adj] :
+    s((⟨1, by omega⟩ : Fin ((n + 1) + 2)), ⟨2, by omega⟩) ∉
+      F.edgeFinset.map (rightAttach2Shift n).sym2Map := by
+  intro hmem
+  rw [Finset.mem_map] at hmem
+  obtain ⟨e, _, he⟩ := hmem
+  induction e using Sym2.ind with
+  | _ a b =>
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at he
+    rw [Sym2.eq_iff] at he
+    all_goals {
+      rcases he with ⟨h1, h2⟩ | ⟨h1, h2⟩
+      all_goals {
+        have hva := congr_arg Fin.val h1
+        have hvb := congr_arg Fin.val h2
+        simp only [rightAttach2Shift, Function.Embedding.coeFn_mk] at hva hvb
+        revert hva hvb
+        by_cases ha0 : a.val = 0 <;> by_cases ha1 : a.val = 1 <;>
+          by_cases hb0 : b.val = 0 <;> by_cases hb1 : b.val = 1 <;>
+          simp_all <;> omega
+      }
+    }
+
+private theorem rightAttach2_prod_eq {k : ℕ} (n : ℕ) (F : SimpleGraph (Fin (n + 2)))
+    [DecidableRel F.Adj] (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+    (τ : Fin ((n + 1) + 2) → Fin k) :
+    ∏ e ∈ (rightAttach2 n F).edgeFinset,
+      c (τ (Quot.out e).1) (τ (Quot.out e).2) =
+    c (τ ⟨1, by omega⟩) (τ ⟨2, by omega⟩) *
+    ∏ e ∈ F.edgeFinset,
+      c (τ (rightAttach2Shift n (Quot.out e).1)) (τ (rightAttach2Shift n (Quot.out e).2)) := by
+  rw [rightAttach2_edgeFinset,
+    Finset.prod_insert (rightAttach2_bridge_not_mem_shifted n F),
+    Finset.prod_map F.edgeFinset (rightAttach2Shift n).sym2Map]
+  congr 1
+  · have hout := Quot.out_eq s((⟨1, by omega⟩ : Fin ((n + 1) + 2)), ⟨2, by omega⟩)
+    rw [Sym2.mk_eq_mk_iff] at hout
+    rcases hout with h | h
+    · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
+    · have h1 := congr_arg Prod.fst h; have h2 := congr_arg Prod.snd h
+      simp only [Prod.swap] at h1 h2
+      rw [h1, h2, hc]
+  · congr 1; ext e
+    induction e using Sym2.ind with
+    | _ a b =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      have hout := Quot.out_eq s(rightAttach2Shift n a, rightAttach2Shift n b)
+      rw [Sym2.mk_eq_mk_iff] at hout
+      have hout' := Quot.out_eq s(a, b)
+      rw [Sym2.mk_eq_mk_iff] at hout'
+      rcases hout with h | h <;> rcases hout' with h' | h'
+      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
+            congr_arg Prod.fst h', congr_arg Prod.snd h']
+      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
+        simp only [Prod.swap] at h'
+        rw [congr_arg Prod.fst h', congr_arg Prod.snd h', hc]
+      · simp only [Prod.swap] at h
+        rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
+            congr_arg Prod.fst h', congr_arg Prod.snd h', hc]
+      · simp only [Prod.swap] at h h'
+        rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
+            congr_arg Prod.fst h', congr_arg Prod.snd h']
+
+/-- Right attachment realizes the right adjacency operator for 2-labeled evaluation:
+`labeledEval2(rightAttach2 F)(i,j) = ∑ₐ wₐ c(a,j) labeledEval2(F)(i,a)`. -/
+private theorem labeledEval2_rightAttach {k : ℕ} (n : ℕ)
+    (F : SimpleGraph (Fin (n + 2))) [DecidableRel F.Adj]
+    (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+    (w : Fin k → ℝ) (i j : Fin k) :
+    labeledEval2 (n + 1) (rightAttach2 n F) c w i j =
+      ∑ a, w a * c a j * labeledEval2 n F c w i a := by
+  simp only [labeledEval2]
+  conv_lhs =>
+    rw [(Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (n + 1) => Fin k)) _).symm]
+  simp only [Fin.consEquiv_apply]
+  rw [Fintype.sum_prod_type]
+  congr 1; ext a; rw [Finset.mul_sum]; congr 1; ext σ'
+  have hce : (Fin.consEquiv (fun _ : Fin (n + 1) => Fin k)) (a, σ') = Fin.cons a σ' := by
+    ext v; simp [Fin.consEquiv_apply]
+  simp only [hce, Prod.fst, Prod.snd]
+  rw [rightAttach2_prod_eq n F c hc]
+  -- Coloring correspondence: τ(shift(v)) = τ'(v)
+  have hshift (v : Fin (n + 2)) :
+      (Fin.cons i (Fin.cons j (Fin.cons a σ')) : Fin ((n + 1) + 2) → Fin k)
+        (rightAttach2Shift n v) =
+      (Fin.cons i (Fin.cons a σ') : Fin (n + 2) → Fin k) v := by
+    rcases Fin.eq_zero_or_eq_succ v with rfl | ⟨w, rfl⟩
+    · rw [rightAttach2Shift_zero]; rfl
+    · rcases Fin.eq_zero_or_eq_succ w with rfl | ⟨u, rfl⟩
+      · rw [rightAttach2Shift_succ_zero]; rfl
+      · rw [rightAttach2Shift_succ_succ]; rfl
+  simp_rw [hshift]
+  have h1 : (Fin.cons i (Fin.cons j (Fin.cons a σ')) : Fin ((n + 1) + 2) → Fin k)
+      ⟨1, by omega⟩ = j := rfl
+  have h2 : (Fin.cons i (Fin.cons j (Fin.cons a σ')) : Fin ((n + 1) + 2) → Fin k)
+      ⟨2, by omega⟩ = a := rfl
+  conv_lhs => arg 2; arg 1; rw [h1, h2, hc]
+  rw [Fin.prod_univ_succ]
+  simp only [Fin.cons_zero, Fin.cons_succ]
+  ring
+
 /-- Summing `labeledEval2` over the second label with weight recovers `rootedEval`.
 This is the bridge from 2-labeled to 1-labeled, and the key sanity check that
 the weighted/unweighted convention is coherent. -/
