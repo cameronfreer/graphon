@@ -3455,6 +3455,81 @@ private theorem pairInvariantSubspace_le_of_orbitIndicators {T : ℕ}
   obtain ⟨o, rfl⟩ := hf
   exact h o
 
+/-! ### Label-edge factorization -/
+
+/-- Remove the label edge {0, 1} from a 2-labeled graph. -/
+private def eraseLabelEdge {n : ℕ} (F : SimpleGraph (Fin (n + 2))) :
+    SimpleGraph (Fin (n + 2)) where
+  Adj u v := F.Adj u v ∧ s(u, v) ≠ s((0 : Fin (n + 2)), 1)
+  symm u v h := ⟨F.symm h.1, by rw [Sym2.eq_swap]; exact h.2⟩
+  loopless v h := F.loopless v h.1
+
+private instance eraseLabelEdgeDecRel {n : ℕ} (F : SimpleGraph (Fin (n + 2)))
+    [DecidableRel F.Adj] : DecidableRel (eraseLabelEdge F).Adj :=
+  fun u v => inferInstanceAs (Decidable (F.Adj u v ∧ s(u, v) ≠ s((0 : Fin (n + 2)), 1)))
+
+/-- The erased graph has no label edge. -/
+private theorem eraseLabelEdge_not_adj_01 {n : ℕ} (F : SimpleGraph (Fin (n + 2))) :
+    ¬(eraseLabelEdge F).Adj 0 1 := fun h => h.2 rfl
+
+/-- If F has no label edge, erasing is the identity. -/
+private theorem eraseLabelEdge_of_not_adj {n : ℕ} {F : SimpleGraph (Fin (n + 2))}
+    (h : ¬F.Adj 0 1) : eraseLabelEdge F = F := by
+  ext u v; constructor
+  · exact fun ⟨hadj, _⟩ => hadj
+  · intro hadj; refine ⟨hadj, ?_⟩
+    intro heq
+    rw [Sym2.eq_iff] at heq
+    rcases heq with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+    · exact absurd hadj h
+    · exact absurd (F.symm hadj) h
+
+/-- The edge finset of `eraseLabelEdge F` is `F.edgeFinset.erase s(0, 1)`. -/
+private theorem eraseLabelEdge_edgeFinset {n : ℕ} (F : SimpleGraph (Fin (n + 2)))
+    [DecidableRel F.Adj] :
+    (eraseLabelEdge F).edgeFinset = F.edgeFinset.erase s((0 : Fin (n + 2)), 1) := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, Finset.mem_erase, ne_eq]
+  constructor
+  · intro he
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [SimpleGraph.mem_edgeSet] at he ⊢
+      exact ⟨he.2, he.1⟩
+  · intro ⟨hne, he⟩
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [SimpleGraph.mem_edgeSet] at he ⊢
+      exact ⟨he, hne⟩
+
+/-- Factorization: every 2-labeled evaluation factors as the label-edge indicator times the
+evaluation of the erased graph. If F has the label edge, the indicator is `c i j`;
+if not, the indicator is 1 (and the erased graph equals F). -/
+private theorem labeledEval2_eraseLabelEdge {k : ℕ} (n : ℕ)
+    (F : SimpleGraph (Fin (n + 2))) [DecidableRel F.Adj]
+    (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+    (w : Fin k → ℝ) (i j : Fin k)
+    (hF : F.Adj 0 1) :
+    labeledEval2 n F c w i j = c i j * labeledEval2 n (eraseLabelEdge F) c w i j := by
+  simp only [labeledEval2]
+  rw [Finset.mul_sum]; congr 1; ext σ
+  -- Factor the edge product: split off the label edge s(0, 1)
+  have hmem : s((0 : Fin (n + 2)), 1) ∈ F.edgeFinset :=
+    SimpleGraph.mem_edgeFinset.mpr hF
+  rw [← Finset.mul_prod_erase F.edgeFinset _ hmem, ← eraseLabelEdge_edgeFinset]
+  -- The label edge contributes c(τ 0, τ 1) = c(i, j)
+  have hlabel : c ((Fin.cons i (Fin.cons j σ) : Fin (n + 2) → Fin k)
+        (Quot.out s((0 : Fin (n + 2)), 1)).1)
+      ((Fin.cons i (Fin.cons j σ) : Fin (n + 2) → Fin k)
+        (Quot.out s((0 : Fin (n + 2)), 1)).2) = c i j := by
+    have hout := Quot.out_eq s((0 : Fin (n + 2)), (1 : Fin (n + 2)))
+    rw [Sym2.mk_eq_mk_iff] at hout
+    rcases hout with h | h
+    · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]; rfl
+    · simp only [Prod.swap] at h
+      rw [congr_arg Prod.fst h, congr_arg Prod.snd h]; exact hc j i
+  rw [hlabel]; ring
+
 /-! ### Twin-free bijection -/
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
