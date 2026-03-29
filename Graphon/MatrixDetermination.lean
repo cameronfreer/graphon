@@ -3530,6 +3530,109 @@ private theorem labeledEval2_eraseLabelEdge {k : ℕ} (n : ℕ)
       rw [congr_arg Prod.fst h, congr_arg Prod.snd h]; exact hc j i
   rw [hlabel]; ring
 
+/-! ### Edge-free gluing -/
+
+/-- Shift embedding for gluing: maps F₁'s vertices into the glued graph.
+Identity on all vertices (F₁'s labels 0,1 stay at 0,1; unlabeled v+2 stays at v+2). -/
+private def glueShift1 (n₁ n₂ : ℕ) : Fin (n₁ + 2) ↪ Fin (n₁ + n₂ + 2) where
+  toFun v := ⟨v.val, by omega⟩
+  inj' a b h := Fin.ext (by simpa using h)
+
+/-- Shift embedding for gluing: maps F₂'s vertices into the glued graph.
+Labels 0,1 stay fixed; unlabeled v+2 maps to v+n₁+2. -/
+private def glueShift2 (n₁ n₂ : ℕ) : Fin (n₂ + 2) ↪ Fin (n₁ + n₂ + 2) where
+  toFun v :=
+    if v.val = 0 then ⟨0, by omega⟩
+    else if v.val = 1 then ⟨1, by omega⟩
+    else ⟨v.val + n₁, by omega⟩
+  inj' a b h := by
+    have ha := a.isLt; have hb := b.isLt
+    have hv := congrArg Fin.val h
+    dsimp only [Function.Embedding.coeFn_mk] at hv
+    simp only [apply_ite Fin.val, Fin.val_mk] at hv
+    split_ifs at hv <;> exact Fin.ext (by omega)
+
+/-- Glue two edge-free 2-labeled graphs at their shared labels 0 and 1.
+The result has n₁+n₂ unlabeled vertices. F₁'s unlabeled vertices occupy
+positions 2,...,n₁+1 and F₂'s occupy positions n₁+2,...,n₁+n₂+1. -/
+private def edgeFreeGlue2 (n₁ n₂ : ℕ)
+    (F₁ : SimpleGraph (Fin (n₁ + 2))) (F₂ : SimpleGraph (Fin (n₂ + 2))) :
+    SimpleGraph (Fin (n₁ + n₂ + 2)) where
+  Adj u v :=
+    (∃ a b : Fin (n₁ + 2), F₁.Adj a b ∧
+      glueShift1 n₁ n₂ a = u ∧ glueShift1 n₁ n₂ b = v) ∨
+    (∃ a b : Fin (n₂ + 2), F₂.Adj a b ∧
+      glueShift2 n₁ n₂ a = u ∧ glueShift2 n₁ n₂ b = v)
+  symm := by
+    intro u v h
+    rcases h with ⟨a, b, hadj, ha, hb⟩ | ⟨a, b, hadj, ha, hb⟩
+    · left; exact ⟨b, a, F₁.symm hadj, hb, ha⟩
+    · right; exact ⟨b, a, F₂.symm hadj, hb, ha⟩
+  loopless := by
+    intro v h
+    rcases h with ⟨a, b, hadj, ha, hb⟩ | ⟨a, b, hadj, ha, hb⟩
+    · have := (glueShift1 n₁ n₂).injective (ha ▸ hb)
+      exact F₁.loopless _ (this ▸ hadj)
+    · have := (glueShift2 n₁ n₂).injective (ha ▸ hb)
+      exact F₂.loopless _ (this ▸ hadj)
+
+private instance edgeFreeGlue2DecRel (n₁ n₂ : ℕ) (F₁ : SimpleGraph (Fin (n₁ + 2)))
+    (F₂ : SimpleGraph (Fin (n₂ + 2))) [DecidableRel F₁.Adj] [DecidableRel F₂.Adj] :
+    DecidableRel (edgeFreeGlue2 n₁ n₂ F₁ F₂).Adj :=
+  fun u v => inferInstanceAs (Decidable
+    ((∃ a b : Fin (n₁ + 2), F₁.Adj a b ∧
+        glueShift1 n₁ n₂ a = u ∧ glueShift1 n₁ n₂ b = v) ∨
+     (∃ a b : Fin (n₂ + 2), F₂.Adj a b ∧
+        glueShift2 n₁ n₂ a = u ∧ glueShift2 n₁ n₂ b = v)))
+
+/-- If both inputs are edge-free, the glued graph is also edge-free. -/
+private theorem edgeFreeGlue2_no_label_edge (n₁ n₂ : ℕ)
+    (F₁ : SimpleGraph (Fin (n₁ + 2))) (F₂ : SimpleGraph (Fin (n₂ + 2)))
+    (h₁ : ¬F₁.Adj 0 1) (h₂ : ¬F₂.Adj 0 1) :
+    ¬(edgeFreeGlue2 n₁ n₂ F₁ F₂).Adj 0 1 := by
+  intro h
+  rcases h with ⟨a, b, hadj, ha, hb⟩ | ⟨a, b, hadj, ha, hb⟩
+  · -- From F₁: glueShift1 a = 0 and glueShift1 b = 1
+    have hav : a.val = 0 := by
+      have := congrArg Fin.val ha; simp only [glueShift1, Fin.val_mk] at this; simpa
+    have hbv : b.val = 1 := by
+      have := congrArg Fin.val hb; simp only [glueShift1, Fin.val_mk] at this; simpa
+    rw [show a = (0 : Fin (n₁ + 2)) from Fin.ext hav,
+        show b = (1 : Fin (n₁ + 2)) from Fin.ext (by simpa)] at hadj
+    exact h₁ hadj
+  · -- From F₂: glueShift2 a = 0 and glueShift2 b = 1
+    have ha0 : a = 0 := by
+      have hh : glueShift2 n₁ n₂ a = 0 := ha
+      simp only [glueShift2, Function.Embedding.coeFn_mk] at hh
+      split_ifs at hh with h0 h1
+      · exact Fin.ext h0
+      · have := congrArg Fin.val hh; simp only [Fin.val_mk, Fin.val_zero] at this; omega
+      · have := congrArg Fin.val hh; simp only [Fin.val_mk, Fin.val_zero] at this; omega
+    have hb1 : b = 1 := by
+      have hh : glueShift2 n₁ n₂ b = 1 := hb
+      simp only [glueShift2, Function.Embedding.coeFn_mk] at hh
+      split_ifs at hh with h0 h1
+      · have := congrArg Fin.val hh; simp only [Fin.val_mk, Fin.val_zero, Fin.val_one] at this; omega
+      · exact Fin.ext h1
+      · have := congrArg Fin.val hh; simp only [Fin.val_mk, Fin.val_one] at this; omega
+    rw [ha0, hb1] at hadj; exact h₂ hadj
+
+/-- Edge-free gluing realizes pointwise multiplication of 2-labeled evaluations:
+`labeledEval2(glue F₁ F₂)(i,j) = labeledEval2(F₁)(i,j) * labeledEval2(F₂)(i,j)`.
+
+This is the correct replacement for the false full-gluing theorem: it works because
+both F₁ and F₂ are edge-free, so the glued graph has no duplicate edges.
+This is the key multiplicative closure for the evaluation span. -/
+private theorem labeledEval2_edgeFreeGlue2 {k : ℕ} (n₁ n₂ : ℕ)
+    (F₁ : SimpleGraph (Fin (n₁ + 2))) (F₂ : SimpleGraph (Fin (n₂ + 2)))
+    [DecidableRel F₁.Adj] [DecidableRel F₂.Adj]
+    (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+    (w : Fin k → ℝ) (i j : Fin k)
+    (h₁ : ¬F₁.Adj 0 1) (h₂ : ¬F₂.Adj 0 1) :
+    labeledEval2 (n₁ + n₂) (edgeFreeGlue2 n₁ n₂ F₁ F₂) c w i j =
+      labeledEval2 n₁ F₁ c w i j * labeledEval2 n₂ F₂ c w i j := by
+  sorry
+
 /-! ### Twin-free bijection -/
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
