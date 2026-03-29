@@ -3346,6 +3346,115 @@ private theorem eval2Span_le_pairInvariantSubspace {T : ℕ}
   rw [hf]
   exact @labeledEval2_isPairInvariant T B W n F inst
 
+/-! ### Pair-orbit decomposition -/
+
+/-- Two pairs are in the same orbit under Aut(B,W) if some automorphism sends one to the other. -/
+private def pairOrbitRel {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (p q : Fin T × Fin T) : Prop :=
+  ∃ π : Equiv.Perm (Fin T), IsWeightedAutomorphism B W π ∧ π p.1 = q.1 ∧ π p.2 = q.2
+
+private theorem pairOrbitRel_refl {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (p : Fin T × Fin T) : pairOrbitRel B W p p :=
+  ⟨1, ⟨fun _ => by simp, fun _ _ => by simp⟩, by simp, by simp⟩
+
+private theorem pairOrbitRel_symm {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {p q : Fin T × Fin T} (h : pairOrbitRel B W p q) : pairOrbitRel B W q p := by
+  obtain ⟨π, ⟨hw, hc⟩, h1, h2⟩ := h
+  refine ⟨π⁻¹, ⟨fun i => ?_, fun i j => ?_⟩, ?_, ?_⟩
+  · rw [← hw (π⁻¹ i), Equiv.Perm.apply_inv_self]
+  · rw [← hc (π⁻¹ i) (π⁻¹ j)]; simp
+  · rw [← h1, Equiv.Perm.inv_apply_self]
+  · rw [← h2, Equiv.Perm.inv_apply_self]
+
+private theorem pairOrbitRel_trans {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {p q r : Fin T × Fin T}
+    (h1 : pairOrbitRel B W p q) (h2 : pairOrbitRel B W q r) : pairOrbitRel B W p r := by
+  obtain ⟨π₁, ⟨hw₁, hc₁⟩, ha₁, hb₁⟩ := h1
+  obtain ⟨π₂, ⟨hw₂, hc₂⟩, ha₂, hb₂⟩ := h2
+  exact ⟨π₁.trans π₂,
+    ⟨fun i => by simp only [Equiv.trans_apply]; rw [hw₂, hw₁],
+     fun i j => by simp only [Equiv.trans_apply]; rw [hc₂, hc₁]⟩,
+    by simp only [Equiv.trans_apply]; rw [ha₁, ha₂],
+    by simp only [Equiv.trans_apply]; rw [hb₁, hb₂]⟩
+
+private def pairOrbitSetoid {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    Setoid (Fin T × Fin T) where
+  r := pairOrbitRel B W
+  iseqv := ⟨pairOrbitRel_refl B W, fun h => pairOrbitRel_symm h, fun h1 h2 =>
+    pairOrbitRel_trans h1 h2⟩
+
+/-- Invariant functions are constant on orbits. -/
+private theorem invariant_constant_on_orbits {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {f : Fin T → Fin T → ℝ} (hf : f ∈ pairInvariantSubspace B W)
+    {p q : Fin T × Fin T} (h : pairOrbitRel B W p q) : f p.1 p.2 = f q.1 q.2 := by
+  obtain ⟨π, haut, h1, h2⟩ := h
+  rw [← h1, ← h2]
+  exact (hf π haut p.1 p.2).symm
+
+open Classical in
+/-- The orbit indicator: 1 on the orbit of p, 0 elsewhere. -/
+private noncomputable def pairOrbitIndicator {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (o : Quotient (pairOrbitSetoid B W)) : Fin T → Fin T → ℝ :=
+  fun i j => if Quotient.mk (pairOrbitSetoid B W) (i, j) = o then 1 else 0
+
+/-- Orbit indicators are pair-invariant. -/
+private theorem pairOrbitIndicator_invariant {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (o : Quotient (pairOrbitSetoid B W)) :
+    pairOrbitIndicator B W o ∈ pairInvariantSubspace B W := by
+  intro π haut i j
+  simp only [pairOrbitIndicator]
+  rw [@Quotient.sound _ (pairOrbitSetoid B W) (i, j) (π i, π j) ⟨π, haut, rfl, rfl⟩]
+
+/-- The set of all orbit indicator functions. -/
+private def orbitIndicatorSet {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    Set (Fin T → Fin T → ℝ) :=
+  Set.range (pairOrbitIndicator B W)
+
+open Classical in
+/-- Every invariant function is a linear combination of orbit indicators.
+This is the key decomposition: f = ∑_O f(rep_O) · 1_O. -/
+private theorem mem_pairInvariantSubspace_of_orbitIndicator_span {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {f : Fin T → Fin T → ℝ} (hf : f ∈ pairInvariantSubspace B W) :
+    f ∈ Submodule.span ℝ (orbitIndicatorSet B W) := by
+  -- f = ∑_o f(rep_o) • orbitIndicator o
+  rw [show f = ∑ o : Quotient (pairOrbitSetoid B W),
+      (f (Quotient.out o).1 (Quotient.out o).2) • pairOrbitIndicator B W o from ?_]
+  · exact Submodule.sum_mem _ fun o _ =>
+      Submodule.smul_mem _ _ (Submodule.subset_span ⟨o, rfl⟩)
+  · ext i j
+    simp only [Finset.sum_apply, Pi.smul_apply, smul_eq_mul, pairOrbitIndicator]
+    rw [Finset.sum_eq_single (Quotient.mk (pairOrbitSetoid B W) (i, j))]
+    · simp only [ite_true, eq_self_iff_true, mul_one]
+      exact (invariant_constant_on_orbits hf
+        (@Quotient.exact _ (pairOrbitSetoid B W) _ _ (Quotient.out_eq ⟦(i, j)⟧))).symm
+    · intro b _ hne; simp [Ne.symm hne]
+    · intro h; exact absurd (Finset.mem_univ _) h
+
+/-- The pair-invariant subspace equals the span of orbit indicators. -/
+private theorem pairInvariantSubspace_eq_span_orbitIndicators {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    pairInvariantSubspace B W = Submodule.span ℝ (orbitIndicatorSet B W) := by
+  apply le_antisymm
+  · intro f hf; exact mem_pairInvariantSubspace_of_orbitIndicator_span hf
+  · apply Submodule.span_le.mpr
+    intro f hf
+    obtain ⟨o, rfl⟩ := hf
+    exact pairOrbitIndicator_invariant B W o
+
+/-- To prove pairInvariantSubspace ≤ eval2Span, it suffices to show every orbit indicator
+is in eval2Span. -/
+private theorem pairInvariantSubspace_le_of_orbitIndicators {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (h : ∀ o : Quotient (pairOrbitSetoid B W),
+      pairOrbitIndicator B W o ∈ eval2Span B W) :
+    pairInvariantSubspace B W ≤ eval2Span B W := by
+  rw [pairInvariantSubspace_eq_span_orbitIndicators]
+  apply Submodule.span_le.mpr
+  intro f hf
+  obtain ⟨o, rfl⟩ := hf
+  exact h o
+
 /-! ### Twin-free bijection -/
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
