@@ -3843,6 +3843,152 @@ private theorem labeledEval2_edgeFreeGlue2 {k : ℕ} (n₁ n₂ : ℕ)
     congr 1; ext e; rw [h_emb₂ σ (Quot.out e).1, h_emb₂ σ (Quot.out e).2]
   rw [h_wt, h_edges, h_f1, h_f2]; ring
 
+/-! ### Edge-free evaluation algebra -/
+
+/-- The set of 2-labeled evaluation functions coming from edge-free graphs
+(those with `¬F.Adj 0 1`). -/
+private def edgeFreeEvalSet {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    Set (Fin T → Fin T → ℝ) :=
+  {f | ∃ (n : ℕ) (F : SimpleGraph (Fin (n + 2))) (_ : DecidableRel F.Adj) (_ : ¬F.Adj 0 1),
+    f = fun i j => @labeledEval2 T n F ‹_› B W i j}
+
+/-- The linear span of all edge-free 2-labeled evaluation functions. -/
+private noncomputable def edgeFreeEvalSpan {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    Submodule ℝ (Fin T → Fin T → ℝ) :=
+  Submodule.span ℝ (edgeFreeEvalSet B W)
+
+/-- Adds the label edge {0, 1} to a 2-labeled graph. -/
+private def addLabelEdge {n : ℕ} (F : SimpleGraph (Fin (n + 2))) :
+    SimpleGraph (Fin (n + 2)) where
+  Adj u v := F.Adj u v ∨ s(u, v) = s((0 : Fin (n + 2)), 1)
+  symm u v h := by
+    rcases h with h | h
+    · exact Or.inl (F.symm h)
+    · exact Or.inr (by rwa [Sym2.eq_swap])
+  loopless v h := by
+    rcases h with h | h
+    · exact F.loopless v h
+    · have := Sym2.eq_iff.mp h
+      rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> simp_all
+
+private instance addLabelEdgeDecRel {n : ℕ} (F : SimpleGraph (Fin (n + 2)))
+    [DecidableRel F.Adj] : DecidableRel (addLabelEdge F).Adj :=
+  fun u v => inferInstanceAs (Decidable (F.Adj u v ∨ s(u, v) = s((0 : Fin (n + 2)), 1)))
+
+/-- `leftAttach2` preserves edge-freeness: if F has no label edge, neither does
+`leftAttach2 n F`. -/
+private theorem leftAttach2_edgeFree {n : ℕ} (F : SimpleGraph (Fin (n + 2)))
+    (h : ¬F.Adj 0 1) : ¬(leftAttach2 n F).Adj 0 1 := by
+  intro hadj
+  -- Unfold: leftAttach2.Adj 0 1 is bridge∨bridge∨shifted
+  change ((0 : Fin ((n + 1) + 2)).val = 0 ∧ (1 : Fin ((n + 1) + 2)).val = 2) ∨
+    ((0 : Fin ((n + 1) + 2)).val = 2 ∧ (1 : Fin ((n + 1) + 2)).val = 0) ∨
+    (∃ a b : Fin (n + 2), F.Adj a b ∧
+      leftAttach2Shift n a = 0 ∧ leftAttach2Shift n b = 1) at hadj
+  rcases hadj with ⟨_, hv⟩ | ⟨hu, _⟩ | ⟨a, b, hadj_ab, ha, hb⟩
+  · -- 0.val = 0 ∧ 1.val = 2: contradicts 1.val = 1 ≠ 2
+    simp at hv
+  · -- 0.val = 2: contradicts 0.val = 0
+    simp at hu
+  · -- shifted case: leftAttach2Shift outputs ≥ 1 (specifically: 2, 1, or ≥3); never 0
+    -- ha : leftAttach2Shift n a = (0 : Fin ((n+1)+2)), so its val = 0
+    have ha_val : (leftAttach2Shift n a).val = 0 := by
+      have := congrArg Fin.val ha; simpa using this
+    simp only [leftAttach2Shift, Function.Embedding.coeFn_mk] at ha_val
+    -- After split_ifs: val = 2, 1, or a.val+1 — none equals 0
+    split_ifs at ha_val <;> simp_all
+
+/-- `rightAttach2` preserves edge-freeness: if F has no label edge, neither does
+`rightAttach2 n F`. -/
+private theorem rightAttach2_edgeFree {n : ℕ} (F : SimpleGraph (Fin (n + 2)))
+    (h : ¬F.Adj 0 1) : ¬(rightAttach2 n F).Adj 0 1 := by
+  intro hadj
+  change ((0 : Fin ((n + 1) + 2)).val = 1 ∧ (1 : Fin ((n + 1) + 2)).val = 2) ∨
+    ((0 : Fin ((n + 1) + 2)).val = 2 ∧ (1 : Fin ((n + 1) + 2)).val = 1) ∨
+    (∃ a b : Fin (n + 2), F.Adj a b ∧
+      rightAttach2Shift n a = 0 ∧ rightAttach2Shift n b = 1) at hadj
+  rcases hadj with ⟨hu, _⟩ | ⟨hu, _⟩ | ⟨a, b, hadj_ab, ha, hb⟩
+  · -- 0.val = 1: contradiction
+    simp at hu
+  · -- 0.val = 2: contradiction
+    simp at hu
+  · -- shifted case: rightAttach2Shift maps 0↦0, 1↦2, v+2↦v+3; never outputs 1
+    -- hb : rightAttach2Shift n b = (1 : Fin ((n+1)+2)), so its val = 1
+    have hb_val : (rightAttach2Shift n b).val = 1 := by
+      have := congrArg Fin.val hb; simpa using this
+    simp only [rightAttach2Shift, Function.Embedding.coeFn_mk] at hb_val
+    -- After split_ifs: val = 0, 2, or b.val+1 — none equals 1 when b.val ≠ 0,1
+    split_ifs at hb_val <;> simp_all
+
+/-- `addLabelEdge F` has the label edge `0 -- 1`. -/
+private theorem addLabelEdge_adj_01 {n : ℕ} (F : SimpleGraph (Fin (n + 2))) :
+    (addLabelEdge F).Adj 0 1 :=
+  Or.inr rfl
+
+/-- Erasing the label edge from `addLabelEdge F` recovers F, provided F was edge-free. -/
+private theorem eraseLabelEdge_addLabelEdge {n : ℕ} (F : SimpleGraph (Fin (n + 2)))
+    (h : ¬F.Adj 0 1) : eraseLabelEdge (addLabelEdge F) = F := by
+  ext u v
+  simp only [eraseLabelEdge, addLabelEdge]
+  constructor
+  · rintro ⟨hadj | heq, hne⟩
+    · exact hadj
+    · -- heq : s(u,v) = s(0,1), hne : s(u,v) ≠ s(0,1) — contradiction
+      exact absurd heq hne
+  · intro hadj
+    refine ⟨Or.inl hadj, ?_⟩
+    intro heq
+    rw [Sym2.eq_iff] at heq
+    rcases heq with ⟨rfl, rfl⟩ | ⟨rfl, rfl⟩
+    · exact absurd hadj h
+    · exact absurd (F.symm hadj) h
+
+/-- For an edge-free graph F, `labeledEval2 (addLabelEdge F) = B i j * labeledEval2 F`. -/
+private theorem labeledEval2_addLabelEdge {k : ℕ} (n : ℕ)
+    (F : SimpleGraph (Fin (n + 2))) [DecidableRel F.Adj]
+    (B : Fin k → Fin k → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin k → ℝ) (i j : Fin k)
+    (h : ¬F.Adj 0 1) :
+    @labeledEval2 k n (addLabelEdge F) (addLabelEdgeDecRel F) B W i j =
+      B i j * labeledEval2 n F B W i j := by
+  rw [labeledEval2_eraseLabelEdge n (addLabelEdge F) B hB W i j (addLabelEdge_adj_01 F)]
+  -- Now goal: B i j * labeledEval2 n (eraseLabelEdge (addLabelEdge F)) B W i j =
+  --           B i j * labeledEval2 n F B W i j
+  congr 1
+  -- eraseLabelEdge (addLabelEdge F) = F, so their evals agree
+  have heq : eraseLabelEdge (addLabelEdge F) = F := eraseLabelEdge_addLabelEdge F h
+  simp only [labeledEval2]
+  -- Use heq to rewrite the edgeFinset in the product
+  have hedge : (eraseLabelEdge (addLabelEdge F)).edgeFinset = F.edgeFinset :=
+    SimpleGraph.edgeFinset_inj.mpr heq
+  congr 1; ext σ; congr 1
+  apply Finset.prod_congr hedge
+  intros; rfl
+
+/-- The constant function `1` is in `edgeFreeEvalSpan`: it arises as the evaluation
+of the empty graph `⊥ : SimpleGraph (Fin 2)`. -/
+private theorem one_mem_edgeFreeEvalSpan {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    (fun _ _ => (1 : ℝ)) ∈ edgeFreeEvalSpan B W := by
+  apply Submodule.subset_span
+  refine ⟨0, ⊥, inferInstance, by simp [SimpleGraph.bot_adj], ?_⟩
+  ext i j
+  simp only [labeledEval2]
+  simp only [Fintype.sum_unique, Fintype.prod_empty, one_mul]
+  -- goal: 1 = ∏ e ∈ (⊥ : SimpleGraph (Fin 2)).edgeFinset, B (...) (...)
+  -- The bot graph has no edges, so the product is 1
+  symm
+  apply Finset.prod_eq_one
+  intro e he
+  exact absurd he (by simp [SimpleGraph.mem_edgeFinset, SimpleGraph.bot_adj])
+
+/-- The edge-free evaluation span is contained in the full evaluation span. -/
+private theorem edgeFreeEvalSpan_le_eval2Span {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    edgeFreeEvalSpan B W ≤ eval2Span B W := by
+  apply Submodule.span_le.mpr
+  intro f ⟨n, F, inst, _, hf⟩
+  apply Submodule.subset_span
+  exact ⟨n, F, inst, hf⟩
+
 /-! ### Twin-free bijection -/
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
