@@ -3617,6 +3617,143 @@ private theorem edgeFreeGlue2_no_label_edge (n₁ n₂ : ℕ)
       · have := congrArg Fin.val hh; simp only [Fin.val_mk, Fin.val_one] at this; omega
     rw [ha0, hb1] at hadj; exact h₂ hadj
 
+/-- The edge finset of `edgeFreeGlue2` is the union of the shifted edge finsets. -/
+private theorem edgeFreeGlue2_edgeFinset (n₁ n₂ : ℕ)
+    (F₁ : SimpleGraph (Fin (n₁ + 2))) (F₂ : SimpleGraph (Fin (n₂ + 2)))
+    [DecidableRel F₁.Adj] [DecidableRel F₂.Adj] :
+    (edgeFreeGlue2 n₁ n₂ F₁ F₂).edgeFinset =
+      F₁.edgeFinset.map (glueShift1 n₁ n₂).sym2Map ∪
+      F₂.edgeFinset.map (glueShift2 n₁ n₂).sym2Map := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, Finset.mem_union, Finset.mem_map,
+    Function.Embedding.sym2Map_apply]
+  constructor
+  · intro he
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      change ((∃ x y : Fin (n₁ + 2), F₁.Adj x y ∧
+          glueShift1 n₁ n₂ x = a ∧ glueShift1 n₁ n₂ y = b) ∨
+        (∃ x y : Fin (n₂ + 2), F₂.Adj x y ∧
+          glueShift2 n₁ n₂ x = a ∧ glueShift2 n₁ n₂ y = b)) at he
+      rcases he with ⟨x, y, hadj, hx, hy⟩ | ⟨x, y, hadj, hx, hy⟩
+      · left; exact ⟨s(x, y), hadj,
+          by simp only [Sym2.map_pair_eq]; exact Sym2.eq_iff.mpr (Or.inl ⟨hx, hy⟩)⟩
+      · right; exact ⟨s(x, y), hadj,
+          by simp only [Sym2.map_pair_eq]; exact Sym2.eq_iff.mpr (Or.inl ⟨hx, hy⟩)⟩
+  · intro he
+    rcases he with ⟨e', he', rfl⟩ | ⟨e', he', rfl⟩
+    · induction e' using Sym2.ind with
+      | _ a b =>
+        simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at he'
+        simp only [Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        exact Or.inl ⟨a, b, he', rfl, rfl⟩
+    · induction e' using Sym2.ind with
+      | _ a b =>
+        simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at he'
+        simp only [Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        exact Or.inr ⟨a, b, he', rfl, rfl⟩
+
+/-- The two shifted edge finsets in `edgeFreeGlue2` are disjoint (using h₁, h₂). -/
+private theorem edgeFreeGlue2_edgeFinset_disjoint (n₁ n₂ : ℕ)
+    (F₁ : SimpleGraph (Fin (n₁ + 2))) (F₂ : SimpleGraph (Fin (n₂ + 2)))
+    [DecidableRel F₁.Adj] [DecidableRel F₂.Adj]
+    (h₁ : ¬F₁.Adj 0 1) (h₂ : ¬F₂.Adj 0 1) :
+    Disjoint
+      (F₁.edgeFinset.map (glueShift1 n₁ n₂).sym2Map)
+      (F₂.edgeFinset.map (glueShift2 n₁ n₂).sym2Map) := by
+  rw [Finset.disjoint_left]
+  intro e he₁ he₂
+  rw [Finset.mem_map] at he₁ he₂
+  obtain ⟨e₁, he₁', rfl⟩ := he₁
+  obtain ⟨e₂, he₂', he₂eq⟩ := he₂
+  induction e₁ using Sym2.ind with
+  | _ a₁ b₁ =>
+    rw [SimpleGraph.mem_edgeFinset] at he₁'
+    induction e₂ using Sym2.ind with
+    | _ a₂ b₂ =>
+      rw [SimpleGraph.mem_edgeFinset] at he₂'
+      have ha₁ := a₁.isLt; have hb₁ := b₁.isLt
+      have ha₂ := a₂.isLt; have hb₂ := b₂.isLt
+      -- Unfold both shifts and work at val level
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq,
+        glueShift1, glueShift2, Function.Embedding.coeFn_mk] at he₂eq
+      -- Extract the Fin equalities from the Sym2 equality
+      -- Helper: ⟨x.val,_⟩ equals glueShift2 image implies x.val ∈ {0,1}
+      have small_of_fin_eq : ∀ (x : Fin (n₁ + 2)) (y : Fin (n₂ + 2)),
+          (⟨x.val, by omega⟩ : Fin (n₁ + n₂ + 2)) =
+            (if y.val = 0 then ⟨0, by omega⟩
+             else if y.val = 1 then ⟨1, by omega⟩
+             else ⟨y.val + n₁, by omega⟩ : Fin (n₁ + n₂ + 2)) →
+          x.val = 0 ∨ x.val = 1 := fun x y heq => by
+        have hx := x.isLt; have hy := y.isLt
+        rw [Fin.ext_iff] at heq
+        simp only [apply_ite Fin.val] at heq
+        split_ifs at heq <;> omega
+      -- In case 1: glueShift2(a₂)=glueShift1(a₁) and glueShift2(b₂)=glueShift1(b₁)
+      -- In case 2: glueShift2(a₂)=glueShift1(b₁) and glueShift2(b₂)=glueShift1(a₁)
+      have finish : ∀ (ha : a₁.val = 0 ∨ a₁.val = 1) (hb : b₁.val = 0 ∨ b₁.val = 1),
+          False := fun ha hb => by
+        rcases ha with ha₁0 | ha₁1 <;> rcases hb with hb₁0 | hb₁1
+        · have heq : a₁ = b₁ := Fin.ext (by omega)
+          exact absurd (heq ▸ he₁') (F₁.loopless a₁)
+        · rw [show a₁ = (0 : Fin (n₁ + 2)) from Fin.ext ha₁0,
+              show b₁ = (1 : Fin (n₁ + 2)) from Fin.ext hb₁1] at he₁'
+          exact h₁ he₁'
+        · rw [show a₁ = (1 : Fin (n₁ + 2)) from Fin.ext ha₁1,
+              show b₁ = (0 : Fin (n₁ + 2)) from Fin.ext hb₁0] at he₁'
+          exact h₁ (F₁.symm he₁')
+        · have heq : a₁ = b₁ := Fin.ext (by omega)
+          exact absurd (heq ▸ he₁') (F₁.loopless a₁)
+      rcases Sym2.eq_iff.mp he₂eq with ⟨h1, h2⟩ | ⟨h1, h2⟩
+      · -- h1 : glueShift2(a₂) = glueShift1(a₁), h2 : glueShift2(b₂) = glueShift1(b₁)
+        exact finish (small_of_fin_eq a₁ _ h1.symm) (small_of_fin_eq b₁ _ h2.symm)
+      · -- h1 : glueShift2(a₂) = glueShift1(b₁), h2 : glueShift2(b₂) = glueShift1(a₁)
+        exact finish (small_of_fin_eq a₁ _ h2.symm) (small_of_fin_eq b₁ _ h1.symm)
+
+/-- The edge product over `edgeFreeGlue2` factors into the product from F₁ times F₂. -/
+private theorem edgeFreeGlue2_prod_eq {k : ℕ} (n₁ n₂ : ℕ)
+    (F₁ : SimpleGraph (Fin (n₁ + 2))) (F₂ : SimpleGraph (Fin (n₂ + 2)))
+    [DecidableRel F₁.Adj] [DecidableRel F₂.Adj]
+    (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+    (h₁ : ¬F₁.Adj 0 1) (h₂ : ¬F₂.Adj 0 1)
+    (σ : Fin (n₁ + n₂ + 2) → Fin k) :
+    ∏ e ∈ (edgeFreeGlue2 n₁ n₂ F₁ F₂).edgeFinset,
+      c (σ (Quot.out e).1) (σ (Quot.out e).2) =
+    (∏ e ∈ F₁.edgeFinset,
+      c (σ (glueShift1 n₁ n₂ (Quot.out e).1))
+        (σ (glueShift1 n₁ n₂ (Quot.out e).2))) *
+    (∏ e ∈ F₂.edgeFinset,
+      c (σ (glueShift2 n₁ n₂ (Quot.out e).1))
+        (σ (glueShift2 n₁ n₂ (Quot.out e).2))) := by
+  rw [edgeFreeGlue2_edgeFinset,
+    Finset.prod_union (edgeFreeGlue2_edgeFinset_disjoint n₁ n₂ F₁ F₂ h₁ h₂)]
+  have prod_map_eq : ∀ {n : ℕ} {F : SimpleGraph (Fin (n + 2))} [DecidableRel F.Adj]
+      (emb : Fin (n + 2) ↪ Fin (n₁ + n₂ + 2)),
+      ∏ e ∈ F.edgeFinset.map emb.sym2Map,
+        c (σ (Quot.out e).1) (σ (Quot.out e).2) =
+      ∏ e ∈ F.edgeFinset,
+        c (σ (emb (Quot.out e).1)) (σ (emb (Quot.out e).2)) := by
+    intro n F _ emb
+    rw [Finset.prod_map]
+    congr 1; ext e
+    induction e using Sym2.ind with
+    | _ a b =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, Function.comp_apply]
+      have hout_new := Quot.out_eq (Sym2.map emb s(a, b))
+      rw [Sym2.map_pair_eq] at hout_new
+      have hout_old := Quot.out_eq s(a, b)
+      rw [Sym2.mk_eq_mk_iff] at hout_new hout_old
+      rcases hout_new with hn | hn <;> rcases hout_old with ho | ho <;> {
+        rw [congr_arg Prod.fst hn, congr_arg Prod.snd hn,
+            congr_arg Prod.fst ho, congr_arg Prod.snd ho]
+        try rfl
+        try exact hc _ _
+      }
+  congr 1
+  · exact prod_map_eq (glueShift1 n₁ n₂)
+  · exact prod_map_eq (glueShift2 n₁ n₂)
+
 /-- Edge-free gluing realizes pointwise multiplication of 2-labeled evaluations:
 `labeledEval2(glue F₁ F₂)(i,j) = labeledEval2(F₁)(i,j) * labeledEval2(F₂)(i,j)`.
 
@@ -3631,7 +3768,80 @@ private theorem labeledEval2_edgeFreeGlue2 {k : ℕ} (n₁ n₂ : ℕ)
     (h₁ : ¬F₁.Adj 0 1) (h₂ : ¬F₂.Adj 0 1) :
     labeledEval2 (n₁ + n₂) (edgeFreeGlue2 n₁ n₂ F₁ F₂) c w i j =
       labeledEval2 n₁ F₁ c w i j * labeledEval2 n₂ F₂ c w i j := by
-  sorry
+  simp only [labeledEval2]
+  -- Coloring correspondence for glueShift1:
+  -- τ (glueShift1 n₁ n₂ v) = τ₁ v where τ₁ = Fin.cons i (Fin.cons j σ₁), σ₁ = castAdd
+  have h_emb₁ : ∀ σ : Fin (n₁ + n₂) → Fin k, ∀ v : Fin (n₁ + 2),
+      (Fin.cons i (Fin.cons j σ) : Fin (n₁ + n₂ + 2) → Fin k) (glueShift1 n₁ n₂ v) =
+      (Fin.cons i (Fin.cons j (fun r => σ (Fin.castAdd n₂ r))) : Fin (n₁ + 2) → Fin k) v := by
+    intro σ v
+    rcases Fin.eq_zero_or_eq_succ v with rfl | ⟨v', rfl⟩
+    · simp [glueShift1, Fin.cons_zero]
+    · rcases Fin.eq_zero_or_eq_succ v' with rfl | ⟨u, rfl⟩
+      · simp [glueShift1, Fin.cons_zero]
+      · -- glueShift1 (Fin.succ (Fin.succ u)) = Fin.succ (Fin.succ (castAdd n₂ u))
+        have hshift : glueShift1 n₁ n₂ (Fin.succ (Fin.succ u)) =
+            Fin.succ (Fin.succ (Fin.castAdd n₂ u)) := by
+          ext; simp [glueShift1, Fin.val_succ, Fin.castAdd]
+        rw [hshift, Fin.cons_succ, Fin.cons_succ, Fin.cons_succ, Fin.cons_succ]
+  -- Coloring correspondence for glueShift2:
+  -- τ (glueShift2 n₁ n₂ v) = τ₂ v where τ₂ = Fin.cons i (Fin.cons j σ₂), σ₂ = natAdd
+  have h_emb₂ : ∀ σ : Fin (n₁ + n₂) → Fin k, ∀ v : Fin (n₂ + 2),
+      (Fin.cons i (Fin.cons j σ) : Fin (n₁ + n₂ + 2) → Fin k) (glueShift2 n₁ n₂ v) =
+      (Fin.cons i (Fin.cons j (fun r => σ (Fin.natAdd n₁ r))) : Fin (n₂ + 2) → Fin k) v := by
+    intro σ v
+    rcases Fin.eq_zero_or_eq_succ v with rfl | ⟨v', rfl⟩
+    · simp [glueShift2, Fin.cons_zero]
+    · rcases Fin.eq_zero_or_eq_succ v' with rfl | ⟨u, rfl⟩
+      · simp [glueShift2, Fin.cons_zero]
+      · -- glueShift2 (Fin.succ (Fin.succ u)) = Fin.succ (Fin.succ (natAdd n₁ u))
+        have hshift : glueShift2 n₁ n₂ (Fin.succ (Fin.succ u)) =
+            Fin.succ (Fin.succ (Fin.natAdd n₁ u)) := by
+          ext; simp [glueShift2, Fin.val_succ, Fin.natAdd]; omega
+        rw [hshift, Fin.cons_succ, Fin.cons_succ, Fin.cons_succ, Fin.cons_succ]
+  -- Factor the LHS sum as product of two sums via sum_piFinAdd_factor
+  rw [← sum_piFinAdd_factor
+    (f := fun τ₁ : Fin n₁ → Fin k => (∏ v : Fin n₁, w (τ₁ v)) *
+      ∏ e ∈ F₁.edgeFinset,
+        c ((Fin.cons i (Fin.cons j τ₁) : Fin (n₁ + 2) → Fin k) (Quot.out e).1)
+          ((Fin.cons i (Fin.cons j τ₁) : Fin (n₁ + 2) → Fin k) (Quot.out e).2))
+    (g := fun τ₂ : Fin n₂ → Fin k => (∏ v : Fin n₂, w (τ₂ v)) *
+      ∏ e ∈ F₂.edgeFinset,
+        c ((Fin.cons i (Fin.cons j τ₂) : Fin (n₂ + 2) → Fin k) (Quot.out e).1)
+          ((Fin.cons i (Fin.cons j τ₂) : Fin (n₂ + 2) → Fin k) (Quot.out e).2))]
+  -- Show each summand matches
+  congr 1; ext σ
+  -- Decompose the weight product
+  have h_wt : ∏ v : Fin (n₁ + n₂), w (σ v) =
+      (∏ v : Fin n₁, w (σ (Fin.castAdd n₂ v))) *
+      (∏ v : Fin n₂, w (σ (Fin.natAdd n₁ v))) :=
+    Fin.prod_univ_add (fun v => w (σ v))
+  -- Decompose the edge product
+  have h_edges := edgeFreeGlue2_prod_eq n₁ n₂ F₁ F₂ c hc h₁ h₂
+    (Fin.cons i (Fin.cons j σ))
+  have h_f1 : (∏ e ∈ F₁.edgeFinset,
+      c ((Fin.cons i (Fin.cons j σ) : Fin (n₁ + n₂ + 2) → Fin k)
+          (glueShift1 n₁ n₂ (Quot.out e).1))
+        ((Fin.cons i (Fin.cons j σ) : Fin (n₁ + n₂ + 2) → Fin k)
+          (glueShift1 n₁ n₂ (Quot.out e).2))) =
+    (∏ e ∈ F₁.edgeFinset,
+      c ((Fin.cons i (Fin.cons j (fun r => σ (Fin.castAdd n₂ r))) : Fin (n₁ + 2) → Fin k)
+          (Quot.out e).1)
+        ((Fin.cons i (Fin.cons j (fun r => σ (Fin.castAdd n₂ r))) : Fin (n₁ + 2) → Fin k)
+          (Quot.out e).2)) := by
+    congr 1; ext e; rw [h_emb₁ σ (Quot.out e).1, h_emb₁ σ (Quot.out e).2]
+  have h_f2 : (∏ e ∈ F₂.edgeFinset,
+      c ((Fin.cons i (Fin.cons j σ) : Fin (n₁ + n₂ + 2) → Fin k)
+          (glueShift2 n₁ n₂ (Quot.out e).1))
+        ((Fin.cons i (Fin.cons j σ) : Fin (n₁ + n₂ + 2) → Fin k)
+          (glueShift2 n₁ n₂ (Quot.out e).2))) =
+    (∏ e ∈ F₂.edgeFinset,
+      c ((Fin.cons i (Fin.cons j (fun r => σ (Fin.natAdd n₁ r))) : Fin (n₂ + 2) → Fin k)
+          (Quot.out e).1)
+        ((Fin.cons i (Fin.cons j (fun r => σ (Fin.natAdd n₁ r))) : Fin (n₂ + 2) → Fin k)
+          (Quot.out e).2)) := by
+    congr 1; ext e; rw [h_emb₂ σ (Quot.out e).1, h_emb₂ σ (Quot.out e).2]
+  rw [h_wt, h_edges, h_f1, h_f2]; ring
 
 /-! ### Twin-free bijection -/
 
