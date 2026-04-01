@@ -4189,6 +4189,89 @@ private theorem eval2Span_eq_edgeFree_sup_mulByEdge {T : ℕ}
   · exact sup_le (edgeFreeEvalSpan_le_eval2Span B W)
       (mulByEdge_edgeFreeEvalSpan_le_eval2Span B W hB)
 
+/-! ### CT-1 bridge: indistinguishability relations -/
+
+/-- Two pairs are edge-free indistinguishable if every edge-free 2-labeled evaluation
+agrees on them. -/
+private def edgeFreeIndist {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (p q : Fin T × Fin T) : Prop :=
+  ∀ f ∈ edgeFreeEvalSet B W, f p.1 p.2 = f q.1 q.2
+
+/-- Two pairs are fully indistinguishable if they are edge-free indistinguishable
+and have the same direct edge value B(i,j). -/
+private def fullIndist {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (p q : Fin T × Fin T) : Prop :=
+  edgeFreeIndist B W p q ∧ B p.1 p.2 = B q.1 q.2
+
+private theorem edgeFreeIndist_refl {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (p : Fin T × Fin T) : edgeFreeIndist B W p p :=
+  fun _ _ => rfl
+
+private theorem edgeFreeIndist_symm {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {p q : Fin T × Fin T} (h : edgeFreeIndist B W p q) : edgeFreeIndist B W q p :=
+  fun f hf => (h f hf).symm
+
+private theorem fullIndist_refl {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (p : Fin T × Fin T) : fullIndist B W p p :=
+  ⟨edgeFreeIndist_refl B W p, rfl⟩
+
+/-- Functions in edgeFreeEvalSpan are constant on edgeFreeIndist-classes. -/
+private theorem edgeFreeEvalSpan_constant_on_edgeFreeIndist {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {f : Fin T → Fin T → ℝ} (hf : f ∈ edgeFreeEvalSpan B W)
+    {p q : Fin T × Fin T} (hpq : edgeFreeIndist B W p q) :
+    f p.1 p.2 = f q.1 q.2 := by
+  refine Submodule.span_induction ?_ ?_ ?_ ?_ hf
+  · intro g hg; exact hpq g hg
+  · rfl
+  · intro g₁ g₂ _ _ h₁ h₂; simp only [Pi.add_apply]; rw [h₁, h₂]
+  · intro r g _ hg; simp only [Pi.smul_apply, smul_eq_mul]; rw [hg]
+
+/-- Functions in eval2Span are constant on fullIndist-classes. -/
+private theorem eval2Span_constant_on_fullIndist {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i)
+    {f : Fin T → Fin T → ℝ} (hf : f ∈ eval2Span B W)
+    {p q : Fin T × Fin T} (hpq : fullIndist B W p q) :
+    f p.1 p.2 = f q.1 q.2 := by
+  rw [eval2Span_eq_edgeFree_sup_mulByEdge B W hB] at hf
+  obtain ⟨g, hg, h, hh, rfl⟩ := Submodule.mem_sup.mp hf
+  obtain ⟨h₀, hh₀, rfl⟩ := Submodule.mem_map.mp hh
+  simp only [Pi.add_apply, mulByEdgeLM, LinearMap.coe_mk, AddHom.coe_mk]
+  rw [edgeFreeEvalSpan_constant_on_edgeFreeIndist hg hpq.1,
+      edgeFreeEvalSpan_constant_on_edgeFreeIndist hh₀ hpq.1, hpq.2]
+
+/-- Orbit-related pairs are fully indistinguishable (easy direction of CT-1). -/
+private theorem pairOrbitRel_implies_fullIndist {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i)
+    {p q : Fin T × Fin T} (h : pairOrbitRel B W p q) :
+    fullIndist B W p q := by
+  obtain ⟨π, ⟨hw, hc⟩, h1, h2⟩ := h
+  constructor
+  · -- Edge-free indist: each edge-free evaluation is Aut-invariant
+    intro f ⟨n, F, inst, hF, hf⟩
+    rw [hf, ← h1, ← h2]
+    exact (labeledEval2_perm_eq n F B W π hc hw p.1 p.2).symm
+  · -- Edge value preserved by automorphism
+    rw [← h1, ← h2]; exact (hc p.1 p.2).symm
+
+/-- **CT-1 hard direction**: fully indistinguishable pairs are in the same orbit.
+
+This is the genuine mathematical frontier of the orbit theorem. It says: if two pairs
+(i₁,j₁) and (i₂,j₂) agree on every edge-free 2-labeled evaluation AND have the same
+direct edge value B(i₁,j₁) = B(i₂,j₂), then they are related by an Aut(B,W)-permutation.
+
+**Sorry traces to**: connection matrix theory (Lovász [2012] §5.2). The proof requires
+showing that graph evaluations generate enough algebraic structure to separate orbits.
+This is strictly upstream of `twinfree_bijection_of_weightedHomSum_eq`. -/
+private theorem fullIndist_implies_pairOrbitRel {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    {p q : Fin T × Fin T} (h : fullIndist B W p q) :
+    pairOrbitRel B W p q := by
+  sorry
+
 /-! ### Twin-free bijection -/
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
