@@ -3989,6 +3989,206 @@ private theorem edgeFreeEvalSpan_le_eval2Span {T : ℕ} (B : Fin T → Fin T →
   apply Submodule.subset_span
   exact ⟨n, F, inst, hf⟩
 
+/-! ### Evaluation algebra closure operators -/
+
+/-- Left adjacency as a linear map: `(L f)(i,j) = ∑ a, W a * B i a * f a j` -/
+private noncomputable def leftAdjLM {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    (Fin T → Fin T → ℝ) →ₗ[ℝ] (Fin T → Fin T → ℝ) where
+  toFun f i j := ∑ a, W a * B i a * f a j
+  map_add' f g := by ext i j; simp [Finset.sum_add_distrib, mul_add]
+  map_smul' r f := by
+    funext i j
+    simp only [smul_eq_mul, Pi.smul_apply, RingHom.id_apply]
+    rw [Finset.mul_sum]; congr 1; ext a; ring
+
+/-- Right adjacency as a linear map: `(R f)(i,j) = ∑ a, W a * f i a * B a j` -/
+private noncomputable def rightAdjLM {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    (Fin T → Fin T → ℝ) →ₗ[ℝ] (Fin T → Fin T → ℝ) where
+  toFun f i j := ∑ a, W a * f i a * B a j
+  map_add' f g := by ext i j; simp [Finset.sum_add_distrib, mul_add, add_mul]
+  map_smul' r f := by
+    funext i j
+    simp only [smul_eq_mul, Pi.smul_apply, RingHom.id_apply]
+    rw [Finset.mul_sum]; congr 1; ext a; ring
+
+/-- Multiplication by edge observable as a linear map: `(E · f)(i,j) = B i j * f i j` -/
+private noncomputable def mulByEdgeLM {T : ℕ} (B : Fin T → Fin T → ℝ) :
+    (Fin T → Fin T → ℝ) →ₗ[ℝ] (Fin T → Fin T → ℝ) where
+  toFun f i j := B i j * f i j
+  map_add' f g := by ext i j; simp [mul_add]
+  map_smul' r f := by ext i j; simp [mul_comm r, mul_assoc]
+
+/-- Applying `leftAdjLM` to an edge-free generator yields another element of
+`edgeFreeEvalSpan`: it corresponds to `leftAttach2 n F`. -/
+private theorem leftAdj_generator_mem {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i)
+    {n : ℕ} {F : SimpleGraph (Fin (n + 2))} [inst : DecidableRel F.Adj] (hF : ¬F.Adj 0 1) :
+    leftAdjLM B W (fun a b => @labeledEval2 T n F inst B W a b) ∈ edgeFreeEvalSpan B W := by
+  have h : ∀ i j, leftAdjLM B W (fun a b => @labeledEval2 T n F inst B W a b) i j =
+      @labeledEval2 T (n + 1) (leftAttach2 n F) inferInstance B W i j := by
+    intro i j
+    simp only [leftAdjLM, LinearMap.coe_mk, AddHom.coe_mk]
+    exact (labeledEval2_leftAttach n F B hB W i j).symm
+  rw [show leftAdjLM B W (fun a b => @labeledEval2 T n F inst B W a b) =
+      fun i j => @labeledEval2 T (n + 1) (leftAttach2 n F) inferInstance B W i j from
+    funext fun i => funext fun j => h i j]
+  exact Submodule.subset_span ⟨n + 1, leftAttach2 n F, inferInstance, leftAttach2_edgeFree F hF, rfl⟩
+
+/-- Applying `rightAdjLM` to an edge-free generator yields another element of
+`edgeFreeEvalSpan`: it corresponds to `rightAttach2 n F`. -/
+private theorem rightAdj_generator_mem {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i)
+    {n : ℕ} {F : SimpleGraph (Fin (n + 2))} [inst : DecidableRel F.Adj] (hF : ¬F.Adj 0 1) :
+    rightAdjLM B W (fun a b => @labeledEval2 T n F inst B W a b) ∈ edgeFreeEvalSpan B W := by
+  have h : ∀ i j, rightAdjLM B W (fun a b => @labeledEval2 T n F inst B W a b) i j =
+      @labeledEval2 T (n + 1) (rightAttach2 n F) inferInstance B W i j := by
+    intro i j
+    simp only [rightAdjLM, LinearMap.coe_mk, AddHom.coe_mk]
+    have heq : ∑ a : Fin T, W a * @labeledEval2 T n F inst B W i a * B a j =
+        ∑ a : Fin T, W a * B a j * @labeledEval2 T n F inst B W i a := by
+      congr 1; ext a; ring
+    rw [heq, ← labeledEval2_rightAttach n F B hB W i j]
+  rw [show rightAdjLM B W (fun a b => @labeledEval2 T n F inst B W a b) =
+      fun i j => @labeledEval2 T (n + 1) (rightAttach2 n F) inferInstance B W i j from
+    funext fun i => funext fun j => h i j]
+  exact Submodule.subset_span
+    ⟨n + 1, rightAttach2 n F, inferInstance, rightAttach2_edgeFree F hF, rfl⟩
+
+/-- Pointwise product of two edge-free generators is in `edgeFreeEvalSpan`. -/
+private theorem mul_generators_mem {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i)
+    {n₁ n₂ : ℕ} {F₁ : SimpleGraph (Fin (n₁ + 2))} {F₂ : SimpleGraph (Fin (n₂ + 2))}
+    [inst₁ : DecidableRel F₁.Adj] [inst₂ : DecidableRel F₂.Adj]
+    (hF₁ : ¬F₁.Adj 0 1) (hF₂ : ¬F₂.Adj 0 1) :
+    (fun i j => @labeledEval2 T n₁ F₁ inst₁ B W i j * @labeledEval2 T n₂ F₂ inst₂ B W i j) ∈
+      edgeFreeEvalSpan B W := by
+  have h : ∀ i j,
+      @labeledEval2 T n₁ F₁ inst₁ B W i j * @labeledEval2 T n₂ F₂ inst₂ B W i j =
+      @labeledEval2 T (n₁ + n₂) (edgeFreeGlue2 n₁ n₂ F₁ F₂) inferInstance B W i j := by
+    intro i j
+    exact (labeledEval2_edgeFreeGlue2 n₁ n₂ F₁ F₂ B hB W i j hF₁ hF₂).symm
+  rw [show (fun i j =>
+        @labeledEval2 T n₁ F₁ inst₁ B W i j * @labeledEval2 T n₂ F₂ inst₂ B W i j) =
+      fun i j => @labeledEval2 T (n₁ + n₂) (edgeFreeGlue2 n₁ n₂ F₁ F₂) inferInstance B W i j from
+    funext fun i => funext fun j => h i j]
+  exact Submodule.subset_span
+    ⟨n₁ + n₂, edgeFreeGlue2 n₁ n₂ F₁ F₂, inferInstance,
+     edgeFreeGlue2_no_label_edge n₁ n₂ F₁ F₂ hF₁ hF₂, rfl⟩
+
+/-- Applying `mulByEdgeLM B` to an edge-free generator yields an element of `eval2Span`:
+it corresponds to `addLabelEdge F`. -/
+private theorem mulByEdge_generator_mem {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i)
+    {n : ℕ} {F : SimpleGraph (Fin (n + 2))} [inst : DecidableRel F.Adj] (hF : ¬F.Adj 0 1) :
+    mulByEdgeLM B (fun a b => @labeledEval2 T n F inst B W a b) ∈ eval2Span B W := by
+  have h : ∀ i j, mulByEdgeLM B (fun a b => @labeledEval2 T n F inst B W a b) i j =
+      @labeledEval2 T n (addLabelEdge F) (addLabelEdgeDecRel F) B W i j := by
+    intro i j
+    simp only [mulByEdgeLM, LinearMap.coe_mk, AddHom.coe_mk]
+    exact (labeledEval2_addLabelEdge n F B hB W i j hF).symm
+  rw [show mulByEdgeLM B (fun a b => @labeledEval2 T n F inst B W a b) =
+      fun i j => @labeledEval2 T n (addLabelEdge F) (addLabelEdgeDecRel F) B W i j from
+    funext fun i => funext fun j => h i j]
+  exact Submodule.subset_span ⟨n, addLabelEdge F, addLabelEdgeDecRel F, rfl⟩
+
+/-- The image of `edgeFreeEvalSpan` under `leftAdjLM` is contained in `edgeFreeEvalSpan`. -/
+private theorem leftAdj_mem_edgeFreeEvalSpan {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) :
+    Submodule.map (leftAdjLM B W) (edgeFreeEvalSpan B W) ≤ edgeFreeEvalSpan B W := by
+  rw [edgeFreeEvalSpan, Submodule.map_span_le]
+  rintro g ⟨n, F, inst, hF, hg⟩
+  rw [hg]; exact leftAdj_generator_mem B W hB hF
+
+/-- The image of `edgeFreeEvalSpan` under `rightAdjLM` is contained in `edgeFreeEvalSpan`. -/
+private theorem rightAdj_mem_edgeFreeEvalSpan {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) :
+    Submodule.map (rightAdjLM B W) (edgeFreeEvalSpan B W) ≤ edgeFreeEvalSpan B W := by
+  rw [edgeFreeEvalSpan, Submodule.map_span_le]
+  rintro g ⟨n, F, inst, hF, hg⟩
+  rw [hg]; exact rightAdj_generator_mem B W hB hF
+
+/-- `edgeFreeEvalSpan` is closed under pointwise multiplication. -/
+private theorem mul_mem_edgeFreeEvalSpan {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i)
+    {f g : Fin T → Fin T → ℝ}
+    (hf : f ∈ edgeFreeEvalSpan B W) (hg : g ∈ edgeFreeEvalSpan B W) :
+    (fun i j => f i j * g i j) ∈ edgeFreeEvalSpan B W := by
+  refine Submodule.span_induction ?_ ?_ ?_ ?_ hf
+  · rintro f₀ ⟨n₁, F₁, inst₁, hF₁, hf₀⟩
+    rw [hf₀]
+    refine Submodule.span_induction ?_ ?_ ?_ ?_ hg
+    · rintro g₀ ⟨n₂, F₂, inst₂, hF₂, hg₀⟩
+      rw [hg₀]; exact mul_generators_mem B W hB hF₁ hF₂
+    · show (fun i j => @labeledEval2 T n₁ F₁ inst₁ B W i j * (0 : Fin T → Fin T → ℝ) i j) ∈ _
+      simp only [Pi.zero_apply, mul_zero]; exact Submodule.zero_mem _
+    · intro g₁ g₂ _ _ hg₁ hg₂
+      have : (fun i j => @labeledEval2 T n₁ F₁ inst₁ B W i j * (g₁ + g₂) i j) =
+          (fun i j => @labeledEval2 T n₁ F₁ inst₁ B W i j * g₁ i j) +
+          (fun i j => @labeledEval2 T n₁ F₁ inst₁ B W i j * g₂ i j) := by
+        ext i j; simp [Pi.add_apply, mul_add]
+      rw [this]; exact Submodule.add_mem _ hg₁ hg₂
+    · intro r g₁ _ hg₁
+      have : (fun i j => @labeledEval2 T n₁ F₁ inst₁ B W i j * (r • g₁) i j) =
+          r • (fun i j => @labeledEval2 T n₁ F₁ inst₁ B W i j * g₁ i j) := by
+        ext i j; simp [Pi.smul_apply, smul_eq_mul, mul_comm, mul_assoc, mul_left_comm]
+      rw [this]; exact Submodule.smul_mem _ r hg₁
+  · show (fun i j => (0 : Fin T → Fin T → ℝ) i j * g i j) ∈ _
+    simp only [Pi.zero_apply, zero_mul]; exact Submodule.zero_mem _
+  · intro f₁ f₂ _ _ hf₁ hf₂
+    have : (fun i j => (f₁ + f₂) i j * g i j) =
+        (fun i j => f₁ i j * g i j) + (fun i j => f₂ i j * g i j) := by
+      ext i j; simp [Pi.add_apply, add_mul]
+    rw [this]; exact Submodule.add_mem _ hf₁ hf₂
+  · intro r f₁ _ hf₁
+    have : (fun i j => (r • f₁) i j * g i j) = r • (fun i j => f₁ i j * g i j) := by
+      ext i j; simp [Pi.smul_apply, smul_eq_mul, mul_assoc]
+    rw [this]; exact Submodule.smul_mem _ r hf₁
+
+/-- The image of `edgeFreeEvalSpan` under `mulByEdgeLM B` is contained in `eval2Span`. -/
+private theorem mulByEdge_edgeFreeEvalSpan_le_eval2Span {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) :
+    Submodule.map (mulByEdgeLM B) (edgeFreeEvalSpan B W) ≤ eval2Span B W := by
+  rw [edgeFreeEvalSpan, Submodule.map_span_le]
+  rintro g ⟨n, F, inst, hF, hg⟩
+  rw [hg]; exact mulByEdge_generator_mem B W hB hF
+
+/-- Every generator of `eval2Span` is in
+`edgeFreeEvalSpan ⊔ map (mulByEdgeLM B) edgeFreeEvalSpan`. -/
+private theorem eval2Span_le_edgeFree_sup_mulByEdge {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) :
+    eval2Span B W ≤
+      edgeFreeEvalSpan B W ⊔ Submodule.map (mulByEdgeLM B) (edgeFreeEvalSpan B W) := by
+  apply Submodule.span_le.mpr
+  rintro f ⟨n, F, inst, hf⟩
+  rw [hf]
+  rcases Classical.em (F.Adj 0 1) with h01 | h01
+  · -- F has the label edge; factor as B(i,j) * eval(eraseLabelEdge F)
+    rw [SetLike.mem_coe, Submodule.mem_sup]
+    refine ⟨0, Submodule.zero_mem _, _, ?_, zero_add _⟩
+    apply Submodule.mem_map.mpr
+    refine ⟨fun a b => @labeledEval2 T n (eraseLabelEdge F) (eraseLabelEdgeDecRel F) B W a b,
+      Submodule.subset_span ⟨n, eraseLabelEdge F, eraseLabelEdgeDecRel F,
+        eraseLabelEdge_not_adj_01 F, rfl⟩, ?_⟩
+    ext i j
+    simp only [mulByEdgeLM, LinearMap.coe_mk, AddHom.coe_mk]
+    exact (@labeledEval2_eraseLabelEdge T n F inst B hB W i j h01).symm
+  · -- F is edge-free; directly in edgeFreeEvalSpan
+    rw [SetLike.mem_coe, Submodule.mem_sup]
+    exact ⟨_, Submodule.subset_span ⟨n, F, inst, h01, rfl⟩, 0, Submodule.zero_mem _, add_zero _⟩
+
+/-- Decomposition: `eval2Span = edgeFreeEvalSpan ⊔ map (mulByEdgeLM B) edgeFreeEvalSpan`. -/
+private theorem eval2Span_eq_edgeFree_sup_mulByEdge {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) :
+    eval2Span B W =
+      edgeFreeEvalSpan B W ⊔ Submodule.map (mulByEdgeLM B) (edgeFreeEvalSpan B W) := by
+  apply le_antisymm
+  · exact eval2Span_le_edgeFree_sup_mulByEdge B W hB
+  · exact sup_le (edgeFreeEvalSpan_le_eval2Span B W)
+      (mulByEdge_edgeFreeEvalSpan_le_eval2Span B W hB)
+
 /-! ### Twin-free bijection -/
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
