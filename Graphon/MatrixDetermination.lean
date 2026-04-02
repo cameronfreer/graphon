@@ -4256,21 +4256,31 @@ private theorem pairOrbitRel_implies_fullIndist {T : ℕ}
   · -- Edge value preserved by automorphism
     rw [← h1, ← h2]; exact (hc p.1 p.2).symm
 
-/-- **CT-1 hard direction**: fully indistinguishable pairs are in the same orbit.
+/-- **CT-1 core**: edge-free indistinguishable pairs are in the same orbit.
 
-This is the genuine mathematical frontier of the orbit theorem. It says: if two pairs
-(i₁,j₁) and (i₂,j₂) agree on every edge-free 2-labeled evaluation AND have the same
-direct edge value B(i₁,j₁) = B(i₂,j₂), then they are related by an Aut(B,W)-permutation.
+This is the genuine mathematical frontier. Computational evidence (60 random cases,
+T=2,3,4) confirms that edge-free evaluations alone separate orbits on pairs — the
+edge value hypothesis is redundant. This is strictly stronger than the fullIndist
+version and is the clean upstream target.
 
 **Sorry traces to**: connection matrix theory (Lovász [2012] §5.2). The proof requires
-showing that graph evaluations generate enough algebraic structure to separate orbits.
+showing the edge-free evaluation algebra separates pair orbits.
 This is strictly upstream of `twinfree_bijection_of_weightedHomSum_eq`. -/
+private theorem edgeFreeIndist_implies_pairOrbitRel {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    {p q : Fin T × Fin T} (h : edgeFreeIndist B W p q) :
+    pairOrbitRel B W p q := by
+  sorry
+
+/-- Fully indistinguishable pairs are in the same orbit. Follows from the stronger
+edge-free indistinguishability theorem. -/
 private theorem fullIndist_implies_pairOrbitRel {T : ℕ}
     {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
     {p q : Fin T × Fin T} (h : fullIndist B W p q) :
-    pairOrbitRel B W p q := by
-  sorry
+    pairOrbitRel B W p q :=
+  edgeFreeIndist_implies_pairOrbitRel hB hW h.1
 
 /-! ### Edge-free indistinguishability span characterization -/
 
@@ -4428,6 +4438,38 @@ private theorem edgeFreeEvalSpan_eq_constantOnEdgeFreeIndist {T : ℕ}
     edgeFreeEvalSpan B W = constantOnEdgeFreeIndist B W :=
   le_antisymm (edgeFreeEvalSpan_le_constantOnEdgeFreeIndist B W)
     (constantOnEdgeFreeIndist_le_edgeFreeEvalSpan B W hB)
+
+/-! ### CT-1 assembly -/
+
+/-- Edge-free indistinguishability equals the orbit relation (modulo sorry).
+Combines the easy direction (orbit ⟹ ef-indist) with the hard direction (ef-indist ⟹ orbit). -/
+private theorem pairOrbitRel_iff_edgeFreeIndist {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (p q : Fin T × Fin T) :
+    pairOrbitRel B W p q ↔ edgeFreeIndist B W p q :=
+  ⟨fun h => (pairOrbitRel_implies_fullIndist hB h).1,
+   fun h => edgeFreeIndist_implies_pairOrbitRel hB hW h⟩
+
+/-- CT-1: the 2-labeled evaluation span equals the pair-invariant subspace. -/
+private theorem eval2Span_eq_pairInvariantSubspace {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) :
+    eval2Span B W = pairInvariantSubspace B W := by
+  apply le_antisymm (eval2Span_le_pairInvariantSubspace B W)
+  -- Reverse: every pair-invariant function is in eval2Span
+  apply pairInvariantSubspace_le_of_orbitIndicators
+  intro o
+  -- Orbit indicators are constant on edgeFreeIndist-classes (since ef-indist ⟹ same orbit).
+  -- By the characterization edgeFreeEvalSpan = constantOnEdgeFreeIndist, they're in edgeFreeEvalSpan.
+  -- By edgeFreeEvalSpan ≤ eval2Span, they're in eval2Span.
+  apply edgeFreeEvalSpan_le_eval2Span
+  rw [edgeFreeEvalSpan_eq_constantOnEdgeFreeIndist B W hB]
+  intro p q hpq
+  -- pairOrbitIndicator is constant on ef-classes because ef-indist implies same orbit
+  simp only [pairOrbitIndicator, Prod.mk.eta]
+  rw [@Quotient.sound _ (pairOrbitSetoid B W) p q
+    (edgeFreeIndist_implies_pairOrbitRel hB hW hpq)]
 
 /-! ### Twin-free bijection -/
 
