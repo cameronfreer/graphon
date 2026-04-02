@@ -4272,6 +4272,163 @@ private theorem fullIndist_implies_pairOrbitRel {T : ℕ}
     pairOrbitRel B W p q := by
   sorry
 
+/-! ### Edge-free indistinguishability span characterization -/
+
+private theorem edgeFreeIndist_trans {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {p q r : Fin T × Fin T} (hpq : edgeFreeIndist B W p q) (hqr : edgeFreeIndist B W q r) :
+    edgeFreeIndist B W p r :=
+  fun f hf => (hpq f hf).trans (hqr f hf)
+
+/-- The setoid induced by `edgeFreeIndist`. -/
+private def edgeFreeIndistSetoid {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    Setoid (Fin T × Fin T) where
+  r := edgeFreeIndist B W
+  iseqv := ⟨edgeFreeIndist_refl B W, fun h => edgeFreeIndist_symm h,
+    fun h1 h2 => edgeFreeIndist_trans h1 h2⟩
+
+/-- The submodule of functions constant on `edgeFreeIndist`-classes. -/
+private noncomputable def constantOnEdgeFreeIndist {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) : Submodule ℝ (Fin T → Fin T → ℝ) where
+  carrier := {f | ∀ p q, edgeFreeIndist B W p q → f p.1 p.2 = f q.1 q.2}
+  zero_mem' := fun _ _ _ => rfl
+  add_mem' {f g} hf hg p q hpq := by
+    simp only [Pi.add_apply]; rw [hf p q hpq, hg p q hpq]
+  smul_mem' r f hf p q hpq := by
+    simp only [Pi.smul_apply]; rw [hf p q hpq]
+
+/-- `edgeFreeEvalSpan` is contained in `constantOnEdgeFreeIndist`. -/
+private theorem edgeFreeEvalSpan_le_constantOnEdgeFreeIndist {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    edgeFreeEvalSpan B W ≤ constantOnEdgeFreeIndist B W := by
+  intro f hf p q hpq
+  exact edgeFreeEvalSpan_constant_on_edgeFreeIndist hf hpq
+
+/-- Pointwise product of finitely many elements of `edgeFreeEvalSpan` is in `edgeFreeEvalSpan`. -/
+private theorem prod_mem_edgeFreeEvalSpan {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) {ι : Type*} [DecidableEq ι] (s : Finset ι)
+    (f : ι → Fin T → Fin T → ℝ)
+    (hf : ∀ x ∈ s, f x ∈ edgeFreeEvalSpan B W) :
+    (fun i j => ∏ x ∈ s, f x i j) ∈ edgeFreeEvalSpan B W := by
+  induction s using Finset.induction with
+  | empty =>
+    have : (fun i j => ∏ x ∈ (∅ : Finset ι), f x i j) = fun _ _ => 1 := by ext; simp
+    rw [this]; exact one_mem_edgeFreeEvalSpan B W
+  | @insert a s' ha ih =>
+    simp only [Finset.prod_insert ha]
+    exact mul_mem_edgeFreeEvalSpan B W hB
+      (hf a (Finset.mem_insert_self a s'))
+      (ih (fun x hx => hf x (Finset.mem_insert_of_mem hx)))
+
+/-- A normalized affine function of a generator lies in `edgeFreeEvalSpan`. -/
+private theorem lagrange_factor_mem_edgeFreeEvalSpan {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (g : Fin T → Fin T → ℝ) (hg : g ∈ edgeFreeEvalSet B W) (a b : ℝ) :
+    (fun i j => (a - b)⁻¹ * (g i j - b)) ∈ edgeFreeEvalSpan B W := by
+  have hg_span : g ∈ edgeFreeEvalSpan B W := Submodule.subset_span hg
+  have heq : (fun i j => (a - b)⁻¹ * (g i j - b)) =
+      (a - b)⁻¹ • g + (-(a - b)⁻¹ * b) • (fun _ _ => (1 : ℝ)) := by
+    ext i j; simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul]; ring
+  rw [heq]
+  exact Submodule.add_mem _ (Submodule.smul_mem _ _ hg_span)
+    (Submodule.smul_mem _ _ (one_mem_edgeFreeEvalSpan B W))
+
+open Classical in
+/-- For each `edgeFreeIndist`-class, its indicator function (1 on class, 0 elsewhere)
+lies in `edgeFreeEvalSpan`, via Lagrange interpolation over quotient classes. -/
+private theorem edgeFreeIndist_class_indicator_mem {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (o : Quotient (edgeFreeIndistSetoid B W)) :
+    (fun i j => if Quotient.mk (edgeFreeIndistSetoid B W) (i, j) = o then 1 else 0) ∈
+      edgeFreeEvalSpan B W := by
+  set p₀ := o.out with hp₀_def
+  have sep : ∀ q : Quotient (edgeFreeIndistSetoid B W), q ≠ o →
+      ∃ g ∈ edgeFreeEvalSet B W, g p₀.1 p₀.2 ≠ g q.out.1 q.out.2 := by
+    intro q hqo
+    have hne : ¬ edgeFreeIndist B W p₀ q.out := by
+      intro h
+      apply hqo
+      have heq : Quotient.mk (edgeFreeIndistSetoid B W) q.out =
+                 Quotient.mk (edgeFreeIndistSetoid B W) p₀ :=
+        @Quotient.sound _ (edgeFreeIndistSetoid B W) _ _ (edgeFreeIndist_symm h)
+      rw [← Quotient.out_eq q, heq, hp₀_def]
+      exact Quotient.out_eq o
+    simp only [edgeFreeIndist] at hne
+    push_neg at hne
+    exact hne
+  let gSep : ∀ q : Quotient (edgeFreeIndistSetoid B W), q ≠ o → Fin T → Fin T → ℝ :=
+    fun q hqo => Classical.choose (sep q hqo)
+  have hSep_mem : ∀ q (hqo : q ≠ o), gSep q hqo ∈ edgeFreeEvalSet B W :=
+    fun q hqo => (Classical.choose_spec (sep q hqo)).1
+  have hSep_ne : ∀ q (hqo : q ≠ o),
+      gSep q hqo p₀.1 p₀.2 ≠ gSep q hqo q.out.1 q.out.2 :=
+    fun q hqo => (Classical.choose_spec (sep q hqo)).2
+  have lagFac_mem : ∀ q (hqo : q ≠ o),
+      (fun i j => (gSep q hqo p₀.1 p₀.2 - gSep q hqo q.out.1 q.out.2)⁻¹ *
+        (gSep q hqo i j - gSep q hqo q.out.1 q.out.2)) ∈ edgeFreeEvalSpan B W :=
+    fun q hqo => lagrange_factor_mem_edgeFreeEvalSpan B W (gSep q hqo)
+      (hSep_mem q hqo) _ _
+  have heq : (fun i j => if Quotient.mk (edgeFreeIndistSetoid B W) (i, j) = o then 1 else 0) =
+      fun i j => ∏ q ∈ Finset.univ.filter (fun q => q ≠ o),
+        (if h : q ≠ o then
+          (gSep q h p₀.1 p₀.2 - gSep q h q.out.1 q.out.2)⁻¹ *
+          (gSep q h i j - gSep q h q.out.1 q.out.2)
+        else 1) := by
+    ext i j
+    by_cases hor : Quotient.mk (edgeFreeIndistSetoid B W) (i, j) = o
+    · simp only [hor, ite_true]
+      symm
+      apply Finset.prod_eq_one
+      intro q hq
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hq
+      simp only [dif_pos hq]
+      have hind : edgeFreeIndist B W (i, j) p₀ :=
+        @Quotient.exact _ (edgeFreeIndistSetoid B W) _ _
+          (by rw [hor, hp₀_def]; exact (Quotient.out_eq o).symm)
+      rw [hind (gSep q hq) (hSep_mem q hq),
+          inv_mul_cancel₀ (sub_ne_zero.mpr (hSep_ne q hq))]
+    · simp only [hor, ite_false]
+      set r := Quotient.mk (edgeFreeIndistSetoid B W) (i, j)
+      symm
+      apply Finset.prod_eq_zero (Finset.mem_filter.mpr ⟨Finset.mem_univ r, hor⟩)
+      simp only [dif_pos hor]
+      have hind : edgeFreeIndist B W (i, j) r.out :=
+        @Quotient.exact _ (edgeFreeIndistSetoid B W) _ _ (Quotient.out_eq r).symm
+      rw [hind (gSep r hor) (hSep_mem r hor), sub_self, mul_zero]
+  rw [heq]
+  exact prod_mem_edgeFreeEvalSpan B W hB _ _ (fun q hq => by
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hq
+    simp only [dif_pos hq]
+    exact lagFac_mem q hq)
+
+open Classical in
+/-- Every function constant on `edgeFreeIndist`-classes is in `edgeFreeEvalSpan`.
+Decompose `f = ∑_o f(rep_o) • indicator_o` and use `edgeFreeIndist_class_indicator_mem`. -/
+private theorem constantOnEdgeFreeIndist_le_edgeFreeEvalSpan {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) :
+    constantOnEdgeFreeIndist B W ≤ edgeFreeEvalSpan B W := by
+  intro f hf
+  have hf_eq : ∀ p q : Fin T × Fin T, edgeFreeIndist B W p q → f p.1 p.2 = f q.1 q.2 := hf
+  rw [show f = ∑ o : Quotient (edgeFreeIndistSetoid B W),
+      (f o.out.1 o.out.2) •
+        (fun i j : Fin T => if Quotient.mk (edgeFreeIndistSetoid B W) (i, j) = o then (1 : ℝ) else 0)
+      from ?_]
+  · exact Submodule.sum_mem _ fun o _ =>
+      Submodule.smul_mem _ _ (edgeFreeIndist_class_indicator_mem B W hB o)
+  · ext i j
+    simp only [Finset.sum_apply, Pi.smul_apply, smul_eq_mul]
+    rw [Finset.sum_eq_single (Quotient.mk (edgeFreeIndistSetoid B W) (i, j))]
+    · simp only [ite_true, mul_one]
+      exact hf_eq (i, j) _ (@Quotient.exact _ (edgeFreeIndistSetoid B W) _ _ (Quotient.out_eq _).symm)
+    · intro q _ hne; simp [Ne.symm hne]
+    · intro h; exact absurd (Finset.mem_univ _) h
+
+/-- `edgeFreeEvalSpan` equals the submodule of functions constant on `edgeFreeIndist`-classes. -/
+private theorem edgeFreeEvalSpan_eq_constantOnEdgeFreeIndist {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) :
+    edgeFreeEvalSpan B W = constantOnEdgeFreeIndist B W :=
+  le_antisymm (edgeFreeEvalSpan_le_constantOnEdgeFreeIndist B W)
+    (constantOnEdgeFreeIndist_le_edgeFreeEvalSpan B W hB)
+
 /-! ### Twin-free bijection -/
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
