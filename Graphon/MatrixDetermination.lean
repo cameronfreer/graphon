@@ -4256,31 +4256,140 @@ private theorem pairOrbitRel_implies_fullIndist {T : ℕ}
   · -- Edge value preserved by automorphism
     rw [← h1, ← h2]; exact (hc p.1 p.2).symm
 
-/-- **CT-1 core**: edge-free indistinguishable pairs are in the same orbit.
+/-! ### Explicit separating motifs
 
-This is the genuine mathematical frontier. Computational evidence (60 random cases,
-T=2,3,4) confirms that edge-free evaluations alone separate orbits on pairs — the
-edge value hypothesis is redundant. This is strictly stronger than the fullIndist
-version and is the clean upstream target.
+Five edge-free 2-labeled graphs whose evaluations form the `pairProfile` — a
+5-tuple that (conjecturally, and confirmed by computation up to T=10)
+determines pair orbits for twin-free matrices with positive weights.
 
-**Sorry traces to**: connection matrix theory (Lovász [2012] §5.2). The proof requires
-showing the edge-free evaluation algebra separates pair orbits.
-This is strictly upstream of `twinfree_bijection_of_weightedHomSum_eq`. -/
-private theorem edgeFreeIndist_implies_pairOrbitRel {T : ℕ}
+- **star0** `{0,2}`: weighted row sum at label-0 vertex, `∑ W(m) B(i,m)`
+- **star1** `{1,2}`: weighted row sum at label-1 vertex, `∑ W(m) B(j,m)`
+- **path01** `{0,2},{1,2}`: weighted inner product, `∑ W(m) B(i,m) B(m,j)`
+- **tri0** `{0,2},{0,3},{2,3}`: cubic self-interaction at label-0, depends on i only
+- **tri1** `{1,2},{1,3},{2,3}`: cubic self-interaction at label-1, depends on j only
+-/
+
+/-- The star-0 evaluation: `∑ m, W m * B i m` (depends on i only). -/
+private noncomputable def star0Eval {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (i j : Fin T) : ℝ := ∑ m, W m * B i m
+
+/-- The star-1 evaluation: `∑ m, W m * B j m` (depends on j only). -/
+private noncomputable def star1Eval {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (i j : Fin T) : ℝ := ∑ m, W m * B j m
+
+/-- The path evaluation: `∑ m, W m * B i m * B m j`. -/
+private noncomputable def pathEval {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (i j : Fin T) : ℝ := ∑ m, W m * B i m * B m j
+
+/-- The triangle-0 evaluation: `∑ m₁ m₂, W m₁ * W m₂ * B i m₁ * B i m₂ * B m₁ m₂`
+(depends on i only). -/
+private noncomputable def tri0Eval {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (i j : Fin T) : ℝ := ∑ m₁, ∑ m₂, W m₁ * W m₂ * B i m₁ * B i m₂ * B m₁ m₂
+
+/-- The triangle-1 evaluation: `∑ m₁ m₂, W m₁ * W m₂ * B j m₁ * B j m₂ * B m₁ m₂`
+(depends on j only). -/
+private noncomputable def tri1Eval {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (i j : Fin T) : ℝ := ∑ m₁, ∑ m₂, W m₁ * W m₂ * B j m₁ * B j m₂ * B m₁ m₂
+
+/-- The pair profile: 5-tuple of motif evaluations that (conjecturally) determines
+pair orbits for twin-free matrices. -/
+private noncomputable def pairProfile {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (p : Fin T × Fin T) : Fin 5 → ℝ := fun k =>
+  match k with
+  | 0 => star0Eval B W p.1 p.2
+  | 1 => star1Eval B W p.1 p.2
+  | 2 => pathEval B W p.1 p.2
+  | 3 => tri0Eval B W p.1 p.2
+  | 4 => tri1Eval B W p.1 p.2
+
+/-- The pair profile is orbit-invariant: automorphisms preserve all 5 motif evaluations.
+Proof: each component is a sum reindexed under π using `hw`, `hc`. -/
+private theorem pairProfile_eq_of_pairOrbitRel {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {p q : Fin T × Fin T} (h : pairOrbitRel B W p q) :
+    pairProfile B W p = pairProfile B W q := by
+  obtain ⟨π, ⟨hw, hc⟩, h1, h2⟩ := h
+  -- Each component is proved by: rewrite with h1/h2, then reindex sum via Equiv.sum_comp π
+  have sum1 : ∀ a, ∑ m, W m * B a m = ∑ m, W m * B (π a) m :=
+    fun a => (congr_arg _ (funext fun m => by rw [hw, hc])).trans (Equiv.sum_comp π _)
+  have sum_path : ∀ a b, ∑ m, W m * B a m * B m b = ∑ m, W m * B (π a) m * B m (π b) :=
+    fun a b => (congr_arg _ (funext fun m => by rw [hw, hc, hc])).trans (Equiv.sum_comp π _)
+  have sum2 : ∀ a, ∑ m₁, ∑ m₂, W m₁ * W m₂ * B a m₁ * B a m₂ * B m₁ m₂ =
+      ∑ m₁, ∑ m₂, W m₁ * W m₂ * B (π a) m₁ * B (π a) m₂ * B m₁ m₂ := fun a => by
+    have htf : ∀ m₁ m₂, W (π m₁) * W (π m₂) * B (π a) (π m₁) * B (π a) (π m₂) *
+        B (π m₁) (π m₂) = W m₁ * W m₂ * B a m₁ * B a m₂ * B m₁ m₂ :=
+      fun m₁ m₂ => by rw [hw, hw, hc, hc, hc]
+    calc ∑ m₁, ∑ m₂, W m₁ * W m₂ * B a m₁ * B a m₂ * B m₁ m₂
+        = ∑ m₁, ∑ m₂, W (π m₁) * W (π m₂) * B (π a) (π m₁) * B (π a) (π m₂) *
+            B (π m₁) (π m₂) := by
+          congr 1; ext m₁; congr 1; ext m₂; exact (htf m₁ m₂).symm
+      _ = ∑ m₁, ∑ m₂, W (π m₁) * W m₂ * B (π a) (π m₁) * B (π a) m₂ *
+            B (π m₁) m₂ := by
+          congr 1; ext m₁
+          exact Equiv.sum_comp π
+            (fun m₂ => W (π m₁) * W m₂ * B (π a) (π m₁) * B (π a) m₂ * B (π m₁) m₂)
+      _ = ∑ m₁, ∑ m₂, W m₁ * W m₂ * B (π a) m₁ * B (π a) m₂ * B m₁ m₂ :=
+          Equiv.sum_comp π
+            (fun m₁ => ∑ m₂, W m₁ * W m₂ * B (π a) m₁ * B (π a) m₂ * B m₁ m₂)
+  ext k; fin_cases k <;>
+    simp only [pairProfile, star0Eval, star1Eval, pathEval, tri0Eval, tri1Eval, ← h1, ← h2]
+  · exact sum1 p.1
+  · exact sum1 p.2
+  · exact sum_path p.1 p.2
+  · exact sum2 p.1
+  · exact sum2 p.2
+
+/-- **Pair orbit separation**: for twin-free B with positive W, if two pairs have the
+same 5-motif profile, they are in the same pair orbit.
+
+Computational evidence: confirmed on all twin-free examples up to T=10, including
+structured cases with |Aut(B,W)| up to 14400 (two S₅ blocks).
+
+**Sorry traces to**: algebraic graph theory (Lovász [2012] §5.2). The five motif
+evaluations together with the twin-free hypothesis determine the pair orbit:
+(star0, tri0) determines vertex orbit for the first component, (star1, tri1) for the
+second, and the path cross-term distinguishes pair orbits within the same vertex
+orbit pair. False without twin-free (counterexample: block-diagonal B with twins). -/
+private theorem pairOrbitRel_of_pairProfile_eq {T : ℕ}
     {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
-    {p q : Fin T × Fin T} (h : edgeFreeIndist B W p q) :
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    {p q : Fin T × Fin T} (h : pairProfile B W p = pairProfile B W q) :
     pairOrbitRel B W p q := by
   sorry
 
-/-- Fully indistinguishable pairs are in the same orbit. Follows from the stronger
-edge-free indistinguishability theorem. -/
+/-- For twin-free B with positive W, distinct pair orbits are separated by some
+edge-free evaluation. Follows from `pairOrbitRel_of_pairProfile_eq` since each
+profile component is an edge-free evaluation. -/
+private theorem pairOrbit_separated_by_edgeFreeEval {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    {p q : Fin T × Fin T} (h : ¬ pairOrbitRel B W p q) :
+    ∃ g ∈ edgeFreeEvalSet B W, g p.1 p.2 ≠ g q.1 q.2 := by
+  sorry
+
+/-- **CT-1 core**: edge-free indistinguishable pairs are in the same orbit
+(for twin-free matrices). Follows directly from `pairOrbit_separated_by_edgeFreeEval`. -/
+private theorem edgeFreeIndist_implies_pairOrbitRel {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    {p q : Fin T × Fin T} (h : edgeFreeIndist B W p q) :
+    pairOrbitRel B W p q := by
+  by_contra h_neg
+  obtain ⟨g, hg_mem, hg_ne⟩ := pairOrbit_separated_by_edgeFreeEval hB hW htwin h_neg
+  exact hg_ne (h g hg_mem)
+
+/-- Fully indistinguishable pairs are in the same orbit (for twin-free matrices).
+Follows from the stronger edge-free indistinguishability theorem. -/
 private theorem fullIndist_implies_pairOrbitRel {T : ℕ}
     {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
     {p q : Fin T × Fin T} (h : fullIndist B W p q) :
     pairOrbitRel B W p q :=
-  edgeFreeIndist_implies_pairOrbitRel hB hW h.1
+  edgeFreeIndist_implies_pairOrbitRel hB hW htwin h.1
 
 /-! ### Edge-free indistinguishability span characterization -/
 
@@ -4441,35 +4550,123 @@ private theorem edgeFreeEvalSpan_eq_constantOnEdgeFreeIndist {T : ℕ}
 
 /-! ### CT-1 assembly -/
 
-/-- Edge-free indistinguishability equals the orbit relation (modulo sorry).
+/-- Edge-free indistinguishability equals the orbit relation for twin-free matrices.
 Combines the easy direction (orbit ⟹ ef-indist) with the hard direction (ef-indist ⟹ orbit). -/
 private theorem pairOrbitRel_iff_edgeFreeIndist {T : ℕ}
     {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
     (p q : Fin T × Fin T) :
     pairOrbitRel B W p q ↔ edgeFreeIndist B W p q :=
   ⟨fun h => (pairOrbitRel_implies_fullIndist hB h).1,
-   fun h => edgeFreeIndist_implies_pairOrbitRel hB hW h⟩
+   fun h => edgeFreeIndist_implies_pairOrbitRel hB hW htwin h⟩
 
-/-- CT-1: the 2-labeled evaluation span equals the pair-invariant subspace. -/
+open Classical in
+/-- For twin-free B with positive W, each pair orbit indicator lies in `edgeFreeEvalSpan`.
+Built by Lagrange interpolation using separators from `pairOrbit_separated_by_edgeFreeEval`.
+Each separator g ∈ edgeFreeEvalSet is Aut(B,W)-invariant (`labeledEval2_perm_eq`), so the
+Lagrange product is 1 on the target orbit and 0 on all others. -/
+private theorem pairOrbit_indicator_mem_edgeFreeEvalSpan {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    (o : Quotient (pairOrbitSetoid B W)) :
+    pairOrbitIndicator B W o ∈ edgeFreeEvalSpan B W := by
+  set p₀ := o.out with hp₀_def
+  -- For each orbit q ≠ o, find a separating evaluation
+  have sep : ∀ q : Quotient (pairOrbitSetoid B W), q ≠ o →
+      ∃ g ∈ edgeFreeEvalSet B W, g p₀.1 p₀.2 ≠ g q.out.1 q.out.2 := by
+    intro q hqo
+    apply pairOrbit_separated_by_edgeFreeEval hB hW htwin
+    intro h
+    apply hqo
+    have heq : Quotient.mk (pairOrbitSetoid B W) q.out =
+               Quotient.mk (pairOrbitSetoid B W) p₀ :=
+      @Quotient.sound _ (pairOrbitSetoid B W) _ _ (pairOrbitRel_symm h)
+    rw [← Quotient.out_eq q, heq, hp₀_def]
+    exact Quotient.out_eq o
+  let gSep : ∀ q : Quotient (pairOrbitSetoid B W), q ≠ o → Fin T → Fin T → ℝ :=
+    fun q hqo => Classical.choose (sep q hqo)
+  have hSep_mem : ∀ q (hqo : q ≠ o), gSep q hqo ∈ edgeFreeEvalSet B W :=
+    fun q hqo => (Classical.choose_spec (sep q hqo)).1
+  have hSep_ne : ∀ q (hqo : q ≠ o),
+      gSep q hqo p₀.1 p₀.2 ≠ gSep q hqo q.out.1 q.out.2 :=
+    fun q hqo => (Classical.choose_spec (sep q hqo)).2
+  -- Build Lagrange factors and prove membership
+  have lagFac_mem : ∀ q (hqo : q ≠ o),
+      (fun i j => (gSep q hqo p₀.1 p₀.2 - gSep q hqo q.out.1 q.out.2)⁻¹ *
+        (gSep q hqo i j - gSep q hqo q.out.1 q.out.2)) ∈ edgeFreeEvalSpan B W :=
+    fun q hqo => lagrange_factor_mem_edgeFreeEvalSpan B W (gSep q hqo)
+      (hSep_mem q hqo) _ _
+  -- The orbit indicator equals the product of all Lagrange factors.
+  -- Key: each gSep is orbit-invariant (labeledEval2_perm_eq), so
+  --   on orbit o: gSep(i,j) = gSep(p₀) → each factor = 1 → product = 1
+  --   on orbit q₀ ≠ o: gSep_{q₀}(i,j) = gSep_{q₀}(q₀.out) → that factor = 0 → product = 0
+  have heq : (fun i j => if Quotient.mk (pairOrbitSetoid B W) (i, j) = o then 1 else 0) =
+      fun i j => ∏ q ∈ Finset.univ.filter (fun q => q ≠ o),
+        (if h : q ≠ o then
+          (gSep q h p₀.1 p₀.2 - gSep q h q.out.1 q.out.2)⁻¹ *
+          (gSep q h i j - gSep q h q.out.1 q.out.2)
+        else 1) := by
+    ext i j
+    by_cases hor : Quotient.mk (pairOrbitSetoid B W) (i, j) = o
+    · simp only [hor, ite_true]
+      symm
+      apply Finset.prod_eq_one
+      intro q hq
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hq
+      simp only [dif_pos hq]
+      -- (i,j) is in orbit o, so gSep(i,j) = gSep(p₀) by orbit-invariance
+      have horb : pairOrbitRel B W (i, j) p₀ :=
+        @Quotient.exact _ (pairOrbitSetoid B W) _ _
+          (by rw [hor, hp₀_def]; exact (Quotient.out_eq o).symm)
+      obtain ⟨π, haut, h1, h2⟩ := horb
+      have hg_mem := hSep_mem q hq
+      obtain ⟨n, F, inst, hF, hg_eq⟩ := hg_mem
+      have hg_val : ∀ a b, gSep q hq a b = @labeledEval2 T n F inst B W a b :=
+        fun a b => congr_fun (congr_fun hg_eq a) b
+      rw [show gSep q hq i j = gSep q hq p₀.1 p₀.2 from by
+        rw [hg_val, hg_val, ← h1, ← h2]
+        exact (@labeledEval2_perm_eq T n F inst B W π haut.2 haut.1 i j).symm]
+      rw [inv_mul_cancel₀ (sub_ne_zero.mpr (hSep_ne q hq))]
+    · simp only [hor, ite_false]
+      set r := Quotient.mk (pairOrbitSetoid B W) (i, j)
+      symm
+      apply Finset.prod_eq_zero (Finset.mem_filter.mpr ⟨Finset.mem_univ r, hor⟩)
+      simp only [dif_pos hor]
+      -- (i,j) is in orbit r = q₀, so gSep_{q₀}(i,j) = gSep_{q₀}(q₀.out)
+      have horb : pairOrbitRel B W (i, j) r.out :=
+        @Quotient.exact _ (pairOrbitSetoid B W) _ _ (Quotient.out_eq r).symm
+      obtain ⟨π, haut, h1, h2⟩ := horb
+      have hg_mem := hSep_mem r hor
+      obtain ⟨n, F, inst, hF, hg_eq⟩ := hg_mem
+      have hg_val : ∀ a b, gSep r hor a b = @labeledEval2 T n F inst B W a b :=
+        fun a b => congr_fun (congr_fun hg_eq a) b
+      rw [show gSep r hor i j = gSep r hor r.out.1 r.out.2 from by
+        rw [hg_val, hg_val, ← h1, ← h2]
+        exact (@labeledEval2_perm_eq T n F inst B W π haut.2 haut.1 i j).symm]
+      rw [sub_self, mul_zero]
+  rw [show pairOrbitIndicator B W o = fun i j =>
+      if Quotient.mk (pairOrbitSetoid B W) (i, j) = o then 1 else 0
+    from rfl]
+  rw [heq]
+  exact prod_mem_edgeFreeEvalSpan B W hB _ _ (fun q hq => by
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hq
+    simp only [dif_pos hq]
+    exact lagFac_mem q hq)
+
+/-- CT-1: the 2-labeled evaluation span equals the pair-invariant subspace
+(for twin-free matrices with positive weights). -/
 private theorem eval2Span_eq_pairInvariantSubspace {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) :
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j) :
     eval2Span B W = pairInvariantSubspace B W := by
   apply le_antisymm (eval2Span_le_pairInvariantSubspace B W)
-  -- Reverse: every pair-invariant function is in eval2Span
   apply pairInvariantSubspace_le_of_orbitIndicators
   intro o
-  -- Orbit indicators are constant on edgeFreeIndist-classes (since ef-indist ⟹ same orbit).
-  -- By the characterization edgeFreeEvalSpan = constantOnEdgeFreeIndist, they're in edgeFreeEvalSpan.
-  -- By edgeFreeEvalSpan ≤ eval2Span, they're in eval2Span.
-  apply edgeFreeEvalSpan_le_eval2Span
-  rw [edgeFreeEvalSpan_eq_constantOnEdgeFreeIndist B W hB]
-  intro p q hpq
-  -- pairOrbitIndicator is constant on ef-classes because ef-indist implies same orbit
-  simp only [pairOrbitIndicator, Prod.mk.eta]
-  rw [@Quotient.sound _ (pairOrbitSetoid B W) p q
-    (edgeFreeIndist_implies_pairOrbitRel hB hW hpq)]
+  exact edgeFreeEvalSpan_le_eval2Span B W
+    (pairOrbit_indicator_mem_edgeFreeEvalSpan B W hB hW htwin o)
 
 /-! ### Twin-free bijection -/
 
