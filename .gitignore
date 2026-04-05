@@ -18,3 +18,5 @@ blueprint/src/*.pdf
 blueprint/src/*.toc
 blueprint/src/*.paux
 _site/
+.codex
+__pycache__/
