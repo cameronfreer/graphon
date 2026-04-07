@@ -4339,24 +4339,110 @@ private theorem pairProfile_eq_of_pairOrbitRel {T : ℕ}
   · exact sum2 p.1
   · exact sum2 p.2
 
-/-- **Pair orbit separation**: for twin-free B with positive W, if two pairs have the
-same 5-motif profile, they are in the same pair orbit.
+/-! #### Three-subclaim decomposition of pair orbit determination
+
+Rather than attacking `pairOrbitRel_of_pairProfile_eq` directly, we factor it
+through three smaller lemmas, each computationally validated on twin-free
+test cases up to T=10 with |Aut(B,W)| ≤ 14400
+(`scripts/vertex_orbit_subclaim.py` and `scripts/cross_term_coherence.py`):
+
+- **(L)** `vertexOrbit_of_star0_tri0_eq`: (star0, tri0) equal ⟹ left vertex
+  orbit equal.
+- **(R)** `vertexOrbit_of_star1_tri1_eq`: (star1, tri1) equal ⟹ right
+  vertex orbit equal.
+- **(C)** `pairOrbit_of_vertexOrbits_and_path`: individually vertex-orbit-
+  related endpoints + equal `pathEval` ⟹ joint pair orbit.
+
+`pairOrbitRel_of_pairProfile_eq` is then assembled from the three. This shifts
+the proof surface from one opaque frontier to three smaller pieces, each of
+which can be attacked independently.
+-/
+
+/-- **Subclaim (L)**: left vertex orbit determination via (star0, tri0).
+For twin-free B with positive W, if two vertices `i₁, i₂ : Fin T` have equal
+weighted row sum (`star0Eval`) and equal weighted cubic self-interaction
+(`tri0Eval`), then there is an automorphism of `(B, W)` mapping `i₁` to `i₂`.
+
+**Status**: sorry. Computationally validated on random T=3..8 and structured
+cases up to T=10 with |Aut|=14400 (`scripts/vertex_orbit_subclaim.py`). -/
+private theorem vertexOrbit_of_star0_tri0_eq {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    {i₁ i₂ : Fin T}
+    (hstar : ∑ m, W m * B i₁ m = ∑ m, W m * B i₂ m)
+    (htri : ∑ m₁, ∑ m₂, W m₁ * W m₂ * B i₁ m₁ * B i₁ m₂ * B m₁ m₂ =
+            ∑ m₁, ∑ m₂, W m₁ * W m₂ * B i₂ m₁ * B i₂ m₂ * B m₁ m₂) :
+    ∃ σ : Equiv.Perm (Fin T), IsWeightedAutomorphism B W σ ∧ σ i₁ = i₂ := by
+  sorry
+
+/-- **Subclaim (R)**: right vertex orbit determination via (star1, tri1).
+Mirror of `vertexOrbit_of_star0_tri0_eq`; mathematically identical since
+`star1Eval` at j equals `star0Eval` at j by symmetry of B.
+
+**Status**: sorry. Computationally validated on the same test corpus as (L). -/
+private theorem vertexOrbit_of_star1_tri1_eq {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    {j₁ j₂ : Fin T}
+    (hstar : ∑ m, W m * B j₁ m = ∑ m, W m * B j₂ m)
+    (htri : ∑ m₁, ∑ m₂, W m₁ * W m₂ * B j₁ m₁ * B j₁ m₂ * B m₁ m₂ =
+            ∑ m₁, ∑ m₂, W m₁ * W m₂ * B j₂ m₁ * B j₂ m₂ * B m₁ m₂) :
+    ∃ σ : Equiv.Perm (Fin T), IsWeightedAutomorphism B W σ ∧ σ j₁ = j₂ := by
+  sorry
+
+/-- **Subclaim (C)**: cross-term coherence. Given that the two endpoints of
+`(i₁, j₁)` and `(i₂, j₂)` are *individually* related by automorphisms of
+`(B, W)` (not necessarily the same one), and that `pathEval` agrees on the
+pairs, there exists a single automorphism that does both.
+
+**Status**: sorry. Computationally validated on the same test corpus as (L), (R)
+(`scripts/cross_term_coherence.py`). -/
+private theorem pairOrbit_of_vertexOrbits_and_path {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    {i₁ j₁ i₂ j₂ : Fin T}
+    {σ_L σ_R : Equiv.Perm (Fin T)}
+    (hL : IsWeightedAutomorphism B W σ_L) (hL_eq : σ_L i₁ = i₂)
+    (hR : IsWeightedAutomorphism B W σ_R) (hR_eq : σ_R j₁ = j₂)
+    (hpath : ∑ m, W m * B i₁ m * B m j₁ = ∑ m, W m * B i₂ m * B m j₂) :
+    pairOrbitRel B W (i₁, j₁) (i₂, j₂) := by
+  sorry
+
+/-- **Pair orbit separation**: for twin-free B with positive W, if two pairs have
+the same 5-motif profile, they are in the same pair orbit.
+
+Assembled from three subclaims:
+- `vertexOrbit_of_star0_tri0_eq` gives a left-side automorphism `σ_L`.
+- `vertexOrbit_of_star1_tri1_eq` gives a right-side automorphism `σ_R`.
+- `pairOrbit_of_vertexOrbits_and_path` combines them with the path constraint.
 
 Computational evidence: confirmed on all twin-free examples up to T=10, including
 structured cases with |Aut(B,W)| up to 14400 (two S₅ blocks).
-
-**Sorry traces to**: algebraic graph theory (Lovász [2012] §5.2). The five motif
-evaluations together with the twin-free hypothesis determine the pair orbit:
-(star0, tri0) determines vertex orbit for the first component, (star1, tri1) for the
-second, and the path cross-term distinguishes pair orbits within the same vertex
-orbit pair. False without twin-free (counterexample: block-diagonal B with twins). -/
+False without twin-free (counterexample: block-diagonal B with twins). -/
 private theorem pairOrbitRel_of_pairProfile_eq {T : ℕ}
     {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
     (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
     {p q : Fin T × Fin T} (h : pairProfile B W p = pairProfile B W q) :
     pairOrbitRel B W p q := by
-  sorry
+  have h_star0 : star0Eval B W p.1 p.2 = star0Eval B W q.1 q.2 := congr_fun h 0
+  have h_star1 : star1Eval B W p.1 p.2 = star1Eval B W q.1 q.2 := congr_fun h 1
+  have h_path  : pathEval  B W p.1 p.2 = pathEval  B W q.1 q.2 := congr_fun h 2
+  have h_tri0  : tri0Eval  B W p.1 p.2 = tri0Eval  B W q.1 q.2 := congr_fun h 3
+  have h_tri1  : tri1Eval  B W p.1 p.2 = tri1Eval  B W q.1 q.2 := congr_fun h 4
+  simp only [star0Eval, star1Eval, pathEval, tri0Eval, tri1Eval] at h_star0 h_star1 h_path h_tri0 h_tri1
+  -- (L): left vertex orbit via (star0, tri0)
+  obtain ⟨σ_L, hσ_L, hσ_L_eq⟩ :=
+    vertexOrbit_of_star0_tri0_eq hB hW htwin (i₁ := p.1) (i₂ := q.1) h_star0 h_tri0
+  -- (R): right vertex orbit via (star1, tri1)
+  obtain ⟨σ_R, hσ_R, hσ_R_eq⟩ :=
+    vertexOrbit_of_star1_tri1_eq hB hW htwin (j₁ := p.2) (j₂ := q.2) h_star1 h_tri1
+  -- (C): combine with pathEval
+  exact pairOrbit_of_vertexOrbits_and_path hB hW htwin
+    hσ_L hσ_L_eq hσ_R hσ_R_eq h_path
 
 /-! #### Explicit motif graphs
 
