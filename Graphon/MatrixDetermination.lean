@@ -4377,10 +4377,8 @@ private theorem vertexOrbit_of_star0_tri0_eq {T : ℕ}
   sorry
 
 /-- **Subclaim (R)**: right vertex orbit determination via (star1, tri1).
-Mirror of `vertexOrbit_of_star0_tri0_eq`; mathematically identical since
-`star1Eval` at j equals `star0Eval` at j by symmetry of B.
-
-**Status**: sorry. Computationally validated on the same test corpus as (L). -/
+Mirror of `vertexOrbit_of_star0_tri0_eq` — structurally identical after
+renaming `j₁, j₂` to `i₁, i₂`, so it delegates directly to (L). -/
 private theorem vertexOrbit_of_star1_tri1_eq {T : ℕ}
     {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
@@ -4389,8 +4387,8 @@ private theorem vertexOrbit_of_star1_tri1_eq {T : ℕ}
     (hstar : ∑ m, W m * B j₁ m = ∑ m, W m * B j₂ m)
     (htri : ∑ m₁, ∑ m₂, W m₁ * W m₂ * B j₁ m₁ * B j₁ m₂ * B m₁ m₂ =
             ∑ m₁, ∑ m₂, W m₁ * W m₂ * B j₂ m₁ * B j₂ m₂ * B m₁ m₂) :
-    ∃ σ : Equiv.Perm (Fin T), IsWeightedAutomorphism B W σ ∧ σ j₁ = j₂ := by
-  sorry
+    ∃ σ : Equiv.Perm (Fin T), IsWeightedAutomorphism B W σ ∧ σ j₁ = j₂ :=
+  vertexOrbit_of_star0_tri0_eq hB hW htwin hstar htri
 
 /-- **Subclaim (C)**: cross-term coherence. Given that the two endpoints of
 `(i₁, j₁)` and `(i₂, j₂)` are *individually* related by automorphisms of
