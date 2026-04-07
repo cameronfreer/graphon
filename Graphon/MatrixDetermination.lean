@@ -4358,96 +4358,418 @@ private theorem pairOrbitRel_of_pairProfile_eq {T : ℕ}
     pairOrbitRel B W p q := by
   sorry
 
-/-- Each `pairProfile` component lies in `edgeFreeEvalSpan`.
-star0 and star1 are left/right adjacency of 1; path is their product with B;
-tri0 and tri1 are star-times-leftAdj(star) products. All closure operations
-(`leftAdj_mem_edgeFreeEvalSpan`, `mul_mem_edgeFreeEvalSpan`, etc.) are proved. -/
-private theorem pairProfile_component_mem_edgeFreeEvalSpan {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (k : Fin 5) :
-    (fun i j => pairProfile B W (i, j) k) ∈ edgeFreeEvalSpan B W := by
-  have hL := leftAdj_mem_edgeFreeEvalSpan B W hB
-  have hR := rightAdj_mem_edgeFreeEvalSpan B W hB
-  have h1 := one_mem_edgeFreeEvalSpan B W
-  -- star0 = leftAdj(1), star1 = rightAdj(1)
-  have hstar0 : (fun i j => star0Eval B W i j) ∈ edgeFreeEvalSpan B W := by
-    rw [show (fun i j => star0Eval B W i j) = leftAdjLM B W (fun _ _ => 1) from by
-      ext i j; simp only [star0Eval, leftAdjLM, LinearMap.coe_mk, AddHom.coe_mk, mul_one]]
-    exact hL (Submodule.mem_map.mpr ⟨_, h1, rfl⟩)
-  have hstar1 : (fun i j => star1Eval B W i j) ∈ edgeFreeEvalSpan B W := by
-    rw [show (fun i j => star1Eval B W i j) = rightAdjLM B W (fun _ _ => 1) from by
-      ext i j; simp only [star1Eval, rightAdjLM, LinearMap.coe_mk, AddHom.coe_mk, mul_one]
-      congr 1; ext a; rw [hB]]
-    exact hR (Submodule.mem_map.mpr ⟨_, h1, rfl⟩)
-  -- path, tri0, tri1 are members of edgeFreeEvalSet (explicit graph evaluations)
-  have hpath : (fun i j => pathEval B W i j) ∈ edgeFreeEvalSpan B W :=
-    Submodule.subset_span (by
-      -- path = labeledEval2 of the graph on Fin 3 with edges {0,2},{1,2}
-      sorry)
+/-! #### Explicit motif graphs
 
-  -- tri0 = pointwise product of leftAdj(1) with leftAdj(leftAdj(1))
-  -- tri0(i,j) = ∑ m₁ m₂, W m₁ * W m₂ * B i m₁ * B i m₂ * B m₁ m₂
-  --           = ∑ m₁, W m₁ * B i m₁ * (∑ m₂, W m₂ * B i m₂ * B m₁ m₂)
-  --           = ∑ m₁, W m₁ * B i m₁ * pathEval(i, m₁)
-  --           = leftAdj(path)(i, *) evaluated specially
-  -- Actually: tri0(i,j) = (star0 * leftAdj(path))(i,j) is not right.
-  -- tri0 = star0Eval(i,·) inner-product with (leftAdj applied to B-row)...
-  -- Let's use a different decomposition:
-  -- tri0(i,j) = ∑ m₁, star0_at_m₁ * ∑ m₂, W m₂ * B i m₂ * B m₁ m₂
-  --           = ∑ m₁, W m₁ * B i m₁ * pathEval(i, m₁)
-  -- This is leftAdjLM B W (pathEval B W) i applied to... hmm, path depends on both args.
-  -- tri0(i,j) = leftAdjLM B W (fun m₁ j' => pathEval B W i m₁) i j — NO, leftAdj sums over
-  -- the first arg, but we need to fix i.
-  -- Actually: tri0 is the Hadamard product star0 * Lpath where Lpath(i,j) = leftAdj(path)(i,j)?
-  -- Lpath(i,j) = ∑ m, W m * B i m * path(m,j) which is NOT tri0.
-  -- tri0(i,j) = ∑ m₁, W m₁ * B i m₁ * (∑ m₂, W m₂ * B i m₂ * B m₁ m₂)
-  -- The inner sum ∑ m₂, W m₂ * B i m₂ * B m₁ m₂ depends on BOTH i and m₁.
-  -- This makes it hard to express as a simple left/right adjoint of something in the span.
-  -- Fall back: tri0 is a member of edgeFreeEvalSet directly (graph {0-2, 0-3, 2-3}).
-  have htri0 : (fun i j => tri0Eval B W i j) ∈ edgeFreeEvalSpan B W := by
-    -- tri0 is the product of star0 with leftAdj_of_star0 where the latter shares the i-index.
-    -- More precisely: tri0(i,j) = star0(i) * L(star0)(i) where L uses the ROW of B at i.
-    -- This equals the Hadamard product of star0 with L(star0), which ARE both in span.
-    -- But L(star0)(i,j) = ∑ m, W m * B i m * star0(m) = ∑ m, W m * B i m * (∑ a, W a * B m a)
-    -- = ∑ m, W m * B i m * r(m) — depends on i only.
-    -- And tri0(i,j) = ∑ m₁ m₂, W m₁ * W m₂ * B i m₁ * B i m₂ * B m₁ m₂
-    -- ≠ star0(i) * L(star0)(i) = (∑ m, W m * B i m)(∑ m, W m * B i m * r(m))
-    -- These are different! tri0 has the coupling B(m₁,m₂) while the product doesn't.
-    -- So tri0 needs to be constructed as a graph evaluation directly.
-    apply Submodule.subset_span
-    sorry
-  have htri1 : (fun i j => tri1Eval B W i j) ∈ edgeFreeEvalSpan B W := by
-    apply Submodule.subset_span
-    sorry
+Each of the five profile components is realized as the `labeledEval2` of a specific
+edge-free 2-labeled graph. The graphs are:
+- `star0Graph`: `{0,2}` on `Fin 3` (1 unlabeled vertex)
+- `star1Graph`: `{1,2}` on `Fin 3`
+- `pathGraph01`: `{0,2},{1,2}` on `Fin 3`
+- `tri0Graph`: `{0,2},{0,3},{2,3}` on `Fin 4` (2 unlabeled vertices)
+- `tri1Graph`: `{1,2},{1,3},{2,3}` on `Fin 4`
+-/
+
+/-- Star graph with center at label-0: edge `{0,2}` on `Fin 3`. -/
+private def star0Graph : SimpleGraph (Fin 3) := SimpleGraph.fromEdgeSet {s(0, 2)}
+
+/-- Star graph with center at label-1: edge `{1,2}` on `Fin 3`. -/
+private def star1Graph : SimpleGraph (Fin 3) := SimpleGraph.fromEdgeSet {s(1, 2)}
+
+/-- Path graph: edges `{0,2},{1,2}` on `Fin 3`. -/
+private def pathGraph01 : SimpleGraph (Fin 3) := SimpleGraph.fromEdgeSet {s(0, 2), s(1, 2)}
+
+/-- Triangle graph rooted at label-0: edges `{0,2},{0,3},{2,3}` on `Fin 4`. -/
+private def tri0Graph : SimpleGraph (Fin 4) :=
+  SimpleGraph.fromEdgeSet {s(0, 2), s(0, 3), s(2, 3)}
+
+/-- Triangle graph rooted at label-1: edges `{1,2},{1,3},{2,3}` on `Fin 4`. -/
+private def tri1Graph : SimpleGraph (Fin 4) :=
+  SimpleGraph.fromEdgeSet {s(1, 2), s(1, 3), s(2, 3)}
+
+private instance : DecidableRel star0Graph.Adj :=
+  inferInstanceAs (DecidableRel (SimpleGraph.fromEdgeSet _).Adj)
+
+private instance : DecidableRel star1Graph.Adj :=
+  inferInstanceAs (DecidableRel (SimpleGraph.fromEdgeSet _).Adj)
+
+private instance : DecidableRel pathGraph01.Adj :=
+  inferInstanceAs (DecidableRel (SimpleGraph.fromEdgeSet _).Adj)
+
+private instance : DecidableRel tri0Graph.Adj :=
+  inferInstanceAs (DecidableRel (SimpleGraph.fromEdgeSet _).Adj)
+
+private instance : DecidableRel tri1Graph.Adj :=
+  inferInstanceAs (DecidableRel (SimpleGraph.fromEdgeSet _).Adj)
+
+private lemma star0Graph_edgeFree : ¬ star0Graph.Adj 0 1 := by
+  simp [star0Graph, SimpleGraph.fromEdgeSet_adj, Sym2.eq_iff]
+
+private lemma star1Graph_edgeFree : ¬ star1Graph.Adj 0 1 := by
+  simp [star1Graph, SimpleGraph.fromEdgeSet_adj, Sym2.eq_iff]
+
+private lemma pathGraph01_edgeFree : ¬ pathGraph01.Adj 0 1 := by
+  simp [pathGraph01, SimpleGraph.fromEdgeSet_adj, Sym2.eq_iff]
+
+private lemma tri0Graph_edgeFree : ¬ tri0Graph.Adj 0 1 := by
+  simp [tri0Graph, SimpleGraph.fromEdgeSet_adj, Sym2.eq_iff]
+
+private lemma tri1Graph_edgeFree : ¬ tri1Graph.Adj 0 1 := by
+  simp [tri1Graph, SimpleGraph.fromEdgeSet_adj, Sym2.eq_iff]
+
+/-- The edge finset of `star0Graph` is `{s(0, 2)}`. -/
+private lemma star0Graph_edgeFinset : star0Graph.edgeFinset = {s((0 : Fin 3), 2)} := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, star0Graph, SimpleGraph.edgeSet_fromEdgeSet,
+    Finset.mem_singleton, Set.mem_diff, Set.mem_singleton_iff,
+    Sym2.mem_diagSet_iff_isDiag]
+  refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
+  rw [he, Sym2.mk_isDiag_iff]
+  decide
+
+/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 3 → Fin T` at index 0 is `i`. -/
+private lemma finCons3_zero {T : ℕ} (i j : Fin T) (σ : Fin 1 → Fin T) :
+    (Fin.cons i (Fin.cons j σ) : Fin 3 → Fin T) 0 = i := Fin.cons_zero _ _
+
+/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 3 → Fin T` at index 1 is `j`. -/
+private lemma finCons3_one {T : ℕ} (i j : Fin T) (σ : Fin 1 → Fin T) :
+    (Fin.cons i (Fin.cons j σ) : Fin 3 → Fin T) 1 = j := by
+  rw [show (1 : Fin 3) = Fin.succ 0 from rfl, Fin.cons_succ]
+  exact Fin.cons_zero _ _
+
+/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 3 → Fin T` at index 2 is `σ 0`. -/
+private lemma finCons3_two {T : ℕ} (i j : Fin T) (σ : Fin 1 → Fin T) :
+    (Fin.cons i (Fin.cons j σ) : Fin 3 → Fin T) 2 = σ 0 := by
+  rw [show (2 : Fin 3) = Fin.succ 1 from rfl, Fin.cons_succ]
+  rw [show (1 : Fin 2) = Fin.succ 0 from rfl, Fin.cons_succ]
+
+/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T` at index 0 is `i`. -/
+private lemma finCons4_zero {T : ℕ} (i j : Fin T) (σ : Fin 2 → Fin T) :
+    (Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T) 0 = i := Fin.cons_zero _ _
+
+/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T` at index 1 is `j`. -/
+private lemma finCons4_one {T : ℕ} (i j : Fin T) (σ : Fin 2 → Fin T) :
+    (Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T) 1 = j := by
+  rw [show (1 : Fin 4) = Fin.succ 0 from rfl, Fin.cons_succ]
+  exact Fin.cons_zero _ _
+
+/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T` at index 2 is `σ 0`. -/
+private lemma finCons4_two {T : ℕ} (i j : Fin T) (σ : Fin 2 → Fin T) :
+    (Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T) 2 = σ 0 := by
+  rw [show (2 : Fin 4) = Fin.succ 1 from rfl, Fin.cons_succ]
+  rw [show (1 : Fin 3) = Fin.succ 0 from rfl, Fin.cons_succ]
+
+/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T` at index 3 is `σ 1`. -/
+private lemma finCons4_three {T : ℕ} (i j : Fin T) (σ : Fin 2 → Fin T) :
+    (Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T) 3 = σ 1 := by
+  rw [show (3 : Fin 4) = Fin.succ 2 from rfl, Fin.cons_succ]
+  rw [show (2 : Fin 3) = Fin.succ 1 from rfl, Fin.cons_succ]
+
+/-- `labeledEval2` of `star0Graph` equals `star0Eval`. -/
+private theorem labeledEval2_star0Graph {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) :
+    labeledEval2 1 star0Graph B W i j = star0Eval B W i j := by
+  simp only [labeledEval2, star0Eval]
+  rw [star0Graph_edgeFinset]
+  simp only [Finset.prod_singleton, Fin.prod_univ_one]
+  -- Reindex σ : Fin 1 → Fin T as m : Fin T
+  rw [← (Equiv.funUnique (Fin 1) (Fin T)).symm.sum_comp]
+  congr 1; ext m
+  -- After reindex, σ = (fun _ => m) and σ 0 = m
+  have hσ : ((Equiv.funUnique (Fin 1) (Fin T)).symm m : Fin 1 → Fin T) = fun _ => m := by
+    ext k; simp [Equiv.funUnique]
+  rw [hσ]
+  -- Goal: W m * B (τ (Quot.out s(0,2)).1) (τ (Quot.out s(0,2)).2) = W m * B i m
+  -- where τ = Fin.cons i (Fin.cons j (fun _ => m))
+  congr 1
+  set p := Quot.out s((0 : Fin 3), 2) with hp_def
+  have hout : s(p.1, p.2) = s((0 : Fin 3), 2) := Quot.out_eq _
+  have key : (p.1 = 0 ∧ p.2 = 2) ∨ (p.1 = 2 ∧ p.2 = 0) := by
+    rw [Sym2.eq_iff] at hout
+    rcases hout with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
+  rcases key with ⟨ha, hb⟩ | ⟨ha, hb⟩
+  · rw [ha, hb, finCons3_zero, finCons3_two]
+  · rw [ha, hb, finCons3_zero, finCons3_two, hB]
+
+/-- The edge finset of `star1Graph` is `{s(1, 2)}`. -/
+private lemma star1Graph_edgeFinset : star1Graph.edgeFinset = {s((1 : Fin 3), 2)} := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, star1Graph, SimpleGraph.edgeSet_fromEdgeSet,
+    Finset.mem_singleton, Set.mem_diff, Set.mem_singleton_iff,
+    Sym2.mem_diagSet_iff_isDiag]
+  refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
+  rw [he, Sym2.mk_isDiag_iff]
+  decide
+
+/-- `labeledEval2` of `star1Graph` equals `star1Eval`. -/
+private theorem labeledEval2_star1Graph {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) :
+    labeledEval2 1 star1Graph B W i j = star1Eval B W i j := by
+  simp only [labeledEval2, star1Eval]
+  rw [star1Graph_edgeFinset]
+  simp only [Finset.prod_singleton, Fin.prod_univ_one]
+  rw [← (Equiv.funUnique (Fin 1) (Fin T)).symm.sum_comp]
+  congr 1; ext m
+  have hσ : ((Equiv.funUnique (Fin 1) (Fin T)).symm m : Fin 1 → Fin T) = fun _ => m := by
+    ext k; simp [Equiv.funUnique]
+  rw [hσ]
+  congr 1
+  set p := Quot.out s((1 : Fin 3), 2) with hp_def
+  have hout : s(p.1, p.2) = s((1 : Fin 3), 2) := Quot.out_eq _
+  have key : (p.1 = 1 ∧ p.2 = 2) ∨ (p.1 = 2 ∧ p.2 = 1) := by
+    rw [Sym2.eq_iff] at hout
+    rcases hout with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
+  rcases key with ⟨ha, hb⟩ | ⟨ha, hb⟩
+  · rw [ha, hb, finCons3_one, finCons3_two]
+  · rw [ha, hb, finCons3_one, finCons3_two, hB]
+
+/-- The edge finset of `pathGraph01` is `{s(0,2), s(1,2)}`. -/
+private lemma pathGraph01_edgeFinset :
+    pathGraph01.edgeFinset = {s((0 : Fin 3), 2), s((1 : Fin 3), 2)} := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, pathGraph01, SimpleGraph.edgeSet_fromEdgeSet,
+    Finset.mem_insert, Finset.mem_singleton, Set.mem_diff, Set.mem_insert_iff,
+    Set.mem_singleton_iff, Sym2.mem_diagSet_iff_isDiag]
+  refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
+  rcases he with he | he <;> rw [he, Sym2.mk_isDiag_iff] <;> decide
+
+/-- `labeledEval2` of `pathGraph01` equals `pathEval`. -/
+private theorem labeledEval2_pathGraph01 {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) :
+    labeledEval2 1 pathGraph01 B W i j = pathEval B W i j := by
+  simp only [labeledEval2, pathEval]
+  rw [pathGraph01_edgeFinset]
+  -- The edge set has two elements: s(0,2) and s(1,2).
+  simp_rw [Finset.prod_pair (by decide : s((0 : Fin 3), 2) ≠ s((1 : Fin 3), 2)),
+    Fin.prod_univ_one]
+  -- Reindex σ : Fin 1 → Fin T as m : Fin T
+  rw [← (Equiv.funUnique (Fin 1) (Fin T)).symm.sum_comp]
+  congr 1; ext m
+  have hσ : ((Equiv.funUnique (Fin 1) (Fin T)).symm m : Fin 1 → Fin T) = fun _ => m := by
+    ext k; simp [Equiv.funUnique]
+  rw [hσ]
+  -- Goal: W m * (B τ(out s(0,2)).1 τ(out s(0,2)).2 * B τ(out s(1,2)).1 τ(out s(1,2)).2)
+  --     = W m * B i m * B m j
+  -- Resolve both Quot.outs
+  set p0 := Quot.out s((0 : Fin 3), 2) with hp0_def
+  set p1 := Quot.out s((1 : Fin 3), 2) with hp1_def
+  have hout0 : s(p0.1, p0.2) = s((0 : Fin 3), 2) := Quot.out_eq _
+  have hout1 : s(p1.1, p1.2) = s((1 : Fin 3), 2) := Quot.out_eq _
+  have key0 : (p0.1 = 0 ∧ p0.2 = 2) ∨ (p0.1 = 2 ∧ p0.2 = 0) := by
+    rw [Sym2.eq_iff] at hout0
+    rcases hout0 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
+  have key1 : (p1.1 = 1 ∧ p1.2 = 2) ∨ (p1.1 = 2 ∧ p1.2 = 1) := by
+    rw [Sym2.eq_iff] at hout1
+    rcases hout1 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
+  -- Case analysis on both orientations; use hB to normalize
+  let τ : Fin 3 → Fin T := Fin.cons i (Fin.cons j (fun _ => m))
+  have hτ0 : τ 0 = i := finCons3_zero i j _
+  have hτ1 : τ 1 = j := finCons3_one i j _
+  have hτ2 : τ 2 = m := finCons3_two i j _
+  have hval0 : B (τ p0.1) (τ p0.2) = B i m := by
+    rcases key0 with ⟨ha, hb⟩ | ⟨ha, hb⟩
+    · rw [ha, hb, hτ0, hτ2]
+    · rw [ha, hb, hτ0, hτ2, hB]
+  have hval1 : B (τ p1.1) (τ p1.2) = B m j := by
+    rcases key1 with ⟨ha, hb⟩ | ⟨ha, hb⟩
+    · rw [ha, hb, hτ1, hτ2, hB]
+    · rw [ha, hb, hτ1, hτ2]
+  rw [hval0, hval1]
+  ring
+
+/-- The edge finset of `tri0Graph` is `{s(0,2), s(0,3), s(2,3)}`. -/
+private lemma tri0Graph_edgeFinset :
+    tri0Graph.edgeFinset =
+      {s((0 : Fin 4), 2), s((0 : Fin 4), 3), s((2 : Fin 4), 3)} := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, tri0Graph, SimpleGraph.edgeSet_fromEdgeSet,
+    Finset.mem_insert, Finset.mem_singleton, Set.mem_diff, Set.mem_insert_iff,
+    Set.mem_singleton_iff, Sym2.mem_diagSet_iff_isDiag]
+  refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
+  rcases he with he | he | he <;> rw [he, Sym2.mk_isDiag_iff] <;> decide
+
+/-- `labeledEval2` of `tri0Graph` equals `tri0Eval`. -/
+private theorem labeledEval2_tri0Graph {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) :
+    labeledEval2 2 tri0Graph B W i j = tri0Eval B W i j := by
+  simp only [labeledEval2, tri0Eval]
+  rw [tri0Graph_edgeFinset]
+  -- Expand the 3-edge product via prod_insert + prod_pair
+  have hne1 : s((0 : Fin 4), 2) ∉ ({s((0 : Fin 4), 3), s((2 : Fin 4), 3)} : Finset _) := by
+    decide
+  have hne2 : s((0 : Fin 4), 3) ≠ s((2 : Fin 4), 3) := by decide
+  simp_rw [Finset.prod_insert hne1, Finset.prod_pair hne2, Fin.prod_univ_two]
+  -- Reindex σ : Fin 2 → Fin T as (m₁, m₂) via piFinTwoEquiv
+  rw [← (piFinTwoEquiv (fun _ => Fin T)).symm.sum_comp, ← Fintype.sum_prod_type']
+  congr 1; ext ⟨m₁, m₂⟩
+  -- σ from equiv: σ 0 = m₁, σ 1 = m₂
+  have hσ : ((piFinTwoEquiv fun _ => Fin T).symm (m₁, m₂) : Fin 2 → Fin T) =
+      ![m₁, m₂] := by
+    ext k; fin_cases k <;> simp [piFinTwoEquiv]
+  rw [hσ]
+  -- Now τ = Fin.cons i (Fin.cons j ![m₁, m₂])
+  -- τ 0 = i, τ 1 = j, τ 2 = m₁, τ 3 = m₂
+  -- Resolve all three Quot.outs
+  set τ : Fin 4 → Fin T := Fin.cons i (Fin.cons j ![m₁, m₂]) with hτ_def
+  have hτ0 : τ 0 = i := finCons4_zero i j _
+  have hτ2 : τ 2 = m₁ := by
+    show (Fin.cons i (Fin.cons j ![m₁, m₂]) : Fin 4 → Fin T) 2 = m₁
+    rw [finCons4_two]; rfl
+  have hτ3 : τ 3 = m₂ := by
+    show (Fin.cons i (Fin.cons j ![m₁, m₂]) : Fin 4 → Fin T) 3 = m₂
+    rw [finCons4_three]; rfl
+  -- Edge s(0, 2)
+  set p02 := Quot.out s((0 : Fin 4), 2) with hp02_def
+  have hout02 : s(p02.1, p02.2) = s((0 : Fin 4), 2) := Quot.out_eq _
+  have key02 : (p02.1 = 0 ∧ p02.2 = 2) ∨ (p02.1 = 2 ∧ p02.2 = 0) := by
+    rw [Sym2.eq_iff] at hout02
+    rcases hout02 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
+  -- Edge s(0, 3)
+  set p03 := Quot.out s((0 : Fin 4), 3) with hp03_def
+  have hout03 : s(p03.1, p03.2) = s((0 : Fin 4), 3) := Quot.out_eq _
+  have key03 : (p03.1 = 0 ∧ p03.2 = 3) ∨ (p03.1 = 3 ∧ p03.2 = 0) := by
+    rw [Sym2.eq_iff] at hout03
+    rcases hout03 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
+  -- Edge s(2, 3)
+  set p23 := Quot.out s((2 : Fin 4), 3) with hp23_def
+  have hout23 : s(p23.1, p23.2) = s((2 : Fin 4), 3) := Quot.out_eq _
+  have key23 : (p23.1 = 2 ∧ p23.2 = 3) ∨ (p23.1 = 3 ∧ p23.2 = 2) := by
+    rw [Sym2.eq_iff] at hout23
+    rcases hout23 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
+  -- Compute each edge's B value
+  have hv02 : B (τ p02.1) (τ p02.2) = B i m₁ := by
+    rcases key02 with ⟨ha, hb⟩ | ⟨ha, hb⟩
+    · rw [ha, hb, hτ0, hτ2]
+    · rw [ha, hb, hτ0, hτ2, hB]
+  have hv03 : B (τ p03.1) (τ p03.2) = B i m₂ := by
+    rcases key03 with ⟨ha, hb⟩ | ⟨ha, hb⟩
+    · rw [ha, hb, hτ0, hτ3]
+    · rw [ha, hb, hτ0, hτ3, hB]
+  have hv23 : B (τ p23.1) (τ p23.2) = B m₁ m₂ := by
+    rcases key23 with ⟨ha, hb⟩ | ⟨ha, hb⟩
+    · rw [ha, hb, hτ2, hτ3]
+    · rw [ha, hb, hτ2, hτ3, hB]
+  -- Substitute and compute
+  show W ((![m₁, m₂] : Fin 2 → Fin T) 0) * W ((![m₁, m₂] : Fin 2 → Fin T) 1) *
+      (B (τ p02.1) (τ p02.2) * (B (τ p03.1) (τ p03.2) * B (τ p23.1) (τ p23.2))) =
+    W m₁ * W m₂ * B i m₁ * B i m₂ * B m₁ m₂
+  rw [hv02, hv03, hv23]
+  show W m₁ * W m₂ * (B i m₁ * (B i m₂ * B m₁ m₂)) =
+    W m₁ * W m₂ * B i m₁ * B i m₂ * B m₁ m₂
+  ring
+
+/-- The edge finset of `tri1Graph` is `{s(1,2), s(1,3), s(2,3)}`. -/
+private lemma tri1Graph_edgeFinset :
+    tri1Graph.edgeFinset =
+      {s((1 : Fin 4), 2), s((1 : Fin 4), 3), s((2 : Fin 4), 3)} := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, tri1Graph, SimpleGraph.edgeSet_fromEdgeSet,
+    Finset.mem_insert, Finset.mem_singleton, Set.mem_diff, Set.mem_insert_iff,
+    Set.mem_singleton_iff, Sym2.mem_diagSet_iff_isDiag]
+  refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
+  rcases he with he | he | he <;> rw [he, Sym2.mk_isDiag_iff] <;> decide
+
+/-- `labeledEval2` of `tri1Graph` equals `tri1Eval`. -/
+private theorem labeledEval2_tri1Graph {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) :
+    labeledEval2 2 tri1Graph B W i j = tri1Eval B W i j := by
+  simp only [labeledEval2, tri1Eval]
+  rw [tri1Graph_edgeFinset]
+  have hne1 : s((1 : Fin 4), 2) ∉ ({s((1 : Fin 4), 3), s((2 : Fin 4), 3)} : Finset _) := by
+    decide
+  have hne2 : s((1 : Fin 4), 3) ≠ s((2 : Fin 4), 3) := by decide
+  simp_rw [Finset.prod_insert hne1, Finset.prod_pair hne2, Fin.prod_univ_two]
+  rw [← (piFinTwoEquiv (fun _ => Fin T)).symm.sum_comp, ← Fintype.sum_prod_type']
+  congr 1; ext ⟨m₁, m₂⟩
+  have hσ : ((piFinTwoEquiv fun _ => Fin T).symm (m₁, m₂) : Fin 2 → Fin T) =
+      ![m₁, m₂] := by
+    ext k; fin_cases k <;> simp [piFinTwoEquiv]
+  rw [hσ]
+  set τ : Fin 4 → Fin T := Fin.cons i (Fin.cons j ![m₁, m₂]) with hτ_def
+  have hτ1 : τ 1 = j := finCons4_one i j _
+  have hτ2 : τ 2 = m₁ := by
+    show (Fin.cons i (Fin.cons j ![m₁, m₂]) : Fin 4 → Fin T) 2 = m₁
+    rw [finCons4_two]; rfl
+  have hτ3 : τ 3 = m₂ := by
+    show (Fin.cons i (Fin.cons j ![m₁, m₂]) : Fin 4 → Fin T) 3 = m₂
+    rw [finCons4_three]; rfl
+  -- Resolve the three Quot.outs
+  set p12 := Quot.out s((1 : Fin 4), 2) with hp12_def
+  have hout12 : s(p12.1, p12.2) = s((1 : Fin 4), 2) := Quot.out_eq _
+  have key12 : (p12.1 = 1 ∧ p12.2 = 2) ∨ (p12.1 = 2 ∧ p12.2 = 1) := by
+    rw [Sym2.eq_iff] at hout12
+    rcases hout12 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
+  set p13 := Quot.out s((1 : Fin 4), 3) with hp13_def
+  have hout13 : s(p13.1, p13.2) = s((1 : Fin 4), 3) := Quot.out_eq _
+  have key13 : (p13.1 = 1 ∧ p13.2 = 3) ∨ (p13.1 = 3 ∧ p13.2 = 1) := by
+    rw [Sym2.eq_iff] at hout13
+    rcases hout13 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
+  set p23 := Quot.out s((2 : Fin 4), 3) with hp23_def
+  have hout23 : s(p23.1, p23.2) = s((2 : Fin 4), 3) := Quot.out_eq _
+  have key23 : (p23.1 = 2 ∧ p23.2 = 3) ∨ (p23.1 = 3 ∧ p23.2 = 2) := by
+    rw [Sym2.eq_iff] at hout23
+    rcases hout23 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
+  have hv12 : B (τ p12.1) (τ p12.2) = B j m₁ := by
+    rcases key12 with ⟨ha, hb⟩ | ⟨ha, hb⟩
+    · rw [ha, hb, hτ1, hτ2]
+    · rw [ha, hb, hτ1, hτ2, hB]
+  have hv13 : B (τ p13.1) (τ p13.2) = B j m₂ := by
+    rcases key13 with ⟨ha, hb⟩ | ⟨ha, hb⟩
+    · rw [ha, hb, hτ1, hτ3]
+    · rw [ha, hb, hτ1, hτ3, hB]
+  have hv23 : B (τ p23.1) (τ p23.2) = B m₁ m₂ := by
+    rcases key23 with ⟨ha, hb⟩ | ⟨ha, hb⟩
+    · rw [ha, hb, hτ2, hτ3]
+    · rw [ha, hb, hτ2, hτ3, hB]
+  show W ((![m₁, m₂] : Fin 2 → Fin T) 0) * W ((![m₁, m₂] : Fin 2 → Fin T) 1) *
+      (B (τ p12.1) (τ p12.2) * (B (τ p13.1) (τ p13.2) * B (τ p23.1) (τ p23.2))) =
+    W m₁ * W m₂ * B j m₁ * B j m₂ * B m₁ m₂
+  rw [hv12, hv13, hv23]
+  show W m₁ * W m₂ * (B j m₁ * (B j m₂ * B m₁ m₂)) =
+    W m₁ * W m₂ * B j m₁ * B j m₂ * B m₁ m₂
+  ring
+
+/-- Each `pairProfile` component lies in `edgeFreeEvalSet` directly as a graph evaluation. -/
+private theorem pairProfile_component_mem_edgeFreeEvalSet {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (k : Fin 5) :
+    (fun i j => pairProfile B W (i, j) k) ∈ edgeFreeEvalSet B W := by
   fin_cases k
-  · simp only [pairProfile]; exact hstar0
-  · simp only [pairProfile]; exact hstar1
-  · simp only [pairProfile]; exact hpath
-  · simp only [pairProfile]; exact htri0
-  · simp only [pairProfile]; exact htri1
+  · -- star0
+    refine ⟨1, star0Graph, inferInstance, star0Graph_edgeFree, ?_⟩
+    funext i j; exact (labeledEval2_star0Graph B hB W i j).symm
+  · -- star1
+    refine ⟨1, star1Graph, inferInstance, star1Graph_edgeFree, ?_⟩
+    funext i j; exact (labeledEval2_star1Graph B hB W i j).symm
+  · -- path
+    refine ⟨1, pathGraph01, inferInstance, pathGraph01_edgeFree, ?_⟩
+    funext i j; exact (labeledEval2_pathGraph01 B hB W i j).symm
+  · -- tri0
+    refine ⟨2, tri0Graph, inferInstance, tri0Graph_edgeFree, ?_⟩
+    funext i j; exact (labeledEval2_tri0Graph B hB W i j).symm
+  · -- tri1
+    refine ⟨2, tri1Graph, inferInstance, tri1Graph_edgeFree, ?_⟩
+    funext i j; exact (labeledEval2_tri1Graph B hB W i j).symm
 
 /-- For twin-free B with positive W, distinct pair orbits are separated by some
-edge-free evaluation. Follows from `pairOrbitRel_of_pairProfile_eq`: by contrapositive,
-profiles differ, so some profile component (which is in edgeFreeEvalSpan) differs.
-Since edgeFreeEvalSpan elements are linear combinations of edgeFreeEvalSet members,
-at least one generator must separate the pair. -/
+edge-free evaluation. Follows from `pairOrbitRel_of_pairProfile_eq` by contrapositive:
+profiles differ at some component, and each component is directly an `edgeFreeEvalSet` member. -/
 private theorem pairOrbit_separated_by_edgeFreeEval {T : ℕ}
     {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
     (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
     {p q : Fin T × Fin T} (h : ¬ pairOrbitRel B W p q) :
     ∃ g ∈ edgeFreeEvalSet B W, g p.1 p.2 ≠ g q.1 q.2 := by
-  -- By contrapositive of pairOrbitRel_of_pairProfile_eq, profiles differ
+  -- Contrapositive: ¬pairOrbit → ¬(profile p = profile q) → some component differs
   have hne : pairProfile B W p ≠ pairProfile B W q :=
     fun heq => h (pairOrbitRel_of_pairProfile_eq hB hW htwin heq)
-  -- Some profile component differs
   have ⟨k, hk⟩ : ∃ k : Fin 5, pairProfile B W p k ≠ pairProfile B W q k := by
     by_contra hall; push_neg at hall; exact hne (funext hall)
-  have hmem := pairProfile_component_mem_edgeFreeEvalSpan B W hB k
-  -- If all generators agree, the whole span agrees — contradicting hk.
-  -- If all edgeFreeEvalSet members agree on p,q, then all edgeFreeEvalSpan members do
-  -- (by span induction). This contradicts hk since profile components are in the span.
-  -- The span induction argument is straightforward (linear combinations preserve equality).
-  sorry
+  -- Return the corresponding motif graph from edgeFreeEvalSet
+  refine ⟨fun i j => pairProfile B W (i, j) k,
+    pairProfile_component_mem_edgeFreeEvalSet B W hB k, ?_⟩
+  -- The pair `p` has `p = (p.1, p.2)` by eta, and same for q
+  change pairProfile B W (p.1, p.2) k ≠ pairProfile B W (q.1, q.2) k
+  rw [show (p.1, p.2) = p from rfl, show (q.1, q.2) = q from rfl]
+  exact hk
 
 /-- **CT-1 core**: edge-free indistinguishable pairs are in the same orbit
 (for twin-free matrices). Follows directly from `pairOrbit_separated_by_edgeFreeEval`. -/
