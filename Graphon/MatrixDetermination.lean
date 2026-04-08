@@ -4363,8 +4363,10 @@ For twin-free B with positive W, if two vertices `i₁, i₂ : Fin T` have equal
 weighted row sum (`star0Eval`) and equal weighted cubic self-interaction
 (`tri0Eval`), then there is an automorphism of `(B, W)` mapping `i₁` to `i₂`.
 
-**Status**: sorry. Computationally validated on random T=3..8 and structured
-cases up to T=10 with |Aut|=14400 (`scripts/vertex_orbit_subclaim.py`). -/
+**Status**: partial. The trivial case `i₁ = i₂` is handled directly.
+The nontrivial case `i₁ ≠ i₂` remains as a sorry, computationally validated on
+random T=3..8 and structured cases up to T=10 with |Aut|=14400
+(`scripts/vertex_orbit_subclaim.py`). -/
 private theorem vertexOrbit_of_star0_tri0_eq {T : ℕ}
     {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
@@ -4374,6 +4376,10 @@ private theorem vertexOrbit_of_star0_tri0_eq {T : ℕ}
     (htri : ∑ m₁, ∑ m₂, W m₁ * W m₂ * B i₁ m₁ * B i₁ m₂ * B m₁ m₂ =
             ∑ m₁, ∑ m₂, W m₁ * W m₂ * B i₂ m₁ * B i₂ m₂ * B m₁ m₂) :
     ∃ σ : Equiv.Perm (Fin T), IsWeightedAutomorphism B W σ ∧ σ i₁ = i₂ := by
+  -- Trivial case: i₁ = i₂, use the identity automorphism.
+  by_cases h : i₁ = i₂
+  · exact ⟨1, ⟨fun _ => rfl, fun _ _ => rfl⟩, by rw [h]; rfl⟩
+  -- Nontrivial case: i₁ ≠ i₂. This is the genuine frontier.
   sorry
 
 /-- **Subclaim (R)**: right vertex orbit determination via (star1, tri1).
@@ -4395,7 +4401,10 @@ private theorem vertexOrbit_of_star1_tri1_eq {T : ℕ}
 `(B, W)` (not necessarily the same one), and that `pathEval` agrees on the
 pairs, there exists a single automorphism that does both.
 
-**Status**: sorry. Computationally validated on the same test corpus as (L), (R)
+**Status**: partial. Two trivial cases are handled directly (when one of the
+given automorphisms already does both). The genuinely new content is the
+hard case `σ_L j₁ ≠ j₂ ∧ σ_R i₁ ≠ i₂`, which remains as a sorry.
+Computationally validated on the same test corpus as (L), (R)
 (`scripts/cross_term_coherence.py`). -/
 private theorem pairOrbit_of_vertexOrbits_and_path {T : ℕ}
     {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
@@ -4407,6 +4416,17 @@ private theorem pairOrbit_of_vertexOrbits_and_path {T : ℕ}
     (hR : IsWeightedAutomorphism B W σ_R) (hR_eq : σ_R j₁ = j₂)
     (hpath : ∑ m, W m * B i₁ m * B m j₁ = ∑ m, W m * B i₂ m * B m j₂) :
     pairOrbitRel B W (i₁, j₁) (i₂, j₂) := by
+  -- Trivial case A: σ_L already sends j₁ to j₂, so σ_L does both maps.
+  by_cases hσL_j : σ_L j₁ = j₂
+  · exact ⟨σ_L, hL, hL_eq, hσL_j⟩
+  -- Trivial case B: σ_R already sends i₁ to i₂, so σ_R does both maps.
+  by_cases hσR_i : σ_R i₁ = i₂
+  · exact ⟨σ_R, hR, hσR_i, hR_eq⟩
+  -- Hard case: neither given automorphism does both. Requires constructing
+  -- a new automorphism in the coset σ_L · Stab(i₁) — specifically, a τ ∈
+  -- Stab(i₁) with τ j₁ = σ_L⁻¹ j₂. Existence of such τ is equivalent to
+  -- showing σ_L⁻¹ j₂ and j₁ lie in the same Stab(i₁)-orbit, which is what
+  -- the path equality constrains.
   sorry
 
 /-- **Pair orbit separation**: for twin-free B with positive W, if two pairs have
