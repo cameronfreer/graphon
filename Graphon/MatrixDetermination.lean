@@ -4256,10 +4256,198 @@ private theorem pairOrbitRel_implies_fullIndist {T : ℕ}
   · -- Edge value preserved by automorphism
     rw [← h1, ← h2]; exact (hc p.1 p.2).symm
 
+/-! ### Lovász TR-2004-82 k-labeled infrastructure
+
+The 5-motif route below (starting at the "Explicit separating motifs" header)
+was refuted by the `C₅ ⊔ C₆` counterexample (`scripts/counterexample_C5_C6.py`).
+This section installs the **honest book path** from Lovász's
+*The rank of connection matrices and the dimension of graph algebras*
+(Microsoft Research Technical Report TR-2004-82, August 2004;
+<https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2004-82.pdf>;
+book form: *Large Networks and Graph Limits*, AMS Colloquium Publications 60).
+
+This is **Session A** of the pivot: k-labeled evaluation, equivalence, orbit
+relation, cheap consistency/invariance lemmas, and Claim 4.1 (restriction).
+Claim 4.2 (trace-extension) is installed as the new honest frontier sorry.
+The existing CT-1 chain (line 5200) and downstream theorems still route
+through the known-false motif subclaims for now; rewiring is deferred to a
+later session after Lemma 2.4 itself has landed.
+-/
+
+/-- **Lovász TR-2004-82 eq. (1)**, p. 4. Normalized k-labeled hom count.
+
+For a k-labeled graph `F` on `Fin (n + k)` with the first `k` vertices labeled
+by `φ : Fin k → Fin T`, and `n` unlabeled vertices summed over via
+`σ : Fin n → Fin T`. The combined coloring `τ : Fin (n + k) → Fin T` puts
+labels at indices `0..k-1` and unlabeled at indices `k..n+k-1`.
+
+This generalizes `rootedEval` (k=1, line 2311) and `labeledEval2` (k=2,
+line 2756). -/
+private noncomputable def labeledEvalK {T : ℕ} (k n : ℕ)
+    (F : SimpleGraph (Fin (n + k))) [DecidableRel F.Adj]
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin k → Fin T) : ℝ :=
+  ∑ σ : Fin n → Fin T,
+    let τ : Fin (n + k) → Fin T := fun v =>
+      if h : (v : ℕ) < k then φ ⟨v, h⟩
+      else σ ⟨v - k, by have := v.isLt; omega⟩
+    (∏ v : Fin n, W (σ v)) *
+    ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)
+
+/-- **Lovász TR-2004-82 §2**, p. 6. Two label maps `φ, ψ : Fin k → Fin T` are
+*equivalent* iff every k-labeled graph evaluates equally on them. -/
+private def tupleEquiv {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) {k : ℕ}
+    (φ ψ : Fin k → Fin T) : Prop :=
+  ∀ (n : ℕ) (F : SimpleGraph (Fin (n + k))) [DecidableRel F.Adj],
+    labeledEvalK k n F B W φ = labeledEvalK k n F B W ψ
+
+/-- **Lovász TR-2004-82 §2**, p. 5 (orbit relation on k-tuples).
+Two tuples are orbit-related iff some `(B, W)`-automorphism conjugates one
+into the other. Composition order matches `pairOrbitRel` at line 3352:
+`ψ i = σ (φ i)`. -/
+private def tupleOrbitRel {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    {k : ℕ} (φ ψ : Fin k → Fin T) : Prop :=
+  ∃ σ : Equiv.Perm (Fin T),
+    IsWeightedAutomorphism B W σ ∧ ∀ i, ψ i = σ (φ i)
+
+/-- Restriction of a `(k+1)`-tuple to its first `k` coordinates via
+`Fin.castSucc`. Lovász's `φ'` notation. -/
+private def restrictTuple {T k : ℕ} (φ : Fin (k + 1) → Fin T) : Fin k → Fin T :=
+  fun i => φ i.castSucc
+
+/-- **k=1 compatibility**: `labeledEvalK` at k=1 agrees with `rootedEval`.
+
+**Status**: sorry in Session A. The proof requires showing that the τ
+function built via the `if h : (v:ℕ) < 1 then i else σ ⟨v-1,_⟩` pattern
+agrees pointwise with `Fin.cons i σ`, which runs into dependent-type motive
+issues on `rw` tactics. Punted to a follow-up; the lemma is not load-
+bearing for Sessions B-F (it is only a documentation/sanity-check lemma). -/
+private theorem labeledEvalK_one_eq_rootedEval {T : ℕ} (n : ℕ)
+    (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (i : Fin T) :
+    labeledEvalK 1 n F B W (fun _ => i) = rootedEval n F B W i := by
+  sorry
+
+/-- **k=2 compatibility**: `labeledEvalK` at k=2 agrees with `labeledEval2`.
+
+**Status**: sorry in Session A. Same dependent-type motive issues as
+`labeledEvalK_one_eq_rootedEval`. Not load-bearing for Sessions B-F. -/
+private theorem labeledEvalK_two_eq_labeledEval2 {T : ℕ} (n : ℕ)
+    (F : SimpleGraph (Fin (n + 2))) [DecidableRel F.Adj]
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (i j : Fin T) :
+    labeledEvalK 2 n F B W ![i, j] = labeledEval2 n F B W i j := by
+  sorry
+
+/-- **Automorphism invariance of `labeledEvalK`**. Generalizes
+`labeledEval2_perm_eq` (line 2768) to arbitrary k. Proof structure matches
+k=2 exactly: reindex `σ = π ∘ σ'` via `Equiv.piCongrRight`, then observe
+that `τ` commutes with `π` on both label and unlabeled positions. -/
+private theorem labeledEvalK_perm_eq {T k : ℕ} (n : ℕ)
+    (F : SimpleGraph (Fin (n + k))) [DecidableRel F.Adj]
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (π : Equiv.Perm (Fin T))
+    (hc : ∀ i j, B (π i) (π j) = B i j) (hw : ∀ i, W (π i) = W i)
+    (φ : Fin k → Fin T) :
+    labeledEvalK k n F B W (π ∘ φ) = labeledEvalK k n F B W φ := by
+  simp only [labeledEvalK]
+  -- Reindex σ = π ∘ σ'
+  let e : (Fin n → Fin T) ≃ (Fin n → Fin T) :=
+    Equiv.piCongrRight (fun _ => π)
+  rw [(Equiv.sum_comp e _).symm]
+  congr 1; ext σ'
+  have he : ∀ v, e σ' v = π (σ' v) := fun v => by simp [e]
+  -- Weight product: ∏ W(e σ' v) = ∏ W(π (σ' v)) = ∏ W(σ' v) by hw
+  have hw_prod : ∏ v : Fin n, W (e σ' v) = ∏ v : Fin n, W (σ' v) := by
+    congr 1; ext v; rw [he]; exact hw (σ' v)
+  rw [hw_prod]; congr 1
+  apply Finset.prod_congr rfl; intro x _
+  -- Need: B(τ' (out x).1) (τ' (out x).2) = B(τ (out x).1) (τ (out x).2)
+  -- where τ' uses (π ∘ φ, e σ') and τ uses (φ, σ').
+  -- By pointwise reasoning on τ, we show τ' v = π (τ v) for all v.
+  have hτ : ∀ v : Fin (n + k),
+      (if h : (v : ℕ) < k then (π ∘ φ) ⟨v, h⟩
+       else e σ' ⟨v - k, by have := v.isLt; omega⟩) =
+      π (if h : (v : ℕ) < k then φ ⟨v, h⟩
+         else σ' ⟨v - k, by have := v.isLt; omega⟩) := by
+    intro v
+    by_cases hv : (v : ℕ) < k
+    · simp only [dif_pos hv]; rfl
+    · simp only [dif_neg hv]; exact he _
+  rw [hτ, hτ, hc]
+
+/-- **Easy direction**: `tupleOrbitRel` implies `tupleEquiv`. The reverse
+direction is the hard Lovász Lemma 2.4. -/
+private theorem tupleEquiv_of_tupleOrbitRel {T k : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {φ ψ : Fin k → Fin T} (h : tupleOrbitRel B W φ ψ) :
+    tupleEquiv B W φ ψ := by
+  obtain ⟨π, ⟨hw, hc⟩, hψ⟩ := h
+  intro n F _
+  -- ψ = π ∘ φ by `hψ`
+  have hψ_eq : ψ = π ∘ φ := funext hψ
+  rw [hψ_eq, labeledEvalK_perm_eq n F B W π hc hw φ]
+
+/-! ### Lovász TR-2004-82 Claim 4.1 and frontier statement (Claim 4.2) -/
+
+/-- **Lovász TR-2004-82, Claim 4.1**, §4.3, p. 9.
+Restriction preserves tuple equivalence.
+
+**Proof idea** (Lovász, p. 9): contrapositive. If the restrictions are
+distinguished by some k-labeled `F`, then `F ⊗ E_1` (disjoint union of `F`
+with a single isolated vertex labeled `k+1`) is a `(k+1)`-labeled graph
+that distinguishes the original tuples. The lift uses `Fin.succAbove` to
+insert the new label at position `k`, shifting unlabeled vertices by 1.
+
+**Status**: sorry in Session A. Routine but tedious graph-lift work. -/
+private theorem tupleEquiv_restrict {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) {k : ℕ}
+    {φ ψ : Fin (k + 1) → Fin T}
+    (h : tupleEquiv B W φ ψ) :
+    tupleEquiv B W (restrictTuple φ) (restrictTuple ψ) := by
+  sorry
+
+/-- **Lovász TR-2004-82, Claim 4.2**, §4.3, p. 9 (trace-based extension).
+Given equivalent k-tuples `φ, ψ` and any extension `μ` of `φ` to `k+1`,
+there is an equivalent extension `ν` of `ψ`.
+
+**Status**: new honest frontier after the pivot from the refuted 5-motif
+route. The feasibility pass on `lovasz-feasibility:Graphon/LovaszScratch.lean`
+identified the blocker: Lovász's proof uses `tr(A''_{k+1}) ⊆ A''_k`
+(eq. 6, p. 7), which requires the algebra layer `A_k / A''_k / f_k` and
+the trace-commutation lemma. That infrastructure does not exist in the
+codebase; building it is on the order of 500–1000 lines of prerequisite
+Lean. Left as `sorry` in Session A; attacked in Session B.
+
+Hypotheses mirror Lovász: `hW` (positive weights) is needed for the trace
+argument's non-zero coefficient step. No twin-free hypothesis — Claim 4.2
+is not where twin-freeness conceptually enters the proof (twin-freeness
+enters later in Claim 4.3 via Lovász Lemma 4.1 to force injectivity of an
+edge-preserving map). -/
+private theorem tupleEquiv_extend {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    {k : ℕ} {φ ψ : Fin k → Fin T} (h : tupleEquiv B W φ ψ)
+    (μ : Fin (k + 1) → Fin T) (hμ : restrictTuple μ = φ) :
+    ∃ ν : Fin (k + 1) → Fin T, restrictTuple ν = ψ ∧ tupleEquiv B W μ ν := by
+  sorry
+
 /-! ### Explicit separating motifs
 
+**⚠ KNOWN-FALSE-FOR-SPARSE-B — retained to prevent cascade.**
+
+The 5-motif `pairProfile` route below is refuted by the `C₅ ⊔ C₆`
+counterexample (`scripts/counterexample_C5_C6.py`): that is a twin-free
+positive-weight matrix where `(0, 0)` and `(5, 5)` have identical 5-motif
+profiles but lie in different pair orbits under `Aut(C₅ ⊔ C₆) = D₅ × D₆`.
+
+This section is kept intact during the Lovász pivot (Sessions A–E) only
+so that the live CT-1 chain (lines 4926, 5200) and downstream uses do not
+cascade. The sorries at `vertexOrbit_of_star0_tri0_eq` and
+`pairOrbit_of_vertexOrbits_and_path` are **known-false** as stated
+and must not be relied upon for any general claim. They will be deleted
+in a future session once the Lovász-based replacement is wired in.
+
 Five edge-free 2-labeled graphs whose evaluations form the `pairProfile` — a
-5-tuple that (conjecturally, and confirmed by computation up to T=10)
+5-tuple that (conjecturally, and confirmed by computation up to T=10 on
+**dense** matrices, but FALSE on sparse matrices like `C₅ ⊔ C₆`)
 determines pair orbits for twin-free matrices with positive weights.
 
 - **star0** `{0,2}`: weighted row sum at label-0 vertex, `∑ W(m) B(i,m)`
