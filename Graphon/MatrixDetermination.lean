@@ -4314,28 +4314,84 @@ private def tupleOrbitRel {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T →
 private def restrictTuple {T k : ℕ} (φ : Fin (k + 1) → Fin T) : Fin k → Fin T :=
   fun i => φ i.castSucc
 
-/-- **k=1 compatibility**: `labeledEvalK` at k=1 agrees with `rootedEval`.
-
-**Status**: sorry in Session A. The proof requires showing that the τ
-function built via the `if h : (v:ℕ) < 1 then i else σ ⟨v-1,_⟩` pattern
-agrees pointwise with `Fin.cons i σ`, which runs into dependent-type motive
-issues on `rw` tactics. Punted to a follow-up; the lemma is not load-
-bearing for Sessions B-F (it is only a documentation/sanity-check lemma). -/
+/-- **k=1 compatibility**: `labeledEvalK` at k=1 agrees with `rootedEval`. -/
 private theorem labeledEvalK_one_eq_rootedEval {T : ℕ} (n : ℕ)
     (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (i : Fin T) :
     labeledEvalK 1 n F B W (fun _ => i) = rootedEval n F B W i := by
-  sorry
+  -- Helper: pointwise equality of the two τ functions. Use explicit
+  -- non-dependent ascription to avoid the motive issue on Fin.cons.
+  have htau : ∀ (σ : Fin n → Fin T) (v : Fin (n + 1)),
+      (if h : (v : ℕ) < 1 then (fun _ : Fin 1 => i) ⟨v, h⟩
+       else σ ⟨v - 1, by have := v.isLt; omega⟩) =
+      (Fin.cons (α := fun _ => Fin T) i σ) v := by
+    intro σ v
+    by_cases hv : (v : ℕ) < 1
+    · rw [dif_pos hv]
+      have h0 : v = (0 : Fin (n + 1)) := by
+        apply Fin.ext; show v.val = 0; omega
+      subst h0
+      rfl
+    · rw [dif_neg hv]
+      set m : Fin n := ⟨v.val - 1, by have := v.isLt; omega⟩ with hm_def
+      have hrw : v = (m.succ : Fin (n + 1)) := by
+        apply Fin.ext
+        show v.val = (m.succ : Fin (n + 1)).val
+        simp [hm_def, Fin.val_succ]
+        omega
+      rw [hrw]
+      rfl
+  simp only [labeledEvalK, rootedEval]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  congr 1
+  refine Finset.prod_congr rfl fun e _ => ?_
+  congr 1 <;> exact htau σ _
 
-/-- **k=2 compatibility**: `labeledEvalK` at k=2 agrees with `labeledEval2`.
-
-**Status**: sorry in Session A. Same dependent-type motive issues as
-`labeledEvalK_one_eq_rootedEval`. Not load-bearing for Sessions B-F. -/
+/-- **k=2 compatibility**: `labeledEvalK` at k=2 agrees with `labeledEval2`. -/
 private theorem labeledEvalK_two_eq_labeledEval2 {T : ℕ} (n : ℕ)
     (F : SimpleGraph (Fin (n + 2))) [DecidableRel F.Adj]
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (i j : Fin T) :
     labeledEvalK 2 n F B W ![i, j] = labeledEval2 n F B W i j := by
-  sorry
+  -- Helper: pointwise equality of the two τ functions.
+  have htau : ∀ (σ : Fin n → Fin T) (v : Fin (n + 2)),
+      (if h : (v : ℕ) < 2 then (![i, j] : Fin 2 → Fin T) ⟨v, h⟩
+       else σ ⟨v - 2, by have := v.isLt; omega⟩) =
+      (Fin.cons (α := fun _ => Fin T) i
+        (Fin.cons (α := fun _ => Fin T) j σ)) v := by
+    intro σ v
+    by_cases hv0 : v.val = 0
+    · have h : (v : ℕ) < 2 := by omega
+      rw [dif_pos h]
+      have heq : v = (0 : Fin (n + 2)) := by
+        apply Fin.ext; show v.val = 0; exact hv0
+      subst heq
+      rfl
+    by_cases hv1 : v.val = 1
+    · have h : (v : ℕ) < 2 := by omega
+      rw [dif_pos h]
+      have heq : v = ((0 : Fin (n + 1)).succ : Fin (n + 2)) := by
+        apply Fin.ext
+        show v.val = ((0 : Fin (n + 1)).succ : Fin (n + 2)).val
+        simp [Fin.val_succ]
+        exact hv1
+      subst heq
+      rfl
+    -- v.val ≥ 2
+    have hv : ¬ (v : ℕ) < 2 := by omega
+    rw [dif_neg hv]
+    set m : Fin n := ⟨v.val - 2, by have := v.isLt; omega⟩ with hm_def
+    have hrw : v = ((m.succ : Fin (n + 1)).succ : Fin (n + 2)) := by
+      apply Fin.ext
+      show v.val = ((m.succ : Fin (n + 1)).succ : Fin (n + 2)).val
+      simp [hm_def, Fin.val_succ]
+      omega
+    rw [hrw]
+    rfl
+  simp only [labeledEvalK, labeledEval2]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  congr 1
+  refine Finset.prod_congr rfl fun e _ => ?_
+  congr 1 <;> exact htau σ _
 
 /-- **Automorphism invariance of `labeledEvalK`**. Generalizes
 `labeledEval2_perm_eq` (line 2768) to arbitrary k. Proof structure matches
@@ -4397,13 +4453,142 @@ with a single isolated vertex labeled `k+1`) is a `(k+1)`-labeled graph
 that distinguishes the original tuples. The lift uses `Fin.succAbove` to
 insert the new label at position `k`, shifting unlabeled vertices by 1.
 
-**Status**: sorry in Session A. Routine but tedious graph-lift work. -/
+The symmetry hypothesis `hB` is needed because `labeledEvalK` reads edges
+via `Quot.out` (a classical choice), and only `B`-symmetry makes the
+edge-product well-defined up to representative swap — see `h_edge` below. -/
 private theorem tupleEquiv_restrict {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) {k : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) {k : ℕ}
     {φ ψ : Fin (k + 1) → Fin T}
     (h : tupleEquiv B W φ ψ) :
     tupleEquiv B W (restrictTuple φ) (restrictTuple ψ) := by
-  sorry
+  intro n F' hdec
+  -- Helper: edge-product term is independent of the Sym2 representative,
+  -- thanks to `hB`. Stated for `Fin (n + (k + 1))` (the F-side target) to
+  -- avoid universe-polymorphism at the `private theorem` level.
+  have h_edge : ∀ (ν : Fin (n + (k + 1)) → Fin T) (a b : Fin (n + (k + 1))),
+      B (ν (Quot.out (s(a, b) : Sym2 (Fin (n + (k + 1))))).1)
+        (ν (Quot.out (s(a, b) : Sym2 (Fin (n + (k + 1))))).2) = B (ν a) (ν b) := by
+    intro ν a b
+    have h_out_eq : Sym2.mk (Quot.out (s(a, b) : Sym2 (Fin (n + (k + 1))))) =
+        s(a, b) := Quot.out_eq _
+    rcases Sym2.mk_eq_mk_iff.mp h_out_eq with heq | heq
+    · rw [heq]
+    · rw [heq]; exact hB _ _
+  have h_edge' : ∀ (ν : Fin (n + k) → Fin T) (a b : Fin (n + k)),
+      B (ν (Quot.out (s(a, b) : Sym2 (Fin (n + k)))).1)
+        (ν (Quot.out (s(a, b) : Sym2 (Fin (n + k)))).2) = B (ν a) (ν b) := by
+    intro ν a b
+    have h_out_eq : Sym2.mk (Quot.out (s(a, b) : Sym2 (Fin (n + k)))) = s(a, b) :=
+      Quot.out_eq _
+    rcases Sym2.mk_eq_mk_iff.mp h_out_eq with heq | heq
+    · rw [heq]
+    · rw [heq]; exact hB _ _
+  -- Pivot: position k in Fin (n + (k + 1)).
+  have hk : k < n + (k + 1) := by omega
+  let p : Fin (n + (k + 1)) := ⟨k, hk⟩
+  let shift : Fin (n + k) ↪ Fin (n + (k + 1)) := Fin.succAboveEmb p
+  let F : SimpleGraph (Fin (n + (k + 1))) := SimpleGraph.map shift F'
+  haveI hF_dec : DecidableRel F.Adj := Classical.decRel _
+  -- The core translation lemma.
+  suffices trans : ∀ (θ : Fin (k + 1) → Fin T),
+      labeledEvalK (k + 1) n F B W θ = labeledEvalK k n F' B W (restrictTuple θ) by
+    rw [← trans φ, ← trans ψ]
+    exact h n F
+  intro θ
+  simp only [labeledEvalK]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  congr 1
+  -- The edge product. Use `Finset.prod_bij` with `shift.sym2Map` as the
+  -- bijection between F'.edgeFinset and F.edgeFinset.
+  symm
+  refine Finset.prod_bij (fun e _ => shift.sym2Map e) ?_ ?_ ?_ ?_
+  · -- 1. Map lands in F.edgeFinset.
+    intro e he
+    change shift.sym2Map e ∈ (SimpleGraph.map shift F').edgeFinset
+    rw [SimpleGraph.mem_edgeFinset] at he ⊢
+    -- e ∈ F'.edgeSet means F'.Adj on the underlying pair; after shift it lands
+    -- in (SimpleGraph.map shift F').edgeSet.
+    induction e using Sym2.ind with
+    | _ a b =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at *
+      rw [SimpleGraph.mem_edgeSet] at he ⊢
+      exact ⟨a, b, he, rfl, rfl⟩
+  · -- 2. Injective on edgeFinset.
+    intro e1 _ e2 _ hij
+    exact shift.sym2Map.injective hij
+  · -- 3. Surjective onto F.edgeFinset.
+    intro e he
+    change e ∈ (SimpleGraph.map shift F').edgeFinset at he
+    rw [SimpleGraph.mem_edgeFinset] at he
+    induction e using Sym2.ind with
+    | _ x y =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      -- he : (SimpleGraph.map shift F').Adj x y
+      obtain ⟨a, b, hab, hax, hby⟩ := he
+      refine ⟨s(a, b), ?_, ?_⟩
+      · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact hab
+      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+        rw [hax, hby]
+  · -- 4. Term-by-term equality.
+    intro e _
+    -- Abstract the τ functions to make h_edge / h_edge' applicable.
+    set ν' : Fin (n + k) → Fin T := fun v =>
+      if h : (v : ℕ) < k then (restrictTuple θ) ⟨v, h⟩
+      else σ ⟨(v : Fin (n + k)).val - k, by have := v.isLt; omega⟩ with hν'_def
+    set ν : Fin (n + (k + 1)) → Fin T := fun v =>
+      if h : (v : ℕ) < k + 1 then θ ⟨v, h⟩
+      else σ ⟨(v : Fin (n + (k + 1))).val - (k + 1),
+              by have := v.isLt; omega⟩ with hν_def
+    -- Induct on e : Sym2 (Fin (n+k)).
+    induction e using Sym2.ind with
+    | _ a b =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      -- Goal: B (ν' (out s(a,b)).1) (ν' (out s(a,b)).2) =
+      --       B (ν (out s(shift a, shift b)).1) (ν (out s(shift a, shift b)).2).
+      change B (ν' (Quot.out s(a, b)).1) (ν' (Quot.out s(a, b)).2) =
+        B (ν (Quot.out s(shift a, shift b)).1) (ν (Quot.out s(shift a, shift b)).2)
+      rw [h_edge' ν' a b, h_edge ν (shift a) (shift b)]
+      -- Goal: B (ν' a) (ν' b) = B (ν (shift a)) (ν (shift b)).
+      -- Reduces to pointwise equality ν ∘ shift = ν'.
+      have hτ : ∀ v : Fin (n + k), ν (shift v) = ν' v := by
+        intro v
+        -- First compute (shift v).val in terms of v.val, case by case.
+        by_cases hv : (v : ℕ) < k
+        · -- Below the pivot: shift v = v.castSucc, (shift v).val = v.val.
+          have h_shift_val : (shift v : Fin (n + (k + 1))).val = v.val := by
+            show (p.succAboveEmb v : Fin (n + (k + 1))).val = v.val
+            simp only [Fin.coe_succAboveEmb]
+            rw [Fin.succAbove_of_castSucc_lt]
+            · rfl
+            · show v.castSucc < p
+              simp only [Fin.lt_iff_val_lt_val, Fin.coe_castSucc]
+              exact hv
+          have h_lt : ((shift v : Fin (n + (k + 1))) : ℕ) < k + 1 := by
+            rw [h_shift_val]; omega
+          simp only [hν_def, hν'_def, dif_pos h_lt, dif_pos hv, restrictTuple]
+          congr 1
+          apply Fin.ext
+          simp only [Fin.coe_castSucc]
+          exact h_shift_val
+        · -- Above the pivot: shift v = v.succ, (shift v).val = v.val + 1.
+          have h_shift_val : (shift v : Fin (n + (k + 1))).val = v.val + 1 := by
+            show (p.succAboveEmb v : Fin (n + (k + 1))).val = v.val + 1
+            simp only [Fin.coe_succAboveEmb]
+            rw [Fin.succAbove_of_le_castSucc]
+            · rfl
+            · show p ≤ v.castSucc
+              simp only [Fin.le_iff_val_le_val, Fin.coe_castSucc]
+              show k ≤ v.val
+              omega
+          have h_not_lt : ¬ ((shift v : Fin (n + (k + 1))) : ℕ) < k + 1 := by
+            rw [h_shift_val]; omega
+          simp only [hν_def, hν'_def, dif_neg h_not_lt, dif_neg hv]
+          congr 1
+          apply Fin.ext
+          show (shift v : Fin (n + (k + 1))).val - (k + 1) = v.val - k
+          rw [h_shift_val]; omega
+      rw [hτ, hτ]
 
 /-- **Lovász TR-2004-82, Claim 4.2**, §4.3, p. 9 (trace-based extension).
 Given equivalent k-tuples `φ, ψ` and any extension `μ` of `φ` to `k+1`,
