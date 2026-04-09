@@ -4342,9 +4342,7 @@ private theorem pairProfile_eq_of_pairOrbitRel {T : ℕ}
 /-! #### Three-subclaim decomposition of pair orbit determination
 
 Rather than attacking `pairOrbitRel_of_pairProfile_eq` directly, we factor it
-through three smaller lemmas, each computationally validated on twin-free
-test cases up to T=10 with |Aut(B,W)| ≤ 14400
-(`scripts/vertex_orbit_subclaim.py` and `scripts/cross_term_coherence.py`):
+through three smaller lemmas:
 
 - **(L)** `vertexOrbit_of_star0_tri0_eq`: (star0, tri0) equal ⟹ left vertex
   orbit equal.
@@ -4353,9 +4351,35 @@ test cases up to T=10 with |Aut(B,W)| ≤ 14400
 - **(C)** `pairOrbit_of_vertexOrbits_and_path`: individually vertex-orbit-
   related endpoints + equal `pathEval` ⟹ joint pair orbit.
 
-`pairOrbitRel_of_pairProfile_eq` is then assembled from the three. This shifts
-the proof surface from one opaque frontier to three smaller pieces, each of
-which can be attacked independently.
+`pairOrbitRel_of_pairProfile_eq` is assembled from the three.
+
+**⚠ Correctness warning**: Subclaim (L) is **FALSE** as stated, and
+consequently `pairOrbitRel_of_pairProfile_eq` is also **FALSE** as stated.
+Counterexample: `C₅ ⊔ C₆` (disjoint union of a 5-cycle and a 6-cycle, as a
+`{0,1}`-matrix on `Fin 11` with uniform weights `W = 1/11`). This matrix is
+symmetric, twin-free, has positive weights, yet every vertex has
+`star0 = 2/11` and `tri0 = 0` (no triangles), so the 5-motif `pairProfile`
+cannot distinguish any two vertices. In particular, pairs `(0,0)` and `(5,5)`
+have identical profiles but lie in different pair orbits under
+`Aut(C₅ ⊔ C₆) = D₅ × D₆`.
+
+The earlier computational validation (`scripts/vertex_orbit_subclaim.py` and
+`scripts/cross_term_coherence.py`) missed this because it tested only dense
+matrices with entries in `[0.1, 0.9]`. For such dense matrices the subclaims
+empirically hold, but the proof route cannot extend to the sparse case
+without strengthening the hypothesis (e.g., requiring `∀ i j, 0 < B i j`) or
+switching to a richer, infinite family of test graphs (see
+`Graphon/LovaszScratch.lean` on the `lovasz-feasibility` branch for the
+Lovász TR-2004-82 route — itself blocked by the trace-operator
+infrastructure).
+
+The subclaim sorries below are kept in place for documentation and because
+removing them would cascade through CT-1 and downstream theorems, but
+they should be understood as **known-false-for-sparse-twin-free-B** and not
+relied upon for any general claim. A future session must either:
+- Strengthen the hypotheses of the top-level conjecture, or
+- Abandon the finite-motif route and build the Lovász algebra layer, or
+- Find an entirely different proof approach.
 -/
 
 /-- **Subclaim (L)**: left vertex orbit determination via (star0, tri0).
@@ -4437,9 +4461,19 @@ Assembled from three subclaims:
 - `vertexOrbit_of_star1_tri1_eq` gives a right-side automorphism `σ_R`.
 - `pairOrbit_of_vertexOrbits_and_path` combines them with the path constraint.
 
-Computational evidence: confirmed on all twin-free examples up to T=10, including
-structured cases with |Aut(B,W)| up to 14400 (two S₅ blocks).
-False without twin-free (counterexample: block-diagonal B with twins). -/
+**⚠ Known FALSE as stated** (see the section comment above). Counterexample:
+`C₅ ⊔ C₆` on `Fin 11` with uniform weights. This is twin-free with positive W,
+yet `(0, 0)` and `(5, 5)` have identical 5-motif profiles but lie in different
+pair orbits. The assembly proof below routes through `vertexOrbit_of_star0_tri0_eq`,
+which is itself false for this example.
+
+The earlier computational evidence (twin-free examples up to T=10 with
+|Aut(B,W)| ≤ 14400) missed this because it tested only dense matrices with
+entries in `[0.1, 0.9]`. For dense enough B the 5-motif profile empirically
+suffices, but no clean hypothesis capturing "dense enough" is currently known.
+
+Also false without twin-free (separate counterexample: block-diagonal B with
+twin rows). -/
 private theorem pairOrbitRel_of_pairProfile_eq {T : ℕ}
     {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
