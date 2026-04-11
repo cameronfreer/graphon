@@ -4590,17 +4590,136 @@ private theorem tupleEquiv_restrict {T : ℕ}
           rw [h_shift_val]; omega
       rw [hτ, hτ]
 
+/-! ### Graph-level trace lemma (combinatorial form of Lovász eq. (6)) -/
+
+/-- **Graph-level trace**: summing `labeledEvalK (k+1) n F B W` over the
+last label `t` of a `(k+1)`-tuple `Fin.snoc φ t`, weighted by `W(t)`,
+gives a sum with `k` labels from `φ` and `n+1` unlabeled positions.
+
+This is the combinatorial heart of Lovász's trace operator
+`tr : A_{k+1} → A_k` (TR-2004-82 §3, eq. (6), p. 7), without the
+algebraic wrapping. Generalizes `rootedEval_weighted_sum` (line 2320,
+k=0 → k=1) and `labeledEval2_weighted_sum_snd` (line 3203, k=1 → k=2).
+
+The RHS is literally `labeledEvalK k (n+1) F B W φ` except stated
+with explicit sums to avoid the `Fin (n + (k+1))` vs `Fin ((n+1) + k)`
+type-cast. -/
+private theorem labeledEvalK_sum_last_label {T : ℕ} (k n : ℕ)
+    (F : SimpleGraph (Fin (n + (k + 1)))) [DecidableRel F.Adj]
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin k → Fin T) :
+    ∑ t : Fin T, W t * labeledEvalK (k + 1) n F B W (Fin.snoc φ t) =
+    ∑ σ' : Fin (n + 1) → Fin T,
+      let τ : Fin (n + (k + 1)) → Fin T := fun v =>
+        if h : (v : ℕ) < k then φ ⟨v, h⟩
+        else σ' ⟨v.val - k, by have := v.isLt; omega⟩
+      (∏ v : Fin (n + 1), W (σ' v)) *
+      ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2) := by
+  -- Unfold labeledEvalK on the LHS.
+  simp only [labeledEvalK]
+  -- LHS: ∑ t, W t * ∑ σ, (∏ W(σ v)) * ∏ B(τ_{k+1} ...)
+  -- where τ_{k+1} uses (Fin.snoc φ t) on 0..k and σ on k+1..n+k.
+  -- RHS: ∑ σ', (∏ W(σ' v)) * ∏ B(τ_k ...)
+  -- where τ_k uses φ on 0..k-1 and σ' on k..n+k.
+  -- Bijection: σ' = Fin.cons t σ (t at position 0 of σ').
+  -- Reindex RHS via Fin.consEquiv to get ∑ (t, σ), then match.
+  conv_rhs =>
+    rw [(Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (n + 1) => Fin T)) _).symm]
+  simp only [Fin.consEquiv_apply]
+  rw [Fintype.sum_prod_type]
+  -- Now RHS = ∑ t, ∑ σ, (∏ W(Fin.cons t σ v)) * ∏ B(τ_k(Fin.cons t σ) ...)
+  -- LHS = ∑ t, ∑ σ, W(t) * (∏ W(σ v)) * ∏ B(τ_{k+1}(t, σ) ...)
+  -- Push W(t) inside on LHS.
+  congr 1; ext t
+  rw [Finset.mul_sum]
+  -- Both sides: ∑ σ, something(t, σ). Match summands.
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  -- Weight product: W(t) * ∏ W(σ v) = ∏ W(Fin.cons t σ v)
+  -- because ∏ W(Fin.cons t σ v) = W(t) * ∏ W(σ v) by Fin.prod_univ_succ.
+  rw [Fin.prod_univ_succ]
+  simp only [Fin.cons_zero, Fin.cons_succ]
+  ring_nf
+  -- After ring_nf, both sides should have the same weight factor.
+  -- Need to match edge products.
+  congr 1
+  refine Finset.prod_congr rfl fun e _ => ?_
+  -- Pointwise τ equality: for all v : Fin (n + (k+1)),
+  -- τ_{k+1}(Fin.snoc φ t, σ)(v) = τ_k(φ, Fin.cons t σ)(v).
+  -- Pointwise τ equality: τ_{k+1}(Fin.snoc φ t, σ) = τ_k(φ, Fin.cons t σ).
+  have hτ : ∀ v : Fin (n + (k + 1)),
+      (if h : (v : ℕ) < k + 1 then (Fin.snoc (α := fun _ => Fin T) φ t) ⟨v, h⟩
+       else σ ⟨v.val - (k + 1), by have := v.isLt; omega⟩) =
+      (if h : (v : ℕ) < k then φ ⟨v, h⟩
+       else (Fin.cons (α := fun _ => Fin T) t σ)
+            ⟨v.val - k, by have := v.isLt; omega⟩) := by
+    intro v
+    by_cases hv : (v : ℕ) < k
+    · -- v.val < k: both sides give φ(v).
+      rw [dif_pos (show (v : ℕ) < k + 1 by omega), dif_pos hv]
+      -- (Fin.snoc φ t) ⟨v, _⟩ = φ ⟨v, hv⟩
+      have : (⟨v, (show (v : ℕ) < k + 1 by omega)⟩ : Fin (k + 1)) =
+             (⟨v, hv⟩ : Fin k).castSucc := Fin.ext rfl
+      rw [this, Fin.snoc_castSucc]
+    by_cases hv_eq : (v : ℕ) = k
+    · -- v.val = k: LHS gives t (Fin.snoc at last), RHS gives t (Fin.cons at 0).
+      rw [dif_pos (show (v : ℕ) < k + 1 by omega), dif_neg hv]
+      -- LHS: Fin.snoc φ t at position k = t (via Fin.snoc_last).
+      have hlast : (⟨v.val, (show v.val < k + 1 by omega)⟩ : Fin (k + 1)) =
+                   Fin.last k := by apply Fin.ext; show v.val = k; omega
+      rw [hlast, Fin.snoc_last]
+      -- RHS: Fin.cons t σ at position 0 = t (via Fin.cons_zero).
+      have hzero : (⟨v.val - k, (by have := v.isLt; omega)⟩ : Fin (n + 1)) =
+                   (0 : Fin (n + 1)) := by apply Fin.ext; show v.val - k = 0; omega
+      rw [hzero]; rfl
+    · -- v.val > k: LHS gives σ(v - (k+1)), RHS gives σ(v - k - 1) via Fin.cons_succ.
+      rw [dif_neg (show ¬ (v : ℕ) < k + 1 by omega), dif_neg hv]
+      -- (Fin.cons t σ) ⟨v.val - k, _⟩ = σ ⟨v.val - k - 1, _⟩
+      have hsucc : (⟨v.val - k, (by have := v.isLt; omega)⟩ : Fin (n + 1)) =
+                   (⟨v.val - k - 1, (by have := v.isLt; omega)⟩ : Fin n).succ :=
+        Fin.ext (by simp [Fin.val_succ]; omega)
+      rw [hsucc, Fin.cons_succ]
+      congr 1
+  -- Lean normalizes `k + 1` to `1 + k` after simp; reconcile.
+  simp only [show (1 : ℕ) + k = k + 1 from by omega] at *
+  congr 1 <;> exact hτ _
+
+/-- **IH-parameterized form of Lovász Claim 4.2** (extension of equivalent tuples).
+
+Given the inductive hypothesis that Lemma 2.4 holds at level `k` (i.e.,
+k-equivalence implies k-orbit), Claim 4.2 at level `k + 1` is an immediate
+consequence: apply the orbit automorphism `σ` from `IH` to `μ`, and
+`σ ∘ μ` extends `ψ` and is equivalent to `μ` by the easy direction
+(`tupleEquiv_of_tupleOrbitRel`).
+
+This lemma anchors the induction structure for Session D's proof of
+Lemma 2.4 (the full theorem). -/
+private theorem tupleEquiv_extend_of_ih {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    {k : ℕ} {φ ψ : Fin k → Fin T}
+    (IH : tupleEquiv B W φ ψ → tupleOrbitRel B W φ ψ)
+    (h : tupleEquiv B W φ ψ)
+    (μ : Fin (k + 1) → Fin T) (hμ : restrictTuple μ = φ) :
+    ∃ ν : Fin (k + 1) → Fin T, restrictTuple ν = ψ ∧ tupleEquiv B W μ ν := by
+  obtain ⟨σ, hσ_aut, hσ_conj⟩ := IH h
+  -- ν := σ ∘ μ extends ψ and is orbit-related to μ.
+  refine ⟨σ ∘ μ, ?_, ?_⟩
+  · -- restrictTuple (σ ∘ μ) = ψ
+    funext i
+    show σ (μ i.castSucc) = ψ i
+    rw [show μ i.castSucc = φ i from congr_fun hμ i, ← hσ_conj i]
+  · -- tupleEquiv B W μ (σ ∘ μ)
+    exact tupleEquiv_of_tupleOrbitRel ⟨σ, hσ_aut, fun _ => rfl⟩
+
 /-- **Lovász TR-2004-82, Claim 4.2**, §4.3, p. 9 (trace-based extension).
 Given equivalent k-tuples `φ, ψ` and any extension `μ` of `φ` to `k+1`,
 there is an equivalent extension `ν` of `ψ`.
 
-**Status**: new honest frontier after the pivot from the refuted 5-motif
-route. The feasibility pass on `lovasz-feasibility:Graphon/LovaszScratch.lean`
-identified the blocker: Lovász's proof uses `tr(A''_{k+1}) ⊆ A''_k`
-(eq. 6, p. 7), which requires the algebra layer `A_k / A''_k / f_k` and
-the trace-commutation lemma. That infrastructure does not exist in the
-codebase; building it is on the order of 500–1000 lines of prerequisite
-Lean. Left as `sorry` in Session A; attacked in Session B.
+**Status**: honest frontier sorry. The IH-parameterized form
+`tupleEquiv_extend_of_ih` (above) proves this assuming Lemma 2.4 at
+level `k`. The Lovász-faithful proof (via the trace argument
+`tr(A''_{k+1}) ⊆ A''_k`, TR-2004-82 §3, eq. (6), p. 7) requires the
+algebra layer `A_k / A''_k / f_k` and the trace-commutation lemma,
+which do not yet exist in the codebase. Left as `sorry` pending either
+the algebra layer or the inductive route via `tupleEquiv_extend_of_ih`.
 
 Hypotheses mirror Lovász: `hW` (positive weights) is needed for the trace
 argument's non-zero coefficient step. No twin-free hypothesis — Claim 4.2
