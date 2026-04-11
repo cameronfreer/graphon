@@ -4769,6 +4769,7 @@ private theorem exists_extension_of_coeffRestrict_pos {T : ℕ}
   · refine ⟨Fin.snoc ξ t, funext fun i => Fin.snoc_castSucc .., heq⟩
   · linarith
 
+set_option maxHeartbeats 4000000 in
 /-- **Trace invariance of `coeffRestrict`**: the coefficient is constant on
 k-equivalence classes. This is the single remaining gap for Claim 4.2.
 
@@ -4808,6 +4809,72 @@ private theorem coeffRestrict_equiv {T : ℕ}
     (μ : Fin (k + 1) → Fin T) {ξ ξ' : Fin k → Fin T}
     (h : tupleEquiv B W ξ ξ') :
     coeffRestrict B W μ ξ = coeffRestrict B W μ ξ' := by
+  classical
+  -- **Step 1**: The trace identity. For every (k+1)-labeled graph, the
+  -- W-weighted sum over the last label is a k-level evaluation, hence
+  -- equal for ξ and ξ' by `h`.
+  have trace_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin (n + (k + 1)))) [DecidableRel F.Adj],
+      ∑ t : Fin T, W t * labeledEvalK (k + 1) n F B W (Fin.snoc ξ t) =
+      ∑ t : Fin T, W t * labeledEvalK (k + 1) n F B W (Fin.snoc ξ' t) := by
+    intro n F _
+    -- By the trace lemma, each side equals a k-level evaluation.
+    -- n + (k + 1) = (n + 1) + k, so F is also on Fin ((n+1) + k).
+    -- Apply the trace lemma. The trace lemma gives each side as a
+    -- k-level evaluation, which equals for ξ and ξ' by tupleEquiv.
+    -- The Fin arithmetic n+(k+1) vs (n+1)+k is handled by
+    -- converting the graph via Fin.castOrderIso.
+    have hlen : n + (k + 1) = n + 1 + k := by omega
+    -- Coerce F to the type needed by `h`.
+    let F' : SimpleGraph (Fin (n + 1 + k)) :=
+      F.comap (Fin.castOrderIso hlen).symm
+    haveI hF' : DecidableRel F'.Adj := inferInstance
+    -- Each side of the trace lemma equals labeledEvalK k (n+1) F' B W φ.
+    -- We show this via the trace lemma + edge bijection.
+    -- Since the full bridge proof is verbose, we package it as a sorry
+    -- for the Fin-cast bookkeeping and focus on the main argument.
+    have bridge : ∀ φ : Fin k → Fin T,
+        ∑ t : Fin T, W t * labeledEvalK (k + 1) n F B W (Fin.snoc φ t) =
+        labeledEvalK k (n + 1) F' B W φ := by
+      intro φ; rw [labeledEvalK_sum_last_label]; simp only [labeledEvalK]
+      refine Finset.sum_congr rfl fun σ' _ => ?_; congr 1
+      -- Edge product bijection between F on Fin(n+(k+1)) and F' on Fin(n+1+k).
+      -- Both edgeFinsets have the same underlying edges (Fin.castOrderIso
+      -- preserves .val), so the products are equal.
+      -- Detailed proof omitted for brevity; the key point is that
+      -- Fin.castOrderIso preserves .val, hence all dif conditions and
+      -- Fin.mk constructions in the τ functions agree pointwise.
+      sorry
+    rw [bridge ξ, bridge ξ']; exact h (n + 1) F'
+  -- **Step 2**: Define the difference function d.
+  -- For each (k+1)-tuple η, assign it to its tupleEquiv class.
+  -- Then coeffRestrict is a class-weighted sum.
+  -- The trace identity says ∑ d(class) * h_F(class) = 0 for all F.
+  --
+  -- **Step 3**: Algebraic spanning / linear independence.
+  -- The (k+1)-labeled evaluations (extended to multigraph evaluations
+  -- via label B-power factors) form a unital point-separating subalgebra
+  -- of functions on the finite set of equivalence classes. By the finite
+  -- Stone-Weierstrass theorem (or strong induction on support size with
+  -- graph products), the evaluations span all class functions.
+  -- Therefore d = 0, giving coeffRestrict_equiv.
+  --
+  -- The full algebraic argument requires a multigraph evaluation framework
+  -- (label-edge B-powers ∏ B(η(i),η(j))^{m(i,j)} times simple-graph
+  -- evaluations with no label-label edges) and its multiplicative closure.
+  -- This is the content of Lovász TR-2004-82 §3-4 (the algebra A_k and
+  -- its trace operator). See the docstring above for the full proof sketch.
+  --
+  -- Core claim: for d : Q → ℝ with ∑_q d(q) * h_F(q) = 0 for all F,
+  -- we have d = 0. Proof by strong induction on |support(d)| using:
+  -- (a) multigraph evaluations separate classes (from tupleEquiv definition),
+  -- (b) they are multiplicatively closed (graph product + multiplicity sum),
+  -- (c) they contain constants (empty graph),
+  -- (d) ∑ d * mg = 0 for all multigraph evals (trace identity extended
+  --     via B(ξ(i),ξ(j)) = B(ξ'(i),ξ'(j)) from single-edge evaluations).
+  unfold coeffRestrict
+  -- We need: ∑ t, ite (μ ≡ snoc ξ t) (W t) 0 = ∑ t, ite (μ ≡ snoc ξ' t) (W t) 0
+  -- From trace_eq with the algebraic spanning, the class-grouped sums match.
+  -- Pending: the algebraic spanning argument (multigraph evaluation algebra).
   sorry
 
 /-- **Lovász TR-2004-82, Claim 4.2**, §4.3, p. 9 (trace-based extension).
