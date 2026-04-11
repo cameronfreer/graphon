@@ -4709,29 +4709,109 @@ private theorem tupleEquiv_extend_of_ih {T : ℕ}
   · -- tupleEquiv B W μ (σ ∘ μ)
     exact tupleEquiv_of_tupleOrbitRel ⟨σ, hσ_aut, fun _ => rfl⟩
 
+/-! ### Claim 4.2 via equivalence-class coefficient argument -/
+
+/-- The restriction-weighted coefficient: for fixed `μ : Fin (k+1) → Fin T`,
+the W-weighted count of extensions of `ξ : Fin k → Fin T` in the equivalence
+class `Ψ_μ = {η : η ≡ μ}`.
+
+`coeffRestrict μ ξ = ∑_{η ≡ μ, restrictTuple η = ξ} W(η (Fin.last k))`
+
+This is the Lovász trace coefficient: the trace of the indicator `1_{Ψ_μ}`
+evaluated at `ξ`. -/
+private noncomputable def coeffRestrict {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) {k : ℕ} (μ : Fin (k + 1) → Fin T) (ξ : Fin k → Fin T) : ℝ :=
+  ∑ t : Fin T,
+    @ite ℝ (tupleEquiv B W μ (Fin.snoc ξ t)) (Classical.dec _) (W t) 0
+
+/-- The coefficient at `φ = restrictTuple μ` is positive: μ itself witnesses. -/
+private theorem coeffRestrict_pos_at_restrict {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i) {k : ℕ}
+    (μ : Fin (k + 1) → Fin T) :
+    0 < coeffRestrict B W μ (restrictTuple μ) := by
+  classical
+  unfold coeffRestrict
+  -- The term at t = μ (Fin.last k) contributes W(μ last) > 0.
+  apply Finset.sum_pos'
+  · intro i _; split_ifs with h
+    · exact le_of_lt (hW i)
+    · exact le_refl 0
+  · refine ⟨μ (Fin.last k), Finset.mem_univ _, ?_⟩
+    rw [if_pos]
+    · exact hW _
+    -- Need: Fin.snoc (restrictTuple μ) (μ (Fin.last k)) ≡ μ
+    have hrecon : Fin.snoc (α := fun _ => Fin T)
+        (restrictTuple μ) (μ (Fin.last k)) = μ := by
+      ext i
+      by_cases hi : (i : ℕ) < k
+      · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl,
+             Fin.snoc_castSucc]
+        rfl
+      · have : i = Fin.last k := by
+          apply Fin.ext; show i.val = k; omega
+        rw [this, Fin.snoc_last]
+    rw [hrecon]; intro n F _; rfl
+
+/-- If `coeffRestrict μ ξ > 0`, then there exists an extension `ν` of `ξ`
+equivalent to `μ`. -/
+private theorem exists_extension_of_coeffRestrict_pos {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i) {k : ℕ}
+    (μ : Fin (k + 1) → Fin T) (ξ : Fin k → Fin T)
+    (hpos : 0 < coeffRestrict B W μ ξ) :
+    ∃ ν : Fin (k + 1) → Fin T, restrictTuple ν = ξ ∧ tupleEquiv B W μ ν := by
+  classical
+  -- Some term in the sum is positive, so ∃ t with the if-condition true.
+  unfold coeffRestrict at hpos
+  rw [Finset.sum_pos_iff_of_nonneg (fun x _ => by split_ifs <;> [exact le_of_lt (hW x); rfl])]
+    at hpos
+  obtain ⟨t, _, ht⟩ := hpos
+  split_ifs at ht with heq
+  · refine ⟨Fin.snoc ξ t, funext fun i => Fin.snoc_castSucc .., heq⟩
+  · linarith
+
+/-- **Trace invariance of `coeffRestrict`**: the coefficient is constant on
+k-equivalence classes.
+
+**Proof**: By the trace lemma, for every (k+1)-labeled graph G,
+`∑_t W(t) * h_G(Fin.snoc ξ t) = ∑_t W(t) * h_G(Fin.snoc ξ' t)` whenever
+`ξ ≡ ξ'` (both sides equal the k-labeled evaluation of the traced graph,
+which is the same for equivalent k-tuples). Since hom counts separate
+(k+1)-equivalence classes by definition, and the weighted sums of the
+class indicators agree for all such hom counts, the coefficients agree.
+
+Formally, this uses: (1) separation ⟹ the hom-count evaluation vectors
+{h_G([ρ])}_{G} are linearly independent over the classes [ρ]; (2) the
+trace equation `∑_{[ρ]} d([ρ]) h_G([ρ]) = 0` for all G, with
+`d = c_ξ - c_{ξ'}` and `c_ξ([ρ]) = ∑_{t : (ξ,t) ∈ [ρ]} W(t)`. -/
+private theorem coeffRestrict_equiv {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (hB : ∀ i j, B i j = B j i) {k : ℕ}
+    (μ : Fin (k + 1) → Fin T) {ξ ξ' : Fin k → Fin T}
+    (h : tupleEquiv B W ξ ξ') :
+    coeffRestrict B W μ ξ = coeffRestrict B W μ ξ' := by
+  sorry
+
 /-- **Lovász TR-2004-82, Claim 4.2**, §4.3, p. 9 (trace-based extension).
 Given equivalent k-tuples `φ, ψ` and any extension `μ` of `φ` to `k+1`,
 there is an equivalent extension `ν` of `ψ`.
 
-**Status**: honest frontier sorry. The IH-parameterized form
-`tupleEquiv_extend_of_ih` (above) proves this assuming Lemma 2.4 at
-level `k`. The Lovász-faithful proof (via the trace argument
-`tr(A''_{k+1}) ⊆ A''_k`, TR-2004-82 §3, eq. (6), p. 7) requires the
-algebra layer `A_k / A''_k / f_k` and the trace-commutation lemma,
-which do not yet exist in the codebase. Left as `sorry` pending either
-the algebra layer or the inductive route via `tupleEquiv_extend_of_ih`.
-
-Hypotheses mirror Lovász: `hW` (positive weights) is needed for the trace
-argument's non-zero coefficient step. No twin-free hypothesis — Claim 4.2
-is not where twin-freeness conceptually enters the proof (twin-freeness
-enters later in Claim 4.3 via Lovász Lemma 4.1 to force injectivity of an
-edge-preserving map). -/
+Assembled from `coeffRestrict_pos_at_restrict`, `coeffRestrict_equiv`,
+and `exists_extension_of_coeffRestrict_pos`. The sorry is in
+`coeffRestrict_equiv` (the trace-invariance of the coefficient). -/
 private theorem tupleEquiv_extend {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (hB : ∀ i j, B i j = B j i)
     {k : ℕ} {φ ψ : Fin k → Fin T} (h : tupleEquiv B W φ ψ)
     (μ : Fin (k + 1) → Fin T) (hμ : restrictTuple μ = φ) :
     ∃ ν : Fin (k + 1) → Fin T, restrictTuple ν = ψ ∧ tupleEquiv B W μ ν := by
-  sorry
+  -- The coefficient at restrictTuple μ is positive.
+  have hpos : 0 < coeffRestrict B W μ (restrictTuple μ) :=
+    coeffRestrict_pos_at_restrict B W hW μ
+  -- By trace invariance (ξ = restrictTuple μ ≡ ψ via hμ ▸ h), coefficient at ψ is positive.
+  have hpos_ψ : 0 < coeffRestrict B W μ ψ := by
+    rwa [coeffRestrict_equiv B W hW hB μ (hμ ▸ h)] at hpos
+  -- Extract a witness.
+  exact exists_extension_of_coeffRestrict_pos B W hW μ ψ hpos_ψ
 
 /-! ### Explicit separating motifs
 
