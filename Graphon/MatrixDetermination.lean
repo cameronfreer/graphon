@@ -4770,19 +4770,38 @@ private theorem exists_extension_of_coeffRestrict_pos {T : ℕ}
   · linarith
 
 /-- **Trace invariance of `coeffRestrict`**: the coefficient is constant on
-k-equivalence classes.
+k-equivalence classes. This is the single remaining gap for Claim 4.2.
 
-**Proof**: By the trace lemma, for every (k+1)-labeled graph G,
-`∑_t W(t) * h_G(Fin.snoc ξ t) = ∑_t W(t) * h_G(Fin.snoc ξ' t)` whenever
-`ξ ≡ ξ'` (both sides equal the k-labeled evaluation of the traced graph,
-which is the same for equivalent k-tuples). Since hom counts separate
-(k+1)-equivalence classes by definition, and the weighted sums of the
-class indicators agree for all such hom counts, the coefficients agree.
+**Proof sketch** (not yet formalized):
 
-Formally, this uses: (1) separation ⟹ the hom-count evaluation vectors
-{h_G([ρ])}_{G} are linearly independent over the classes [ρ]; (2) the
-trace equation `∑_{[ρ]} d([ρ]) h_G([ρ]) = 0` for all G, with
-`d = c_ξ - c_{ξ'}` and `c_ξ([ρ]) = ∑_{t : (ξ,t) ∈ [ρ]} W(t)`. -/
+Step 1 (trace lemma): By `labeledEvalK_sum_last_label` + `ξ ≡ ξ'`,
+for every (k+1)-labeled graph G on `Fin (n + (k+1))`:
+`∑_t W(t) * h_G(Fin.snoc ξ t) = ∑_t W(t) * h_G(Fin.snoc ξ' t)`.
+
+Step 2 (group by class): Since h_G is constant on (k+1)-equivalence
+classes, both sides are `∑_{[ρ]} c_ξ([ρ]) * h_G([ρ])` where
+`c_ξ([ρ]) = ∑_{t : (ξ,t) ∈ [ρ]} W(t)`. Hence
+`∑_{[ρ]} (c_ξ([ρ]) - c_{ξ'}([ρ])) * h_G([ρ]) = 0` for all G.
+
+Step 3 (linear independence of class evaluations): The vectors
+`{v_{[ρ]} := (h_G([ρ]))_{all G} : [ρ] class}` are linearly independent
+in `ℝ^{graphs}`. This follows from the algebra structure: `labeledEvalK`
+evaluations are closed under multiplication (via graph disjoint union
+with shared labels: `h_{G₁⊗G₂}(η) = h_{G₁}(η) * h_{G₂}(η)`), and
+separation (by definition of `tupleEquiv`) plus multiplicative closure
+gives spanning via the finite Stone-Weierstrass / Lagrange interpolation
+argument: pick G₀ separating all classes pairwise (exists by combining
+pairwise separators with a linear combination over ℝ), form the
+Vandermonde matrix (h_{G₀^n}([ρ_i]))_{n,i}, and use its non-singularity.
+
+Step 4: By Step 3, `∑_{[ρ]} d([ρ]) * h_G([ρ]) = 0` for all G forces
+`d = 0`, i.e., `c_ξ = c_{ξ'}`. In particular `coeffRestrict B W μ ξ =
+c_ξ([μ]) = c_{ξ'}([μ]) = coeffRestrict B W μ ξ'`.
+
+**Remaining gap**: Step 3 requires formalizing the graph disjoint-union
+product (`h_{G₁⊗G₂} = h_{G₁} · h_{G₂}`), constructing a single graph
+G₀ that pairwise separates all classes, and the Vandermonde determinant
+lemma. This is ~200-400 lines of new Lean. -/
 private theorem coeffRestrict_equiv {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i) {k : ℕ}
