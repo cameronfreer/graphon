@@ -5132,6 +5132,78 @@ private theorem tupleEquiv_extend {T : ℕ}
   -- Extract a witness.
   exact exists_extension_of_coeffRestrict_pos B W hW μ ψ hpos_ψ
 
+/-- Evaluation of a k-labeled graph with a single edge `{a, b}` and no unlabeled
+vertices directly reads the matrix entry `B(φ a)(φ b)`. Generalizes `labeledEval2_edge`
+to arbitrary k. The graph lives on `Fin (0 + k)` to match `labeledEvalK`'s signature. -/
+private theorem labeledEvalK_singleEdge {T k : ℕ}
+    (F : SimpleGraph (Fin (0 + k))) [DecidableRel F.Adj]
+    {a b : Fin (0 + k)} (hab : a ≠ b)
+    (hedge : F.edgeFinset = {s(a, b)})
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (φ : Fin k → Fin T) :
+    labeledEvalK k 0 F B W φ =
+      B (φ ⟨a.val, by omega⟩) (φ ⟨b.val, by omega⟩) := by
+  simp only [labeledEvalK, Fintype.sum_unique, Finset.univ_eq_empty, Finset.prod_empty, one_mul,
+    hedge, Finset.prod_singleton]
+  -- All vertices are labeled (n = 0), so τ v = φ ⟨v.val, _⟩.
+  set p := Quot.out s(a, b)
+  have hout : s(p.1, p.2) = s(a, b) := Quot.out_eq _
+  have key : (p.1 = a ∧ p.2 = b) ∨ (p.1 = b ∧ p.2 = a) := by
+    have := Sym2.eq_iff.mp hout
+    rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> [left; right] <;> exact ⟨h1, h2⟩
+  rcases key with ⟨ha, hb⟩ | ⟨ha, hb⟩
+  · simp only [ha, hb, dif_pos (by omega : (a : ℕ) < k), dif_pos (by omega : (b : ℕ) < k)]
+  · simp only [ha, hb, dif_pos (by omega : (b : ℕ) < k), dif_pos (by omega : (a : ℕ) < k)]
+    exact hB _ _
+
+/-! ### Claim 4.3: bijective equal-cardinality case -/
+
+/-- **Lovász TR-2004-82, Claim 4.3**, §4.3, p. 9 (bijective equal-cardinality case).
+If `ψ : Fin T → Fin T` is a bijection with `tupleEquiv B W id ψ`, then `ψ` is a
+weighted automorphism: `tupleOrbitRel B W id ψ`.
+
+The proof is cleaner than the edge-by-edge approach: restrict to the first `T-1`
+coordinates (Claim 4.1), apply IH at level `T-1` to get an automorphism `σ`, and
+observe that two bijections of `Fin T` agreeing on `T-1` elements must agree
+everywhere. No twin-freeness, edge evaluation, or functional spanning needed. -/
+private theorem tupleEquiv_bijective_case {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i)
+    (IH_orbit : ∀ {φ ψ : Fin (T - 1) → Fin T},
+      tupleEquiv B W φ ψ → tupleOrbitRel B W φ ψ)
+    (ψ : Fin T → Fin T) (hψ : Function.Bijective ψ)
+    (h : tupleEquiv B W id ψ) :
+    tupleOrbitRel B W id ψ := by
+  rcases T with _ | S
+  · -- T = 0: Fin 0 is empty, trivial.
+    exact ⟨1, ⟨nofun, nofun⟩, nofun⟩
+  · -- T = S + 1. Restrict, apply IH, conclude by bijectivity.
+    -- Step 1: Claim 4.1 gives equivalence at level S.
+    have h_restrict := tupleEquiv_restrict B W hB h
+    -- Step 2: IH at level S gives an automorphism σ.
+    obtain ⟨σ, hσ_aut, hσ_conj⟩ := IH_orbit h_restrict
+    -- Step 3: σ agrees with ψ on all castSucc values.
+    have hagree : ∀ i : Fin S, ψ i.castSucc = σ i.castSucc := by
+      intro i; have := hσ_conj i; simp only [restrictTuple, id] at this; exact this
+    -- Step 4: Two bijections agreeing on T-1 elements agree on the last.
+    have h_last : ψ (Fin.last S) = σ (Fin.last S) := by
+      by_contra h_ne
+      obtain ⟨j, hj⟩ := σ.surjective (ψ (Fin.last S))
+      have jne : j ≠ Fin.last S := fun e => h_ne (e ▸ hj.symm)
+      have hlt : (j : ℕ) < S := by
+        have := j.isLt; have : j.val ≠ S := fun h => jne (Fin.ext h); omega
+      rw [show j = (⟨j, hlt⟩ : Fin S).castSucc from Fin.ext rfl] at hj
+      rw [← hagree ⟨j, hlt⟩] at hj
+      exact absurd (hψ.1 hj.symm) (Fin.castSucc_lt_last ⟨j, hlt⟩).ne'
+    -- Step 5: ψ = σ on all of Fin (S + 1), so tupleOrbitRel holds.
+    refine ⟨σ, hσ_aut, fun i => ?_⟩
+    by_cases hne : i = Fin.last S
+    · subst hne; exact h_last
+    · have hlt : (i : ℕ) < S := by
+        have := i.isLt; have : i.val ≠ S := fun h => hne (Fin.ext h); omega
+      rw [show i = (⟨i, hlt⟩ : Fin S).castSucc from Fin.ext rfl]
+      exact hagree ⟨i, hlt⟩
+
 /-! ### Explicit separating motifs
 
 **⚠ KNOWN-FALSE-FOR-SPARSE-B — retained to prevent cascade.**
