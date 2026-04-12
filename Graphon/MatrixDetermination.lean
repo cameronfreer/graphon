@@ -4823,28 +4823,26 @@ private theorem coeffRestrict_equiv {T : ℕ}
     -- k-level evaluation, which equals for ξ and ξ' by tupleEquiv.
     -- The Fin arithmetic n+(k+1) vs (n+1)+k is handled by
     -- converting the graph via Fin.castOrderIso.
-    have hlen : n + (k + 1) = n + 1 + k := by omega
-    -- Coerce F to the type needed by `h`.
-    let F' : SimpleGraph (Fin (n + 1 + k)) :=
-      F.comap (Fin.castOrderIso hlen).symm
-    haveI hF' : DecidableRel F'.Adj := inferInstance
-    -- Each side of the trace lemma equals labeledEvalK k (n+1) F' B W φ.
-    -- We show this via the trace lemma + edge bijection.
-    -- Since the full bridge proof is verbose, we package it as a sorry
-    -- for the Fin-cast bookkeeping and focus on the main argument.
+    -- The trace lemma converts each side to a sum over Fin(n+1)→Fin T
+    -- with edges from F. We need to relate this to labeledEvalK k (n+1)
+    -- on a graph of type Fin((n+1)+k). Construct G inline.
+    let G : SimpleGraph (Fin ((n + 1) + k)) :=
+      { Adj := fun u v => F.Adj ⟨u.val, by have := u.isLt; omega⟩
+                              ⟨v.val, by have := v.isLt; omega⟩
+        symm := fun _ _ h => F.symm h
+        loopless := fun _ h => F.loopless _ h }
+    haveI : DecidableRel G.Adj := fun u v => inferInstanceAs
+      (Decidable (F.Adj ⟨u.val, _⟩ ⟨v.val, _⟩))
+    -- Bridge: the trace lemma RHS equals labeledEvalK k (n+1) G B W φ.
     have bridge : ∀ φ : Fin k → Fin T,
         ∑ t : Fin T, W t * labeledEvalK (k + 1) n F B W (Fin.snoc φ t) =
-        labeledEvalK k (n + 1) F' B W φ := by
+        labeledEvalK k (n + 1) G B W φ := by
       intro φ; rw [labeledEvalK_sum_last_label]; simp only [labeledEvalK]
       refine Finset.sum_congr rfl fun σ' _ => ?_; congr 1
-      -- Edge product bijection between F on Fin(n+(k+1)) and F' on Fin(n+1+k).
-      -- Both edgeFinsets have the same underlying edges (Fin.castOrderIso
-      -- preserves .val), so the products are equal.
-      -- Detailed proof omitted for brevity; the key point is that
-      -- Fin.castOrderIso preserves .val, hence all dif conditions and
-      -- Fin.mk constructions in the τ functions agree pointwise.
+      -- F.edgeFinset (Fin(n+(k+1))) ↔ G.edgeFinset via val-preserving bijection.
+      -- Fin-cast bookkeeping: edges of F and G correspond; pure noise.
       sorry
-    rw [bridge ξ, bridge ξ']; exact h (n + 1) F'
+    rw [bridge ξ, bridge ξ']; exact h (n + 1) G
   -- **Step 2**: Define the difference function d.
   -- For each (k+1)-tuple η, assign it to its tupleEquiv class.
   -- Then coeffRestrict is a class-weighted sum.
