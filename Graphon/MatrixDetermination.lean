@@ -4682,6 +4682,121 @@ private theorem labeledEvalK_sum_last_label {T : ℕ} (k n : ℕ)
   simp only [show (1 : ℕ) + k = k + 1 from by omega] at *
   congr 1 <;> exact hτ _
 
+/-- The empty graph (0 unlabeled vertices) evaluates to 1. -/
+private theorem labeledEvalK_empty {T : ℕ} (k : ℕ)
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin k → Fin T) :
+    labeledEvalK k 0 (⊥ : SimpleGraph (Fin (0 + k))) B W φ = 1 := by
+  simp only [labeledEvalK, Fintype.sum_unique, Finset.univ_eq_empty, Finset.prod_empty, one_mul]
+  apply Finset.prod_eq_one; intro e he; exfalso
+  simp only [SimpleGraph.edgeFinset, Set.mem_toFinset, SimpleGraph.mem_edgeSet] at he
+  exact Sym2.ind (fun a b h => (SimpleGraph.bot_adj a b).mp h) e he
+
+/-- **Separation implies functional spanning on a finite type.**
+Given a finite type `Q`, a function `d : Q → ℝ`, and a family of functions
+`f : I → (Q → ℝ)` that:
+(a) contains the constant 1 (∃ i₀, f i₀ = 1),
+(b) is closed under pointwise multiplication (∀ i j, ∃ k, f k = f i * f j),
+(c) separates points (q₁ ≠ q₂ → ∃ i, f i q₁ ≠ f i q₂),
+(d) satisfies ∑_q d(q) * f(i)(q) = 0 for all i,
+then d = 0.
+
+Proof by strong induction on |Finset.filter (d · ≠ 0) Finset.univ|. -/
+private theorem functional_span_zero {Q : Type*} [Fintype Q] [DecidableEq Q]
+    {I : Type*} (f : I → Q → ℝ) (d : Q → ℝ)
+    (hconst : ∃ i₀ : I, ∀ q, f i₀ q = 1)
+    (hmul : ∀ i j : I, ∃ k : I, ∀ q, f k q = f i q * f j q)
+    (hsep : ∀ q₁ q₂ : Q, q₁ ≠ q₂ → ∃ i : I, f i q₁ ≠ f i q₂)
+    (hortho : ∀ i : I, ∑ q, d q * f i q = 0) :
+    ∀ q, d q = 0 := by
+  -- Induction on |{q | d q ≠ 0}|.
+  -- We prove: for any d satisfying the hypotheses, |support(d)| = 0 → d = 0.
+  -- By strong induction: if the result holds for all d' with smaller support,
+  -- then it holds for d.
+  suffices key : ∀ (m : ℕ) (d : Q → ℝ),
+      (Finset.univ.filter (fun q => d q ≠ 0)).card ≤ m →
+      (∀ i : I, ∑ q, d q * f i q = 0) →
+      ∀ q, d q = 0 by
+    exact key (Finset.univ.filter (fun q => d q ≠ 0)).card d le_rfl hortho
+  intro m
+  induction m with
+  | zero =>
+    intro d hm _
+    intro q
+    by_contra hq
+    have : q ∈ Finset.univ.filter (fun q => d q ≠ 0) := Finset.mem_filter.mpr ⟨Finset.mem_univ _, hq⟩
+    have := Finset.card_pos.mpr ⟨q, this⟩
+    omega
+  | succ m IH =>
+    intro d hm hd_ortho
+    -- If d = 0, done.
+    by_cases h_all_zero : ∀ q, d q = 0
+    · exact h_all_zero
+    push_neg at h_all_zero
+    obtain ⟨q₀, hq₀⟩ := h_all_zero
+    -- If q₀ is the only nonzero, use hconst to derive contradiction.
+    by_cases h_unique : ∀ q, q ≠ q₀ → d q = 0
+    · obtain ⟨i₀, hi₀⟩ := hconst
+      have := hd_ortho i₀
+      simp only [hi₀, mul_one] at this
+      rw [show ∑ q, d q = d q₀ + ∑ q ∈ Finset.univ.erase q₀, d q from by
+        rw [Finset.add_sum_erase _ _ (Finset.mem_univ _)]] at this
+      have hzero : ∑ q ∈ Finset.univ.erase q₀, d q = 0 :=
+        Finset.sum_eq_zero fun q hq => h_unique q (Finset.ne_of_mem_erase hq)
+      rw [hzero, add_zero] at this
+      exact absurd this hq₀
+    · -- ∃ q₁ ≠ q₀ with d(q₁) ≠ 0.
+      push_neg at h_unique
+      obtain ⟨q₁, hq₁_ne, hq₁⟩ := h_unique
+      -- Find f_i separating q₀ and q₁.
+      obtain ⟨i_sep, hi_sep⟩ := hsep q₀ q₁ hq₁_ne.symm
+      -- Define d'(q) = d(q) * (f i_sep q - f i_sep q₀).
+      let d' : Q → ℝ := fun q => d q * (f i_sep q - f i_sep q₀)
+      -- d' satisfies orthogonality.
+      have hd'_ortho : ∀ j : I, ∑ q, d' q * f j q = 0 := by
+        intro j
+        obtain ⟨k, hk⟩ := hmul i_sep j
+        show ∑ q, d q * (f i_sep q - f i_sep q₀) * f j q = 0
+        have h1 : ∑ q, d q * (f i_sep q - f i_sep q₀) * f j q =
+            ∑ q, d q * f i_sep q * f j q - ∑ q, d q * (f i_sep q₀ * f j q) := by
+          simp only [Finset.sum_sub_distrib (f := fun q => d q * f i_sep q * f j q)
+            (g := fun q => d q * (f i_sep q₀ * f j q)) |>.symm]
+          congr 1; ext q; ring
+        rw [h1]
+        rw [show ∑ q, d q * f i_sep q * f j q = ∑ q, d q * f k q by
+          congr 1; ext q; rw [hk]; ring]
+        rw [hd_ortho k]
+        rw [show ∑ q, d q * (f i_sep q₀ * f j q) =
+          f i_sep q₀ * ∑ q, d q * f j q by
+          rw [Finset.mul_sum]; congr 1; ext q; ring]
+        rw [hd_ortho j, mul_zero, sub_self]
+      -- d'(q₀) = 0.
+      have hd'q₀ : d' q₀ = 0 := by
+        show d q₀ * (f i_sep q₀ - f i_sep q₀) = 0; simp
+      -- support(d') ⊆ support(d) \ {q₀}, so |support(d')| ≤ m.
+      have hd'_card : (Finset.univ.filter (fun q => d' q ≠ 0)).card ≤ m := by
+        have hsub : Finset.univ.filter (fun q => d' q ≠ 0) ⊆
+            (Finset.univ.filter (fun q => d q ≠ 0)).erase q₀ := by
+          intro q hq
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hq
+          rw [Finset.mem_erase]
+          refine ⟨fun heq => ?_, Finset.mem_filter.mpr ⟨Finset.mem_univ _, fun habs => ?_⟩⟩
+          · subst heq; exact hq hd'q₀
+          · exact hq (show d' q = 0 by show d q * (f i_sep q - f i_sep q₀) = 0; rw [habs, zero_mul])
+        calc (Finset.univ.filter (fun q => d' q ≠ 0)).card
+            ≤ ((Finset.univ.filter (fun q => d q ≠ 0)).erase q₀).card :=
+              Finset.card_le_card hsub
+          _ ≤ (Finset.univ.filter (fun q => d q ≠ 0)).card - 1 :=
+              Nat.le_sub_one_of_lt (Finset.card_erase_lt_of_mem
+                (Finset.mem_filter.mpr ⟨Finset.mem_univ _, hq₀⟩))
+          _ ≤ m := by omega
+      -- Apply IH to d'.
+      have := IH d' hd'_card hd'_ortho q₁
+      -- d'(q₁) = d(q₁) * (f i_sep q₁ - f i_sep q₀) = 0
+      change d q₁ * (f i_sep q₁ - f i_sep q₀) = 0 at this
+      rcases mul_eq_zero.mp this with h | h
+      · exact absurd h hq₁
+      · exact absurd (sub_eq_zero.mp h) hi_sep.symm
+
 /-- **IH-parameterized form of Lovász Claim 4.2** (extension of equivalent tuples).
 
 Given the inductive hypothesis that Lemma 2.4 holds at level `k` (i.e.,
@@ -4840,8 +4955,61 @@ private theorem coeffRestrict_equiv {T : ℕ}
       intro φ; rw [labeledEvalK_sum_last_label]; simp only [labeledEvalK]
       refine Finset.sum_congr rfl fun σ' _ => ?_; congr 1
       -- F.edgeFinset (Fin(n+(k+1))) ↔ G.edgeFinset via val-preserving bijection.
-      -- Fin-cast bookkeeping: edges of F and G correspond; pure noise.
-      sorry
+      -- Since n+(k+1) = (n+1)+k propositionally, use finCongr to transport edges.
+      let e := finCongr (show n + (k + 1) = n + 1 + k by omega)
+      -- Use Finset.prod_nbij' with Sym2.map e as the bijection.
+      apply Finset.prod_nbij' (Sym2.map e) (Sym2.map e.symm)
+      -- hi: F-edges map to G-edges
+      · intro a ha
+        refine Sym2.ind (fun u v h => ?_) a ha
+        rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h; exact h
+      -- hj: G-edges map to F-edges
+      · intro a ha
+        refine Sym2.ind (fun u v h => ?_) a ha
+        rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, G] at h; exact h
+      -- left_inv: Sym2.map e.symm ∘ Sym2.map e = id
+      · intro a _
+        simp only [Sym2.map_map, Equiv.symm_comp_self]; exact congr_fun Sym2.map_id a
+      -- right_inv: Sym2.map e ∘ Sym2.map e.symm = id
+      · intro a _
+        simp only [Sym2.map_map, Equiv.self_comp_symm]; exact congr_fun Sym2.map_id a
+      -- hfg: the B-product values match for corresponding edges.
+      -- Both sides evaluate B on the same .val, but Quot.out may pick different
+      -- orderings. Use B-symmetry (hB) to handle both cases.
+      · intro a ha
+        refine Sym2.ind (fun u v _ => ?_) a ha
+        simp only [Sym2.map_pair_eq]
+        -- Need: B(τ_F(Quot.out s(u,v)).1)(τ_F(Quot.out s(u,v)).2) =
+        --       B(τ_G(Quot.out s(eu,ev)).1)(τ_G(Quot.out s(eu,ev)).2)
+        -- where τ_F, τ_G evaluate the same function on .val.
+        -- Strategy: both sides = B(g(u.val))(g(v.val)) via Quot.out case analysis + hB.
+        have hout_F := Sym2.rel_iff'.mp (Sym2.eq.mp (Quot.out_eq (s(u, v))))
+        have hout_G := Sym2.rel_iff'.mp
+          (Sym2.eq.mp (Quot.out_eq (s(e u, e v))))
+        -- Both sides evaluate B on endpoints of the same unordered pair, but
+        -- Quot.out may choose different orderings. Use B-symmetry.
+        -- Helper: for any (a,b) related to (u,v) in Sym2.Rel, the τ-value
+        -- is either B(τu)(τv) or B(τv)(τu) = B(τu)(τv) by hB.
+        suffices key : ∀ {m : ℕ} (a b : Fin m) (p : Fin m × Fin m),
+            p = (a, b) ∨ p = (b, a) →
+            ∀ (f : Fin m → Fin T),
+            B (f p.1) (f p.2) = B (f a) (f b) by
+          -- Define τ_F and τ_G as Fin → Fin T.
+          let τ_F : Fin (n + (k + 1)) → Fin T := fun x =>
+            if h : (x : ℕ) < k then φ ⟨x, h⟩ else σ' ⟨x.val - k, by have := x.isLt; omega⟩
+          let τ_G : Fin (n + 1 + k) → Fin T := fun x =>
+            if h : (x : ℕ) < k then φ ⟨x, h⟩ else σ' ⟨x.val - k, by have := x.isLt; omega⟩
+          rw [key u v _ hout_F τ_F, key (e u) (e v) _ hout_G τ_G]
+          -- Now: B(τ_F u)(τ_F v) = B(τ_G (e u))(τ_G (e v)).
+          -- Since e preserves .val, τ_F u = τ_G (e u).
+          congr 1 <;> { simp only [τ_F, τ_G, e, finCongr_apply, Fin.val_cast]
+                        split_ifs <;> congr 1 <;> exact Fin.ext rfl }
+        intro m a b p hp f
+        rcases hp with rfl | rfl
+        · rfl
+        · exact hB _ _
     rw [bridge ξ, bridge ξ']; exact h (n + 1) G
   -- **Step 2**: Define the difference function d.
   -- For each (k+1)-tuple η, assign it to its tupleEquiv class.
@@ -4871,8 +5039,68 @@ private theorem coeffRestrict_equiv {T : ℕ}
   --     via B(ξ(i),ξ(j)) = B(ξ'(i),ξ'(j)) from single-edge evaluations).
   unfold coeffRestrict
   -- We need: ∑ t, ite (μ ≡ snoc ξ t) (W t) 0 = ∑ t, ite (μ ≡ snoc ξ' t) (W t) 0
-  -- From trace_eq with the algebraic spanning, the class-grouped sums match.
-  -- Pending: the algebraic spanning argument (multigraph evaluation algebra).
+  -- Strategy: show any function constant on (k+1)-equivalence classes gives equal
+  -- weighted sums over ξ-extensions and ξ'-extensions.
+  --
+  -- From trace_eq: ∑_t W(t) * f(snoc ξ t) = ∑_t W(t) * f(snoc ξ' t) for all evaluations f.
+  -- The indicator 1_{[μ]} is in the closure of evaluations (by functional_span_zero
+  -- applied to the quotient by (k+1)-equivalence). Hence the weighted sums match.
+  --
+  -- The full formalization passes through the quotient by tupleEquiv at level k+1,
+  -- applies functional_span_zero with:
+  -- - Q = quotient classes (Fintype via Quotient of Fintype)
+  -- - f indexed by labeled graphs
+  -- - hconst from labeledEvalK_empty
+  -- - hmul from labeledEvalK_glue
+  -- - hsep from tupleEquiv definition
+  -- to conclude that the class-level weight difference is zero.
+  --
+  -- The key infrastructure gap is labeledEvalK_glue (graph product multiplicativity),
+  -- which is a substantial but straightforward combinatorial argument.
+  -- With it, the proof assembles cleanly from functional_span_zero.
+  -- Define the class-level weight difference and show it vanishes.
+  suffices class_eq : ∀ (g : (Fin (k + 1) → Fin T) → ℝ),
+      (∀ η η', tupleEquiv B W η η' → g η = g η') →
+      ∑ t, W t * g (Fin.snoc ξ t) = ∑ t, W t * g (Fin.snoc ξ' t) by
+    -- Apply class_eq with g = indicator of [μ].
+    have := class_eq (fun η => @ite ℝ (tupleEquiv B W μ η) (Classical.dec _) 1 0)
+      (fun η η' heq => by
+        simp only
+        congr 1
+        exact propext ⟨fun h n F => (h n F).trans (heq n F),
+                        fun h n F => (h n F).trans (heq n F).symm⟩)
+    simp only [mul_ite, mul_one, mul_zero] at this
+    exact this
+  -- Prove class_eq: any class-constant function gives equal weighted sums.
+  -- This follows from trace_eq + algebraic spanning.
+  intro g hg_class
+  -- The evaluations form a point-separating multiplicative unital family on the
+  -- quotient. By functional_span_zero, the only d with ∑ d * f = 0 for all f is d = 0.
+  -- Hence any class-constant g is a linear combination of evaluations, and the
+  -- weighted sums match by trace_eq applied to each evaluation in the combination.
+  --
+  -- However, functional_span_zero gives d = 0, not "g is a linear combination".
+  -- We need the dual statement. Apply functional_span_zero to
+  -- d(η) = ∑_t W(t) * [snoc ξ t ≡ η] * g(η) - ∑_t W(t) * [snoc ξ' t ≡ η] * g(η),
+  -- which is class-constant and orthogonal to all evaluations.
+  -- Then d = 0 gives our result.
+  --
+  -- Actually, simpler: define d(η) = (w_ξ(η) - w_{ξ'}(η)) where
+  -- w_ξ(η) = ∑_{t : snoc ξ t ∈ [η]} W(t), and note that d is constant on classes.
+  -- Then ∑_η d(η) * f(η) = ∑_{classes c} (#c * d(c) * f(c)) where #c is the class size.
+  -- From trace_eq: ∑_c w_ξ(c) * f(c) = ∑_c w_{ξ'}(c) * f(c).
+  -- So ∑_c d(c) * f(c) = 0 for all evaluations f.
+  -- By functional_span_zero (on classes), d = 0 on all classes.
+  -- In particular d([μ]) = 0, giving w_ξ([μ]) = w_{ξ'}([μ]).
+  -- And ∑ W(t) * g(snoc ξ t) = ∑_c w_ξ(c) * g(c) = ∑_c w_{ξ'}(c) * g(c) = ∑ W(t) * g(snoc ξ' t).
+  --
+  -- TODO: formalize the quotient construction and the application of
+  -- functional_span_zero. This requires:
+  -- 1. tupleEquiv is an equivalence relation (trivial from definition).
+  -- 2. The quotient is a Fintype (from Fintype on the tuple space).
+  -- 3. labeledEvalK_glue (graph product multiplicativity) — currently sorry'd.
+  -- 4. Assembly: connect trace_eq to the class-level orthogonality.
+  -- With these pieces, the proof is ~50 lines of bookkeeping.
   sorry
 
 /-- **Lovász TR-2004-82, Claim 4.2**, §4.3, p. 9 (trace-based extension).
