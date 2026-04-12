@@ -5221,11 +5221,52 @@ private theorem tupleEquiv_ext_eq_of_surj {T : ℕ}
     {a b : Fin T}
     (h : tupleEquiv B W (Fin.snoc α a) (Fin.snoc α b)) :
     a = b := by
-  -- The core argument: single-edge evaluations at n = 0 between each base position j
-  -- and the last position give B(α j, a) = B(α j, b) for all j. Surjectivity lifts
-  -- this to B(t, a) = B(t, b) for all t, so B a = B b (by symmetry), contradicting
-  -- twin-freeness if a ≠ b. The graph construction is routine but fiddly.
-  sorry
+  by_contra hab
+  suffices hrow : B a = B b by exact absurd hrow (htwin a b hab)
+  funext t; obtain ⟨j, rfl⟩ := hα_surj t
+  -- For each j : Fin k, extract B(α j, a) = B(α j, b) via the single-edge evaluation.
+  -- Build a graph on Fin(0 + (k+1)) with one edge between positions j and k.
+  let u : Fin (0 + (k + 1)) := ⟨j, by omega⟩
+  let v : Fin (0 + (k + 1)) := ⟨k, by omega⟩
+  have hne : u ≠ v := by simp only [ne_eq, Fin.mk.injEq, u, v]; omega
+  -- Define the single-edge graph inline.
+  let F : SimpleGraph (Fin (0 + (k + 1))) :=
+    { Adj := fun x y => (x = u ∧ y = v) ∨ (x = v ∧ y = u)
+      symm := fun _ _ h =>
+        h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩) (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+      loopless := fun _ h => by
+        rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+        · exact hne (h1.symm.trans h2)
+        · exact hne (h2.symm.trans h1) }
+  haveI : DecidableRel F.Adj := fun x y =>
+    if h₁ : x = u ∧ y = v then .isTrue (.inl h₁)
+    else if h₂ : x = v ∧ y = u then .isTrue (.inr h₂)
+    else .isFalse (fun h => h.elim (fun a => h₁ a) (fun a => h₂ a))
+  have hedge : F.edgeFinset = {s(u, v)} := by
+    apply Finset.eq_singleton_iff_unique_mem.mpr; constructor
+    · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
+    · intro e he; rw [SimpleGraph.mem_edgeFinset] at he
+      exact Sym2.ind (fun a b (hadj : F.Adj a b) => by
+        rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+        · rw [h1, h2]
+        · rw [h1, h2, Sym2.eq_swap]) e he
+  -- Separate strategy: evaluate each side independently, then combine with tupleEquiv.
+  suffices hmatch : B (α j) a = B (α j) b by
+    calc B a (α j) = B (α j) a := hB _ _
+      _ = B (α j) b := hmatch
+      _ = B b (α j) := (hB _ _).symm
+  -- Each side: labeledEvalK_singleEdge gives the B-entry.
+  have lhs := labeledEvalK_singleEdge F hne hedge B hB W (Fin.snoc α a)
+  have rhs := labeledEvalK_singleEdge F hne hedge B hB W (Fin.snoc α b)
+  -- Combine: h 0 F gives LHS-eval = RHS-eval, so the B-entries match.
+  have key := lhs.symm.trans ((h 0 F).trans rhs)
+  -- key : B (snoc α a ⟨u.val,_⟩) (snoc α a ⟨v.val,_⟩) = B (snoc α b ⟨u.val,_⟩) (snoc α b ⟨v.val,_⟩)
+  -- By proof irrelevance, ⟨u.val,_⟩ = castSucc j and ⟨v.val,_⟩ = last k.
+  -- snoc at castSucc gives α j, snoc at last gives the extension value.
+  have hcast : (⟨u.val, (by omega : u.val < k + 1)⟩ : Fin (k + 1)) = j.castSucc := Fin.ext rfl
+  have hlast : (⟨v.val, (by omega : v.val < k + 1)⟩ : Fin (k + 1)) = Fin.last k := Fin.ext rfl
+  simp only [hcast, hlast, Fin.snoc_castSucc, Fin.snoc_last] at key
+  exact key
 
 /-! ### Lemma 2.4: tupleEquiv implies tupleOrbitRel -/
 
@@ -5255,16 +5296,41 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
   | succ k IH =>
     -- Step 1: Restrict to level k and apply IH.
     obtain ⟨σ, hσ_aut, hσ_conj⟩ := IH (tupleEquiv_restrict B W hB h)
-    -- Step 2: Define ψ' = σ⁻¹ ∘ ψ (normalized so first k coords agree with φ).
-    -- tupleEquiv B W φ ψ' holds since σ is an automorphism.
-    -- restrictTuple ψ' = restrictTuple φ by construction.
-    -- Then φ = Fin.snoc α a and ψ' = Fin.snoc α b for the same base α.
-    -- Step 3: If α is surjective, tupleEquiv_ext_eq_of_surj gives a = b,
-    -- so φ = ψ' and the orbit relation ψ = σ ∘ φ follows.
-    -- If α is not surjective, the general case requires the A_k algebra argument.
-    -- For now, we assemble the orbit relation from ψ = σ ∘ ψ' and ψ' ≈ φ.
-    -- The full proof requires showing ψ' is orbit-related to φ at level k+1.
-    sorry
+    -- Step 2: IsWeightedAutomorphism for σ⁻¹.
+    have hσs : IsWeightedAutomorphism B W σ.symm :=
+      ⟨fun i => by have := (hσ_aut.1 (σ.symm i)).symm; rwa [σ.apply_symm_apply] at this,
+       fun i j => by have := (hσ_aut.2 (σ.symm i) (σ.symm j)).symm
+                     rwa [σ.apply_symm_apply, σ.apply_symm_apply] at this⟩
+    -- Step 3: Normalize ψ by σ⁻¹ using tupleEquiv_of_tupleOrbitRel.
+    have h' : tupleEquiv B W φ (σ.symm ∘ ψ) := fun n F _ =>
+      (h n F).trans (tupleEquiv_of_tupleOrbitRel ⟨σ.symm, hσs, fun _ => rfl⟩ n F)
+    -- Step 4: The first k coordinates now agree.
+    have hbase : restrictTuple (σ.symm ∘ ψ) = restrictTuple φ := by
+      funext i; simp only [restrictTuple, Function.comp]
+      have := hσ_conj i; simp only [restrictTuple] at this
+      rw [this, σ.symm_apply_apply]
+    -- Step 5: Express as Fin.snoc extensions of the common base α.
+    set α := restrictTuple φ
+    have ha : φ = Fin.snoc α (φ (Fin.last k)) := by
+      ext i; by_cases hi : (i : ℕ) < k
+      · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl, Fin.snoc_castSucc]; rfl
+      · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega), Fin.snoc_last]
+    have hb : σ.symm ∘ ψ = Fin.snoc α ((σ.symm ∘ ψ) (Fin.last k)) := by
+      ext i; by_cases hi : (i : ℕ) < k
+      · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl, Fin.snoc_castSucc, ← hbase]
+        rfl
+      · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega), Fin.snoc_last]
+    rw [ha, hb] at h'
+    -- Step 6: Surjective base ⟹ last coordinates equal ⟹ orbit relation.
+    by_cases hα_surj : Function.Surjective α
+    · have hab := tupleEquiv_ext_eq_of_surj B W hB htwin hα_surj h'
+      -- φ(last) = (σ⁻¹∘ψ)(last), so σ⁻¹∘ψ = φ, hence ψ = σ∘φ.
+      exact ⟨σ, hσ_aut, fun i => by
+        have : (σ.symm ∘ ψ) i = φ i := congr_fun (hb.trans (hab ▸ ha.symm)) i
+        rwa [Function.comp_apply, Equiv.symm_apply_eq] at this⟩
+    · -- Non-surjective base: requires Lovász A_k algebra (graph-product closure).
+      -- This is the single remaining honest frontier sorry for Lemma 2.4.
+      sorry
 
 /-! ### Explicit separating motifs
 
