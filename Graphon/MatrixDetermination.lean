@@ -5204,6 +5204,50 @@ private theorem tupleEquiv_bijective_case {T : ℕ}
       rw [show i = (⟨i, hlt⟩ : Fin S).castSucc from Fin.ext rfl]
       exact hagree ⟨i, hlt⟩
 
+/-! ### Graph product for k-labeled evaluations (Lovász algebra A_k) -/
+
+/-- **Graph product (disjoint union with shared labels).**
+Given two k-labeled graphs `F₁` on `Fin (n₁ + K)` and `F₂` on `Fin (n₂ + K)`,
+there exists a graph `F₃` on `Fin ((n₁ + n₂) + K)` whose evaluation factors:
+`labeledEvalK K (n₁+n₂) F₃ B W φ = labeledEvalK K n₁ F₁ B W φ * labeledEvalK K n₂ F₂ B W φ`.
+
+The construction: labels (positions `0..K-1`) are shared. `F₁`'s unlabeled vertices
+occupy positions `K..K+n₁-1`, `F₂`'s occupy `K+n₁..K+n₁+n₂-1`. The evaluation
+factors because the two sets of unlabeled vertices are colored independently.
+
+Generalizes `rootedEval_glue_exists` (K=1) to arbitrary K. The proof follows the
+same pattern: embed, factor the sum via `Fin.prod_univ_add`, and factor the edge
+product via disjoint edge sets. -/
+private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
+    (F₁ : SimpleGraph (Fin (n₁ + K))) (F₂ : SimpleGraph (Fin (n₂ + K)))
+    [DecidableRel F₁.Adj] [DecidableRel F₂.Adj] :
+    ∃ (F₃ : SimpleGraph (Fin ((n₁ + n₂) + K))) (_ : DecidableRel F₃.Adj),
+      ∀ {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+        (W : Fin T → ℝ) (φ : Fin K → Fin T),
+        labeledEvalK K (n₁ + n₂) F₃ B W φ =
+          labeledEvalK K n₁ F₁ B W φ * labeledEvalK K n₂ F₂ B W φ := by
+  sorry
+
+/-- The evaluation family `{t ↦ labeledEvalK K n F B W (Fin.snoc α t)}` separates
+points of `Fin T` when `B` is twin-free.
+
+For `s₁ ≠ s₂`, twin-freeness gives `r` with `B(r, s₁) ≠ B(r, s₂)`.
+If `r ∈ im(α)`: the single-edge graph (n=0) separates.
+Otherwise: the graph-product multiplicative closure, combined with the chain
+evaluations `∑ W(s) B(t, s) [(BW)^n · 1](s)`, generates a sufficiently rich
+algebra to separate — via `functional_span_zero` applied to the function
+`d(t) = B(a, t) - B(b, t)` (twin-free ⟹ d ≢ 0, evaluations ⟹ d ⊥ algebra,
+algebra spans ⟹ d = 0, contradiction). -/
+private theorem labeledEvalK_separates {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (hB : ∀ i j, B i j = B j i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    {K : ℕ} (α : Fin K → Fin T) {s₁ s₂ : Fin T} (hs : s₁ ≠ s₂) :
+    ∃ (n : ℕ) (F : SimpleGraph (Fin (n + (K + 1)))) (_ : DecidableRel F.Adj),
+      labeledEvalK (K + 1) n F B W (Fin.snoc α s₁) ≠
+      labeledEvalK (K + 1) n F B W (Fin.snoc α s₂) := by
+  sorry
+
 /-! ### Surjective-base extension uniqueness -/
 
 /-- If the base `α : Fin k → Fin T` is surjective and `B` is twin-free, then two
@@ -5328,9 +5372,18 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
       exact ⟨σ, hσ_aut, fun i => by
         have : (σ.symm ∘ ψ) i = φ i := congr_fun (hb.trans (hab ▸ ha.symm)) i
         rwa [Function.comp_apply, Equiv.symm_apply_eq] at this⟩
-    · -- Non-surjective base: requires Lovász A_k algebra (graph-product closure).
-      -- This is the single remaining honest frontier sorry for Lemma 2.4.
-      sorry
+    · -- Non-surjective base: use labeledEvalK_separates to force a = b.
+      -- The evaluation family separates Fin T (twin-free B + graph product).
+      -- From tupleEquiv: all evaluations agree at a and b. But separation
+      -- says some evaluation must differ if a ≠ b. Contradiction ⟹ a = b.
+      have hab : φ (Fin.last k) = (σ.symm ∘ ψ) (Fin.last k) := by
+        by_contra hab
+        obtain ⟨n, F, _, hsep⟩ := labeledEvalK_separates B W hW hB htwin α hab
+        exact absurd (h' n F) hsep
+      -- Same as the surjective case: a = b, so φ = σ⁻¹∘ψ, hence ψ = σ∘φ.
+      exact ⟨σ, hσ_aut, fun i => by
+        have : (σ.symm ∘ ψ) i = φ i := congr_fun (hb.trans (hab ▸ ha.symm)) i
+        rwa [Function.comp_apply, Equiv.symm_apply_eq] at this⟩
 
 /-! ### Explicit separating motifs
 
