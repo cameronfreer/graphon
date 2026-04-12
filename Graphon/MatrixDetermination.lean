@@ -4921,6 +4921,7 @@ lemma. This is ~200-400 lines of new Lean. -/
 private theorem coeffRestrict_equiv {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i) {k : ℕ}
+    (IH_orbit : ∀ {φ ψ : Fin k → Fin T}, tupleEquiv B W φ ψ → tupleOrbitRel B W φ ψ)
     (μ : Fin (k + 1) → Fin T) {ξ ξ' : Fin k → Fin T}
     (h : tupleEquiv B W ξ ξ') :
     coeffRestrict B W μ ξ = coeffRestrict B W μ ξ' := by
@@ -5071,49 +5072,55 @@ private theorem coeffRestrict_equiv {T : ℕ}
                         fun h n F => (h n F).trans (heq n F).symm⟩)
     simp only [mul_ite, mul_one, mul_zero] at this
     exact this
-  -- Prove class_eq: any class-constant function gives equal weighted sums.
-  -- This follows from trace_eq + algebraic spanning.
+  -- Prove class_eq via the automorphism from `IH_orbit`.
+  -- By IH_orbit, ∃ σ automorphism with ξ' = σ ∘ ξ. Then σ applied to
+  -- Fin.snoc ξ t gives Fin.snoc ξ' (σ t), so g(snoc ξ t) = g(snoc ξ' (σ t))
+  -- (g is class-constant, orbit-related tuples are in the same class).
+  -- Reindexing by σ and using W(σ⁻¹ t) = W(t) gives the result.
   intro g hg_class
-  -- The evaluations form a point-separating multiplicative unital family on the
-  -- quotient. By functional_span_zero, the only d with ∑ d * f = 0 for all f is d = 0.
-  -- Hence any class-constant g is a linear combination of evaluations, and the
-  -- weighted sums match by trace_eq applied to each evaluation in the combination.
-  --
-  -- However, functional_span_zero gives d = 0, not "g is a linear combination".
-  -- We need the dual statement. Apply functional_span_zero to
-  -- d(η) = ∑_t W(t) * [snoc ξ t ≡ η] * g(η) - ∑_t W(t) * [snoc ξ' t ≡ η] * g(η),
-  -- which is class-constant and orthogonal to all evaluations.
-  -- Then d = 0 gives our result.
-  --
-  -- Actually, simpler: define d(η) = (w_ξ(η) - w_{ξ'}(η)) where
-  -- w_ξ(η) = ∑_{t : snoc ξ t ∈ [η]} W(t), and note that d is constant on classes.
-  -- Then ∑_η d(η) * f(η) = ∑_{classes c} (#c * d(c) * f(c)) where #c is the class size.
-  -- From trace_eq: ∑_c w_ξ(c) * f(c) = ∑_c w_{ξ'}(c) * f(c).
-  -- So ∑_c d(c) * f(c) = 0 for all evaluations f.
-  -- By functional_span_zero (on classes), d = 0 on all classes.
-  -- In particular d([μ]) = 0, giving w_ξ([μ]) = w_{ξ'}([μ]).
-  -- And ∑ W(t) * g(snoc ξ t) = ∑_c w_ξ(c) * g(c) = ∑_c w_{ξ'}(c) * g(c) = ∑ W(t) * g(snoc ξ' t).
-  --
-  -- TODO: formalize the quotient construction and the application of
-  -- functional_span_zero. This requires:
-  -- 1. tupleEquiv is an equivalence relation (trivial from definition).
-  -- 2. The quotient is a Fintype (from Fintype on the tuple space).
-  -- 3. labeledEvalK_glue (graph product multiplicativity) — currently sorry'd.
-  -- 4. Assembly: connect trace_eq to the class-level orthogonality.
-  -- With these pieces, the proof is ~50 lines of bookkeeping.
-  sorry
+  obtain ⟨σ, hσ_aut, hσ_conj⟩ := IH_orbit h
+  -- Key: σ ∘ (snoc ξ t) = snoc ξ' (σ t), so they're orbit-related.
+  have hsnoc_orbit : ∀ t : Fin T,
+      tupleOrbitRel B W (Fin.snoc ξ t) (Fin.snoc ξ' (σ t)) :=
+    fun t => ⟨σ, hσ_aut, fun i => by
+      by_cases hi : (i : ℕ) < k
+      · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl,
+             Fin.snoc_castSucc, Fin.snoc_castSucc, ← hσ_conj]
+      · have : i = Fin.last k := by apply Fin.ext; show i.val = k; omega
+        rw [this, Fin.snoc_last, Fin.snoc_last]⟩
+  have hg_snoc : ∀ t, g (Fin.snoc ξ t) = g (Fin.snoc ξ' (σ t)) :=
+    fun t => hg_class _ _ (tupleEquiv_of_tupleOrbitRel (hsnoc_orbit t))
+  -- Reindex: ∑_t W(t) g(snoc ξ t) = ∑_t W(t) g(snoc ξ' (σ t))
+  --        = ∑_s W(σ⁻¹ s) g(snoc ξ' s)  [substituting s = σ t]
+  --        = ∑_s W(s) g(snoc ξ' s)        [σ preserves W]
+  conv_lhs => arg 2; ext t; rw [hg_snoc t]
+  -- Now LHS = ∑ t, W t * g (snoc ξ' (σ t)).
+  -- Reindex via σ: ∑ t, f(σ t) = ∑ t, f(t) by Equiv.sum_comp.
+  rw [show (∑ t, W t * g (Fin.snoc ξ' (σ t))) =
+      ∑ t, W (σ.symm t) * g (Fin.snoc ξ' (σ (σ.symm t))) from
+    (Equiv.sum_comp σ.symm _).symm]
+  congr 1; ext t
+  rw [show σ (σ.symm t) = t from σ.apply_symm_apply t]
+  congr 1
+  -- W(σ⁻¹ t) = W(t): from IsWeightedAutomorphism, W(σ x) = W(x) for all x.
+  -- So W(σ⁻¹ t) = W(σ (σ⁻¹ t)) [by hσ_aut.1 applied to σ⁻¹ t ... reversed]
+  have : W (σ (σ.symm t)) = W (σ.symm t) := hσ_aut.1 (σ.symm t)
+  simp only [Equiv.apply_symm_apply] at this
+  exact this.symm
 
 /-- **Lovász TR-2004-82, Claim 4.2**, §4.3, p. 9 (trace-based extension).
 Given equivalent k-tuples `φ, ψ` and any extension `μ` of `φ` to `k+1`,
 there is an equivalent extension `ν` of `ψ`.
 
 Assembled from `coeffRestrict_pos_at_restrict`, `coeffRestrict_equiv`,
-and `exists_extension_of_coeffRestrict_pos`. The sorry is in
-`coeffRestrict_equiv` (the trace-invariance of the coefficient). -/
+and `exists_extension_of_coeffRestrict_pos`. Requires `IH_orbit`
+(Lemma 2.4 at level k) for `coeffRestrict_equiv`. -/
 private theorem tupleEquiv_extend {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i)
-    {k : ℕ} {φ ψ : Fin k → Fin T} (h : tupleEquiv B W φ ψ)
+    {k : ℕ}
+    (IH_orbit : ∀ {φ ψ : Fin k → Fin T}, tupleEquiv B W φ ψ → tupleOrbitRel B W φ ψ)
+    {φ ψ : Fin k → Fin T} (h : tupleEquiv B W φ ψ)
     (μ : Fin (k + 1) → Fin T) (hμ : restrictTuple μ = φ) :
     ∃ ν : Fin (k + 1) → Fin T, restrictTuple ν = ψ ∧ tupleEquiv B W μ ν := by
   -- The coefficient at restrictTuple μ is positive.
@@ -5121,7 +5128,7 @@ private theorem tupleEquiv_extend {T : ℕ}
     coeffRestrict_pos_at_restrict B W hW μ
   -- By trace invariance (ξ = restrictTuple μ ≡ ψ via hμ ▸ h), coefficient at ψ is positive.
   have hpos_ψ : 0 < coeffRestrict B W μ ψ := by
-    rwa [coeffRestrict_equiv B W hW hB μ (hμ ▸ h)] at hpos
+    rwa [coeffRestrict_equiv B W hW hB IH_orbit μ (hμ ▸ h)] at hpos
   -- Extract a witness.
   exact exists_extension_of_coeffRestrict_pos B W hW μ ψ hpos_ψ
 
