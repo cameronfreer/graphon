@@ -5351,13 +5351,48 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
   -- then τ₃∘e₁ = τ₁ and τ₃∘emb₂ = τ₂ by proof irrelevance on Fin.
   -- The dite conditions (val < K) agree because the embeddings preserve val for
   -- labels and shift by n₁ for unlabeled (with matching castAdd/natAdd on the RHS).
-  -- Term matching: for each edge s(a,b), both sides equal B(coloring a)(coloring b)
-  -- after Quot.out resolution (via B_quot_out_eq pattern) and proof irrelevance.
-  -- The coloring functions τ₃∘e₁ = τ₁ and τ₃∘emb₂ = τ₂ agree pointwise because:
-  -- (1) e₁ is identity on val → dite conditions match, (2) emb₂ preserves val for
-  -- labels and adds n₁ for unlabeled → else branch has castAdd/natAdd with same val.
-  -- Remaining sorry: Fin.val coercion matching through dite + Quot.out.
-  all_goals sorry
+  -- Term matching: define coloring functions as let-bindings (definitionally equal to
+  -- the inline dites from labeledEvalK), then use B_quot_out_eq to eliminate Quot.out,
+  -- and proof irrelevance (Fin.ext rfl) to match the remaining Fin arguments.
+  -- Define the coloring maps.
+  let τ₃ : Fin ((n₁ + n₂) + K) → Fin T := fun v =>
+    if h : v.val < K then φ ⟨v, h⟩ else σ ⟨v.val - K, by have := v.isLt; omega⟩
+  let τ₁ : Fin (n₁ + K) → Fin T := fun v =>
+    if h : v.val < K then φ ⟨v, h⟩
+    else (fun j => σ (Fin.castAdd n₂ j)) ⟨v.val - K, by have := v.isLt; omega⟩
+  let τ₂ : Fin (n₂ + K) → Fin T := fun v =>
+    if h : v.val < K then φ ⟨v, h⟩
+    else (fun j => σ (Fin.natAdd n₁ j)) ⟨v.val - K, by have := v.isLt; omega⟩
+  congr 1
+  · -- F₁ terms: B(τ₃(Quot.out(e₁.sym2Map e)...) = B(τ₁(Quot.out e)...)
+    apply Finset.prod_congr rfl; intro e _
+    refine Sym2.ind (fun a b => ?_) e
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, e₁,
+      Function.Embedding.coeFn_mk]
+    -- Convert to named coloring functions (definitional equality).
+    show B (τ₃ (Quot.out s(⟨a.val, (by omega)⟩, ⟨b.val, (by omega)⟩)).1)
+           (τ₃ (Quot.out s(⟨a.val, (by omega)⟩, ⟨b.val, (by omega)⟩)).2) =
+         B (τ₁ (Quot.out s(a, b)).1) (τ₁ (Quot.out s(a, b)).2)
+    rw [B_quot_out_eq hB τ₃, B_quot_out_eq hB τ₁]
+    -- B(τ₃ ⟨a.val,_⟩)(τ₃ ⟨b.val,_⟩) = B(τ₁ a)(τ₁ b): same dite, matching branches.
+    congr 1 <;> (simp only [τ₃, τ₁]; split_ifs <;> (first | rfl | (congr 1; exact Fin.ext rfl)))
+  · -- F₂ terms: B(τ₃(Quot.out(e₂.sym2Map e)...) = B(τ₂(Quot.out e)...)
+    apply Finset.prod_congr rfl; intro e _
+    refine Sym2.ind (fun a b => ?_) e
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, e₂,
+      Function.Embedding.coeFn_mk]
+    show B (τ₃ (Quot.out s(emb₂ a, emb₂ b)).1) (τ₃ (Quot.out s(emb₂ a, emb₂ b)).2) =
+         B (τ₂ (Quot.out s(a, b)).1) (τ₂ (Quot.out s(a, b)).2)
+    rw [B_quot_out_eq hB τ₃, B_quot_out_eq hB τ₂]
+    -- Now: B(τ₃(emb₂ a))(τ₃(emb₂ b)) = B(τ₂ a)(τ₂ b)
+    -- emb₂ preserves val for labels (< K), shifts by n₁ for unlabeled (≥ K).
+    -- The dite resolves the same way on both sides.
+    congr 1
+    all_goals simp only [τ₃, τ₂, emb₂]
+    all_goals split_ifs
+    all_goals first | rfl |
+      (exfalso; simp only [Fin.val_mk] at *; omega) |
+      (congr 1; apply Fin.ext; simp only [Fin.val_natAdd, Fin.val_mk]; omega)
 
 /-- The evaluation family `{t ↦ labeledEvalK K n F B W (Fin.snoc α t)}` separates
 points of `Fin T` when `B` is twin-free.
