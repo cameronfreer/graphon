@@ -5351,11 +5351,12 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
   -- then τ₃∘e₁ = τ₁ and τ₃∘emb₂ = τ₂ by proof irrelevance on Fin.
   -- The dite conditions (val < K) agree because the embeddings preserve val for
   -- labels and shift by n₁ for unlabeled (with matching castAdd/natAdd on the RHS).
-  -- Term matching: for each edge s(a,b), apply B_quot_out_eq to normalize
-  -- both sides to B(f a)(f b), then show f values match by proof irrelevance
-  -- (τ₃∘e₁ = τ₁ and τ₃∘emb₂ = τ₂ on the Fin.val level).
-  -- Each case requires Quot.out resolution + dite normalization + Fin.ext.
-  -- This is pure plumbing (proof irrelevance + B-symmetry), sorry'd for now.
+  -- Term matching: for each edge s(a,b), both sides equal B(coloring a)(coloring b)
+  -- after Quot.out resolution (via B_quot_out_eq pattern) and proof irrelevance.
+  -- The coloring functions τ₃∘e₁ = τ₁ and τ₃∘emb₂ = τ₂ agree pointwise because:
+  -- (1) e₁ is identity on val → dite conditions match, (2) emb₂ preserves val for
+  -- labels and adds n₁ for unlabeled → else branch has castAdd/natAdd with same val.
+  -- Remaining sorry: Fin.val coercion matching through dite + Quot.out.
   all_goals sorry
 
 /-- The evaluation family `{t ↦ labeledEvalK K n F B W (Fin.snoc α t)}` separates
