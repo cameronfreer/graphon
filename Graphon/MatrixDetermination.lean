@@ -5315,7 +5315,32 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
            else σ (Fin.natAdd n₁ ⟨↑(Quot.out e).2 - K,
              by have := (Quot.out e).2.isLt; omega⟩))) by
     rw [h_wt, h_edges]; ring
-  sorry
+  -- Embeddings at the Fin level.
+  let e₁ : Fin (n₁ + K) ↪ Fin ((n₁ + n₂) + K) :=
+    ⟨fun v => ⟨v.val, by omega⟩, fun a b h => Fin.ext (by simpa using congr_arg Fin.val h)⟩
+  have emb₂_inj : Function.Injective emb₂ := fun a b h => by
+    simp only [emb₂] at h
+    by_cases ha : a.val < K <;> by_cases hb : b.val < K <;>
+      simp only [ha, hb, dif_pos, dif_neg, not_false_eq_true, Fin.mk.injEq] at h <;>
+      exact Fin.ext (by omega)
+  let e₂ : Fin (n₂ + K) ↪ Fin ((n₁ + n₂) + K) := ⟨emb₂, emb₂_inj⟩
+  -- Edge-finset decomposition and disjointness.
+  -- F₃.edgeFinset = emb₁(F₁.edges) ∪ emb₂(F₂.edges), disjoint by hF₂
+  -- (F₂ edges involve ≥1 unlabeled vertex → emb₂ sends it to val ≥ n₁+K, outside emb₁ range).
+  have hedge : F₃.edgeFinset =
+      F₁.edgeFinset.map e₁.sym2Map ∪ F₂.edgeFinset.map e₂.sym2Map := by
+    sorry
+  have hdisj : Disjoint
+      (F₁.edgeFinset.map e₁.sym2Map) (F₂.edgeFinset.map e₂.sym2Map) := by
+    sorry
+  -- Factor via Finset.prod_union + Finset.prod_map, then match B-values.
+  rw [hedge, Finset.prod_union hdisj, Finset.prod_map, Finset.prod_map]
+  -- Term matching: for each edge, B-values agree under the embedding.
+  -- Proof: resolve Quot.out (both orientations match by hB),
+  -- then τ₃∘e₁ = τ₁ and τ₃∘emb₂ = τ₂ by proof irrelevance on Fin.
+  -- The dite conditions (val < K) agree because the embeddings preserve val for
+  -- labels and shift by n₁ for unlabeled (with matching castAdd/natAdd on the RHS).
+  congr 1 <;> (congr 1; ext e; refine Sym2.ind (fun a b => ?_) e) <;> sorry
 
 /-- The evaluation family `{t ↦ labeledEvalK K n F B W (Fin.snoc α t)}` separates
 points of `Fin T` when `B` is twin-free.
