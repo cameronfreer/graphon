@@ -5211,16 +5211,17 @@ Given two k-labeled graphs `F₁` on `Fin (n₁ + K)` and `F₂` on `Fin (n₂ +
 there exists a graph `F₃` on `Fin ((n₁ + n₂) + K)` whose evaluation factors:
 `labeledEvalK K (n₁+n₂) F₃ B W φ = labeledEvalK K n₁ F₁ B W φ * labeledEvalK K n₂ F₂ B W φ`.
 
-The construction: labels (positions `0..K-1`) are shared. `F₁`'s unlabeled vertices
-occupy positions `K..K+n₁-1`, `F₂`'s occupy `K+n₁..K+n₁+n₂-1`. The evaluation
-factors because the two sets of unlabeled vertices are colored independently.
+The hypothesis `hF₂` (F₂ has no label-label edges) ensures the embedded edge sets
+are disjoint in F₃. For K=1 (rootedEval_glue_exists) this is automatic (no self-loops);
+for K≥2 it must be assumed. Always satisfied in the application: the evaluation functions
+used for `functional_span_zero` come from star/chain graphs (edges only between labels
+and unlabeled, or among unlabeled), which have no label-label edges.
 
-Generalizes `rootedEval_glue_exists` (K=1) to arbitrary K. The proof follows the
-same pattern: embed, factor the sum via `Fin.prod_univ_add`, and factor the edge
-product via disjoint edge sets. -/
+Generalizes `rootedEval_glue_exists` (K=1) to arbitrary K. -/
 private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
     (F₁ : SimpleGraph (Fin (n₁ + K))) (F₂ : SimpleGraph (Fin (n₂ + K)))
-    [DecidableRel F₁.Adj] [DecidableRel F₂.Adj] :
+    [DecidableRel F₁.Adj] [DecidableRel F₂.Adj]
+    (hF₂ : ∀ a b : Fin (n₂ + K), a.val < K → b.val < K → ¬F₂.Adj a b) :
     ∃ (F₃ : SimpleGraph (Fin ((n₁ + n₂) + K))) (_ : DecidableRel F₃.Adj),
       ∀ {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
         (W : Fin T → ℝ) (φ : Fin K → Fin T),
