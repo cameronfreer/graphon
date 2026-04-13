@@ -5262,7 +5262,58 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
   -- (1) sum_piFinAdd_factor factors the sum over unlabeled colorings
   -- (2) Fin.prod_univ_add factors the weight product
   -- (3) Edge product factors because F₃-edges = emb₁(F₁) ⊔ emb₂(F₂), disjoint
-  -- The detailed edge factorization proof (step 3) generalizes rootGlue_prod_eq.
+  -- The proof follows rootedEval_glue_exists: factor the sum, then each summand.
+  intro T B hB W φ
+  simp only [labeledEvalK]
+  -- Factor the RHS (product of sums) into a single sum via sum_piFinAdd_factor.
+  rw [← sum_piFinAdd_factor
+    (f := fun x : Fin n₁ → Fin T =>
+      (∏ v, W (x v)) *
+      ∏ e ∈ F₁.edgeFinset,
+        B (if h : ↑(Quot.out e).1 < K then φ ⟨↑(Quot.out e).1, h⟩
+           else x ⟨↑(Quot.out e).1 - K, by have := (Quot.out e).1.isLt; omega⟩)
+          (if h : ↑(Quot.out e).2 < K then φ ⟨↑(Quot.out e).2, h⟩
+           else x ⟨↑(Quot.out e).2 - K, by have := (Quot.out e).2.isLt; omega⟩))
+    (g := fun x : Fin n₂ → Fin T =>
+      (∏ v, W (x v)) *
+      ∏ e ∈ F₂.edgeFinset,
+        B (if h : ↑(Quot.out e).1 < K then φ ⟨↑(Quot.out e).1, h⟩
+           else x ⟨↑(Quot.out e).1 - K, by have := (Quot.out e).1.isLt; omega⟩)
+          (if h : ↑(Quot.out e).2 < K then φ ⟨↑(Quot.out e).2, h⟩
+           else x ⟨↑(Quot.out e).2 - K, by have := (Quot.out e).2.isLt; omega⟩))]
+  -- Now show each summand matches: LHS(σ) = f(σ∘castAdd) * g(σ∘natAdd).
+  congr 1; ext σ
+  -- Weight product factors via Fin.prod_univ_add:
+  have h_wt : ∏ v : Fin (n₁ + n₂), W (σ v) =
+      (∏ v : Fin n₁, W (σ (Fin.castAdd n₂ v))) *
+      (∏ v : Fin n₂, W (σ (Fin.natAdd n₁ v))) :=
+    Fin.prod_univ_add (fun v => W (σ v))
+  -- Edge product factorization: F₃-edges split into F₁-edges (via identity embedding)
+  -- and F₂-edges (via emb₂). The coloring τ transforms correctly under each embedding.
+  -- This is the core combinatorial step (generalizes rootGlue_prod_eq to general K).
+  -- Proof: decompose F₃.edgeFinset as a disjoint union, factor via Finset.prod_union,
+  -- then show the B-values match via Fin.castAdd/natAdd coloring correspondence.
+  suffices h_edges :
+      ∏ e ∈ F₃.edgeFinset,
+        B (if h : ↑(Quot.out e).1 < K then φ ⟨↑(Quot.out e).1, h⟩
+           else σ ⟨↑(Quot.out e).1 - K, by have := (Quot.out e).1.isLt; omega⟩)
+          (if h : ↑(Quot.out e).2 < K then φ ⟨↑(Quot.out e).2, h⟩
+           else σ ⟨↑(Quot.out e).2 - K, by have := (Quot.out e).2.isLt; omega⟩) =
+      (∏ e ∈ F₁.edgeFinset,
+        B (if h : ↑(Quot.out e).1 < K then φ ⟨↑(Quot.out e).1, h⟩
+           else σ (Fin.castAdd n₂ ⟨↑(Quot.out e).1 - K,
+             by have := (Quot.out e).1.isLt; omega⟩))
+          (if h : ↑(Quot.out e).2 < K then φ ⟨↑(Quot.out e).2, h⟩
+           else σ (Fin.castAdd n₂ ⟨↑(Quot.out e).2 - K,
+             by have := (Quot.out e).2.isLt; omega⟩))) *
+      (∏ e ∈ F₂.edgeFinset,
+        B (if h : ↑(Quot.out e).1 < K then φ ⟨↑(Quot.out e).1, h⟩
+           else σ (Fin.natAdd n₁ ⟨↑(Quot.out e).1 - K,
+             by have := (Quot.out e).1.isLt; omega⟩))
+          (if h : ↑(Quot.out e).2 < K then φ ⟨↑(Quot.out e).2, h⟩
+           else σ (Fin.natAdd n₁ ⟨↑(Quot.out e).2 - K,
+             by have := (Quot.out e).2.isLt; omega⟩))) by
+    rw [h_wt, h_edges]; ring
   sorry
 
 /-- The evaluation family `{t ↦ labeledEvalK K n F B W (Fin.snoc α t)}` separates
