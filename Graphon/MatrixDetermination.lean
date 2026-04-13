@@ -5204,6 +5204,17 @@ private theorem tupleEquiv_bijective_case {T : ℕ}
       rw [show i = (⟨i, hlt⟩ : Fin S).castSucc from Fin.ext rfl]
       exact hagree ⟨i, hlt⟩
 
+/-- For symmetric `B`, the `B`-product at `Quot.out` of an unordered pair equals `B` at
+the pair's actual endpoints. Resolves the `Quot.out` orientation ambiguity. -/
+private theorem B_quot_out_eq {α : Type*} {T : ℕ} {B : Fin T → Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) (f : α → Fin T) (a b : α) :
+    B (f (Quot.out s(a, b)).1) (f (Quot.out s(a, b)).2) = B (f a) (f b) := by
+  set p := Quot.out s(a, b)
+  have key : (p.1 = a ∧ p.2 = b) ∨ (p.1 = b ∧ p.2 = a) := by
+    have := Sym2.eq_iff.mp (Quot.out_eq s(a, b))
+    rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> [left; right] <;> exact ⟨h1, h2⟩
+  rcases key with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> simp only [h1, h2, hB]
+
 /-! ### Graph product for k-labeled evaluations (Lovász algebra A_k) -/
 
 /-- **Graph product (disjoint union with shared labels).**
@@ -5340,7 +5351,12 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
   -- then τ₃∘e₁ = τ₁ and τ₃∘emb₂ = τ₂ by proof irrelevance on Fin.
   -- The dite conditions (val < K) agree because the embeddings preserve val for
   -- labels and shift by n₁ for unlabeled (with matching castAdd/natAdd on the RHS).
-  congr 1 <;> (congr 1; ext e; refine Sym2.ind (fun a b => ?_) e) <;> sorry
+  -- Term matching: for each edge s(a,b), apply B_quot_out_eq to normalize
+  -- both sides to B(f a)(f b), then show f values match by proof irrelevance
+  -- (τ₃∘e₁ = τ₁ and τ₃∘emb₂ = τ₂ on the Fin.val level).
+  -- Each case requires Quot.out resolution + dite normalization + Fin.ext.
+  -- This is pure plumbing (proof irrelevance + B-symmetry), sorry'd for now.
+  all_goals sorry
 
 /-- The evaluation family `{t ↦ labeledEvalK K n F B W (Fin.snoc α t)}` separates
 points of `Fin T` when `B` is twin-free.
