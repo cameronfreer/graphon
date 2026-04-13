@@ -5226,6 +5226,43 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
         (W : Fin T → ℝ) (φ : Fin K → Fin T),
         labeledEvalK K (n₁ + n₂) F₃ B W φ =
           labeledEvalK K n₁ F₁ B W φ * labeledEvalK K n₂ F₂ B W φ := by
+  -- Embedding: emb₂ preserves labels (v < K) and shifts unlabeled by n₁.
+  let emb₂ : Fin (n₂ + K) → Fin ((n₁ + n₂) + K) :=
+    fun v => if h : v.val < K then ⟨v.val, by omega⟩ else ⟨n₁ + v.val, by omega⟩
+  -- Glue graph: F₁-edges via identity embedding, F₂-edges via emb₂.
+  -- Use ∃ over Fin elements for F₂ to avoid bound issues when n₂ + K = 0.
+  let F₃ : SimpleGraph (Fin ((n₁ + n₂) + K)) :=
+    { Adj := fun u v =>
+        (∃ (hu : u.val < n₁ + K) (hv : v.val < n₁ + K),
+          F₁.Adj ⟨u.val, hu⟩ ⟨v.val, hv⟩) ∨
+        (∃ (a b : Fin (n₂ + K)), emb₂ a = u ∧ emb₂ b = v ∧ F₂.Adj a b)
+      symm := fun u v h => by
+        rcases h with ⟨hu, hv, hadj⟩ | ⟨a, b, ha, hb, hadj⟩
+        · left; exact ⟨hv, hu, F₁.symm hadj⟩
+        · right; exact ⟨b, a, hb, ha, F₂.symm hadj⟩
+      loopless := fun v h => by
+        rcases h with ⟨_, _, hadj⟩ | ⟨a, b, ha, hb, hadj⟩
+        · exact F₁.loopless _ hadj
+        · -- emb₂ a = v = emb₂ b ⟹ a = b (emb₂ injective) ⟹ F₂.loopless contradiction
+          have hab : a = b := by
+            have heq : emb₂ a = emb₂ b := ha.trans hb.symm
+            simp only [emb₂] at heq
+            by_cases hxa : a.val < K <;> by_cases hxb : b.val < K <;>
+              simp only [hxa, hxb, dif_pos, dif_neg, not_false_eq_true, Fin.mk.injEq] at heq <;>
+              exact Fin.ext (by omega)
+          subst hab; exact F₂.loopless _ hadj }
+  haveI : DecidableRel F₃.Adj := fun u v =>
+    if h₁ : ∃ (hu : u.val < n₁ + K) (hv : v.val < n₁ + K),
+        F₁.Adj ⟨u.val, hu⟩ ⟨v.val, hv⟩ then .isTrue (.inl h₁)
+    else if h₂ : ∃ (a b : Fin (n₂ + K)),
+        emb₂ a = u ∧ emb₂ b = v ∧ F₂.Adj a b then .isTrue (.inr h₂)
+    else .isFalse (fun h => h.elim (fun h => h₁ h) (fun h => h₂ h))
+  refine ⟨F₃, inferInstance, ?_⟩
+  -- The evaluation factorization follows the rootedEval_glue_exists pattern:
+  -- (1) sum_piFinAdd_factor factors the sum over unlabeled colorings
+  -- (2) Fin.prod_univ_add factors the weight product
+  -- (3) Edge product factors because F₃-edges = emb₁(F₁) ⊔ emb₂(F₂), disjoint
+  -- The detailed edge factorization proof (step 3) generalizes rootGlue_prod_eq.
   sorry
 
 /-- The evaluation family `{t ↦ labeledEvalK K n F B W (Fin.snoc α t)}` separates
