@@ -5441,16 +5441,20 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
       (exfalso; simp only [Fin.val_mk] at *; omega) |
       (congr 1; apply Fin.ext; simp only [Fin.val_natAdd, Fin.val_mk]; omega)
 
-/-- The evaluation family `{t ↦ labeledEvalK K n F B W (Fin.snoc α t)}` separates
-points of `Fin T` when `B` is twin-free.
+/-- **⚠ KNOWN-FALSE — OFF THE CRITICAL PATH.**
 
-For `s₁ ≠ s₂`, twin-freeness gives `r` with `B(r, s₁) ≠ B(r, s₂)`.
-If `r ∈ im(α)`: the single-edge graph (n=0) separates.
-Otherwise: the graph-product multiplicative closure, combined with the chain
-evaluations `∑ W(s) B(t, s) [(BW)^n · 1](s)`, generates a sufficiently rich
-algebra to separate — via `functional_span_zero` applied to the function
-`d(t) = B(a, t) - B(b, t)` (twin-free ⟹ d ≢ 0, evaluations ⟹ d ⊥ algebra,
-algebra spans ⟹ d = 0, contradiction). -/
+Counterexample: `T=3`, `K=1`, `α(0)=0`, `W` uniform, `B = I` (identity on `Fin 3`).
+Twin-free holds, case B hypothesis `∀ j, B(α j, s₁) = B(α j, s₂)` holds for `s₁=1, s₂=2`,
+but no graph separates because the transposition `(1 2)` is a `(B, W)`-automorphism, so
+every evaluation is symmetric in `1` and `2`.
+
+**Why this does not break Lemma 2.4**: in the counterexample, `tupleEquiv` holds (both
+extensions give the same evaluations) AND `tupleOrbitRel` holds (with `σ = (1 2)`). The
+correct Lovász route for the non-surjective case of Lemma 2.4 constructs the automorphism
+directly via Claim 4.4 + extension (see `tupleEquiv_implies_tupleOrbitRel`), bypassing any
+separation argument. Case A below is still true and a useful helper, but Case B is false.
+
+This declaration is retained only to document the failed approach. Do NOT depend on it. -/
 private theorem labeledEvalK_separates {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i)
@@ -5649,18 +5653,17 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
       exact ⟨σ, hσ_aut, fun i => by
         have : (σ.symm ∘ ψ) i = φ i := congr_fun (hb.trans (hab ▸ ha.symm)) i
         rwa [Function.comp_apply, Equiv.symm_apply_eq] at this⟩
-    · -- Non-surjective base: use labeledEvalK_separates to force a = b.
-      -- The evaluation family separates Fin T (twin-free B + graph product).
-      -- From tupleEquiv: all evaluations agree at a and b. But separation
-      -- says some evaluation must differ if a ≠ b. Contradiction ⟹ a = b.
-      have hab : φ (Fin.last k) = (σ.symm ∘ ψ) (Fin.last k) := by
-        by_contra hab
-        obtain ⟨n, F, _, hsep⟩ := labeledEvalK_separates B W hW hB htwin α hab
-        exact absurd (h' n F) hsep
-      -- Same as the surjective case: a = b, so φ = σ⁻¹∘ψ, hence ψ = σ∘φ.
-      exact ⟨σ, hσ_aut, fun i => by
-        have : (σ.symm ∘ ψ) i = φ i := congr_fun (hb.trans (hab ▸ ha.symm)) i
-        rwa [Function.comp_apply, Equiv.symm_apply_eq] at this⟩
+    · -- Non-surjective base: DO NOT use labeledEvalK_separates — that theorem is FALSE
+      -- (counterexample: T=3, K=1, α(0)=0, W uniform, B=I on Fin 3, s₁=1, s₂=2:
+      --  twin-free + case B hypothesis hold, but no graph separates because (1 2) is
+      --  a (B,W)-automorphism so every evaluation is symmetric in 1 and 2).
+      -- The correct Lovász route is:
+      --   1. Prove Claim 4.4 `tupleEquiv_surjective_case` first.
+      --   2. Extend α to a surjective tuple using tupleEquiv_extend.
+      --   3. Apply the surjective case, restrict back.
+      -- This bypasses any separation theorem; it uses automorphism-orbit structure
+      -- directly, matching Lovász TR-2004-82 §4.3.
+      sorry
 
 /-! ### Explicit separating motifs
 
