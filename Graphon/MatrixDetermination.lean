@@ -5343,7 +5343,30 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
     sorry
   have hdisj : Disjoint
       (F₁.edgeFinset.map e₁.sym2Map) (F₂.edgeFinset.map e₂.sym2Map) := by
-    sorry
+    rw [Finset.disjoint_left]; intro e he₁ he₂
+    rw [Finset.mem_map] at he₁ he₂
+    obtain ⟨e₁', _, rfl⟩ := he₁; obtain ⟨e₂', he₂', he₂eq⟩ := he₂
+    -- Decompose both Sym2 elements.
+    revert he₂' he₂eq
+    refine Sym2.ind (fun a₁ b₁ => ?_) e₁'
+    refine Sym2.ind (fun a₂ b₂ => ?_) e₂'
+    intro he₂' he₂eq
+    -- he₂' : s(a₂, b₂) ∈ F₂.edgeFinset. By hF₂, at least one has val ≥ K.
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, e₁, e₂,
+      Function.Embedding.coeFn_mk, Sym2.eq_iff] at he₂eq
+    rw [SimpleGraph.mem_edgeFinset] at he₂'
+    have hadj₂ : F₂.Adj a₂ b₂ := he₂'
+    have hge : ¬a₂.val < K ∨ ¬b₂.val < K := by
+      by_contra h; push_neg at h; exact hF₂ a₂ b₂ h.1 h.2 hadj₂
+    -- emb₂ sends val ≥ K to Fin.val ≥ n₁+K. All e₁ vals are < n₁+K.
+    have hemb_ge : ∀ v : Fin (n₂ + K), ¬v.val < K → (emb₂ v).val ≥ n₁ + K := by
+      intro v hv; simp only [emb₂, dif_neg hv, Fin.val_mk]; omega
+    rcases hge with ha | hb <;> {
+      have hv := hemb_ge _ (by assumption)
+      rcases he₂eq with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> {
+        have := congr_arg Fin.val h1; have := congr_arg Fin.val h2
+        simp only [Fin.val_mk] at *
+        have := a₁.isLt; have := b₁.isLt; omega } }
   -- Factor via Finset.prod_union + Finset.prod_map, then match B-values.
   rw [hedge, Finset.prod_union hdisj, Finset.prod_map, Finset.prod_map]
   -- Term matching: for each edge, B-values agree under the embedding.
