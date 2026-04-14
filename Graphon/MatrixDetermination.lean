@@ -5204,6 +5204,44 @@ private theorem tupleEquiv_bijective_case {T : ℕ}
       rw [show i = (⟨i, hlt⟩ : Fin S).castSucc from Fin.ext rfl]
       exact hagree ⟨i, hlt⟩
 
+/-! ### Claim 4.4: surjective case -/
+
+/-- **Lovász TR-2004-82, Claim 4.4**, §4.3, p. 9–10 (surjective case).
+If `φ, ψ : Fin k → Fin T` are equivalent and `φ` is surjective, then
+`ψ = σ ∘ φ` for some `(B, W)`-automorphism `σ`, i.e., `tupleOrbitRel B W φ ψ`.
+
+**Proof idea (one-shot reduction to Claim 4.3, NOT induction on k)**:
+
+1. Pick a section `r : Fin T → Fin k` of `φ` (exists since `φ` surjective):
+   `φ (r i) = i` for all `i : Fin T`.
+2. Define reordered tuples via `r`:
+   - `φ_r := φ ∘ r : Fin T → Fin T` equals the identity by construction.
+   - `ψ_r := ψ ∘ r : Fin T → Fin T`.
+   By Claim 4.1 (restriction via permutation): `tupleEquiv B W φ_r ψ_r`,
+   i.e., `tupleEquiv B W id ψ_r`.
+3. Derive that `ψ_r` is a bijection (step (b) of the paper; requires
+   an injectivity argument using `Claim 4.3` applied locally).
+4. By **Claim 4.3** (`tupleEquiv_bijective_case`): `ψ_r = σ ∘ id = σ` for
+   some `(B, W)`-automorphism `σ`. So `ψ (r i) = σ i = σ (φ (r i))` for all `i`.
+5. For each remaining `j : Fin k` not in `im(r)`: let `i₀ := φ j`. The set
+   `{r i : i ≠ i₀} ∪ {j}` gives another section on which `φ` is bijective onto
+   `Fin T`. By Claim 4.1 + Claim 4.3 again, `ψ` on this set matches `σ ∘ φ`,
+   forcing `ψ j = σ (φ j)`.
+
+Step (1)–(2) use `Function.surjInv` or `Classical.choice`; step (3)–(5)
+require Fin reindexing infrastructure. The twin-free hypothesis is inherited
+from the calling context (Lemma 2.4). -/
+private theorem tupleEquiv_surjective_case {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i)
+    (IH_orbit : ∀ {φ ψ : Fin (T - 1) → Fin T},
+      tupleEquiv B W φ ψ → tupleOrbitRel B W φ ψ)
+    {k : ℕ} (φ ψ : Fin k → Fin T)
+    (hφ_surj : Function.Surjective φ)
+    (h : tupleEquiv B W φ ψ) :
+    tupleOrbitRel B W φ ψ := by
+  sorry
+
 /-- For symmetric `B`, the `B`-product at `Quot.out` of an unordered pair equals `B` at
 the pair's actual endpoints. Resolves the `Quot.out` orientation ambiguity. -/
 private theorem B_quot_out_eq {α : Type*} {T : ℕ} {B : Fin T → Fin T → ℝ}
