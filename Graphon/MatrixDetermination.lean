@@ -5340,7 +5340,31 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
   -- (F₂ edges involve ≥1 unlabeled vertex → emb₂ sends it to val ≥ n₁+K, outside emb₁ range).
   have hedge : F₃.edgeFinset =
       F₁.edgeFinset.map e₁.sym2Map ∪ F₂.edgeFinset.map e₂.sym2Map := by
-    sorry
+    ext e
+    simp only [Finset.mem_union, Finset.mem_map, SimpleGraph.mem_edgeFinset,
+      Function.Embedding.sym2Map_apply]
+    constructor
+    · -- Forward: e ∈ F₃.edgeSet → F₁-image or F₂-image
+      refine Sym2.ind (fun u v he => ?_) e
+      rcases (show F₃.Adj u v from he) with ⟨hu, hv, hadj⟩ | ⟨a, b, ha, hb, hadj⟩
+      · -- F₁-type edge: both endpoints have val < n₁+K.
+        refine Or.inl ⟨s((⟨u.val, hu⟩ : Fin (n₁+K)), (⟨v.val, hv⟩ : Fin (n₁+K))),
+          hadj, ?_⟩
+        simp only [Sym2.map_pair_eq, e₁, Function.Embedding.coeFn_mk]
+      · -- F₂-type edge: u = emb₂ a, v = emb₂ b.
+        refine Or.inr ⟨s(a, b), hadj, ?_⟩
+        simp only [Sym2.map_pair_eq, e₂, Function.Embedding.coeFn_mk]
+        exact Sym2.eq_iff.mpr (Or.inl ⟨ha, hb⟩)
+    · -- Backward: F₁-image or F₂-image → F₃.edgeSet
+      rintro (⟨e₁', he₁', rfl⟩ | ⟨e₂', he₂', rfl⟩)
+      · revert he₁'; refine Sym2.ind (fun a b => ?_) e₁'; intro he₁'
+        simp only [Sym2.map_pair_eq, e₁, Function.Embedding.coeFn_mk]
+        show F₃.Adj ⟨a.val, by have := a.isLt; omega⟩ ⟨b.val, by have := b.isLt; omega⟩
+        exact Or.inl ⟨a.isLt, b.isLt, he₁'⟩
+      · revert he₂'; refine Sym2.ind (fun a b => ?_) e₂'; intro he₂'
+        simp only [Sym2.map_pair_eq, e₂, Function.Embedding.coeFn_mk]
+        show F₃.Adj (emb₂ a) (emb₂ b)
+        exact Or.inr ⟨a, b, rfl, rfl, he₂'⟩
   have hdisj : Disjoint
       (F₁.edgeFinset.map e₁.sym2Map) (F₂.edgeFinset.map e₂.sym2Map) := by
     rw [Finset.disjoint_left]; intro e he₁ he₂
