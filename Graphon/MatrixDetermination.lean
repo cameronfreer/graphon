@@ -5459,7 +5459,52 @@ private theorem labeledEvalK_separates {T : ℕ}
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + (K + 1)))) (_ : DecidableRel F.Adj),
       labeledEvalK (K + 1) n F B W (Fin.snoc α s₁) ≠
       labeledEvalK (K + 1) n F B W (Fin.snoc α s₂) := by
-  sorry
+  -- Twin-freeness: ∃ r with B(s₁, r) ≠ B(s₂, r), i.e., B(r, s₁) ≠ B(r, s₂).
+  have hdiff : B s₁ ≠ B s₂ := htwin s₁ s₂ hs
+  obtain ⟨r, hr⟩ := Function.ne_iff.mp hdiff
+  by_cases hr_in : ∃ j : Fin K, α j = r
+  · -- Case A: r ∈ im(α). Single-edge graph {j.castSucc, Fin.last K} on Fin(0 + (K+1)).
+    obtain ⟨j, hjr⟩ := hr_in
+    -- Define the edge endpoints in Fin (0 + (K+1)).
+    let u : Fin (0 + (K + 1)) := ⟨j.val, by omega⟩
+    let v : Fin (0 + (K + 1)) := ⟨K, by omega⟩
+    have hne : u ≠ v := by simp only [ne_eq, Fin.mk.injEq, u, v]; have := j.isLt; omega
+    -- Build F inline.
+    let F : SimpleGraph (Fin (0 + (K + 1))) :=
+      { Adj := fun x y => (x = u ∧ y = v) ∨ (x = v ∧ y = u)
+        symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
+                                     (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+        loopless := fun _ h => by
+          rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+          · exact hne (h1.symm.trans h2)
+          · exact hne (h2.symm.trans h1) }
+    haveI : DecidableRel F.Adj := fun x y =>
+      if h₁ : x = u ∧ y = v then .isTrue (.inl h₁)
+      else if h₂ : x = v ∧ y = u then .isTrue (.inr h₂)
+      else .isFalse (fun h => h.elim (fun a => h₁ a) (fun a => h₂ a))
+    have hedge : F.edgeFinset = {s(u, v)} := by
+      apply Finset.eq_singleton_iff_unique_mem.mpr; constructor
+      · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
+      · intro e he; rw [SimpleGraph.mem_edgeFinset] at he
+        exact Sym2.ind (fun a b (hadj : F.Adj a b) => by
+          rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+          · rw [h1, h2]
+          · rw [h1, h2, Sym2.eq_swap]) e he
+    refine ⟨0, F, inferInstance, ?_⟩
+    -- Evaluate: both sides equal B(α j) s_i via labeledEvalK_singleEdge.
+    rw [labeledEvalK_singleEdge F hne hedge B hB W (Fin.snoc α s₁),
+        labeledEvalK_singleEdge F hne hedge B hB W (Fin.snoc α s₂)]
+    -- (Fin.snoc α s_i) ⟨j.val, _⟩ = α j (since j.val < K), and at ⟨K, _⟩ = s_i.
+    have hu_cs : (⟨u.val, (by omega : u.val < K + 1)⟩ : Fin (K + 1)) = Fin.castSucc j := Fin.ext rfl
+    have hv_la : (⟨v.val, (by omega : v.val < K + 1)⟩ : Fin (K + 1)) = Fin.last K := Fin.ext rfl
+    rw [hu_cs, hv_la, Fin.snoc_castSucc, Fin.snoc_last, Fin.snoc_castSucc, Fin.snoc_last]
+    -- Goal: B (α j) s₁ ≠ B (α j) s₂. By hB: = B s₁ (α j) and B s₂ (α j).
+    -- With α j = r and hr : B s₁ r ≠ B s₂ r:
+    rw [hB (α j) s₁, hB (α j) s₂, hjr]; exact hr
+  · -- Case B: r ∉ im(α). Requires graph product (labeledEvalK_glue) +
+    -- functional_span_zero to show the evaluation algebra separates s₁, s₂.
+    -- This is the remaining algebra-intensive step.
+    sorry
 
 /-! ### Surjective-base extension uniqueness -/
 
