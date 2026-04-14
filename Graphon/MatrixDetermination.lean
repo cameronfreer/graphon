@@ -5501,8 +5501,10 @@ private theorem labeledEvalK_separates {T : ℕ}
     -- Goal: B (α j) s₁ ≠ B (α j) s₂ — this is exactly hjr.
     exact hjr
   · -- Case B: ∀ j, B(α j, s₁) = B(α j, s₂). Twin-free ⟹ witness is outside im(α).
-    -- Requires graph product (labeledEvalK_glue) + functional_span_zero to show the
-    -- evaluation algebra separates s₁, s₂. Remaining algebra-intensive step.
+    -- The n=1 star graph (edge from last label to a fresh unlabeled vertex) gives
+    -- E(t) = ∑_s W(s) B(t, s). For twin-free B with d(s) := B(s₁, s) - B(s₂, s) ≠ 0
+    -- on Fin T \ im(α), the argument eventually needs graph product + functional_span_zero
+    -- to show E or some richer evaluation separates. Remaining: algebra-intensive step.
     push_neg at hcase  -- hcase : ∀ j, B (α j) s₁ = B (α j) s₂
     sorry
 
