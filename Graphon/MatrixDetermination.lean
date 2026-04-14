@@ -5459,12 +5459,12 @@ private theorem labeledEvalK_separates {T : ℕ}
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + (K + 1)))) (_ : DecidableRel F.Adj),
       labeledEvalK (K + 1) n F B W (Fin.snoc α s₁) ≠
       labeledEvalK (K + 1) n F B W (Fin.snoc α s₂) := by
-  -- Twin-freeness: ∃ r with B(s₁, r) ≠ B(s₂, r), i.e., B(r, s₁) ≠ B(r, s₂).
-  have hdiff : B s₁ ≠ B s₂ := htwin s₁ s₂ hs
-  obtain ⟨r, hr⟩ := Function.ne_iff.mp hdiff
-  by_cases hr_in : ∃ j : Fin K, α j = r
-  · -- Case A: r ∈ im(α). Single-edge graph {j.castSucc, Fin.last K} on Fin(0 + (K+1)).
-    obtain ⟨j, hjr⟩ := hr_in
+  -- Case A: ∃ j ∈ Fin K with B(α j, s₁) ≠ B(α j, s₂). Single-edge separates.
+  -- Case B: ∀ j, B(α j, s₁) = B(α j, s₂). Twin-free witness is outside im(α),
+  --         requires graph-product algebra + functional_span_zero.
+  by_cases hcase : ∃ j : Fin K, B (α j) s₁ ≠ B (α j) s₂
+  · -- Case A: obtain separating j directly.
+    obtain ⟨j, hjr⟩ := hcase
     -- Define the edge endpoints in Fin (0 + (K+1)).
     let u : Fin (0 + (K + 1)) := ⟨j.val, by omega⟩
     let v : Fin (0 + (K + 1)) := ⟨K, by omega⟩
@@ -5498,12 +5498,12 @@ private theorem labeledEvalK_separates {T : ℕ}
     have hu_cs : (⟨u.val, (by omega : u.val < K + 1)⟩ : Fin (K + 1)) = Fin.castSucc j := Fin.ext rfl
     have hv_la : (⟨v.val, (by omega : v.val < K + 1)⟩ : Fin (K + 1)) = Fin.last K := Fin.ext rfl
     rw [hu_cs, hv_la, Fin.snoc_castSucc, Fin.snoc_last, Fin.snoc_castSucc, Fin.snoc_last]
-    -- Goal: B (α j) s₁ ≠ B (α j) s₂. By hB: = B s₁ (α j) and B s₂ (α j).
-    -- With α j = r and hr : B s₁ r ≠ B s₂ r:
-    rw [hB (α j) s₁, hB (α j) s₂, hjr]; exact hr
-  · -- Case B: r ∉ im(α). Requires graph product (labeledEvalK_glue) +
-    -- functional_span_zero to show the evaluation algebra separates s₁, s₂.
-    -- This is the remaining algebra-intensive step.
+    -- Goal: B (α j) s₁ ≠ B (α j) s₂ — this is exactly hjr.
+    exact hjr
+  · -- Case B: ∀ j, B(α j, s₁) = B(α j, s₂). Twin-free ⟹ witness is outside im(α).
+    -- Requires graph product (labeledEvalK_glue) + functional_span_zero to show the
+    -- evaluation algebra separates s₁, s₂. Remaining algebra-intensive step.
+    push_neg at hcase  -- hcase : ∀ j, B (α j) s₁ = B (α j) s₂
     sorry
 
 /-! ### Surjective-base extension uniqueness -/
