@@ -6339,12 +6339,19 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
       -- (counterexample: T=3, K=1, α(0)=0, W uniform, B=I on Fin 3, s₁=1, s₂=2:
       --  twin-free + case B hypothesis hold, but no graph separates because (1 2) is
       --  a (B,W)-automorphism so every evaluation is symmetric in 1 and 2).
-      -- The correct Lovász route is:
-      --   1. Prove Claim 4.4 `tupleEquiv_surjective_case` first.
-      --   2. Extend α to a surjective tuple using tupleEquiv_extend.
-      --   3. Apply the surjective case, restrict back.
-      -- This bypasses any separation theorem; it uses automorphism-orbit structure
-      -- directly, matching Lovász TR-2004-82 §4.3.
+      --
+      -- The Lovász route is: extend α to a surjective tuple via `tupleEquiv_extend` and
+      -- apply `tupleEquiv_surjective_case` (L5891, now proven). However, the direct
+      -- application is structurally blocked: the current induction on k supplies IH at
+      -- level k, but Claim 4.4 requires IH_orbit at `Fin (T - 1) → Fin T` (codomain
+      -- indexed). These match ONLY at the step k + 1 = T, which is a narrow slice of the
+      -- induction. A salvage experiment (closing only k + 1 = T ∧ φ surjective) compiled
+      -- but split the existing sorry into two narrower sorries — sorry count regressed
+      -- 1 → 2 without substantial shrinkage of the unproven territory.
+      --
+      -- The next move is a proof-architecture refactor: restructure Lemma 2.4 to recurse
+      -- on T (or use strong induction on k) so IH at T - 1 is available at every step.
+      -- This is a separate session; the local sorry is preserved here.
       sorry
 
 /-! ### Explicit separating motifs
