@@ -5182,6 +5182,34 @@ private theorem exists_extension_of_coeffRestrict_pos {T : ℕ}
   · refine ⟨Fin.snoc ξ t, funext fun i => Fin.snoc_castSucc .., heq⟩
   · linarith
 
+/-- **Product trace identity** — generalizes the single-graph trace identity
+(inside `coeffRestrict_equiv`, `trace_eq` step) to products of evaluations.
+
+For any list `L` of `(k+1)`-labeled simple graphs, the weighted sum over the
+last label of the product `∏ labeledEvalK(F_j)` at `Fin.snoc ξ t` is equal for
+`k`-equivalent tuples `ξ`, `ξ'`. This is the key combinatorial identity needed
+to make `coeffRestrict_equiv` (Claim 4.2) IH-free, via `functional_span_zero`
+on the quotient by `(k+1)`-`tupleEquiv`.
+
+**Infrastructure remaining**: the proof requires iterated application of
+`labeledEvalK_glue` (after separating label-label edges and handling their
+multiplicities) combined with single-graph `trace_eq`. This is ~200 lines of
+Fin/graph combinatorics and is left as a focused sorry. Once filled, Claim 4.2
+is IH-free and Lemma 2.4's non-surjective branch closes cleanly. -/
+private theorem product_trace_identity {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) {k : ℕ}
+    {ξ ξ' : Fin k → Fin T} (_h : tupleEquiv B W ξ ξ')
+    (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1))))) :
+    ∑ t : Fin T, W t *
+      (L.map (fun p =>
+        @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W
+          (Fin.snoc ξ t))).prod =
+    ∑ t : Fin T, W t *
+      (L.map (fun p =>
+        @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W
+          (Fin.snoc ξ' t))).prod := by
+  sorry
+
 set_option maxHeartbeats 4000000 in
 /-- **Trace invariance of `coeffRestrict`**: the coefficient is constant on
 k-equivalence classes. This is the single remaining gap for Claim 4.2.
