@@ -6298,61 +6298,66 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
     {k : ℕ} {φ ψ : Fin k → Fin T}
     (h : tupleEquiv B W φ ψ) :
     tupleOrbitRel B W φ ψ := by
-  induction k with
-  | zero => exact ⟨1, ⟨fun _ => rfl, fun _ _ => rfl⟩, nofun⟩
-  | succ k IH =>
-    -- Step 1: Restrict to level k and apply IH.
-    obtain ⟨σ, hσ_aut, hσ_conj⟩ := IH (tupleEquiv_restrict B W hB h)
-    -- Step 2: IsWeightedAutomorphism for σ⁻¹.
-    have hσs : IsWeightedAutomorphism B W σ.symm :=
-      ⟨fun i => by have := (hσ_aut.1 (σ.symm i)).symm; rwa [σ.apply_symm_apply] at this,
-       fun i j => by have := (hσ_aut.2 (σ.symm i) (σ.symm j)).symm
-                     rwa [σ.apply_symm_apply, σ.apply_symm_apply] at this⟩
-    -- Step 3: Normalize ψ by σ⁻¹ using tupleEquiv_of_tupleOrbitRel.
-    have h' : tupleEquiv B W φ (σ.symm ∘ ψ) := fun n F _ =>
-      (h n F).trans (tupleEquiv_of_tupleOrbitRel ⟨σ.symm, hσs, fun _ => rfl⟩ n F)
-    -- Step 4: The first k coordinates now agree.
-    have hbase : restrictTuple (σ.symm ∘ ψ) = restrictTuple φ := by
-      funext i; simp only [restrictTuple, Function.comp]
-      have := hσ_conj i; simp only [restrictTuple] at this
-      rw [this, σ.symm_apply_apply]
-    -- Step 5: Express as Fin.snoc extensions of the common base α.
-    set α := restrictTuple φ
-    have ha : φ = Fin.snoc α (φ (Fin.last k)) := by
-      ext i; by_cases hi : (i : ℕ) < k
-      · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl, Fin.snoc_castSucc]; rfl
-      · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega), Fin.snoc_last]
-    have hb : σ.symm ∘ ψ = Fin.snoc α ((σ.symm ∘ ψ) (Fin.last k)) := by
-      ext i; by_cases hi : (i : ℕ) < k
-      · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl, Fin.snoc_castSucc, ← hbase]
-        rfl
-      · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega), Fin.snoc_last]
-    rw [ha, hb] at h'
-    -- Step 6: Surjective base ⟹ last coordinates equal ⟹ orbit relation.
-    by_cases hα_surj : Function.Surjective α
-    · have hab := tupleEquiv_ext_eq_of_surj B W hB htwin hα_surj h'
-      -- φ(last) = (σ⁻¹∘ψ)(last), so σ⁻¹∘ψ = φ, hence ψ = σ∘φ.
-      exact ⟨σ, hσ_aut, fun i => by
-        have : (σ.symm ∘ ψ) i = φ i := congr_fun (hb.trans (hab ▸ ha.symm)) i
-        rwa [Function.comp_apply, Equiv.symm_apply_eq] at this⟩
-    · -- Non-surjective base: DO NOT use labeledEvalK_separates — that theorem is FALSE
-      -- (counterexample: T=3, K=1, α(0)=0, W uniform, B=I on Fin 3, s₁=1, s₂=2:
-      --  twin-free + case B hypothesis hold, but no graph separates because (1 2) is
-      --  a (B,W)-automorphism so every evaluation is symmetric in 1 and 2).
-      --
-      -- The Lovász route is: extend α to a surjective tuple via `tupleEquiv_extend` and
-      -- apply `tupleEquiv_surjective_case` (L5891, now proven). However, the direct
-      -- application is structurally blocked: the current induction on k supplies IH at
-      -- level k, but Claim 4.4 requires IH_orbit at `Fin (T - 1) → Fin T` (codomain
-      -- indexed). These match ONLY at the step k + 1 = T, which is a narrow slice of the
-      -- induction. A salvage experiment (closing only k + 1 = T ∧ φ surjective) compiled
-      -- but split the existing sorry into two narrower sorries — sorry count regressed
-      -- 1 → 2 without substantial shrinkage of the unproven territory.
-      --
-      -- The next move is a proof-architecture refactor: restructure Lemma 2.4 to recurse
-      -- on T (or use strong induction on k) so IH at T - 1 is available at every step.
-      -- This is a separate session; the local sorry is preserved here.
-      sorry
+  -- Strong induction on k: supplies IH at ALL levels < k, in particular at both
+  -- k-1 (for restriction step) and T-1 (for Claim 4.4 in non-surjective branch).
+  suffices strong : ∀ (m : ℕ) (φ ψ : Fin m → Fin T),
+      tupleEquiv B W φ ψ → tupleOrbitRel B W φ ψ from strong k φ ψ h
+  exact fun m => @Nat.strongRecOn
+    (fun j => ∀ (φ ψ : Fin j → Fin T), tupleEquiv B W φ ψ → tupleOrbitRel B W φ ψ)
+    m fun m IH_strong => by
+    intro φ ψ h
+    rcases m with _ | k
+    · exact ⟨1, ⟨fun _ => rfl, fun _ _ => rfl⟩, nofun⟩
+    · -- m = k + 1. IH_strong : ∀ j < k+1, ∀ (φ ψ : Fin j → Fin T), tupleEquiv → tupleOrbitRel.
+      have IH : ∀ {φ' ψ' : Fin k → Fin T},
+          tupleEquiv B W φ' ψ' → tupleOrbitRel B W φ' ψ' :=
+        fun {φ' ψ'} h' => IH_strong k (Nat.lt_succ_self k) φ' ψ' h'
+      -- Step 1: Restrict to level k and apply IH.
+      obtain ⟨σ, hσ_aut, hσ_conj⟩ := IH (tupleEquiv_restrict B W hB h)
+      -- Step 2: IsWeightedAutomorphism for σ⁻¹.
+      have hσs : IsWeightedAutomorphism B W σ.symm :=
+        ⟨fun i => by have := (hσ_aut.1 (σ.symm i)).symm; rwa [σ.apply_symm_apply] at this,
+         fun i j => by have := (hσ_aut.2 (σ.symm i) (σ.symm j)).symm
+                       rwa [σ.apply_symm_apply, σ.apply_symm_apply] at this⟩
+      -- Step 3: Normalize ψ by σ⁻¹ using tupleEquiv_of_tupleOrbitRel.
+      have h' : tupleEquiv B W φ (σ.symm ∘ ψ) := fun n F _ =>
+        (h n F).trans (tupleEquiv_of_tupleOrbitRel ⟨σ.symm, hσs, fun _ => rfl⟩ n F)
+      -- Step 4: The first k coordinates now agree.
+      have hbase : restrictTuple (σ.symm ∘ ψ) = restrictTuple φ := by
+        funext i; simp only [restrictTuple, Function.comp]
+        have := hσ_conj i; simp only [restrictTuple] at this
+        rw [this, σ.symm_apply_apply]
+      -- Step 5: Express as Fin.snoc extensions of the common base α.
+      set α := restrictTuple φ
+      have ha : φ = Fin.snoc α (φ (Fin.last k)) := by
+        ext i; by_cases hi : (i : ℕ) < k
+        · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl, Fin.snoc_castSucc]; rfl
+        · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega), Fin.snoc_last]
+      have hb : σ.symm ∘ ψ = Fin.snoc α ((σ.symm ∘ ψ) (Fin.last k)) := by
+        ext i; by_cases hi : (i : ℕ) < k
+        · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl, Fin.snoc_castSucc, ← hbase]
+          rfl
+        · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega), Fin.snoc_last]
+      rw [ha, hb] at h'
+      -- Step 6: Surjective base ⟹ last coordinates equal ⟹ orbit relation.
+      by_cases hα_surj : Function.Surjective α
+      · have hab := tupleEquiv_ext_eq_of_surj B W hB htwin hα_surj h'
+        exact ⟨σ, hσ_aut, fun i => by
+          have : (σ.symm ∘ ψ) i = φ i := congr_fun (hb.trans (hab ▸ ha.symm)) i
+          rwa [Function.comp_apply, Equiv.symm_apply_eq] at this⟩
+      · -- Non-surjective base. Split on whether φ itself is surjective.
+        by_cases hφ_surj : Function.Surjective φ
+        · -- φ surjective: apply Claim 4.4. Since φ surj, T ≤ k+1, so T-1 < k+1.
+          have hT1_lt : T - 1 < k + 1 := by
+            have := Fintype.card_le_of_surjective φ hφ_surj
+            simp only [Fintype.card_fin] at this
+            omega
+          have IH_T1 : ∀ {φ' ψ' : Fin (T - 1) → Fin T},
+              tupleEquiv B W φ' ψ' → tupleOrbitRel B W φ' ψ' :=
+            fun {φ' ψ'} h' => IH_strong (T - 1) hT1_lt φ' ψ' h'
+          exact tupleEquiv_surjective_case B W hW hB htwin IH_T1 φ ψ hφ_surj h
+        · -- Neither α nor φ surjective: needs extension via Claim 4.2.
+          sorry
 
 /-! ### Explicit separating motifs
 
