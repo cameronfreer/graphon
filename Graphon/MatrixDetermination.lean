@@ -5211,43 +5211,35 @@ private theorem product_trace_identity {T : ℕ}
   sorry
 
 set_option maxHeartbeats 4000000 in
-/-- **Trace invariance of `coeffRestrict`**: the coefficient is constant on
-k-equivalence classes. This is the single remaining gap for Claim 4.2.
+/-- **Trace invariance of `coeffRestrict`** (Claim 4.2 core, IH-free):
+the coefficient is constant on k-equivalence classes.
 
-**Proof sketch** (not yet formalized):
+**Proof structure**:
 
-Step 1 (trace lemma): By `labeledEvalK_sum_last_label` + `ξ ≡ ξ'`,
-for every (k+1)-labeled graph G on `Fin (n + (k+1))`:
-`∑_t W(t) * h_G(Fin.snoc ξ t) = ∑_t W(t) * h_G(Fin.snoc ξ' t)`.
+Step 1 (`trace_eq`): By `labeledEvalK_sum_last_label` + `h : ξ ≡ ξ'`,
+for every (k+1)-labeled graph F,
+`∑_t W(t) * labeledEvalK(F)(Fin.snoc ξ t) = same for ξ'`.
+(single-graph trace identity; uses `h` on a derived k-labeled graph.)
 
-Step 2 (group by class): Since h_G is constant on (k+1)-equivalence
-classes, both sides are `∑_{[ρ]} c_ξ([ρ]) * h_G([ρ])` where
-`c_ξ([ρ]) = ∑_{t : (ξ,t) ∈ [ρ]} W(t)`. Hence
-`∑_{[ρ]} (c_ξ([ρ]) - c_{ξ'}([ρ])) * h_G([ρ]) = 0` for all G.
+Step 2 (reduction to class-constant `g`): show the goal follows if
+`∑_t W(t) g(snoc ξ t) = ∑_t W(t) g(snoc ξ' t)` for every class-constant `g`.
+Take `g` = indicator of `[μ]`.
 
-Step 3 (linear independence of class evaluations): The vectors
-`{v_{[ρ]} := (h_G([ρ]))_{all G} : [ρ] class}` are linearly independent
-in `ℝ^{graphs}`. This follows from the algebra structure: `labeledEvalK`
-evaluations are closed under multiplication (via graph disjoint union
-with shared labels: `h_{G₁⊗G₂}(η) = h_{G₁}(η) * h_{G₂}(η)`), and
-separation (by definition of `tupleEquiv`) plus multiplicative closure
-gives spanning via the finite Stone-Weierstrass / Lagrange interpolation
-argument: pick G₀ separating all classes pairwise (exists by combining
-pairwise separators with a linear combination over ℝ), form the
-Vandermonde matrix (h_{G₀^n}([ρ_i]))_{n,i}, and use its non-singularity.
+Step 3 (`functional_span_zero`): build the quotient `Q` of
+`Fin (k+1) → Fin T` by tupleEquiv; take `d(q) = α(q) - β(q)` where
+`α(q) = ∑_{t : [snoc ξ t] = q} W(t)` and `β` symmetric. Apply
+`functional_span_zero` with index = lists of graphs: hconst via empty
+list, hmul via concatenation, hsep via negation of `tupleEquiv`, and
+hortho via `product_trace_identity`. Conclude `d = 0`, then rewrite
+back to the weighted-sum equality via class decomposition.
 
-Step 4: By Step 3, `∑_{[ρ]} d([ρ]) * h_G([ρ]) = 0` for all G forces
-`d = 0`, i.e., `c_ξ = c_{ξ'}`. In particular `coeffRestrict B W μ ξ =
-c_ξ([μ]) = c_{ξ'}([μ]) = coeffRestrict B W μ ξ'`.
-
-**Remaining gap**: Step 3 requires formalizing the graph disjoint-union
-product (`h_{G₁⊗G₂} = h_{G₁} · h_{G₂}`), constructing a single graph
-G₀ that pairwise separates all classes, and the Vandermonde determinant
-lemma. This is ~200-400 lines of new Lean. -/
+**IH-free**: the automorphism-based argument (requiring Lemma 2.4 at
+level k) is replaced entirely by `functional_span_zero` +
+`product_trace_identity`. The single remaining combinatorial sorry is
+localized to `product_trace_identity`. -/
 private theorem coeffRestrict_equiv {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i) {k : ℕ}
-    (IH_orbit : ∀ {φ ψ : Fin k → Fin T}, tupleEquiv B W φ ψ → tupleOrbitRel B W φ ψ)
     (μ : Fin (k + 1) → Fin T) {ξ ξ' : Fin k → Fin T}
     (h : tupleEquiv B W ξ ξ') :
     coeffRestrict B W μ ξ = coeffRestrict B W μ ξ' := by
@@ -5398,54 +5390,110 @@ private theorem coeffRestrict_equiv {T : ℕ}
                         fun h n F => (h n F).trans (heq n F).symm⟩)
     simp only [mul_ite, mul_one, mul_zero] at this
     exact this
-  -- Prove class_eq via the automorphism from `IH_orbit`.
-  -- By IH_orbit, ∃ σ automorphism with ξ' = σ ∘ ξ. Then σ applied to
-  -- Fin.snoc ξ t gives Fin.snoc ξ' (σ t), so g(snoc ξ t) = g(snoc ξ' (σ t))
-  -- (g is class-constant, orbit-related tuples are in the same class).
-  -- Reindexing by σ and using W(σ⁻¹ t) = W(t) gives the result.
+  -- **Step 3: prove `class_eq` via `functional_span_zero` (IH-free).**
+  --
+  -- Strategy: work on the quotient `Q` of `Fin (k+1) → Fin T` by tupleEquiv,
+  -- and apply `functional_span_zero` to the class-weight difference `d`,
+  -- with test functions given by products of `labeledEvalK`.
+  -- Orthogonality comes from `product_trace_identity`;
+  -- multiplicative closure is list concatenation; separation is the negation
+  -- of `tupleEquiv`. Conclude `d = 0`, then rewrite to the weighted-sum
+  -- equality via class decomposition.
   intro g hg_class
-  obtain ⟨σ, hσ_aut, hσ_conj⟩ := IH_orbit h
-  -- Key: σ ∘ (snoc ξ t) = snoc ξ' (σ t), so they're orbit-related.
-  have hsnoc_orbit : ∀ t : Fin T,
-      tupleOrbitRel B W (Fin.snoc ξ t) (Fin.snoc ξ' (σ t)) :=
-    fun t => ⟨σ, hσ_aut, fun i => by
-      by_cases hi : (i : ℕ) < k
-      · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl,
-             Fin.snoc_castSucc, Fin.snoc_castSucc, ← hσ_conj]
-      · have : i = Fin.last k := by apply Fin.ext; show i.val = k; omega
-        rw [this, Fin.snoc_last, Fin.snoc_last]⟩
-  have hg_snoc : ∀ t, g (Fin.snoc ξ t) = g (Fin.snoc ξ' (σ t)) :=
-    fun t => hg_class _ _ (tupleEquiv_of_tupleOrbitRel (hsnoc_orbit t))
-  -- Reindex: ∑_t W(t) g(snoc ξ t) = ∑_t W(t) g(snoc ξ' (σ t))
-  --        = ∑_s W(σ⁻¹ s) g(snoc ξ' s)  [substituting s = σ t]
-  --        = ∑_s W(s) g(snoc ξ' s)        [σ preserves W]
-  conv_lhs => arg 2; ext t; rw [hg_snoc t]
-  -- Now LHS = ∑ t, W t * g (snoc ξ' (σ t)).
-  -- Reindex via σ: ∑ t, f(σ t) = ∑ t, f(t) by Equiv.sum_comp.
-  rw [show (∑ t, W t * g (Fin.snoc ξ' (σ t))) =
-      ∑ t, W (σ.symm t) * g (Fin.snoc ξ' (σ (σ.symm t))) from
-    (Equiv.sum_comp σ.symm _).symm]
-  congr 1; ext t
-  rw [show σ (σ.symm t) = t from σ.apply_symm_apply t]
-  congr 1
-  -- W(σ⁻¹ t) = W(t): from IsWeightedAutomorphism, W(σ x) = W(x) for all x.
-  -- So W(σ⁻¹ t) = W(σ (σ⁻¹ t)) [by hσ_aut.1 applied to σ⁻¹ t ... reversed]
-  have : W (σ (σ.symm t)) = W (σ.symm t) := hσ_aut.1 (σ.symm t)
-  simp only [Equiv.apply_symm_apply] at this
-  exact this.symm
+  classical
+  -- Setoid on `Fin (k+1) → Fin T` via tupleEquiv.
+  let S : Setoid (Fin (k + 1) → Fin T) :=
+    ⟨tupleEquiv B W,
+      fun _ _ _ _ => rfl,
+      fun hh n F _ => (hh n F).symm,
+      fun h₁ h₂ n F _ => (h₁ n F).trans (h₂ n F)⟩
+  haveI : Fintype (Quotient S) := Quotient.fintype S
+  -- Lift `g` to the quotient (well-defined by `hg_class`).
+  let g_lift : Quotient S → ℝ := Quotient.lift g hg_class
+  -- Each `(n, F)` descends to `Quotient S → ℝ` by definition of tupleEquiv.
+  let eval_lift : (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1)))) → Quotient S → ℝ :=
+    fun p => Quotient.lift
+      (fun η => @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W η)
+      (fun _ _ hab => hab _ _)
+  -- `f_fun L q` = product of evaluations on the class `q`, indexed by the list `L`.
+  let f_fun : List (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1)))) →
+      Quotient S → ℝ :=
+    fun L q => (L.map (fun p => eval_lift p q)).prod
+  -- Class-weighted distributions of `snoc ξ ·` and `snoc ξ' ·`, and their diff.
+  let α_w : Quotient S → ℝ := fun q =>
+    ∑ t : Fin T, if Quotient.mk S (Fin.snoc ξ t) = q then W t else 0
+  let β_w : Quotient S → ℝ := fun q =>
+    ∑ t : Fin T, if Quotient.mk S (Fin.snoc ξ' t) = q then W t else 0
+  let d_fun : Quotient S → ℝ := fun q => α_w q - β_w q
+  -- Helper: weighted sum over `t` of `φ (⟦η t⟧)` equals class-sum via partition.
+  have class_decomp : ∀ (η : Fin T → (Fin (k + 1) → Fin T)) (φ : Quotient S → ℝ),
+      ∑ q, (∑ t, if Quotient.mk S (η t) = q then W t else 0) * φ q =
+      ∑ t, W t * φ (Quotient.mk S (η t)) := by
+    intro η φ
+    simp_rw [Finset.sum_mul]
+    rw [Finset.sum_comm]
+    refine Finset.sum_congr rfl fun t _ => ?_
+    simp_rw [ite_mul, zero_mul]
+    rw [Finset.sum_ite_eq Finset.univ (Quotient.mk S (η t)) (fun q => W t * φ q)]
+    simp
+  -- Apply `functional_span_zero` to conclude `d_fun = 0`.
+  have hd_zero : ∀ q, d_fun q = 0 := by
+    apply functional_span_zero f_fun d_fun
+    · -- hconst: empty list gives constant 1.
+      exact ⟨[], fun _ => by simp only [f_fun, List.map_nil, List.prod_nil]⟩
+    · -- hmul: list concatenation gives pointwise product.
+      intro L₁ L₂
+      refine ⟨L₁ ++ L₂, fun q => ?_⟩
+      simp only [f_fun, List.map_append, List.prod_append]
+    · -- hsep: distinct classes distinguished by some `(n, F)`.
+      intro q₁ q₂ hne
+      obtain ⟨η₁, rfl⟩ := Quotient.exists_rep q₁
+      obtain ⟨η₂, rfl⟩ := Quotient.exists_rep q₂
+      have hne' : ¬ tupleEquiv B W η₁ η₂ := fun hh => hne (Quotient.sound hh)
+      simp only [tupleEquiv, not_forall] at hne'
+      obtain ⟨n, F, _, hne_F⟩ := hne'
+      refine ⟨[⟨n, F⟩], ?_⟩
+      simp only [f_fun, eval_lift, List.map_cons, List.map_nil, List.prod_cons,
+                 List.prod_nil, mul_one, Quotient.lift_mk]
+      intro heq
+      apply hne_F
+      convert heq using 2 <;> apply Subsingleton.elim
+    · -- hortho: via `product_trace_identity`.
+      intro L
+      show ∑ q, (α_w q - β_w q) * f_fun L q = 0
+      simp_rw [sub_mul]
+      rw [Finset.sum_sub_distrib, class_decomp _ (f_fun L), class_decomp _ (f_fun L)]
+      have hbridge : ∀ (ξ'' : Fin k → Fin T) (t : Fin T),
+          f_fun L (Quotient.mk S (Fin.snoc ξ'' t)) =
+          (L.map (fun p => @labeledEvalK T (k + 1) p.1 p.2
+            (Classical.decRel _) B W (Fin.snoc ξ'' t))).prod := by
+        intros; simp only [f_fun, eval_lift, Quotient.lift_mk]
+      simp_rw [hbridge ξ, hbridge ξ']
+      linarith [product_trace_identity B W h L]
+  -- Conclude `∑ t, W t * g (snoc ξ t) = ∑ t, W t * g (snoc ξ' t)` from `d_fun = 0`.
+  have hsum_zero : ∑ q, d_fun q * g_lift q = 0 :=
+    Finset.sum_eq_zero fun q _ => by rw [hd_zero q, zero_mul]
+  have hgoal_decomp :
+      ∑ t, W t * g (Fin.snoc ξ t) - ∑ t, W t * g (Fin.snoc ξ' t) =
+      ∑ q, d_fun q * g_lift q := by
+    show _ = ∑ q, (α_w q - β_w q) * g_lift q
+    simp_rw [sub_mul]
+    rw [Finset.sum_sub_distrib, class_decomp _ g_lift, class_decomp _ g_lift]
+    simp only [g_lift, Quotient.lift_mk]
+  linarith
 
 /-- **Lovász TR-2004-82, Claim 4.2**, §4.3, p. 9 (trace-based extension).
 Given equivalent k-tuples `φ, ψ` and any extension `μ` of `φ` to `k+1`,
 there is an equivalent extension `ν` of `ψ`.
 
 Assembled from `coeffRestrict_pos_at_restrict`, `coeffRestrict_equiv`,
-and `exists_extension_of_coeffRestrict_pos`. Requires `IH_orbit`
-(Lemma 2.4 at level k) for `coeffRestrict_equiv`. -/
+and `exists_extension_of_coeffRestrict_pos`. IH-free modulo
+`product_trace_identity` (the combinatorial sorry inside
+`coeffRestrict_equiv`); no Lemma-2.4 input needed. -/
 private theorem tupleEquiv_extend {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i)
     {k : ℕ}
-    (IH_orbit : ∀ {φ ψ : Fin k → Fin T}, tupleEquiv B W φ ψ → tupleOrbitRel B W φ ψ)
     {φ ψ : Fin k → Fin T} (h : tupleEquiv B W φ ψ)
     (μ : Fin (k + 1) → Fin T) (hμ : restrictTuple μ = φ) :
     ∃ ν : Fin (k + 1) → Fin T, restrictTuple ν = ψ ∧ tupleEquiv B W μ ν := by
@@ -5454,7 +5502,7 @@ private theorem tupleEquiv_extend {T : ℕ}
     coeffRestrict_pos_at_restrict B W hW μ
   -- By trace invariance (ξ = restrictTuple μ ≡ ψ via hμ ▸ h), coefficient at ψ is positive.
   have hpos_ψ : 0 < coeffRestrict B W μ ψ := by
-    rwa [coeffRestrict_equiv B W hW hB IH_orbit μ (hμ ▸ h)] at hpos
+    rwa [coeffRestrict_equiv B W hW hB μ (hμ ▸ h)] at hpos
   -- Extract a witness.
   exact exists_extension_of_coeffRestrict_pos B W hW μ ψ hpos_ψ
 
@@ -6384,7 +6432,19 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
               tupleEquiv B W φ' ψ' → tupleOrbitRel B W φ' ψ' :=
             fun {φ' ψ'} h' => IH_strong (T - 1) hT1_lt φ' ψ' h'
           exact tupleEquiv_surjective_case B W hW hB htwin IH_T1 φ ψ hφ_surj h
-        · -- Neither α nor φ surjective: needs extension via Claim 4.2.
+        · -- Neither α nor φ surjective. Claim 4.2 (`tupleEquiv_extend`) is now
+          -- IH-free (modulo `product_trace_identity`), so extension mechanics
+          -- are unblocked. The remaining blocker is the induction measure:
+          -- at level `m = k+1 < T`, strong induction on `m` supplies IH at
+          -- `j < k+1` only, and the surjective extension sits at level
+          -- `N ≥ T > k+1`, so `tupleEquiv_surjective_case` (which needs IH at
+          -- `T-1 ≥ k+1`) is out of range. Closing this branch requires a
+          -- well-founded or lexicographic induction on a measure such as
+          -- `(deficit, size)` with `deficit := T - |image φ ∪ image ψ|`:
+          -- restriction decreases size, Claim 4.4 handles deficit 0, and
+          -- Claim 4.2 reduces deficit by extension. This is a separate
+          -- milestone (induction-architecture refactor), distinct from the
+          -- algebraic closure work isolated in `product_trace_identity`.
           sorry
 
 /-! ### Explicit separating motifs
