@@ -5182,6 +5182,107 @@ private theorem exists_extension_of_coeffRestrict_pos {T : ℕ}
   · refine ⟨Fin.snoc ξ t, funext fun i => Fin.snoc_castSucc .., heq⟩
   · linarith
 
+/-! ### Product-trace algebra helpers (LL-factor / no-LL-glue interface)
+
+The two helpers below isolate the two "simple" halves of the multiplicative
+structure needed for `product_trace_identity`:
+
+- **Helper 1** (`labeledEvalK_factor_LL`): every `k`-labeled evaluation factors
+  as a product of label-label `B`-factors times an evaluation of a graph with
+  no label-label edges. This handles the "move LL factors out" half.
+
+- **Helper 2** (`labeledEvalK_prod_no_LL`, below `labeledEvalK_glue`): a
+  product of evaluations of no-LL graphs is again an evaluation of a single
+  no-LL graph, via iterated `labeledEvalK_glue`. This handles the "glue
+  no-LL graphs" half.
+
+The remaining gap (inside `product_trace_identity`) is no longer generic
+graph products, but specifically: **handling the accumulated multiplicity
+map on label-label edges across the list**. That is a decorated
+(no-LL graph × label-edge-multiplicity-map) layer, not a full multigraph
+theory. It is the missing algebraic object for the next session. -/
+
+/-- **Strip label-label edges.** Given a `k`-labeled graph `F` on
+`Fin (n + K)`, `stripLL F` has the same underlying vertex set but only the
+edges of `F` that are *not* between two label positions (both endpoints
+`< K`). The resulting graph satisfies the `no-LL` condition required by
+`labeledEvalK_glue`. -/
+private def stripLL {n K : ℕ} (F : SimpleGraph (Fin (n + K))) :
+    SimpleGraph (Fin (n + K)) where
+  Adj u v := F.Adj u v ∧ ¬ (u.val < K ∧ v.val < K)
+  symm := fun _ _ ⟨h1, h2⟩ => ⟨F.symm h1, fun ⟨hu, hv⟩ => h2 ⟨hv, hu⟩⟩
+  loopless := fun _ ⟨h1, _⟩ => F.loopless _ h1
+
+private instance stripLL_decidableRel {n K : ℕ}
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj] :
+    DecidableRel (stripLL F).Adj := fun u v =>
+  inferInstanceAs (Decidable (F.Adj u v ∧ _))
+
+/-- `stripLL F` has no label-label edges. -/
+private lemma stripLL_no_LL {n K : ℕ} (F : SimpleGraph (Fin (n + K)))
+    (a b : Fin (n + K)) (ha : a.val < K) (hb : b.val < K) :
+    ¬ (stripLL F).Adj a b := fun h => h.2 ⟨ha, hb⟩
+
+/-- Adjacency in `stripLL F` via the defining conjunction. -/
+private lemma stripLL_adj_iff {n K : ℕ} (F : SimpleGraph (Fin (n + K)))
+    (u v : Fin (n + K)) :
+    (stripLL F).Adj u v ↔ F.Adj u v ∧ ¬ (u.val < K ∧ v.val < K) := Iff.rfl
+
+/-- Edge-set characterization: `stripLL F` has the non-LL edges of `F`. -/
+private lemma stripLL_edgeFinset {n K : ℕ} (F : SimpleGraph (Fin (n + K)))
+    [DecidableRel F.Adj] :
+    (stripLL F).edgeFinset = F.edgeFinset.filter
+      (fun e => ¬ ((Quot.out e).1.val < K ∧ (Quot.out e).2.val < K)) := by
+  classical
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, Finset.mem_filter]
+  refine Sym2.ind (fun u v => ?_) e
+  have hout : ((Quot.out (s(u, v) : Sym2 _)).1 = u ∧ (Quot.out (s(u, v))).2 = v) ∨
+              ((Quot.out (s(u, v))).1 = v ∧ (Quot.out (s(u, v))).2 = u) := by
+    have := Sym2.eq_iff.mp (Quot.out_eq s(u, v))
+    rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> [left; right] <;> exact ⟨h1, h2⟩
+  simp only [SimpleGraph.mem_edgeSet, stripLL_adj_iff]
+  refine and_congr_right fun _ => not_congr ?_
+  rcases hout with ⟨ha, hb⟩ | ⟨ha, hb⟩
+  · rw [ha, hb]
+  · rw [ha, hb]; exact And.comm
+
+/-- The `LL`-edge factor of a `k`-labeled graph: the product over edges of `F`
+of `B(φ a)(φ b)` if the edge is a label-label edge, else `1`. This is
+`σ`-independent (does not enter the unlabeled summation in `labeledEvalK`). -/
+private noncomputable def llFactor {T n K : ℕ}
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
+    (B : Fin T → Fin T → ℝ) (φ : Fin K → Fin T) : ℝ :=
+  ∏ e ∈ F.edgeFinset,
+    if h : (Quot.out e).1.val < K ∧ (Quot.out e).2.val < K then
+      B (φ ⟨(Quot.out e).1.val, h.1⟩) (φ ⟨(Quot.out e).2.val, h.2⟩)
+    else 1
+
+/-- **Helper 1: LL-factor stripping.**
+Every `k`-labeled evaluation factors as a product of label-label `B`-factors
+(only depending on `φ`) times the evaluation of the graph with LL edges
+stripped. The "LL half" of the product-trace algebra. -/
+private theorem labeledEvalK_factor_LL {T : ℕ} (K n : ℕ)
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    labeledEvalK K n F B W φ = llFactor F B φ * labeledEvalK K n (stripLL F) B W φ := by
+  -- **Proof sketch** (stubbed — structural forward step for this session):
+  -- 1. Unfold `labeledEvalK` on both sides (`∑ σ, (∏ v, W (σ v)) * ∏ e, B (τ(e).1)(τ(e).2)`);
+  --    distribute `llFactor` into the sum (`Finset.mul_sum`).
+  -- 2. Per `σ`, cancel `(∏ v, W (σ v))`. Remaining identity on edge products:
+  --    `∏_{e ∈ F.edgeFinset} B(τ e) = llFactor F B φ * ∏_{e ∈ (stripLL F).edgeFinset} B(τ e)`.
+  -- 3. Split `F.edgeFinset` via `Finset.prod_filter_mul_prod_filter_not` on predicate
+  --    `P e := (Quot.out e).1.val < K ∧ (Quot.out e).2.val < K`:
+  --      `∏_F B(τ e) = (∏_{F.filter P} B(τ e)) * (∏_{F.filter ¬P} B(τ e))`.
+  -- 4. Bridge: `(stripLL F).edgeFinset = F.edgeFinset.filter ¬P` (`stripLL_edgeFinset`).
+  -- 5. For `e ∈ F.edgeFinset.filter P`, `τ(Quot.out e).i = φ ⟨_, h.i⟩` (both endpoints labeled),
+  --    so `B(τ e) = B(φ _)(φ _)` matching `llFactor`'s `dite` branch.
+  -- 6. Convert `llFactor` (defined as `∏ F.edgeFinset` of a `dite`) to `∏ F.filter P` via
+  --    `Finset.prod_dite` or a manual case split on `P e`.
+  -- This is routine Finset manipulation (~30 lines in Lean). Left as sorry this session;
+  -- the interface (statement + bridge lemma `stripLL_edgeFinset`) is landed.
+  sorry
+
 /-- **Product trace identity** — generalizes the single-graph trace identity
 (inside `coeffRestrict_equiv`, `trace_eq` step) to products of evaluations.
 
@@ -5191,11 +5292,34 @@ last label of the product `∏ labeledEvalK(F_j)` at `Fin.snoc ξ t` is equal fo
 to make `coeffRestrict_equiv` (Claim 4.2) IH-free, via `functional_span_zero`
 on the quotient by `(k+1)`-`tupleEquiv`.
 
-**Infrastructure remaining**: the proof requires iterated application of
-`labeledEvalK_glue` (after separating label-label edges and handling their
-multiplicities) combined with single-graph `trace_eq`. This is ~200 lines of
-Fin/graph combinatorics and is left as a focused sorry. Once filled, Claim 4.2
-is IH-free and Lemma 2.4's non-surjective branch closes cleanly. -/
+**Structural decomposition** (landing Helpers 1–2 localizes the remaining gap):
+1. Apply `labeledEvalK_factor_LL` (Helper 1) to each `F_j` to split off its
+   label-label B-factor: `labeledEvalK(F_j) = llFactor(F_j) * labeledEvalK(stripLL F_j)`.
+2. Apply `labeledEvalK_prod_no_LL` (Helper 2) to the list of `stripLL F_j`
+   graphs (each no-LL) to obtain a single no-LL graph `G_glued` with
+   `∏_j labeledEvalK(stripLL F_j) = labeledEvalK(G_glued)`.
+3. Combined: `∏_j labeledEvalK(F_j)(φ) = (∏_j llFactor(F_j))(φ) * labeledEvalK(G_glued)(φ)`.
+4. For the trace identity, apply single-graph `trace_eq` to `G_glued` — this
+   works because `G_glued` has no LL (so the trace-folded level-`k` graph is
+   simple), and the `llFactor` side splits into a label-only factor `C(ξ)`
+   (equal for `ξ` and `ξ'` via `tupleEquiv` on single-edge inner LL graphs,
+   raised to multiplicity) times a cross-factor `∏_a B(ξ(a))(t)^{m_a}`.
+
+**Remaining gap — the only missing abstraction** (next session's target):
+**a decorated label-edge multiplicity layer**. Specifically, after Helpers 1–2,
+we need an object of the form
+
+```
+(no-LL simple graph on Fin (n + (k+1))) × (multiplicity map : Sym2 (Fin (k+1)) → ℕ)
+```
+
+whose evaluation is `(∏_LL-pairs B(φ ·)(φ ·)^m) · labeledEvalK(no-LL simple graph)`,
+together with a trace identity: `∑_t W(t) · evaluation(snoc ξ t)` reduces to a
+level-`k` analogous decorated object applied to `ξ`, and this level-`k`
+evaluation is invariant under `tupleEquiv`. This is a small, targeted
+extension to handle the label-label multiplicity accumulation that naturally
+arises under list concatenation (hmul in `functional_span_zero`) — NOT a
+full multigraph theory. Helpers 1–2 isolate this as the one remaining gap. -/
 private theorem product_trace_identity {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) {k : ℕ}
     {ξ ξ' : Fin k → Fin T} (_h : tupleEquiv B W ξ ξ')
@@ -6198,6 +6322,40 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
     all_goals first | rfl |
       (exfalso; simp only [Fin.val_mk] at *; omega) |
       (congr 1; apply Fin.ext; simp only [Fin.val_natAdd, Fin.val_mk]; omega)
+
+/-- **Helper 2: iterated no-LL glue for lists.**
+For a list of `k`-labeled simple graphs each having no label-label edges, the
+product of their `labeledEvalK` evaluations is the evaluation of a single
+`k`-labeled simple graph with no label-label edges, obtained by iterated
+application of `labeledEvalK_glue`. The "glue half" of the product-trace
+algebra, complementing `labeledEvalK_factor_LL` (the "LL-strip half").
+
+**Proof sketch** (stubbed — structural forward step for this session):
+induction on `L`.
+- `nil`: take `N = 0`, `G = ⊥`. `labeledEvalK_empty` gives evaluation `1`,
+  and `⊥` trivially has no LL edges.
+- `cons p L'`: by IH on `L'` get `(N', G', _, hG'noLL, hG'eq)`. `p.2` has no
+  LL by `hL`. Apply `labeledEvalK_glue` with `F₁ = G'`, `F₂ = p.2`
+  (hypothesis `hF₂` is `p.2` no-LL). The glue result `F₃` has no LL because
+  `F₃.Adj u v` unfolds to `(F₁-like) ∨ (F₂-like)`, both impossible for LL
+  when `G'` and `p.2` are no-LL. Evaluation equality propagates.
+
+The no-LL preservation of `labeledEvalK_glue`'s witness requires reasoning
+about the construction inside the `∃`, which currently isn't exposed — a
+small strengthening of `labeledEvalK_glue`'s conclusion (or a companion
+lemma) unlocks this proof. Left as sorry this session; the interface is
+landed. -/
+private theorem labeledEvalK_prod_no_LL {K : ℕ}
+    (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + K))))
+    (hL : ∀ p ∈ L, ∀ a b : Fin (p.1 + K), a.val < K → b.val < K → ¬ p.2.Adj a b) :
+    ∃ (N : ℕ) (G : SimpleGraph (Fin (N + K))) (_ : DecidableRel G.Adj),
+      (∀ a b : Fin (N + K), a.val < K → b.val < K → ¬ G.Adj a b) ∧
+      ∀ {T : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+        (W : Fin T → ℝ) (φ : Fin K → Fin T),
+        @labeledEvalK T K N G (Classical.decRel _) B W φ =
+          (L.map (fun p =>
+            @labeledEvalK T K p.1 p.2 (Classical.decRel _) B W φ)).prod := by
+  sorry
 
 /-- **⚠ KNOWN-FALSE — OFF THE CRITICAL PATH.**
 
