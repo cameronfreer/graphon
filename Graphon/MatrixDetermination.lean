@@ -6434,6 +6434,47 @@ private theorem labeledEvalK_prod_no_LL {K : ℕ}
                    @labeledEvalK T K p.fst p.snd instP B W φ := by congr 1
     rw [bridgeF₃, hF₃_eq B hB W φ, ← bridgeG', ← bridgeP, hG'_eq B hB W φ, mul_comm]
 
+/-! ### Decorated label-edge multiplicity layer
+
+The algebraic object that naturally arises from products of `labeledEvalK`
+evaluations across lists of graphs. Only label-label edges accumulate
+multiplicities (non-LL edges stay simple via iterated `labeledEvalK_glue`).
+This decorated layer is strictly smaller than full multigraph theory and
+matches the actual obstruction identified in `product_trace_identity`.
+
+The structure couples:
+- A no-LL `K`-labeled simple graph (the "glued" part).
+- A multiplicity map `Sym2 (Fin K) → ℕ` for label-label B-factors.
+
+The evaluation multiplies a pure-B-power term (from `llMult`) with the
+ordinary `labeledEvalK` of the no-LL graph. Products of decorated graphs
+compose componentwise: simple graphs via `labeledEvalK_prod_no_LL`,
+multiplicities via pointwise addition. -/
+
+/-- A decorated `(K, n)`-labeled graph: a simple graph on `Fin (n + K)` with
+no label-label edges, together with a multiplicity map on `Sym2 (Fin K)`
+(label-label edge candidates). -/
+private structure DecLabeledGraph (K n : ℕ) where
+  graph : SimpleGraph (Fin (n + K))
+  noLL : ∀ a b : Fin (n + K), a.val < K → b.val < K → ¬ graph.Adj a b
+  llMult : Sym2 (Fin K) → ℕ
+
+/-- Evaluation of a decorated `(K, n)`-labeled graph:
+`(∏_{s : Sym2 (Fin K)} B(φ s.1)(φ s.2)^{llMult s}) · labeledEvalK K n graph B W φ`.
+
+The first factor is the label-label B-power product (σ-independent). The
+second factor is the ordinary evaluation of the no-LL part. -/
+private noncomputable def DecLabeledGraph.eval {T K n : ℕ}
+    (D : DecLabeledGraph K n)
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) : ℝ :=
+  (∏ e : Sym2 (Fin K), B (φ (Quot.out e).1) (φ (Quot.out e).2) ^ D.llMult e) *
+  @labeledEvalK T K n D.graph (Classical.decRel _) B W φ
+
+/-- The no-LL part of a decorated graph — exposed for convenience. -/
+private lemma DecLabeledGraph.noLL_graph {K n : ℕ} (D : DecLabeledGraph K n)
+    (a b : Fin (n + K)) (ha : a.val < K) (hb : b.val < K) : ¬ D.graph.Adj a b :=
+  D.noLL a b ha hb
+
 /-- **⚠ KNOWN-FALSE — OFF THE CRITICAL PATH.**
 
 Counterexample: `T=3`, `K=1`, `α(0)=0`, `W` uniform, `B = I` (identity on `Fin 3`).
