@@ -7,6 +7,7 @@ import Mathlib.Combinatorics.SimpleGraph.Finite
 import Mathlib.Data.Real.Basic
 import Mathlib.LinearAlgebra.Vandermonde
 import Mathlib.LinearAlgebra.Matrix.ToLinearEquiv
+import Mathlib.Tactic.LinearCombination
 
 /-!
 # Algebraic Determination for Finite Matrices
@@ -5266,22 +5267,38 @@ private theorem labeledEvalK_factor_LL {T : ℕ} (K n : ℕ)
     (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) :
     labeledEvalK K n F B W φ = llFactor F B φ * labeledEvalK K n (stripLL F) B W φ := by
-  -- **Proof sketch** (stubbed — structural forward step for this session):
-  -- 1. Unfold `labeledEvalK` on both sides (`∑ σ, (∏ v, W (σ v)) * ∏ e, B (τ(e).1)(τ(e).2)`);
-  --    distribute `llFactor` into the sum (`Finset.mul_sum`).
-  -- 2. Per `σ`, cancel `(∏ v, W (σ v))`. Remaining identity on edge products:
-  --    `∏_{e ∈ F.edgeFinset} B(τ e) = llFactor F B φ * ∏_{e ∈ (stripLL F).edgeFinset} B(τ e)`.
-  -- 3. Split `F.edgeFinset` via `Finset.prod_filter_mul_prod_filter_not` on predicate
-  --    `P e := (Quot.out e).1.val < K ∧ (Quot.out e).2.val < K`:
-  --      `∏_F B(τ e) = (∏_{F.filter P} B(τ e)) * (∏_{F.filter ¬P} B(τ e))`.
-  -- 4. Bridge: `(stripLL F).edgeFinset = F.edgeFinset.filter ¬P` (`stripLL_edgeFinset`).
-  -- 5. For `e ∈ F.edgeFinset.filter P`, `τ(Quot.out e).i = φ ⟨_, h.i⟩` (both endpoints labeled),
-  --    so `B(τ e) = B(φ _)(φ _)` matching `llFactor`'s `dite` branch.
-  -- 6. Convert `llFactor` (defined as `∏ F.edgeFinset` of a `dite`) to `∏ F.filter P` via
-  --    `Finset.prod_dite` or a manual case split on `P e`.
-  -- This is routine Finset manipulation (~30 lines in Lean). Left as sorry this session;
-  -- the interface (statement + bridge lemma `stripLL_edgeFinset`) is landed.
-  sorry
+  classical
+  simp only [labeledEvalK, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  -- Per σ: (∏ W) * ∏_F B(τ) = llFactor * ((∏ W) * ∏_{stripLL F} B(τ)).
+  rw [mul_left_comm]
+  congr 1
+  -- Remaining: ∏_F B(τ(e)) = llFactor * ∏_{stripLL F} B(τ(e)).
+  -- Define the τ-B function (the labeledEvalK edge factor).
+  set τB : Sym2 (Fin (n + K)) → ℝ := fun e =>
+    B (if h : (Quot.out e).1.val < K then φ ⟨(Quot.out e).1.val, h⟩
+       else σ ⟨(Quot.out e).1.val - K, by have := (Quot.out e).1.isLt; omega⟩)
+      (if h : (Quot.out e).2.val < K then φ ⟨(Quot.out e).2.val, h⟩
+       else σ ⟨(Quot.out e).2.val - K, by have := (Quot.out e).2.isLt; omega⟩) with hτB_def
+  -- Key pointwise identity: llFactor's per-edge dite equals `ite P (τB e) 1`
+  -- (on LL edges, τ = φ by construction).
+  have hpointwise : ∀ e : Sym2 (Fin (n + K)),
+      (if h : (Quot.out e).1.val < K ∧ (Quot.out e).2.val < K then
+        B (φ ⟨(Quot.out e).1.val, h.1⟩) (φ ⟨(Quot.out e).2.val, h.2⟩)
+      else 1) =
+      (if (Quot.out e).1.val < K ∧ (Quot.out e).2.val < K then τB e else 1) := by
+    intro e
+    by_cases hP : (Quot.out e).1.val < K ∧ (Quot.out e).2.val < K
+    · simp only [dif_pos hP, if_pos hP, τB, dif_pos hP.1, dif_pos hP.2]
+    · simp only [dif_neg hP, if_neg hP]
+  -- Unfold llFactor and rewrite the dite pointwise, then apply Finset.prod_ite.
+  rw [stripLL_edgeFinset, llFactor]
+  rw [Finset.prod_congr rfl (fun e _ => hpointwise e)]
+  rw [Finset.prod_ite]
+  simp only [Finset.prod_const_one, mul_one]
+  -- Goal: ∏_F τB = (∏_{F.filter P} τB) * ∏_{F.filter ¬P} τB
+  exact (Finset.prod_filter_mul_prod_filter_not F.edgeFinset
+          (fun e => (Quot.out e).1.val < K ∧ (Quot.out e).2.val < K) τB).symm
 
 /-- **Product trace identity** — generalizes the single-graph trace identity
 (inside `coeffRestrict_equiv`, `trace_eq` step) to products of evaluations.
@@ -6116,6 +6133,8 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
     [DecidableRel F₁.Adj] [DecidableRel F₂.Adj]
     (hF₂ : ∀ a b : Fin (n₂ + K), a.val < K → b.val < K → ¬F₂.Adj a b) :
     ∃ (F₃ : SimpleGraph (Fin ((n₁ + n₂) + K))) (_ : DecidableRel F₃.Adj),
+      ((∀ a b : Fin (n₁ + K), a.val < K → b.val < K → ¬F₁.Adj a b) →
+        ∀ a b : Fin ((n₁ + n₂) + K), a.val < K → b.val < K → ¬F₃.Adj a b) ∧
       ∀ {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
         (W : Fin T → ℝ) (φ : Fin K → Fin T),
         labeledEvalK K (n₁ + n₂) F₃ B W φ =
@@ -6151,7 +6170,33 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
     else if h₂ : ∃ (a b : Fin (n₂ + K)),
         emb₂ a = u ∧ emb₂ b = v ∧ F₂.Adj a b then .isTrue (.inr h₂)
     else .isFalse (fun h => h.elim (fun h => h₁ h) (fun h => h₂ h))
-  refine ⟨F₃, inferInstance, ?_⟩
+  refine ⟨F₃, inferInstance, ?_, ?_⟩
+  · -- no-LL preservation: if F₁ has no LL edges, then so does F₃.
+    -- F₃.Adj u v = (F₁-like) ∨ (F₂-like). Both are impossible when both endpoints
+    -- have val < K and F₁, F₂ have no LL.
+    intro hF₁ a b ha hb hF₃
+    rcases hF₃ with ⟨hu, hv, hadj⟩ | ⟨a₀, b₀, hea, heb, hadj⟩
+    · -- F₁-like: F₁.Adj ⟨a.val, hu⟩ ⟨b.val, hv⟩ with both val < K, contradicts hF₁.
+      exact hF₁ ⟨a.val, hu⟩ ⟨b.val, hv⟩ ha hb hadj
+    · -- F₂-like: emb₂ a₀ = a with a.val < K forces a₀.val < K (since emb₂ shifts
+      -- unlabeled by n₁ ≥ 0, keeping them ≥ K). Similarly b₀.val < K. Then F₂.Adj
+      -- a₀ b₀ with both val < K contradicts hF₂.
+      have ha₀ : a₀.val < K := by
+        by_contra hge
+        push_neg at hge
+        -- a₀.val ≥ K means emb₂ a₀ = ⟨n₁ + a₀.val, _⟩, so a.val = n₁ + a₀.val ≥ K.
+        have hval_a : a.val = (emb₂ a₀).val := by rw [← hea]
+        have hval_e : (emb₂ a₀).val = n₁ + a₀.val := by
+          simp only [emb₂, dif_neg (not_lt.mpr hge)]
+        omega
+      have hb₀ : b₀.val < K := by
+        by_contra hge
+        push_neg at hge
+        have hval_b : b.val = (emb₂ b₀).val := by rw [← heb]
+        have hval_e : (emb₂ b₀).val = n₁ + b₀.val := by
+          simp only [emb₂, dif_neg (not_lt.mpr hge)]
+        omega
+      exact hF₂ a₀ b₀ ha₀ hb₀ hadj
   -- The evaluation factorization follows the rootedEval_glue_exists pattern:
   -- (1) sum_piFinAdd_factor factors the sum over unlabeled colorings
   -- (2) Fin.prod_univ_add factors the weight product
@@ -6348,14 +6393,46 @@ landed. -/
 private theorem labeledEvalK_prod_no_LL {K : ℕ}
     (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + K))))
     (hL : ∀ p ∈ L, ∀ a b : Fin (p.1 + K), a.val < K → b.val < K → ¬ p.2.Adj a b) :
-    ∃ (N : ℕ) (G : SimpleGraph (Fin (N + K))) (_ : DecidableRel G.Adj),
+    ∃ (N : ℕ) (G : SimpleGraph (Fin (N + K))),
       (∀ a b : Fin (N + K), a.val < K → b.val < K → ¬ G.Adj a b) ∧
       ∀ {T : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
         (W : Fin T → ℝ) (φ : Fin K → Fin T),
         @labeledEvalK T K N G (Classical.decRel _) B W φ =
           (L.map (fun p =>
             @labeledEvalK T K p.1 p.2 (Classical.decRel _) B W φ)).prod := by
-  sorry
+  induction L with
+  | nil =>
+    refine ⟨0, (⊥ : SimpleGraph (Fin (0 + K))), ?_, ?_⟩
+    · intro a b _ _ h
+      exact (SimpleGraph.bot_adj _ _).mp h
+    · intro T B _ W φ
+      simp only [List.map_nil, List.prod_nil]
+      convert labeledEvalK_empty K B W φ
+  | cons p L' IH =>
+    have hL' : ∀ q ∈ L', ∀ a b : Fin (q.1 + K),
+        a.val < K → b.val < K → ¬ q.2.Adj a b :=
+      fun q hq => hL q (List.mem_cons.mpr (Or.inr hq))
+    obtain ⟨N', G', hG'_noLL, hG'_eq⟩ := IH hL'
+    have hp_noLL : ∀ a b : Fin (p.1 + K), a.val < K → b.val < K → ¬ p.2.Adj a b :=
+      hL p (List.mem_cons.mpr (Or.inl rfl))
+    haveI instP : DecidableRel p.2.Adj := Classical.decRel _
+    haveI instG' : DecidableRel G'.Adj := Classical.decRel _
+    obtain ⟨F₃, instF₃, hF₃_noLL_of, hF₃_eq⟩ :=
+      labeledEvalK_glue K N' p.1 G' p.2 hp_noLL
+    refine ⟨N' + p.1, F₃, hF₃_noLL_of hG'_noLL, ?_⟩
+    intro T B hB W φ
+    simp only [List.map_cons, List.prod_cons]
+    -- All labeledEvalK uses of the same graph agree across DecidableRel instances
+    -- (DecidableRel is subsingleton); the goal uses `Classical.decRel _` per the
+    -- theorem statement, while `hF₃_eq` / `hG'_eq` use the obtained instances.
+    -- Bridge each instance via `Subsingleton.elim`.
+    have bridgeF₃ : @labeledEvalK T K (N' + p.fst) F₃ (Classical.decRel _) B W φ =
+                    @labeledEvalK T K (N' + p.fst) F₃ instF₃ B W φ := by congr 1
+    have bridgeG' : @labeledEvalK T K N' G' (Classical.decRel _) B W φ =
+                    @labeledEvalK T K N' G' instG' B W φ := by congr 1
+    have bridgeP : @labeledEvalK T K p.fst p.snd (Classical.decRel _) B W φ =
+                   @labeledEvalK T K p.fst p.snd instP B W φ := by congr 1
+    rw [bridgeF₃, hF₃_eq B hB W φ, ← bridgeG', ← bridgeP, hG'_eq B hB W φ, mul_comm]
 
 /-- **⚠ KNOWN-FALSE — OFF THE CRITICAL PATH.**
 
