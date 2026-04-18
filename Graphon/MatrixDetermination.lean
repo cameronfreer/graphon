@@ -6475,6 +6475,101 @@ private lemma DecLabeledGraph.noLL_graph {K n : ℕ} (D : DecLabeledGraph K n)
     (a b : Fin (n + K)) (ha : a.val < K) (hb : b.val < K) : ¬ D.graph.Adj a b :=
   D.noLL a b ha hb
 
+/-! ### Step A: `ofSimple` — wrap a simple graph as a decorated graph -/
+
+/-- The canonical embedding of label positions into the full vertex space. -/
+private def DecLabeledGraph.labelEmbed {n K : ℕ} : Fin K → Fin (n + K) :=
+  fun a => ⟨a.val, by have := a.isLt; omega⟩
+
+/-- **ofSimple**: wrap any simple graph `F : SimpleGraph (Fin (n + K))` as a
+decorated `K`-labeled graph. Strips label-label edges into a multiplicity
+map (`llMult = 1` on each LL edge of `F`, `0` elsewhere); the simple-graph
+part is `stripLL F`. -/
+private noncomputable def DecLabeledGraph.ofSimple {K n : ℕ}
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj] :
+    DecLabeledGraph K n where
+  graph := stripLL F
+  noLL := stripLL_no_LL F
+  llMult s :=
+    if Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s ∈ F.edgeFinset
+    then 1 else 0
+
+/-- Evaluation of `ofSimple F` recovers `labeledEvalK F` exactly. -/
+private theorem DecLabeledGraph.eval_ofSimple {T K n : ℕ}
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    (DecLabeledGraph.ofSimple F).eval B W φ =
+      @labeledEvalK T K n F _ B W φ := by
+  classical
+  rw [labeledEvalK_factor_LL K n F B W φ]
+  show DecLabeledGraph.eval _ B W φ = _ * _
+  unfold DecLabeledGraph.eval DecLabeledGraph.ofSimple
+  congr 1
+  · -- ∏-equality: ∏ s : Sym2 (Fin K), B (φ (Quot.out s).1) (φ (Quot.out s).2) ^
+    --                                   (if Sym2.map labelEmbed s ∈ F.edgeFinset then 1 else 0)
+    --   = llFactor F B φ = ∏ e ∈ F.edgeFinset, dite P ...
+    -- Both sides reduce (via pow_boole + Finset.prod_ite + Finset.prod_dite)
+    -- to the product over `F.edgeFinset.filter LL` of `B (φ ⟨(Quot.out e).1.val, h.1⟩)
+    -- (φ ⟨(Quot.out e).2.val, h.2⟩)`, bridged by the injection
+    -- `Sym2.map labelEmbed : Sym2 (Fin K) ↪ Sym2 (Fin (n+K))` whose image
+    -- is exactly the LL edges. Routine `Finset.prod_bij` bookkeeping (~40
+    -- lines); stubbed here to keep the session's structural progress in
+    -- scope. The theorem STATEMENT is the interface that Step B and
+    -- subsequent work will rely on.
+    sorry
+  · -- labeledEvalK equality: same graph, DecidableRel instances differ.
+    congr 1
+
+/-! ### Step B: `one`, `mul`, and their evaluation lemmas -/
+
+/-- The **identity decorated graph**: empty graph on `Fin (0 + K)`, zero
+multiplicities. Its evaluation is `1`. -/
+private def DecLabeledGraph.one (K : ℕ) : DecLabeledGraph K 0 where
+  graph := (⊥ : SimpleGraph (Fin (0 + K)))
+  noLL := fun _ _ _ _ h => (SimpleGraph.bot_adj _ _).mp h
+  llMult := fun _ => 0
+
+/-- Evaluation of `DecLabeledGraph.one` is `1`. -/
+private theorem DecLabeledGraph.eval_one {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    (DecLabeledGraph.one K).eval B W φ = 1 := by
+  unfold DecLabeledGraph.eval DecLabeledGraph.one
+  simp only [pow_zero, Finset.prod_const_one, one_mul]
+  convert labeledEvalK_empty K B W φ
+
+/-- **Product of decorated graphs**: glue the no-LL simple parts via the
+strengthened `labeledEvalK_glue`, add the LL-multiplicity maps pointwise. -/
+private noncomputable def DecLabeledGraph.mul {K n₁ n₂ : ℕ}
+    (D₁ : DecLabeledGraph K n₁) (D₂ : DecLabeledGraph K n₂) :
+    DecLabeledGraph K (n₁ + n₂) :=
+  letI : DecidableRel D₁.graph.Adj := Classical.decRel _
+  letI : DecidableRel D₂.graph.Adj := Classical.decRel _
+  let h := labeledEvalK_glue K n₁ n₂ D₁.graph D₂.graph D₂.noLL
+  { graph := h.choose
+    noLL := h.choose_spec.choose_spec.1 D₁.noLL
+    llMult := fun s => D₁.llMult s + D₂.llMult s }
+
+/-- Evaluation of `D₁.mul D₂` equals the product of evaluations.
+
+**Proof sketch** (stubbed this session — structural bookkeeping on the glue
+witness's DecidableRel instance):
+- Unfold `.mul` / `.eval`. The `.mul` def uses `Classical.choose` on
+  `labeledEvalK_glue`'s existential; recovering the evaluation equality
+  requires `h.choose_spec.choose_spec.2 B hB W φ`.
+- Bridge the DecidableRel on `h.choose` (from the choose machinery vs
+  `Classical.decRel _` in the goal) via Subsingleton.elim-style `congr 1`.
+- Distribute the LL-multiplicity via `pow_add` + `Finset.prod_mul_distrib`.
+- `ring` assembles.
+
+Left as a named sorry (structurally equivalent to Helper 2's instance
+bridge, just in a different context). Unblocks Step E / next session. -/
+private theorem DecLabeledGraph.eval_mul {T K n₁ n₂ : ℕ}
+    (D₁ : DecLabeledGraph K n₁) (D₂ : DecLabeledGraph K n₂)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    (D₁.mul D₂).eval B W φ = D₁.eval B W φ * D₂.eval B W φ := by
+  sorry
+
 /-- **⚠ KNOWN-FALSE — OFF THE CRITICAL PATH.**
 
 Counterexample: `T=3`, `K=1`, `α(0)=0`, `W` uniform, `B = I` (identity on `Fin 3`).
