@@ -6528,26 +6528,20 @@ private noncomputable def DecLabeledGraph.ofSimple {K n : ℕ}
 /-- Evaluation of `ofSimple F` recovers `labeledEvalK F` exactly.
 
 Requires `hB` (symmetry of `B`) to handle `Quot.out` ordering ambiguity
-across `Sym2.map labelEmbed`: for `a : Sym2 (Fin K)`, `Quot.out a` may
-pick a different representative ordering than `Quot.out (Sym2.map labelEmbed a)`,
-and B-symmetry resolves the mismatch.
+across `Sym2.map labelEmbed`. Proof structure (planned):
+1. Helper 1: value preservation under `Sym2.map labelEmbed` via `B_quot_out_eq`
+   applied to both Quot.out normalizations.
+2. Helper 2: `F.edgeFinset.filter LL = (filter on Sym2 (Fin K)).image (Sym2.map labelEmbed)`
+   via `Finset.ext` + `Sym2.ind` + `Quot.out_eq`.
+3. Assembly via `Finset.prod_image` (injectivity) + Helpers 1–2 on the
+   `pow_boole`-simplified LHS and `Finset.prod_filter_mul_prod_filter_not`-split
+   llFactor.
 
-**Proof status**: stubbed. Structurally:
-- Apply `labeledEvalK_factor_LL` to decompose RHS as `llFactor * labeledEvalK(stripLL F)`.
-- Match `labeledEvalK(stripLL F)` sides via `congr 1` (DecidableRel subsingleton).
-- Reduce the `B^{ite 1 0}` product via `pow_boole` + `Finset.prod_filter` to
-  `∏ s ∈ Finset.univ.filter (Sym2.map labelEmbed s ∈ F.edgeFinset), B-value`.
-- Split `llFactor` via `Finset.prod_filter_mul_prod_filter_not` on the LL
-  predicate; non-LL part is `1` via `dif_neg`, leaving LL part.
-- Bridge via `Finset.prod_bij` with forward `Sym2.map labelEmbed` (injective);
-  surjectivity uses `Sym2.ind` + `Quot.out_eq` + `Fin.ext`. Value equality
-  uses `B_quot_out_eq` on both sides to normalize past `Quot.out`.
-
-The structure is laid out in the previous git commit's diff; the remaining
-gap is the `B_quot_out_eq` normalization step where Lean's dependent proof
-plumbing (the `⟨_, h.i⟩` Fin constructions with filter-extracted proofs)
-causes motive-type issues in `rw`. Needs `conv`-mode surgery or a clean
-auxiliary lemma. Left as named sorry. -/
+Left as named sorry this session — the helpers hit motive-type issues on
+`Quot.out_eq` rewrites because of dependent proof plumbing. Next session
+should reformulate the helpers without `rw` across `Quot.out`-bearing
+expressions (likely using `Finset.ext` with more explicit membership
+reasoning, or subtype products). -/
 private theorem DecLabeledGraph.eval_ofSimple {T K n : ℕ}
     (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
