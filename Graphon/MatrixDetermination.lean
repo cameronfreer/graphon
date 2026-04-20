@@ -6551,18 +6551,16 @@ private noncomputable def DecLabeledGraph.mul {K n₁ n₂ : ℕ}
 
 /-- Evaluation of `D₁.mul D₂` equals the product of evaluations.
 
-**Proof sketch** (stubbed this session — structural bookkeeping on the glue
-witness's DecidableRel instance):
-- Unfold `.mul` / `.eval`. The `.mul` def uses `Classical.choose` on
-  `labeledEvalK_glue`'s existential; recovering the evaluation equality
-  requires `h.choose_spec.choose_spec.2 B hB W φ`.
-- Bridge the DecidableRel on `h.choose` (from the choose machinery vs
-  `Classical.decRel _` in the goal) via Subsingleton.elim-style `congr 1`.
-- Distribute the LL-multiplicity via `pow_add` + `Finset.prod_mul_distrib`.
-- `ring` assembles.
-
-Left as a named sorry (structurally equivalent to Helper 2's instance
-bridge, just in a different context). Unblocks Step E / next session. -/
+**Proof status**: the algebraic content is `labeledEvalK_glue`'s evaluation
+equality on `.choose` plus `pow_add` / `Finset.prod_mul_distrib` for the
+LL-multiplicity split. The technical blocker is a `DecidableRel` instance
+mismatch at the `.choose` graph: the goal synthesizes one instance (from
+ambient `Classical.decRel _` via `haveI`), while the glue's
+`.choose_spec.choose_spec.2` carries a different (but Subsingleton-equal)
+instance. Lean's `rw` does not bridge these implicits automatically, and
+explicit bridges run into deep `whnf` timeouts on the `Classical.choose`
+expansion. Left as a named sorry; structurally equivalent to the bridges
+used in `labeledEvalK_prod_no_LL` (L6393) but with heavier elaboration. -/
 private theorem DecLabeledGraph.eval_mul {T K n₁ n₂ : ℕ}
     (D₁ : DecLabeledGraph K n₁) (D₂ : DecLabeledGraph K n₂)
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
