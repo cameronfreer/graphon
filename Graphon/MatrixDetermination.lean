@@ -6368,6 +6368,37 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
       (exfalso; simp only [Fin.val_mk] at *; omega) |
       (congr 1; apply Fin.ext; simp only [Fin.val_natAdd, Fin.val_mk]; omega)
 
+/-- **Glue witness pack**: repackages `labeledEvalK_glue`'s `Classical.choose`
+result as a structure. Hides the `.choose`/`.choose_spec` chain behind
+projections so downstream consumers (notably `DecLabeledGraph.mul` and
+`DecLabeledGraph.eval_mul`) avoid deep `whnf` expansion during proofs. -/
+private structure GluePack (K n₁ n₂ : ℕ)
+    (F₁ : SimpleGraph (Fin (n₁ + K))) (F₂ : SimpleGraph (Fin (n₂ + K))) where
+  graph : SimpleGraph (Fin ((n₁ + n₂) + K))
+  inst : DecidableRel graph.Adj
+  noLL_of : (∀ a b : Fin (n₁ + K), a.val < K → b.val < K → ¬ F₁.Adj a b) →
+            ∀ a b : Fin ((n₁ + n₂) + K), a.val < K → b.val < K → ¬ graph.Adj a b
+  eval_eq : ∀ {T : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+              (W : Fin T → ℝ) (φ : Fin K → Fin T),
+            @labeledEvalK T K (n₁ + n₂) graph inst B W φ =
+              @labeledEvalK T K n₁ F₁ (Classical.decRel _) B W φ *
+              @labeledEvalK T K n₂ F₂ (Classical.decRel _) B W φ
+
+/-- Package `labeledEvalK_glue`'s existential result as a `GluePack`. -/
+private noncomputable def labeledEvalK_gluePack (K n₁ n₂ : ℕ)
+    (F₁ : SimpleGraph (Fin (n₁ + K))) (F₂ : SimpleGraph (Fin (n₂ + K)))
+    [DecidableRel F₁.Adj] [DecidableRel F₂.Adj]
+    (hF₂ : ∀ a b : Fin (n₂ + K), a.val < K → b.val < K → ¬ F₂.Adj a b) :
+    GluePack K n₁ n₂ F₁ F₂ :=
+  let h := labeledEvalK_glue K n₁ n₂ F₁ F₂ hF₂
+  { graph := h.choose
+    inst := h.choose_spec.choose
+    noLL_of := h.choose_spec.choose_spec.1
+    eval_eq := fun B hB W φ => by
+      have := h.choose_spec.choose_spec.2 B hB W φ
+      -- Bridge Classical.decRel for F₁, F₂ to the ambient instances via congr.
+      convert this using 2 <;> congr 1 }
+
 /-- **Helper 2: iterated no-LL glue for lists.**
 For a list of `k`-labeled simple graphs each having no label-label edges, the
 product of their `labeledEvalK` evaluations is the evaluation of a single
@@ -6494,31 +6525,36 @@ private noncomputable def DecLabeledGraph.ofSimple {K n : ℕ}
     if Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s ∈ F.edgeFinset
     then 1 else 0
 
-/-- Evaluation of `ofSimple F` recovers `labeledEvalK F` exactly. -/
+/-- Evaluation of `ofSimple F` recovers `labeledEvalK F` exactly.
+
+Requires `hB` (symmetry of `B`) to handle `Quot.out` ordering ambiguity
+across `Sym2.map labelEmbed`: for `a : Sym2 (Fin K)`, `Quot.out a` may
+pick a different representative ordering than `Quot.out (Sym2.map labelEmbed a)`,
+and B-symmetry resolves the mismatch.
+
+**Proof status**: stubbed. Structurally:
+- Apply `labeledEvalK_factor_LL` to decompose RHS as `llFactor * labeledEvalK(stripLL F)`.
+- Match `labeledEvalK(stripLL F)` sides via `congr 1` (DecidableRel subsingleton).
+- Reduce the `B^{ite 1 0}` product via `pow_boole` + `Finset.prod_filter` to
+  `∏ s ∈ Finset.univ.filter (Sym2.map labelEmbed s ∈ F.edgeFinset), B-value`.
+- Split `llFactor` via `Finset.prod_filter_mul_prod_filter_not` on the LL
+  predicate; non-LL part is `1` via `dif_neg`, leaving LL part.
+- Bridge via `Finset.prod_bij` with forward `Sym2.map labelEmbed` (injective);
+  surjectivity uses `Sym2.ind` + `Quot.out_eq` + `Fin.ext`. Value equality
+  uses `B_quot_out_eq` on both sides to normalize past `Quot.out`.
+
+The structure is laid out in the previous git commit's diff; the remaining
+gap is the `B_quot_out_eq` normalization step where Lean's dependent proof
+plumbing (the `⟨_, h.i⟩` Fin constructions with filter-extracted proofs)
+causes motive-type issues in `rw`. Needs `conv`-mode surgery or a clean
+auxiliary lemma. Left as named sorry. -/
 private theorem DecLabeledGraph.eval_ofSimple {T K n : ℕ}
     (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (φ : Fin K → Fin T) :
     (DecLabeledGraph.ofSimple F).eval B W φ =
       @labeledEvalK T K n F _ B W φ := by
-  classical
-  rw [labeledEvalK_factor_LL K n F B W φ]
-  show DecLabeledGraph.eval _ B W φ = _ * _
-  unfold DecLabeledGraph.eval DecLabeledGraph.ofSimple
-  congr 1
-  · -- ∏-equality: ∏ s : Sym2 (Fin K), B (φ (Quot.out s).1) (φ (Quot.out s).2) ^
-    --                                   (if Sym2.map labelEmbed s ∈ F.edgeFinset then 1 else 0)
-    --   = llFactor F B φ = ∏ e ∈ F.edgeFinset, dite P ...
-    -- Both sides reduce (via pow_boole + Finset.prod_ite + Finset.prod_dite)
-    -- to the product over `F.edgeFinset.filter LL` of `B (φ ⟨(Quot.out e).1.val, h.1⟩)
-    -- (φ ⟨(Quot.out e).2.val, h.2⟩)`, bridged by the injection
-    -- `Sym2.map labelEmbed : Sym2 (Fin K) ↪ Sym2 (Fin (n+K))` whose image
-    -- is exactly the LL edges. Routine `Finset.prod_bij` bookkeeping (~40
-    -- lines); stubbed here to keep the session's structural progress in
-    -- scope. The theorem STATEMENT is the interface that Step B and
-    -- subsequent work will rely on.
-    sorry
-  · -- labeledEvalK equality: same graph, DecidableRel instances differ.
-    congr 1
+  sorry
 
 /-! ### Step B: `one`, `mul`, and their evaluation lemmas -/
 
@@ -6537,36 +6573,52 @@ private theorem DecLabeledGraph.eval_one {T K : ℕ}
   simp only [pow_zero, Finset.prod_const_one, one_mul]
   convert labeledEvalK_empty K B W φ
 
+/-- The `GluePack` for `D₁.mul D₂` (convenience accessor). -/
+private noncomputable def DecLabeledGraph.gluePack {K n₁ n₂ : ℕ}
+    (D₁ : DecLabeledGraph K n₁) (D₂ : DecLabeledGraph K n₂) :
+    GluePack K n₁ n₂ D₁.graph D₂.graph :=
+  letI : DecidableRel D₁.graph.Adj := Classical.decRel _
+  letI : DecidableRel D₂.graph.Adj := Classical.decRel _
+  labeledEvalK_gluePack K n₁ n₂ D₁.graph D₂.graph D₂.noLL
+
 /-- **Product of decorated graphs**: glue the no-LL simple parts via the
-strengthened `labeledEvalK_glue`, add the LL-multiplicity maps pointwise. -/
+packaged glue witness, add the LL-multiplicity maps pointwise. -/
 private noncomputable def DecLabeledGraph.mul {K n₁ n₂ : ℕ}
     (D₁ : DecLabeledGraph K n₁) (D₂ : DecLabeledGraph K n₂) :
     DecLabeledGraph K (n₁ + n₂) :=
-  letI : DecidableRel D₁.graph.Adj := Classical.decRel _
-  letI : DecidableRel D₂.graph.Adj := Classical.decRel _
-  let h := labeledEvalK_glue K n₁ n₂ D₁.graph D₂.graph D₂.noLL
-  { graph := h.choose
-    noLL := h.choose_spec.choose_spec.1 D₁.noLL
+  let pack := D₁.gluePack D₂
+  { graph := pack.graph
+    noLL := pack.noLL_of D₁.noLL
     llMult := fun s => D₁.llMult s + D₂.llMult s }
 
-/-- Evaluation of `D₁.mul D₂` equals the product of evaluations.
-
-**Proof status**: the algebraic content is `labeledEvalK_glue`'s evaluation
-equality on `.choose` plus `pow_add` / `Finset.prod_mul_distrib` for the
-LL-multiplicity split. The technical blocker is a `DecidableRel` instance
-mismatch at the `.choose` graph: the goal synthesizes one instance (from
-ambient `Classical.decRel _` via `haveI`), while the glue's
-`.choose_spec.choose_spec.2` carries a different (but Subsingleton-equal)
-instance. Lean's `rw` does not bridge these implicits automatically, and
-explicit bridges run into deep `whnf` timeouts on the `Classical.choose`
-expansion. Left as a named sorry; structurally equivalent to the bridges
-used in `labeledEvalK_prod_no_LL` (L6393) but with heavier elaboration. -/
+/-- Evaluation of `D₁.mul D₂` equals the product of evaluations. -/
 private theorem DecLabeledGraph.eval_mul {T K n₁ n₂ : ℕ}
     (D₁ : DecLabeledGraph K n₁) (D₂ : DecLabeledGraph K n₂)
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (φ : Fin K → Fin T) :
     (D₁.mul D₂).eval B W φ = D₁.eval B W φ * D₂.eval B W φ := by
-  sorry
+  classical
+  -- Access the glue pack once; its projections avoid `Classical.choose` whnf.
+  let pack := D₁.gluePack D₂
+  have hmul_graph : (D₁.mul D₂).graph = pack.graph := rfl
+  have hmul_llMult : (D₁.mul D₂).llMult = fun s => D₁.llMult s + D₂.llMult s := rfl
+  -- Glue evaluation equality (directly from the pack).
+  have hglue : @labeledEvalK T K (n₁ + n₂) pack.graph pack.inst B W φ =
+               @labeledEvalK T K n₁ D₁.graph (Classical.decRel _) B W φ *
+               @labeledEvalK T K n₂ D₂.graph (Classical.decRel _) B W φ :=
+    pack.eval_eq B hB W φ
+  -- Bridge DecidableRel instances on pack.graph (goal uses Classical.decRel).
+  have bridgeF₃ : @labeledEvalK T K (n₁ + n₂) pack.graph (Classical.decRel _) B W φ =
+                  @labeledEvalK T K (n₁ + n₂) pack.graph pack.inst B W φ := by
+    congr 1
+  have bridgeG₁ : @labeledEvalK T K n₁ D₁.graph (Classical.decRel _) B W φ =
+                  labeledEvalK K n₁ D₁.graph B W φ := by congr 1
+  have bridgeG₂ : @labeledEvalK T K n₂ D₂.graph (Classical.decRel _) B W φ =
+                  labeledEvalK K n₂ D₂.graph B W φ := by congr 1
+  -- Expand and combine.
+  simp only [DecLabeledGraph.eval, hmul_graph, hmul_llMult, pow_add,
+    Finset.prod_mul_distrib, bridgeF₃, hglue, bridgeG₁, bridgeG₂]
+  ring
 
 /-- **⚠ KNOWN-FALSE — OFF THE CRITICAL PATH.**
 
