@@ -7581,19 +7581,58 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
               tupleEquiv B W φ' ψ' → tupleOrbitRel B W φ' ψ' :=
             fun {φ' ψ'} h' => IH_strong (T - 1) hT1_lt φ' ψ' h'
           exact tupleEquiv_surjective_case B W hW hB htwin IH_T1 φ ψ hφ_surj h
-        · -- Neither α nor φ surjective. Claim 4.2 (`tupleEquiv_extend`) is now
-          -- IH-free (modulo `product_trace_identity`), so extension mechanics
-          -- are unblocked. The remaining blocker is the induction measure:
-          -- at level `m = k+1 < T`, strong induction on `m` supplies IH at
-          -- `j < k+1` only, and the surjective extension sits at level
-          -- `N ≥ T > k+1`, so `tupleEquiv_surjective_case` (which needs IH at
-          -- `T-1 ≥ k+1`) is out of range. Closing this branch requires a
-          -- well-founded or lexicographic induction on a measure such as
-          -- `(deficit, size)` with `deficit := T - |image φ ∪ image ψ|`:
-          -- restriction decreases size, Claim 4.4 handles deficit 0, and
-          -- Claim 4.2 reduces deficit by extension. This is a separate
-          -- milestone (induction-architecture refactor), distinct from the
-          -- algebraic closure work isolated in `product_trace_identity`.
+        · -- Neither α = restrictTuple φ nor φ itself is surjective.
+          --
+          -- Context at this point in the proof:
+          --   · α : Fin k → Fin T is non-surjective.
+          --   · φ = Fin.snoc α a with a := φ (Fin.last k).
+          --   · σ.symm ∘ ψ = Fin.snoc α b with b := (σ.symm ∘ ψ) (Fin.last k).
+          --   · h' : tupleEquiv B W (Fin.snoc α a) (Fin.snoc α b).
+          -- Goal: tupleOrbitRel B W φ ψ, equivalently: an automorphism σ'
+          -- with σ' ∘ α = α (fixing range(α) pointwise) and σ'(a) = b.
+          --
+          -- Standard Lovász plan ("extend-and-recurse"):
+          --   1. Pick r ∈ Fin T outside range(α) ∪ {a, b}. (Requires the
+          --      deficit T − |range α ∪ {a, b}| ≥ 1, i.e. a case analysis.)
+          --   2. Build `Φ_ext := Fin.snoc (Fin.snoc α a) r` at level k+2,
+          --      `Ψ_ext := Fin.snoc (Fin.snoc α b) ?`. We need
+          --      `tupleEquiv B W Φ_ext Ψ_ext` where the last coordinate of
+          --      Ψ_ext matches some element yielding tupleEquiv.
+          --   3. Apply the outer IH at (Φ_ext, Ψ_ext) at measure strictly
+          --      smaller than (d, k+1) under a lex order `(deficit, size)`
+          --      with deficit primary. Extract an automorphism σ'.
+          --   4. Restrict σ' back to conclude on (φ, ψ).
+          --
+          -- Why closing this branch is blocked (even with a lex induction
+          -- measure on `(deficit, size)`):
+          --
+          --   Step 2 — producing `tupleEquiv B W Φ_ext Ψ_ext` — is exactly
+          --   what `tupleEquiv_extend` (L5634) computes. That lemma is
+          --   blocked by `coeffRestrict_equiv` (L5381), which in turn is
+          --   blocked by `product_trace_identity` (L5352, sorry'd). The
+          --   IH-free variant `tupleEquiv_extend_of_ih` (L5109) requires
+          --   the Lemma-2.4 conclusion at the specific pair (Fin.snoc α a,
+          --   Fin.snoc α b) at level k+1, which is exactly the current
+          --   outer goal — any lex measure would give us this IH only if
+          --   (Fin.snoc α a, Fin.snoc α b) sat at strictly smaller measure
+          --   than (φ, ψ) = (Fin.snoc α a, Fin.snoc α b) itself, i.e. the
+          --   very pair we are proving. No lex refactor of the outer
+          --   induction measure can break this circularity.
+          --
+          -- An alternative (direct-single-edge) route mirroring
+          -- `tupleEquiv_ext_eq_of_surj` can only extract
+          -- `B (α j) a = B (α j) b` for j ∈ range(α); without surjectivity
+          -- of α the rows B(a, ·) and B(b, ·) cannot be compared outside
+          -- range(α) ∪ {a, b}. Closing the gap requires either
+          --   · unblocking `product_trace_identity` (and thereby
+          --     `tupleEquiv_extend`), or
+          --   · an entirely different algebraic route (e.g. the full
+          --     Lovász A_k / graph-product multiplicative closure).
+          --
+          -- This sorry is therefore NOT closable by an induction-measure
+          -- refactor alone. The underlying obstruction is algebraic
+          -- (product_trace_identity), not inductive. Retained here so the
+          -- file continues to compile.
           sorry
 
 /-! ### Explicit separating motifs
