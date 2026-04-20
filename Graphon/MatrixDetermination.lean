@@ -7348,6 +7348,93 @@ private theorem DecLabeledGraph.eval_mul {T K n₁ n₂ : ℕ}
     Finset.prod_mul_distrib, bridgeF₃, hglue, bridgeG₁, bridgeG₂]
   ring
 
+/-! ### Multigraph / A_k extension frontier (OPEN)
+
+**Central open claim.** `DecLabeledGraphTr.eval_tupleEquiv_invariant`
+(L7051) — the invariance of the decorated multigraph evaluation under
+simple-graph `tupleEquiv`. This is the single mathematical frontier now
+blocking the IH-free Lovász Lemma-2.4 path.
+
+**Why it is the frontier.** Simple-graph `labeledEvalK` cannot encode
+`B(ξ a, σ' 0)^m` for `m ≥ 2`: every candidate simple-graph gadget
+(parallel-edge simulation via pendant unlabeled vertices, subdivision by
+paths of length 2, fresh copies of the label, etc.) yields
+`(∑ W B)^m` — the power of a linear moment — rather than `∑ W B^m` —
+an honest power-sum moment. These are algebraically independent as
+polynomials in `B`, so the multigraph invariance cannot be derived as
+a corollary of simple-graph `tupleEquiv` by gadget-style reductions.
+
+**Lovász A_k algebra.** The full closure is Lovász's A_k algebra
+(TR-2004-82 §3–4): the multiplicative closure of `labeledEvalK`
+evaluations over simple graphs forms a unital point-separating algebra
+of class functions on the `tupleEquiv`-quotient, and invariance of
+multigraph evaluations follows from this structural closure. Closing
+`eval_tupleEquiv_invariant` in Lean likely requires either:
+  1. multigraph `tupleEquiv` as a primitive with an equivalence proof
+     back to simple-graph `tupleEquiv`; or
+  2. a polynomial-identity argument extracting higher moments from the
+     rich simple-graph evaluation family (closer to Lovász's original).
+
+**Downstream consequences (critical path):**
+- `product_trace_identity` (L5340) reduces via `trace_eval` +
+  `ofSimple` / `mul` / `eval_mul` assembly — see
+  `product_trace_identity_of_eval_tupleEquiv_invariant` below.
+- `coeffRestrict_equiv` (L5381) reduces transitively since it depends
+  only on `product_trace_identity`.
+- `tupleEquiv_extend` (L5634) unblocks via `coeffRestrict_equiv`.
+- The non-surjective branch of `tupleEquiv_implies_tupleOrbitRel`
+  (L7519, sorry at L7636) then closes via the standard Lovász
+  extend-and-recurse: pick `r ∉ range α ∪ {a, b}`, apply
+  `tupleEquiv_extend` to produce `(Fin.snoc Φ r, ν)` at level `k+2` with
+  a strictly smaller deficit, recurse via a well-founded measure on
+  `(deficit, size)`, and restrict the resulting automorphism back. See
+  the in-situ comment at L7636 for the detailed obstruction analysis.
+
+This section isolates the reduction; the central theorem itself remains
+at its existing location (L7051) with a sorry body. -/
+
+/-- **Reduction 1** (`product_trace_identity` → extension theorem).
+If `DecLabeledGraphTr.eval_tupleEquiv_invariant` holds — i.e., every
+decorated multigraph evaluation is `tupleEquiv`-invariant at the base
+level `K` — then `product_trace_identity` follows by the
+`DecLabeledGraph`-algebra assembly described below.
+
+**Assembly sketch** (routine once the algebra is in place):
+1. For each `⟨n_j, F_j⟩ ∈ L`, set `D_j := DecLabeledGraph.ofSimple F_j`.
+   By `eval_ofSimple`, `D_j.eval B W (Fin.snoc ξ t) = labeledEvalK(F_j)`.
+2. Fold the list: `D := L.foldr (fun p D' => (D_j p).mul D') (one (k+1))`.
+   By `eval_one` / `eval_mul`,
+   `D.eval B W (Fin.snoc ξ t) = (L.map (fun p => labeledEvalK …)).prod`.
+3. `D.llMult s(Fin.last k, Fin.last k) = 0` because `ofSimple`'s
+   `llMult` vanishes on `Sym2` diagonals (simple graphs are loopless)
+   and `mul` preserves this by pointwise addition of `ℕ`s.
+4. Apply `trace_eval` with `h_noSelfLastLL` from step 3:
+   `∑ t, W t · D.eval B W (Fin.snoc ξ t) = D.trace.eval B W ξ`.
+5. Apply the extension theorem (`h_mg_inv`) to `D.trace`:
+   `D.trace.eval B W ξ = D.trace.eval B W ξ'`.
+6. Apply `trace_eval` again (symmetrically for `ξ'`) and conclude.
+
+The proof body is `sorry` because the assembly — while routine —
+is mechanical `DecLabeledGraph`-algebra that belongs to a proving
+session rather than a design session. -/
+private theorem product_trace_identity_of_eval_tupleEquiv_invariant
+    {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ)
+    (h_mg_inv : ∀ {K n : ℕ} (Dtr : DecLabeledGraphTr K n)
+        {ξ ξ' : Fin K → Fin T}, tupleEquiv B W ξ ξ' →
+        Dtr.eval B W ξ = Dtr.eval B W ξ')
+    {k : ℕ} {ξ ξ' : Fin k → Fin T} (_h : tupleEquiv B W ξ ξ')
+    (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1))))) :
+    ∑ t : Fin T, W t *
+      (L.map (fun p =>
+        @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W
+          (Fin.snoc ξ t))).prod =
+    ∑ t : Fin T, W t *
+      (L.map (fun p =>
+        @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W
+          (Fin.snoc ξ' t))).prod := by
+  sorry
+
 /-- **⚠ KNOWN-FALSE — OFF THE CRITICAL PATH.**
 
 Counterexample: `T=3`, `K=1`, `α(0)=0`, `W` uniform, `B = I` (identity on `Fin 3`).
