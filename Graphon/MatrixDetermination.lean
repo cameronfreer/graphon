@@ -6579,6 +6579,57 @@ private theorem DecLabeledGraph.eval_toTr {T K n : ℕ}
     split_ifs <;> simp]
   ring
 
+/-- **Trace operation**: `trace : DecLabeledGraph (K+1) n → DecLabeledGraphTr K (n+1)`.
+
+Folds the level-`(K+1)` decorated graph down to level `K` by absorbing
+the "last label" (position `K`) as a new unlabeled vertex 0:
+- `graph`: `D.graph` viewed on the reshaped index type `Fin ((n+1) + K)`
+  (same underlying Fin-val structure, different bracketing).
+- `noLL` at level `K`: follows from `D.noLL` at level `K+1` since any
+  level-`K` LL pair (both `val < K`) lifts to a level-`(K+1)` LL pair.
+- `llMult` at level `K`: restriction of `D.llMult` to inner pairs
+  (both endpoints `< K`), lifted to `Sym2 (Fin (K+1))` via `Fin.castSucc`.
+- `lu0Mult`: the LL-cross multiplicities from level `K+1` (pairs touching
+  position `K` = `Fin.last K`), re-indexed as `Fin K → ℕ`. -/
+private noncomputable def DecLabeledGraph.trace {K n : ℕ}
+    (D : DecLabeledGraph (K + 1) n) : DecLabeledGraphTr K (n + 1) where
+  graph := D.graph.comap
+    (Fin.cast (show (n + 1) + K = n + (K + 1) from by omega) :
+      Fin ((n + 1) + K) → Fin (n + (K + 1)))
+  noLL := by
+    intro a b ha hb hadj
+    apply D.noLL
+      (Fin.cast (show (n + 1) + K = n + (K + 1) from by omega) a)
+      (Fin.cast (show (n + 1) + K = n + (K + 1) from by omega) b)
+      (by simp [Fin.cast]; omega)
+      (by simp [Fin.cast]; omega)
+      hadj
+  llMult s := D.llMult (Sym2.map Fin.castSucc s)
+  lu0Mult a := D.llMult s(Fin.castSucc a, Fin.last K)
+
+/-- **Trace evaluation identity**: the `W`-weighted sum over the last label
+of a level-`(K+1)` decorated-graph evaluation equals the level-`K` traced
+evaluation. This is the core identity that reduces the mixed σ + `t` sum
+to a single evaluation object at level `K`. -/
+private theorem DecLabeledGraph.trace_eval {T K n : ℕ}
+    (D : DecLabeledGraph (K + 1) n) (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (ξ : Fin K → Fin T) :
+    ∑ t : Fin T, W t * D.eval B W (Fin.snoc ξ t) =
+      D.trace.eval B W ξ := by
+  sorry
+
+/-- **`tupleEquiv`-invariance of the traced evaluation**. Since
+`DecLabeledGraphTr.eval` at level `K` is a finite product/sum of level-`K`
+`labeledEvalK` components (the LL factor, lu0 factor, and graph factor
+all reduce to level-`K` semantics), `tupleEquiv B W ξ ξ'` preserves it. -/
+private theorem DecLabeledGraphTr.eval_tupleEquiv_invariant {T K n : ℕ}
+    (Dtr : DecLabeledGraphTr K n) (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
+    Dtr.eval B W ξ = Dtr.eval B W ξ' := by
+  sorry
+
 /-! ### Step A: `ofSimple` — wrap a simple graph as a decorated graph -/
 
 /-- The canonical embedding of label positions into the full vertex space. -/
