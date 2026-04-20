@@ -6506,6 +6506,79 @@ private lemma DecLabeledGraph.noLL_graph {K n : ℕ} (D : DecLabeledGraph K n)
     (a b : Fin (n + K)) (ha : a.val < K) (hb : b.val < K) : ¬ D.graph.Adj a b :=
   D.noLL a b ha hb
 
+/-! ### Traced decorated carrier
+
+`DecLabeledGraphTr` extends `DecLabeledGraph` with a `lu0Mult : Fin K → ℕ`
+field capturing **label-to-unlabeled-position-0** multiplicity. This is
+the data that arises when tracing a level-`(K+1)` decorated graph down
+to level `K`: LL-cross edges at position `K` become LU edges to the new
+unlabeled vertex 0 at level `K`, with multiplicities.
+
+Kept as a separate carrier (rather than enriching `DecLabeledGraph` in
+place) to avoid churn in the existing algebra (`ofSimple`, `one`, `mul`,
+and their eval lemmas). A canonical `DecLabeledGraph → DecLabeledGraphTr`
+conversion is provided via `DecLabeledGraph.toTr` (setting `lu0Mult = 0`). -/
+
+/-- A decorated `(K, n)`-labeled graph enriched with label-to-unlabeled-0
+multiplicity data. Inputs to / outputs of the `trace` operation live here. -/
+private structure DecLabeledGraphTr (K n : ℕ) where
+  graph : SimpleGraph (Fin (n + K))
+  noLL : ∀ a b : Fin (n + K), a.val < K → b.val < K → ¬ graph.Adj a b
+  llMult : Sym2 (Fin K) → ℕ
+  lu0Mult : Fin K → ℕ
+
+/-- The label-to-unlabeled-0 factor for a given `σ : Fin n → Fin T`.
+For `n = 0` it is `1` (no unlabeled position 0 exists).
+For `n ≥ 1` it is `∏ a : Fin K, B(φ a)(σ ⟨0, _⟩)^{lu0Mult a}`. -/
+private noncomputable def DecLabeledGraphTr.lu0FactorAt {T K n : ℕ}
+    (Dtr : DecLabeledGraphTr K n)
+    (B : Fin T → Fin T → ℝ) (φ : Fin K → Fin T)
+    (σ : Fin n → Fin T) : ℝ :=
+  if h : 0 < n then
+    ∏ a : Fin K, B (φ a) (σ ⟨0, h⟩) ^ Dtr.lu0Mult a
+  else 1
+
+/-- Evaluation of a traced decorated graph:
+`(LL-factor) · ∑_σ (W-product) · (lu0-factor σ) · (no-LL edge product)`. -/
+private noncomputable def DecLabeledGraphTr.eval {T K n : ℕ}
+    (Dtr : DecLabeledGraphTr K n)
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) : ℝ :=
+  letI : DecidableRel Dtr.graph.Adj := Classical.decRel _
+  (∏ e : Sym2 (Fin K), B (φ (Quot.out e).1) (φ (Quot.out e).2) ^ Dtr.llMult e) *
+  ∑ σ : Fin n → Fin T,
+    let τ : Fin (n + K) → Fin T := fun v =>
+      if h : (v : ℕ) < K then φ ⟨v, h⟩
+      else σ ⟨v - K, by have := v.isLt; omega⟩
+    (∏ v : Fin n, W (σ v)) *
+    Dtr.lu0FactorAt B φ σ *
+    ∏ e ∈ Dtr.graph.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)
+
+/-- Canonical promotion of a `DecLabeledGraph` to a `DecLabeledGraphTr`
+by setting `lu0Mult = 0`. -/
+private def DecLabeledGraph.toTr {K n : ℕ} (D : DecLabeledGraph K n) :
+    DecLabeledGraphTr K n where
+  graph := D.graph
+  noLL := D.noLL
+  llMult := D.llMult
+  lu0Mult := fun _ => 0
+
+/-- The canonical promotion preserves evaluation: `D.toTr.eval = D.eval`. -/
+private theorem DecLabeledGraph.eval_toTr {T K n : ℕ}
+    (D : DecLabeledGraph K n) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (φ : Fin K → Fin T) :
+    D.toTr.eval B W φ = D.eval B W φ := by
+  classical
+  unfold DecLabeledGraphTr.eval DecLabeledGraph.eval DecLabeledGraph.toTr
+  congr 1
+  simp only [labeledEvalK]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  simp only [DecLabeledGraphTr.lu0FactorAt]
+  -- The lu0Mult field of toTr is `fun _ => 0`, so the B^0 product is 1.
+  rw [show (if h : 0 < n then
+        ∏ a : Fin K, B (φ a) (σ ⟨0, h⟩) ^ (0 : ℕ) else (1 : ℝ)) = 1 from by
+    split_ifs <;> simp]
+  ring
+
 /-! ### Step A: `ofSimple` — wrap a simple graph as a decorated graph -/
 
 /-- The canonical embedding of label positions into the full vertex space. -/
