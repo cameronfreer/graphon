@@ -5300,352 +5300,6 @@ private theorem labeledEvalK_factor_LL {T : ℕ} (K n : ℕ)
   exact (Finset.prod_filter_mul_prod_filter_not F.edgeFinset
           (fun e => (Quot.out e).1.val < K ∧ (Quot.out e).2.val < K) τB).symm
 
-/-- **Product trace identity** — generalizes the single-graph trace identity
-(inside `coeffRestrict_equiv`, `trace_eq` step) to products of evaluations.
-
-For any list `L` of `(k+1)`-labeled simple graphs, the weighted sum over the
-last label of the product `∏ labeledEvalK(F_j)` at `Fin.snoc ξ t` is equal for
-`k`-equivalent tuples `ξ`, `ξ'`. This is the key combinatorial identity needed
-to make `coeffRestrict_equiv` (Claim 4.2) IH-free, via `functional_span_zero`
-on the quotient by `(k+1)`-`tupleEquiv`.
-
-**Structural decomposition** (landing Helpers 1–2 localizes the remaining gap):
-1. Apply `labeledEvalK_factor_LL` (Helper 1) to each `F_j` to split off its
-   label-label B-factor: `labeledEvalK(F_j) = llFactor(F_j) * labeledEvalK(stripLL F_j)`.
-2. Apply `labeledEvalK_prod_no_LL` (Helper 2) to the list of `stripLL F_j`
-   graphs (each no-LL) to obtain a single no-LL graph `G_glued` with
-   `∏_j labeledEvalK(stripLL F_j) = labeledEvalK(G_glued)`.
-3. Combined: `∏_j labeledEvalK(F_j)(φ) = (∏_j llFactor(F_j))(φ) * labeledEvalK(G_glued)(φ)`.
-4. For the trace identity, apply single-graph `trace_eq` to `G_glued` — this
-   works because `G_glued` has no LL (so the trace-folded level-`k` graph is
-   simple), and the `llFactor` side splits into a label-only factor `C(ξ)`
-   (equal for `ξ` and `ξ'` via `tupleEquiv` on single-edge inner LL graphs,
-   raised to multiplicity) times a cross-factor `∏_a B(ξ(a))(t)^{m_a}`.
-
-**Remaining gap — the only missing abstraction** (next session's target):
-**a decorated label-edge multiplicity layer**. Specifically, after Helpers 1–2,
-we need an object of the form
-
-```
-(no-LL simple graph on Fin (n + (k+1))) × (multiplicity map : Sym2 (Fin (k+1)) → ℕ)
-```
-
-whose evaluation is `(∏_LL-pairs B(φ ·)(φ ·)^m) · labeledEvalK(no-LL simple graph)`,
-together with a trace identity: `∑_t W(t) · evaluation(snoc ξ t)` reduces to a
-level-`k` analogous decorated object applied to `ξ`, and this level-`k`
-evaluation is invariant under `tupleEquiv`. This is a small, targeted
-extension to handle the label-label multiplicity accumulation that naturally
-arises under list concatenation (hmul in `functional_span_zero`) — NOT a
-full multigraph theory. Helpers 1–2 isolate this as the one remaining gap. -/
-private theorem product_trace_identity {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) {k : ℕ}
-    {ξ ξ' : Fin k → Fin T} (_h : tupleEquiv B W ξ ξ')
-    (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1))))) :
-    ∑ t : Fin T, W t *
-      (L.map (fun p =>
-        @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W
-          (Fin.snoc ξ t))).prod =
-    ∑ t : Fin T, W t *
-      (L.map (fun p =>
-        @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W
-          (Fin.snoc ξ' t))).prod := by
-  sorry
-
-set_option maxHeartbeats 4000000 in
-/-- **Trace invariance of `coeffRestrict`** (Claim 4.2 core, IH-free):
-the coefficient is constant on k-equivalence classes.
-
-**Proof structure**:
-
-Step 1 (`trace_eq`): By `labeledEvalK_sum_last_label` + `h : ξ ≡ ξ'`,
-for every (k+1)-labeled graph F,
-`∑_t W(t) * labeledEvalK(F)(Fin.snoc ξ t) = same for ξ'`.
-(single-graph trace identity; uses `h` on a derived k-labeled graph.)
-
-Step 2 (reduction to class-constant `g`): show the goal follows if
-`∑_t W(t) g(snoc ξ t) = ∑_t W(t) g(snoc ξ' t)` for every class-constant `g`.
-Take `g` = indicator of `[μ]`.
-
-Step 3 (`functional_span_zero`): build the quotient `Q` of
-`Fin (k+1) → Fin T` by tupleEquiv; take `d(q) = α(q) - β(q)` where
-`α(q) = ∑_{t : [snoc ξ t] = q} W(t)` and `β` symmetric. Apply
-`functional_span_zero` with index = lists of graphs: hconst via empty
-list, hmul via concatenation, hsep via negation of `tupleEquiv`, and
-hortho via `product_trace_identity`. Conclude `d = 0`, then rewrite
-back to the weighted-sum equality via class decomposition.
-
-**IH-free**: the automorphism-based argument (requiring Lemma 2.4 at
-level k) is replaced entirely by `functional_span_zero` +
-`product_trace_identity`. The single remaining combinatorial sorry is
-localized to `product_trace_identity`. -/
-private theorem coeffRestrict_equiv {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
-    (hB : ∀ i j, B i j = B j i) {k : ℕ}
-    (μ : Fin (k + 1) → Fin T) {ξ ξ' : Fin k → Fin T}
-    (h : tupleEquiv B W ξ ξ') :
-    coeffRestrict B W μ ξ = coeffRestrict B W μ ξ' := by
-  classical
-  -- **Step 1**: The trace identity. For every (k+1)-labeled graph, the
-  -- W-weighted sum over the last label is a k-level evaluation, hence
-  -- equal for ξ and ξ' by `h`.
-  have trace_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin (n + (k + 1)))) [DecidableRel F.Adj],
-      ∑ t : Fin T, W t * labeledEvalK (k + 1) n F B W (Fin.snoc ξ t) =
-      ∑ t : Fin T, W t * labeledEvalK (k + 1) n F B W (Fin.snoc ξ' t) := by
-    intro n F _
-    -- By the trace lemma, each side equals a k-level evaluation.
-    -- n + (k + 1) = (n + 1) + k, so F is also on Fin ((n+1) + k).
-    -- Apply the trace lemma. The trace lemma gives each side as a
-    -- k-level evaluation, which equals for ξ and ξ' by tupleEquiv.
-    -- The Fin arithmetic n+(k+1) vs (n+1)+k is handled by
-    -- converting the graph via Fin.castOrderIso.
-    -- The trace lemma converts each side to a sum over Fin(n+1)→Fin T
-    -- with edges from F. We need to relate this to labeledEvalK k (n+1)
-    -- on a graph of type Fin((n+1)+k). Construct G inline.
-    let G : SimpleGraph (Fin ((n + 1) + k)) :=
-      { Adj := fun u v => F.Adj ⟨u.val, by have := u.isLt; omega⟩
-                              ⟨v.val, by have := v.isLt; omega⟩
-        symm := fun _ _ h => F.symm h
-        loopless := fun _ h => F.loopless _ h }
-    haveI : DecidableRel G.Adj := fun u v => inferInstanceAs
-      (Decidable (F.Adj ⟨u.val, _⟩ ⟨v.val, _⟩))
-    -- Bridge: the trace lemma RHS equals labeledEvalK k (n+1) G B W φ.
-    have bridge : ∀ φ : Fin k → Fin T,
-        ∑ t : Fin T, W t * labeledEvalK (k + 1) n F B W (Fin.snoc φ t) =
-        labeledEvalK k (n + 1) G B W φ := by
-      intro φ; rw [labeledEvalK_sum_last_label]; simp only [labeledEvalK]
-      refine Finset.sum_congr rfl fun σ' _ => ?_; congr 1
-      -- F.edgeFinset (Fin(n+(k+1))) ↔ G.edgeFinset via val-preserving bijection.
-      -- Since n+(k+1) = (n+1)+k propositionally, use finCongr to transport edges.
-      let e := finCongr (show n + (k + 1) = n + 1 + k by omega)
-      -- Use Finset.prod_nbij' with Sym2.map e as the bijection.
-      apply Finset.prod_nbij' (Sym2.map e) (Sym2.map e.symm)
-      -- hi: F-edges map to G-edges
-      · intro a ha
-        refine Sym2.ind (fun u v h => ?_) a ha
-        rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
-        rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h; exact h
-      -- hj: G-edges map to F-edges
-      · intro a ha
-        refine Sym2.ind (fun u v h => ?_) a ha
-        rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
-        simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, G] at h; exact h
-      -- left_inv: Sym2.map e.symm ∘ Sym2.map e = id
-      · intro a _
-        simp only [Sym2.map_map, Equiv.symm_comp_self]; exact congr_fun Sym2.map_id a
-      -- right_inv: Sym2.map e ∘ Sym2.map e.symm = id
-      · intro a _
-        simp only [Sym2.map_map, Equiv.self_comp_symm]; exact congr_fun Sym2.map_id a
-      -- hfg: the B-product values match for corresponding edges.
-      -- Both sides evaluate B on the same .val, but Quot.out may pick different
-      -- orderings. Use B-symmetry (hB) to handle both cases.
-      · intro a ha
-        refine Sym2.ind (fun u v _ => ?_) a ha
-        simp only [Sym2.map_pair_eq]
-        -- Need: B(τ_F(Quot.out s(u,v)).1)(τ_F(Quot.out s(u,v)).2) =
-        --       B(τ_G(Quot.out s(eu,ev)).1)(τ_G(Quot.out s(eu,ev)).2)
-        -- where τ_F, τ_G evaluate the same function on .val.
-        -- Strategy: both sides = B(g(u.val))(g(v.val)) via Quot.out case analysis + hB.
-        have hout_F := Sym2.rel_iff'.mp (Sym2.eq.mp (Quot.out_eq (s(u, v))))
-        have hout_G := Sym2.rel_iff'.mp
-          (Sym2.eq.mp (Quot.out_eq (s(e u, e v))))
-        -- Both sides evaluate B on endpoints of the same unordered pair, but
-        -- Quot.out may choose different orderings. Use B-symmetry.
-        -- Helper: for any (a,b) related to (u,v) in Sym2.Rel, the τ-value
-        -- is either B(τu)(τv) or B(τv)(τu) = B(τu)(τv) by hB.
-        suffices key : ∀ {m : ℕ} (a b : Fin m) (p : Fin m × Fin m),
-            p = (a, b) ∨ p = (b, a) →
-            ∀ (f : Fin m → Fin T),
-            B (f p.1) (f p.2) = B (f a) (f b) by
-          -- Define τ_F and τ_G as Fin → Fin T.
-          let τ_F : Fin (n + (k + 1)) → Fin T := fun x =>
-            if h : (x : ℕ) < k then φ ⟨x, h⟩ else σ' ⟨x.val - k, by have := x.isLt; omega⟩
-          let τ_G : Fin (n + 1 + k) → Fin T := fun x =>
-            if h : (x : ℕ) < k then φ ⟨x, h⟩ else σ' ⟨x.val - k, by have := x.isLt; omega⟩
-          rw [key u v _ hout_F τ_F, key (e u) (e v) _ hout_G τ_G]
-          -- Now: B(τ_F u)(τ_F v) = B(τ_G (e u))(τ_G (e v)).
-          -- Since e preserves .val, τ_F u = τ_G (e u).
-          congr 1 <;> { simp only [τ_F, τ_G, e, finCongr_apply, Fin.val_cast]
-                        split_ifs <;> congr 1 <;> exact Fin.ext rfl }
-        intro m a b p hp f
-        rcases hp with rfl | rfl
-        · rfl
-        · exact hB _ _
-    rw [bridge ξ, bridge ξ']; exact h (n + 1) G
-  -- **Step 2**: Define the difference function d.
-  -- For each (k+1)-tuple η, assign it to its tupleEquiv class.
-  -- Then coeffRestrict is a class-weighted sum.
-  -- The trace identity says ∑ d(class) * h_F(class) = 0 for all F.
-  --
-  -- **Step 3**: Algebraic spanning / linear independence.
-  -- The (k+1)-labeled evaluations (extended to multigraph evaluations
-  -- via label B-power factors) form a unital point-separating subalgebra
-  -- of functions on the finite set of equivalence classes. By the finite
-  -- Stone-Weierstrass theorem (or strong induction on support size with
-  -- graph products), the evaluations span all class functions.
-  -- Therefore d = 0, giving coeffRestrict_equiv.
-  --
-  -- The full algebraic argument requires a multigraph evaluation framework
-  -- (label-edge B-powers ∏ B(η(i),η(j))^{m(i,j)} times simple-graph
-  -- evaluations with no label-label edges) and its multiplicative closure.
-  -- This is the content of Lovász TR-2004-82 §3-4 (the algebra A_k and
-  -- its trace operator). See the docstring above for the full proof sketch.
-  --
-  -- Core claim: for d : Q → ℝ with ∑_q d(q) * h_F(q) = 0 for all F,
-  -- we have d = 0. Proof by strong induction on |support(d)| using:
-  -- (a) multigraph evaluations separate classes (from tupleEquiv definition),
-  -- (b) they are multiplicatively closed (graph product + multiplicity sum),
-  -- (c) they contain constants (empty graph),
-  -- (d) ∑ d * mg = 0 for all multigraph evals (trace identity extended
-  --     via B(ξ(i),ξ(j)) = B(ξ'(i),ξ'(j)) from single-edge evaluations).
-  unfold coeffRestrict
-  -- We need: ∑ t, ite (μ ≡ snoc ξ t) (W t) 0 = ∑ t, ite (μ ≡ snoc ξ' t) (W t) 0
-  -- Strategy: show any function constant on (k+1)-equivalence classes gives equal
-  -- weighted sums over ξ-extensions and ξ'-extensions.
-  --
-  -- From trace_eq: ∑_t W(t) * f(snoc ξ t) = ∑_t W(t) * f(snoc ξ' t) for all evaluations f.
-  -- The indicator 1_{[μ]} is in the closure of evaluations (by functional_span_zero
-  -- applied to the quotient by (k+1)-equivalence). Hence the weighted sums match.
-  --
-  -- The full formalization passes through the quotient by tupleEquiv at level k+1,
-  -- applies functional_span_zero with:
-  -- - Q = quotient classes (Fintype via Quotient of Fintype)
-  -- - f indexed by labeled graphs
-  -- - hconst from labeledEvalK_empty
-  -- - hmul from labeledEvalK_glue
-  -- - hsep from tupleEquiv definition
-  -- to conclude that the class-level weight difference is zero.
-  --
-  -- The key infrastructure gap is labeledEvalK_glue (graph product multiplicativity),
-  -- which is a substantial but straightforward combinatorial argument.
-  -- With it, the proof assembles cleanly from functional_span_zero.
-  -- Define the class-level weight difference and show it vanishes.
-  suffices class_eq : ∀ (g : (Fin (k + 1) → Fin T) → ℝ),
-      (∀ η η', tupleEquiv B W η η' → g η = g η') →
-      ∑ t, W t * g (Fin.snoc ξ t) = ∑ t, W t * g (Fin.snoc ξ' t) by
-    -- Apply class_eq with g = indicator of [μ].
-    have := class_eq (fun η => @ite ℝ (tupleEquiv B W μ η) (Classical.dec _) 1 0)
-      (fun η η' heq => by
-        simp only
-        congr 1
-        exact propext ⟨fun h n F => (h n F).trans (heq n F),
-                        fun h n F => (h n F).trans (heq n F).symm⟩)
-    simp only [mul_ite, mul_one, mul_zero] at this
-    exact this
-  -- **Step 3: prove `class_eq` via `functional_span_zero` (IH-free).**
-  --
-  -- Strategy: work on the quotient `Q` of `Fin (k+1) → Fin T` by tupleEquiv,
-  -- and apply `functional_span_zero` to the class-weight difference `d`,
-  -- with test functions given by products of `labeledEvalK`.
-  -- Orthogonality comes from `product_trace_identity`;
-  -- multiplicative closure is list concatenation; separation is the negation
-  -- of `tupleEquiv`. Conclude `d = 0`, then rewrite to the weighted-sum
-  -- equality via class decomposition.
-  intro g hg_class
-  classical
-  -- Setoid on `Fin (k+1) → Fin T` via tupleEquiv.
-  let S : Setoid (Fin (k + 1) → Fin T) :=
-    ⟨tupleEquiv B W,
-      fun _ _ _ _ => rfl,
-      fun hh n F _ => (hh n F).symm,
-      fun h₁ h₂ n F _ => (h₁ n F).trans (h₂ n F)⟩
-  haveI : Fintype (Quotient S) := Quotient.fintype S
-  -- Lift `g` to the quotient (well-defined by `hg_class`).
-  let g_lift : Quotient S → ℝ := Quotient.lift g hg_class
-  -- Each `(n, F)` descends to `Quotient S → ℝ` by definition of tupleEquiv.
-  let eval_lift : (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1)))) → Quotient S → ℝ :=
-    fun p => Quotient.lift
-      (fun η => @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W η)
-      (fun _ _ hab => hab _ _)
-  -- `f_fun L q` = product of evaluations on the class `q`, indexed by the list `L`.
-  let f_fun : List (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1)))) →
-      Quotient S → ℝ :=
-    fun L q => (L.map (fun p => eval_lift p q)).prod
-  -- Class-weighted distributions of `snoc ξ ·` and `snoc ξ' ·`, and their diff.
-  let α_w : Quotient S → ℝ := fun q =>
-    ∑ t : Fin T, if Quotient.mk S (Fin.snoc ξ t) = q then W t else 0
-  let β_w : Quotient S → ℝ := fun q =>
-    ∑ t : Fin T, if Quotient.mk S (Fin.snoc ξ' t) = q then W t else 0
-  let d_fun : Quotient S → ℝ := fun q => α_w q - β_w q
-  -- Helper: weighted sum over `t` of `φ (⟦η t⟧)` equals class-sum via partition.
-  have class_decomp : ∀ (η : Fin T → (Fin (k + 1) → Fin T)) (φ : Quotient S → ℝ),
-      ∑ q, (∑ t, if Quotient.mk S (η t) = q then W t else 0) * φ q =
-      ∑ t, W t * φ (Quotient.mk S (η t)) := by
-    intro η φ
-    simp_rw [Finset.sum_mul]
-    rw [Finset.sum_comm]
-    refine Finset.sum_congr rfl fun t _ => ?_
-    simp_rw [ite_mul, zero_mul]
-    rw [Finset.sum_ite_eq Finset.univ (Quotient.mk S (η t)) (fun q => W t * φ q)]
-    simp
-  -- Apply `functional_span_zero` to conclude `d_fun = 0`.
-  have hd_zero : ∀ q, d_fun q = 0 := by
-    apply functional_span_zero f_fun d_fun
-    · -- hconst: empty list gives constant 1.
-      exact ⟨[], fun _ => by simp only [f_fun, List.map_nil, List.prod_nil]⟩
-    · -- hmul: list concatenation gives pointwise product.
-      intro L₁ L₂
-      refine ⟨L₁ ++ L₂, fun q => ?_⟩
-      simp only [f_fun, List.map_append, List.prod_append]
-    · -- hsep: distinct classes distinguished by some `(n, F)`.
-      intro q₁ q₂ hne
-      obtain ⟨η₁, rfl⟩ := Quotient.exists_rep q₁
-      obtain ⟨η₂, rfl⟩ := Quotient.exists_rep q₂
-      have hne' : ¬ tupleEquiv B W η₁ η₂ := fun hh => hne (Quotient.sound hh)
-      simp only [tupleEquiv, not_forall] at hne'
-      obtain ⟨n, F, _, hne_F⟩ := hne'
-      refine ⟨[⟨n, F⟩], ?_⟩
-      simp only [f_fun, eval_lift, List.map_cons, List.map_nil, List.prod_cons,
-                 List.prod_nil, mul_one, Quotient.lift_mk]
-      intro heq
-      apply hne_F
-      convert heq using 2 <;> apply Subsingleton.elim
-    · -- hortho: via `product_trace_identity`.
-      intro L
-      show ∑ q, (α_w q - β_w q) * f_fun L q = 0
-      simp_rw [sub_mul]
-      rw [Finset.sum_sub_distrib, class_decomp _ (f_fun L), class_decomp _ (f_fun L)]
-      have hbridge : ∀ (ξ'' : Fin k → Fin T) (t : Fin T),
-          f_fun L (Quotient.mk S (Fin.snoc ξ'' t)) =
-          (L.map (fun p => @labeledEvalK T (k + 1) p.1 p.2
-            (Classical.decRel _) B W (Fin.snoc ξ'' t))).prod := by
-        intros; simp only [f_fun, eval_lift, Quotient.lift_mk]
-      simp_rw [hbridge ξ, hbridge ξ']
-      linarith [product_trace_identity B W h L]
-  -- Conclude `∑ t, W t * g (snoc ξ t) = ∑ t, W t * g (snoc ξ' t)` from `d_fun = 0`.
-  have hsum_zero : ∑ q, d_fun q * g_lift q = 0 :=
-    Finset.sum_eq_zero fun q _ => by rw [hd_zero q, zero_mul]
-  have hgoal_decomp :
-      ∑ t, W t * g (Fin.snoc ξ t) - ∑ t, W t * g (Fin.snoc ξ' t) =
-      ∑ q, d_fun q * g_lift q := by
-    show _ = ∑ q, (α_w q - β_w q) * g_lift q
-    simp_rw [sub_mul]
-    rw [Finset.sum_sub_distrib, class_decomp _ g_lift, class_decomp _ g_lift]
-    simp only [g_lift, Quotient.lift_mk]
-  linarith
-
-/-- **Lovász TR-2004-82, Claim 4.2**, §4.3, p. 9 (trace-based extension).
-Given equivalent k-tuples `φ, ψ` and any extension `μ` of `φ` to `k+1`,
-there is an equivalent extension `ν` of `ψ`.
-
-Assembled from `coeffRestrict_pos_at_restrict`, `coeffRestrict_equiv`,
-and `exists_extension_of_coeffRestrict_pos`. IH-free modulo
-`product_trace_identity` (the combinatorial sorry inside
-`coeffRestrict_equiv`); no Lemma-2.4 input needed. -/
-private theorem tupleEquiv_extend {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
-    (hB : ∀ i j, B i j = B j i)
-    {k : ℕ}
-    {φ ψ : Fin k → Fin T} (h : tupleEquiv B W φ ψ)
-    (μ : Fin (k + 1) → Fin T) (hμ : restrictTuple μ = φ) :
-    ∃ ν : Fin (k + 1) → Fin T, restrictTuple ν = ψ ∧ tupleEquiv B W μ ν := by
-  -- The coefficient at restrictTuple μ is positive.
-  have hpos : 0 < coeffRestrict B W μ (restrictTuple μ) :=
-    coeffRestrict_pos_at_restrict B W hW μ
-  -- By trace invariance (ξ = restrictTuple μ ≡ ψ via hμ ▸ h), coefficient at ψ is positive.
-  have hpos_ψ : 0 < coeffRestrict B W μ ψ := by
-    rwa [coeffRestrict_equiv B W hW hB μ (hμ ▸ h)] at hpos
-  -- Extract a witness.
-  exact exists_extension_of_coeffRestrict_pos B W hW μ ψ hpos_ψ
 
 /-- Evaluation of a k-labeled graph with a single edge `{a, b}` and no unlabeled
 vertices directly reads the matrix entry `B(φ a)(φ b)`. Generalizes `labeledEval2_edge`
@@ -7351,9 +7005,12 @@ private theorem DecLabeledGraph.eval_mul {T K n₁ n₂ : ℕ}
 /-! ### Multigraph / A_k extension frontier (OPEN)
 
 **Central open claim.** `DecLabeledGraphTr.eval_tupleEquiv_invariant`
-(L7051) — the invariance of the decorated multigraph evaluation under
+— the invariance of the decorated multigraph evaluation under
 simple-graph `tupleEquiv`. This is the single mathematical frontier now
-blocking the IH-free Lovász Lemma-2.4 path.
+blocking the IH-free Lovász Lemma-2.4 path. All other critical-path
+sorries (`product_trace_identity`, `coeffRestrict_equiv`,
+`tupleEquiv_extend`, and the non-surjective branch of
+`tupleEquiv_implies_tupleOrbitRel`) reduce to it transitively.
 
 **Why it is the frontier.** Simple-graph `labeledEvalK` cannot encode
 `B(ξ a, σ' 0)^m` for `m ≥ 2`: every candidate simple-graph gadget
@@ -7376,22 +7033,26 @@ multigraph evaluations follows from this structural closure. Closing
      rich simple-graph evaluation family (closer to Lovász's original).
 
 **Downstream consequences (critical path):**
-- `product_trace_identity` (L5340) reduces via `trace_eval` +
-  `ofSimple` / `mul` / `eval_mul` assembly — see
-  `product_trace_identity_of_eval_tupleEquiv_invariant` below.
-- `coeffRestrict_equiv` (L5381) reduces transitively since it depends
-  only on `product_trace_identity`.
-- `tupleEquiv_extend` (L5634) unblocks via `coeffRestrict_equiv`.
-- The non-surjective branch of `tupleEquiv_implies_tupleOrbitRel`
-  (L7519, sorry at L7636) then closes via the standard Lovász
-  extend-and-recurse: pick `r ∉ range α ∪ {a, b}`, apply
-  `tupleEquiv_extend` to produce `(Fin.snoc Φ r, ν)` at level `k+2` with
-  a strictly smaller deficit, recurse via a well-founded measure on
-  `(deficit, size)`, and restrict the resulting automorphism back. See
-  the in-situ comment at L7636 for the detailed obstruction analysis.
+- `product_trace_identity` is **now wired through Reduction 1** below —
+  its proof body is a one-liner calling
+  `product_trace_identity_of_eval_tupleEquiv_invariant` with
+  `DecLabeledGraphTr.eval_tupleEquiv_invariant` as the extension
+  hypothesis. No standalone sorry.
+- `coeffRestrict_equiv` is proved modulo `product_trace_identity` (and
+  hence modulo the extension theorem).
+- `tupleEquiv_extend` is proved modulo `coeffRestrict_equiv`.
+- The non-surjective branch of `tupleEquiv_implies_tupleOrbitRel` still
+  carries its own sorry (retained because closing it additionally
+  requires the WF induction architecture refactor on `(deficit, size)`).
+  With the extension theorem and `tupleEquiv_extend` unblocked, the
+  Lovász extend-and-recurse closes that branch: pick
+  `r ∉ range α ∪ {a, b}`, apply `tupleEquiv_extend` to produce
+  `(Fin.snoc Φ r, ν)` at level `k+2` with a strictly smaller deficit,
+  recurse via the WF measure, and restrict back.
 
-This section isolates the reduction; the central theorem itself remains
-at its existing location (L7051) with a sorry body. -/
+This section isolates the reduction; the central theorem itself
+(`DecLabeledGraphTr.eval_tupleEquiv_invariant`) retains its sorry body
+at its existing location above. -/
 
 /-- **Reduction 1** (`product_trace_identity` → extension theorem).
 If `DecLabeledGraphTr.eval_tupleEquiv_invariant` holds — i.e., every
@@ -7433,7 +7094,383 @@ private theorem product_trace_identity_of_eval_tupleEquiv_invariant
       (L.map (fun p =>
         @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W
           (Fin.snoc ξ' t))).prod := by
-  sorry
+  classical
+  suffices hEx : ∀ (L : List ((n : ℕ) × SimpleGraph (Fin (n + (k + 1))))),
+      ∃ (N : ℕ) (D : DecLabeledGraph (k + 1) N),
+        D.llMult s(Fin.last k, Fin.last k) = 0 ∧
+        ∀ (φ : Fin (k + 1) → Fin T),
+          D.eval B W φ =
+          (L.map (fun p => @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W φ)).prod by
+    obtain ⟨N, D, hDnoSelf, hDeval⟩ := hEx L
+    have hL : ∑ t : Fin T, W t * D.eval B W (Fin.snoc ξ t) = D.trace.eval B W ξ :=
+      D.trace_eval B hB W hDnoSelf ξ
+    have hR : ∑ t : Fin T, W t * D.eval B W (Fin.snoc ξ' t) = D.trace.eval B W ξ' :=
+      D.trace_eval B hB W hDnoSelf ξ'
+    have hL' : ∑ t : Fin T, W t *
+        (L.map (fun p => @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W
+          (Fin.snoc ξ t))).prod = D.trace.eval B W ξ := by
+      rw [← hL]
+      refine Finset.sum_congr rfl fun t _ => ?_
+      rw [hDeval]
+    have hR' : ∑ t : Fin T, W t *
+        (L.map (fun p => @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W
+          (Fin.snoc ξ' t))).prod = D.trace.eval B W ξ' := by
+      rw [← hR]
+      refine Finset.sum_congr rfl fun t _ => ?_
+      rw [hDeval]
+    have hInv : D.trace.eval B W ξ = D.trace.eval B W ξ' := h_mg_inv D.trace _h
+    rw [hL', hR', hInv]
+  intro L
+  induction L with
+  | nil =>
+    refine ⟨0, DecLabeledGraph.one (k + 1), ?_, ?_⟩
+    · rfl
+    · intro φ
+      rw [DecLabeledGraph.eval_one]
+      simp
+  | cons p L ih =>
+    obtain ⟨N, D, hDnoSelf, hDeval⟩ := ih
+    refine ⟨p.1 + N, (DecLabeledGraph.ofSimple p.2).mul D, ?_, ?_⟩
+    · show (DecLabeledGraph.ofSimple p.2).llMult s(Fin.last k, Fin.last k) +
+           D.llMult s(Fin.last k, Fin.last k) = 0
+      rw [hDnoSelf, add_zero]
+      show (if Sym2.map (DecLabeledGraph.labelEmbed (n := p.1))
+             s(Fin.last k, Fin.last k) ∈ p.2.edgeFinset then 1 else 0) = 0
+      rw [if_neg]
+      intro hmem
+      rw [SimpleGraph.mem_edgeFinset] at hmem
+      simp only [Sym2.map_pair_eq] at hmem
+      exact p.2.loopless _ hmem
+    · intro φ
+      rw [DecLabeledGraph.eval_mul _ _ B hB W φ, hDeval]
+      rw [DecLabeledGraph.eval_ofSimple p.2 B hB W φ]
+      simp [List.map_cons, List.prod_cons]
+
+/-- **Product trace identity** — generalizes the single-graph trace identity
+(inside `coeffRestrict_equiv`, `trace_eq` step) to products of evaluations.
+
+For any list `L` of `(k+1)`-labeled simple graphs, the weighted sum over the
+last label of the product `∏ labeledEvalK(F_j)` at `Fin.snoc ξ t` is equal for
+`k`-equivalent tuples `ξ`, `ξ'`. This is the key combinatorial identity needed
+to make `coeffRestrict_equiv` (Claim 4.2) IH-free, via `functional_span_zero`
+on the quotient by `(k+1)`-`tupleEquiv`.
+
+**Proof path** (landing `DecLabeledGraph` algebra + extension theorem):
+Uses `product_trace_identity_of_eval_tupleEquiv_invariant` (Reduction 1)
+with `DecLabeledGraphTr.eval_tupleEquiv_invariant` as the extension
+hypothesis `h_mg_inv`. The latter is the single remaining frontier (see
+L7056). -/
+private theorem product_trace_identity {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) {k : ℕ}
+    {ξ ξ' : Fin k → Fin T} (h : tupleEquiv B W ξ ξ')
+    (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1))))) :
+    ∑ t : Fin T, W t *
+      (L.map (fun p =>
+        @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W
+          (Fin.snoc ξ t))).prod =
+    ∑ t : Fin T, W t *
+      (L.map (fun p =>
+        @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W
+          (Fin.snoc ξ' t))).prod :=
+  product_trace_identity_of_eval_tupleEquiv_invariant B hB W
+    (fun {K n} (Dtr : DecLabeledGraphTr K n) {_ξ _ξ'} hh =>
+      Dtr.eval_tupleEquiv_invariant B hB W hh) h L
+
+set_option maxHeartbeats 4000000 in
+/-- **Trace invariance of `coeffRestrict`** (Claim 4.2 core, IH-free):
+the coefficient is constant on k-equivalence classes.
+
+**Proof structure**:
+
+Step 1 (`trace_eq`): By `labeledEvalK_sum_last_label` + `h : ξ ≡ ξ'`,
+for every (k+1)-labeled graph F,
+`∑_t W(t) * labeledEvalK(F)(Fin.snoc ξ t) = same for ξ'`.
+(single-graph trace identity; uses `h` on a derived k-labeled graph.)
+
+Step 2 (reduction to class-constant `g`): show the goal follows if
+`∑_t W(t) g(snoc ξ t) = ∑_t W(t) g(snoc ξ' t)` for every class-constant `g`.
+Take `g` = indicator of `[μ]`.
+
+Step 3 (`functional_span_zero`): build the quotient `Q` of
+`Fin (k+1) → Fin T` by tupleEquiv; take `d(q) = α(q) - β(q)` where
+`α(q) = ∑_{t : [snoc ξ t] = q} W(t)` and `β` symmetric. Apply
+`functional_span_zero` with index = lists of graphs: hconst via empty
+list, hmul via concatenation, hsep via negation of `tupleEquiv`, and
+hortho via `product_trace_identity`. Conclude `d = 0`, then rewrite
+back to the weighted-sum equality via class decomposition.
+
+**IH-free**: the automorphism-based argument (requiring Lemma 2.4 at
+level k) is replaced entirely by `functional_span_zero` +
+`product_trace_identity`. The single remaining combinatorial sorry is
+localized to `product_trace_identity`. -/
+private theorem coeffRestrict_equiv {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (hB : ∀ i j, B i j = B j i) {k : ℕ}
+    (μ : Fin (k + 1) → Fin T) {ξ ξ' : Fin k → Fin T}
+    (h : tupleEquiv B W ξ ξ') :
+    coeffRestrict B W μ ξ = coeffRestrict B W μ ξ' := by
+  classical
+  -- **Step 1**: The trace identity. For every (k+1)-labeled graph, the
+  -- W-weighted sum over the last label is a k-level evaluation, hence
+  -- equal for ξ and ξ' by `h`.
+  have trace_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin (n + (k + 1)))) [DecidableRel F.Adj],
+      ∑ t : Fin T, W t * labeledEvalK (k + 1) n F B W (Fin.snoc ξ t) =
+      ∑ t : Fin T, W t * labeledEvalK (k + 1) n F B W (Fin.snoc ξ' t) := by
+    intro n F _
+    -- By the trace lemma, each side equals a k-level evaluation.
+    -- n + (k + 1) = (n + 1) + k, so F is also on Fin ((n+1) + k).
+    -- Apply the trace lemma. The trace lemma gives each side as a
+    -- k-level evaluation, which equals for ξ and ξ' by tupleEquiv.
+    -- The Fin arithmetic n+(k+1) vs (n+1)+k is handled by
+    -- converting the graph via Fin.castOrderIso.
+    -- The trace lemma converts each side to a sum over Fin(n+1)→Fin T
+    -- with edges from F. We need to relate this to labeledEvalK k (n+1)
+    -- on a graph of type Fin((n+1)+k). Construct G inline.
+    let G : SimpleGraph (Fin ((n + 1) + k)) :=
+      { Adj := fun u v => F.Adj ⟨u.val, by have := u.isLt; omega⟩
+                              ⟨v.val, by have := v.isLt; omega⟩
+        symm := fun _ _ h => F.symm h
+        loopless := fun _ h => F.loopless _ h }
+    haveI : DecidableRel G.Adj := fun u v => inferInstanceAs
+      (Decidable (F.Adj ⟨u.val, _⟩ ⟨v.val, _⟩))
+    -- Bridge: the trace lemma RHS equals labeledEvalK k (n+1) G B W φ.
+    have bridge : ∀ φ : Fin k → Fin T,
+        ∑ t : Fin T, W t * labeledEvalK (k + 1) n F B W (Fin.snoc φ t) =
+        labeledEvalK k (n + 1) G B W φ := by
+      intro φ; rw [labeledEvalK_sum_last_label]; simp only [labeledEvalK]
+      refine Finset.sum_congr rfl fun σ' _ => ?_; congr 1
+      -- F.edgeFinset (Fin(n+(k+1))) ↔ G.edgeFinset via val-preserving bijection.
+      -- Since n+(k+1) = (n+1)+k propositionally, use finCongr to transport edges.
+      let e := finCongr (show n + (k + 1) = n + 1 + k by omega)
+      -- Use Finset.prod_nbij' with Sym2.map e as the bijection.
+      apply Finset.prod_nbij' (Sym2.map e) (Sym2.map e.symm)
+      -- hi: F-edges map to G-edges
+      · intro a ha
+        refine Sym2.ind (fun u v h => ?_) a ha
+        rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h; exact h
+      -- hj: G-edges map to F-edges
+      · intro a ha
+        refine Sym2.ind (fun u v h => ?_) a ha
+        rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, G] at h; exact h
+      -- left_inv: Sym2.map e.symm ∘ Sym2.map e = id
+      · intro a _
+        simp only [Sym2.map_map, Equiv.symm_comp_self]; exact congr_fun Sym2.map_id a
+      -- right_inv: Sym2.map e ∘ Sym2.map e.symm = id
+      · intro a _
+        simp only [Sym2.map_map, Equiv.self_comp_symm]; exact congr_fun Sym2.map_id a
+      -- hfg: the B-product values match for corresponding edges.
+      -- Both sides evaluate B on the same .val, but Quot.out may pick different
+      -- orderings. Use B-symmetry (hB) to handle both cases.
+      · intro a ha
+        refine Sym2.ind (fun u v _ => ?_) a ha
+        simp only [Sym2.map_pair_eq]
+        -- Need: B(τ_F(Quot.out s(u,v)).1)(τ_F(Quot.out s(u,v)).2) =
+        --       B(τ_G(Quot.out s(eu,ev)).1)(τ_G(Quot.out s(eu,ev)).2)
+        -- where τ_F, τ_G evaluate the same function on .val.
+        -- Strategy: both sides = B(g(u.val))(g(v.val)) via Quot.out case analysis + hB.
+        have hout_F := Sym2.rel_iff'.mp (Sym2.eq.mp (Quot.out_eq (s(u, v))))
+        have hout_G := Sym2.rel_iff'.mp
+          (Sym2.eq.mp (Quot.out_eq (s(e u, e v))))
+        -- Both sides evaluate B on endpoints of the same unordered pair, but
+        -- Quot.out may choose different orderings. Use B-symmetry.
+        -- Helper: for any (a,b) related to (u,v) in Sym2.Rel, the τ-value
+        -- is either B(τu)(τv) or B(τv)(τu) = B(τu)(τv) by hB.
+        suffices key : ∀ {m : ℕ} (a b : Fin m) (p : Fin m × Fin m),
+            p = (a, b) ∨ p = (b, a) →
+            ∀ (f : Fin m → Fin T),
+            B (f p.1) (f p.2) = B (f a) (f b) by
+          -- Define τ_F and τ_G as Fin → Fin T.
+          let τ_F : Fin (n + (k + 1)) → Fin T := fun x =>
+            if h : (x : ℕ) < k then φ ⟨x, h⟩ else σ' ⟨x.val - k, by have := x.isLt; omega⟩
+          let τ_G : Fin (n + 1 + k) → Fin T := fun x =>
+            if h : (x : ℕ) < k then φ ⟨x, h⟩ else σ' ⟨x.val - k, by have := x.isLt; omega⟩
+          rw [key u v _ hout_F τ_F, key (e u) (e v) _ hout_G τ_G]
+          -- Now: B(τ_F u)(τ_F v) = B(τ_G (e u))(τ_G (e v)).
+          -- Since e preserves .val, τ_F u = τ_G (e u).
+          congr 1 <;> { simp only [τ_F, τ_G, e, finCongr_apply, Fin.val_cast]
+                        split_ifs <;> congr 1 <;> exact Fin.ext rfl }
+        intro m a b p hp f
+        rcases hp with rfl | rfl
+        · rfl
+        · exact hB _ _
+    rw [bridge ξ, bridge ξ']; exact h (n + 1) G
+  -- **Step 2**: Define the difference function d.
+  -- For each (k+1)-tuple η, assign it to its tupleEquiv class.
+  -- Then coeffRestrict is a class-weighted sum.
+  -- The trace identity says ∑ d(class) * h_F(class) = 0 for all F.
+  --
+  -- **Step 3**: Algebraic spanning / linear independence.
+  -- The (k+1)-labeled evaluations (extended to multigraph evaluations
+  -- via label B-power factors) form a unital point-separating subalgebra
+  -- of functions on the finite set of equivalence classes. By the finite
+  -- Stone-Weierstrass theorem (or strong induction on support size with
+  -- graph products), the evaluations span all class functions.
+  -- Therefore d = 0, giving coeffRestrict_equiv.
+  --
+  -- The full algebraic argument requires a multigraph evaluation framework
+  -- (label-edge B-powers ∏ B(η(i),η(j))^{m(i,j)} times simple-graph
+  -- evaluations with no label-label edges) and its multiplicative closure.
+  -- This is the content of Lovász TR-2004-82 §3-4 (the algebra A_k and
+  -- its trace operator). See the docstring above for the full proof sketch.
+  --
+  -- Core claim: for d : Q → ℝ with ∑_q d(q) * h_F(q) = 0 for all F,
+  -- we have d = 0. Proof by strong induction on |support(d)| using:
+  -- (a) multigraph evaluations separate classes (from tupleEquiv definition),
+  -- (b) they are multiplicatively closed (graph product + multiplicity sum),
+  -- (c) they contain constants (empty graph),
+  -- (d) ∑ d * mg = 0 for all multigraph evals (trace identity extended
+  --     via B(ξ(i),ξ(j)) = B(ξ'(i),ξ'(j)) from single-edge evaluations).
+  unfold coeffRestrict
+  -- We need: ∑ t, ite (μ ≡ snoc ξ t) (W t) 0 = ∑ t, ite (μ ≡ snoc ξ' t) (W t) 0
+  -- Strategy: show any function constant on (k+1)-equivalence classes gives equal
+  -- weighted sums over ξ-extensions and ξ'-extensions.
+  --
+  -- From trace_eq: ∑_t W(t) * f(snoc ξ t) = ∑_t W(t) * f(snoc ξ' t) for all evaluations f.
+  -- The indicator 1_{[μ]} is in the closure of evaluations (by functional_span_zero
+  -- applied to the quotient by (k+1)-equivalence). Hence the weighted sums match.
+  --
+  -- The full formalization passes through the quotient by tupleEquiv at level k+1,
+  -- applies functional_span_zero with:
+  -- - Q = quotient classes (Fintype via Quotient of Fintype)
+  -- - f indexed by labeled graphs
+  -- - hconst from labeledEvalK_empty
+  -- - hmul from labeledEvalK_glue
+  -- - hsep from tupleEquiv definition
+  -- to conclude that the class-level weight difference is zero.
+  --
+  -- The key infrastructure gap is labeledEvalK_glue (graph product multiplicativity),
+  -- which is a substantial but straightforward combinatorial argument.
+  -- With it, the proof assembles cleanly from functional_span_zero.
+  -- Define the class-level weight difference and show it vanishes.
+  suffices class_eq : ∀ (g : (Fin (k + 1) → Fin T) → ℝ),
+      (∀ η η', tupleEquiv B W η η' → g η = g η') →
+      ∑ t, W t * g (Fin.snoc ξ t) = ∑ t, W t * g (Fin.snoc ξ' t) by
+    -- Apply class_eq with g = indicator of [μ].
+    have := class_eq (fun η => @ite ℝ (tupleEquiv B W μ η) (Classical.dec _) 1 0)
+      (fun η η' heq => by
+        simp only
+        congr 1
+        exact propext ⟨fun h n F => (h n F).trans (heq n F),
+                        fun h n F => (h n F).trans (heq n F).symm⟩)
+    simp only [mul_ite, mul_one, mul_zero] at this
+    exact this
+  -- **Step 3: prove `class_eq` via `functional_span_zero` (IH-free).**
+  --
+  -- Strategy: work on the quotient `Q` of `Fin (k+1) → Fin T` by tupleEquiv,
+  -- and apply `functional_span_zero` to the class-weight difference `d`,
+  -- with test functions given by products of `labeledEvalK`.
+  -- Orthogonality comes from `product_trace_identity`;
+  -- multiplicative closure is list concatenation; separation is the negation
+  -- of `tupleEquiv`. Conclude `d = 0`, then rewrite to the weighted-sum
+  -- equality via class decomposition.
+  intro g hg_class
+  classical
+  -- Setoid on `Fin (k+1) → Fin T` via tupleEquiv.
+  let S : Setoid (Fin (k + 1) → Fin T) :=
+    ⟨tupleEquiv B W,
+      fun _ _ _ _ => rfl,
+      fun hh n F _ => (hh n F).symm,
+      fun h₁ h₂ n F _ => (h₁ n F).trans (h₂ n F)⟩
+  haveI : Fintype (Quotient S) := Quotient.fintype S
+  -- Lift `g` to the quotient (well-defined by `hg_class`).
+  let g_lift : Quotient S → ℝ := Quotient.lift g hg_class
+  -- Each `(n, F)` descends to `Quotient S → ℝ` by definition of tupleEquiv.
+  let eval_lift : (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1)))) → Quotient S → ℝ :=
+    fun p => Quotient.lift
+      (fun η => @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W η)
+      (fun _ _ hab => hab _ _)
+  -- `f_fun L q` = product of evaluations on the class `q`, indexed by the list `L`.
+  let f_fun : List (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1)))) →
+      Quotient S → ℝ :=
+    fun L q => (L.map (fun p => eval_lift p q)).prod
+  -- Class-weighted distributions of `snoc ξ ·` and `snoc ξ' ·`, and their diff.
+  let α_w : Quotient S → ℝ := fun q =>
+    ∑ t : Fin T, if Quotient.mk S (Fin.snoc ξ t) = q then W t else 0
+  let β_w : Quotient S → ℝ := fun q =>
+    ∑ t : Fin T, if Quotient.mk S (Fin.snoc ξ' t) = q then W t else 0
+  let d_fun : Quotient S → ℝ := fun q => α_w q - β_w q
+  -- Helper: weighted sum over `t` of `φ (⟦η t⟧)` equals class-sum via partition.
+  have class_decomp : ∀ (η : Fin T → (Fin (k + 1) → Fin T)) (φ : Quotient S → ℝ),
+      ∑ q, (∑ t, if Quotient.mk S (η t) = q then W t else 0) * φ q =
+      ∑ t, W t * φ (Quotient.mk S (η t)) := by
+    intro η φ
+    simp_rw [Finset.sum_mul]
+    rw [Finset.sum_comm]
+    refine Finset.sum_congr rfl fun t _ => ?_
+    simp_rw [ite_mul, zero_mul]
+    rw [Finset.sum_ite_eq Finset.univ (Quotient.mk S (η t)) (fun q => W t * φ q)]
+    simp
+  -- Apply `functional_span_zero` to conclude `d_fun = 0`.
+  have hd_zero : ∀ q, d_fun q = 0 := by
+    apply functional_span_zero f_fun d_fun
+    · -- hconst: empty list gives constant 1.
+      exact ⟨[], fun _ => by simp only [f_fun, List.map_nil, List.prod_nil]⟩
+    · -- hmul: list concatenation gives pointwise product.
+      intro L₁ L₂
+      refine ⟨L₁ ++ L₂, fun q => ?_⟩
+      simp only [f_fun, List.map_append, List.prod_append]
+    · -- hsep: distinct classes distinguished by some `(n, F)`.
+      intro q₁ q₂ hne
+      obtain ⟨η₁, rfl⟩ := Quotient.exists_rep q₁
+      obtain ⟨η₂, rfl⟩ := Quotient.exists_rep q₂
+      have hne' : ¬ tupleEquiv B W η₁ η₂ := fun hh => hne (Quotient.sound hh)
+      simp only [tupleEquiv, not_forall] at hne'
+      obtain ⟨n, F, _, hne_F⟩ := hne'
+      refine ⟨[⟨n, F⟩], ?_⟩
+      simp only [f_fun, eval_lift, List.map_cons, List.map_nil, List.prod_cons,
+                 List.prod_nil, mul_one, Quotient.lift_mk]
+      intro heq
+      apply hne_F
+      convert heq using 2 <;> apply Subsingleton.elim
+    · -- hortho: via `product_trace_identity`.
+      intro L
+      show ∑ q, (α_w q - β_w q) * f_fun L q = 0
+      simp_rw [sub_mul]
+      rw [Finset.sum_sub_distrib, class_decomp _ (f_fun L), class_decomp _ (f_fun L)]
+      have hbridge : ∀ (ξ'' : Fin k → Fin T) (t : Fin T),
+          f_fun L (Quotient.mk S (Fin.snoc ξ'' t)) =
+          (L.map (fun p => @labeledEvalK T (k + 1) p.1 p.2
+            (Classical.decRel _) B W (Fin.snoc ξ'' t))).prod := by
+        intros; simp only [f_fun, eval_lift, Quotient.lift_mk]
+      simp_rw [hbridge ξ, hbridge ξ']
+      linarith [product_trace_identity B hB W h L]
+  -- Conclude `∑ t, W t * g (snoc ξ t) = ∑ t, W t * g (snoc ξ' t)` from `d_fun = 0`.
+  have hsum_zero : ∑ q, d_fun q * g_lift q = 0 :=
+    Finset.sum_eq_zero fun q _ => by rw [hd_zero q, zero_mul]
+  have hgoal_decomp :
+      ∑ t, W t * g (Fin.snoc ξ t) - ∑ t, W t * g (Fin.snoc ξ' t) =
+      ∑ q, d_fun q * g_lift q := by
+    show _ = ∑ q, (α_w q - β_w q) * g_lift q
+    simp_rw [sub_mul]
+    rw [Finset.sum_sub_distrib, class_decomp _ g_lift, class_decomp _ g_lift]
+    simp only [g_lift, Quotient.lift_mk]
+  linarith
+
+/-- **Lovász TR-2004-82, Claim 4.2**, §4.3, p. 9 (trace-based extension).
+Given equivalent k-tuples `φ, ψ` and any extension `μ` of `φ` to `k+1`,
+there is an equivalent extension `ν` of `ψ`.
+
+Assembled from `coeffRestrict_pos_at_restrict`, `coeffRestrict_equiv`,
+and `exists_extension_of_coeffRestrict_pos`. IH-free modulo
+`product_trace_identity` (the combinatorial sorry inside
+`coeffRestrict_equiv`); no Lemma-2.4 input needed. -/
+private theorem tupleEquiv_extend {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (hB : ∀ i j, B i j = B j i)
+    {k : ℕ}
+    {φ ψ : Fin k → Fin T} (h : tupleEquiv B W φ ψ)
+    (μ : Fin (k + 1) → Fin T) (hμ : restrictTuple μ = φ) :
+    ∃ ν : Fin (k + 1) → Fin T, restrictTuple ν = ψ ∧ tupleEquiv B W μ ν := by
+  -- The coefficient at restrictTuple μ is positive.
+  have hpos : 0 < coeffRestrict B W μ (restrictTuple μ) :=
+    coeffRestrict_pos_at_restrict B W hW μ
+  -- By trace invariance (ξ = restrictTuple μ ≡ ψ via hμ ▸ h), coefficient at ψ is positive.
+  have hpos_ψ : 0 < coeffRestrict B W μ ψ := by
+    rwa [coeffRestrict_equiv B W hW hB μ (hμ ▸ h)] at hpos
+  -- Extract a witness.
+  exact exists_extension_of_coeffRestrict_pos B W hW μ ψ hpos_ψ
 
 /-- **⚠ KNOWN-FALSE — OFF THE CRITICAL PATH.**
 
@@ -7690,36 +7727,37 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
           --      with deficit primary. Extract an automorphism σ'.
           --   4. Restrict σ' back to conclude on (φ, ψ).
           --
-          -- Why closing this branch is blocked (even with a lex induction
-          -- measure on `(deficit, size)`):
+          -- Why closing this branch still requires work after the recent
+          -- wiring (`product_trace_identity` now reduces to the extension
+          -- theorem `DecLabeledGraphTr.eval_tupleEquiv_invariant` — see
+          -- the "Multigraph / A_k extension frontier" section):
           --
-          --   Step 2 — producing `tupleEquiv B W Φ_ext Ψ_ext` — is exactly
-          --   what `tupleEquiv_extend` (L5634) computes. That lemma is
-          --   blocked by `coeffRestrict_equiv` (L5381), which in turn is
-          --   blocked by `product_trace_identity` (L5352, sorry'd). The
-          --   IH-free variant `tupleEquiv_extend_of_ih` (L5109) requires
-          --   the Lemma-2.4 conclusion at the specific pair (Fin.snoc α a,
-          --   Fin.snoc α b) at level k+1, which is exactly the current
-          --   outer goal — any lex measure would give us this IH only if
-          --   (Fin.snoc α a, Fin.snoc α b) sat at strictly smaller measure
-          --   than (φ, ψ) = (Fin.snoc α a, Fin.snoc α b) itself, i.e. the
-          --   very pair we are proving. No lex refactor of the outer
-          --   induction measure can break this circularity.
+          --   Step 2 — producing `tupleEquiv B W Φ_ext Ψ_ext` — is
+          --   `tupleEquiv_extend`, which is proved **modulo** the
+          --   extension theorem (the one remaining frontier sorry).
+          --   Closing that extension theorem immediately unblocks
+          --   `tupleEquiv_extend`. The remaining gap here is therefore
+          --   *architectural*: Step 3 (applying the outer IH at smaller
+          --   measure) requires a well-founded induction refactor on
+          --   `(deficit, size)`, since strong induction on `size`
+          --   alone cannot supply the IH at `(k+2)` in the extend-and-
+          --   recurse branch.
+          --
+          --   The IH-free variant `tupleEquiv_extend_of_ih` is not a
+          --   substitute: it needs the Lemma-2.4 conclusion at the
+          --   specific pair `(Fin.snoc α a, Fin.snoc α b)` at level
+          --   `k+1`, which is the current outer goal — circular under
+          --   any lex measure with that pair at its current slot.
           --
           -- An alternative (direct-single-edge) route mirroring
           -- `tupleEquiv_ext_eq_of_surj` can only extract
           -- `B (α j) a = B (α j) b` for j ∈ range(α); without surjectivity
           -- of α the rows B(a, ·) and B(b, ·) cannot be compared outside
-          -- range(α) ∪ {a, b}. Closing the gap requires either
-          --   · unblocking `product_trace_identity` (and thereby
-          --     `tupleEquiv_extend`), or
-          --   · an entirely different algebraic route (e.g. the full
-          --     Lovász A_k / graph-product multiplicative closure).
+          -- range(α) ∪ {a, b}.
           --
-          -- This sorry is therefore NOT closable by an induction-measure
-          -- refactor alone. The underlying obstruction is algebraic
-          -- (product_trace_identity), not inductive. Retained here so the
-          -- file continues to compile.
+          -- Closing the gap requires (i) the extension theorem and
+          -- (ii) a WF induction refactor on `(deficit, size)`. Retained
+          -- here so the file continues to compile.
           sorry
 
 /-! ### Explicit separating motifs
