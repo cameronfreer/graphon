@@ -6607,17 +6607,442 @@ private noncomputable def DecLabeledGraph.trace {K n : ℕ}
   llMult s := D.llMult (Sym2.map Fin.castSucc s)
   lu0Mult a := D.llMult s(Fin.castSucc a, Fin.last K)
 
+/-- **LL decomposition helper**: the LL product over `Sym2 (Fin (K+1))` with a
+`Fin.snoc ξ t` label assignment factors as the `Sym2 (Fin K)` inner product
+(depending only on `ξ`) times the cross product `∏ a, B(ξ a)(t)^{m(a)}`,
+*assuming* the "self" LL multiplicity at `s(last K, last K)` is zero (so the
+diagonal factor `B(t,t)^0 = 1` drops out). Key lemma for `DecLabeledGraph.trace_eval`. -/
+private theorem snoc_LL_decomp {T K : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i)
+    (m : Sym2 (Fin (K + 1)) → ℕ) (ξ : Fin K → Fin T) (t : Fin T)
+    (hself : m s(Fin.last K, Fin.last K) = 0) :
+    ∏ s : Sym2 (Fin (K + 1)),
+        B ((Fin.snoc ξ t : Fin (K + 1) → Fin T) (Quot.out s).1)
+          ((Fin.snoc ξ t : Fin (K + 1) → Fin T) (Quot.out s).2) ^ m s =
+      (∏ s : Sym2 (Fin K),
+        B (ξ (Quot.out s).1) (ξ (Quot.out s).2) ^ m (Sym2.map Fin.castSucc s)) *
+      (∏ a : Fin K, B (ξ a) t ^ m s(Fin.castSucc a, Fin.last K)) := by
+  classical
+  -- Predicates on Sym2 (Fin (K+1)).
+  let isInner : Sym2 (Fin (K + 1)) → Prop := fun s =>
+    (Quot.out s).1.val < K ∧ (Quot.out s).2.val < K
+  -- **Step 1**: Partition `Sym2 (Fin (K+1)) = Inner ⊔ (Non-Inner)`.
+  rw [← Finset.prod_filter_mul_prod_filter_not (Finset.univ : Finset (Sym2 (Fin (K + 1))))
+        (p := fun s => isInner s)]
+  -- **Inner product transformation**: bijection `Sym2 (Fin K) → Inner` via `Sym2.map Fin.castSucc`.
+  -- Left side of goal: (Inner prod) * (Non-Inner prod) = RHS.
+  -- We show each factor matches.
+  have h_inner :
+      (∏ x ∈ Finset.univ.filter (fun s => isInner s),
+        B ((Fin.snoc ξ t : Fin (K + 1) → Fin T) (Quot.out x).1)
+          ((Fin.snoc ξ t : Fin (K + 1) → Fin T) (Quot.out x).2) ^ m x) =
+      ∏ s : Sym2 (Fin K),
+        B (ξ (Quot.out s).1) (ξ (Quot.out s).2) ^ m (Sym2.map Fin.castSucc s) := by
+    -- Bijection Sym2 (Fin K) → Inner via Sym2.map Fin.castSucc.
+    -- Using `Finset.prod_nbij` (map i, hi, i_inj, i_surj, h).
+    symm
+    rw [show (∏ s : Sym2 (Fin K),
+              B (ξ (Quot.out s).1) (ξ (Quot.out s).2) ^ m (Sym2.map Fin.castSucc s)) =
+            ∏ s ∈ (Finset.univ : Finset (Sym2 (Fin K))),
+              B (ξ (Quot.out s).1) (ξ (Quot.out s).2) ^ m (Sym2.map Fin.castSucc s) from rfl]
+    refine Finset.prod_nbij (fun (s : Sym2 (Fin K)) => Sym2.map Fin.castSucc s)
+      (hi := ?_) (i_inj := ?_) (i_surj := ?_) (h := ?_)
+    · -- hi: maps into the filter set
+      intro s _
+      rw [Finset.mem_filter]
+      refine ⟨Finset.mem_univ _, ?_⟩
+      induction s using Sym2.ind with
+      | _ a b =>
+        simp only [Sym2.map_pair_eq, isInner]
+        set p := Quot.out (s(a.castSucc, b.castSucc) : Sym2 (Fin (K + 1)))
+        have hp : p.1 = a.castSucc ∧ p.2 = b.castSucc ∨
+                  p.1 = b.castSucc ∧ p.2 = a.castSucc := by
+          have := Sym2.eq_iff.mp (Quot.out_eq (s(a.castSucc, b.castSucc) : Sym2 _))
+          rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> [left; right] <;> exact ⟨h1, h2⟩
+        rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩
+        · exact ⟨by rw [h1]; exact a.isLt, by rw [h2]; exact b.isLt⟩
+        · exact ⟨by rw [h1]; exact b.isLt, by rw [h2]; exact a.isLt⟩
+    · -- i_inj
+      intro a _ b _ hab
+      exact Sym2.map.injective (Fin.castSucc_injective K) hab
+    · -- i_surj
+      intro x hx
+      rw [Finset.mem_coe, Finset.mem_filter] at hx
+      have hx_inner : isInner x := hx.2
+      refine ⟨s(⟨(Quot.out x).1.val, hx_inner.1⟩, ⟨(Quot.out x).2.val, hx_inner.2⟩),
+              Finset.mem_coe.mpr (Finset.mem_univ _), ?_⟩
+      simp only [Sym2.map_pair_eq]
+      have e1 : ((⟨(Quot.out x).1.val, hx_inner.1⟩ : Fin K).castSucc) = (Quot.out x).1 :=
+        Fin.ext rfl
+      have e2 : ((⟨(Quot.out x).2.val, hx_inner.2⟩ : Fin K).castSucc) = (Quot.out x).2 :=
+        Fin.ext rfl
+      rw [e1, e2]
+      show Quot.mk _ ((Quot.out x).1, (Quot.out x).2) = x
+      rw [Prod.mk.eta, Quot.out_eq]
+    · -- h: value equality
+      intro s _
+      induction s using Sym2.ind with
+      | _ a b =>
+        simp only [Sym2.map_pair_eq]
+        rw [B_quot_out_eq hB ξ, B_quot_out_eq hB (Fin.snoc ξ t : Fin (K + 1) → Fin T)]
+        have h1 : (Fin.snoc ξ t : Fin (K + 1) → Fin T) a.castSucc = ξ a :=
+          Fin.snoc_castSucc ..
+        have h2 : (Fin.snoc ξ t : Fin (K + 1) → Fin T) b.castSucc = ξ b :=
+          Fin.snoc_castSucc ..
+        rw [h1, h2]
+  rw [h_inner]
+  -- **Non-Inner product = Cross product** (self factor = 1 by hself).
+  have h_noninner :
+      (∏ x ∈ Finset.univ.filter (fun s => ¬ isInner s),
+        B ((Fin.snoc ξ t : Fin (K + 1) → Fin T) (Quot.out x).1)
+          ((Fin.snoc ξ t : Fin (K + 1) → Fin T) (Quot.out x).2) ^ m x) =
+      ∏ a : Fin K, B (ξ a) t ^ m s(Fin.castSucc a, Fin.last K) := by
+    -- Step 1: split non-inner into {self} ⊔ cross.
+    -- Use `Finset.prod_filter_mul_prod_filter_not` with predicate `x = s(last, last)`.
+    rw [← Finset.prod_filter_mul_prod_filter_not
+        (Finset.univ.filter (fun s : Sym2 (Fin (K + 1)) => ¬ isInner s))
+        (p := fun x => x = s(Fin.last K, Fin.last K))]
+    -- First factor: over {x | ¬isInner x ∧ x = self}. The filter set is ⊆ {self}.
+    -- Actually since self itself is non-inner (it has val = K ≥ K), it's exactly {self}.
+    have h_self_nonInner : ¬ isInner (s(Fin.last K, Fin.last K) : Sym2 (Fin (K + 1))) := by
+      intro hI
+      have := hI.1
+      set p := Quot.out (s(Fin.last K, Fin.last K) : Sym2 (Fin (K + 1)))
+      have hp : p.1 = Fin.last K ∧ p.2 = Fin.last K := by
+        have := Sym2.eq_iff.mp (Quot.out_eq (s(Fin.last K, Fin.last K) : Sym2 _))
+        rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> exact ⟨h1, h2⟩
+      have := congr_arg Fin.val hp.1
+      simp [Fin.last] at this
+      omega
+    have h_self_factor :
+        (∏ x ∈ (Finset.univ.filter (fun s : Sym2 (Fin (K + 1)) => ¬ isInner s)).filter
+            (fun x => x = s(Fin.last K, Fin.last K)),
+          B ((Fin.snoc ξ t : Fin (K + 1) → Fin T) (Quot.out x).1)
+            ((Fin.snoc ξ t : Fin (K + 1) → Fin T) (Quot.out x).2) ^ m x) = 1 := by
+      -- The filter set is exactly {self}.
+      have hset : (Finset.univ.filter (fun s : Sym2 (Fin (K + 1)) => ¬ isInner s)).filter
+            (fun x => x = s(Fin.last K, Fin.last K)) = {s(Fin.last K, Fin.last K)} := by
+        ext x
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_singleton]
+        refine ⟨fun h => h.2, fun h => ⟨by rw [h]; exact h_self_nonInner, h⟩⟩
+      rw [hset, Finset.prod_singleton]
+      rw [hself, pow_zero]
+    rw [h_self_factor, one_mul]
+    -- Second factor: over {x | ¬isInner x ∧ x ≠ self}. This is the Cross set.
+    -- Cross ↔ Fin K via a ↦ s(a.castSucc, Fin.last K).
+    -- On cross elements, B value = B(ξ a, t).
+    symm
+    refine Finset.prod_nbij
+      (fun (a : Fin K) => s(Fin.castSucc a, Fin.last K))
+      (hi := ?_) (i_inj := ?_) (i_surj := ?_) (h := ?_)
+    · -- hi: each s(a.cs, last) is in the filter set (non-inner ∧ ≠ self).
+      intro a _
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+      refine ⟨?_, ?_⟩
+      · -- ¬isInner s(a.cs, last K)
+        intro hI
+        -- One endpoint of the Quot.out is Fin.last K, so its val = K.
+        have hp := Sym2.eq_iff.mp
+          (Quot.out_eq (s(Fin.castSucc a, Fin.last K) : Sym2 (Fin (K + 1))))
+        rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩
+        · -- (Quot.out _).1 = a.cs, (Quot.out _).2 = last. hI.2 says (Quot.out _).2.val < K.
+          have hv : (Quot.out (s(Fin.castSucc a, Fin.last K) : Sym2 (Fin (K + 1)))).2.val =
+                    (Fin.last K).val := congr_arg Fin.val h2
+          simp only [Fin.val_last] at hv
+          have := hI.2; omega
+        · -- (Quot.out _).1 = last, (Quot.out _).2 = a.cs. hI.1 says (Quot.out _).1.val < K.
+          have hv : (Quot.out (s(Fin.castSucc a, Fin.last K) : Sym2 (Fin (K + 1)))).1.val =
+                    (Fin.last K).val := congr_arg Fin.val h1
+          simp only [Fin.val_last] at hv
+          have := hI.1; omega
+      · -- s(a.cs, last) ≠ s(last, last)
+        intro hEq
+        have h := Sym2.eq_iff.mp hEq
+        rcases h with ⟨h1, _⟩ | ⟨h1, _⟩
+        · -- a.cs = last K
+          have hv : a.castSucc.val = (Fin.last K).val := congr_arg Fin.val h1
+          simp only [Fin.val_castSucc, Fin.val_last] at hv
+          have := a.isLt; omega
+        · -- a.cs = last K
+          have hv : a.castSucc.val = (Fin.last K).val := congr_arg Fin.val h1
+          simp only [Fin.val_castSucc, Fin.val_last] at hv
+          have := a.isLt; omega
+    · -- i_inj
+      intro a _ b _ hab
+      have h := Sym2.eq_iff.mp hab
+      rcases h with ⟨h1, _⟩ | ⟨h1, _⟩
+      · -- a.cs = b.cs, last = last → a = b by castSucc_injective
+        exact Fin.castSucc_injective K h1
+      · -- a.cs = last, last = b.cs → contradiction
+        exfalso
+        have hv : a.castSucc.val = (Fin.last K).val := congr_arg Fin.val h1
+        simp only [Fin.val_castSucc, Fin.val_last] at hv
+        have := a.isLt; omega
+    · -- i_surj
+      intro x hx
+      rw [Finset.mem_coe, Finset.mem_filter] at hx
+      obtain ⟨hxInner, hxNotSelf⟩ := hx
+      rw [Finset.mem_filter] at hxInner
+      have hnI : ¬ isInner x := hxInner.2
+      -- x is non-inner and not self. Extract a : Fin K such that x = s(a.cs, last).
+      -- The two endpoints of x's Quot.out can't both be < K (not inner), so at least
+      -- one has val = K. But they're not both K (not self). So exactly one has val < K
+      -- and one has val = K.
+      induction x using Sym2.ind with
+      | _ u v =>
+        -- u, v : Fin (K+1). x = s(u, v).
+        by_cases hu : u.val < K
+        · by_cases hv : v.val < K
+          · -- both < K: would be inner, contradiction.
+            exfalso
+            apply hnI
+            simp only [isInner]
+            have hp := Sym2.eq_iff.mp (Quot.out_eq (s(u, v) : Sym2 (Fin (K + 1))))
+            rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩
+            · have hv1 : (Quot.out (s(u, v) : Sym2 (Fin (K + 1)))).1.val = u.val :=
+                congr_arg Fin.val h1
+              have hv2 : (Quot.out (s(u, v) : Sym2 (Fin (K + 1)))).2.val = v.val :=
+                congr_arg Fin.val h2
+              exact ⟨by rw [hv1]; exact hu, by rw [hv2]; exact hv⟩
+            · have hv1 : (Quot.out (s(u, v) : Sym2 (Fin (K + 1)))).1.val = v.val :=
+                congr_arg Fin.val h1
+              have hv2 : (Quot.out (s(u, v) : Sym2 (Fin (K + 1)))).2.val = u.val :=
+                congr_arg Fin.val h2
+              exact ⟨by rw [hv1]; exact hv, by rw [hv2]; exact hu⟩
+          · -- u.val < K, v.val = K (since v.val < K+1 and not < K).
+            have hv_eq : v = Fin.last K := Fin.ext (by
+              simp only [Fin.val_last]; have := v.isLt; omega)
+            refine ⟨⟨u.val, hu⟩, Finset.mem_coe.mpr (Finset.mem_univ _), ?_⟩
+            -- show s(⟨u.val, hu⟩.cs, last) = s(u, v)
+            refine Sym2.eq_iff.mpr (Or.inl ⟨?_, ?_⟩)
+            · apply Fin.ext; show u.val = u.val; rfl
+            · rw [hv_eq]
+        · -- u.val = K.
+          have hu_eq : u = Fin.last K := Fin.ext (by
+            simp only [Fin.val_last]; have := u.isLt; omega)
+          by_cases hv : v.val < K
+          · -- v.val < K, u.val = K: a = ⟨v.val, hv⟩.
+            refine ⟨⟨v.val, hv⟩, Finset.mem_coe.mpr (Finset.mem_univ _), ?_⟩
+            -- show s(⟨v.val, hv⟩.cs, last) = s(u, v) = s(last, v)
+            refine Sym2.eq_iff.mpr (Or.inr ⟨?_, ?_⟩)
+            · -- ⟨v.val, hv⟩.cs = v
+              apply Fin.ext; show v.val = v.val; rfl
+            · -- last K = u
+              rw [hu_eq]
+          · -- both = K: x = self, contradiction.
+            have hv_eq : v = Fin.last K := Fin.ext (by
+              simp only [Fin.val_last]; have := v.isLt; omega)
+            exfalso
+            apply hxNotSelf
+            rw [hu_eq, hv_eq]
+    · -- h: value equality.
+      intro a _
+      -- Show B(ξ a)(t)^m s(a.cs, last) = B((snoc ξ t) (Quot.out s(a.cs, last)).1)
+      --                                   ((snoc ξ t)(Quot.out s(a.cs, last)).2) ^ m s(a.cs, last)
+      rw [B_quot_out_eq hB (Fin.snoc ξ t : Fin (K + 1) → Fin T)]
+      -- Now: B((snoc ξ t) a.cs)((snoc ξ t) last) = B(ξ a)(t).
+      have h1 : (Fin.snoc ξ t : Fin (K + 1) → Fin T) a.castSucc = ξ a :=
+        Fin.snoc_castSucc ..
+      have h2 : (Fin.snoc ξ t : Fin (K + 1) → Fin T) (Fin.last K) = t := Fin.snoc_last ..
+      rw [h1, h2]
+  rw [h_noninner]
+
+set_option maxHeartbeats 4000000 in
 /-- **Trace evaluation identity**: the `W`-weighted sum over the last label
 of a level-`(K+1)` decorated-graph evaluation equals the level-`K` traced
 evaluation. This is the core identity that reduces the mixed σ + `t` sum
-to a single evaluation object at level `K`. -/
+to a single evaluation object at level `K`.
+
+Requires `h_noSelfLastLL`: the LL multiplicity at `s(last K, last K)` is 0.
+This holds automatically for decorated graphs built via `ofSimple`/`one`/`mul`,
+since simple graphs have no self-loops, so `ofSimple`'s `llMult` is `0` at
+diagonals, and `mul` preserves this. -/
 private theorem DecLabeledGraph.trace_eval {T K n : ℕ}
     (D : DecLabeledGraph (K + 1) n) (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (h_noSelfLastLL : D.llMult s(Fin.last K, Fin.last K) = 0)
     (ξ : Fin K → Fin T) :
     ∑ t : Fin T, W t * D.eval B W (Fin.snoc ξ t) =
       D.trace.eval B W ξ := by
-  sorry
+  classical
+  haveI instD : DecidableRel D.graph.Adj := Classical.decRel _
+  haveI instTr : DecidableRel D.trace.graph.Adj := Classical.decRel _
+  -- **Step 1**: Unfold D.eval on the LHS and apply snoc_LL_decomp to factor the LL product.
+  -- LHS = ∑ t, W(t) * (LL(snoc ξ t) * labeledEvalK (K+1) n D.graph B W (snoc ξ t))
+  --     = ∑ t, W(t) * InnerLL(ξ) * Cross(ξ,t) * labeledEvalK (K+1) n D.graph B W (snoc ξ t)
+  --     = InnerLL(ξ) * ∑ t, W(t) * Cross(ξ,t) * labeledEvalK (K+1) n D.graph B W (snoc ξ t)
+  --
+  -- LL decomposition of each summand via snoc_LL_decomp.
+  have hLHS :
+      ∑ t : Fin T, W t * D.eval B W (Fin.snoc ξ t) =
+      (∏ s : Sym2 (Fin K),
+          B (ξ (Quot.out s).1) (ξ (Quot.out s).2) ^ D.llMult (Sym2.map Fin.castSucc s)) *
+      ∑ t : Fin T, W t *
+        ((∏ a : Fin K, B (ξ a) t ^ D.llMult s(Fin.castSucc a, Fin.last K)) *
+          @labeledEvalK T (K + 1) n D.graph instD B W (Fin.snoc ξ t)) := by
+    rw [Finset.mul_sum]
+    refine Finset.sum_congr rfl fun t _ => ?_
+    -- D.eval B W (Fin.snoc ξ t) = LL * labeledEvalK
+    unfold DecLabeledGraph.eval
+    rw [snoc_LL_decomp B hB D.llMult ξ t h_noSelfLastLL]
+    -- Bridge `Classical.decRel` vs `instD`.
+    have hinstEq :
+        @labeledEvalK T (K + 1) n D.graph (Classical.decRel _) B W (Fin.snoc ξ t) =
+        @labeledEvalK T (K + 1) n D.graph instD B W (Fin.snoc ξ t) := by congr 1
+    rw [hinstEq]
+    ring
+  rw [hLHS]
+  -- **Step 2**: Unfold D.trace.eval.
+  -- D.trace.eval B W ξ = (∏ s : Sym2 (Fin K), B(ξ·)(ξ·)^{D.trace.llMult s}) *
+  --   ∑ σ, (∏ v, W (σ v)) * D.trace.lu0FactorAt B ξ σ *
+  --       ∏ e ∈ D.trace.graph.edgeFinset, B(τ(Quot.out e).1)(τ(Quot.out e).2)
+  -- D.trace.llMult s = D.llMult (Sym2.map castSucc s), so inner LL matches.
+  -- D.trace.lu0FactorAt at positive n (here n+1) = ∏ a, B(ξ a)(σ ⟨0, _⟩)^{D.trace.lu0Mult a}.
+  -- D.trace.lu0Mult a = D.llMult s(castSucc a, last K), so lu0 matches Cross(ξ, σ 0).
+  show _ = D.trace.eval B W ξ
+  unfold DecLabeledGraphTr.eval DecLabeledGraph.trace
+  dsimp only
+  -- At this point both sides have the InnerLL factor with same structure.
+  congr 1
+  -- **Step 3**: Show ∑ t, ... = ∑ σ, ... via labeledEvalK_sum_last_label.
+  -- LHS structure: ∑ t, W(t) * (Cross(ξ,t) * labeledEvalK(K+1) n D.graph B W (snoc ξ t))
+  --   = ∑ t, Cross(ξ,t) * (W(t) * labeledEvalK(K+1) n D.graph B W (snoc ξ t))
+  -- Apply labeledEvalK_sum_last_label after pulling Cross inside (but Cross depends on t,
+  -- not on σ, so we can't directly use sum_last_label). Instead:
+  -- Expand labeledEvalK directly on LHS, swap sums, then identify σ' = Fin.cons t σ.
+  --
+  -- Unfold labeledEvalK and rearrange.
+  simp only [labeledEvalK]
+  -- LHS: ∑ t, W t * (Cross * ∑ σ : Fin n → Fin T, (∏ v, W σ v) * ∏ e ∈ D.graph.edgeFinset, B τ)
+  -- Rearrange: ∑ t, ∑ σ, W(t) * Cross(ξ,t) * (∏ W σ v) * (∏ e, B τ)
+  -- Then via consEquiv: (t, σ) ↔ σ' = Fin.cons t σ.
+  -- σ' 0 = t, (Fin.tail σ') j = σ' j.succ = σ j.
+  -- ∑ σ', ... = ∑ (t, σ), ... via `Equiv.sum_comp (Fin.consEquiv _).symm`.
+  conv_rhs =>
+    rw [(Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (n + 1) => Fin T)) _).symm]
+  simp only [Fin.consEquiv_apply]
+  rw [Fintype.sum_prod_type]
+  -- Now RHS is ∑ t, ∑ σ, ... with Fin.cons t σ substituted for σ' in the original RHS.
+  -- Goal: ∑ t, W t * (Cross * ∑ σ, ...) = ∑ t, ∑ σ, ...
+  refine Finset.sum_congr rfl fun t _ => ?_
+  rw [Finset.mul_sum]
+  rw [Finset.mul_sum]  -- push W t inside ∑ i
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  -- Handle lu0FactorAt: for n+1 > 0, it's ∏ a, B(ξ a)((Fin.cons t σ) 0)^{lu0Mult a}.
+  -- (Fin.cons t σ) 0 = t, so this is Cross(ξ, t).
+  simp only [DecLabeledGraphTr.lu0FactorAt, Nat.succ_pos, dif_pos, Fin.cons_zero]
+  -- Pi-prod: (∏ v : Fin (n+1), W ((Fin.cons t σ) v)) = W t * ∏ v : Fin n, W (σ v).
+  rw [Fin.prod_univ_succ]
+  simp only [Fin.cons_zero, Fin.cons_succ, Fin.consEquiv_apply]
+  -- Simplify `Fin.cons t σ ⟨0, _⟩` to `t`.
+  rw [show ((⟨0, Nat.succ_pos n⟩ : Fin (n + 1))) = (0 : Fin (n + 1)) from rfl,
+      Fin.cons_zero (α := fun _ => Fin T) t σ]
+  -- Now the non-edge parts are ring-equivalent. Isolate the edge product identity.
+  suffices h_edge :
+      (∏ x ∈ D.graph.edgeFinset,
+        B
+          (if h : ↑(Quot.out x).1 < K + 1 then (Fin.snoc ξ t : Fin (K + 1) → Fin T)
+            ⟨↑(Quot.out x).1, h⟩
+          else σ ⟨↑(Quot.out x).1 - (K + 1), by have := (Quot.out x).1.isLt; omega⟩)
+          (if h : ↑(Quot.out x).2 < K + 1 then (Fin.snoc ξ t : Fin (K + 1) → Fin T)
+            ⟨↑(Quot.out x).2, h⟩
+          else σ ⟨↑(Quot.out x).2 - (K + 1), by have := (Quot.out x).2.isLt; omega⟩)) =
+      (∏ x ∈ (SimpleGraph.comap
+          (Fin.cast (show (n + 1) + K = n + (K + 1) from by omega) :
+            Fin ((n + 1) + K) → Fin (n + (K + 1))) D.graph).edgeFinset,
+        B
+          (if h : ↑(Quot.out x).1 < K then ξ ⟨↑(Quot.out x).1, h⟩
+          else (Fin.cons t σ : Fin (n + 1) → Fin T)
+            ⟨↑(Quot.out x).1 - K, by have := (Quot.out x).1.isLt; omega⟩)
+          (if h : ↑(Quot.out x).2 < K then ξ ⟨↑(Quot.out x).2, h⟩
+          else (Fin.cons t σ : Fin (n + 1) → Fin T)
+            ⟨↑(Quot.out x).2 - K, by have := (Quot.out x).2.isLt; omega⟩)) by
+    rw [h_edge]
+    -- The remaining goal differs only in DecidableRel instances and Fin.mk proofs.
+    ring_nf
+    congr 1
+    apply Finset.prod_congr
+    · -- edgeFinsets are equal up to Decidable instance (subsingleton).
+      congr 1
+      apply Subsingleton.elim
+    · intros e _; rfl
+  -- **Graph edge bijection** via `Finset.prod_nbij'` with `Sym2.map (finCongr ...)`.
+  -- The cast `(n+1)+K = n+(K+1)` is val-preserving.
+  -- Follows the pattern at L5421-L5437 (bridge in coeffRestrict_equiv).
+  -- Step 1: τ-pointwise identity between snoc-form (threshold K+1) and cons-form
+  -- (threshold K). At val < K the two agree; at val = K both give t; at val > K
+  -- both give σ at val-(K+1) = val-K-1.
+  have hτ : ∀ (x : Fin (n + (K + 1))),
+      (if h : (x : ℕ) < K + 1 then (Fin.snoc ξ t : Fin (K + 1) → Fin T) ⟨x, h⟩
+       else σ ⟨x.val - (K + 1), by have := x.isLt; omega⟩) =
+      (if h : (x : ℕ) < K then ξ ⟨x, h⟩
+       else (Fin.cons t σ : Fin (n + 1) → Fin T)
+              ⟨x.val - K, by have := x.isLt; omega⟩) := by
+    intro x
+    by_cases hxK : (x : ℕ) < K
+    · rw [dif_pos (show (x : ℕ) < K + 1 by omega), dif_pos hxK]
+      have heq : (⟨x.val, show x.val < K + 1 by omega⟩ : Fin (K + 1)) =
+                 (⟨x.val, hxK⟩ : Fin K).castSucc := Fin.ext rfl
+      rw [heq, Fin.snoc_castSucc]
+    by_cases hxEq : (x : ℕ) = K
+    · rw [dif_pos (show (x : ℕ) < K + 1 by omega), dif_neg hxK]
+      have hlast : (⟨x.val, show x.val < K + 1 by omega⟩ : Fin (K + 1)) = Fin.last K := by
+        apply Fin.ext; exact hxEq
+      rw [hlast, Fin.snoc_last]
+      have hzero : (⟨x.val - K, by have := x.isLt; omega⟩ : Fin (n + 1)) = (0 : Fin (n + 1)) := by
+        apply Fin.ext; show x.val - K = 0; omega
+      rw [hzero]; simp [Fin.cons_zero]
+    · rw [dif_neg (show ¬ (x : ℕ) < K + 1 by omega), dif_neg hxK]
+      have hsucc : (⟨x.val - K, by have := x.isLt; omega⟩ : Fin (n + 1)) =
+                   (⟨x.val - K - 1, by have := x.isLt; omega⟩ : Fin n).succ := by
+        apply Fin.ext; simp [Fin.val_succ]; omega
+      rw [hsucc, Fin.cons_succ]
+      rfl
+  -- Step 2: apply prod_nbij' via Sym2.map e where e : Fin (n+(K+1)) ≃ Fin ((n+1)+K).
+  let e := finCongr (show n + (K + 1) = (n + 1) + K by omega)
+  apply Finset.prod_nbij' (Sym2.map e) (Sym2.map e.symm)
+  · -- hi: D.graph edges map to comap edges
+    intro a ha
+    refine Sym2.ind (fun u v h => ?_) a ha
+    rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+    rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h
+    simp only [SimpleGraph.comap_adj]
+    convert h using 2 <;> {apply Fin.ext; simp [e, finCongr]}
+  · -- hj: comap edges map to D.graph edges
+    intro a ha
+    refine Sym2.ind (fun u v h => ?_) a ha
+    rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+    simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, SimpleGraph.comap_adj] at h
+    convert h using 2 <;> {apply Fin.ext; simp [e, finCongr]}
+  · -- left_inv
+    intro a _
+    simp only [Sym2.map_map, Equiv.symm_comp_self]; exact congr_fun Sym2.map_id a
+  · -- right_inv
+    intro a _
+    simp only [Sym2.map_map, Equiv.self_comp_symm]; exact congr_fun Sym2.map_id a
+  · -- hfg: value equality for corresponding edges (uses B_quot_out_eq + hτ).
+    intro a ha
+    refine Sym2.ind (fun u v _ => ?_) a ha
+    simp only [Sym2.map_pair_eq]
+    let τ_LHS : Fin (n + (K + 1)) → Fin T := fun x =>
+      if h : (x : ℕ) < K + 1 then (Fin.snoc ξ t : Fin (K + 1) → Fin T) ⟨x, h⟩
+      else σ ⟨x.val - (K + 1), by have := x.isLt; omega⟩
+    let τ_RHS : Fin ((n + 1) + K) → Fin T := fun x =>
+      if h : (x : ℕ) < K then ξ ⟨x, h⟩
+      else (Fin.cons t σ : Fin (n + 1) → Fin T) ⟨x.val - K, by have := x.isLt; omega⟩
+    show B (τ_LHS (Quot.out s(u, v)).1) (τ_LHS (Quot.out s(u, v)).2) =
+         B (τ_RHS (Quot.out s(e u, e v)).1) (τ_RHS (Quot.out s(e u, e v)).2)
+    rw [B_quot_out_eq hB τ_LHS u v, B_quot_out_eq hB τ_RHS (e u) (e v)]
+    -- τ_LHS u = τ_RHS (e u) since e preserves .val; reduces to hτ.
+    have h1 : τ_LHS u = τ_RHS (e u) := by
+      have := hτ u
+      simp only [τ_LHS, τ_RHS, e, finCongr_apply]
+      convert this using 0
+    have h2 : τ_LHS v = τ_RHS (e v) := by
+      have := hτ v
+      simp only [τ_LHS, τ_RHS, e, finCongr_apply]
+      convert this using 0
+    rw [h1, h2]
 
 /-- **`tupleEquiv`-invariance of the traced evaluation**. Since
 `DecLabeledGraphTr.eval` at level `K` is a finite product/sum of level-`K`
