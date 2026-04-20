@@ -6525,30 +6525,215 @@ private noncomputable def DecLabeledGraph.ofSimple {K n : ℕ}
     if Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s ∈ F.edgeFinset
     then 1 else 0
 
+/-- The label embedding as a bundled `Fin K ↪ Fin (n + K)`. -/
+private def DecLabeledGraph.labelEmbedding {n K : ℕ} : Fin K ↪ Fin (n + K) :=
+  ⟨fun a => ⟨a.val, by have := a.isLt; omega⟩,
+   fun _ _ h => Fin.ext (by simpa using congr_arg Fin.val h)⟩
+
+/-- **Helper 1** for `eval_ofSimple`: value preservation under
+`Sym2.map labelEmbed`. For any `a : Sym2 (Fin K)` whose `Sym2.map labelEmbed`
+has both Quot.out endpoints with val `< K`, the `B`-factor at those
+Fin K-cast endpoints equals the `B`-factor at Quot.out of `a`, modulo `hB`. -/
+private lemma DecLabeledGraph.llFactor_sym2_map_eq {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (φ : Fin K → Fin T) (a : Sym2 (Fin K))
+    (h : (Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) a)).1.val < K ∧
+         (Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) a)).2.val < K) :
+    B (φ ⟨(Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) a)).1.val, h.1⟩)
+      (φ ⟨(Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) a)).2.val, h.2⟩) =
+    B (φ (Quot.out a).1) (φ (Quot.out a).2) := by
+  induction a using Sym2.ind with
+  | h x y =>
+    rw [B_quot_out_eq hB φ x y]
+    rcases Sym2.eq_iff.mp (Quot.out_eq
+        ((Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))))
+      with ⟨hl1, hl2⟩ | ⟨hl1, hl2⟩
+    · -- Case 1: Quot.out picks (labelEmbed x, labelEmbed y).
+      have eq1 : (⟨(Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))).1.val,
+                  h.1⟩ : Fin K) = x := by
+        apply Fin.ext
+        have := congr_arg Fin.val hl1
+        simpa [DecLabeledGraph.labelEmbed] using this
+      have eq2 : (⟨(Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))).2.val,
+                  h.2⟩ : Fin K) = y := by
+        apply Fin.ext
+        have := congr_arg Fin.val hl2
+        simpa [DecLabeledGraph.labelEmbed] using this
+      rw [eq1, eq2]
+    · -- Case 2: Quot.out picks (labelEmbed y, labelEmbed x); use hB.
+      have eq1 : (⟨(Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))).1.val,
+                  h.1⟩ : Fin K) = y := by
+        apply Fin.ext
+        have := congr_arg Fin.val hl1
+        simpa [DecLabeledGraph.labelEmbed] using this
+      have eq2 : (⟨(Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))).2.val,
+                  h.2⟩ : Fin K) = x := by
+        apply Fin.ext
+        have := congr_arg Fin.val hl2
+        simpa [DecLabeledGraph.labelEmbed] using this
+      rw [eq1, eq2, hB]
+
+/-- **Helper 2** for `eval_ofSimple`: the LL-filter of `F.edgeFinset` is
+the `Finset.map` image under `labelEmbedding.sym2Map` of the corresponding
+filter on `Sym2 (Fin K)`. -/
+private lemma DecLabeledGraph.ll_filter_eq_map {n K : ℕ}
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj] :
+    F.edgeFinset.filter
+      (fun e => (Quot.out e).1.val < K ∧ (Quot.out e).2.val < K) =
+    ((Finset.univ : Finset (Sym2 (Fin K))).filter
+      (fun a => Sym2.map (DecLabeledGraph.labelEmbed (n := n)) a ∈ F.edgeFinset)).map
+        (DecLabeledGraph.labelEmbedding (n := n)).sym2Map := by
+  classical
+  ext e
+  simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_map]
+  constructor
+  · intro ⟨heF, hP⟩
+    refine ⟨s(⟨(Quot.out e).1.val, hP.1⟩, ⟨(Quot.out e).2.val, hP.2⟩), ?_, ?_⟩
+    · -- Show Sym2.map labelEmbed of preimage ∈ F.edgeFinset.
+      have heq : Sym2.map (DecLabeledGraph.labelEmbed (n := n))
+          (s((⟨(Quot.out e).1.val, hP.1⟩ : Fin K),
+             ⟨(Quot.out e).2.val, hP.2⟩) : Sym2 _) = e := by
+        simpa [Sym2.map_pair_eq, DecLabeledGraph.labelEmbed,
+          show (⟨(Quot.out e).1.val, _⟩ : Fin (n + K)) = (Quot.out e).1 from Fin.ext rfl,
+          show (⟨(Quot.out e).2.val, _⟩ : Fin (n + K)) = (Quot.out e).2 from Fin.ext rfl]
+          using Quot.out_eq e
+      rw [heq]; exact heF
+    · -- labelEmbedding.sym2Map of preimage equals e.
+      simpa [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq,
+        DecLabeledGraph.labelEmbedding,
+        show (⟨(Quot.out e).1.val, _⟩ : Fin (n + K)) = (Quot.out e).1 from Fin.ext rfl,
+        show (⟨(Quot.out e).2.val, _⟩ : Fin (n + K)) = (Quot.out e).2 from Fin.ext rfl]
+        using Quot.out_eq e
+  · rintro ⟨a, ha, rfl⟩
+    -- labelEmbedding.sym2Map a = Sym2.map labelEmbed a (defeq via simp).
+    have hmap_eq : (DecLabeledGraph.labelEmbedding (n := n)).sym2Map a =
+                   Sym2.map (DecLabeledGraph.labelEmbed (n := n)) a := by
+      induction a using Sym2.ind with
+      | h x y => rfl
+    rw [hmap_eq]
+    refine ⟨ha, ?_⟩
+    induction a using Sym2.ind with
+    | h x y =>
+      rw [Sym2.map_pair_eq]
+      -- Derive .val equalities from h1, h2 via congr_arg Fin.val.
+      have hout := Sym2.eq_iff.mp (Quot.out_eq
+          (s((DecLabeledGraph.labelEmbed (n := n) x : Fin (n + K)),
+              DecLabeledGraph.labelEmbed (n := n) y) : Sym2 _))
+      rcases hout with ⟨h1, h2⟩ | ⟨h1, h2⟩
+      · have h1v : (Quot.out
+            (s((DecLabeledGraph.labelEmbed (n := n) x : Fin (n + K)),
+                DecLabeledGraph.labelEmbed (n := n) y) : Sym2 _)).1.val = x.val := by
+          have := congr_arg Fin.val h1
+          simpa [DecLabeledGraph.labelEmbed] using this
+        have h2v : (Quot.out
+            (s((DecLabeledGraph.labelEmbed (n := n) x : Fin (n + K)),
+                DecLabeledGraph.labelEmbed (n := n) y) : Sym2 _)).2.val = y.val := by
+          have := congr_arg Fin.val h2
+          simpa [DecLabeledGraph.labelEmbed] using this
+        exact ⟨h1v ▸ x.isLt, h2v ▸ y.isLt⟩
+      · have h1v : (Quot.out
+            (s((DecLabeledGraph.labelEmbed (n := n) x : Fin (n + K)),
+                DecLabeledGraph.labelEmbed (n := n) y) : Sym2 _)).1.val = y.val := by
+          have := congr_arg Fin.val h1
+          simpa [DecLabeledGraph.labelEmbed] using this
+        have h2v : (Quot.out
+            (s((DecLabeledGraph.labelEmbed (n := n) x : Fin (n + K)),
+                DecLabeledGraph.labelEmbed (n := n) y) : Sym2 _)).2.val = x.val := by
+          have := congr_arg Fin.val h2
+          simpa [DecLabeledGraph.labelEmbed] using this
+        exact ⟨h1v ▸ y.isLt, h2v ▸ x.isLt⟩
+
 /-- Evaluation of `ofSimple F` recovers `labeledEvalK F` exactly.
 
-Requires `hB` (symmetry of `B`) to handle `Quot.out` ordering ambiguity
-across `Sym2.map labelEmbed`. Proof structure (planned):
-1. Helper 1: value preservation under `Sym2.map labelEmbed` via `B_quot_out_eq`
-   applied to both Quot.out normalizations.
-2. Helper 2: `F.edgeFinset.filter LL = (filter on Sym2 (Fin K)).image (Sym2.map labelEmbed)`
-   via `Finset.ext` + `Sym2.ind` + `Quot.out_eq`.
-3. Assembly via `Finset.prod_image` (injectivity) + Helpers 1–2 on the
-   `pow_boole`-simplified LHS and `Finset.prod_filter_mul_prod_filter_not`-split
-   llFactor.
-
-Left as named sorry this session — the helpers hit motive-type issues on
-`Quot.out_eq` rewrites because of dependent proof plumbing. Next session
-should reformulate the helpers without `rw` across `Quot.out`-bearing
-expressions (likely using `Finset.ext` with more explicit membership
-reasoning, or subtype products). -/
+Requires `hB` (symmetry of `B`). -/
 private theorem DecLabeledGraph.eval_ofSimple {T K n : ℕ}
     (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (φ : Fin K → Fin T) :
     (DecLabeledGraph.ofSimple F).eval B W φ =
       @labeledEvalK T K n F _ B W φ := by
-  sorry
+  classical
+  rw [labeledEvalK_factor_LL K n F B W φ]
+  show DecLabeledGraph.eval _ B W φ = _ * _
+  unfold DecLabeledGraph.eval DecLabeledGraph.ofSimple
+  congr 1
+  · -- ∏-equality: ∏ s : Sym2 (Fin K), B^{ite 1 0} = llFactor F B φ.
+    simp only [show ∀ s : Sym2 (Fin K),
+        B (φ (Quot.out s).1) (φ (Quot.out s).2) ^
+          (if Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s ∈ F.edgeFinset
+           then 1 else 0) =
+        if Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s ∈ F.edgeFinset
+        then B (φ (Quot.out s).1) (φ (Quot.out s).2) else 1 from
+      fun s => pow_boole _ _]
+    rw [← Finset.prod_filter (p := fun s : Sym2 (Fin K) =>
+        Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s ∈ F.edgeFinset)
+      (fun s => B (φ (Quot.out s).1) (φ (Quot.out s).2))]
+    -- Convert llFactor's ∏_F dite form into ∏ over LL-filter.
+    unfold llFactor
+    rw [← Finset.prod_filter_mul_prod_filter_not F.edgeFinset
+        (fun e : Sym2 (Fin (n + K)) =>
+          (Quot.out e).1.val < K ∧ (Quot.out e).2.val < K) _]
+    rw [show (∏ x ∈ F.edgeFinset.filter
+          (fun e => ¬((Quot.out e).1.val < K ∧ (Quot.out e).2.val < K)),
+          (if h : (Quot.out x).1.val < K ∧ (Quot.out x).2.val < K then
+            B (φ ⟨(Quot.out x).1.val, h.1⟩) (φ ⟨(Quot.out x).2.val, h.2⟩)
+          else 1)) = 1 from by
+        apply Finset.prod_eq_one
+        intro x hx
+        simp only [Finset.mem_filter] at hx
+        rw [dif_neg hx.2]]
+    rw [mul_one]
+    -- Use Helper 2 to rewrite RHS's filter set as Finset.map image.
+    rw [DecLabeledGraph.ll_filter_eq_map F]
+    -- Apply Finset.prod_map to pull back to Sym2 (Fin K) side.
+    rw [Finset.prod_map]
+    -- Goal now: ∏ a ∈ filter_LHS, B(φ (Quot.out a).1)(φ (Quot.out a).2)
+    --         = ∏ a ∈ filter_LHS, dite (on labelEmbed image) (B ⟨_, _⟩)(B ⟨_, _⟩) 1.
+    -- Each term matches via Helper 1.
+    refine Finset.prod_congr rfl fun a ha => ?_
+    -- Show: B (φ (Quot.out a).1)(φ (Quot.out a).2) =
+    --       dite P (B ⟨.1.val⟩ ⟨.2.val⟩) 1 (for the image under labelEmbedding.sym2Map).
+    -- On the RHS, the image is Sym2.map labelEmbed a (defeq to labelEmbedding.sym2Map a).
+    -- Since a is in filter (Sym2.map labelEmbed a ∈ F.edgeFinset), Quot.out has both < K.
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at ha
+    -- labelEmbedding.sym2Map a = Sym2.map labelEmbed a (defeq).
+    have hmap_eq : (DecLabeledGraph.labelEmbedding (n := n)).sym2Map a =
+                   Sym2.map (DecLabeledGraph.labelEmbed (n := n)) a := by
+      induction a using Sym2.ind with
+      | h x y => rfl
+    rw [hmap_eq]
+    -- Now the RHS dite's condition: both endpoints of Quot.out (Sym2.map labelEmbed a) < K.
+    -- Need to show this holds (induction on a), then dite reduces to B (φ ⟨_⟩) (φ ⟨_⟩).
+    have hcond : (Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) a)).1.val < K ∧
+                 (Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) a)).2.val < K := by
+      induction a using Sym2.ind with
+      | h x y =>
+        have hout := Sym2.eq_iff.mp (Quot.out_eq
+            ((Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))))
+        rcases hout with ⟨h1, h2⟩ | ⟨h1, h2⟩
+        · have h1v : (Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))).1.val =
+                     x.val := by
+            have := congr_arg Fin.val h1
+            simpa [Sym2.map_pair_eq, DecLabeledGraph.labelEmbed] using this
+          have h2v : (Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))).2.val =
+                     y.val := by
+            have := congr_arg Fin.val h2
+            simpa [Sym2.map_pair_eq, DecLabeledGraph.labelEmbed] using this
+          exact ⟨h1v ▸ x.isLt, h2v ▸ y.isLt⟩
+        · have h1v : (Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))).1.val =
+                     y.val := by
+            have := congr_arg Fin.val h1
+            simpa [Sym2.map_pair_eq, DecLabeledGraph.labelEmbed] using this
+          have h2v : (Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))).2.val =
+                     x.val := by
+            have := congr_arg Fin.val h2
+            simpa [Sym2.map_pair_eq, DecLabeledGraph.labelEmbed] using this
+          exact ⟨h1v ▸ y.isLt, h2v ▸ x.isLt⟩
+    rw [dif_pos hcond]
+    -- Apply Helper 1.
+    exact (DecLabeledGraph.llFactor_sym2_map_eq B hB φ a hcond).symm
+  · -- labeledEvalK equality: same graph, DecidableRel instances differ.
+    congr 1
 
 /-! ### Step B: `one`, `mul`, and their evaluation lemmas -/
 
