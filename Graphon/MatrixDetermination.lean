@@ -7727,6 +7727,77 @@ private theorem starMultigraphEval_tupleEquiv_invariant_direct {T K : ℕ}
     starMultigraphEval B W ξ m = starMultigraphEval B W ξ' m := by
   sorry
 
+/-! ##### K = 1 diagnostic: trace-measure recasting
+
+Per user directive after falsification: attack `K = 1` first as a
+diagnostic for whether the obstruction is already present at the
+one-coordinate moment problem, or whether it only arises with
+coordinate mixing.
+
+**Recasting** (canonical shape at K=1):
+- For `ξ : Fin 1 → Fin T`, define the **trace measure**
+  `traceMeasureK1 ξ : TupleClass T 2 B W → ℝ`:
+    `traceMeasureK1 ξ q := ∑ t, if ⟦Fin.snoc ξ t⟧ = q then W t else 0`.
+- The **edge value** at a 2-tuple class:
+  `edgeValClass q := B(φ 0, φ 1)` where `q = ⟦φ⟧` (well-defined modulo
+  tupleEquiv descent; for a **symmetric** `B`, descends cleanly via
+  `B_quot_out_eq`; for asymmetric `B`, the orientation is fixed by
+  Lean's `Quot.out` convention).
+- Then:
+  `starMultigraphEval B W ξ [r] = ∑ q, traceMeasureK1 ξ q * edgeValClass q ^ r`.
+
+**The annihilation sublemma** (the heart of K=1):
+  `tupleEquiv B W ξ ξ' →
+   traceMeasureK1 ξ = traceMeasureK1 ξ'`
+  as functions on `TupleClass T 2 B W`.
+
+If annihilation lands, `simpleGraphEvalOn_spans` (Step 4, closed) applied
+to `edgeValClass ^ r` gives the K=1, all-r theorem immediately:
+`∑ q μ_ξ(q) · edgeValClass(q)^r = ∑ q μ_ξ'(q) · edgeValClass(q)^r`.
+
+**Diagnostic finding** (per analysis after stating the stub):
+
+The annihilation sublemma is *equivalent* to `product_trace_identity` at
+`k = 1`:
+```
+∑ t, W t · ∏_{p ∈ L} labeledEvalK 2 n_p F_p (Fin.snoc ξ t)
+  = same for ξ'   (for all lists L)
+```
+Expanding via `simpleGraphEvalOn` at level 2, both sides recombine to
+`∑_q μ_ξ(q) * simpleGraphEvalOn L q` which equals
+`∑_q μ_ξ'(q) * simpleGraphEvalOn L q`. And `product_trace_identity` at
+`k = 1` carries the same multigraph content as the general frontier:
+LL-edge multiplicities across the list (at K = 1, the only label pair
+is `(0, 1)` at level 2; any list with ≥ 2 graphs each containing this
+LL edge produces multiplicity ≥ 2 — the multigraph obstruction).
+
+**Conclusion**: `K = 1` is NOT genuinely easier. The same A_k
+multigraph closure is required. This localizes the missing content
+precisely: the "annihilation of trace measures on 2-tuple classes" IS
+the multigraph A_k content, not a weaker statement. -/
+
+/-- **K = 1 specialization** of `starMultigraphEval_tupleEquiv_invariant_direct`
+— the diagnostic target per user directive. Stated separately with
+explicit `K = 1` type to make downstream attacks concrete.
+
+**Status after analysis**: reduces to the same multigraph A_k content as
+the general frontier (see docstring of the parent section). K=1 is NOT
+genuinely easier. Leaving as a sorry'd stub so the structure is
+explicit for future sessions. -/
+private theorem starMultigraphEval_tupleEquiv_invariant_direct_K1 {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (r : ℕ)
+    {ξ ξ' : Fin 1 → Fin T} (h : tupleEquiv B W ξ ξ') :
+    ∑ t : Fin T, W t * B (ξ 0) t ^ r = ∑ t : Fin T, W t * B (ξ' 0) t ^ r := by
+  -- Direct reduction to the general frontier via multiplicity vector `m = r • δ_0`.
+  -- The recasting-via-trace-measure route is documented in the enclosing
+  -- section header; it does not yield a shorter proof (reduces to the
+  -- same multigraph A_k content).
+  have hstar := starMultigraphEval_tupleEquiv_invariant_direct B W
+    (fun _ : Fin 1 => r) h
+  unfold starMultigraphEval at hstar
+  simp only [Fin.prod_univ_one] at hstar
+  exact hstar
+
 /-- **Span representation of `starMultigraphEval`**, derived from the
 direct invariance frontier via quotient descent + `simpleGraphEvalOn_spans`.
 
