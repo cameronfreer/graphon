@@ -7194,7 +7194,131 @@ extension theorem (Level 1) to be in place first.
 Each stub below is named, typed, and documented. The `sorry` bodies are
 placeholders for future proving sessions; no new algebra is landed here. -/
 
-/-! #### Level 1 stubs — power-sum / moment invariance -/
+/-! #### Level 1 stubs — power-sum / moment invariance
+
+**Minimal evaluation object for Level 1 work** (`starMultigraphEval`).
+The exact quantity that `tupleEquiv_power_sum_invariance` is about: the
+W-weighted sum of B-power products indexed by a multiplicity vector `m`.
+This is the star-multigraph evaluation (one unlabeled center, `K` labels,
+each label incident to the center with multiplicity `m_a`). Not full
+multigraph theory, not the full A_k algebra — just the minimal object
+needed to name the frontier precisely.
+
+**Project order** (per user directive after Level 1 narrowing):
+  1. `tupleEquiv_single_coord_square_moment` — **smallest non-simple
+     seed case**: `m = 2 • δ_a`. The atomic multigraph content.
+  2. `tupleEquiv_single_coord_plus_background` — one repeated coord
+     `r • δ_{a₀}` plus an arbitrary 0/1 background on `S ⊆ Fin K \ {a₀}`.
+     The exact bridge to `DecLabeledGraphTr.eval` (Level 2 stub).
+  3. Only after (1) and (2) close should the `∃ a, m_a ≥ 2` branch of
+     `tupleEquiv_power_sum_invariance` be tackled in full generality. -/
+
+/-- **Star-multigraph evaluation.** W-weighted sum of B-power products
+at a fixed labeled tuple `ξ` and multiplicity vector `m`:
+```
+starMultigraphEval B W ξ m := ∑ t, W t · ∏ a, B (ξ a) t ^ m a.
+```
+This is the exact object of `tupleEquiv_power_sum_invariance`. -/
+private noncomputable def starMultigraphEval {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ : Fin K → Fin T) (m : Fin K → ℕ) : ℝ :=
+  ∑ t : Fin T, W t * ∏ a : Fin K, B (ξ a) t ^ m a
+
+/-- **First new target** (smallest non-simple seed case). For
+`tupleEquiv B W ξ ξ'` at level `K` and any label `a : Fin K`, the
+single-coordinate square moment agrees:
+```
+∑ t, W t * B (ξ a) t ^ 2 = ∑ t, W t * B (ξ' a) t ^ 2.
+```
+Equivalently, `starMultigraphEval B W ξ (2 • δ_a) =
+starMultigraphEval B W ξ' (2 • δ_a)` where `δ_a` is the Kronecker
+indicator at coordinate `a`.
+
+**Why this is atomic.** For the multiplicity vector `m = 2 • δ_a`, the
+summand `B (ξ a) t ^ 2` is the smallest power-of-B expression that is
+*not* a subset product (a power of one variable appears). No
+simple-graph labeledEvalK gadget produces this — all candidate
+constructions yield either `(∑ W B)^2` (product of two independent first
+moments, via two parallel unlabeled vertices) or
+`∑_{s, r} W s W r B(ξ a, s) B(ξ a, r) B(s, r)` (bilinear form, via two
+unlabeled with an edge between them) — neither of which reduces to
+`∑ W B^2`.
+
+**Proof strategies to explore** (ordered by increasing depth):
+
+  (a) **Label-duplication trick via extension**: if we had
+      `tupleEquiv (Fin.snoc ξ (ξ a)) ν` at level `K+1` for some `ν`
+      extending `ξ'` (not necessarily with `ν (Fin.last K) = ξ' a`),
+      we could apply `labeledEvalK K+1 1 F` for `F` the level-(K+1)
+      graph with one unlabeled vertex and edges to labels `a` and
+      `Fin.last K`. This yields
+      `∑ W · B(ξ a, t)^2 = ∑ W · B(ξ' a, t) · B(ν (Fin.last K), t)`.
+      The RHS is NOT the target; need auxiliary argument to force
+      `ν (Fin.last K) = ξ' a`.
+      **Blocked**: `tupleEquiv_extend` (the natural source of such ν)
+      depends transitively on the very theorem being proved
+      (through `product_trace_identity`).
+
+  (b) **Generating function approach**: show that the generating
+      function `G_ξ(z) := ∑ t, W t / (1 - z · B(ξ a, t))` is
+      determined by tupleEquiv-invariants. The moments `M_k = ∑ W B^k`
+      are the coefficients of the Taylor expansion; if `G_ξ` is
+      determined, so are all `M_k`. Key step: express `G_ξ(z)` in terms
+      of graph-polynomial evaluations (weighted path moments of `B`).
+
+  (c) **Polynomial identity via Newton–Girard**: establish a relation
+      between power sums `M_k` and ELEMENTARY weighted symmetric
+      polynomials (subset moments `E_S := ∑ W · ∏_{s ∈ S} B(ξ a, s)`,
+      which ARE simple-graph evaluations). Standard Newton–Girard
+      applies to unweighted sums; the weighted version requires care.
+
+  (d) **Full A_k algebra** (Lovász TR-2004-82 §3-4): the heaviest
+      route, requires defining A_k as a finite-dimensional algebra of
+      class functions on `(Fin K → Fin T) / tupleEquiv` and proving
+      simple-graph evaluations span it.
+
+Strategies (a)–(c) are lighter-weight attempts; (d) is the guaranteed
+route but requires substantial new infrastructure. A follow-up proving
+session should attempt (a)→(b)→(c)→(d) in order. -/
+private theorem tupleEquiv_single_coord_square_moment {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ')
+    (a : Fin K) :
+    ∑ t : Fin T, W t * B (ξ a) t ^ 2 =
+    ∑ t : Fin T, W t * B (ξ' a) t ^ 2 := by
+  sorry
+
+/-- **Second new target** (next generalization): one repeated coordinate
+plus an arbitrary 0/1 background. For tupleEquiv(ξ, ξ') at level K, any
+`a₀ : Fin K`, any `r : ℕ`, and any subset `S ⊆ Fin K \ {a₀}`:
+```
+∑ t, W t * B(ξ a₀, t)^r * ∏_{b ∈ S} B(ξ b, t) = same for ξ'.
+```
+
+**Why this is the second target.** It matches the structure of
+`DecLabeledGraphTr.eval`'s σ-sum integrand for the frontier case
+`lu0Mult ≥ 2`: the `a₀` coord with repeated multiplicity `r` is the
+"multi-incidence" label, and `S` is the "simple-incidence" background.
+Closing this stub delivers the full Level 2 statement
+(`DecLabeledGraphTr.eval_tupleEquiv_invariant`) modulo trivial assembly.
+
+**Strategy**: reduces to `tupleEquiv_single_coord_square_moment` by
+induction on `r` once the `r = 2` case is in hand — via a "peel one
+copy" argument that moves between `r` and `r-1` power. Details TBD
+in the follow-up session. -/
+private theorem tupleEquiv_single_coord_plus_background {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ')
+    (a₀ : Fin K) (r : ℕ) (S : Finset (Fin K)) (_hS : a₀ ∉ S) :
+    ∑ t : Fin T, W t * B (ξ a₀) t ^ r * ∏ b ∈ S, B (ξ b) t =
+    ∑ t : Fin T, W t * B (ξ' a₀) t ^ r * ∏ b ∈ S, B (ξ' b) t := by
+  sorry
+
+/-! #### Level 1 (main) — power-sum invariance for arbitrary multiplicity -/
 
 /-- **Level-1 core stub** (`tupleEquiv_power_sum_invariance`).
 For `tupleEquiv B W ξ ξ'` at level `K`, every power-sum moment of the
