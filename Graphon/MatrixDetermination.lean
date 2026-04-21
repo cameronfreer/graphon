@@ -7756,8 +7756,27 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
           -- range(α) ∪ {a, b}.
           --
           -- Closing the gap requires (i) the extension theorem and
-          -- (ii) a WF induction refactor on `(deficit, size)`. Retained
-          -- here so the file continues to compile.
+          -- (ii) a WF induction refactor on `(deficit, size)` plus a
+          -- third piece identified after attempting (ii) mechanically:
+          --
+          -- (iii) `tupleEquiv_surjective_case` calls `IH_T1` at level
+          -- `T-1` for an **arbitrary-deficit** pair — specifically
+          -- `(restrictTuple id, restrictTuple χ)` where `χ` is a
+          -- bijection of `Fin T`. This restriction has deficit 1 when
+          -- `χ(Fin.last) = Fin.last` and deficit 0 otherwise. Under
+          -- deficit-primary lex `(d, size)` with the outer call at
+          -- `(0, k+1)` (Φ surjective ⟹ d=0), an IH at `(1, T-1)` is
+          -- lex-GREATER, not smaller. Size-primary lex fixes this but
+          -- then fails on extensions (size grows).
+          --
+          -- The deepest clean refactor therefore requires ALSO
+          -- restructuring `tupleEquiv_bijective_case` and
+          -- `tupleEquiv_id_bijective` to avoid the deficit-1 IH — e.g.
+          -- by routing through extension (from deficit-0 size-T
+          -- instances) rather than restriction to deficit-1 size-T-1.
+          -- This is a nontrivial internal refactor of Claim 4.3/4.4.
+          --
+          -- Retained here so the file continues to compile.
           sorry
 
 /-! ### Explicit separating motifs
