@@ -7740,12 +7740,98 @@ obstruction. Both together still form a single localized frontier
 the Lovász A_k algebra argument at the polynomial or connection-matrix
 level. Proving this helper against `g := simpleGraphEvalOn L` is
 equivalent to `product_trace_identity` — that equivalence is the
-diagnostic confirmation that this is the canonical root sorry. -/
+diagnostic confirmation that this is the canonical root sorry.
+
+**NOW PROVED** via the two-piece split below:
+  (1) generator theorem `traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv`
+      — the `simpleGraphEvalOn` pairing is class-invariant (via
+      `product_trace_identity` + `traceMeasure_pushforward`).
+  (2) `simpleGraphEvalOn_spans` upgrades pointwise generator equality
+      to full measure equality via Lagrange indicators.
+
+**hB** (symmetry of B) is required because `product_trace_identity`
+uses it for the `DecLabeledGraph`-algebra reduction. If
+`product_trace_identity` is later tightened, hB can be dropped here. -/
+
+/-- **Generator theorem** (the operational form of
+`traceMeasure_eq_of_tupleEquiv`): for every list `L` of `(K+1)`-labeled
+simple graphs, the trace pairing against `simpleGraphEvalOn B W L` is
+class-invariant.
+
+**Proof via**: pushforward (elementary) + `product_trace_identity` at
+level K (already wired through `DecLabeledGraphTr.eval_tupleEquiv_invariant`). -/
+private theorem traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ')
+    (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1))))) :
+    ∑ q : TupleClass T (K + 1) B W, traceMeasure B W ξ q * simpleGraphEvalOn B W L q =
+    ∑ q : TupleClass T (K + 1) B W, traceMeasure B W ξ' q * simpleGraphEvalOn B W L q := by
+  classical
+  -- Apply pushforward to convert both sides to t-sums over tuples.
+  rw [traceMeasure_pushforward, traceMeasure_pushforward]
+  -- Now each side: ∑ t, W t * simpleGraphEvalOn B W L ⟦Fin.snoc ξ/ξ' t⟧.
+  -- By definition, simpleGraphEvalOn B W L ⟦φ⟧ = (L.map (fun p => labeledEvalK p.1 p.2 B W φ)).prod.
+  show (∑ t : Fin T, W t * simpleGraphEvalOn B W L ⟦(Fin.snoc ξ t : Fin (K + 1) → Fin T)⟧) =
+       ∑ t : Fin T, W t * simpleGraphEvalOn B W L ⟦(Fin.snoc ξ' t : Fin (K + 1) → Fin T)⟧
+  exact product_trace_identity B hB W h L
+
+/-- **Trace-measure class-invariance** — PROVED via the two-piece
+A_k package (generator theorem + quotient fullness). -/
 private theorem traceMeasure_eq_of_tupleEquiv {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     traceMeasure B W ξ = traceMeasure B W ξ' := by
-  sorry
+  classical
+  -- Step 1: pair equality for any `g` follows from the generator theorem
+  -- plus `simpleGraphEvalOn_spans` (quotient fullness).
+  suffices hpair : ∀ g : TupleClass T (K + 1) B W → ℝ,
+      ∑ q, traceMeasure B W ξ q * g q = ∑ q, traceMeasure B W ξ' q * g q by
+    -- Step 2: pair equality at the indicator `1_{q₀}` gives pointwise equality.
+    funext q₀
+    have hind := hpair (fun q => if q = q₀ then (1 : ℝ) else 0)
+    have hreduce : ∀ ξ₀ : Fin K → Fin T,
+        ∑ q, traceMeasure B W ξ₀ q * (if q = q₀ then (1 : ℝ) else 0) =
+        traceMeasure B W ξ₀ q₀ := by
+      intro ξ₀
+      rw [show (fun q => traceMeasure B W ξ₀ q * (if q = q₀ then (1 : ℝ) else 0)) =
+             (fun q => if q = q₀ then traceMeasure B W ξ₀ q else 0) from by
+        funext q; split_ifs <;> ring]
+      rw [Finset.sum_ite_eq' Finset.univ q₀ (fun q => traceMeasure B W ξ₀ q)]
+      simp
+    rw [hreduce ξ, hreduce ξ'] at hind
+    exact hind
+  -- Prove pair equality for any g via simpleGraphEvalOn_spans + generator theorem.
+  intro g
+  obtain ⟨coeffs, hcoeffs⟩ := simpleGraphEvalOn_spans B W g
+  simp_rw [hcoeffs]
+  -- Induct on coeffs; each generator term is handled by the generator theorem.
+  induction coeffs with
+  | nil => simp
+  | cons p rest IH =>
+    simp only [List.map_cons, List.sum_cons]
+    have hsplit : ∀ ξ₀ : Fin K → Fin T,
+        ∑ q : TupleClass T (K + 1) B W, traceMeasure B W ξ₀ q *
+          (p.1 * simpleGraphEvalOn B W p.2 q +
+           (rest.map (fun p' => p'.1 * simpleGraphEvalOn B W p'.2 q)).sum) =
+        ∑ q, traceMeasure B W ξ₀ q * (p.1 * simpleGraphEvalOn B W p.2 q) +
+        ∑ q, traceMeasure B W ξ₀ q *
+          (rest.map (fun p' => p'.1 * simpleGraphEvalOn B W p'.2 q)).sum := by
+      intro ξ₀
+      rw [← Finset.sum_add_distrib]
+      refine Finset.sum_congr rfl fun q _ => ?_
+      ring
+    rw [hsplit ξ, hsplit ξ']
+    -- First term: apply generator theorem (with scalar p.1 factored out).
+    have h_factor_gen :
+        ∑ q, traceMeasure B W ξ q * (p.1 * simpleGraphEvalOn B W p.2 q) =
+        ∑ q, traceMeasure B W ξ' q * (p.1 * simpleGraphEvalOn B W p.2 q) := by
+      have hgen := traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv B hB W h p.2
+      have hfactor : ∀ ξ₀ : Fin K → Fin T,
+          ∑ q, traceMeasure B W ξ₀ q * (p.1 * simpleGraphEvalOn B W p.2 q) =
+          p.1 * ∑ q, traceMeasure B W ξ₀ q * simpleGraphEvalOn B W p.2 q := by
+        intro ξ₀; rw [Finset.mul_sum]; refine Finset.sum_congr rfl fun q _ => ?_; ring
+      rw [hfactor ξ, hfactor ξ', hgen]
+    rw [h_factor_gen, IH]
 
 /-! ##### Tuple-level representation theorem (the real frontier)
 
