@@ -7327,15 +7327,129 @@ private theorem tupleEquiv_power_sum_invariance {T K : ℕ}
       rw [hcollapse ξ] at hkey
       rw [hcollapse ξ'] at hkey
       exact hkey
-    · -- **|m| ≥ 2** (frontier): either `m a_star ≥ 2` or two labels have nonzero m_a.
-      -- The multigraph moment `B(ξ a, t)^m` for `m ≥ 2` cannot be captured by a
-      -- simple-graph labeledEvalK — gadget-style reductions (pendant paths,
-      -- duplicate unlabeled vertices, subdivisions) yield `(∑ W B)^m` rather
-      -- than `∑ W B^m`. These are algebraically independent as polynomials in B.
-      -- Closure requires Lovász's A_k algebra (TR-2004-82 §3-4) or a polynomial
-      -- identity argument via Newton-Girard / inclusion-exclusion on weighted
-      -- subset moments. This is the deepest content in the tree.
-      sorry
+    · -- **|m| ≥ 2 case.** Further split on whether any `m_a ≥ 2`:
+      -- if all `m_a ∈ {0, 1}`, the product is a subset-product — reducible to
+      -- simple-graph labeledEvalK of a "star" centered at the unlabeled vertex.
+      -- Only `∃ a, m_a ≥ 2` is the genuine multigraph frontier.
+      by_cases hbinary : ∀ a, m a ≤ 1
+      · -- **All m_a ∈ {0, 1}**: product = ∏_{a : m_a = 1} B(ξ a, t).
+        -- This is labeledEvalK K 1 F_S B W ξ for F_S the star graph at
+        -- unlabeled vertex 0 connected to labels `S := {a : m_a = 1}`.
+        -- Closed via simple-graph tupleEquiv.
+        set S : Finset (Fin K) := (Finset.univ.filter (fun a => m a = 1)) with hS_def
+        -- Product rewrites as `∏_{a ∈ S} B(ξ a, t)`.
+        have hprod_subset : ∀ (ξ₀ : Fin K → Fin T) (t : Fin T),
+            (∏ a : Fin K, B (ξ₀ a) t ^ m a) = ∏ a ∈ S, B (ξ₀ a) t := by
+          intro ξ₀ t
+          rw [show (Finset.univ : Finset (Fin K)) =
+              S ∪ (Finset.univ.filter (fun a => m a = 0)) from by
+            ext a; simp only [Finset.mem_univ, Finset.mem_union, Finset.mem_filter, true_and, S]
+            have : m a ≤ 1 := hbinary a
+            omega]
+          rw [Finset.prod_union (by
+            rw [Finset.disjoint_filter]; intros; omega)]
+          rw [show (∏ a ∈ Finset.univ.filter (fun a => m a = 0),
+                     B (ξ₀ a) t ^ m a) = 1 from by
+            apply Finset.prod_eq_one
+            intro a ha
+            rw [Finset.mem_filter] at ha; rw [ha.2, pow_zero]]
+          rw [mul_one]
+          refine Finset.prod_congr rfl fun a ha => ?_
+          rw [Finset.mem_filter] at ha; rw [ha.2, pow_one]
+        simp_rw [hprod_subset ξ, hprod_subset ξ']
+        -- Build the star graph F_S: one unlabeled vertex (position K in Fin (1 + K)),
+        -- with an edge to every label in S.
+        let v : Fin (1 + K) := ⟨K, by omega⟩
+        let u : Fin K → Fin (1 + K) := fun a => ⟨a.val, by have := a.isLt; omega⟩
+        have hu_ne_v : ∀ a, u a ≠ v := fun a h_eq => by
+          have := congr_arg Fin.val h_eq
+          simp only [u, v] at this
+          have := a.isLt; omega
+        let F_S : SimpleGraph (Fin (1 + K)) :=
+          { Adj := fun x y =>
+              (∃ a ∈ S, (x = u a ∧ y = v) ∨ (x = v ∧ y = u a))
+            symm := fun _ _ h => by
+              obtain ⟨a, ha, horva⟩ := h
+              exact ⟨a, ha, horva.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
+                                       (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)⟩
+            loopless := fun _ h => by
+              obtain ⟨a, _, horva⟩ := h
+              rcases horva with ⟨h1, h2⟩ | ⟨h1, h2⟩
+              · exact hu_ne_v a (h1.symm.trans h2)
+              · exact hu_ne_v a (h2.symm.trans h1) }
+        haveI : DecidableRel F_S.Adj := Classical.decRel _
+        -- Edge characterization: `F_S.edgeFinset = S.image (fun a => s(u a, v))`.
+        have hedge_mem_iff : ∀ (a b : Fin (1 + K)),
+            F_S.Adj a b ↔ ∃ c ∈ S, (a = u c ∧ b = v) ∨ (a = v ∧ b = u c) := Iff.rfl
+        -- Compute labeledEvalK of F_S at ξ₀.
+        have hkey := h 1 F_S
+        simp only [labeledEvalK] at hkey
+        -- Collapse σ : Fin 1 → Fin T to σ 0 via `Fin.sum_univ_one`-style rewriting.
+        have hcollapse : ∀ (ξ₀ : Fin K → Fin T),
+            ∑ σ : Fin 1 → Fin T, (∏ v : Fin 1, W (σ v)) *
+              ∏ e ∈ F_S.edgeFinset,
+                B (if h : ((Quot.out e).1 : Fin (1 + K)).val < K then
+                     ξ₀ ⟨(Quot.out e).1.val, h⟩
+                   else σ ⟨(Quot.out e).1.val - K,
+                     by have := (Quot.out e).1.isLt; omega⟩)
+                  (if h : ((Quot.out e).2 : Fin (1 + K)).val < K then
+                     ξ₀ ⟨(Quot.out e).2.val, h⟩
+                   else σ ⟨(Quot.out e).2.val - K,
+                     by have := (Quot.out e).2.isLt; omega⟩) =
+            ∑ t : Fin T, W t * ∏ a ∈ S, B (ξ₀ a) t := by
+          intro ξ₀
+          rw [show (Finset.univ : Finset (Fin 1 → Fin T)) =
+              Finset.univ.image (fun t : Fin T => (fun _ : Fin 1 => t)) from by
+            ext σ; simp only [Finset.mem_univ, Finset.mem_image, true_and]
+            exact ⟨σ 0, funext fun i => by rw [Subsingleton.elim i 0]⟩]
+          rw [Finset.sum_image (fun a _ b _ hab => by
+            have := congr_fun hab 0; simpa using this)]
+          refine Finset.sum_congr rfl fun t _ => ?_
+          rw [show (∏ _v : Fin 1, W t) = W t by simp]
+          -- Reindex ∏ over F_S.edgeFinset as ∏ over S via the bijection a ↦ s(u a, v).
+          have hedge_eq : F_S.edgeFinset = S.image (fun a => s(u a, v)) := by
+            ext e; simp only [SimpleGraph.mem_edgeFinset, Finset.mem_image]
+            refine Sym2.ind (fun x y => ?_) e
+            constructor
+            · intro hxy
+              rw [SimpleGraph.mem_edgeSet, hedge_mem_iff] at hxy
+              obtain ⟨a, ha, horva⟩ := hxy
+              refine ⟨a, ha, ?_⟩
+              rcases horva with ⟨h1, h2⟩ | ⟨h1, h2⟩
+              · rw [h1, h2]
+              · rw [h1, h2, Sym2.eq_swap]
+            · rintro ⟨a, ha, rfl⟩
+              rw [SimpleGraph.mem_edgeSet, hedge_mem_iff]
+              exact ⟨a, ha, Or.inl ⟨rfl, rfl⟩⟩
+          rw [hedge_eq]
+          rw [Finset.prod_image (fun a ha b hb hab => by
+            simp only at hab
+            rcases Sym2.eq_iff.mp hab with ⟨h1, h2⟩ | ⟨h1, h2⟩
+            · have := congr_arg Fin.val h1
+              simp only [u] at this
+              exact Fin.ext this
+            · exfalso; exact hu_ne_v b (h2.symm))]
+          refine Finset.prod_congr rfl fun a ha => ?_
+          rw [B_quot_out_eq hB (fun x : Fin (1 + K) =>
+                if h : (x : ℕ) < K then ξ₀ ⟨x.val, h⟩
+                else (fun _ : Fin 1 => t) ⟨x.val - K, by have := x.isLt; omega⟩) (u a) v]
+          have hu_lt : (u a : Fin (1 + K)).val < K := by
+            have := a.isLt; simp only [u]; omega
+          have hv_not_lt : ¬ ((v : Fin (1 + K)).val < K) := by
+            simp only [v]; omega
+          rw [dif_pos hu_lt, dif_neg hv_not_lt]
+          congr 1
+          apply Fin.ext; rfl
+        rw [hcollapse ξ] at hkey
+        rw [hcollapse ξ'] at hkey
+        exact hkey
+      · -- **∃ a, m_a ≥ 2**: the genuine multigraph frontier.
+        -- Gadget-style reductions yield `(∑ W B)^m` not `∑ W B^m`; these are
+        -- algebraically independent polynomials in B. Closing this requires
+        -- Lovász's A_k algebra (TR-2004-82 §3-4) or a polynomial-identity
+        -- argument via Newton-Girard / inclusion-exclusion on weighted subset
+        -- moments. This is the single deepest content in the entire tree.
+        sorry
 
 /-- **Level-1 generalization stub** (`tupleEquiv_polynomial_moment_invariance`).
 Lifts the power-sum identity across a simple-graph "backbone" on `n`
