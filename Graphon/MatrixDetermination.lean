@@ -7655,6 +7655,98 @@ private noncomputable def starMultigraphEval {T K : ℕ}
     (ξ : Fin K → Fin T) (m : Fin K → ℕ) : ℝ :=
   ∑ t : Fin T, W t * ∏ a : Fin K, B (ξ a) t ^ m a
 
+/-! ##### Trace measure on `(K+1)`-tuple classes — canonical frontier
+
+Per user directive (after the K=1 diagnostic confirmed the same A_k
+content appears at every depth): promote **"trace measure descends
+to the tupleEquiv-quotient"** to the canonical frontier. This single
+statement subsumes the parallel frontiers we have accumulated:
+
+  - `g := edgeValClass^r` on `TupleClass T 2 B W` recovers the
+    `starMultigraphEval_tupleEquiv_invariant_direct` K=1 case.
+  - `g := simpleGraphEvalOn L` on `TupleClass T (K+1) B W` recovers
+    `product_trace_identity` at level `K`.
+  - an appropriately-decorated `g` recovers
+    `DecLabeledGraphTr.eval_tupleEquiv_invariant` (L6710).
+
+The remaining gap is therefore no longer "which functions are in the
+algebra" (Step 4 settled that) and no longer "is the star-multigraph
+descent the frontier" — it is **"does the trace functional descend to
+the quotient?"** That is the A_k frontier in its cleanest form. -/
+
+/-- **Trace measure**: W-weighted pushforward of `t : Fin T` onto the
+`(K+1)`-tuple class of `Fin.snoc ξ t`. For `ξ : Fin K → Fin T`,
+```
+  traceMeasure ξ q := ∑ t, [⟦Fin.snoc ξ t⟧ = q] · W t.
+```
+A measure on `TupleClass T (K+1) B W`. -/
+private noncomputable def traceMeasure {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ : Fin K → Fin T) (q : TupleClass T (K + 1) B W) : ℝ :=
+  ∑ t : Fin T, if (⟦Fin.snoc ξ t⟧ : TupleClass T (K + 1) B W) = q then W t else 0
+
+/-- **Pushforward identity**: for any function `g` on the `(K+1)`-tuple
+class, the trace-measure integral recovers the t-sum on tuples. -/
+private lemma traceMeasure_pushforward {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ : Fin K → Fin T) (g : TupleClass T (K + 1) B W → ℝ) :
+    ∑ q : TupleClass T (K + 1) B W, traceMeasure B W ξ q * g q =
+    ∑ t : Fin T, W t * g ⟦Fin.snoc ξ t⟧ := by
+  classical
+  unfold traceMeasure
+  simp_rw [Finset.sum_mul, ite_mul, zero_mul]
+  rw [Finset.sum_comm]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  rw [Finset.sum_ite_eq' Finset.univ (⟦Fin.snoc ξ t⟧ : TupleClass T (K + 1) B W)
+      (fun q => W t * g q)]
+  simp
+
+/-- **Trace-measure class-invariance** — the canonical A_k frontier.
+
+For `tupleEquiv B W ξ ξ'` at level `K`, the trace measures on the
+`(K+1)`-tuple quotient are equal as functions.
+
+**Equivalent functional form**: for every `g : TupleClass T (K+1) B W → ℝ`,
+```
+  ∑ q, traceMeasure B W ξ q · g q = ∑ q, traceMeasure B W ξ' q · g q.
+```
+This is the cleanest statement of the missing A_k content: *does the
+trace functional descend to the tupleEquiv-quotient?*
+
+**Status**: STUB. This is the new canonical target; it subsumes the
+parallel frontiers (`starMultigraphEval_tupleEquiv_invariant_direct`,
+`product_trace_identity`, and — via decorated `g` — Level 2's
+`DecLabeledGraphTr.eval_tupleEquiv_invariant`). A follow-up session
+should attempt this directly, or pivot to the explicit Lovász A_k /
+connection-matrix machinery.
+
+**Reduction from existing frontiers (both directions)**:
+
+For the `→ starMultigraphEval_tupleEquiv_invariant_direct` direction,
+applied with `g q := B(φ_q 0, φ_q last)^r` or similar, requires that
+`g` descends (= is class-invariant). At K=1 with `r ∈ {0, 1}`, `g` IS
+class-invariant by single-edge simple-graph tupleEquiv. For general `g`
+with multigraph content (e.g. `r ≥ 2`), descent requires a separate
+level-`(K+1)` invariance claim, which is NOT subsumed by
+`traceMeasure_eq_of_tupleEquiv` alone.
+
+So the full subsumption claim holds modulo **per-`g` descent**. For
+subset-product moments, descent is free (simple-graph evaluation);
+for multigraph moments, descent is a separate instance of the same
+obstruction. Both together still form a single localized frontier
+(the A_k multigraph invariance at each level).
+
+**Proof strategies to explore** (same as for the previous frontier):
+the Lovász A_k algebra argument at the polynomial or connection-matrix
+level. Proving this helper against `g := simpleGraphEvalOn L` is
+equivalent to `product_trace_identity` — that equivalence is the
+diagnostic confirmation that this is the canonical root sorry. -/
+private theorem traceMeasure_eq_of_tupleEquiv {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
+    traceMeasure B W ξ = traceMeasure B W ξ' := by
+  sorry
+
 /-! ##### Tuple-level representation theorem (the real frontier)
 
 Per user directive after closing `simpleGraphEvalOn_spans` (Step 4): the
