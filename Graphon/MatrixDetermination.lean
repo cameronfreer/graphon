@@ -7213,6 +7213,140 @@ needed to name the frontier precisely.
   3. Only after (1) and (2) close should the `∃ a, m_a ≥ 2` branch of
      `tupleEquiv_power_sum_invariance` be tackled in full generality. -/
 
+/-! ##### A_k algebra infrastructure (Steps 1-4 of the extension project)
+
+Infrastructure for Path (d) — the Lovász A_k algebra argument — following
+the user's bounded "infrastructure only" directive. Defines the
+tupleEquiv-quotient, the simple-graph evaluation subalgebra on it, and
+the three structural facts (constants / multiplication / point-separation).
+Fullness is stated as a dual of `functional_span_zero` and left sorry'd
+for the follow-up proving session. -/
+
+/-- **Step 1 (setoid)**: tupleEquiv as a setoid on `Fin K → Fin T`. -/
+private def tupleClassSetoid (T K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    Setoid (Fin K → Fin T) where
+  r := tupleEquiv B W
+  iseqv :=
+    ⟨fun _ _ _ _ => rfl,
+     fun h n F _ => (h n F).symm,
+     fun h₁ h₂ n F _ => (h₁ n F).trans (h₂ n F)⟩
+
+/-- **Step 1 (quotient)**: equivalence classes of labeled tuples. Finite
+because `Fin K → Fin T` is finite. -/
+private def TupleClass (T K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) : Type :=
+  Quotient (tupleClassSetoid T K B W)
+
+private instance instFintypeTupleClass (T K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    Fintype (TupleClass T K B W) := by
+  classical
+  unfold TupleClass
+  have : DecidableEq (Quotient (tupleClassSetoid T K B W)) := Classical.decEq _
+  exact Quotient.fintype _
+
+private instance instDecEqTupleClass (T K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    DecidableEq (TupleClass T K B W) := Classical.decEq _
+
+/-- **Step 2**: simple-graph evaluation descent. The INDEX of the
+generating family is **lists of `(n, F)` pairs**, encoding products of
+`labeledEvalK`'s. This is the same index structure used elsewhere in
+the file (e.g. `coeffRestrict_equiv`'s inline `functional_span_zero`
+application). The descent is well-defined because `tupleEquiv` is
+defined EXACTLY so that each `labeledEvalK F` is class-invariant. -/
+private noncomputable def simpleGraphEvalOn {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + K)))) :
+    TupleClass T K B W → ℝ :=
+  Quotient.lift
+    (fun ξ => (L.map (fun p => @labeledEvalK T K p.1 p.2 (Classical.decRel _) B W ξ)).prod)
+    (fun ξ ξ' hξξ' => by
+      -- `hξξ' : tupleEquiv B W ξ ξ'`, which is exactly the per-graph equality
+      -- of labeledEvalK at each component of L.
+      congr 1
+      apply List.map_congr_left
+      intro p _
+      exact hξξ' p.1 p.2)
+
+/-- **Step 3 (a)** — constants: the empty list evaluates to `1`. -/
+private lemma simpleGraphEvalOn_nil {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (q : TupleClass T K B W) :
+    simpleGraphEvalOn (K := K) B W [] q = 1 := by
+  induction q using Quotient.ind
+  rfl
+
+/-- **Step 3 (b)** — multiplicative closure: concatenation of lists gives
+pointwise product of evaluations. -/
+private lemma simpleGraphEvalOn_append {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (L₁ L₂ : List (Σ (n : ℕ), SimpleGraph (Fin (n + K))))
+    (q : TupleClass T K B W) :
+    simpleGraphEvalOn B W (L₁ ++ L₂) q =
+    simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q := by
+  induction q using Quotient.ind with
+  | _ ξ =>
+    show ((L₁ ++ L₂).map _).prod = _
+    simp only [List.map_append, List.prod_append]
+    rfl
+
+/-- **Step 3 (c)** — point-separation: distinct tupleEquiv classes are
+separated by a simple-graph evaluation, by the very definition of
+tupleEquiv. -/
+private lemma simpleGraphEvalOn_separates {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (q₁ q₂ : TupleClass T K B W) (hne : q₁ ≠ q₂) :
+    ∃ (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + K)))),
+      simpleGraphEvalOn B W L q₁ ≠ simpleGraphEvalOn B W L q₂ := by
+  classical
+  induction q₁ using Quotient.ind with
+  | _ ξ₁ =>
+    induction q₂ using Quotient.ind with
+    | _ ξ₂ =>
+      -- `hne : ⟦ξ₁⟧ ≠ ⟦ξ₂⟧` means `¬ tupleEquiv B W ξ₁ ξ₂`.
+      have hne' : ¬ tupleEquiv B W ξ₁ ξ₂ := fun h => hne (Quotient.sound h)
+      -- Unfold tupleEquiv: ∃ (n : ℕ) (F : SimpleGraph (Fin (n + K))),
+      --   labeledEvalK K n F B W ξ₁ ≠ labeledEvalK K n F B W ξ₂.
+      simp only [tupleEquiv, not_forall] at hne'
+      obtain ⟨n, hF⟩ := hne'
+      obtain ⟨F, hF'⟩ := hF
+      -- Work around the DecidableRel instance by using Classical directly.
+      have hF'' : ¬ @labeledEvalK T K n F (Classical.decRel _) B W ξ₁ =
+                    @labeledEvalK T K n F (Classical.decRel _) B W ξ₂ := by
+        have := hF'
+        convert this using 0
+      refine ⟨[⟨n, F⟩], ?_⟩
+      show ([⟨n, F⟩].map _).prod ≠ ([⟨n, F⟩].map _).prod
+      simpa using hF''
+
+/-- **Step 4** — fullness of the simple-graph subalgebra on the
+tupleEquiv-quotient. Every function `g : TupleClass → ℝ` is a linear
+combination of products of `labeledEvalK`'s (i.e. lies in the span of
+`simpleGraphEvalOn L` values).
+
+**Proof sketch (deferred)**: This is the finite-dimensional Stone–Weierstrass
+statement for the algebra generated by `{simpleGraphEvalOn L : L}` on the
+finite set `TupleClass`. It is DUAL to `functional_span_zero` (L5003):
+`functional_span_zero` asserts that the orthogonal complement of the
+algebra is `{0}`, which for a finite-dimensional inner product space is
+equivalent to the algebra spanning the full function space.
+
+Concretely, for each `q₀ : TupleClass`, an indicator `1_{q₀}` can be
+built via Lagrange-interpolation: for each `q ≠ q₀`, pick `L_{q,q₀}`
+from `simpleGraphEvalOn_separates` and form the product
+  `∏_{q ≠ q₀} (f_{q, q₀} − f_{q, q₀}(q)) / (f_{q, q₀}(q₀) − f_{q, q₀}(q))`
+where `f_{q, q₀} := simpleGraphEvalOn B W L_{q, q₀}`. This polynomial in
+the `f`'s evaluates to 1 at `q₀` and 0 elsewhere; it lies in the algebra
+by (a)+(b). Any `g` is then `g = ∑_q g(q) · 1_q`.
+
+The full formalization requires packaging a recursive algebra-closure
+construction (the list of coefficients `(c, L)` below), which is a
+substantive coding task deferred to the next proving session. -/
+private theorem simpleGraphEvalOn_spans {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (g : TupleClass T K B W → ℝ) :
+    ∃ (coeffs : List (ℝ × List (Σ (n : ℕ), SimpleGraph (Fin (n + K))))),
+      ∀ q, g q = (coeffs.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum := by
+  sorry
+
 /-- **Star-multigraph evaluation.** W-weighted sum of B-power products
 at a fixed labeled tuple `ξ` and multiplicity vector `m`:
 ```
