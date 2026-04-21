@@ -7655,6 +7655,83 @@ private noncomputable def starMultigraphEval {T K : ℕ}
     (ξ : Fin K → Fin T) (m : Fin K → ℕ) : ℝ :=
   ∑ t : Fin T, W t * ∏ a : Fin K, B (ξ a) t ^ m a
 
+/-! ##### Tuple-level representation theorem (the real frontier)
+
+Per user directive after closing `simpleGraphEvalOn_spans` (Step 4): the
+next real frontier is NOT a direct quotient-invariance theorem (which
+would require descent of `starMultigraphEval`, circular with the multigraph
+frontier), but a **tuple-level representation theorem** asserting
+`starMultigraphEval` is a linear combination of simple-graph
+`labeledEvalK` evaluations AT THE TUPLE LEVEL. From that, invariance
+follows automatically because the right-hand side is built from
+simple-graph evaluations.
+
+Concretely, Lovász's A_k algebra content at the tuple level. Proving it
+is the deepest mathematical content in the tree — the heart of the
+multigraph frontier. Stated here as the canonical target; future
+proving sessions should attack this theorem directly. -/
+
+/-- **Tuple-level representation of `starMultigraphEval`.** For fixed
+`(B, W, m)`, the star-multigraph evaluation is a linear combination of
+products of simple-graph evaluations, AS A FUNCTION OF `ξ`:
+```
+∃ coeffs, ∀ ξ, starMultigraphEval B W ξ m =
+  (coeffs.map (fun p => p.1 * (p.2.map (fun q => labeledEvalK q.1 q.2 B W ξ)).prod)).sum
+```
+
+**Why this is the right frontier shape**: the RHS is built from
+simple-graph `labeledEvalK`'s evaluated at `ξ`. For any `ξ ≡ ξ'`
+(tupleEquiv), each RHS summand is `ξ ↔ ξ'`-invariant by definition of
+`tupleEquiv`, hence the whole RHS is invariant — yielding tupleEquiv
+invariance of `starMultigraphEval` as a *corollary*, with no
+descent-to-quotient needed.
+
+**Proof strategy** (Lovász TR-2004-82 §3–4): the A_k algebra argument at
+the polynomial-ring level, NOT at the quotient level. The intended route:
+
+1. For fixed `m`, parameterize the polynomial identity with `K`, `T`, `n`.
+2. Exhibit an explicit combinatorial identity expressing the
+   `∏_a B(ξ a, t)^{m_a}` factor as a polynomial combination of sums of
+   products `∏_{e} B(τ(e))` for various simple graphs indexed by
+   "partition" data. Inclusion-exclusion on subgraph multiplicity.
+3. Weight by `W` and sum over `t` (unlabeled position), yielding the
+   target linear combination.
+
+The explicit coefficients depend on `B, W, m` but are definable by
+Möbius inversion on the poset of multigraph configurations.
+
+**Status**: STUB. The substantive content is an explicit polynomial
+identity; formalization requires a dedicated session on the combinatorial
+framework. All downstream Level 1 stubs
+(`tupleEquiv_single_coord_square_moment`,
+`tupleEquiv_single_coord_plus_background`, and the `∃ a, m_a ≥ 2` branch
+of `tupleEquiv_power_sum_invariance`) reduce to this single statement. -/
+private theorem starMultigraphEval_in_simpleGraphSpan {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (m : Fin K → ℕ) :
+    ∃ (coeffs : List (ℝ × List (Σ (n : ℕ), SimpleGraph (Fin (n + K))))),
+      ∀ ξ : Fin K → Fin T, starMultigraphEval B W ξ m =
+        (coeffs.map (fun p => p.1 *
+          (p.2.map (fun q =>
+            @labeledEvalK T K q.1 q.2 (Classical.decRel _) B W ξ)).prod)).sum := by
+  sorry
+
+/-- **Corollary of the tuple-level representation**: tupleEquiv
+invariance of `starMultigraphEval`. This is `tupleEquiv_power_sum_invariance`
+via the representation theorem. -/
+private theorem starMultigraphEval_tupleEquiv_invariant {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (m : Fin K → ℕ)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
+    starMultigraphEval B W ξ m = starMultigraphEval B W ξ' m := by
+  obtain ⟨coeffs, hcoeffs⟩ := starMultigraphEval_in_simpleGraphSpan B W m
+  rw [hcoeffs ξ, hcoeffs ξ']
+  congr 1
+  apply List.map_congr_left
+  rintro ⟨c, L⟩ _
+  congr 1
+  apply List.map_congr_left
+  rintro ⟨n, F⟩ _
+  exact h n F
+
 /-- **First new target** (smallest non-simple seed case). For
 `tupleEquiv B W ξ ξ'` at level `K` and any label `a : Fin K`, the
 single-coordinate square moment agrees:
@@ -7752,11 +7829,26 @@ private theorem tupleEquiv_single_coord_square_moment {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
     (_htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ')
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ')
     (a : Fin K) :
     ∑ t : Fin T, W t * B (ξ a) t ^ 2 =
     ∑ t : Fin T, W t * B (ξ' a) t ^ 2 := by
-  sorry
+  classical
+  -- Wire through `starMultigraphEval_tupleEquiv_invariant` with the Kronecker
+  -- multiplicity vector `m := 2 • δ_a` (=2 at coord `a`, =0 elsewhere).
+  -- This reduces the square-moment case to the tuple-level representation
+  -- theorem, avoiding any direct multigraph argument here.
+  let m : Fin K → ℕ := fun b => if b = a then 2 else 0
+  have hprod : ∀ (ξ₀ : Fin K → Fin T) (t : Fin T),
+      (∏ b : Fin K, B (ξ₀ b) t ^ m b) = B (ξ₀ a) t ^ 2 := by
+    intro ξ₀ t
+    rw [Finset.prod_eq_single a
+      (fun b _ hb => by simp [m, hb]) (fun hmem => absurd (Finset.mem_univ _) hmem)]
+    simp [m]
+  have hstar := starMultigraphEval_tupleEquiv_invariant B W m h
+  unfold starMultigraphEval at hstar
+  simp_rw [hprod ξ, hprod ξ'] at hstar
+  exact hstar
 
 /-- **Second new target** (next generalization): one repeated coordinate
 plus an arbitrary 0/1 background. For tupleEquiv(ξ, ξ') at level K, any
@@ -7780,11 +7872,48 @@ private theorem tupleEquiv_single_coord_plus_background {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
     (_htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ')
-    (a₀ : Fin K) (r : ℕ) (S : Finset (Fin K)) (_hS : a₀ ∉ S) :
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ')
+    (a₀ : Fin K) (r : ℕ) (S : Finset (Fin K)) (hS : a₀ ∉ S) :
     ∑ t : Fin T, W t * B (ξ a₀) t ^ r * ∏ b ∈ S, B (ξ b) t =
     ∑ t : Fin T, W t * B (ξ' a₀) t ^ r * ∏ b ∈ S, B (ξ' b) t := by
-  sorry
+  classical
+  -- Wire through `starMultigraphEval_tupleEquiv_invariant` with the multiplicity
+  -- vector `m := r • δ_{a₀} + ∑_{b ∈ S} δ_b` (= r at a₀, = 1 on S, = 0 elsewhere).
+  let m : Fin K → ℕ := fun b => if b = a₀ then r else if b ∈ S then 1 else 0
+  have hprod : ∀ (ξ₀ : Fin K → Fin T) (t : Fin T),
+      (∏ b : Fin K, B (ξ₀ b) t ^ m b) =
+        B (ξ₀ a₀) t ^ r * ∏ b ∈ S, B (ξ₀ b) t := by
+    intro ξ₀ t
+    -- Split univ = {a₀} ⊔ S ⊔ (complement).
+    rw [show (Finset.univ : Finset (Fin K)) =
+        ({a₀} : Finset _) ∪ S ∪ (Finset.univ.filter (fun b => b ≠ a₀ ∧ b ∉ S)) from by
+      ext b
+      simp only [Finset.mem_union, Finset.mem_singleton, Finset.mem_filter, Finset.mem_univ,
+        true_and]
+      tauto]
+    rw [Finset.prod_union
+      (by rw [Finset.disjoint_filter]; intros; tauto)]
+    rw [Finset.prod_union (by simp [Finset.disjoint_singleton_left, hS])]
+    rw [Finset.prod_singleton]
+    rw [show (∏ b ∈ Finset.univ.filter (fun b => b ≠ a₀ ∧ b ∉ S), B (ξ₀ b) t ^ m b) = 1 from by
+      apply Finset.prod_eq_one
+      intro b hb
+      simp only [Finset.mem_filter] at hb
+      simp [m, hb.2.1, hb.2.2]]
+    rw [mul_one]
+    -- Now ∏_{b=a₀} B^{m a₀} * ∏_{b ∈ S} B^{m b} = B(ξ₀ a₀)^r * ∏_S B(ξ₀ b).
+    -- For b = a₀: m a₀ = r.
+    rw [show m a₀ = r from by simp [m]]
+    congr 1
+    apply Finset.prod_congr rfl
+    intro b hb
+    rw [show m b = 1 from by simp [m, ne_of_mem_of_not_mem hb hS, hb], pow_one]
+  have hstar := starMultigraphEval_tupleEquiv_invariant B W m h
+  unfold starMultigraphEval at hstar
+  simp_rw [hprod ξ, hprod ξ'] at hstar
+  -- Goal: ∑ t, W t * B(ξ a₀, t)^r * ∏_S B(ξ b, t) = same for ξ'.
+  -- hstar: ∑ t, W t * (B(ξ a₀, t)^r * ∏_S B(ξ b, t)) = same for ξ'.
+  convert hstar using 2 <;> ring
 
 /-! #### Level 1 (main) — power-sum invariance for arbitrary multiplicity -/
 
@@ -8036,12 +8165,11 @@ private theorem tupleEquiv_power_sum_invariance {T K : ℕ}
         rw [hcollapse ξ'] at hkey
         exact hkey
       · -- **∃ a, m_a ≥ 2**: the genuine multigraph frontier.
-        -- Gadget-style reductions yield `(∑ W B)^m` not `∑ W B^m`; these are
-        -- algebraically independent polynomials in B. Closing this requires
-        -- Lovász's A_k algebra (TR-2004-82 §3-4) or a polynomial-identity
-        -- argument via Newton-Girard / inclusion-exclusion on weighted subset
-        -- moments. This is the single deepest content in the entire tree.
-        sorry
+        -- Wired through `starMultigraphEval_tupleEquiv_invariant`, which in
+        -- turn reduces to the tuple-level representation theorem
+        -- `starMultigraphEval_in_simpleGraphSpan` (the A_k content, stubbed
+        -- with detailed proof sketch above).
+        exact starMultigraphEval_tupleEquiv_invariant B W m h
 
 /-- **Level-1 generalization stub** (`tupleEquiv_polynomial_moment_invariance`).
 Lifts the power-sum identity across a simple-graph "backbone" on `n`
