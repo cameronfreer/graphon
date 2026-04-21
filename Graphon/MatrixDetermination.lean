@@ -7226,14 +7226,116 @@ that gadget-style reductions cannot reach.
     and separates tupleEquiv-classes. Multigraph evaluations lie in
     the closure. -/
 private theorem tupleEquiv_power_sum_invariance {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
     (_htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ')
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ')
     (m : Fin K → ℕ) :
     ∑ t : Fin T, W t * ∏ a : Fin K, B (ξ a) t ^ m a =
     ∑ t : Fin T, W t * ∏ a : Fin K, B (ξ' a) t ^ m a := by
-  sorry
+  classical
+  -- **Case split on the total mass `|m| := ∑ a, m a`.**
+  -- |m| = 0: trivial (product is 1, sums of W agree).
+  -- |m| = 1: single-edge `labeledEvalK` at level K, n=1 — simple-graph tupleEquiv.
+  -- |m| ≥ 2: the multigraph frontier (A_k algebra). **Only this case remains.**
+  by_cases hm0 : ∀ a, m a = 0
+  · -- **Case |m| = 0** (all m_a = 0): product is identically 1.
+    have : ∀ (ξ₀ : Fin K → Fin T) (t : Fin T),
+        (∏ a : Fin K, B (ξ₀ a) t ^ m a) = 1 := by
+      intro ξ₀ t
+      refine Finset.prod_eq_one fun a _ => ?_
+      rw [hm0 a, pow_zero]
+    simp_rw [this ξ, this ξ']
+  · -- **|m| ≥ 1.** Pick `a_star` with `m a_star ≥ 1`.
+    push_neg at hm0
+    obtain ⟨a_star, hm_star⟩ := hm0
+    -- Check whether `|m| = 1` (i.e., `m a_star = 1` and other m_a = 0).
+    by_cases hsingle : (m a_star = 1) ∧ (∀ a, a ≠ a_star → m a = 0)
+    · -- **|m| = 1 case**: reduces to single-edge labeledEvalK at level K, n=1.
+      obtain ⟨h_ms_one, hzero⟩ := hsingle
+      -- Collapse the product to `B(ξ₀ a_star, t)`.
+      have hprod_single : ∀ (ξ₀ : Fin K → Fin T) (t : Fin T),
+          (∏ a : Fin K, B (ξ₀ a) t ^ m a) = B (ξ₀ a_star) t := by
+        intro ξ₀ t
+        rw [Finset.prod_eq_single a_star (fun a _ ha => by rw [hzero a ha, pow_zero])
+            (fun hmem => absurd (Finset.mem_univ _) hmem), h_ms_one, pow_one]
+      simp_rw [hprod_single ξ, hprod_single ξ']
+      -- Build the single-edge K-labeled graph F on `Fin (1 + K)` between
+      -- `labelEmbed a_star` (val < K) and the unique unlabeled vertex (val = K).
+      let u : Fin (1 + K) := ⟨a_star.val, by have := a_star.isLt; omega⟩
+      let v : Fin (1 + K) := ⟨K, by omega⟩
+      have hne : u ≠ v := by
+        simp only [ne_eq, Fin.mk.injEq, u, v]
+        have := a_star.isLt; omega
+      let F : SimpleGraph (Fin (1 + K)) :=
+        { Adj := fun x y => (x = u ∧ y = v) ∨ (x = v ∧ y = u)
+          symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
+                                       (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+          loopless := fun _ h => by
+            rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+            · exact hne (h1.symm.trans h2)
+            · exact hne (h2.symm.trans h1) }
+      haveI : DecidableRel F.Adj := fun x y =>
+        if h₁ : x = u ∧ y = v then .isTrue (.inl h₁)
+        else if h₂ : x = v ∧ y = u then .isTrue (.inr h₂)
+        else .isFalse (fun h => h.elim (fun a => h₁ a) (fun a => h₂ a))
+      have hedge : F.edgeFinset = {s(u, v)} := by
+        apply Finset.eq_singleton_iff_unique_mem.mpr; constructor
+        · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
+        · intro e he
+          rw [SimpleGraph.mem_edgeFinset] at he
+          exact Sym2.ind (fun a b (hadj : F.Adj a b) => by
+            rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+            · rw [h1, h2]
+            · rw [h1, h2, Sym2.eq_swap]) e he
+      -- Apply tupleEquiv at level K to the single-edge graph F.
+      have hkey := h 1 F
+      simp only [labeledEvalK] at hkey
+      -- Collapse `∑ σ : Fin 1 → Fin T` to `∑ t : Fin T` and evaluate the single edge.
+      have hcollapse : ∀ (ξ₀ : Fin K → Fin T),
+          ∑ σ : Fin 1 → Fin T, (∏ v : Fin 1, W (σ v)) *
+            ∏ e ∈ F.edgeFinset,
+              B (if h : ((Quot.out e).1 : Fin (1 + K)).val < K then
+                   ξ₀ ⟨(Quot.out e).1.val, h⟩
+                 else σ ⟨(Quot.out e).1.val - K,
+                   by have := (Quot.out e).1.isLt; omega⟩)
+                (if h : ((Quot.out e).2 : Fin (1 + K)).val < K then
+                   ξ₀ ⟨(Quot.out e).2.val, h⟩
+                 else σ ⟨(Quot.out e).2.val - K,
+                   by have := (Quot.out e).2.isLt; omega⟩) =
+          ∑ t : Fin T, W t * B (ξ₀ a_star) t := by
+        intro ξ₀
+        rw [show (Finset.univ : Finset (Fin 1 → Fin T)) =
+            Finset.univ.image (fun t : Fin T => (fun _ : Fin 1 => t)) from by
+          ext σ; simp only [Finset.mem_univ, Finset.mem_image, true_and]
+          exact ⟨σ 0, funext fun i => by rw [Subsingleton.elim i 0]⟩]
+        rw [Finset.sum_image (fun a _ b _ hab => by
+          have := congr_fun hab 0; simpa using this)]
+        refine Finset.sum_congr rfl fun t _ => ?_
+        rw [show (∏ _v : Fin 1, W t) = W t by simp]
+        rw [hedge, Finset.prod_singleton]
+        rw [B_quot_out_eq hB (fun x : Fin (1 + K) =>
+              if h : (x : ℕ) < K then ξ₀ ⟨x.val, h⟩
+              else (fun _ : Fin 1 => t) ⟨x.val - K, by have := x.isLt; omega⟩) u v]
+        have hu_lt : (u : Fin (1 + K)).val < K := by
+          have := a_star.isLt; simp only [u]; omega
+        have hv_not_lt : ¬ ((v : Fin (1 + K)).val < K) := by
+          simp only [v]; omega
+        rw [dif_pos hu_lt, dif_neg hv_not_lt]
+        congr 1
+        apply Fin.ext; rfl
+      rw [hcollapse ξ] at hkey
+      rw [hcollapse ξ'] at hkey
+      exact hkey
+    · -- **|m| ≥ 2** (frontier): either `m a_star ≥ 2` or two labels have nonzero m_a.
+      -- The multigraph moment `B(ξ a, t)^m` for `m ≥ 2` cannot be captured by a
+      -- simple-graph labeledEvalK — gadget-style reductions (pendant paths,
+      -- duplicate unlabeled vertices, subdivisions) yield `(∑ W B)^m` rather
+      -- than `∑ W B^m`. These are algebraically independent as polynomials in B.
+      -- Closure requires Lovász's A_k algebra (TR-2004-82 §3-4) or a polynomial
+      -- identity argument via Newton-Girard / inclusion-exclusion on weighted
+      -- subset moments. This is the deepest content in the tree.
+      sorry
 
 /-- **Level-1 generalization stub** (`tupleEquiv_polynomial_moment_invariance`).
 Lifts the power-sum identity across a simple-graph "backbone" on `n`
