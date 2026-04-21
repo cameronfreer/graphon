@@ -7244,42 +7244,79 @@ moments, via two parallel unlabeled vertices) or
 unlabeled with an edge between them) — neither of which reduces to
 `∑ W B^2`.
 
-**Proof strategies to explore** (ordered by increasing depth):
+**Proof strategies analyzed (in order of depth; summary of findings):**
 
-  (a) **Label-duplication trick via extension**: if we had
-      `tupleEquiv (Fin.snoc ξ (ξ a)) ν` at level `K+1` for some `ν`
-      extending `ξ'` (not necessarily with `ν (Fin.last K) = ξ' a`),
-      we could apply `labeledEvalK K+1 1 F` for `F` the level-(K+1)
-      graph with one unlabeled vertex and edges to labels `a` and
-      `Fin.last K`. This yields
-      `∑ W · B(ξ a, t)^2 = ∑ W · B(ξ' a, t) · B(ν (Fin.last K), t)`.
-      The RHS is NOT the target; need auxiliary argument to force
-      `ν (Fin.last K) = ξ' a`.
-      **Blocked**: `tupleEquiv_extend` (the natural source of such ν)
-      depends transitively on the very theorem being proved
-      (through `product_trace_identity`).
+  (a) **Label-duplication via extension.** Apply `tupleEquiv_extend` to
+      `μ := Fin.snoc ξ (ξ a)` to get `ν` extending `ξ'` with
+      `tupleEquiv(μ, ν)` at level `K+1`. Applying `labeledEvalK K+1 1 F`
+      for `F` the two-edge graph (label `a`, unlabeled 0) ∧ (label
+      `Fin.last K`, unlabeled 0) yields:
+      ```
+        ∑ W · B(ξ a, t)^2 = ∑ W · B(ξ' a, t) · B(ν_last, t)
+      ```
+      where `ν_last := ν (Fin.last K)`.
+      **Blocked at two layers**:
+        - `tupleEquiv_extend` depends on `coeffRestrict_equiv` →
+          `product_trace_identity` → `eval_tupleEquiv_invariant` (the
+          frontier). Using it re-introduces the very sorry we are trying
+          to break down.
+        - Even assuming we had some extension-free `ν`, the RHS features
+          `ν_last` as a free Classical.choose witness. No auxiliary
+          level-K tupleEquiv fact forces `ν_last = ξ' a` without already
+          assuming first-moment row distinguishability at `ξ' a` vs
+          `ν_last`, which is precisely the data we lack outside
+          `range(ξ') ∪ {ξ' a}`.
+      Symmetric application (extending `ξ'` → extension of `ξ`) yields a
+      paired identity but not equality of the target.
 
-  (b) **Generating function approach**: show that the generating
-      function `G_ξ(z) := ∑ t, W t / (1 - z · B(ξ a, t))` is
-      determined by tupleEquiv-invariants. The moments `M_k = ∑ W B^k`
-      are the coefficients of the Taylor expansion; if `G_ξ` is
-      determined, so are all `M_k`. Key step: express `G_ξ(z)` in terms
-      of graph-polynomial evaluations (weighted path moments of `B`).
+  (b) **Generating function.** Let `G_ξ(z) := ∑ t, W t · (1 - z B(ξ a, t))⁻¹`.
+      Its Taylor coefficients are the moments `M_k(ξ, a)`. Simple-graph
+      chain evaluations (length-`n` chains from label `a` through `n`
+      unlabeled vertices) compute `e_{ξa}^T · T^n · 1` where
+      `T_{ij} := W(j) · B(i, j)`. These are transfer-matrix moments of
+      `T`, NOT of the diagonal `D := diag(B(ξ a, ·))` which
+      `G_ξ` depends on. The two matrices are structurally distinct;
+      no single graph family interpolates between them.
+      **Partial blocker**: strategy gives access to `1 · T^n · 1`-type
+      scalars but not to `diag(B)^k · W`-type scalars. Closure requires
+      additional polynomial-identity work (essentially (c) or (d)).
 
-  (c) **Polynomial identity via Newton–Girard**: establish a relation
-      between power sums `M_k` and ELEMENTARY weighted symmetric
-      polynomials (subset moments `E_S := ∑ W · ∏_{s ∈ S} B(ξ a, s)`,
-      which ARE simple-graph evaluations). Standard Newton–Girard
-      applies to unweighted sums; the weighted version requires care.
+  (c) **Weighted Newton–Girard.** For unweighted variables, Newton–Girard
+      expresses power sums `p_k = ∑ x_i^k` in terms of elementary
+      symmetric polynomials `e_k = ∑_{|S|=k} ∏_{i ∈ S} x_i`. In our
+      setting the analogs are:
+        - `M_k = ∑ W(t) · B(ξ a, t)^k` (target power sum).
+        - `E_k = ∑_{|S|=k, S ⊆ Fin T} ∏_{t ∈ S} (W(t) · B(ξ a, t))`
+          (weighted elementary symmetric — recoverable from simple
+          graphs via inclusion-exclusion on complete-star evaluations).
+      **Blocker**: standard Newton–Girard relates `p_k^W := ∑ (W x)^k`
+      (*not* `M_k = ∑ W x^k`) to `E_k`. The change-of-weight step
+      `p_k^W ↔ M_k` requires inverting per-point weights, which
+      tupleEquiv does not provide directly.
+      Refined Newton–Girard with per-point weights might work but
+      requires either (i) W-integrality assumptions (not available), or
+      (ii) polynomial-in-W manipulation that reduces back to (d).
 
-  (d) **Full A_k algebra** (Lovász TR-2004-82 §3-4): the heaviest
-      route, requires defining A_k as a finite-dimensional algebra of
-      class functions on `(Fin K → Fin T) / tupleEquiv` and proving
-      simple-graph evaluations span it.
+  (d) **Full Lovász A_k algebra** (TR-2004-82 §3–4). Define A_k ⊆
+      `((Fin K → Fin T) / tupleEquiv) → ℝ` as the algebra generated by
+      simple-graph evaluations. A_k is finite-dimensional (bounded by
+      `|Q|`), unital (empty graph), and separates points of Q (by
+      definition of tupleEquiv). By finite-dim Stone–Weierstrass, A_k
+      equals the full algebra on Q. Multigraph evaluations lie on Q
+      (once shown to descend to Q — the very claim here), hence in A_k.
+      **This is the guaranteed route** but circular without a PRIOR
+      descent-to-Q argument. The typical Lovász resolution defines A_k
+      explicitly via simple-graph generators and proves multigraph
+      evaluations lie in the A_k SPAN directly, without requiring
+      descent — via polynomial manipulations at the level of multigraph
+      "types".
 
-Strategies (a)–(c) are lighter-weight attempts; (d) is the guaranteed
-route but requires substantial new infrastructure. A follow-up proving
-session should attempt (a)→(b)→(c)→(d) in order. -/
+**Conclusion after this analysis:** strategies (a) and (b) are
+geometrically blocked; (c) is blocked at the weight-integrality step;
+(d) is the only guaranteed route and requires building A_k infrastructure
+(finite-dimensionality, polynomial identities, multigraph span
+membership). All four require substantial new formal content; no
+bounded tactical closure is available from the current file. -/
 private theorem tupleEquiv_single_coord_square_moment {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
