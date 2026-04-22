@@ -7962,38 +7962,88 @@ together with the already-proved `traceMeasure_eq_of_tupleEquiv`.
 in `ℝ[B_{ij}]`, applied at level `K+1`. The question reduces to: do
 multigraph B-power products descend to the `(K+1)`-tupleEquiv quotient?
 
-**Direct falsification gate passed**: exhaustive Python search directly
-on `starKernel_tupleEquiv_invariant` (NOT via the parent theorem):
-  - `T = 2, K = 1` (level 2, `η : Fin 2 → Fin T`): 6144 (B, W) pairs
-    over B-entries in `{-1, 0, 1, 2}` (including non-symmetric) and
-    W-entries in `{1, -1}` (including negative); 288 satisfy
-    `tupleEquiv` at level 2 up to `n = 3`; **0 counterexamples** for
-    `m ∈ {2, 3}`.
-  - `T = 2, K = 2` (level 3, `η : Fin 3 → Fin T`): 1792 pairs tested
-    with `m ∈ {(2,1), (2,0), (1,2), (2,2)}`; 288 satisfy `tupleEquiv`;
-    **0 counterexamples**.
-Statement survives at both levels K+1=2 and K+1=3 without `hB`/`hW`/
-`htwin`. No assumption tightening needed. -/
+**Falsification gate**: requires `hB` (symmetric B). Direct Python
+search at `T=2, K=1, K=2` showed:
+  - Under labeledEvalK-Quot.out picking **smaller-first** (matching
+    the theorem's B-orientation): **0 counterexamples** over 6144
+    (B, W) pairs including non-symmetric B.
+  - Under labeledEvalK-Quot.out picking **larger-first** (opposite
+    orientation): **144 counterexamples** (e.g. `B = [[0,0],[1,1]]`,
+    `η=[0,0]`, `η'=[1,0]`, `m=[2]` gives `LHS=0, RHS=1`).
+So the theorem's correctness depends on the B-orientation convention;
+with non-symmetric B, `starKernel`'s definition uses a fixed orientation
+that may diverge from `labeledEvalK`'s Quot.out choice. `hB` (symmetric
+B) bridges the two orientations and makes the theorem unconditionally
+true. -/
 private theorem starKernel_tupleEquiv_invariant {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (m : Fin K → ℕ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (m : Fin K → ℕ)
     {η η' : Fin (K + 1) → Fin T} (h : tupleEquiv B W η η') :
     starKernel B m η = starKernel B m η' := by
-  sorry
+  classical
+  unfold starKernel
+  refine Finset.prod_congr rfl fun a _ => ?_
+  -- Suffices to show B(η a.castSucc, η last) = B(η' a.castSucc, η' last);
+  -- raising to power m a then gives equality of factors.
+  suffices hedge :
+      B (η a.castSucc) (η (Fin.last K)) = B (η' a.castSucc) (η' (Fin.last K)) by
+    rw [hedge]
+  -- Build the single-LL-edge graph F at level K+1, n=0 with edge
+  -- {a.castSucc, Fin.last K} (both interpreted as elements of Fin (0 + (K+1))).
+  let u : Fin (0 + (K + 1)) := ⟨a.val, by have := a.isLt; omega⟩
+  let v : Fin (0 + (K + 1)) := ⟨K, by omega⟩
+  have hne : u ≠ v := by
+    simp only [ne_eq, Fin.mk.injEq, u, v]; have := a.isLt; omega
+  let F : SimpleGraph (Fin (0 + (K + 1))) :=
+    { Adj := fun x y => (x = u ∧ y = v) ∨ (x = v ∧ y = u)
+      symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
+                                   (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+      loopless := fun _ h => by
+        rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+        · exact hne (h1.symm.trans h2)
+        · exact hne (h2.symm.trans h1) }
+  haveI : DecidableRel F.Adj := Classical.decRel _
+  have hedgeFin : F.edgeFinset = {s(u, v)} := by
+    apply Finset.eq_singleton_iff_unique_mem.mpr; constructor
+    · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
+    · intro e he
+      rw [SimpleGraph.mem_edgeFinset] at he
+      exact Sym2.ind (fun x y (hadj : F.Adj x y) => by
+        rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+        · rw [h1, h2]
+        · rw [h1, h2, Sym2.eq_swap]) e he
+  -- Evaluate labeledEvalK at η and η'; apply tupleEquiv.
+  have hη := labeledEvalK_singleEdge F hne hedgeFin B hB W η
+  have hη' := labeledEvalK_singleEdge F hne hedgeFin B hB W η'
+  -- Identify ⟨u.val, _⟩ = a.castSucc and ⟨v.val, _⟩ = Fin.last K.
+  have hu_lt : u.val < K + 1 := by have := a.isLt; omega
+  have hv_lt : v.val < K + 1 := by omega
+  have hu_eq : (⟨u.val, hu_lt⟩ : Fin (K + 1)) = a.castSucc := Fin.ext rfl
+  have hv_eq : (⟨v.val, hv_lt⟩ : Fin (K + 1)) = Fin.last K := Fin.ext rfl
+  rw [hu_eq, hv_eq] at hη hη'
+  -- Apply tupleEquiv to get labeledEvalK F η = labeledEvalK F η'.
+  -- Both sides use the same DecidableRel instance (Classical.decRel via haveI).
+  have hkey := h 0 F
+  -- `hη` and `hη'` use the same instance as `hkey` (both via Classical), so we
+  -- can directly substitute.
+  linarith [hη, hη', hkey]
 
 /-- **Star kernel descended to the quotient**. Class function on
 `TupleClass T (K+1) B W` obtained from `starKernel` via
 `Quotient.lift` using the kernel-descent frontier. -/
 private noncomputable def starKernelClass {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (m : Fin K → ℕ) :
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (m : Fin K → ℕ) :
     TupleClass T (K + 1) B W → ℝ :=
   Quotient.lift (starKernel B m)
-    (fun η η' hηη' => starKernel_tupleEquiv_invariant B W m hηη')
+    (fun η η' hηη' => starKernel_tupleEquiv_invariant B hB W m hηη')
 
 /-- Evaluation of `starKernelClass` at a quotient class of `Fin.snoc ξ t`. -/
 private lemma starKernelClass_mk_snoc {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (m : Fin K → ℕ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (m : Fin K → ℕ)
     (ξ : Fin K → Fin T) (t : Fin T) :
-    starKernelClass B W m (⟦Fin.snoc ξ t⟧ : TupleClass T (K + 1) B W) =
+    starKernelClass B hB W m (⟦Fin.snoc ξ t⟧ : TupleClass T (K + 1) B W) =
     ∏ a : Fin K, B (ξ a) t ^ m a := by
   show starKernel B m (Fin.snoc ξ t) = _
   exact starKernel_snoc B m ξ t
@@ -8015,12 +8065,12 @@ private theorem starMultigraphEval_tupleEquiv_invariant_direct {T K : ℕ}
   have hpush : ∀ ξ₀ : Fin K → Fin T,
       starMultigraphEval B W ξ₀ m =
         ∑ q : TupleClass T (K + 1) B W,
-          traceMeasure B W ξ₀ q * starKernelClass B W m q := by
+          traceMeasure B W ξ₀ q * starKernelClass B hB W m q := by
     intro ξ₀
     rw [traceMeasure_pushforward]
     unfold starMultigraphEval
     refine Finset.sum_congr rfl fun t _ => ?_
-    rw [starKernelClass_mk_snoc]
+    rw [starKernelClass_mk_snoc B hB W m ξ₀ t]
   rw [hpush ξ, hpush ξ', traceMeasure_eq_of_tupleEquiv B hB W h]
 
 /-! ##### K = 1 diagnostic: trace-measure recasting
