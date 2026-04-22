@@ -7904,36 +7904,157 @@ private noncomputable def tr_k {T K : ℕ}
     (f : TupleClass T (K + 1) B W → ℝ) (ξ : Fin K → Fin T) : ℝ :=
   ∑ t : Fin T, W t * f ⟦Fin.snoc ξ t⟧
 
-/-- **Canonical semantic root** (`tr_k_descends_to_A_k`): for every class
-function `f` on `TupleClass T (K+1) B W`, the trace `tr_k B W f`
-factors through the level-`K` `tupleEquiv` quotient.
+/-! ##### Section-level notes on the canonical root
 
-This is the SINGLE theorem behind the current three parallel frontiers:
-`DecLabeledGraphTr.eval_tupleEquiv_invariant`,
-`traceMeasure_eq_of_tupleEquiv`, and
-`starMultigraphEval_tupleEquiv_invariant_direct`. All three reduce to
-this one statement via descent + pushforward arguments; the current
-cycle among them is the semantic manifestation of having three names
-for one theorem.
+The trace operator `tr_k` above sends class functions on
+`TupleClass T (K+1) B W` to raw functions on `Fin K → Fin T`. The key
+question: does the output descend through the level-`K` `tupleEquiv`
+quotient? This is the content of `tr_k_descends_to_A_k` below — the
+SINGLE theorem behind the three current frontiers
+(`DecLabeledGraphTr.eval_tupleEquiv_invariant`,
+`traceMeasure_eq_of_tupleEquiv`,
+`starMultigraphEval_tupleEquiv_invariant_direct`).
 
-**Proof strategy** (future session): either
-  (a) new mathematical content for this theorem (a form of Lovász's
-      A_k algebra stability argument at the trace operator level), or
-  (b) pivot to explicit Lovász A_k / connection-matrix machinery,
-  (c) keep the current wiring through the existing cycle.
+Per user's post-step-1 analysis, the cycle among those three is
+the semantic manifestation of having three names for one theorem.
+`tr_k_descends_to_A_k` (below) is now the canonically-named target;
+its proof reduces via `simpleGraphEvalOn_spans` + `tr_k` linearity to
+the **generator theorem** `tr_k_generator_descends`, which is the
+minimal mathematical content.
 
-**Requires** `hB` (symmetric B) — same reason as `starKernel_tupleEquiv_invariant`:
+**Requires** `hB` (symmetric B), same reason as `starKernel_tupleEquiv_invariant`:
 without `hB`, `Quot.out` orientations disagree with the fixed-orientation
-`B`-argument convention in `starKernel` / `starMultigraphEval`.
+`B`-argument convention in `starKernel` / `starMultigraphEval`. -/
 
-**Status**: this is the bounded-design-session handoff point per user
-directive. Future proving work should attack this theorem directly. -/
-private theorem tr_k_descends_to_A_k {T K : ℕ}
+/-! ##### tr_k linearity (trivial, needed for the wrapper proof below) -/
+
+/-- `tr_k` is zero on the zero function. -/
+private lemma tr_k_zero {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ : Fin K → Fin T) :
+    tr_k B W (fun _ => (0 : ℝ)) ξ = 0 := by
+  unfold tr_k; simp
+
+/-- `tr_k` distributes over addition of class functions. -/
+private lemma tr_k_add {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f g : TupleClass T (K + 1) B W → ℝ) (ξ : Fin K → Fin T) :
+    tr_k B W (fun q => f q + g q) ξ = tr_k B W f ξ + tr_k B W g ξ := by
+  unfold tr_k
+  rw [← Finset.sum_add_distrib]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  ring
+
+/-- `tr_k` is homogeneous in scalar multiplication by a real constant. -/
+private lemma tr_k_smul {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (c : ℝ) (f : TupleClass T (K + 1) B W → ℝ) (ξ : Fin K → Fin T) :
+    tr_k B W (fun q => c * f q) ξ = c * tr_k B W f ξ := by
+  unfold tr_k
+  rw [Finset.mul_sum]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  ring
+
+/-! ##### Generator theorem — the NEW canonical root
+
+Per user directive (narrower than full `tr_k_descends_to_A_k`): attack
+the single-generator case first. The full theorem
+`tr_k_descends_to_A_k` reduces to this via `simpleGraphEvalOn_spans`
++ `tr_k` linearity (the wrapper proof below).
+
+If this generator theorem lands, all three current frontiers collapse:
+  - `traceMeasure_eq_of_tupleEquiv` (equivalent via pushforward).
+  - `starMultigraphEval_tupleEquiv_invariant_direct` (via kernel descent).
+  - `Dtr.eval_tupleEquiv_invariant` (via Dup assembly + `DecLabeledGraph.eval_tupleEquiv_invariant`).
+
+If this theorem resists, the honest conclusion is that the root is
+specifically "trace of generator products descends", and we should
+stop renaming and attack the Lovász A_k connection-matrix machinery. -/
+
+/-- **Generator theorem** — the NEW canonical mathematical frontier.
+
+For every list `L` of `(K+1)`-labeled simple graphs and
+`tupleEquiv B W ξ ξ'` at level `K`:
+```
+  tr_k B W (simpleGraphEvalOn B W L) ξ = tr_k B W (simpleGraphEvalOn B W L) ξ'.
+```
+
+Equivalently (via `traceMeasure_pushforward`):
+```
+  ∑ t, W t · (L.map (fun p => labeledEvalK p.1 p.2 B W (Fin.snoc ξ t))).prod =
+  ∑ t, W t · (L.map (fun p => labeledEvalK p.1 p.2 B W (Fin.snoc ξ' t))).prod.
+```
+
+This is the **canonical sorry** going forward. All downstream theorems
+(`tr_k_descends_to_A_k` by wrapper, and the three current frontiers by
+corollary chain) should route through this.
+
+**Requires** `hB`: symmetric B (same reason as `starKernel_tupleEquiv_invariant`). -/
+private theorem tr_k_generator_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (f : TupleClass T (K + 1) B W → ℝ)
+    (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
     {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ') :
-    tr_k B W f ξ = tr_k B W f ξ' := by
+    tr_k B W (simpleGraphEvalOn B W L) ξ =
+    tr_k B W (simpleGraphEvalOn B W L) ξ' := by
   sorry
+
+/-- **`tr_k_descends_to_A_k`** — the FULL trace-descent theorem, now
+PROVED as a wrapper over the generator theorem via
+`simpleGraphEvalOn_spans` + linearity.
+
+Per user directive: the mathematical content lives entirely in
+`tr_k_generator_descends`. This theorem is a mechanical reduction. -/
+private theorem tr_k_descends_to_A_k {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (f : TupleClass T (K + 1) B W → ℝ)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
+    tr_k B W f ξ = tr_k B W f ξ' := by
+  classical
+  -- Expand `f` into coefficient list form via `simpleGraphEvalOn_spans`.
+  obtain ⟨coeffs, hcoeffs⟩ := simpleGraphEvalOn_spans B W f
+  -- `tr_k` sends `f` to a sum indexed by `coeffs`, each term linear in
+  -- `tr_k B W (simpleGraphEvalOn B W L)`. Apply the generator theorem
+  -- term-by-term.
+  suffices hswap : ∀ cs : List (ℝ × List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1))))),
+      tr_k B W (fun q => (cs.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) ξ =
+      tr_k B W (fun q => (cs.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) ξ' by
+    have h_ξ : tr_k B W f ξ =
+        tr_k B W (fun q => (coeffs.map
+          (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) ξ := by
+      unfold tr_k
+      refine Finset.sum_congr rfl fun t _ => ?_
+      rw [hcoeffs ⟦Fin.snoc ξ t⟧]
+    have h_ξ' : tr_k B W f ξ' =
+        tr_k B W (fun q => (coeffs.map
+          (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) ξ' := by
+      unfold tr_k
+      refine Finset.sum_congr rfl fun t _ => ?_
+      rw [hcoeffs ⟦Fin.snoc ξ' t⟧]
+    rw [h_ξ, h_ξ', hswap coeffs]
+  -- Induct on `cs`; each step uses linearity + generator theorem.
+  intro cs
+  induction cs with
+  | nil =>
+    simp only [List.map_nil, List.sum_nil]
+    rw [tr_k_zero, tr_k_zero]
+  | cons p rest ih =>
+    -- Head + tail decomposition.
+    have hsplit : ∀ ξ₀ : Fin K → Fin T,
+        tr_k B W (fun q =>
+          ((p :: rest).map (fun p' => p'.1 * simpleGraphEvalOn B W p'.2 q)).sum) ξ₀ =
+        tr_k B W (fun q => p.1 * simpleGraphEvalOn B W p.2 q) ξ₀ +
+        tr_k B W (fun q =>
+          (rest.map (fun p' => p'.1 * simpleGraphEvalOn B W p'.2 q)).sum) ξ₀ := by
+      intro ξ₀
+      rw [show (fun q : TupleClass T (K + 1) B W =>
+            ((p :: rest).map (fun p' => p'.1 * simpleGraphEvalOn B W p'.2 q)).sum) =
+          (fun q => p.1 * simpleGraphEvalOn B W p.2 q +
+            (rest.map (fun p' => p'.1 * simpleGraphEvalOn B W p'.2 q)).sum) from by
+        funext q; simp [List.map_cons, List.sum_cons]]
+      rw [tr_k_add]
+    rw [hsplit ξ, hsplit ξ', ih]
+    -- Head term: apply generator theorem with scalar pull-out.
+    have h_gen : tr_k B W (fun q => p.1 * simpleGraphEvalOn B W p.2 q) ξ =
+                 tr_k B W (fun q => p.1 * simpleGraphEvalOn B W p.2 q) ξ' := by
+      rw [tr_k_smul, tr_k_smul, tr_k_generator_descends B hB W p.2 h]
+    rw [h_gen]
 
 /-! ##### Trace measure on `(K+1)`-tuple classes — canonical frontier
 
