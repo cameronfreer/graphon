@@ -8151,19 +8151,13 @@ private theorem traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv {T K : ℕ}
     (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1))))) :
     ∑ q : TupleClass T (K + 1) B W, traceMeasure B W ξ q * simpleGraphEvalOn B W L q =
     ∑ q : TupleClass T (K + 1) B W, traceMeasure B W ξ' q * simpleGraphEvalOn B W L q := by
+  -- REWIRED: thin wrapper around `tr_k_generator_descends` via
+  -- `traceMeasure_pushforward`. No more cycle through
+  -- `Dtr.eval_tupleEquiv_invariant`.
   classical
-  -- Apply pushforward to convert both sides to t-sums over tuples.
   rw [traceMeasure_pushforward, traceMeasure_pushforward]
-  -- Now each side: ∑ t, W t * simpleGraphEvalOn B W L ⟦Fin.snoc ξ/ξ' t⟧.
-  -- By definition, simpleGraphEvalOn B W L ⟦φ⟧ = (L.map (fun p => labeledEvalK p.1 p.2 B W φ)).prod.
-  -- Inline the product_trace_identity content (via
-  -- `product_trace_identity_of_eval_tupleEquiv_invariant` at L7081), since
-  -- `product_trace_identity` (at L8611) would be a forward reference here.
-  show (∑ t : Fin T, W t * simpleGraphEvalOn B W L ⟦(Fin.snoc ξ t : Fin (K + 1) → Fin T)⟧) =
-       ∑ t : Fin T, W t * simpleGraphEvalOn B W L ⟦(Fin.snoc ξ' t : Fin (K + 1) → Fin T)⟧
-  exact product_trace_identity_of_eval_tupleEquiv_invariant B hB W
-    (fun {K' n} (Dtr : DecLabeledGraphTr K' n) {_ξ _ξ'} hh =>
-      Dtr.eval_tupleEquiv_invariant B hB W hh) h L
+  -- Each side is now `tr_k B W (simpleGraphEvalOn B W L) ξ/ξ'`.
+  exact tr_k_generator_descends B hB W L h
 
 /-- **Trace-measure class-invariance** — PROVED via the two-piece
 A_k package (generator theorem + quotient fullness).
@@ -8884,11 +8878,13 @@ last label of the product `∏ labeledEvalK(F_j)` at `Fin.snoc ξ t` is equal fo
 to make `coeffRestrict_equiv` (Claim 4.2) IH-free, via `functional_span_zero`
 on the quotient by `(k+1)`-`tupleEquiv`.
 
-**Proof path** (landing `DecLabeledGraph` algebra + extension theorem):
-Uses `product_trace_identity_of_eval_tupleEquiv_invariant` (Reduction 1)
-with `DecLabeledGraphTr.eval_tupleEquiv_invariant` as the extension
-hypothesis `h_mg_inv`. The latter is the single remaining frontier (see
-L7056). -/
+**Proof path** (REWIRED per user directive): thin wrapper around
+`tr_k_generator_descends` via unfolding `tr_k` and `simpleGraphEvalOn`.
+Previously used `product_trace_identity_of_eval_tupleEquiv_invariant`
+with `Dtr.eval_tupleEquiv_invariant` as hypothesis — that created the
+semantic cycle identified in prior analysis. The new path routes
+through the canonical root `tr_k_generator_descends`, eliminating the
+cycle. -/
 private theorem product_trace_identity {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) {k : ℕ}
     {ξ ξ' : Fin k → Fin T} (h : tupleEquiv B W ξ ξ')
@@ -8900,10 +8896,13 @@ private theorem product_trace_identity {T : ℕ}
     ∑ t : Fin T, W t *
       (L.map (fun p =>
         @labeledEvalK T (k + 1) p.1 p.2 (Classical.decRel _) B W
-          (Fin.snoc ξ' t))).prod :=
-  product_trace_identity_of_eval_tupleEquiv_invariant B hB W
-    (fun {K n} (Dtr : DecLabeledGraphTr K n) {_ξ _ξ'} hh =>
-      Dtr.eval_tupleEquiv_invariant B hB W hh) h L
+          (Fin.snoc ξ' t))).prod := by
+  -- Reroute through the canonical root `tr_k_generator_descends`.
+  -- `tr_k B W (simpleGraphEvalOn B W L) ξ` definitionally unfolds to
+  -- `∑ t, W t · simpleGraphEvalOn B W L ⟦Fin.snoc ξ t⟧`, and
+  -- `simpleGraphEvalOn B W L ⟦φ⟧` = `(L.map labeledEvalK at φ).prod`
+  -- by `Quotient.lift_mk`.
+  exact tr_k_generator_descends B hB W L h
 
 set_option maxHeartbeats 4000000 in
 /-- **Trace invariance of `coeffRestrict`** (Claim 4.2 core, IH-free):
