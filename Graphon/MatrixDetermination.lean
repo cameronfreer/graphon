@@ -6698,10 +6698,51 @@ private theorem DecLabeledGraph.trace_eval {T K n : ℕ}
       convert this using 0
     rw [h1, h2]
 
-/-- **`tupleEquiv`-invariance of the traced evaluation**. Since
-`DecLabeledGraphTr.eval` at level `K` is a finite product/sum of level-`K`
-`labeledEvalK` components (the LL factor, lu0 factor, and graph factor
-all reduce to level-`K` semantics), `tupleEquiv B W ξ ξ'` preserves it. -/
+/-- **`tupleEquiv`-invariance of the traced evaluation**.
+
+Per user directive (after the kernel-side refactor lands): this theorem
+should reduce to an **assembly proof** using the newly-canonical A_k
+frontier (`starKernel_tupleEquiv_invariant`) plus the already-proved
+trace-descent piece. No new math required.
+
+**Assembly sketch** (forward-referenced definitions — defer to next
+proving session):
+
+Decompose `Dtr.eval B W ξ` as:
+  `LLFactor(ξ) * (σ-sum)`
+where
+  - `LLFactor(ξ) := ∏ s : Sym2 (Fin K), B(ξ·,ξ·)^{Dtr.llMult s}`
+    is ξ-only. Invariance: each `B(ξ a, ξ b)` is a single-LL-edge
+    labeledEvalK at level `K`, n=0; tupleEquiv at level `K` makes each
+    factor invariant; raising to powers + product preserves invariance.
+    (NO multigraph frontier needed — just simple-graph tupleEquiv.)
+  - `σ-sum := ∑ σ : Fin n → Fin T, (∏ W σ) · lu0FactorAt(ξ, σ) · edgeProd(ξ, σ)`.
+    For `n = 0`: trivial (∑_σ reduces to singleton, lu0FactorAt = 1,
+    no edges). Already ξ-invariant.
+    For `n = n'+1`: split `σ = Fin.cons σ_0 σ_rest`. The σ_0-dependent
+    factor is `W(σ_0) · (∏_a B(ξ a, σ_0)^{Dtr.lu0Mult a}) · G(ξ, σ_0)`
+    where `G(ξ, σ_0) = ∑_{σ_rest} (∏ W σ_rest) · (edgeProd at σ)`.
+
+    Now package: for `η = Fin.snoc ξ σ_0 : Fin (K+1) → Fin T`,
+    the integrand becomes
+    `W(η last) · starKernel B Dtr.lu0Mult η · G_η`
+    where `G_η` is a level-`(K+1)` `labeledEvalK`-like quantity over
+    `Dtr.graph` re-viewed at level `K+1` (position `K` in `Fin (n+K)`
+    becomes the `Fin.last K` label at level `K+1`).
+
+    Both factors descend to `TupleClass T (K+1) B W`:
+    * `starKernel B Dtr.lu0Mult η` descends by
+      `starKernel_tupleEquiv_invariant` (the NEW frontier).
+    * `G_η` descends by the definition of tupleEquiv at level `K+1`
+      (it's a simple-graph `labeledEvalK`).
+
+    Their product descends. Apply `traceMeasure_eq_of_tupleEquiv` at
+    level `K`: the trace pairing equals for ξ and ξ'. QED.
+
+**Status**: the assembly is MECHANICAL given `starKernel_tupleEquiv_invariant`;
+it involves Fin-index manipulations (Fin.cons split, graph reshaping at
+position `K` vs `Fin.last K`, Sym2 reindexing) which total ~150-300 lines
+of Lean. Deferred to the follow-up session dedicated to Level 2 cash-out. -/
 private theorem DecLabeledGraphTr.eval_tupleEquiv_invariant {T K n : ℕ}
     (Dtr : DecLabeledGraphTr K n) (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
@@ -7921,11 +7962,18 @@ together with the already-proved `traceMeasure_eq_of_tupleEquiv`.
 in `ℝ[B_{ij}]`, applied at level `K+1`. The question reduces to: do
 multigraph B-power products descend to the `(K+1)`-tupleEquiv quotient?
 
-**Falsification gate passed**: the parent theorem
-`starMultigraphEval_tupleEquiv_invariant_direct` was empirically tested
-(see its docstring). This kernel descent is a natural strengthening and
-should inherit correctness. A separate Python falsification gate on
-`starKernel` itself is straightforward if needed. -/
+**Direct falsification gate passed**: exhaustive Python search directly
+on `starKernel_tupleEquiv_invariant` (NOT via the parent theorem):
+  - `T = 2, K = 1` (level 2, `η : Fin 2 → Fin T`): 6144 (B, W) pairs
+    over B-entries in `{-1, 0, 1, 2}` (including non-symmetric) and
+    W-entries in `{1, -1}` (including negative); 288 satisfy
+    `tupleEquiv` at level 2 up to `n = 3`; **0 counterexamples** for
+    `m ∈ {2, 3}`.
+  - `T = 2, K = 2` (level 3, `η : Fin 3 → Fin T`): 1792 pairs tested
+    with `m ∈ {(2,1), (2,0), (1,2), (2,2)}`; 288 satisfy `tupleEquiv`;
+    **0 counterexamples**.
+Statement survives at both levels K+1=2 and K+1=3 without `hB`/`hW`/
+`htwin`. No assumption tightening needed. -/
 private theorem starKernel_tupleEquiv_invariant {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (m : Fin K → ℕ)
     {η η' : Fin (K + 1) → Fin T} (h : tupleEquiv B W η η') :
