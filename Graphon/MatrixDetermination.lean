@@ -6160,6 +6160,84 @@ private lemma DecLabeledGraph.noLL_graph {K n : ℕ} (D : DecLabeledGraph K n)
     (a b : Fin (n + K)) (ha : a.val < K) (hb : b.val < K) : ¬ D.graph.Adj a b :=
   D.noLL a b ha hb
 
+/-- **Step 1 helper** (per user directive for breaking the L6710 cycle):
+ordinary decorated graph `eval` is `tupleEquiv`-invariant.
+
+For `D : DecLabeledGraph K n` with `D.llMult` vanishing on Sym2 diagonals
+(holds for all `ofSimple`/`one`/`mul`-built D), and `tupleEquiv B W ξ ξ'`
+at level `K`:
+  `D.eval B W ξ = D.eval B W ξ'`.
+
+**Proof**: straightforward decomposition into:
+  - `labeledEvalK K n D.graph`: tupleEquiv directly.
+  - For each off-diagonal LL factor `B(ξ x, ξ y)^{m}`: single-LL-edge
+    labeledEvalK at level `K`, n=0 (with `hB`) gives invariance of
+    `B(ξ x)(ξ y)`; powers + products preserve.
+
+**Diagonal hypothesis**: `h_noDiag : ∀ x, D.llMult s(x, x) = 0`. Diagonal
+terms `B(ξ x, ξ x)^m` are not generally tupleEquiv-invariant (SimpleGraph
+forbids self-loops, so the single-edge trick fails). The hypothesis is
+sound for all DecLabeledGraphs built via `ofSimple`/`one`/`mul` since
+those constructors produce llMult that vanishes on diagonals. -/
+private theorem DecLabeledGraph.eval_tupleEquiv_invariant {T K n : ℕ}
+    (D : DecLabeledGraph K n) (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (h_noDiag : ∀ x : Fin K, D.llMult s(x, x) = 0)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
+    D.eval B W ξ = D.eval B W ξ' := by
+  classical
+  unfold DecLabeledGraph.eval
+  congr 1
+  · -- LL factor invariance.
+    refine Finset.prod_congr rfl fun s _ => ?_
+    -- For each s : Sym2 (Fin K), B(ξ Quot.out.1)(ξ Quot.out.2)^llMult s = same for ξ'.
+    -- Split on whether s is diagonal.
+    induction s using Sym2.ind with
+    | h x y =>
+      by_cases hxy : x = y
+      · -- Diagonal case: llMult s = 0 by h_noDiag, so both sides are 1.
+        subst hxy
+        rw [h_noDiag x, pow_zero, pow_zero]
+      · -- Off-diagonal case: use single-edge labeledEvalK + tupleEquiv.
+        rw [B_quot_out_eq hB ξ x y, B_quot_out_eq hB ξ' x y]
+        congr 1
+        -- Build single-edge graph F at level K, n=0 with edge s(x, y).
+        let u : Fin (0 + K) := ⟨x.val, by have := x.isLt; omega⟩
+        let v : Fin (0 + K) := ⟨y.val, by have := y.isLt; omega⟩
+        have hne : u ≠ v := by
+          simp only [ne_eq, Fin.mk.injEq, u, v]
+          intro h
+          apply hxy
+          exact Fin.ext h
+        let F : SimpleGraph (Fin (0 + K)) :=
+          { Adj := fun a b => (a = u ∧ b = v) ∨ (a = v ∧ b = u)
+            symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
+                                         (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+            loopless := fun _ h => by
+              rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+              · exact hne (h1.symm.trans h2)
+              · exact hne (h2.symm.trans h1) }
+        haveI : DecidableRel F.Adj := Classical.decRel _
+        have hedgeFin : F.edgeFinset = {s(u, v)} := by
+          apply Finset.eq_singleton_iff_unique_mem.mpr; constructor
+          · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
+          · intro e he
+            rw [SimpleGraph.mem_edgeFinset] at he
+            exact Sym2.ind (fun a b (hadj : F.Adj a b) => by
+              rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+              · rw [h1, h2]
+              · rw [h1, h2, Sym2.eq_swap]) e he
+        have hξ := labeledEvalK_singleEdge F hne hedgeFin B hB W ξ
+        have hξ' := labeledEvalK_singleEdge F hne hedgeFin B hB W ξ'
+        have hu_lt : u.val < K := by have := x.isLt; simp only [u]; omega
+        have hv_lt : v.val < K := by have := y.isLt; simp only [v]; omega
+        have hu_eq : (⟨u.val, hu_lt⟩ : Fin K) = x := Fin.ext rfl
+        have hv_eq : (⟨v.val, hv_lt⟩ : Fin K) = y := Fin.ext rfl
+        rw [hu_eq, hv_eq] at hξ hξ'
+        have hkey := h 0 F
+        linarith [hξ, hξ', hkey]
+  · -- labeledEvalK invariance via tupleEquiv at level K applied to D.graph.
+    exact h n D.graph
+
 /-! ### Traced decorated carrier
 
 `DecLabeledGraphTr` extends `DecLabeledGraph` with a `lu0Mult : Fin K → ℕ`
