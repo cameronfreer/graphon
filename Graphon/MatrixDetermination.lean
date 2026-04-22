@@ -6739,10 +6739,52 @@ where
     Their product descends. Apply `traceMeasure_eq_of_tupleEquiv` at
     level `K`: the trace pairing equals for ξ and ξ'. QED.
 
-**Status**: the assembly is MECHANICAL given `starKernel_tupleEquiv_invariant`;
-it involves Fin-index manipulations (Fin.cons split, graph reshaping at
-position `K` vs `Fin.last K`, Sym2 reindexing) which total ~150-300 lines
-of Lean. Deferred to the follow-up session dedicated to Level 2 cash-out. -/
+**Status**: BLOCKED by circular dependency (discovered after the kernel
+frontier was closed and an assembly attempt was made).
+
+**Circular dependency** (revealed by attempted cash-out):
+The assembly route needs `traceMeasure_eq_of_tupleEquiv` (L7810) to
+descend the σ-sum integrand to the quotient. But
+`traceMeasure_eq_of_tupleEquiv` is proved via
+`traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv` (L7788), which in
+turn calls `DecLabeledGraphTr.eval_tupleEquiv_invariant` directly
+(at L7805, inside the `product_trace_identity_of_eval_tupleEquiv_invariant`
+application). Cycle:
+```
+L6746 (Dtr.eval_tupleEquiv_invariant)
+  → traceMeasure_eq_of_tupleEquiv (L7810)
+  → traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv (L7788)
+  → Dtr.eval_tupleEquiv_invariant  [forward reference to L6746]
+```
+
+**Resolution options** (future session):
+  (a) **Refactor**: move `Dtr.eval_tupleEquiv_invariant` to AFTER the
+      `traceMeasure`/`starKernel` infrastructure (~L8100+), and rewrite
+      `traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv` to NOT directly
+      call `Dtr.eval_tupleEquiv_invariant` — e.g., by inlining the
+      algebra it relies on, or by making the theorem parametric over
+      multigraph invariance.
+  (b) **Direct proof**: find a proof of `Dtr.eval_tupleEquiv_invariant`
+      using ONLY infrastructure declared before L6746 (simple-graph
+      `tupleEquiv`, `labeledEvalK_singleEdge`, `hB`) — NOT via
+      `traceMeasure` or `starKernel`. Likely requires a fresh proof
+      technique.
+  (c) **Hypothesis relaxation**: add `h_noSelfLL : ∀ x, Dtr.llMult s(x, x) = 0`
+      to the theorem — needed anyway for the LL-factor diagonal case,
+      and already done in `trace_eval`. Allows a cleaner proof of the
+      LL factor piece.
+
+**Partial progress during the attempt (reverted)**: LL-factor invariance
+via `labeledEvalK_singleEdge` + diagonal hypothesis WAS verified to
+compile. The `n = 0` case WAS verified modulo instance-mismatch
+workarounds. The `n = n'+1` Dup construction WAS designed but its
+completion hit (1) the circular dependency and (2) rewriting motive
+issues with `SimpleGraph.map` + `Fintype` instance shadowing inside
+`DecLabeledGraphTr.eval`'s body.
+
+**Recommendation**: option (a) — structural refactor. The
+reorganization itself is ~50 lines; then the Dup assembly lands via
+the user's original plan. -/
 private theorem DecLabeledGraphTr.eval_tupleEquiv_invariant {T K n : ℕ}
     (Dtr : DecLabeledGraphTr K n) (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
