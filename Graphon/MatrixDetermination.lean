@@ -6862,7 +6862,43 @@ issues with `SimpleGraph.map` + `Fintype` instance shadowing inside
 
 **Recommendation**: option (a) — structural refactor. The
 reorganization itself is ~50 lines; then the Dup assembly lands via
-the user's original plan. -/
+the user's original plan.
+
+**UPDATE (post step-1 analysis — cycle is SEMANTIC)**: the user's
+stop-rule for the cycle-breaker attempt is triggered. Tracing the
+dependency closely:
+
+  - Closing `traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv` (the
+    generator theorem) directly — without invoking any traced-graph
+    invariance — reduces by `eval_ofSimple` / `eval_mul` / `trace_eval`
+    to closing `D.trace.eval B W ξ = D.trace.eval B W ξ'` for
+    `D : DecLabeledGraph (K+1) n` built via ofSimple/mul.
+  - That in turn, via `trace_eval`, reduces to closing
+    `∑ t, W t · D.eval B W (Fin.snoc ξ t) = same for ξ'`.
+  - `D.eval` at level K+1 is tupleEquiv-invariant at level K+1 (via the
+    just-proved `DecLabeledGraph.eval_tupleEquiv_invariant`), so
+    descends to `TupleClass T (K+1) B W → ℝ` as some `g`.
+  - The sum equality then reduces to `traceMeasure_eq_of_tupleEquiv`
+    for this specific `g` — which, via `simpleGraphEvalOn_spans`, is
+    equivalent to the generator theorem we started with.
+
+**Conclusion**: the true root theorem is the generator/trace-descent
+content, whatever name we give it. Renaming to
+`DecLabeledGraph.trace_tupleEquiv_invariant` does not eliminate the
+content — it relabels. The cycle is **semantic**, not just file order.
+
+**Per user's stop-rule**: the honest framing is that the frontier is
+`product_trace_identity` itself (the generator theorem with specific
+trace-descent content), NOT `Dtr.eval_tupleEquiv_invariant` at the
+arbitrary-Dtr level. The renaming clarifies this: future work should
+attack the generator theorem directly as the root. A pure file
+restructure cannot eliminate the content; what's needed is either:
+  (a') New mathematical content for the generator theorem (some form
+       of the A_k algebra argument with specific trace structure).
+  (b') Pivot to explicit Lovász A_k / connection-matrix machinery.
+  (c') Accept current state: 8 sorries total (1 frontier + 4 frozen +
+       3 architectural), with the algebraic chain wired through a
+       single semantic root. -/
 private theorem DecLabeledGraphTr.eval_tupleEquiv_invariant {T K n : ℕ}
     (Dtr : DecLabeledGraphTr K n) (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
