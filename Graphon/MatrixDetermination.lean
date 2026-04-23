@@ -7968,32 +7968,145 @@ If this theorem resists, the honest conclusion is that the root is
 specifically "trace of generator products descends", and we should
 stop renaming and attack the Lovász A_k connection-matrix machinery. -/
 
-/-- **Generator theorem** — the NEW canonical mathematical frontier.
+/-! **Generator theorem context**
 
 For every list `L` of `(K+1)`-labeled simple graphs and
 `tupleEquiv B W ξ ξ'` at level `K`:
 ```
   tr_k B W (simpleGraphEvalOn B W L) ξ = tr_k B W (simpleGraphEvalOn B W L) ξ'.
 ```
-
 Equivalently (via `traceMeasure_pushforward`):
 ```
   ∑ t, W t · (L.map (fun p => labeledEvalK p.1 p.2 B W (Fin.snoc ξ t))).prod =
   ∑ t, W t · (L.map (fun p => labeledEvalK p.1 p.2 B W (Fin.snoc ξ' t))).prod.
 ```
-
 This is the **canonical sorry** going forward. All downstream theorems
 (`tr_k_descends_to_A_k` by wrapper, and the three current frontiers by
-corollary chain) should route through this.
+corollary chain) route through `tr_k_generator_descends` below.
 
 **Requires** `hB`: symmetric B (same reason as `starKernel_tupleEquiv_invariant`). -/
+
+/-- **Singleton trace-descent lemma** (pass 1 of the tr_k_generator_descends
+attack): extracts the argument from `trace_eq` inside `coeffRestrict_equiv`
+into a reusable form.
+
+For a single simple graph `F` at level `K+1` with `n` unlabeled vertices,
+the `W`-weighted sum over the last label is a level-`K` `labeledEvalK`
+evaluation (via `labeledEvalK_sum_last_label` + val-preserving
+re-indexing `Fin (n + (K+1)) ≃ Fin ((n+1) + K)`). By `tupleEquiv` at
+level `K`, it is invariant. -/
+private theorem tr_k_singleton_descends {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (n : ℕ) (F : SimpleGraph (Fin (n + (K + 1)))) [DecidableRel F.Adj]
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
+    ∑ t : Fin T, W t * labeledEvalK (K + 1) n F B W (Fin.snoc ξ t) =
+    ∑ t : Fin T, W t * labeledEvalK (K + 1) n F B W (Fin.snoc ξ' t) := by
+  classical
+  -- Reshape F to G : SimpleGraph (Fin ((n+1) + K)) via val-preserving bijection.
+  let G : SimpleGraph (Fin ((n + 1) + K)) :=
+    { Adj := fun u v => F.Adj ⟨u.val, by have := u.isLt; omega⟩
+                              ⟨v.val, by have := v.isLt; omega⟩
+      symm := fun _ _ h => F.symm h
+      loopless := fun _ h => F.loopless _ h }
+  haveI : DecidableRel G.Adj := fun u v => inferInstanceAs
+    (Decidable (F.Adj ⟨u.val, _⟩ ⟨v.val, _⟩))
+  -- Bridge: `∑ t, W t · labeledEvalK (K+1) n F (snoc φ t) = labeledEvalK K (n+1) G φ`.
+  have bridge : ∀ φ : Fin K → Fin T,
+      ∑ t : Fin T, W t * labeledEvalK (K + 1) n F B W (Fin.snoc φ t) =
+      labeledEvalK K (n + 1) G B W φ := by
+    intro φ
+    rw [labeledEvalK_sum_last_label]
+    simp only [labeledEvalK]
+    refine Finset.sum_congr rfl fun σ' _ => ?_
+    congr 1
+    -- Edge-set bijection via `finCongr`.
+    let e := finCongr (show n + (K + 1) = n + 1 + K by omega)
+    apply Finset.prod_nbij' (Sym2.map e) (Sym2.map e.symm)
+    · intro a ha
+      refine Sym2.ind (fun u v h => ?_) a ha
+      rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+      rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h; exact h
+    · intro a ha
+      refine Sym2.ind (fun u v h => ?_) a ha
+      rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+      simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, G] at h; exact h
+    · intro a _
+      simp only [Sym2.map_map, Equiv.symm_comp_self]; exact congr_fun Sym2.map_id a
+    · intro a _
+      simp only [Sym2.map_map, Equiv.self_comp_symm]; exact congr_fun Sym2.map_id a
+    · intro a ha
+      refine Sym2.ind (fun u v _ => ?_) a ha
+      simp only [Sym2.map_pair_eq]
+      have hout_F := Sym2.rel_iff'.mp (Sym2.eq.mp (Quot.out_eq (s(u, v))))
+      have hout_G := Sym2.rel_iff'.mp
+        (Sym2.eq.mp (Quot.out_eq (s(e u, e v))))
+      suffices key : ∀ {m : ℕ} (a b : Fin m) (p : Fin m × Fin m),
+          p = (a, b) ∨ p = (b, a) →
+          ∀ (f : Fin m → Fin T),
+          B (f p.1) (f p.2) = B (f a) (f b) by
+        let τ_F : Fin (n + (K + 1)) → Fin T := fun x =>
+          if h : (x : ℕ) < K then φ ⟨x, h⟩ else σ' ⟨x.val - K, by have := x.isLt; omega⟩
+        let τ_G : Fin (n + 1 + K) → Fin T := fun x =>
+          if h : (x : ℕ) < K then φ ⟨x, h⟩ else σ' ⟨x.val - K, by have := x.isLt; omega⟩
+        rw [key u v _ hout_F τ_F, key (e u) (e v) _ hout_G τ_G]
+        congr 1 <;> { simp only [τ_F, τ_G, e, finCongr_apply, Fin.val_cast]
+                      split_ifs <;> congr 1 <;> exact Fin.ext rfl }
+      intro m a b p hp f
+      rcases hp with rfl | rfl
+      · rfl
+      · exact hB _ _
+  -- Now both sides via `bridge` reduce to `labeledEvalK K (n+1) G B W ξ/ξ'`,
+  -- and tupleEquiv at level K gives equality.
+  rw [bridge ξ, bridge ξ']
+  exact h (n + 1) G
+
+/-- The canonical frontier (see docstring above). Currently handles:
+  - `L = []`: trivial (both sides equal `∑ t, W t`).
+  - `L = [⟨n, F⟩]`: reduces to `tr_k_singleton_descends`.
+  - `L` multi-element: **remaining sorry** — the real Lovász A_k content
+    per user's stop-rule. -/
 private theorem tr_k_generator_descends {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
-    {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ') :
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     tr_k B W (simpleGraphEvalOn B W L) ξ =
     tr_k B W (simpleGraphEvalOn B W L) ξ' := by
-  sorry
+  match L with
+  | [] =>
+    -- Empty product is 1 on both sides, sum reduces to ∑ W t (no ξ).
+    unfold tr_k
+    refine Finset.sum_congr rfl fun t _ => ?_
+    show W t * simpleGraphEvalOn B W [] _ = W t * simpleGraphEvalOn B W [] _
+    rw [simpleGraphEvalOn_nil, simpleGraphEvalOn_nil]
+  | [⟨n, F⟩] =>
+    -- Single-graph case: reduces to tr_k_singleton_descends.
+    -- `simpleGraphEvalOn B W [⟨n, F⟩] ⟦φ⟧` definitionally equals
+    -- `labeledEvalK (K+1) n F B W φ` (via `Quotient.lift_mk` +
+    -- `List.map_singleton` + `List.prod_singleton`).
+    haveI : DecidableRel F.Adj := Classical.decRel _
+    unfold tr_k
+    have hunfold : ∀ (φ : Fin (K + 1) → Fin T),
+        simpleGraphEvalOn B W
+            [(⟨n, F⟩ : (n : ℕ) × SimpleGraph (Fin (n + (K + 1))))] ⟦φ⟧ =
+          @labeledEvalK T (K + 1) n F (Classical.decRel _) B W φ := by
+      intro φ
+      show (List.map _ _).prod = _
+      simp
+    simp_rw [hunfold]
+    -- Bridge instance: `@labeledEvalK ... (Classical.decRel _) ... = @labeledEvalK ... this ...`
+    -- (Subsingleton on DecidableRel); then apply the singleton lemma.
+    have hinst : ∀ (φ : Fin (K + 1) → Fin T),
+        @labeledEvalK T (K + 1) n F (Classical.decRel _) B W φ =
+        @labeledEvalK T (K + 1) n F _ B W φ := by
+      intro φ; congr 1
+    simp_rw [hinst]
+    exact tr_k_singleton_descends B hB W n F h
+  | _ :: _ :: _ =>
+    -- Multi-element list: the real Lovász A_k frontier. Per user's
+    -- stop-rule, if this resists quick reduction to the binary product
+    -- case via `simpleGraphEvalOn_append`, pivot to explicit Lovász
+    -- machinery.
+    sorry
 
 /-- **`tr_k_descends_to_A_k`** — the FULL trace-descent theorem, now
 PROVED as a wrapper over the generator theorem via
