@@ -8060,11 +8060,51 @@ private theorem tr_k_singleton_descends {T K : ℕ}
   rw [bridge ξ, bridge ξ']
   exact h (n + 1) G
 
-/-- The canonical frontier (see docstring above). Currently handles:
+/-- **Binary product descent** (pass 3 target): the tr_k of a pointwise
+product of two simpleGraphEvalOn generators descends.
+
+**Status**: STUB — the actual Lovász A_k content (per user's stop-rule).
+
+**Analysis** (confirming this IS the content):
+`tr_k B W (f · g) ξ = ∑ t, W t · simpleGraphEvalOn B W L₁ ⟦snoc ξ t⟧
+                      · simpleGraphEvalOn B W L₂ ⟦snoc ξ t⟧`.
+By `simpleGraphEvalOn_append`, this equals
+`tr_k B W (simpleGraphEvalOn B W (L₁ ++ L₂)) ξ`. So the binary theorem
+is the `(L₁ ++ L₂)` case of `tr_k_generator_descends` — stating it
+separately is a *renaming*, not a reduction to simpler content.
+
+**Proof attempt, sketching the obstruction**:
+  1. `labeledEvalK_factor_LL` on each `F_i` extracts LL factors.
+  2. `labeledEvalK_glue` on stripped (no-LL) graphs combines them.
+  3. Net: LL factor product · labeledEvalK of glued graph.
+  4. `snoc_LL_decomp` on LL factor product splits into `Inner(ξ) ·
+     Cross(ξ, t)` where `Cross(ξ, t) = ∏_a B(ξ a, t)^{m_a}` with
+     `m_a` = number of input `F_i` containing the `(a.castSucc, Fin.last K)`
+     LL-cross edge.
+  5. For `m_a ≥ 2`: `Cross` has multigraph content at level K+1 that
+     cannot be absorbed as simple-graph edges. This is the exact Lovász
+     A_k obstruction identified across multiple sessions.
+
+**Per user's stop-rule**: this theorem's resistance confirms the
+remaining content is genuinely multigraph A_k algebra (not algebraic
+gymnastics). Next session should pivot to explicit Lovász A_k /
+connection-matrix machinery, not further local refactoring. -/
+private theorem tr_k_binary_product_descends {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (L₁ L₂ : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
+    {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ') :
+    tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ =
+    tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ' := by
+  sorry
+
+/-- The canonical frontier. PROVED as:
   - `L = []`: trivial (both sides equal `∑ t, W t`).
   - `L = [⟨n, F⟩]`: reduces to `tr_k_singleton_descends`.
-  - `L` multi-element: **remaining sorry** — the real Lovász A_k content
-    per user's stop-rule. -/
+  - `L = p :: rest` multi-element: induction via
+    `simpleGraphEvalOn_append` + `tr_k_binary_product_descends`.
+
+The "multi-element sorry" has been pushed into `tr_k_binary_product_descends`,
+which is the actual semantic root per the pass-3 analysis. -/
 private theorem tr_k_generator_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
@@ -8080,9 +8120,6 @@ private theorem tr_k_generator_descends {T K : ℕ}
     rw [simpleGraphEvalOn_nil, simpleGraphEvalOn_nil]
   | [⟨n, F⟩] =>
     -- Single-graph case: reduces to tr_k_singleton_descends.
-    -- `simpleGraphEvalOn B W [⟨n, F⟩] ⟦φ⟧` definitionally equals
-    -- `labeledEvalK (K+1) n F B W φ` (via `Quotient.lift_mk` +
-    -- `List.map_singleton` + `List.prod_singleton`).
     haveI : DecidableRel F.Adj := Classical.decRel _
     unfold tr_k
     have hunfold : ∀ (φ : Fin (K + 1) → Fin T),
@@ -8093,20 +8130,35 @@ private theorem tr_k_generator_descends {T K : ℕ}
       show (List.map _ _).prod = _
       simp
     simp_rw [hunfold]
-    -- Bridge instance: `@labeledEvalK ... (Classical.decRel _) ... = @labeledEvalK ... this ...`
-    -- (Subsingleton on DecidableRel); then apply the singleton lemma.
     have hinst : ∀ (φ : Fin (K + 1) → Fin T),
         @labeledEvalK T (K + 1) n F (Classical.decRel _) B W φ =
         @labeledEvalK T (K + 1) n F _ B W φ := by
       intro φ; congr 1
     simp_rw [hinst]
     exact tr_k_singleton_descends B hB W n F h
-  | _ :: _ :: _ =>
-    -- Multi-element list: the real Lovász A_k frontier. Per user's
-    -- stop-rule, if this resists quick reduction to the binary product
-    -- case via `simpleGraphEvalOn_append`, pivot to explicit Lovász
-    -- machinery.
-    sorry
+  | p :: q :: rest =>
+    -- Multi-element list: `p :: q :: rest = [p] ++ (q :: rest)`.
+    -- Apply `simpleGraphEvalOn_append` + binary product theorem.
+    have h_split : ∀ (r : TupleClass T (K + 1) B W),
+        simpleGraphEvalOn B W (p :: q :: rest) r =
+        simpleGraphEvalOn B W [p] r * simpleGraphEvalOn B W (q :: rest) r := by
+      intro r
+      rw [show (p :: q :: rest) = [p] ++ (q :: rest) from rfl,
+          simpleGraphEvalOn_append]
+    have h_ξ : tr_k B W (simpleGraphEvalOn B W (p :: q :: rest)) ξ =
+        tr_k B W (fun r =>
+          simpleGraphEvalOn B W [p] r * simpleGraphEvalOn B W (q :: rest) r) ξ := by
+      unfold tr_k
+      refine Finset.sum_congr rfl fun t _ => ?_
+      rw [h_split]
+    have h_ξ' : tr_k B W (simpleGraphEvalOn B W (p :: q :: rest)) ξ' =
+        tr_k B W (fun r =>
+          simpleGraphEvalOn B W [p] r * simpleGraphEvalOn B W (q :: rest) r) ξ' := by
+      unfold tr_k
+      refine Finset.sum_congr rfl fun t _ => ?_
+      rw [h_split]
+    rw [h_ξ, h_ξ']
+    exact tr_k_binary_product_descends B hB W [p] (q :: rest) h
 
 /-- **`tr_k_descends_to_A_k`** — the FULL trace-descent theorem, now
 PROVED as a wrapper over the generator theorem via
