@@ -8118,13 +8118,140 @@ NOT graph gadgets (which rebuild the LL-cross multigraph obstruction).
 
 **Downstream** (wired in this commit): `tr_k_binary_product_descends`
 is a direct corollary by specializing `f = simpleGraphEvalOn B W L₁`,
-`g = simpleGraphEvalOn B W L₂`. -/
-private theorem Ak_trace_stable {T K : ℕ}
+`g = simpleGraphEvalOn B W L₂`.
+
+**Generator-pair specialization** (`Ak_trace_stable_generators` below)
+is now the primitive sorry: the general `Ak_trace_stable` reduces to
+it via `simpleGraphEvalOn_spans` + linearity (`tr_k_add`, `tr_k_smul`,
+`tr_k_zero`). -/
+private theorem Ak_trace_stable_generators {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (f g : AkFun T (K + 1) B W)
+    (L₁ L₂ : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
     {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ') :
-    tr_k B W (fun q => f q * g q) ξ = tr_k B W (fun q => f q * g q) ξ' := by
+    tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ =
+    tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ' := by
   sorry
+
+private theorem Ak_trace_stable {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (f g : AkFun T (K + 1) B W)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
+    tr_k B W (fun q => f q * g q) ξ = tr_k B W (fun q => f q * g q) ξ' := by
+  classical
+  -- Expand `f` and `g` into coefficient list form via `simpleGraphEvalOn_spans`.
+  obtain ⟨cF, hF⟩ := simpleGraphEvalOn_spans B W f
+  obtain ⟨cG, hG⟩ := simpleGraphEvalOn_spans B W g
+  -- Replace `f q * g q` inside `tr_k` with the expanded form pointwise.
+  have h_rewrite : ∀ ξ₀ : Fin K → Fin T,
+      tr_k B W (fun q => f q * g q) ξ₀ =
+      tr_k B W (fun q =>
+        (cF.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum *
+        (cG.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) ξ₀ := by
+    intro ξ₀
+    simp only [tr_k]
+    refine Finset.sum_congr rfl fun t _ => ?_
+    rw [hF ⟦Fin.snoc ξ₀ t⟧, hG ⟦Fin.snoc ξ₀ t⟧]
+  rw [h_rewrite ξ, h_rewrite ξ']
+  -- Helper: for a fixed generator list `L₁`, inner induction on
+  -- `csG` reduces `tr_k (gen L₁ * csG_sum)` via `tr_k_add`, `tr_k_smul`,
+  -- `tr_k_zero` to the generator-pair primitive.
+  have inner : ∀ (L₁ : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
+      (csG : List (ℝ × List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))),
+      tr_k B W (fun q =>
+        simpleGraphEvalOn B W L₁ q *
+        (csG.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) ξ =
+      tr_k B W (fun q =>
+        simpleGraphEvalOn B W L₁ q *
+        (csG.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) ξ' := by
+    intro L₁ csG
+    induction csG with
+    | nil =>
+      have hz : (fun q : TupleClass T (K + 1) B W =>
+          simpleGraphEvalOn B W L₁ q *
+          (List.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)
+              ([] : List (ℝ × List (Σ (n : ℕ),
+                  SimpleGraph (Fin (n + (K + 1))))))).sum) =
+          fun _ => (0 : ℝ) := by
+        funext q
+        simp
+      rw [hz, tr_k_zero, tr_k_zero]
+    | cons pG restG ihG =>
+      -- Split the right factor head.
+      have hsplit : ∀ ξ₀ : Fin K → Fin T,
+          tr_k B W (fun q =>
+            simpleGraphEvalOn B W L₁ q *
+            ((pG :: restG).map
+              (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) ξ₀ =
+          tr_k B W (fun q => pG.1 *
+            (simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W pG.2 q)) ξ₀ +
+          tr_k B W (fun q =>
+            simpleGraphEvalOn B W L₁ q *
+            (restG.map
+              (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) ξ₀ := by
+        intro ξ₀
+        rw [show (fun q : TupleClass T (K + 1) B W =>
+              simpleGraphEvalOn B W L₁ q *
+              ((pG :: restG).map
+                (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) =
+            (fun q => pG.1 *
+              (simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W pG.2 q) +
+              simpleGraphEvalOn B W L₁ q *
+                (restG.map
+                  (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) from by
+          funext q; simp [List.map_cons, List.sum_cons]; ring]
+        rw [tr_k_add]
+      rw [hsplit ξ, hsplit ξ', ihG]
+      -- Pure generator-pair (scaled) term: apply primitive.
+      rw [tr_k_smul, tr_k_smul,
+          Ak_trace_stable_generators B hB W L₁ pG.2 h]
+  -- Outer induction on csF, using inner at each generator-head step.
+  suffices hkey : ∀ (csF csG : List (ℝ × List (Σ (n : ℕ),
+        SimpleGraph (Fin (n + (K + 1)))))),
+      tr_k B W (fun q =>
+        (csF.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum *
+        (csG.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) ξ =
+      tr_k B W (fun q =>
+        (csF.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum *
+        (csG.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) ξ' by
+    exact hkey cF cG
+  intro csF csG
+  induction csF with
+  | nil =>
+    have hz : (fun q : TupleClass T (K + 1) B W =>
+        (List.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)
+            ([] : List (ℝ × List (Σ (n : ℕ),
+                SimpleGraph (Fin (n + (K + 1))))))).sum *
+        (List.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q) csG).sum) =
+        fun _ => (0 : ℝ) := by
+      funext q
+      simp
+    rw [hz, tr_k_zero, tr_k_zero]
+  | cons pF restF ihF =>
+    have hsplitF : ∀ ξ₀ : Fin K → Fin T,
+        tr_k B W (fun q =>
+          ((pF :: restF).map
+            (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum *
+          (csG.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) ξ₀ =
+        tr_k B W (fun q => pF.1 *
+          (simpleGraphEvalOn B W pF.2 q *
+            (csG.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum)) ξ₀ +
+        tr_k B W (fun q =>
+          (restF.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum *
+          (csG.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) ξ₀ := by
+      intro ξ₀
+      rw [show (fun q : TupleClass T (K + 1) B W =>
+            ((pF :: restF).map
+              (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum *
+            (csG.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) =
+          (fun q => pF.1 *
+            (simpleGraphEvalOn B W pF.2 q *
+              (csG.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) +
+            (restF.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum *
+              (csG.map (fun p => p.1 * simpleGraphEvalOn B W p.2 q)).sum) from by
+        funext q; simp [List.map_cons, List.sum_cons]; ring]
+      rw [tr_k_add]
+    rw [hsplitF ξ, hsplitF ξ', ihF]
+    rw [tr_k_smul, tr_k_smul, inner pF.2 csG]
 
 /-- **Binary product descent** — now PROVED as a direct specialization
 of `Ak_trace_stable` to generator arguments.
@@ -8137,7 +8264,7 @@ private theorem tr_k_binary_product_descends {T K : ℕ}
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ =
     tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ' :=
-  Ak_trace_stable B hB W (simpleGraphEvalOn B W L₁) (simpleGraphEvalOn B W L₂) h
+  Ak_trace_stable_generators B hB W L₁ L₂ h
 
 /-- The canonical frontier. PROVED as:
   - `L = []`: trivial (both sides equal `∑ t, W t`).
