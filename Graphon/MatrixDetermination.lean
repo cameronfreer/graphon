@@ -8098,39 +8098,160 @@ products of `simpleGraphEvalOn` generators. -/
 private abbrev AkFun (T K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) : Type :=
   TupleClass T K B W → ℝ
 
-/-- **Lovász A_k trace stability** — the paper-faithful named target.
+/-! ##### Connection-matrix view — paper-faithful frontier
 
-For any two class functions `f g : AkFun T (K+1) B W`, the pointwise
-product `f · g` is a class function at level K+1 (trivially: `AkFun` is
-closed under pointwise multiplication), and by this theorem its trace
-`tr_k B W (f · g)` descends to a class function at level K.
+Per user directive (post-`Ak_trace_stable_generators` session): the
+actual mathematical content of the remaining sorry is Lovász's
+connection-matrix trace-stability theorem. Name it in those terms by
+introducing the **column view** `connCol` and phrasing the sorry as a
+weighted inner product of two columns.
 
-**Connection-matrix formulation**: with `f, g` viewed as "diagonals" of
-connection matrices (equivalently: functions on the level-(K+1)
-quotient), `tr_k` corresponds to the standard matrix trace operation
-folding the last label into an unlabeled dimension. Lovász's
-connection-matrix argument (TR-2004-82 §3, Theorem 3.1) says this
-folding preserves the algebra of functions on the level-K quotient.
+**Column view.** For a list `L` of `(K+1)`-labeled simple graphs,
+```
+connCol B W L ξ t := simpleGraphEvalOn B W L ⟦Fin.snoc ξ t⟧
+```
+is the `(ξ, t)`-entry of the connection matrix `M(L)` (Hadamard product
+over `L` of single-graph connection matrices).
 
-**Status**: STUB — the actual Lovász A_k content. Per the user's
-stop-rule, further progress requires the paper-faithful argument,
-NOT graph gadgets (which rebuild the LL-cross multigraph obstruction).
+**Frontier.** `weightedInnerProduct_descends` states that the W-weighted
+inner product of two columns descends through the level-`K` `tupleEquiv`
+quotient:
+```
+∑ t, W t · connCol L₁ ξ t · connCol L₂ ξ t =
+∑ t, W t · connCol L₁ ξ' t · connCol L₂ ξ' t  whenever tupleEquiv B W ξ ξ'.
+```
+This is `Tr(M(L₁) * M(L₂))` viewed as a function of the row index `ξ`.
+Trace stability (Lovász TR-2004-82 §3, Theorem 3.1).
 
-**Downstream** (wired in this commit): `tr_k_binary_product_descends`
-is a direct corollary by specializing `f = simpleGraphEvalOn B W L₁`,
-`g = simpleGraphEvalOn B W L₂`.
+**Step 4 attempt (and the cycle).** The obvious reduction chain
+```
+  LHS = ∑ t, W t · simpleGraphEvalOn B W (L₁ ++ L₂) ⟦Fin.snoc ξ t⟧  [connCol_append]
+      = tr_k B W (simpleGraphEvalOn B W (L₁ ++ L₂)) ξ               [defn tr_k]
+      = tr_k B W (simpleGraphEvalOn B W (L₁ ++ L₂)) ξ'              [tr_k_generator_descends]
+      = RHS.
+```
+works for `|L₁ ++ L₂| ≤ 1` (the `tr_k_singleton_descends` cases closed
+by `tr_k_generator_descends` directly) but **loops** for
+`|L₁ ++ L₂| ≥ 2`: `tr_k_generator_descends` routes the multi-element
+case through `tr_k_binary_product_descends`, which routes through
+`Ak_trace_stable_generators`, which (below) routes through
+`weightedInnerProduct_descends`. The cycle confirms this is the
+*precise* Lovász connection-matrix frontier — not a Lean bookkeeping
+artifact. Further progress requires the paper-faithful connection-matrix
+argument (or the graph-gadget route via `labeledEvalK_glue`, itself
+sorry'd).
 
-**Generator-pair specialization** (`Ak_trace_stable_generators` below)
-is now the primitive sorry: the general `Ak_trace_stable` reduces to
-it via `simpleGraphEvalOn_spans` + linearity (`tr_k_add`, `tr_k_smul`,
-`tr_k_zero`). -/
-private theorem Ak_trace_stable_generators {T K : ℕ}
+**Wiring.** `Ak_trace_stable_generators` (below) is now a proved
+corollary of `weightedInnerProduct_descends` via pointwise reshape of
+`tr_k`-of-product into `connCol`-inner-product form. -/
+
+/-- Column view of the connection matrix: `connCol B W L ξ t` is the
+product of `labeledEvalK` evaluations of `L` at the labeled tuple
+`Fin.snoc ξ t`. Equivalently, `simpleGraphEvalOn B W L ⟦Fin.snoc ξ t⟧`. -/
+private noncomputable def connCol {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
+    (ξ : Fin K → Fin T) (t : Fin T) : ℝ :=
+  simpleGraphEvalOn B W L ⟦Fin.snoc ξ t⟧
+
+/-- Empty-list column is the constant 1. -/
+private lemma connCol_nil {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ : Fin K → Fin T) (t : Fin T) :
+    connCol B W ([] : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1))))) ξ t = 1 := by
+  unfold connCol; exact simpleGraphEvalOn_nil B W ⟦Fin.snoc ξ t⟧
+
+/-- Append-of-lists column is the pointwise product of columns. -/
+private lemma connCol_append {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (L₁ L₂ : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
+    (ξ : Fin K → Fin T) (t : Fin T) :
+    connCol B W (L₁ ++ L₂) ξ t = connCol B W L₁ ξ t * connCol B W L₂ ξ t := by
+  unfold connCol; exact simpleGraphEvalOn_append B W L₁ L₂ ⟦Fin.snoc ξ t⟧
+
+/-- Singleton-list column is the single-graph `labeledEvalK` value. -/
+private lemma connCol_singleton {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (n : ℕ) (F : SimpleGraph (Fin (n + (K + 1)))) [DecidableRel F.Adj]
+    (ξ : Fin K → Fin T) (t : Fin T) :
+    connCol B W [(⟨n, F⟩ : (n : ℕ) × SimpleGraph (Fin (n + (K + 1))))] ξ t =
+    labeledEvalK (K + 1) n F B W (Fin.snoc ξ t) := by
+  unfold connCol
+  show (List.map
+      (fun p : (n : ℕ) × SimpleGraph (Fin (n + (K + 1))) =>
+        @labeledEvalK T (K + 1) p.1 p.2 (Classical.decRel _) B W (Fin.snoc ξ t))
+      [⟨n, F⟩]).prod = _
+  simp only [List.map_cons, List.map_nil, List.prod_cons, List.prod_nil, mul_one]
+  congr 1
+
+/-- **Weighted inner product of two connection-matrix columns descends
+through the level-`K` `tupleEquiv` quotient** — the Lovász
+connection-matrix trace-stability theorem (TR-2004-82 §3, Theorem 3.1).
+
+For `L₁, L₂ : List of (K+1)-labeled simple graphs` and level-`K`
+tuples `ξ, ξ'` with `tupleEquiv B W ξ ξ'`:
+```
+∑ t, W t · connCol L₁ ξ t · connCol L₂ ξ t =
+∑ t, W t · connCol L₁ ξ' t · connCol L₂ ξ' t.
+```
+This is `Tr(M(L₁) * M(L₂))` at row index `ξ`, with `*` the Hadamard
+product of connection matrices.
+
+**Status.** Sole live mathematical sorry in the Lovász chain. See the
+section docstring above for the cycle analysis that identifies this
+as the precise paper-faithful frontier.
+
+**Singleton recovery.** `L₁ = [⟨n, F⟩]`, `L₂ = []` reduces to
+`tr_k_singleton_descends` — see `weightedInnerProduct_descends_singleton`
+below. -/
+private theorem weightedInnerProduct_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (L₁ L₂ : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
     {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ') :
+    ∑ t : Fin T, W t * connCol B W L₁ ξ t * connCol B W L₂ ξ t =
+    ∑ t : Fin T, W t * connCol B W L₁ ξ' t * connCol B W L₂ ξ' t := by
+  sorry
+
+/-- **Singleton recovery** — specialize `weightedInnerProduct_descends`
+to `L₁ = [⟨n, F⟩]`, `L₂ = []`. After `connCol_nil` and
+`connCol_singleton` rewrites this reduces to `tr_k_singleton_descends`,
+which is already proved. Covers the rank-1 slice of the frontier for
+free; the genuinely new content is `|L₁| ≥ 1 ∧ |L₂| ≥ 1`. -/
+private lemma weightedInnerProduct_descends_singleton {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (n : ℕ) (F : SimpleGraph (Fin (n + (K + 1)))) [DecidableRel F.Adj]
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
+    (∑ t : Fin T, W t *
+        connCol B W [(⟨n, F⟩ : (n : ℕ) × SimpleGraph (Fin (n + (K + 1))))] ξ t *
+        connCol B W ([] : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1))))) ξ t) =
+    (∑ t : Fin T, W t *
+        connCol B W [(⟨n, F⟩ : (n : ℕ) × SimpleGraph (Fin (n + (K + 1))))] ξ' t *
+        connCol B W ([] : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1))))) ξ' t) := by
+  simp_rw [connCol_nil, connCol_singleton, mul_one]
+  exact tr_k_singleton_descends B hB W n F h
+
+/-- **Generator-pair trace stability** — PROVED as a corollary of
+`weightedInnerProduct_descends`.
+
+The `tr_k`-trace of a product of two `simpleGraphEvalOn` generators
+descends through the level-`K` `tupleEquiv` quotient. After unfolding
+`tr_k` and re-bracketing `W t * (a * b)` into `W t * a * b`, this is
+the weighted inner product of two connection-matrix columns. -/
+private theorem Ak_trace_stable_generators {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (L₁ L₂ : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ =
     tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ' := by
-  sorry
+  have reshape : ∀ ζ : Fin K → Fin T,
+      tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ζ =
+      ∑ t : Fin T, W t * connCol B W L₁ ζ t * connCol B W L₂ ζ t := by
+    intro ζ
+    unfold tr_k connCol
+    refine Finset.sum_congr rfl fun t _ => ?_
+    ring
+  rw [reshape ξ, reshape ξ']
+  exact weightedInnerProduct_descends B hB W L₁ L₂ h
 
 private theorem Ak_trace_stable {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
