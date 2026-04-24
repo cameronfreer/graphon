@@ -8060,42 +8060,84 @@ private theorem tr_k_singleton_descends {T K : ℕ}
   rw [bridge ξ, bridge ξ']
   exact h (n + 1) G
 
-/-- **Binary product descent** (pass 3 target): the tr_k of a pointwise
-product of two simpleGraphEvalOn generators descends.
+/-! ##### Lovász A_k module — connection-matrix trace stability
 
-**Status**: STUB — the actual Lovász A_k content (per user's stop-rule).
+Per user directive (paper-faithful framing, scoped narrowly): introduce
+the class-function algebra on `TupleClass T K B W` and name the
+remaining algebraic content after Lovász's connection-matrix trace
+stability theorem.
 
-**Analysis** (confirming this IS the content):
-`tr_k B W (f · g) ξ = ∑ t, W t · simpleGraphEvalOn B W L₁ ⟦snoc ξ t⟧
-                      · simpleGraphEvalOn B W L₂ ⟦snoc ξ t⟧`.
-By `simpleGraphEvalOn_append`, this equals
-`tr_k B W (simpleGraphEvalOn B W (L₁ ++ L₂)) ξ`. So the binary theorem
-is the `(L₁ ++ L₂)` case of `tr_k_generator_descends` — stating it
-separately is a *renaming*, not a reduction to simpler content.
+- `AkFun T K B W := TupleClass T K B W → ℝ` — class-function algebra.
+  Fullness via `simpleGraphEvalOn_spans` (Step 4, closed): every
+  `AkFun` is a ℝ-linear combination of products of `simpleGraphEvalOn`
+  generators.
+- `tr_k` (defined above) is the trace operator
+  `(AkFun T (K+1)) → ((Fin K → Fin T) → ℝ)`.
+- The Lovász trace-stability theorem says `tr_k` maps products of class
+  functions to class functions at level K (equivalently, the trace of
+  a product of generators descends through the level-`K` tupleEquiv
+  quotient).
 
-**Proof attempt, sketching the obstruction**:
-  1. `labeledEvalK_factor_LL` on each `F_i` extracts LL factors.
-  2. `labeledEvalK_glue` on stripped (no-LL) graphs combines them.
-  3. Net: LL factor product · labeledEvalK of glued graph.
-  4. `snoc_LL_decomp` on LL factor product splits into `Inner(ξ) ·
-     Cross(ξ, t)` where `Cross(ξ, t) = ∏_a B(ξ a, t)^{m_a}` with
-     `m_a` = number of input `F_i` containing the `(a.castSucc, Fin.last K)`
-     LL-cross edge.
-  5. For `m_a ≥ 2`: `Cross` has multigraph content at level K+1 that
-     cannot be absorbed as simple-graph edges. This is the exact Lovász
-     A_k obstruction identified across multiple sessions.
+**Connection-matrix view** (Lovász TR-2004-82 §3): for a `(K+1)`-labeled
+graph `F` with `n` unlabeled vertices, the connection matrix
+`M(F) : (Fin K → Fin T) × Fin T → ℝ` is defined by
+`M(F)[ξ, t] := labeledEvalK (K+1) n F B W (Fin.snoc ξ t)`.
+The trace `Tr(M(F)) : (Fin K → Fin T) → ℝ` is
+`Tr(M(F))[ξ] := ∑ t, W t · M(F)[ξ, t] = tr_k B W (labeledEvalK F) ξ`.
 
-**Per user's stop-rule**: this theorem's resistance confirms the
-remaining content is genuinely multigraph A_k algebra (not algebraic
-gymnastics). Next session should pivot to explicit Lovász A_k /
-connection-matrix machinery, not further local refactoring. -/
-private theorem tr_k_binary_product_descends {T K : ℕ}
+Multiplicativity of connection matrices (for graphs F, G with shared
+labels and disjoint unlabeled vertex sets) says
+`M(F ⊔ G) = M(F) * M(G)` (Hadamard product in this indexing).
+Trace-stability is the assertion that `Tr(M(F) * M(G))` descends to a
+class function on `TupleClass T K B W`. This is the canonical target
+per Lovász's paper-faithful proof strategy. -/
+
+/-- Class-function algebra on `TupleClass T K B W`. By
+`simpleGraphEvalOn_spans`, every element is a ℝ-linear combination of
+products of `simpleGraphEvalOn` generators. -/
+private abbrev AkFun (T K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) : Type :=
+  TupleClass T K B W → ℝ
+
+/-- **Lovász A_k trace stability** — the paper-faithful named target.
+
+For any two class functions `f g : AkFun T (K+1) B W`, the pointwise
+product `f · g` is a class function at level K+1 (trivially: `AkFun` is
+closed under pointwise multiplication), and by this theorem its trace
+`tr_k B W (f · g)` descends to a class function at level K.
+
+**Connection-matrix formulation**: with `f, g` viewed as "diagonals" of
+connection matrices (equivalently: functions on the level-(K+1)
+quotient), `tr_k` corresponds to the standard matrix trace operation
+folding the last label into an unlabeled dimension. Lovász's
+connection-matrix argument (TR-2004-82 §3, Theorem 3.1) says this
+folding preserves the algebra of functions on the level-K quotient.
+
+**Status**: STUB — the actual Lovász A_k content. Per the user's
+stop-rule, further progress requires the paper-faithful argument,
+NOT graph gadgets (which rebuild the LL-cross multigraph obstruction).
+
+**Downstream** (wired in this commit): `tr_k_binary_product_descends`
+is a direct corollary by specializing `f = simpleGraphEvalOn B W L₁`,
+`g = simpleGraphEvalOn B W L₂`. -/
+private theorem Ak_trace_stable {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (L₁ L₂ : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
+    (f g : AkFun T (K + 1) B W)
     {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ') :
-    tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ =
-    tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ' := by
+    tr_k B W (fun q => f q * g q) ξ = tr_k B W (fun q => f q * g q) ξ' := by
   sorry
+
+/-- **Binary product descent** — now PROVED as a direct specialization
+of `Ak_trace_stable` to generator arguments.
+
+See `Ak_trace_stable` (above) for the actual sorry, and the Lovász
+connection-matrix framing of the remaining content. -/
+private theorem tr_k_binary_product_descends {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (L₁ L₂ : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
+    tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ =
+    tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ' :=
+  Ak_trace_stable B hB W (simpleGraphEvalOn B W L₁) (simpleGraphEvalOn B W L₂) h
 
 /-- The canonical frontier. PROVED as:
   - `L = []`: trivial (both sides equal `∑ t, W t`).
