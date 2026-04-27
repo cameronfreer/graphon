@@ -8201,9 +8201,44 @@ product of connection matrices.
 section docstring above for the cycle analysis that identifies this
 as the precise paper-faithful frontier.
 
+**Falsification gate** (see `scripts/falsify_weighted_inner_product.py`):
+1.13M random tests across `K ∈ {1, 2}`, `T ∈ {2, 3, 4}`, with
+positive / signed / zero / all-zero `W`, twin-row B, and degenerate
+B/W patterns. Zero failures observed. Statement holds without a
+positivity hypothesis `hW : ∀ i, 0 < W i` — keep current signature.
+
 **Singleton recovery.** `L₁ = [⟨n, F⟩]`, `L₂ = []` reduces to
 `tr_k_singleton_descends` — see `weightedInnerProduct_descends_singleton`
-below. -/
+below.
+
+**Connection-matrix kernel form** (paper-faithful restatement). Let
+`δ : (Fin K → Fin T) → ℝ` be a level-`K` "tuple difference" — i.e., a
+finitely-supported signed measure on level-`K` tuples. Say δ
+*annihilates singleton traces* if for every `(n, F)` at level `K`,
+`∑_ξ δ(ξ) · labeledEvalK F ξ = 0`. By `simpleGraphEvalOn_separates` +
+linearity, this is equivalent to "δ = 0 on the level-`K` `tupleEquiv`
+quotient", and `δ_ξ - δ_{ξ'}` for `tupleEquiv B W ξ ξ'` is the
+canonical example.
+
+Equivalent statement: for every such δ and every `L₁ L₂` at level `K+1`,
+`∑_ξ δ(ξ) · (∑_t W(t) · connCol L₁ ξ t · connCol L₂ ξ t) = 0`. Lovász
+TR-2004-82 §3 phrases this as: the `tupleEquiv`-quotient of the Gram
+matrix `M(L₁)^T · diag(W) · M(L₂)` is well-defined.
+
+**Lift lemma sketch** (for the next session). The "obvious" kernel
+reduction goes: extend `δ` to a level-`K+1` measure
+`δ'_(snoc ξ t) := δ(ξ) · W(t)`. Then `labeledEvalK_sum_last_label`
+gives, for every `F'` at level `K+1`:
+`∑_η δ'(η) · labeledEvalK F' η = ∑_ξ δ(ξ) · labeledEvalK G_F' ξ`
+where `G_F'` is a level-`K` graph. So `δ'` annihilates *single-graph*
+evaluations at level `K+1`. The remaining gap is to extend annihilation
+from singles to PRODUCTS (i.e., `simpleGraphEvalOn` of arbitrary lists)
+— precisely the content of `labeledEvalK_glue` (which IS proved at
+L5785, with a no-LL hypothesis). The kernel argument can therefore be
+closed via a `stripLL` + iterated-glue gadget; alternatively, by a
+single-graph spanning result at level `K+1` (Lovász Theorem 3.1
+applied to the level-`K+1` connection matrix). Both are gadget-style
+and outside this session's scope. -/
 private theorem weightedInnerProduct_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (L₁ L₂ : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
