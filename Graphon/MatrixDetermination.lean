@@ -8184,6 +8184,82 @@ private lemma connCol_singleton {T K : ℕ}
   simp only [List.map_cons, List.map_nil, List.prod_cons, List.prod_nil, mul_one]
   congr 1
 
+/-! ##### Decorated-graph carrier for `connCol` — concrete assembly
+
+Per user directive: build the closure of `weightedInnerProduct_descends`
+via the `DecLabeledGraph.ofSimple` / `mul` / `trace` layer, landing the
+descent claim at the existing `DecLabeledGraphTr.eval_tupleEquiv_invariant`
+sorry (L6913). This collapses two equivalent live sorries into one
+canonical Lovász §3 frontier theorem.
+
+Pipeline:
+1. `connListD L`: fold the list into a single `DecLabeledGraph (K+1) N`
+   via `DecLabeledGraph.one` + `ofSimple` + `mul`.
+2. `connListD_eval`: the carrier evaluates to `connCol B W L`.
+3. `connListD_noSelfLastLL`: the LL-multiplicity at the diagonal pair
+   `s(Fin.last K, Fin.last K)` is zero (simple graphs have no
+   self-loops; `ofSimple`'s `llMult` is therefore zero on diagonals,
+   and `mul` preserves this by pointwise sum).
+4. `DecLabeledGraph.trace_eval`: `∑_t W(t) · D.eval (snoc ξ t) = D.trace.eval ξ`
+   (requires `noSelfLastLL`).
+5. `DecLabeledGraphTr.eval_tupleEquiv_invariant`: `D.trace.eval` descends
+   through `tupleEquiv` at level `K`. (This is the canonical sorry.) -/
+
+/-- **Existence of a decorated-graph carrier for a list of `(K+1)`-labeled
+simple graphs.** Built by list induction using `DecLabeledGraph.one`,
+`ofSimple`, and `mul`.
+
+The carrier `D : DecLabeledGraph (K+1) N` satisfies:
+1. `D.eval B W (Fin.snoc ξ t) = connCol B W L ξ t` for all `ξ, t`.
+2. `D.llMult s(Fin.last K, Fin.last K) = 0` (no self-loops at the
+   last label, since each `(n, F) ∈ L` is a simple graph and `mul`
+   preserves the diagonal-zero property by pointwise sum).
+
+Both properties are essential for routing through
+`DecLabeledGraph.trace_eval`. -/
+private theorem exists_decGraph_for_connCol {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1))))) :
+    ∃ (N : ℕ) (D : DecLabeledGraph (K + 1) N),
+      (∀ (ξ : Fin K → Fin T) (t : Fin T),
+          D.eval B W (Fin.snoc ξ t) = connCol B W L ξ t) ∧
+      D.llMult s(Fin.last K, Fin.last K) = 0 := by
+  classical
+  induction L with
+  | nil =>
+    refine ⟨0, DecLabeledGraph.one (K + 1), ?_, rfl⟩
+    intro ξ t
+    rw [DecLabeledGraph.eval_one, connCol_nil]
+  | cons p rest ih =>
+    haveI : DecidableRel p.2.Adj := Classical.decRel _
+    obtain ⟨N_rest, D_rest, h_eval_rest, h_self_rest⟩ := ih
+    refine ⟨p.1 + N_rest, (DecLabeledGraph.ofSimple p.2).mul D_rest, ?_, ?_⟩
+    · intro ξ t
+      rw [DecLabeledGraph.eval_mul _ _ B hB W,
+          DecLabeledGraph.eval_ofSimple p.2 B hB W, h_eval_rest ξ t]
+      -- Goal: labeledEvalK p.1 p.2 (snoc ξ t) * connCol rest ξ t = connCol (p :: rest) ξ t
+      show _ * connCol B W rest ξ t = connCol B W (p :: rest) ξ t
+      unfold connCol
+      change _ = simpleGraphEvalOn B W ([p] ++ rest) ⟦Fin.snoc ξ t⟧
+      rw [simpleGraphEvalOn_append]
+      congr 1
+      -- Show labeledEvalK p.1 p.2 (snoc ξ t) = simpleGraphEvalOn [p] ⟦snoc ξ t⟧.
+      change @labeledEvalK T (K + 1) p.1 p.2 _ B W (Fin.snoc ξ t) =
+             (List.map (fun q : (n : ℕ) × SimpleGraph (Fin (n + (K + 1))) =>
+                 @labeledEvalK T (K + 1) q.1 q.2 (Classical.decRel _) B W (Fin.snoc ξ t)) [p]).prod
+      simp only [List.map_cons, List.map_nil, List.prod_cons, List.prod_nil, mul_one]
+      congr 1
+    · -- LL-multiplicity at the diagonal `s(last K, last K)`.
+      show (DecLabeledGraph.ofSimple p.2).llMult s(Fin.last K, Fin.last K) +
+           D_rest.llMult s(Fin.last K, Fin.last K) = 0
+      rw [h_self_rest, add_zero]
+      change (if Sym2.map (DecLabeledGraph.labelEmbed (n := p.1))
+              s(Fin.last K, Fin.last K) ∈ p.2.edgeFinset then (1 : ℕ) else 0) = 0
+      rw [if_neg]
+      intro h
+      rw [Sym2.map_pair_eq, SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h
+      exact p.2.loopless _ h
+
 /-- **Weighted inner product of two connection-matrix columns descends
 through the level-`K` `tupleEquiv` quotient** — the Lovász
 connection-matrix trace-stability theorem (TR-2004-82 §3, Theorem 3.1).
@@ -8197,55 +8273,55 @@ tuples `ξ, ξ'` with `tupleEquiv B W ξ ξ'`:
 This is `Tr(M(L₁) * M(L₂))` at row index `ξ`, with `*` the Hadamard
 product of connection matrices.
 
-**Status.** Sole live mathematical sorry in the Lovász chain. See the
-section docstring above for the cycle analysis that identifies this
-as the precise paper-faithful frontier.
+**Status.** PROVED via the assembly route through the
+`DecLabeledGraph.ofSimple` / `mul` / `trace` layer; the sole live
+sorry in the chain is now `DecLabeledGraphTr.eval_tupleEquiv_invariant`
+(L6913) — the canonical Lovász §3 frontier theorem.
 
 **Falsification gate** (see `scripts/falsify_weighted_inner_product.py`):
 1.13M random tests across `K ∈ {1, 2}`, `T ∈ {2, 3, 4}`, with
 positive / signed / zero / all-zero `W`, twin-row B, and degenerate
 B/W patterns. Zero failures observed. Statement holds without a
-positivity hypothesis `hW : ∀ i, 0 < W i` — keep current signature.
+positivity hypothesis `hW : ∀ i, 0 < W i`.
 
-**Singleton recovery.** `L₁ = [⟨n, F⟩]`, `L₂ = []` reduces to
-`tr_k_singleton_descends` — see `weightedInnerProduct_descends_singleton`
-below.
-
-**Connection-matrix kernel form** (paper-faithful restatement). Let
-`δ : (Fin K → Fin T) → ℝ` be a level-`K` "tuple difference" — i.e., a
-finitely-supported signed measure on level-`K` tuples. Say δ
-*annihilates singleton traces* if for every `(n, F)` at level `K`,
-`∑_ξ δ(ξ) · labeledEvalK F ξ = 0`. By `simpleGraphEvalOn_separates` +
-linearity, this is equivalent to "δ = 0 on the level-`K` `tupleEquiv`
-quotient", and `δ_ξ - δ_{ξ'}` for `tupleEquiv B W ξ ξ'` is the
-canonical example.
-
-Equivalent statement: for every such δ and every `L₁ L₂` at level `K+1`,
-`∑_ξ δ(ξ) · (∑_t W(t) · connCol L₁ ξ t · connCol L₂ ξ t) = 0`. Lovász
-TR-2004-82 §3 phrases this as: the `tupleEquiv`-quotient of the Gram
-matrix `M(L₁)^T · diag(W) · M(L₂)` is well-defined.
-
-**Lift lemma sketch** (for the next session). The "obvious" kernel
-reduction goes: extend `δ` to a level-`K+1` measure
-`δ'_(snoc ξ t) := δ(ξ) · W(t)`. Then `labeledEvalK_sum_last_label`
-gives, for every `F'` at level `K+1`:
-`∑_η δ'(η) · labeledEvalK F' η = ∑_ξ δ(ξ) · labeledEvalK G_F' ξ`
-where `G_F'` is a level-`K` graph. So `δ'` annihilates *single-graph*
-evaluations at level `K+1`. The remaining gap is to extend annihilation
-from singles to PRODUCTS (i.e., `simpleGraphEvalOn` of arbitrary lists)
-— precisely the content of `labeledEvalK_glue` (which IS proved at
-L5785, with a no-LL hypothesis). The kernel argument can therefore be
-closed via a `stripLL` + iterated-glue gadget; alternatively, by a
-single-graph spanning result at level `K+1` (Lovász Theorem 3.1
-applied to the level-`K+1` connection matrix). Both are gadget-style
-and outside this session's scope. -/
+**Proof outline** (now wired):
+1. `exists_decGraph_for_connCol`: list-induction builds a single
+   `D : DecLabeledGraph (K + 1) N` with `D.eval (snoc ξ t) = connCol L ξ t`
+   and `D.llMult s(last K, last K) = 0`. The induction uses
+   `DecLabeledGraph.one`, `ofSimple`, and `mul` (all proved). The
+   `mul` step relies on `labeledEvalK_glue` (L5785, fully proved).
+2. `connCol_append`: `connCol L₁ * connCol L₂ = connCol (L₁ ++ L₂)`.
+3. `DecLabeledGraph.trace_eval`: `∑_t W(t) · D.eval (snoc ξ t) = D.trace.eval ξ`
+   (uses the `noSelfLastLL` hypothesis).
+4. `DecLabeledGraphTr.eval_tupleEquiv_invariant`: descent of the
+   traced object at level `K`. **(Sorry'd at L6913 — canonical Lovász
+   §3 frontier.)** -/
 private theorem weightedInnerProduct_descends {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (L₁ L₂ : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
-    {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ') :
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     ∑ t : Fin T, W t * connCol B W L₁ ξ t * connCol B W L₂ ξ t =
     ∑ t : Fin T, W t * connCol B W L₁ ξ' t * connCol B W L₂ ξ' t := by
-  sorry
+  obtain ⟨_, D, h_eval, h_self⟩ := exists_decGraph_for_connCol B hB W (L₁ ++ L₂)
+  have reshape : ∀ ζ : Fin K → Fin T,
+      ∑ t : Fin T, W t * connCol B W L₁ ζ t * connCol B W L₂ ζ t =
+      D.trace.eval B W ζ := by
+    intro ζ
+    have step : ∀ t : Fin T,
+        W t * connCol B W L₁ ζ t * connCol B W L₂ ζ t =
+        W t * D.eval B W (Fin.snoc ζ t) := by
+      intro t
+      rw [show W t * connCol B W L₁ ζ t * connCol B W L₂ ζ t =
+              W t * (connCol B W L₁ ζ t * connCol B W L₂ ζ t) from by ring,
+          ← connCol_append B W L₁ L₂ ζ t,
+          ← h_eval ζ t]
+    calc ∑ t, W t * connCol B W L₁ ζ t * connCol B W L₂ ζ t
+        = ∑ t, W t * D.eval B W (Fin.snoc ζ t) :=
+            Finset.sum_congr rfl (fun t _ => step t)
+      _ = D.trace.eval B W ζ :=
+            DecLabeledGraph.trace_eval D B hB W h_self ζ
+  rw [reshape ξ, reshape ξ']
+  exact DecLabeledGraphTr.eval_tupleEquiv_invariant D.trace B hB W h
 
 /-- **Singleton recovery** — specialize `weightedInnerProduct_descends`
 to `L₁ = [⟨n, F⟩]`, `L₂ = []`. After `connCol_nil` and
