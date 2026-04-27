@@ -6776,7 +6776,7 @@ private theorem DecLabeledGraph.trace_eval {T K n : ℕ}
       convert this using 0
     rw [h1, h2]
 
-/-- **`tupleEquiv`-invariance of the traced evaluation**.
+/-! **`tupleEquiv`-invariance of the traced evaluation** — historical context.
 
 Per user directive (after the kernel-side refactor lands): this theorem
 should reduce to an **assembly proof** using the newly-canonical A_k
@@ -6910,12 +6910,95 @@ carrier) yields this theorem as a corollary. The current file
 organization still proves it via `traceMeasure_eq_of_tupleEquiv` →
 `product_trace_identity` cycle (semantic equivalence, not logical
 derivation). -/
+/-- **Restricted invariance theorem** (with `h_noDiag` hypothesis).
+
+**Falsification of the original unrestricted statement.** The earlier
+version of this theorem quantified over arbitrary
+`Dtr : DecLabeledGraphTr K n` without a no-diagonal-LL hypothesis. That
+statement is FALSE.
+
+Counterexample: `K = 1, n = 0, W ≡ 0`, symmetric `B` with distinct
+diagonal entries (e.g., `B 0 0 = 0`, `B 1 1 = 1`). Then `tupleEquiv B W
+ξ ξ'` holds vacuously for all `ξ, ξ' : Fin 1 → Fin T` because every
+`(n', F)` at level 1 evaluates to 0 (W ≡ 0 kills the σ-sum for
+n' ≥ 1; for n' = 0, the only level-1 simple graph has no edge, so
+labeledEvalK = 1 — same on both sides). But `Dtr` with
+`llMult s(0, 0) = 1` makes `Dtr.eval B W ξ = B (ξ 0) (ξ 0)`, which
+differs between `ξ 0 = 0` and `ξ' 0 = 1`.
+
+**Restriction.** Adding `h_noDiag : ∀ x, Dtr.llMult s(x, x) = 0` is
+satisfied by every traced object arising from the
+`DecLabeledGraph.ofSimple/mul/one/.trace` pipeline (see the
+`exists_decGraph_for_connCol` construction).
+
+**Proof status.** The LL factor is closed in-line by adapting the
+`DecLabeledGraph.eval_tupleEquiv_invariant` (L6182) pattern. The σ-sum
+part is the actual remaining multigraph-content frontier (the
+`Dtr.lu0FactorAt` term encodes parallel B-edges that simple-graph
+`tupleEquiv` does not directly constrain). -/
 private theorem DecLabeledGraphTr.eval_tupleEquiv_invariant {T K n : ℕ}
     (Dtr : DecLabeledGraphTr K n) (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (h_noDiag : ∀ x : Fin K, Dtr.llMult s(x, x) = 0)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     Dtr.eval B W ξ = Dtr.eval B W ξ' := by
-  sorry
+  classical
+  unfold DecLabeledGraphTr.eval
+  congr 1
+  · -- LL factor invariance, following the L6182 pattern.
+    refine Finset.prod_congr rfl fun s _ => ?_
+    induction s using Sym2.ind with
+    | h x y =>
+      by_cases hxy : x = y
+      · -- Diagonal: llMult = 0 by h_noDiag, both sides are 1.
+        subst hxy
+        rw [h_noDiag x, pow_zero, pow_zero]
+      · -- Off-diagonal: build a single-edge graph at level K, n = 0;
+        -- apply tupleEquiv to that single-edge graph.
+        rw [B_quot_out_eq hB ξ x y, B_quot_out_eq hB ξ' x y]
+        congr 1
+        let u : Fin (0 + K) := ⟨x.val, by have := x.isLt; omega⟩
+        let v : Fin (0 + K) := ⟨y.val, by have := y.isLt; omega⟩
+        have hne : u ≠ v := by
+          simp only [ne_eq, Fin.mk.injEq, u, v]
+          intro h
+          apply hxy
+          exact Fin.ext h
+        let F : SimpleGraph (Fin (0 + K)) :=
+          { Adj := fun a b => (a = u ∧ b = v) ∨ (a = v ∧ b = u)
+            symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
+                                         (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+            loopless := fun _ h => by
+              rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+              · exact hne (h1.symm.trans h2)
+              · exact hne (h2.symm.trans h1) }
+        haveI : DecidableRel F.Adj := Classical.decRel _
+        have hedgeFin : F.edgeFinset = {s(u, v)} := by
+          apply Finset.eq_singleton_iff_unique_mem.mpr; constructor
+          · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
+          · intro e he
+            rw [SimpleGraph.mem_edgeFinset] at he
+            exact Sym2.ind (fun a b (hadj : F.Adj a b) => by
+              rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+              · rw [h1, h2]
+              · rw [h1, h2, Sym2.eq_swap]) e he
+        have hξ := labeledEvalK_singleEdge F hne hedgeFin B hB W ξ
+        have hξ' := labeledEvalK_singleEdge F hne hedgeFin B hB W ξ'
+        have hu_lt : u.val < K := by have := x.isLt; simp only [u]; omega
+        have hv_lt : v.val < K := by have := y.isLt; simp only [v]; omega
+        have hu_eq : (⟨u.val, hu_lt⟩ : Fin K) = x := Fin.ext rfl
+        have hv_eq : (⟨v.val, hv_lt⟩ : Fin K) = y := Fin.ext rfl
+        rw [hu_eq, hv_eq] at hξ hξ'
+        have hkey := h 0 F
+        linarith [hξ, hξ', hkey]
+  · -- σ-sum invariance — the actual multigraph-content frontier.
+    -- The σ-sum involves `Dtr.lu0FactorAt B ξ σ = ∏ a, B(ξ a)(σ 0)^{Dtr.lu0Mult a}`,
+    -- which is genuine multi-edge content (parallel B-edges from each label `a` to
+    -- unlabeled position 0, with multiplicity `Dtr.lu0Mult a`). Closing this
+    -- invariance via simple-graph tupleEquiv requires either the iterated
+    -- `labeledEvalK_glue` route (carrying multi-edges through `DecLabeledGraph`-
+    -- derived Dtr's), or the direct Lovász A_k connection-matrix argument. -/
+    sorry
 
 /-! ### Step A: `ofSimple` — wrap a simple graph as a decorated graph -/
 
@@ -8223,38 +8306,37 @@ private theorem exists_decGraph_for_connCol {T K : ℕ}
     ∃ (N : ℕ) (D : DecLabeledGraph (K + 1) N),
       (∀ (ξ : Fin K → Fin T) (t : Fin T),
           D.eval B W (Fin.snoc ξ t) = connCol B W L ξ t) ∧
-      D.llMult s(Fin.last K, Fin.last K) = 0 := by
+      (∀ x : Fin (K + 1), D.llMult s(x, x) = 0) := by
   classical
   induction L with
   | nil =>
-    refine ⟨0, DecLabeledGraph.one (K + 1), ?_, rfl⟩
+    refine ⟨0, DecLabeledGraph.one (K + 1), ?_, fun _ => rfl⟩
     intro ξ t
     rw [DecLabeledGraph.eval_one, connCol_nil]
   | cons p rest ih =>
     haveI : DecidableRel p.2.Adj := Classical.decRel _
-    obtain ⟨N_rest, D_rest, h_eval_rest, h_self_rest⟩ := ih
+    obtain ⟨N_rest, D_rest, h_eval_rest, h_diag_rest⟩ := ih
     refine ⟨p.1 + N_rest, (DecLabeledGraph.ofSimple p.2).mul D_rest, ?_, ?_⟩
     · intro ξ t
       rw [DecLabeledGraph.eval_mul _ _ B hB W,
           DecLabeledGraph.eval_ofSimple p.2 B hB W, h_eval_rest ξ t]
-      -- Goal: labeledEvalK p.1 p.2 (snoc ξ t) * connCol rest ξ t = connCol (p :: rest) ξ t
       show _ * connCol B W rest ξ t = connCol B W (p :: rest) ξ t
       unfold connCol
       change _ = simpleGraphEvalOn B W ([p] ++ rest) ⟦Fin.snoc ξ t⟧
       rw [simpleGraphEvalOn_append]
       congr 1
-      -- Show labeledEvalK p.1 p.2 (snoc ξ t) = simpleGraphEvalOn [p] ⟦snoc ξ t⟧.
       change @labeledEvalK T (K + 1) p.1 p.2 _ B W (Fin.snoc ξ t) =
              (List.map (fun q : (n : ℕ) × SimpleGraph (Fin (n + (K + 1))) =>
                  @labeledEvalK T (K + 1) q.1 q.2 (Classical.decRel _) B W (Fin.snoc ξ t)) [p]).prod
       simp only [List.map_cons, List.map_nil, List.prod_cons, List.prod_nil, mul_one]
       congr 1
-    · -- LL-multiplicity at the diagonal `s(last K, last K)`.
-      show (DecLabeledGraph.ofSimple p.2).llMult s(Fin.last K, Fin.last K) +
-           D_rest.llMult s(Fin.last K, Fin.last K) = 0
-      rw [h_self_rest, add_zero]
+    · -- llMult on every diagonal pair `s(x, x)` is zero, by induction.
+      intro x
+      show (DecLabeledGraph.ofSimple p.2).llMult s(x, x) +
+           D_rest.llMult s(x, x) = 0
+      rw [h_diag_rest x, add_zero]
       change (if Sym2.map (DecLabeledGraph.labelEmbed (n := p.1))
-              s(Fin.last K, Fin.last K) ∈ p.2.edgeFinset then (1 : ℕ) else 0) = 0
+              s(x, x) ∈ p.2.edgeFinset then (1 : ℕ) else 0) = 0
       rw [if_neg]
       intro h
       rw [Sym2.map_pair_eq, SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h
@@ -8302,7 +8384,13 @@ private theorem weightedInnerProduct_descends {T K : ℕ}
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     ∑ t : Fin T, W t * connCol B W L₁ ξ t * connCol B W L₂ ξ t =
     ∑ t : Fin T, W t * connCol B W L₁ ξ' t * connCol B W L₂ ξ' t := by
-  obtain ⟨_, D, h_eval, h_self⟩ := exists_decGraph_for_connCol B hB W (L₁ ++ L₂)
+  obtain ⟨_, D, h_eval, h_diag⟩ := exists_decGraph_for_connCol B hB W (L₁ ++ L₂)
+  -- D's diagonal-zero property at level K+1 transports to D.trace at level K.
+  have h_trace_noDiag : ∀ x : Fin K, D.trace.llMult s(x, x) = 0 := by
+    intro x
+    show D.llMult (Sym2.map Fin.castSucc s(x, x)) = 0
+    rw [Sym2.map_pair_eq]
+    exact h_diag (Fin.castSucc x)
   have reshape : ∀ ζ : Fin K → Fin T,
       ∑ t : Fin T, W t * connCol B W L₁ ζ t * connCol B W L₂ ζ t =
       D.trace.eval B W ζ := by
@@ -8319,9 +8407,9 @@ private theorem weightedInnerProduct_descends {T K : ℕ}
         = ∑ t, W t * D.eval B W (Fin.snoc ζ t) :=
             Finset.sum_congr rfl (fun t _ => step t)
       _ = D.trace.eval B W ζ :=
-            DecLabeledGraph.trace_eval D B hB W h_self ζ
+            DecLabeledGraph.trace_eval D B hB W (h_diag (Fin.last K)) ζ
   rw [reshape ξ, reshape ξ']
-  exact DecLabeledGraphTr.eval_tupleEquiv_invariant D.trace B hB W h
+  exact DecLabeledGraphTr.eval_tupleEquiv_invariant D.trace B hB W h_trace_noDiag h
 
 /-- **Singleton recovery** — specialize `weightedInnerProduct_descends`
 to `L₁ = [⟨n, F⟩]`, `L₂ = []`. After `connCol_nil` and
