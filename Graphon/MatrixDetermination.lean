@@ -7050,6 +7050,35 @@ private theorem DecLabeledGraphTr.eval_tupleEquiv_invariant {T K n : ℕ}
         -- — the precise Lovász §3 multigraph frontier. -/
         sorry
 
+/-- **Trace-origin invariance** — the consumer-facing theorem for traced
+objects coming from `DecLabeledGraph.trace`.
+
+Per user directive: arbitrary `Dtr` can have `lu0Mult` that conflicts
+with existing graph edges, while `D.trace` has structural provenance.
+For `D.trace`, `lu0Mult a = D.llMult s(castSucc a, last K)` comes from
+an LL-cross multiplicity upstairs, and `D.noLL` / diagonal-zero
+conditions control the bad overlaps. This is exactly the case
+`weightedInnerProduct_descends` needs.
+
+**Proof.** Wraps `DecLabeledGraphTr.eval_tupleEquiv_invariant` by
+deriving `D.trace.llMult s(x, x) = 0` from the diagonal-zero
+hypothesis on `D` (since `D.trace.llMult s(x, x) = D.llMult
+s(castSucc x, castSucc x)`).
+
+The arbitrary-`Dtr` theorem above remains as a documented off-axis
+generalization; this trace-origin theorem is the active consumer. -/
+private theorem DecLabeledGraph.trace_eval_tupleEquiv_invariant {T K n : ℕ}
+    (D : DecLabeledGraph (K + 1) n) (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (h_diag : ∀ x : Fin (K + 1), D.llMult s(x, x) = 0)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
+    D.trace.eval B W ξ = D.trace.eval B W ξ' := by
+  refine DecLabeledGraphTr.eval_tupleEquiv_invariant D.trace B hB W ?_ h
+  intro x
+  show D.llMult (Sym2.map Fin.castSucc s(x, x)) = 0
+  rw [Sym2.map_pair_eq]
+  exact h_diag (Fin.castSucc x)
+
 /-! ### Step A: `ofSimple` — wrap a simple graph as a decorated graph -/
 
 /-- The canonical embedding of label positions into the full vertex space. -/
@@ -8435,12 +8464,6 @@ private theorem weightedInnerProduct_descends {T K : ℕ}
     ∑ t : Fin T, W t * connCol B W L₁ ξ t * connCol B W L₂ ξ t =
     ∑ t : Fin T, W t * connCol B W L₁ ξ' t * connCol B W L₂ ξ' t := by
   obtain ⟨_, D, h_eval, h_diag⟩ := exists_decGraph_for_connCol B hB W (L₁ ++ L₂)
-  -- D's diagonal-zero property at level K+1 transports to D.trace at level K.
-  have h_trace_noDiag : ∀ x : Fin K, D.trace.llMult s(x, x) = 0 := by
-    intro x
-    show D.llMult (Sym2.map Fin.castSucc s(x, x)) = 0
-    rw [Sym2.map_pair_eq]
-    exact h_diag (Fin.castSucc x)
   have reshape : ∀ ζ : Fin K → Fin T,
       ∑ t : Fin T, W t * connCol B W L₁ ζ t * connCol B W L₂ ζ t =
       D.trace.eval B W ζ := by
@@ -8459,7 +8482,8 @@ private theorem weightedInnerProduct_descends {T K : ℕ}
       _ = D.trace.eval B W ζ :=
             DecLabeledGraph.trace_eval D B hB W (h_diag (Fin.last K)) ζ
   rw [reshape ξ, reshape ξ']
-  exact DecLabeledGraphTr.eval_tupleEquiv_invariant D.trace B hB W h_trace_noDiag h
+  -- Route through the trace-origin theorem (consumer interface).
+  exact DecLabeledGraph.trace_eval_tupleEquiv_invariant D B hB W h_diag h
 
 /-- **Singleton recovery** — specialize `weightedInnerProduct_descends`
 to `L₁ = [⟨n, F⟩]`, `L₂ = []`. After `connCol_nil` and
