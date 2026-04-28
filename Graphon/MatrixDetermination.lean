@@ -6991,14 +6991,64 @@ private theorem DecLabeledGraphTr.eval_tupleEquiv_invariant {T K n : ℕ}
         rw [hu_eq, hv_eq] at hξ hξ'
         have hkey := h 0 F
         linarith [hξ, hξ', hkey]
-  · -- σ-sum invariance — the actual multigraph-content frontier.
-    -- The σ-sum involves `Dtr.lu0FactorAt B ξ σ = ∏ a, B(ξ a)(σ 0)^{Dtr.lu0Mult a}`,
-    -- which is genuine multi-edge content (parallel B-edges from each label `a` to
-    -- unlabeled position 0, with multiplicity `Dtr.lu0Mult a`). Closing this
-    -- invariance via simple-graph tupleEquiv requires either the iterated
-    -- `labeledEvalK_glue` route (carrying multi-edges through `DecLabeledGraph`-
-    -- derived Dtr's), or the direct Lovász A_k connection-matrix argument. -/
-    sorry
+  · -- σ-sum invariance — case-split per user directive into:
+    --   n = 0 (trivial), n > 0 ∧ lu0Mult = 0 (reduces to labeledEvalK), and
+    --   n > 0 ∧ ∃ a, lu0Mult a ≥ 1 (the multi-edge content, still sorry).
+    by_cases hn : n = 0
+    · -- **Case n = 0.** σ has unique empty function; W-prod = 1; lu0Factor = 1
+      -- (n = 0 branch); edgeFinset = ∅ (all K vertices are labels, so any edge
+      -- would be LL, forbidden by Dtr.noLL). Both sides reduce to 1.
+      subst hn
+      letI : DecidableRel Dtr.graph.Adj := Classical.decRel _
+      have hempty : Dtr.graph.edgeFinset = ∅ := by
+        rw [← Finset.subset_empty]
+        intro e he
+        exfalso
+        rw [SimpleGraph.mem_edgeFinset] at he
+        refine Sym2.ind (fun a b hadj => ?_) e he
+        have ha : a.val < K := by have := a.isLt; omega
+        have hb : b.val < K := by have := b.isLt; omega
+        exact Dtr.noLL a b ha hb hadj
+      refine Finset.sum_congr rfl fun σ _ => ?_
+      have hlu0_eq : Dtr.lu0FactorAt B ξ σ = Dtr.lu0FactorAt B ξ' σ := by
+        unfold DecLabeledGraphTr.lu0FactorAt
+        simp
+      simp only [hempty, Finset.prod_empty, mul_one, hlu0_eq]
+    · -- **Case n > 0.**
+      by_cases hlu0_zero : ∀ a : Fin K, Dtr.lu0Mult a = 0
+      · -- **Sub-case ∀ a, lu0Mult a = 0.** lu0Factor = 1; σ-sum = labeledEvalK
+        -- Dtr.graph at level K, n unlabeled. Apply tupleEquiv h n Dtr.graph.
+        letI : DecidableRel Dtr.graph.Adj := Classical.decRel _
+        have hbridge : ∀ ζ : Fin K → Fin T,
+            (∑ σ : Fin n → Fin T,
+              (let τ : Fin (n + K) → Fin T := fun v =>
+                if hh : (v : ℕ) < K then ζ ⟨v, hh⟩
+                else σ ⟨v - K, by have := v.isLt; omega⟩
+              (∏ v : Fin n, W (σ v)) * Dtr.lu0FactorAt B ζ σ *
+              ∏ e ∈ Dtr.graph.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) =
+            labeledEvalK K n Dtr.graph B W ζ := by
+          intro ζ
+          unfold labeledEvalK
+          refine Finset.sum_congr rfl fun σ _ => ?_
+          have hlu0_one : Dtr.lu0FactorAt B ζ σ = 1 := by
+            unfold DecLabeledGraphTr.lu0FactorAt
+            split_ifs with hpos
+            · refine Finset.prod_eq_one fun a _ => ?_
+              rw [hlu0_zero a, pow_zero]
+            · rfl
+          rw [hlu0_one]
+          ring
+        rw [hbridge ξ, hbridge ξ']
+        exact h n Dtr.graph
+      · -- **Sub-case ∃ a, lu0Mult a ≥ 1.** This is the genuine multi-edge
+        -- content: `Dtr.lu0FactorAt B ξ σ` includes at least one factor
+        -- `B(ξ a, σ 0)^{lu0Mult a}` with lu0Mult a ≥ 1. For lu0Mult a ≤ 1
+        -- the factor is a single B-edge, expressible via a modified simple
+        -- graph G' = Dtr.graph + edges {(label a, unlabeled 0) : lu0Mult a = 1};
+        -- σ-sum = labeledEvalK G'. (Closure of the lu0Mult ≤ 1 sub-case is
+        -- bounded but routine; deferred.) For lu0Mult a ≥ 2, parallel B-edges
+        -- — the precise Lovász §3 multigraph frontier. -/
+        sorry
 
 /-! ### Step A: `ofSimple` — wrap a simple graph as a decorated graph -/
 
