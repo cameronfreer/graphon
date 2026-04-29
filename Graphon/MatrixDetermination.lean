@@ -7024,6 +7024,73 @@ private theorem DecLabeledGraphTr.eval_tupleEquiv_invariant {T K n : ℕ}
         -- — the precise Lovász §3 multigraph frontier. -/
         sorry
 
+/-- **The named algebraic residue.** σ-sum equality for the trace-origin
+parallel-edge case: `∃ a, D.trace.lu0Mult a ≥ 2`.
+
+This is the **single residual mathematical obligation** for the
+trace-origin path. The full theorem `trace_eval_tupleEquiv_invariant`
+calls this lemma in the dispatch case where `lu0Mult ≤ 1` does not hold;
+all other cases (LL factor, lu0Mult = 0, lu0Mult ≤ 1) are closed.
+
+**Mathematical content** (Lovász TR-2004-82 §3): when at least one
+label-to-unlabeled-0 multiplicity exceeds 1, the σ-sum body contains
+`B(ξ a, σ 0)^k` with `k ≥ 2` — parallel B-edges that no simple-graph
+`labeledEvalK` can express.
+
+**Cycle check (per user directive, step 3)**: the natural reduction to
+`starMultigraphEval_tupleEquiv_invariant_direct` (via fixing all σ
+coordinates except σ 0 and applying the power-sum theorem) is
+**blocked by a transitive cycle**:
+```
+starMultigraphEval_tupleEquiv_invariant_direct  (L9456)
+  → traceMeasure_eq_of_tupleEquiv               (L9205)
+  → traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv  (L9179)
+  → tr_k_generator_descends                     (L8390)
+  → tr_k_binary_product_descends                 (L8369)
+  → Ak_trace_stable_generators                  (L8240)
+  → weightedInnerProduct_descends               (L8451)
+  → DecLabeledGraph.trace_eval_tupleEquiv_invariant  (L7113)
+  → trace_parallel_lu0_descends                  (this theorem)
+```
+Same applies to `tupleEquiv_power_sum_invariance` (one-liner via the
+star-multigraph theorem, plus `hW` + `htwin` strengthenings).
+
+**Conclusion (per user step 4)**: this theorem is the **canonical
+named algebraic root** of the Lovász §3 multigraph content. Future
+attacks must either:
+  - Provide an independent proof that does not route through the A_k
+    chain (e.g., direct multigraph algebra, or a tupleEquiv extension
+    handling parallel edges natively); or
+  - Restructure the dependency chain to make one of the upstream nodes
+    independently provable, freeing this from the cycle.
+
+Stated with σ-sum-only conclusion (not full `D.trace.eval` equality);
+the LL factor handling stays in the consumer theorem. -/
+private theorem DecLabeledGraph.trace_parallel_lu0_descends {T K n : ℕ}
+    (D : DecLabeledGraph (K + 1) n) (B : Fin T → Fin T → ℝ)
+    (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_h_diag : ∀ x : Fin (K + 1), D.llMult s(x, x) = 0)
+    (_h_parallel : ∃ a : Fin K, D.trace.lu0Mult a ≥ 2)
+    [DecidableRel D.trace.graph.Adj]
+    {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ') :
+    (∑ σ : Fin (n + 1) → Fin T,
+      (let τ : Fin ((n + 1) + K) → Fin T := fun v =>
+        if hh : (v : ℕ) < K then ξ ⟨v, hh⟩
+        else σ ⟨v - K, by have := v.isLt; omega⟩
+      (∏ v : Fin (n + 1), W (σ v)) *
+      D.trace.lu0FactorAt B ξ σ *
+      ∏ e ∈ D.trace.graph.edgeFinset,
+        B (τ (Quot.out e).1) (τ (Quot.out e).2))) =
+    (∑ σ : Fin (n + 1) → Fin T,
+      (let τ : Fin ((n + 1) + K) → Fin T := fun v =>
+        if hh : (v : ℕ) < K then ξ' ⟨v, hh⟩
+        else σ ⟨v - K, by have := v.isLt; omega⟩
+      (∏ v : Fin (n + 1), W (σ v)) *
+      D.trace.lu0FactorAt B ξ' σ *
+      ∏ e ∈ D.trace.graph.edgeFinset,
+        B (τ (Quot.out e).1) (τ (Quot.out e).2))) := by
+  sorry
+
 /-- **Trace-origin invariance** — direct proof for traced objects from
 `DecLabeledGraph.trace`.
 
@@ -7044,8 +7111,8 @@ correspond to an LL edge of `D.graph`, forbidden by `D.noLL`).
      D.trace.graph + {(label a, vertex K) : lu0Mult a = 1}`; reduce
      σ-sum to `labeledEvalK G'`; apply `tupleEquiv h (n+1) G'`. The
      no-overlap of new edges with `D.trace.graph` follows from `D.noLL`.
-   - `∃ a, lu0Mult a ≥ 2`: parallel B-edges — the precise multi-edge
-     frontier (Lovász §3, TR-2004-82). Remains sorry.
+   - `∃ a, lu0Mult a ≥ 2`: delegated to
+     `DecLabeledGraph.trace_parallel_lu0_descends` (named algebraic root).
 
 The arbitrary-`Dtr` theorem above remains as a documented off-axis
 generalization; this trace-origin theorem is the active consumer. -/
@@ -7330,9 +7397,11 @@ private theorem DecLabeledGraph.trace_eval_tupleEquiv_invariant {T K n : ℕ}
           ring
         rw [hbridge ξ, hbridge ξ']
         exact h (n + 1) G'
-      · -- **Sub-case `∃ a, lu0Mult a ≥ 2`.** Parallel B-edges — the precise
-        -- Lovász §3 multi-edge frontier (TR-2004-82).
-        sorry
+      · -- **Sub-case `∃ a, lu0Mult a ≥ 2`.** Delegate to the named root.
+        push_neg at hle
+        obtain ⟨a, ha⟩ := hle
+        exact DecLabeledGraph.trace_parallel_lu0_descends
+          D B hB W h_diag ⟨a, ha⟩ h
 
 /-! ### Step A: `ofSimple` — wrap a simple graph as a decorated graph -/
 
