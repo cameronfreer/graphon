@@ -7064,6 +7064,35 @@ attacks must either:
   - Restructure the dependency chain to make one of the upstream nodes
     independently provable, freeing this from the cycle.
 
+**Smallest subcase = full content** (per user's "smallest independent
+subcase" inquiry). The simplest non-trivial instance is
+`n = 0, D.trace.lu0Mult = 2 • δ_a` (one coordinate with multiplicity 2,
+all others zero). For this:
+  - `D.trace.graph.edgeFinset = ∅` (n = 0 forces all vertices to be
+    labels at level K, but `D.noLL` then `D.trace.noLL` forbid edges).
+  - σ-sum reduces to `∑ t, W(t) · B(ξ a, t)^2`.
+  - Goal: invariance of this expression under `tupleEquiv ξ ξ'`.
+
+This is exactly `tupleEquiv_single_coord_square_moment` (L9700, declared
+forward of this theorem). That theorem's proof routes through
+`starMultigraphEval_tupleEquiv_invariant` → `traceMeasure_eq_of_tupleEquiv`
+→ `tr_k_generator_descends` → ... → this theorem. So the smallest case
+is **not independently provable** under the current architecture; it's
+a restatement of the full content.
+
+**Dependency chain audit** (confirmed):
+  `tupleEquiv_implies_tupleOrbitRel` non-surj branch (L10393, L10530)
+  → `tupleEquiv_extend` (L10209, calls `coeffRestrict_equiv` at L10221)
+  → `coeffRestrict_equiv` (L9956, uses `product_trace_identity` per docstring)
+  → `product_trace_identity` (L9910, calls `tr_k_generator_descends` at L9927)
+  → `tr_k_generator_descends` → `tr_k_binary_product_descends` →
+    `Ak_trace_stable_generators` → `weightedInnerProduct_descends`
+  → `DecLabeledGraph.trace_eval_tupleEquiv_invariant`
+  → this theorem.
+
+Hence: the non-surj architectural branch cannot close until this
+theorem closes.
+
 Stated with σ-sum-only conclusion (not full `D.trace.eval` equality);
 the LL factor handling stays in the consumer theorem. -/
 private theorem DecLabeledGraph.trace_parallel_lu0_descends {T K n : ℕ}
