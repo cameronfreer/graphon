@@ -6160,7 +6160,7 @@ private lemma DecLabeledGraph.noLL_graph {K n : ℕ} (D : DecLabeledGraph K n)
     (a b : Fin (n + K)) (ha : a.val < K) (hb : b.val < K) : ¬ D.graph.Adj a b :=
   D.noLL a b ha hb
 
-/-- **Step 1 helper** (per user directive for breaking the L6710 cycle):
+/-! **Step 1 helper** (per user directive for breaking the L6710 cycle):
 ordinary decorated graph `eval` is `tupleEquiv`-invariant.
 
 For `D : DecLabeledGraph K n` with `D.llMult` vanishing on Sym2 diagonals
@@ -6179,6 +6179,70 @@ terms `B(ξ x, ξ x)^m` are not generally tupleEquiv-invariant (SimpleGraph
 forbids self-loops, so the single-edge trick fails). The hypothesis is
 sound for all DecLabeledGraphs built via `ofSimple`/`one`/`mul` since
 those constructors produce llMult that vanishes on diagonals. -/
+/-- **LL-factor invariance under `tupleEquiv`** — generic helper.
+
+For any multiplicity function `m : Sym2 (Fin K) → ℕ` with `m s(x, x) = 0`
+on every diagonal, the LL product
+`∏ s, B(ξ Quot.out.1)(ξ Quot.out.2)^m s` descends through `tupleEquiv`
+at level `K`.
+
+Used by `DecLabeledGraph.eval_tupleEquiv_invariant` (with `m = D.llMult`)
+and `DecLabeledGraphTr.eval_tupleEquiv_invariant` (with `m = Dtr.llMult`).
+
+The proof is the L6182 single-edge pattern: diagonal pairs are killed
+by `h_noDiag`; off-diagonal pairs use `B_quot_out_eq` + a single-edge
+graph at level `K`, n = 0, with `tupleEquiv` applied via
+`labeledEvalK_singleEdge`. -/
+private lemma llFactor_eq_of_tupleEquiv {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (m : Sym2 (Fin K) → ℕ) (h_noDiag : ∀ x : Fin K, m s(x, x) = 0)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
+    (∏ s : Sym2 (Fin K), B (ξ (Quot.out s).1) (ξ (Quot.out s).2) ^ m s) =
+    (∏ s : Sym2 (Fin K), B (ξ' (Quot.out s).1) (ξ' (Quot.out s).2) ^ m s) := by
+  classical
+  refine Finset.prod_congr rfl fun s _ => ?_
+  induction s using Sym2.ind with
+  | h x y =>
+    by_cases hxy : x = y
+    · subst hxy
+      rw [h_noDiag x, pow_zero, pow_zero]
+    · rw [B_quot_out_eq hB ξ x y, B_quot_out_eq hB ξ' x y]
+      congr 1
+      let u : Fin (0 + K) := ⟨x.val, by have := x.isLt; omega⟩
+      let v : Fin (0 + K) := ⟨y.val, by have := y.isLt; omega⟩
+      have hne : u ≠ v := by
+        simp only [ne_eq, Fin.mk.injEq, u, v]
+        intro h
+        apply hxy
+        exact Fin.ext h
+      let F : SimpleGraph (Fin (0 + K)) :=
+        { Adj := fun a b => (a = u ∧ b = v) ∨ (a = v ∧ b = u)
+          symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
+                                       (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+          loopless := fun _ h => by
+            rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+            · exact hne (h1.symm.trans h2)
+            · exact hne (h2.symm.trans h1) }
+      haveI : DecidableRel F.Adj := Classical.decRel _
+      have hedgeFin : F.edgeFinset = {s(u, v)} := by
+        apply Finset.eq_singleton_iff_unique_mem.mpr; constructor
+        · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
+        · intro e he
+          rw [SimpleGraph.mem_edgeFinset] at he
+          exact Sym2.ind (fun a b (hadj : F.Adj a b) => by
+            rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+            · rw [h1, h2]
+            · rw [h1, h2, Sym2.eq_swap]) e he
+      have hξ := labeledEvalK_singleEdge F hne hedgeFin B hB W ξ
+      have hξ' := labeledEvalK_singleEdge F hne hedgeFin B hB W ξ'
+      have hu_lt : u.val < K := by have := x.isLt; simp only [u]; omega
+      have hv_lt : v.val < K := by have := y.isLt; simp only [v]; omega
+      have hu_eq : (⟨u.val, hu_lt⟩ : Fin K) = x := Fin.ext rfl
+      have hv_eq : (⟨v.val, hv_lt⟩ : Fin K) = y := Fin.ext rfl
+      rw [hu_eq, hv_eq] at hξ hξ'
+      have hkey := h 0 F
+      linarith [hξ, hξ', hkey]
+
 private theorem DecLabeledGraph.eval_tupleEquiv_invariant {T K n : ℕ}
     (D : DecLabeledGraph K n) (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (h_noDiag : ∀ x : Fin K, D.llMult s(x, x) = 0)
@@ -6187,54 +6251,8 @@ private theorem DecLabeledGraph.eval_tupleEquiv_invariant {T K n : ℕ}
   classical
   unfold DecLabeledGraph.eval
   congr 1
-  · -- LL factor invariance.
-    refine Finset.prod_congr rfl fun s _ => ?_
-    -- For each s : Sym2 (Fin K), B(ξ Quot.out.1)(ξ Quot.out.2)^llMult s = same for ξ'.
-    -- Split on whether s is diagonal.
-    induction s using Sym2.ind with
-    | h x y =>
-      by_cases hxy : x = y
-      · -- Diagonal case: llMult s = 0 by h_noDiag, so both sides are 1.
-        subst hxy
-        rw [h_noDiag x, pow_zero, pow_zero]
-      · -- Off-diagonal case: use single-edge labeledEvalK + tupleEquiv.
-        rw [B_quot_out_eq hB ξ x y, B_quot_out_eq hB ξ' x y]
-        congr 1
-        -- Build single-edge graph F at level K, n=0 with edge s(x, y).
-        let u : Fin (0 + K) := ⟨x.val, by have := x.isLt; omega⟩
-        let v : Fin (0 + K) := ⟨y.val, by have := y.isLt; omega⟩
-        have hne : u ≠ v := by
-          simp only [ne_eq, Fin.mk.injEq, u, v]
-          intro h
-          apply hxy
-          exact Fin.ext h
-        let F : SimpleGraph (Fin (0 + K)) :=
-          { Adj := fun a b => (a = u ∧ b = v) ∨ (a = v ∧ b = u)
-            symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
-                                         (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
-            loopless := fun _ h => by
-              rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
-              · exact hne (h1.symm.trans h2)
-              · exact hne (h2.symm.trans h1) }
-        haveI : DecidableRel F.Adj := Classical.decRel _
-        have hedgeFin : F.edgeFinset = {s(u, v)} := by
-          apply Finset.eq_singleton_iff_unique_mem.mpr; constructor
-          · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
-          · intro e he
-            rw [SimpleGraph.mem_edgeFinset] at he
-            exact Sym2.ind (fun a b (hadj : F.Adj a b) => by
-              rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
-              · rw [h1, h2]
-              · rw [h1, h2, Sym2.eq_swap]) e he
-        have hξ := labeledEvalK_singleEdge F hne hedgeFin B hB W ξ
-        have hξ' := labeledEvalK_singleEdge F hne hedgeFin B hB W ξ'
-        have hu_lt : u.val < K := by have := x.isLt; simp only [u]; omega
-        have hv_lt : v.val < K := by have := y.isLt; simp only [v]; omega
-        have hu_eq : (⟨u.val, hu_lt⟩ : Fin K) = x := Fin.ext rfl
-        have hv_eq : (⟨v.val, hv_lt⟩ : Fin K) = y := Fin.ext rfl
-        rw [hu_eq, hv_eq] at hξ hξ'
-        have hkey := h 0 F
-        linarith [hξ, hξ', hkey]
+  · -- LL product equality via the generic helper.
+    exact llFactor_eq_of_tupleEquiv B hB W D.llMult h_noDiag h
   · -- labeledEvalK invariance via tupleEquiv at level K applied to D.graph.
     exact h n D.graph
 
@@ -6945,52 +6963,8 @@ private theorem DecLabeledGraphTr.eval_tupleEquiv_invariant {T K n : ℕ}
   classical
   unfold DecLabeledGraphTr.eval
   congr 1
-  · -- LL factor invariance, following the L6182 pattern.
-    refine Finset.prod_congr rfl fun s _ => ?_
-    induction s using Sym2.ind with
-    | h x y =>
-      by_cases hxy : x = y
-      · -- Diagonal: llMult = 0 by h_noDiag, both sides are 1.
-        subst hxy
-        rw [h_noDiag x, pow_zero, pow_zero]
-      · -- Off-diagonal: build a single-edge graph at level K, n = 0;
-        -- apply tupleEquiv to that single-edge graph.
-        rw [B_quot_out_eq hB ξ x y, B_quot_out_eq hB ξ' x y]
-        congr 1
-        let u : Fin (0 + K) := ⟨x.val, by have := x.isLt; omega⟩
-        let v : Fin (0 + K) := ⟨y.val, by have := y.isLt; omega⟩
-        have hne : u ≠ v := by
-          simp only [ne_eq, Fin.mk.injEq, u, v]
-          intro h
-          apply hxy
-          exact Fin.ext h
-        let F : SimpleGraph (Fin (0 + K)) :=
-          { Adj := fun a b => (a = u ∧ b = v) ∨ (a = v ∧ b = u)
-            symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
-                                         (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
-            loopless := fun _ h => by
-              rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
-              · exact hne (h1.symm.trans h2)
-              · exact hne (h2.symm.trans h1) }
-        haveI : DecidableRel F.Adj := Classical.decRel _
-        have hedgeFin : F.edgeFinset = {s(u, v)} := by
-          apply Finset.eq_singleton_iff_unique_mem.mpr; constructor
-          · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
-          · intro e he
-            rw [SimpleGraph.mem_edgeFinset] at he
-            exact Sym2.ind (fun a b (hadj : F.Adj a b) => by
-              rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
-              · rw [h1, h2]
-              · rw [h1, h2, Sym2.eq_swap]) e he
-        have hξ := labeledEvalK_singleEdge F hne hedgeFin B hB W ξ
-        have hξ' := labeledEvalK_singleEdge F hne hedgeFin B hB W ξ'
-        have hu_lt : u.val < K := by have := x.isLt; simp only [u]; omega
-        have hv_lt : v.val < K := by have := y.isLt; simp only [v]; omega
-        have hu_eq : (⟨u.val, hu_lt⟩ : Fin K) = x := Fin.ext rfl
-        have hv_eq : (⟨v.val, hv_lt⟩ : Fin K) = y := Fin.ext rfl
-        rw [hu_eq, hv_eq] at hξ hξ'
-        have hkey := h 0 F
-        linarith [hξ, hξ', hkey]
+  · -- LL factor invariance via the generic helper.
+    exact llFactor_eq_of_tupleEquiv B hB W Dtr.llMult h_noDiag h
   · -- σ-sum invariance — case-split per user directive into:
     --   n = 0 (trivial), n > 0 ∧ lu0Mult = 0 (reduces to labeledEvalK), and
     --   n > 0 ∧ ∃ a, lu0Mult a ≥ 1 (the multi-edge content, still sorry).
