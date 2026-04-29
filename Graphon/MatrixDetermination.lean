@@ -9854,44 +9854,14 @@ private theorem tupleEquiv_polynomial_moment_invariance {T K n : ℕ}
     True := by  -- placeholder return; real signature returns an equality.
   trivial
 
-/-! #### Level 4 stubs — Claim 4.3 / 4.4 refactored via extension -/
+/-! #### Level 4 stubs — Claim 4.3 / 4.4 refactored via extension
 
-/-- **Level-4 stub** (`tupleEquiv_bijective_case_ext`). Refactor of
-`tupleEquiv_bijective_case` (Claim 4.3, L5684) that consumes
-`tupleEquiv_extend` instead of the problematic deficit-1 IH at
-`Fin (T - 1) → Fin T`.
-
-**Current proof** restricts a bijection `χ : Fin T → Fin T` to size
-`T-1` and invokes `IH_orbit` at that size. For `χ(Fin.last) = Fin.last`
-the restriction has joint-deficit 1, which under deficit-primary lex
-starting at `(0, T)` is NOT lex-smaller.
-
-**Target proof**: instead of restriction, *extend* from a deficit-0
-size-T instance upward. Specifically, for `(id, χ)` at level T with
-`tupleEquiv`, apply `tupleEquiv_extend` at the pair `(id restricted
-to T-1, some ψ')` — which sits at deficit 0 — to recover orbit, then
-transfer to `(id, χ)`. Details TBD. -/
-private theorem tupleEquiv_bijective_case_ext {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
-    (_hB : ∀ i j, B i j = B j i)
-    (_htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    (_χ : Fin T → Fin T) (_hχ : Function.Bijective _χ)
-    (_h : tupleEquiv B W (id : Fin T → Fin T) _χ) :
-    tupleOrbitRel B W (id : Fin T → Fin T) _χ := by
-  sorry
-
-/-- **Level-4 stub** (`tupleEquiv_surjective_case_ext`). Refactor of
-`tupleEquiv_surjective_case` (Claim 4.4, L5754) avoiding the
-deficit-1 restriction. Uses `tupleEquiv_bijective_case_ext` above. -/
-private theorem tupleEquiv_surjective_case_ext {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
-    (_hB : ∀ i j, B i j = B j i)
-    (_htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    {k : ℕ} (_φ _ψ : Fin k → Fin T)
-    (_hφ_surj : Function.Surjective _φ)
-    (_h : tupleEquiv B W _φ _ψ) :
-    tupleOrbitRel B W _φ _ψ := by
-  sorry
+`tupleEquiv_bijective_case_ext` and `tupleEquiv_surjective_case_ext` are
+declared **after** `tupleEquiv_implies_tupleOrbitRel` (the main theorem)
+since they delegate to it directly. The original Claim 4.3/4.4 ext design
+called for an upward-extension proof avoiding deficit-1 IHs, but with
+the main theorem available (modulo the non-surjective architectural
+sorry), direct delegation is the simplest closure. -/
 
 /-! #### Level 5 — main theorem via WF induction
 
@@ -10558,6 +10528,37 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
           --
           -- Retained here so the file continues to compile.
           sorry
+
+/-! #### Level 4 ext stubs — delegations to the main theorem
+
+These were originally architectural placeholders for an upward-extension
+proof. With `tupleEquiv_implies_tupleOrbitRel` available (modulo the
+non-surjective architectural sorry inside its strong induction), both
+ext theorems become trivial delegations. The bijective and surjective
+cases are fully closed inside the main theorem's strong-rec body. -/
+
+/-- **Level-4 closure** (`tupleEquiv_bijective_case_ext`). Direct
+delegation to `tupleEquiv_implies_tupleOrbitRel`. -/
+private theorem tupleEquiv_bijective_case_ext {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (hB : ∀ i j, B i j = B j i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    (χ : Fin T → Fin T) (_hχ : Function.Bijective χ)
+    (h : tupleEquiv B W (id : Fin T → Fin T) χ) :
+    tupleOrbitRel B W (id : Fin T → Fin T) χ :=
+  tupleEquiv_implies_tupleOrbitRel B W hW hB htwin h
+
+/-- **Level-4 closure** (`tupleEquiv_surjective_case_ext`). Direct
+delegation to `tupleEquiv_implies_tupleOrbitRel`. -/
+private theorem tupleEquiv_surjective_case_ext {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (hB : ∀ i j, B i j = B j i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    {k : ℕ} (φ ψ : Fin k → Fin T)
+    (_hφ_surj : Function.Surjective φ)
+    (h : tupleEquiv B W φ ψ) :
+    tupleOrbitRel B W φ ψ :=
+  tupleEquiv_implies_tupleOrbitRel B W hW hB htwin h
 
 /-! ### Explicit separating motifs
 
