@@ -7024,7 +7024,7 @@ private theorem DecLabeledGraphTr.eval_tupleEquiv_invariant {T K n : ℕ}
         -- — the precise Lovász §3 multigraph frontier. -/
         sorry
 
-/-- **The named algebraic residue.** σ-sum equality for the trace-origin
+/-! **The named algebraic residue.** σ-sum equality for the trace-origin
 parallel-edge case: `∃ a, D.trace.lu0Mult a ≥ 2`.
 
 This is the **single residual mathematical obligation** for the
@@ -7095,6 +7095,69 @@ theorem closes.
 
 Stated with σ-sum-only conclusion (not full `D.trace.eval` equality);
 the LL factor handling stays in the consumer theorem. -/
+
+/-- **Independent K=1 single-coord square moment** — explicit attack
+target per user directive.
+
+Statement: for `tupleEquiv B W ξ ξ'` at any level `K` and any
+coordinate `a : Fin K`,
+```
+∑ t : Fin T, W t * B (ξ a) t ^ 2 = ∑ t : Fin T, W t * B (ξ' a) t ^ 2.
+```
+
+This is the smallest non-trivial multigraph residue. The existing
+`tupleEquiv_single_coord_square_moment` (L9700) routes through
+`starMultigraphEval_tupleEquiv_invariant` → `traceMeasure_eq_of_tupleEquiv`
+→ `tr_k_generator_descends` → ... → `trace_parallel_lu0_descends`
+itself, hence cycles when called from `trace_parallel_lu0_descends`.
+
+**Allowed dependencies** (per user constraint):
+  - `tupleEquiv` definition.
+  - `labeledEvalK_singleEdge`.
+  - `labeledEvalK_glue`.
+  - `functional_span_zero`.
+  - Finite quotient/span lemmas not depending on trace descent.
+
+**Disallowed dependencies**:
+  - `trace_parallel_lu0_descends`, `weightedInnerProduct_descends`,
+    `tr_k_generator_descends`, `product_trace_identity`,
+    `coeffRestrict_equiv`, `tupleEquiv_extend`,
+    `starMultigraphEval_tupleEquiv_invariant` (and all transitive
+    callers of these).
+
+**Status**: NOT PROVED. The structural obstruction: simple-graph
+`labeledEvalK` evaluations at any level `K` cannot directly produce
+`B(ξ a, t)^2` for fixed `t` (multi-edge content). Available
+constructions yield:
+  - `μ_1(i)^k` (powers of the first moment, via parallel-vertex stars);
+  - bilinear forms `∑_{s,t} W(s) W(t) B(i, s) B(i, t) B(s, t)` (via
+    triangles);
+  - "lifted" sums `∑_t W(t) labeledEvalK F (snoc ξ t)` for level-`K+1`
+    `F` (via `labeledEvalK_sum_last_label` + tupleEquiv at `K`).
+
+None of these directly give `∑ W B^2`. The Lovász §3 connection-matrix
+rank argument requires multigraph-aware infrastructure (matrix-product
+= graph-product identity, which is itself the multigraph A_k content).
+
+**If this falls** (per user step 3): use it to close
+`trace_parallel_lu0_descends` for the smallest case `n=0,
+lu0Mult = 2 • δ_a`, then generalize via induction on support/total
+multiplicity (user steps 4-5). **If it does not fall** (per user's
+hard boundary): stop. The project needs the full Lovász
+connection-matrix/rank proof; further local theorem reshuffling
+will not help. -/
+private theorem tupleEquiv_single_coord_square_moment_independent
+    {T K : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ)
+    {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ')
+    (a : Fin K) :
+    ∑ t : Fin T, W t * B (ξ a) t ^ 2 =
+    ∑ t : Fin T, W t * B (ξ' a) t ^ 2 := by
+  -- Attempt requires paper-faithful Lovász §3 / connection-matrix
+  -- algebra independent of the A_k trace chain. No proof currently
+  -- known under the allowed-dependency constraint above.
+  sorry
+
 private theorem DecLabeledGraph.trace_parallel_lu0_descends {T K n : ℕ}
     (D : DecLabeledGraph (K + 1) n) (B : Fin T → Fin T → ℝ)
     (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
