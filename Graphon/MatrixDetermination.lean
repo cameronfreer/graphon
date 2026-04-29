@@ -7024,20 +7024,28 @@ private theorem DecLabeledGraphTr.eval_tupleEquiv_invariant {T K n : ℕ}
         -- — the precise Lovász §3 multigraph frontier. -/
         sorry
 
-/-- **Trace-origin invariance** — the consumer-facing theorem for traced
-objects coming from `DecLabeledGraph.trace`.
+/-- **Trace-origin invariance** — direct proof for traced objects from
+`DecLabeledGraph.trace`.
 
 Per user directive: arbitrary `Dtr` can have `lu0Mult` that conflicts
 with existing graph edges, while `D.trace` has structural provenance.
 For `D.trace`, `lu0Mult a = D.llMult s(castSucc a, last K)` comes from
-an LL-cross multiplicity upstairs, and `D.noLL` / diagonal-zero
-conditions control the bad overlaps. This is exactly the case
-`weightedInnerProduct_descends` needs.
+an LL-cross multiplicity upstairs, and `D.noLL` controls the bad
+overlaps (any `(label a, vertex K)` edge of `D.trace.graph` would
+correspond to an LL edge of `D.graph`, forbidden by `D.noLL`).
 
-**Proof.** Wraps `DecLabeledGraphTr.eval_tupleEquiv_invariant` by
-deriving `D.trace.llMult s(x, x) = 0` from the diagonal-zero
-hypothesis on `D` (since `D.trace.llMult s(x, x) = D.llMult
-s(castSucc x, castSucc x)`).
+**Proof structure** (per user's plan):
+1. LL factor invariance via `llFactor_eq_of_tupleEquiv` (reduced from
+   `h_diag` via `Sym2.map Fin.castSucc`).
+2. σ-sum dispatch:
+   - `∀ a, lu0Mult a = 0`: σ-sum reduces to `labeledEvalK D.trace.graph`;
+     apply `tupleEquiv h (n+1) D.trace.graph`.
+   - `∀ a, lu0Mult a ≤ 1` ∧ `∃ a, lu0Mult a = 1`: construct `G' :=
+     D.trace.graph + {(label a, vertex K) : lu0Mult a = 1}`; reduce
+     σ-sum to `labeledEvalK G'`; apply `tupleEquiv h (n+1) G'`. The
+     no-overlap of new edges with `D.trace.graph` follows from `D.noLL`.
+   - `∃ a, lu0Mult a ≥ 2`: parallel B-edges — the precise multi-edge
+     frontier (Lovász §3, TR-2004-82). Remains sorry.
 
 The arbitrary-`Dtr` theorem above remains as a documented off-axis
 generalization; this trace-origin theorem is the active consumer. -/
@@ -7047,11 +7055,284 @@ private theorem DecLabeledGraph.trace_eval_tupleEquiv_invariant {T K n : ℕ}
     (h_diag : ∀ x : Fin (K + 1), D.llMult s(x, x) = 0)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     D.trace.eval B W ξ = D.trace.eval B W ξ' := by
-  refine DecLabeledGraphTr.eval_tupleEquiv_invariant D.trace B hB W ?_ h
-  intro x
-  show D.llMult (Sym2.map Fin.castSucc s(x, x)) = 0
-  rw [Sym2.map_pair_eq]
-  exact h_diag (Fin.castSucc x)
+  classical
+  -- Diagonal-zero on `D.trace.llMult` follows from `h_diag` via
+  -- `D.trace.llMult s = D.llMult (Sym2.map castSucc s)`.
+  have h_trace_noDiag : ∀ x : Fin K, D.trace.llMult s(x, x) = 0 := fun x => by
+    show D.llMult (Sym2.map Fin.castSucc s(x, x)) = 0
+    rw [Sym2.map_pair_eq]
+    exact h_diag (Fin.castSucc x)
+  unfold DecLabeledGraphTr.eval
+  congr 1
+  · -- LL factor invariance.
+    exact llFactor_eq_of_tupleEquiv B hB W D.trace.llMult h_trace_noDiag h
+  · -- σ-sum dispatch. D.trace's unlabeled count is `n+1 ≥ 1`, so the
+    -- DecLabeledGraphTr "n = 0" case does not arise here.
+    by_cases h_lu0_zero : ∀ a : Fin K, D.trace.lu0Mult a = 0
+    · -- **Sub-case `∀ a, lu0Mult a = 0`.** σ-sum reduces to
+      -- `labeledEvalK D.trace.graph`; apply tupleEquiv at level K, n+1.
+      letI : DecidableRel D.trace.graph.Adj := Classical.decRel _
+      have hbridge : ∀ ζ : Fin K → Fin T,
+          (∑ σ : Fin (n + 1) → Fin T,
+            (let τ : Fin ((n + 1) + K) → Fin T := fun v =>
+              if hh : (v : ℕ) < K then ζ ⟨v, hh⟩
+              else σ ⟨v - K, by have := v.isLt; omega⟩
+            (∏ v : Fin (n + 1), W (σ v)) *
+              D.trace.lu0FactorAt B ζ σ *
+              ∏ e ∈ D.trace.graph.edgeFinset,
+                B (τ (Quot.out e).1) (τ (Quot.out e).2))) =
+          labeledEvalK K (n + 1) D.trace.graph B W ζ := by
+        intro ζ
+        unfold labeledEvalK
+        refine Finset.sum_congr rfl fun σ _ => ?_
+        have hlu0_one : D.trace.lu0FactorAt B ζ σ = 1 := by
+          unfold DecLabeledGraphTr.lu0FactorAt
+          split_ifs with hpos
+          · refine Finset.prod_eq_one fun a _ => ?_
+            rw [h_lu0_zero a, pow_zero]
+          · rfl
+        rw [hlu0_one]; ring
+      rw [hbridge ξ, hbridge ξ']
+      exact h (n + 1) D.trace.graph
+    · -- **`∃ a, lu0Mult a ≥ 1`.** Further dispatch on `lu0Mult ≤ 1`.
+      -- For the `lu0Mult ≤ 1` case, the structural provenance via `D.noLL`
+      -- gives no-overlap with `D.trace.graph`, allowing reduction to a
+      -- single simple-graph evaluation `labeledEvalK G'` for a constructed
+      -- graph `G'` with extra edges `{(label a, vertex K) : lu0Mult a = 1}`.
+      -- For `∃ a, lu0Mult a ≥ 2`, parallel B-edges arise — the genuine
+      -- multi-edge content of Lovász §3 / TR-2004-82.
+      by_cases hle : ∀ a : Fin K, D.trace.lu0Mult a ≤ 1
+      · -- **Sub-case `∀ a, lu0Mult a ≤ 1` ∧ `∃ a, lu0Mult a ≥ 1`.**
+        -- Construct G' = D.trace.graph ⊔ {cross-edges where lu0Mult a = 1}.
+        letI : DecidableRel D.trace.graph.Adj := Classical.decRel _
+        -- **Step 1**: No-overlap from `D.noLL`. A `D.trace.graph` edge between a
+        -- label-position `a` (val < K) and the unlabeled-0 position (val = K)
+        -- would correspond to an LL pair in `D.graph` (both vals < K+1),
+        -- forbidden by `D.noLL`.
+        have h_no_overlap : ∀ a : Fin K,
+            ¬ D.trace.graph.Adj
+              (⟨a.val, by have := a.isLt; omega⟩ : Fin ((n + 1) + K))
+              (⟨K, by omega⟩ : Fin ((n + 1) + K)) := by
+          intro a hadj
+          -- D.trace.graph = D.graph.comap (Fin.cast _).
+          -- After comap, both endpoints have val < K+1 in Fin (n + (K+1)).
+          have hadj' : D.graph.Adj
+              (Fin.cast (show (n + 1) + K = n + (K + 1) from by omega)
+                (⟨a.val, by have := a.isLt; omega⟩ : Fin ((n + 1) + K)))
+              (Fin.cast (show (n + 1) + K = n + (K + 1) from by omega)
+                (⟨K, by omega⟩ : Fin ((n + 1) + K))) := hadj
+          apply D.noLL _ _ ?_ ?_ hadj'
+          · simp [Fin.cast]
+          · simp [Fin.cast]
+        -- **Step 2**: Define G' on Fin ((n+1) + K).
+        let G' : SimpleGraph (Fin ((n + 1) + K)) :=
+          { Adj := fun u v =>
+              D.trace.graph.Adj u v ∨
+              (∃ a : Fin K, D.trace.lu0Mult a = 1 ∧
+                ((u.val = a.val ∧ v.val = K) ∨ (u.val = K ∧ v.val = a.val)))
+            symm := by
+              intro u v h
+              rcases h with h | ⟨a, hm, hor⟩
+              · exact Or.inl (D.trace.graph.symm h)
+              · refine Or.inr ⟨a, hm, ?_⟩
+                rcases hor with ⟨h1, h2⟩ | ⟨h1, h2⟩
+                · exact Or.inr ⟨h2, h1⟩
+                · exact Or.inl ⟨h2, h1⟩
+            loopless := by
+              intro v h
+              rcases h with h | ⟨a, hm, hor⟩
+              · exact D.trace.graph.loopless v h
+              · rcases hor with ⟨h1, h2⟩ | ⟨h1, h2⟩
+                · -- v.val = a.val and v.val = K, but a.val < K; contradiction
+                  have := a.isLt; omega
+                · have := a.isLt; omega }
+        haveI : DecidableRel G'.Adj := Classical.decRel _
+        -- **Step 3**: Edge-set decomposition. The cross-edge set:
+        let crossEdges : Finset (Sym2 (Fin ((n + 1) + K))) :=
+          (Finset.univ.filter (fun a : Fin K => D.trace.lu0Mult a = 1)).image
+            (fun a : Fin K =>
+              s((⟨a.val, by have := a.isLt; omega⟩ : Fin ((n + 1) + K)),
+                (⟨K, by omega⟩ : Fin ((n + 1) + K))))
+        -- The image is a `Finset.image`; we'll need injectivity for `prod_image`.
+        have h_inj : Set.InjOn
+            (fun a : Fin K =>
+              s((⟨a.val, by have := a.isLt; omega⟩ : Fin ((n + 1) + K)),
+                (⟨K, by omega⟩ : Fin ((n + 1) + K))))
+            (Finset.univ.filter (fun a : Fin K => D.trace.lu0Mult a = 1)) := by
+          intro a _ b _ hab
+          rw [Sym2.eq_iff] at hab
+          rcases hab with ⟨h1, h2⟩ | ⟨h1, h2⟩
+          · -- (a, K) = (b, K)
+            exact Fin.ext (by have := congr_arg Fin.val h1; simpa using this)
+          · -- (a, K) = (K, b): a.val = K but a.val < K, contradiction
+            exfalso
+            have := congr_arg Fin.val h1
+            simp at this
+            have := a.isLt; omega
+        -- G'.edgeFinset = D.trace.graph.edgeFinset ∪ crossEdges (disjoint union).
+        have h_disj : Disjoint D.trace.graph.edgeFinset crossEdges := by
+          rw [Finset.disjoint_left]
+          intro e he hec
+          -- he : e ∈ trace.graph.edgeFinset; hec : e ∈ crossEdges (image).
+          rw [Finset.mem_image] at hec
+          obtain ⟨a, ha_mem, ha_eq⟩ := hec
+          rw [Finset.mem_filter] at ha_mem
+          rw [SimpleGraph.mem_edgeFinset] at he
+          rw [← ha_eq, SimpleGraph.mem_edgeSet] at he
+          exact h_no_overlap a he
+        have h_edge_eq : G'.edgeFinset = D.trace.graph.edgeFinset ∪ crossEdges := by
+          ext e
+          rw [Finset.mem_union, SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeFinset]
+          induction e using Sym2.ind with
+          | h u v =>
+            rw [SimpleGraph.mem_edgeSet, SimpleGraph.mem_edgeSet]
+            -- Goal: G'.Adj u v ↔ D.trace.graph.Adj u v ∨ s(u,v) ∈ crossEdges.
+            change (D.trace.graph.Adj u v ∨ _) ↔ _
+            constructor
+            · rintro (h | ⟨a, hm, hor⟩)
+              · exact Or.inl h
+              · refine Or.inr ?_
+                show s(u, v) ∈ Finset.image _ _
+                rw [Finset.mem_image]
+                refine ⟨a, ?_, ?_⟩
+                · rw [Finset.mem_filter]; exact ⟨Finset.mem_univ _, hm⟩
+                · rcases hor with ⟨h1, h2⟩ | ⟨h1, h2⟩
+                  · -- u.val = a.val ∧ v.val = K
+                    rw [Sym2.eq_iff]
+                    left
+                    exact ⟨Fin.ext (by simpa using h1.symm),
+                           Fin.ext (by simpa using h2.symm)⟩
+                  · -- u.val = K ∧ v.val = a.val: this is the swap case, so right
+                    rw [Sym2.eq_iff]
+                    right
+                    exact ⟨Fin.ext (by simpa using h2.symm),
+                           Fin.ext (by simpa using h1.symm)⟩
+            · rintro (h | hcross)
+              · exact Or.inl h
+              · -- hcross : s(u, v) ∈ crossEdges (= Finset.image ...)
+                have : s(u, v) ∈ Finset.image
+                    (fun a : Fin K =>
+                      s((⟨a.val, by have := a.isLt; omega⟩ : Fin ((n + 1) + K)),
+                        (⟨K, by omega⟩ : Fin ((n + 1) + K))))
+                    (Finset.univ.filter (fun a : Fin K => D.trace.lu0Mult a = 1)) := hcross
+                rw [Finset.mem_image] at this
+                obtain ⟨a, ha_mem, heq⟩ := this
+                rw [Finset.mem_filter] at ha_mem
+                refine Or.inr ⟨a, ha_mem.2, ?_⟩
+                rw [Sym2.eq_iff] at heq
+                rcases heq with ⟨h1, h2⟩ | ⟨h1, h2⟩
+                · left
+                  refine ⟨?_, ?_⟩
+                  · have := congr_arg Fin.val h1; simpa using this.symm
+                  · have := congr_arg Fin.val h2; simpa using this.symm
+                · right
+                  refine ⟨?_, ?_⟩
+                  · -- h2 : ⟨K, _⟩ = u, so u.val = K
+                    have := congr_arg Fin.val h2; simpa using this.symm
+                  · -- h1 : ⟨a.val, _⟩ = v, so v.val = a.val
+                    have := congr_arg Fin.val h1; simpa using this.symm
+        -- **Step 4**: Bridge σ-sum to labeledEvalK G'.
+        have hbridge : ∀ ζ : Fin K → Fin T,
+            (∑ σ : Fin (n + 1) → Fin T,
+              (let τ : Fin ((n + 1) + K) → Fin T := fun v =>
+                if hh : (v : ℕ) < K then ζ ⟨v, hh⟩
+                else σ ⟨v - K, by have := v.isLt; omega⟩
+              (∏ v : Fin (n + 1), W (σ v)) *
+                D.trace.lu0FactorAt B ζ σ *
+                ∏ e ∈ D.trace.graph.edgeFinset,
+                  B (τ (Quot.out e).1) (τ (Quot.out e).2))) =
+            labeledEvalK K (n + 1) G' B W ζ := by
+          intro ζ
+          unfold labeledEvalK
+          refine Finset.sum_congr rfl fun σ _ => ?_
+          -- Set up τ and bridge each lu0Factor as the cross-edge product.
+          set τ : Fin ((n + 1) + K) → Fin T := fun v =>
+            if hh : (v : ℕ) < K then ζ ⟨v, hh⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩ with hτ_def
+          -- The lu0Factor (n+1 > 0 branch).
+          have hpos : (0 : ℕ) < n + 1 := Nat.succ_pos _
+          have hlu0_eq : D.trace.lu0FactorAt B ζ σ =
+              ∏ a ∈ Finset.univ.filter (fun a : Fin K => D.trace.lu0Mult a = 1),
+                B (ζ a) (σ ⟨0, hpos⟩) := by
+            unfold DecLabeledGraphTr.lu0FactorAt
+            rw [dif_pos hpos]
+            -- ∏ a, B (ζ a) (σ 0) ^ lu0Mult a = ∏ a ∈ (mult = 1), B (ζ a) (σ 0)
+            rw [← Finset.prod_filter_mul_prod_filter_not (Finset.univ : Finset (Fin K))
+                  (p := fun a => D.trace.lu0Mult a = 1)]
+            -- Filter side: lu0Mult a = 1, so B^1 = B
+            -- Non-filter side: lu0Mult a ≠ 1, combined with hle gives lu0Mult a = 0,
+            -- so B^0 = 1.
+            have h_filter : (∏ a ∈ Finset.univ.filter
+                (fun a : Fin K => D.trace.lu0Mult a = 1),
+                B (ζ a) (σ ⟨0, hpos⟩) ^ D.trace.lu0Mult a) =
+                ∏ a ∈ Finset.univ.filter
+                  (fun a : Fin K => D.trace.lu0Mult a = 1),
+                  B (ζ a) (σ ⟨0, hpos⟩) := by
+              refine Finset.prod_congr rfl fun a ha => ?_
+              rw [Finset.mem_filter] at ha
+              rw [ha.2, pow_one]
+            have h_notfilter : (∏ a ∈ Finset.univ.filter
+                (fun a : Fin K => ¬ D.trace.lu0Mult a = 1),
+                B (ζ a) (σ ⟨0, hpos⟩) ^ D.trace.lu0Mult a) = 1 := by
+              refine Finset.prod_eq_one fun a ha => ?_
+              rw [Finset.mem_filter] at ha
+              have hne := ha.2
+              have hzero : D.trace.lu0Mult a = 0 := by
+                have := hle a; omega
+              rw [hzero, pow_zero]
+            rw [h_filter, h_notfilter, mul_one]
+          -- Cross-edge product over crossEdges = product over filter (via image inj).
+          have h_cross_prod :
+              (∏ e ∈ crossEdges, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+              ∏ a ∈ Finset.univ.filter (fun a : Fin K => D.trace.lu0Mult a = 1),
+                B (ζ a) (σ ⟨0, hpos⟩) := by
+            rw [show crossEdges =
+                (Finset.univ.filter (fun a : Fin K => D.trace.lu0Mult a = 1)).image
+                  (fun a : Fin K =>
+                    s((⟨a.val, by have := a.isLt; omega⟩ : Fin ((n + 1) + K)),
+                      (⟨K, by omega⟩ : Fin ((n + 1) + K)))) from rfl]
+            rw [Finset.prod_image h_inj]
+            refine Finset.prod_congr rfl fun a ha => ?_
+            -- Need: B (τ (Quot.out s(...)).1) (τ (Quot.out s(...)).2)
+            --     = B (ζ a) (σ ⟨0, hpos⟩)
+            -- The Sym2 may swap Quot.out endpoints; use hB.
+            set u : Fin ((n + 1) + K) := ⟨a.val, by have := a.isLt; omega⟩
+            set v : Fin ((n + 1) + K) := ⟨K, by omega⟩
+            have hτu : τ u = ζ a := by
+              simp only [τ, u]
+              rw [dif_pos a.isLt]
+            have hτv : τ v = σ ⟨0, hpos⟩ := by
+              simp only [τ, v]
+              rw [dif_neg (by omega : ¬ K < K)]
+              congr 1
+              apply Fin.ext
+              simp
+            -- Quot.out gives either (u, v) or (v, u).
+            rcases Sym2.eq_iff.mp (Quot.out_eq (s(u, v) : Sym2 _))
+              with ⟨h1, h2⟩ | ⟨h1, h2⟩
+            · rw [show (Quot.out (s(u, v) : Sym2 _)).1 = u from h1,
+                  show (Quot.out (s(u, v) : Sym2 _)).2 = v from h2]
+              rw [hτu, hτv]
+            · rw [show (Quot.out (s(u, v) : Sym2 _)).1 = v from h1,
+                  show (Quot.out (s(u, v) : Sym2 _)).2 = u from h2]
+              rw [hτu, hτv, hB]
+          -- Now combine: edgeFinset G' product = trace.graph product * cross product.
+          have h_split :
+              (∏ e ∈ G'.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+              (∏ e ∈ D.trace.graph.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) *
+              (∏ e ∈ crossEdges, B (τ (Quot.out e).1) (τ (Quot.out e).2)) := by
+            rw [h_edge_eq, Finset.prod_union h_disj]
+          -- Goal has `let τ := τ; ...` form. Reduce both lets and assemble.
+          show (∏ v, W (σ v)) * D.trace.lu0FactorAt B ζ σ *
+              ∏ e ∈ D.trace.graph.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2) =
+              (∏ v, W (σ v)) * ∏ e ∈ G'.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)
+          rw [hlu0_eq, ← h_cross_prod, h_split]
+          ring
+        rw [hbridge ξ, hbridge ξ']
+        exact h (n + 1) G'
+      · -- **Sub-case `∃ a, lu0Mult a ≥ 2`.** Parallel B-edges — the precise
+        -- Lovász §3 multi-edge frontier (TR-2004-82).
+        sorry
 
 /-! ### Step A: `ofSimple` — wrap a simple graph as a decorated graph -/
 
