@@ -7096,8 +7096,8 @@ theorem closes.
 Stated with σ-sum-only conclusion (not full `D.trace.eval` equality);
 the LL factor handling stays in the consumer theorem. -/
 
-/-- **Independent K=1 single-coord square moment** — explicit attack
-target per user directive.
+/-- **CANONICAL MINIMAL ALGEBRAIC RESIDUE** of the Lovász §3 multigraph
+content. Independent K=1 single-coord square moment.
 
 Statement: for `tupleEquiv B W ξ ξ'` at any level `K` and any
 coordinate `a : Fin K`,
@@ -7105,11 +7105,18 @@ coordinate `a : Fin K`,
 ∑ t : Fin T, W t * B (ξ a) t ^ 2 = ∑ t : Fin T, W t * B (ξ' a) t ^ 2.
 ```
 
-This is the smallest non-trivial multigraph residue. The existing
-`tupleEquiv_single_coord_square_moment` (L9700) routes through
+This is the **smallest non-trivial multigraph residue**, isolated as
+the explicit obstruction after a 10-hop dependency-chain audit. The
+existing `tupleEquiv_single_coord_square_moment` (L9700) routes through
 `starMultigraphEval_tupleEquiv_invariant` → `traceMeasure_eq_of_tupleEquiv`
 → `tr_k_generator_descends` → ... → `trace_parallel_lu0_descends`
 itself, hence cycles when called from `trace_parallel_lu0_descends`.
+
+**Do not add stubs beneath this theorem.** Per user's hard boundary:
+the next mathematically meaningful work on this axis is to read Lovász
+TR-2004-82 §3 directly and implement the connection-matrix / rank
+argument that proves *exactly this* theorem. Further local theorem
+reshuffling will not help.
 
 **Allowed dependencies** (per user constraint):
   - `tupleEquiv` definition.
