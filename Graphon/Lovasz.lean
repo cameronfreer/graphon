@@ -6,6 +6,7 @@ Authors: Cameron Freer
 import Mathlib.Combinatorics.SimpleGraph.Finite
 import Mathlib.Data.Real.Basic
 import Mathlib.Data.Sym.Sym2
+import Mathlib.Tactic.Ring
 
 /-!
 # Lovász §3 — Connection-matrix algebra and the multigraph bridge
@@ -120,6 +121,62 @@ noncomputable def MultiLabeledGraph.ofSimple {K n : ℕ}
     intro h
     rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h
     exact F.loopless _ h
+
+/-! ### §2 — Algebra of multigraphs (Lovász's `𝒢_k`)
+
+Bounded building blocks: `empty`, `add` (same-vertex pointwise
+addition), and the basic `multiLabeledEvalK_empty` reduction. The
+heavyweight `glue` (Lovász's F₁F₂ product, disjoint union of unlabeled
+vertices) is deferred to a future session — it requires a multigraph
+analog of `labeledEvalK_glue` (~250 lines).
+
+The corresponding evaluation factorization for `add` is non-trivial
+even at the same vertex set (W-product gets squared), so it's treated
+as a separate algebra step coupled with the disjoint-glue construction
+in Lovász's framework. Stub theorems are listed in module docstring
+above. -/
+
+/-- The **empty multigraph**: zero multiplicity on every Sym2-pair. -/
+def MultiLabeledGraph.empty (K n : ℕ) : MultiLabeledGraph K n where
+  mult _ := 0
+  multNoLoop _ := rfl
+
+/-- **Pointwise addition** of multiplicities (same vertex set). The
+addition operation in the quantum-graph algebra `𝒢_k` at fixed
+unlabeled-vertex count. -/
+def MultiLabeledGraph.add {K n : ℕ}
+    (M₁ M₂ : MultiLabeledGraph K n) : MultiLabeledGraph K n where
+  mult e := M₁.mult e + M₂.mult e
+  multNoLoop x := by simp [M₁.multNoLoop x, M₂.multNoLoop x]
+
+/-- Empty multigraph evaluation: every B-power factor is `B^0 = 1`,
+so the σ-sum body collapses to the W-product. -/
+theorem multiLabeledEvalK_empty {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    multiLabeledEvalK K n (MultiLabeledGraph.empty K n) B W φ =
+    ∑ σ : Fin n → Fin T, ∏ v : Fin n, W (σ v) := by
+  unfold multiLabeledEvalK
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  -- Helper: each B-power factor with exponent 0 is 1, so the Sym2
+  -- product collapses to 1. Apply via a τ-parametric helper to avoid
+  -- the let-binding unification issue.
+  have hone : ∀ τ : Fin (n + K) → Fin T,
+      (∏ e : Sym2 (Fin (n + K)),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^
+          (MultiLabeledGraph.empty K n).mult e) = 1 :=
+    fun τ => Finset.prod_eq_one fun e _ => by
+      show B _ _ ^ (0 : ℕ) = 1
+      exact pow_zero _
+  -- Bind τ as a name and apply hone.
+  set τ : Fin (n + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then φ ⟨v, h⟩
+    else σ ⟨v - K, by have := v.isLt; omega⟩
+  show (∏ v : Fin n, W (σ v)) *
+       (∏ e : Sym2 (Fin (n + K)),
+         B (τ (Quot.out e).1) (τ (Quot.out e).2) ^
+           (MultiLabeledGraph.empty K n).mult e) =
+       ∏ v : Fin n, W (σ v)
+  rw [hone τ, mul_one]
 
 /-! ### §4 — The bridge theorem (canonical sorry)
 
