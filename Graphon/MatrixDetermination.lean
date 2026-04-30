@@ -7244,11 +7244,11 @@ private theorem tupleEquiv_single_coord_square_moment_independent
 
 private theorem DecLabeledGraph.trace_parallel_lu0_descends {T K n : ℕ}
     (D : DecLabeledGraph (K + 1) n) (B : Fin T → Fin T → ℝ)
-    (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_h_diag : ∀ x : Fin (K + 1), D.llMult s(x, x) = 0)
     (_h_parallel : ∃ a : Fin K, D.trace.lu0Mult a ≥ 2)
     [DecidableRel D.trace.graph.Adj]
-    {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ') :
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     (∑ σ : Fin (n + 1) → Fin T,
       (let τ : Fin ((n + 1) + K) → Fin T := fun v =>
         if hh : (v : ℕ) < K then ξ ⟨v, hh⟩
@@ -7265,7 +7265,219 @@ private theorem DecLabeledGraph.trace_parallel_lu0_descends {T K n : ℕ}
       D.trace.lu0FactorAt B ξ' σ *
       ∏ e ∈ D.trace.graph.edgeFinset,
         B (τ (Quot.out e).1) (τ (Quot.out e).2))) := by
-  sorry
+  classical
+  -- **Strategy**: build a `MultiLabeledGraph K (n+1)` whose multiplicity captures
+  -- both the `lu0Mult` cross-edges (between label `a` and unlabeled vertex 0,
+  -- which sits at position `K` in `Fin ((n+1)+K)`) and the `D.trace.graph` edges
+  -- (multiplicity 1 each). `D.noLL` ensures these two edge sets are disjoint, so
+  -- the multiplicity function is well-defined on each Sym2 pair. Then apply
+  -- `multiLabeledEvalK_tupleEquiv_invariant` and reshape both sides.
+  --
+  -- Position-K vertex (the "unlabeled 0" position in `Fin ((n+1)+K)`).
+  let uF : Fin ((n + 1) + K) := ⟨K, by omega⟩
+  -- Embedding `a : Fin K ↦ ⟨a.val, _⟩ : Fin ((n+1)+K)`.
+  let labelEmb : Fin K → Fin ((n + 1) + K) :=
+    fun a => ⟨a.val, by have := a.isLt; omega⟩
+  have h_labelEmb_lt : ∀ a : Fin K, ((labelEmb a) : ℕ) < K := fun a => a.isLt
+  have h_uF_val : (uF : ℕ) = K := rfl
+  have h_labelEmb_ne_uF : ∀ a : Fin K, labelEmb a ≠ uF := fun a heq => by
+    have hval : (labelEmb a).val = uF.val := by rw [heq]
+    have h1 : (labelEmb a).val = a.val := rfl
+    rw [h_uF_val, h1] at hval
+    have := a.isLt; omega
+  -- The cross-edge set (Sym2) for the lu0 component.
+  let crossEdges : Finset (Sym2 (Fin ((n + 1) + K))) :=
+    (Finset.univ : Finset (Fin K)).image (fun a => s(labelEmb a, uF))
+  have h_cross_inj :
+      Set.InjOn (fun a : Fin K => s(labelEmb a, uF)) (Finset.univ : Finset (Fin K)) := by
+    intro a _ b _ hab
+    rw [Sym2.eq_iff] at hab
+    rcases hab with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · exact Fin.ext (by have := congr_arg Fin.val h1; simpa [labelEmb] using this)
+    · -- (labelEmb a, uF) = (uF, labelEmb b): forces a.val = K, contradicting a.isLt.
+      exfalso
+      have hav : (labelEmb a).val = uF.val := by
+        have := congr_arg Fin.val h1; simpa using this
+      simp [labelEmb] at hav
+      have := a.isLt; omega
+  -- No-overlap from `D.noLL`: any cross-edge of `D.trace.graph` between a label
+  -- position and the K-vertex would lift to an LL pair upstairs.
+  have h_no_overlap : ∀ a : Fin K, ¬ D.trace.graph.Adj (labelEmb a) uF := by
+    intro a hadj
+    have hadj' : D.graph.Adj
+        (Fin.cast (show (n + 1) + K = n + (K + 1) from by omega) (labelEmb a))
+        (Fin.cast (show (n + 1) + K = n + (K + 1) from by omega) uF) := hadj
+    apply D.noLL _ _ ?_ ?_ hadj'
+    · simp [Fin.cast, labelEmb]
+    · simp [Fin.cast, uF]
+  -- Disjointness of cross-edges and `D.trace.graph.edgeFinset`.
+  have h_disj : Disjoint D.trace.graph.edgeFinset crossEdges := by
+    rw [Finset.disjoint_left]
+    intro e he hec
+    rw [Finset.mem_image] at hec
+    obtain ⟨a, _, ha_eq⟩ := hec
+    rw [SimpleGraph.mem_edgeFinset] at he
+    rw [← ha_eq, SimpleGraph.mem_edgeSet] at he
+    exact h_no_overlap a he
+  -- Build the multigraph. Multiplicity:
+  --   * `D.trace.lu0Mult a` on `s(labelEmb a, uF)` (cross-edges);
+  --   * `1` on edges of `D.trace.graph`;
+  --   * `0` elsewhere.
+  let M_trace : MultiLabeledGraph K (n + 1) :=
+    { mult := fun s =>
+        if hcr : s ∈ crossEdges then
+          -- Pick the witness `a` with `s = s(labelEmb a, uF)`.
+          D.trace.lu0Mult (Finset.mem_image.mp hcr).choose
+        else if s ∈ D.trace.graph.edgeFinset then 1
+        else 0
+      multNoLoop := by
+        intro x
+        -- Show `s(x, x)` is neither a cross-edge (loops not in image) nor a graph edge.
+        have h_not_cross : s(x, x) ∉ crossEdges := by
+          intro hmem
+          rw [Finset.mem_image] at hmem
+          obtain ⟨a, _, ha_eq⟩ := hmem
+          -- s(labelEmb a, uF) = s(x, x): forces labelEmb a = uF.
+          rw [Sym2.eq_iff] at ha_eq
+          rcases ha_eq with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+            exact h_labelEmb_ne_uF a (h1.trans h2.symm)
+        have h_not_graph : s(x, x) ∉ D.trace.graph.edgeFinset := by
+          intro hmem
+          rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at hmem
+          exact D.trace.graph.loopless x hmem
+        show (if hcr : s(x, x) ∈ crossEdges then _
+              else if s(x, x) ∈ D.trace.graph.edgeFinset then 1 else (0 : ℕ)) = 0
+        rw [dif_neg h_not_cross, if_neg h_not_graph] }
+  -- The bridge: `multiLabeledEvalK K (n+1) M_trace B W ξ = ... ξ'`.
+  have hbridge := multiLabeledEvalK_tupleEquiv_invariant B hB W M_trace h
+  -- **Reshape**: `multiLabeledEvalK K (n+1) M_trace B W ζ` equals the σ-sum body.
+  have hreshape : ∀ ζ : Fin K → Fin T,
+      multiLabeledEvalK K (n + 1) M_trace B W ζ =
+      ∑ σ : Fin (n + 1) → Fin T,
+        (let τ : Fin ((n + 1) + K) → Fin T := fun v =>
+          if hh : (v : ℕ) < K then ζ ⟨v, hh⟩
+          else σ ⟨v - K, by have := v.isLt; omega⟩
+        (∏ v : Fin (n + 1), W (σ v)) *
+        D.trace.lu0FactorAt B ζ σ *
+        ∏ e ∈ D.trace.graph.edgeFinset,
+          B (τ (Quot.out e).1) (τ (Quot.out e).2)) := by
+    intro ζ
+    unfold multiLabeledEvalK
+    refine Finset.sum_congr rfl fun σ _ => ?_
+    -- Bind τ.
+    set τ : Fin ((n + 1) + K) → Fin T := fun v =>
+      if hh : (v : ℕ) < K then ζ ⟨v, hh⟩
+      else σ ⟨v - K, by have := v.isLt; omega⟩ with hτ_def
+    have hpos : (0 : ℕ) < n + 1 := Nat.succ_pos _
+    have hτ_label : ∀ a : Fin K, τ (labelEmb a) = ζ a := fun a => by
+      simp only [τ, labelEmb]; rw [dif_pos a.isLt]
+    have hτ_uF : τ uF = σ ⟨0, hpos⟩ := by
+      simp only [τ, uF]
+      rw [dif_neg (by omega : ¬ K < K)]
+      congr 1
+      exact Fin.ext (by show K - K = 0; omega)
+    -- Goal currently has the inlined dite for τ; switch to τ.
+    show (∏ v : Fin (n + 1), W (σ v)) *
+        ∏ e : Sym2 (Fin ((n + 1) + K)),
+          B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M_trace.mult e =
+      (∏ v : Fin (n + 1), W (σ v)) *
+        D.trace.lu0FactorAt B ζ σ *
+        ∏ e ∈ D.trace.graph.edgeFinset,
+          B (τ (Quot.out e).1) (τ (Quot.out e).2)
+    -- Split the Sym2 product into 3 pieces: cross / graph / others (mult = 0).
+    -- First: split `Finset.univ = crossEdges ∪ D.trace.graph.edgeFinset ∪ rest`.
+    -- Use the multiplicative dispatch on `M_trace.mult`.
+    -- Strategy: rewrite `∏ e : Sym2 _, ...^M.mult e` via `Finset.prod_filter_mul_prod_filter_not`
+    -- partitioning by `e ∈ crossEdges`, then within `e ∉ crossEdges` partition by
+    -- `e ∈ D.trace.graph.edgeFinset`.
+    have h_disj' : Disjoint crossEdges D.trace.graph.edgeFinset := h_disj.symm
+    have hprod_split :
+        (∏ e : Sym2 (Fin ((n + 1) + K)),
+            B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M_trace.mult e) =
+        (∏ e ∈ crossEdges, B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M_trace.mult e) *
+        (∏ e ∈ D.trace.graph.edgeFinset,
+            B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M_trace.mult e) := by
+      -- `Finset.univ = (crossEdges ∪ D.trace.graph.edgeFinset) ∪ R` where R has mult 0.
+      rw [show (Finset.univ : Finset (Sym2 (Fin ((n + 1) + K)))) =
+            (crossEdges ∪ D.trace.graph.edgeFinset) ∪
+              (Finset.univ \ (crossEdges ∪ D.trace.graph.edgeFinset)) by
+            rw [Finset.union_sdiff_of_subset]; exact Finset.subset_univ _]
+      rw [Finset.prod_union (by
+            rw [Finset.disjoint_left]
+            intro e he her
+            exact (Finset.mem_sdiff.mp her).2 he)]
+      rw [Finset.prod_union h_disj']
+      -- The "rest" piece is a product of B^0 = 1.
+      have h_rest_one : (∏ e ∈
+          Finset.univ \ (crossEdges ∪ D.trace.graph.edgeFinset),
+          B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M_trace.mult e) = 1 := by
+        refine Finset.prod_eq_one fun e he => ?_
+        rw [Finset.mem_sdiff, Finset.mem_union] at he
+        push_neg at he
+        have hM_zero : M_trace.mult e = 0 := by
+          show (if hcr : e ∈ crossEdges then _
+                else if e ∈ D.trace.graph.edgeFinset then 1 else (0 : ℕ)) = 0
+          rw [dif_neg he.2.1, if_neg he.2.2]
+        rw [hM_zero, pow_zero]
+      rw [h_rest_one, mul_one]
+    -- Cross-edge product: lu0Factor.
+    have h_cross_prod :
+        (∏ e ∈ crossEdges, B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M_trace.mult e) =
+        D.trace.lu0FactorAt B ζ σ := by
+      -- `crossEdges = (Finset.univ : Finset (Fin K)).image (fun a => s(labelEmb a, uF))`.
+      show (∏ e ∈ (Finset.univ : Finset (Fin K)).image (fun a => s(labelEmb a, uF)),
+              B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M_trace.mult e) =
+            D.trace.lu0FactorAt B ζ σ
+      rw [Finset.prod_image h_cross_inj]
+      -- Now compute each factor.
+      unfold DecLabeledGraphTr.lu0FactorAt
+      rw [dif_pos hpos]
+      refine Finset.prod_congr rfl fun a _ => ?_
+      -- Need: `B (τ Q.1) (τ Q.2) ^ M.mult s(labelEmb a, uF) = B (ζ a) (σ ⟨0,_⟩) ^ lu0Mult a`.
+      -- Step 1: M_trace.mult s(labelEmb a, uF) = lu0Mult a.
+      have hmem : s(labelEmb a, uF) ∈ crossEdges := by
+        rw [Finset.mem_image]
+        exact ⟨a, Finset.mem_univ _, rfl⟩
+      have h_choose_spec :
+          s(labelEmb (Finset.mem_image.mp hmem).choose, uF) = s(labelEmb a, uF) :=
+        (Finset.mem_image.mp hmem).choose_spec.2
+      have hmM : M_trace.mult s(labelEmb a, uF) = D.trace.lu0Mult a := by
+        show (if hcr : s(labelEmb a, uF) ∈ crossEdges then
+                D.trace.lu0Mult (Finset.mem_image.mp hcr).choose
+              else if s(labelEmb a, uF) ∈ D.trace.graph.edgeFinset then 1 else (0 : ℕ)) =
+              D.trace.lu0Mult a
+        rw [dif_pos hmem]
+        -- The choose witness `c` satisfies `s(labelEmb c, uF) = s(labelEmb a, uF)`,
+        -- so `c = a` (by `h_cross_inj` after Sym2 case-split).
+        congr 1
+        set c := (Finset.mem_image.mp hmem).choose with hc_def
+        have hc_eq : s(labelEmb c, uF) = s(labelEmb a, uF) := h_choose_spec
+        rw [Sym2.eq_iff] at hc_eq
+        rcases hc_eq with ⟨h1, h2⟩ | ⟨h1, h2⟩
+        · exact Fin.ext (by have := congr_arg Fin.val h1; simpa [labelEmb] using this)
+        · exfalso
+          have := congr_arg Fin.val h1
+          simp [labelEmb, uF] at this
+          have := a.isLt; omega
+      rw [hmM, B_quot_out_eq hB τ (labelEmb a) uF, hτ_label a, hτ_uF]
+    -- Graph-edge product: each B^1 = B.
+    have h_graph_prod :
+        (∏ e ∈ D.trace.graph.edgeFinset,
+            B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M_trace.mult e) =
+        ∏ e ∈ D.trace.graph.edgeFinset,
+          B (τ (Quot.out e).1) (τ (Quot.out e).2) := by
+      refine Finset.prod_congr rfl fun e he => ?_
+      have h_not_cross : e ∉ crossEdges := fun hcr =>
+        Finset.disjoint_left.mp h_disj he hcr
+      have hmM : M_trace.mult e = 1 := by
+        show (if hcr : e ∈ crossEdges then _
+              else if e ∈ D.trace.graph.edgeFinset then 1 else (0 : ℕ)) = 1
+        rw [dif_neg h_not_cross, if_pos he]
+      rw [hmM, pow_one]
+    rw [hprod_split, h_cross_prod, h_graph_prod]
+    ring
+  -- Conclude.
+  rw [← hreshape ξ, ← hreshape ξ', hbridge]
 
 /-- **Trace-origin invariance** — direct proof for traced objects from
 `DecLabeledGraph.trace`.
