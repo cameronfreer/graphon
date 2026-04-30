@@ -17,6 +17,7 @@ import Graphon.Counting
 import Graphon.Regularity
 import Graphon.Compactness
 import Graphon.Sampling
+import Graphon.Lovasz
 import Graphon.MatrixDetermination
 import Graphon.InverseCounting
 import Graphon.Convergence
@@ -39,6 +40,7 @@ in Lean 4 using Mathlib.
 * `Graphon.Regularity` — Energy increment, Frieze–Kannan weak regularity lemma
 * `Graphon.Counting` — Homomorphism density, counting lemma
 * `Graphon.Compactness` — Total boundedness, completeness
+* `Graphon.Lovasz` — Connection-matrix algebra scaffolding (Lovász §3)
 * `Graphon.MatrixDetermination` — Algebraic determination of step graphons
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
