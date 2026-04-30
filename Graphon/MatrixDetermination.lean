@@ -8,6 +8,7 @@ import Mathlib.Data.Real.Basic
 import Mathlib.LinearAlgebra.Vandermonde
 import Mathlib.LinearAlgebra.Matrix.ToLinearEquiv
 import Mathlib.Tactic.LinearCombination
+import Graphon.Lovasz
 
 /-!
 # Algebraic Determination for Finite Matrices
@@ -7225,11 +7226,25 @@ the Lean formalization expands by ~10x due to Sym2 / Fin manipulation
 overhead. Future sessions: stage as a separate `Lovasz.lean` module
 since the multigraph algebra is independent infrastructure. -/
 private theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (M : MultiLabeledGraph K n)
-    {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ') :
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
-  sorry
+  -- Wire to the canonical bridge in `Graphon.Lovasz`. Local
+  -- `MultiLabeledGraph` and `multiLabeledEvalK` are definitionally
+  -- identical to the Lovász module's versions; convert by copying
+  -- fields, then translate `tupleEquiv` to the inlined `h_simple`
+  -- hypothesis form via `unfold labeledEvalK`.
+  let M' : Graphon.Lovasz.MultiLabeledGraph K n :=
+    { mult := M.mult, multNoLoop := M.multNoLoop }
+  have hLovasz : Graphon.Lovasz.multiLabeledEvalK K n M' B W ξ =
+                 Graphon.Lovasz.multiLabeledEvalK K n M' B W ξ' :=
+    Graphon.Lovasz.multiLabeledEvalK_tupleEquiv_invariant B hB W M'
+      (fun n' F _ => by
+        have heq := h n' F
+        unfold labeledEvalK at heq
+        exact heq)
+  exact hLovasz
 
 /-- **CANONICAL MINIMAL ALGEBRAIC RESIDUE** of the Lovász §3 multigraph
 content. Independent K=1 single-coord square moment.
