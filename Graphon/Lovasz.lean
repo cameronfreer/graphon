@@ -228,6 +228,28 @@ theorem multiLabeledEvalK_add_perσ {T K n : ℕ}
        (∏ v : Fin n, W (σ v)) * _
   rw [multiLabeledEvalK_perSym2_add B M₁ M₂ τ]
 
+/-! ### §3 — Disjoint-glue product (Lovász's F₁F₂) — STUB
+
+The disjoint-glue product is the multiplication operation in the
+quantum-graph algebra `𝒢_k`. Vertex space: `Fin ((n₁ + n₂) + K)`.
+Labels (val < K) are shared. M₁'s unlabeled occupy positions
+`K..K+n₁-1`; M₂'s unlabeled occupy positions `K+n₁..K+n₁+n₂-1`.
+
+Multiplicity at e ∈ Sym2(Fin ((n₁+n₂)+K)):
+  - **Label-label** (both endpoints val < K): `M₁.mult e + M₂.mult e`
+    (using Sym2.map identity-on-labels embeddings).
+  - **M₁-only** (both endpoints val < K + n₁, not both labels):
+    `M₁.mult` of the lift via emb₁.
+  - **M₂-only** (both endpoints val < K or val ≥ K + n₁):
+    `M₂.mult` of the lift via emb₂.
+  - **Cross** (one M₁-unlabeled, one M₂-unlabeled): 0.
+
+Then `multiLabeledEvalK_glue`: evaluation of M₁.glue M₂ factors as
+the product of evaluations.
+
+**Stubbed below — implementation deferred** (~250 lines mirroring
+`labeledEvalK_glue` at `MatrixDetermination.lean:5785`). -/
+
 /-! ### §4 — The bridge theorem (canonical sorry)
 
 Stated abstractly: for any pair `ξ ξ'` such that ALL simple-graph
