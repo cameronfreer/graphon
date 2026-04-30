@@ -6918,16 +6918,13 @@ restructure cannot eliminate the content; what's needed is either:
        3 architectural), with the algebraic chain wired through a
        single semantic root.
 
-**CANONICAL ROOT** (added per user's A_k/tr_k reframing directive):
-this theorem is a restatement of `tr_k_descends_to_A_k` (see the
-"A_k / tr_k algebra layer" section, L7855+). Applying `tr_k`'s descent
-to the class function `g := Quotient.lift Dtr.eval (proof)` where the
-proof is Dtr.eval's tupleEquiv-invariance at level `K+1` (via
-`DecLabeledGraph.eval_tupleEquiv_invariant` lifted to the traced
-carrier) yields this theorem as a corollary. The current file
-organization still proves it via `traceMeasure_eq_of_tupleEquiv` →
-`product_trace_identity` cycle (semantic equivalence, not logical
-derivation). -/
+**OFF-AXIS** (post-bridge consolidation): this theorem is **no longer**
+the canonical root. The active chain now routes through
+`multiLabeledEvalK_tupleEquiv_invariant` (the multigraph bridge,
+L7150). This `Dtr` theorem remains in the file as a documented
+generalization with its own narrowed sorry (`∃ a, lu0Mult a ≥ 1`
+case at the σ-sum level), but is not on the active proof axis. Future
+sessions: do NOT route new content through this theorem. -/
 /-- **Restricted invariance theorem** (with `h_noDiag` hypothesis).
 
 **Falsification of the original unrestricted statement.** The earlier
@@ -7129,6 +7126,69 @@ private noncomputable def multiLabeledEvalK {T : ℕ} (K n : ℕ)
     (∏ v : Fin n, W (σ v)) *
     ∏ e : Sym2 (Fin (n + K)),
       B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e
+
+/-- **Simple-graph embedding** into the multigraph carrier.
+
+For any `F : SimpleGraph (Fin (n + K))` with decidable adjacency, the
+0/1-multiplicity multigraph `M := { mult e := if e ∈ F.edgeFinset then 1 else 0 }`
+has `multiLabeledEvalK = labeledEvalK F`. This validates the carrier:
+the multigraph framework strictly extends simple graphs.
+
+`multNoLoop` follows from `SimpleGraph.loopless` — `s(x, x) ∈ F.edgeFinset`
+would mean `F.Adj x x`, forbidden. -/
+private noncomputable def MultiLabeledGraph.ofSimple {K n : ℕ}
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj] :
+    MultiLabeledGraph K n where
+  mult e := if e ∈ F.edgeFinset then 1 else 0
+  multNoLoop x := by
+    rw [if_neg]
+    intro h
+    rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h
+    exact F.loopless _ h
+
+/-- **`multiLabeledEvalK` of `ofSimple F` matches `labeledEvalK F`.**
+
+The 0/1-multigraph evaluation reduces to the simple-graph `labeledEvalK`:
+- For `e ∈ F.edgeFinset`: `B^1 = B` (factor present in both).
+- For `e ∉ F.edgeFinset`: `B^0 = 1` (no contribution to either side).
+
+Reduces multiLabeledEvalK on `ofSimple F` exactly to `labeledEvalK F`. -/
+private theorem multiLabeledEvalK_ofSimple {T K n : ℕ}
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    multiLabeledEvalK K n (MultiLabeledGraph.ofSimple F) B W φ =
+    labeledEvalK K n F B W φ := by
+  classical
+  -- Helper: the Sym2 product reduces to F.edgeFinset product, for ANY τ.
+  have hprod : ∀ τ : Fin (n + K) → Fin T,
+      (∏ e : Sym2 (Fin (n + K)),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ (MultiLabeledGraph.ofSimple F).mult e) =
+      ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2) := by
+    intro τ
+    rw [← Finset.prod_filter_mul_prod_filter_not (Finset.univ : Finset (Sym2 (Fin (n + K))))
+          (· ∈ F.edgeFinset)]
+    have hnot : (∏ x ∈ (Finset.univ : Finset (Sym2 (Fin (n + K)))).filter
+            (fun e => ¬ e ∈ F.edgeFinset),
+          B (τ (Quot.out x).1) (τ (Quot.out x).2) ^
+            (MultiLabeledGraph.ofSimple F).mult x) = 1 :=
+      Finset.prod_eq_one fun e he => by
+        rw [Finset.mem_filter] at he
+        show B _ _ ^ (if _ then 1 else 0 : ℕ) = 1
+        rw [if_neg he.2]; exact pow_zero _
+    rw [hnot, mul_one]
+    rw [show ((Finset.univ : Finset (Sym2 (Fin (n + K)))).filter (· ∈ F.edgeFinset)) =
+          F.edgeFinset from by ext e; simp]
+    refine Finset.prod_congr rfl fun e he => ?_
+    show B _ _ ^ (if _ then 1 else 0 : ℕ) = _
+    rw [if_pos he]; exact pow_one _
+  unfold multiLabeledEvalK labeledEvalK
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  -- Bind τ as a name so rw can unify against hprod.
+  set τ : Fin (n + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then φ ⟨v, h⟩
+    else σ ⟨v - K, by have := v.isLt; omega⟩ with hτ_def
+  -- After `set`, both σ-sum bodies should reference τ.
+  exact congrArg _ (hprod τ)
 
 /-- **The multigraph bridge — canonical sorry.**
 
