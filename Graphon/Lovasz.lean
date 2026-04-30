@@ -149,6 +149,23 @@ def MultiLabeledGraph.add {K n : ℕ}
   mult e := M₁.mult e + M₂.mult e
   multNoLoop x := by simp [M₁.multNoLoop x, M₂.multNoLoop x]
 
+/-- **Per-Sym2 add factorization**: for ANY function τ, the
+product over Sym2 of `B(τ ·)(τ ·) ^ (M₁.mult + M₂.mult)` factors as
+the product of `B^M₁.mult` and `B^M₂.mult`. -/
+theorem multiLabeledEvalK_perSym2_add {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (M₁ M₂ : MultiLabeledGraph K n)
+    (τ : Fin (n + K) → Fin T) :
+    (∏ e : Sym2 (Fin (n + K)),
+      B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ (M₁.add M₂).mult e) =
+    (∏ e : Sym2 (Fin (n + K)),
+      B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M₁.mult e) *
+    (∏ e : Sym2 (Fin (n + K)),
+      B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M₂.mult e) := by
+  rw [← Finset.prod_mul_distrib]
+  refine Finset.prod_congr rfl fun e _ => ?_
+  show _ ^ (M₁.mult e + M₂.mult e) = _
+  exact pow_add _ _ _
+
 /-- Empty multigraph evaluation: every B-power factor is `B^0 = 1`,
 so the σ-sum body collapses to the W-product. -/
 theorem multiLabeledEvalK_empty {T K n : ℕ}
@@ -177,6 +194,39 @@ theorem multiLabeledEvalK_empty {T K n : ℕ}
            (MultiLabeledGraph.empty K n).mult e) =
        ∏ v : Fin n, W (σ v)
   rw [hone τ, mul_one]
+
+/-- **Same-vertex add factorization** (general n).
+
+For any pair `M₁ M₂ : MultiLabeledGraph K n`, the multigraph
+evaluation of `M₁.add M₂` does NOT factor as the product of
+evaluations in general: the `W`-product gets shared once but the
+B-product factors via `pow_add`. Compare with Lovász's F₁F₂ product
+(disjoint glue), which DOES factor cleanly.
+
+Result: per-σ factorization holds, but the σ-sum doesn't distribute. -/
+theorem multiLabeledEvalK_add_perσ {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (M₁ M₂ : MultiLabeledGraph K n) (φ : Fin K → Fin T) :
+    multiLabeledEvalK K n (M₁.add M₂) B W φ =
+    ∑ σ : Fin n → Fin T,
+      let τ : Fin (n + K) → Fin T := fun v =>
+        if h : (v : ℕ) < K then φ ⟨v, h⟩
+        else σ ⟨v - K, by have := v.isLt; omega⟩
+      (∏ v : Fin n, W (σ v)) *
+      ((∏ e : Sym2 (Fin (n + K)),
+          B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M₁.mult e) *
+       (∏ e : Sym2 (Fin (n + K)),
+          B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M₂.mult e)) := by
+  unfold multiLabeledEvalK
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  set τ : Fin (n + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then φ ⟨v, h⟩
+    else σ ⟨v - K, by have := v.isLt; omega⟩
+  show (∏ v : Fin n, W (σ v)) *
+       (∏ e : Sym2 (Fin (n + K)),
+         B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ (M₁.add M₂).mult e) =
+       (∏ v : Fin n, W (σ v)) * _
+  rw [multiLabeledEvalK_perSym2_add B M₁ M₂ τ]
 
 /-! ### §4 — The bridge theorem (canonical sorry)
 
