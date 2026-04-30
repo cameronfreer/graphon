@@ -7203,10 +7203,27 @@ algebra `f_k(𝒢_k) ⊆ 𝒜_k`, and aut-orbits coincide).
   - `DecLabeledGraph.trace_parallel_lu0_descends` (closed below);
   - `DecLabeledGraphTr.eval_tupleEquiv_invariant` (off-axis, unaffected).
 
-**Future proof**: ~150 lines translating Lovász §3+§4 algebra:
-operators on quantum graphs (`𝒢_k`), trace-closure of `f_k`
-(eq. 6 page 7), Lemma 2.5 (column space of N(k, G) = aut-invariant),
-Lemma 2.4 (twin-free + equivalence ⟹ orbit). -/
+**Future proof**: substantial — needs a connection-matrix / quantum-
+graph algebra section (~300-500 lines), not a small algebraic step.
+Required infrastructure (assessed post-`MultiLabeledGraph.ofSimple`
+validation):
+  - **Multiplicative closure** (Lovász's F₁F₂ product): disjoint-glue
+    of unlabeled vertices, multiplicity-aware version of
+    `labeledEvalK_glue` (L5785, ~250 lines). Same-vertex-set
+    multiplicity-add factors only for `n = 0` (label-only).
+  - **Quantum graph algebra** `𝒢_k`: formal ℝ-linear combinations of
+    multigraphs, with multiplication via the F₁F₂ product. ~50 lines.
+  - **Trace operator** `tr : 𝒢_k → 𝒢_{k-1}`: erase the last label.
+    Trace-closure identity `tr ∘ f_k = f_{k-1} ∘ tr` (eq. 6 page 7).
+    ~100 lines.
+  - **Lemma 2.5 translation** (column space = aut-invariant): the core
+    rank theorem. Uses Lovász's algebra `𝒜_k` + idempotent basis
+    argument. ~100 lines.
+
+Lovász's argument in §3 is a clean ~5-page algebra proof on paper;
+the Lean formalization expands by ~10x due to Sym2 / Fin manipulation
+overhead. Future sessions: stage as a separate `Lovasz.lean` module
+since the multigraph algebra is independent infrastructure. -/
 private theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (M : MultiLabeledGraph K n)
