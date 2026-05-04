@@ -784,6 +784,187 @@ theorem multiLabeledEvalK_glue {T K n₁ n₂ : ℕ}
   rw [h_wt, h_sym2]
   ring
 
+/-! ### §3.5 — Trace operator (Lovász eq. 6) -/
+
+/-- **Trace operator on multigraphs.** Folds the last label of a `(K+1)`-labeled
+multigraph into a new unlabeled vertex, yielding a `K`-labeled multigraph with
+`n + 1` unlabeled vertices.
+
+Vertex spaces `Fin (n + (K + 1))` and `Fin ((n + 1) + K)` have the same
+cardinality; the multiplicity is pulled back via the val-preserving
+`Fin.cast`. -/
+def MultiLabeledGraph.trace {K n : ℕ}
+    (M : MultiLabeledGraph (K + 1) n) : MultiLabeledGraph K (n + 1) where
+  mult e := M.mult (Sym2.map (Fin.cast (show (n + 1) + K = n + (K + 1) by omega)) e)
+  multNoLoop x := by
+    rw [Sym2.map_pair_eq]
+    exact M.multNoLoop _
+
+/-- **Trace-closure identity** (Lovász eq. 6, p. 7).
+
+Summing `multiLabeledEvalK (K+1) n M B W` over the last label `t` of a
+`(K+1)`-tuple `Fin.snoc φ t`, weighted by `W(t)`, equals
+`multiLabeledEvalK K (n+1) M.trace B W φ` — i.e., closing the last label
+into a new unlabeled vertex.
+
+Multigraph analog of `labeledEvalK_sum_last_label`
+(`MatrixDetermination.lean:4906`). Requires `B` symmetric since the
+vertex-space cast `Fin ((n+1)+K) ↔ Fin (n+(K+1))` reindexes Sym2 pairs
+through `Sym2.map (Fin.cast _)` and `Quot.out` may pick swapped
+orientations. -/
+theorem multiLabeledEvalK_sum_last_label {T K n : ℕ}
+    (M : MultiLabeledGraph (K + 1) n) (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (φ : Fin K → Fin T) :
+    ∑ t : Fin T, W t * multiLabeledEvalK (K + 1) n M B W (Fin.snoc φ t) =
+    multiLabeledEvalK K (n + 1) M.trace B W φ := by
+  -- Unfold both sides.
+  simp only [multiLabeledEvalK]
+  -- LHS: ∑ t, W t * ∑ σ, (∏ W(σ v)) * ∏ B(τ_{K+1} ...) ^ M.mult e
+  -- RHS: ∑ σ', (∏ W(σ' v)) * ∏ B(τ_K ...) ^ M.trace.mult e
+  -- (RHS Sym2 product is over Fin ((n+1)+K), via M.trace.)
+  -- Bijection: σ' = Fin.cons t σ.
+  conv_rhs =>
+    rw [(Equiv.sum_comp (Fin.consEquiv (fun _ : Fin (n + 1) => Fin T)) _).symm]
+  simp only [Fin.consEquiv_apply]
+  rw [Fintype.sum_prod_type]
+  congr 1; ext t
+  rw [Finset.mul_sum]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  -- Weight product on RHS: ∏ W((Fin.cons t σ) v) = W(t) * ∏ W(σ v)
+  rw [Fin.prod_univ_succ]
+  simp only [Fin.cons_zero, Fin.cons_succ]
+  rw [show W t * ((∏ v : Fin n, W (σ v)) *
+        ∏ e : Sym2 (Fin (n + (K + 1))),
+          B _ _ ^ M.mult e) =
+      (W t * ∏ v : Fin n, W (σ v)) *
+        ∏ e : Sym2 (Fin (n + (K + 1))),
+          B _ _ ^ M.mult e from by ring]
+  congr 1
+  -- Sym2 product equality. The LHS is over Sym2 (Fin (n + (K+1))) with M.mult e;
+  -- the RHS is over Sym2 (Fin ((n+1) + K)) with M.trace.mult e' = M.mult (Sym2.map cast e').
+  -- Reindex LHS via the bijection e' ↦ Sym2.map (Fin.cast h_eq) e'.
+  set h_eq : (n + 1) + K = n + (K + 1) := by omega
+  -- The Sym2 cast as an Equiv.
+  let e_fin : Fin ((n + 1) + K) ≃ Fin (n + (K + 1)) :=
+    (Fin.castOrderIso h_eq).toEquiv
+  let e_sym2 : Sym2 (Fin ((n + 1) + K)) ≃ Sym2 (Fin (n + (K + 1))) :=
+    { toFun := Sym2.map e_fin
+      invFun := Sym2.map e_fin.symm
+      left_inv := fun x => by
+        rw [Sym2.map_map]
+        have h_id : e_fin.symm ∘ e_fin = id := by ext; simp
+        rw [h_id, Sym2.map_id, id_eq]
+      right_inv := fun x => by
+        rw [Sym2.map_map]
+        have h_id : e_fin ∘ e_fin.symm = id := by ext; simp
+        rw [h_id, Sym2.map_id, id_eq] }
+  -- Reindex LHS via e_sym2: apply Equiv.prod_comp.
+  rw [show
+      (∏ e : Sym2 (Fin (n + (K + 1))),
+        B ((fun v : Fin (n + (K + 1)) =>
+            if h : (v : ℕ) < K + 1 then (Fin.snoc (α := fun _ => Fin T) φ t) ⟨v, h⟩
+            else σ ⟨v.val - (K + 1), by have := v.isLt; omega⟩)
+            (Quot.out e).1)
+          ((fun v : Fin (n + (K + 1)) =>
+            if h : (v : ℕ) < K + 1 then (Fin.snoc (α := fun _ => Fin T) φ t) ⟨v, h⟩
+            else σ ⟨v.val - (K + 1), by have := v.isLt; omega⟩)
+            (Quot.out e).2) ^ M.mult e) =
+      ∏ e' : Sym2 (Fin ((n + 1) + K)),
+        B ((fun v : Fin (n + (K + 1)) =>
+            if h : (v : ℕ) < K + 1 then (Fin.snoc (α := fun _ => Fin T) φ t) ⟨v, h⟩
+            else σ ⟨v.val - (K + 1), by have := v.isLt; omega⟩)
+            (Quot.out (e_sym2 e')).1)
+          ((fun v : Fin (n + (K + 1)) =>
+            if h : (v : ℕ) < K + 1 then (Fin.snoc (α := fun _ => Fin T) φ t) ⟨v, h⟩
+            else σ ⟨v.val - (K + 1), by have := v.isLt; omega⟩)
+            (Quot.out (e_sym2 e')).2) ^ M.mult (e_sym2 e') from
+    (Equiv.prod_comp e_sym2 _).symm]
+  -- Now both sides are products over Sym2 (Fin ((n+1) + K)).
+  refine Finset.prod_congr rfl fun e _ => ?_
+  -- M.trace.mult e = M.mult (e_sym2 e) by definition.
+  have hmult : M.trace.mult e = M.mult (e_sym2 e) := by
+    show M.mult (Sym2.map (Fin.cast h_eq) e) = M.mult (Sym2.map e_fin e)
+    rfl
+  rw [hmult]
+  congr 1
+  -- B-arg equality up to symmetry: case-split on Quot.out orientations.
+  refine Sym2.ind (fun a b => ?_) e
+  -- e_sym2 s(a, b) = s(Fin.cast h_eq a, Fin.cast h_eq b).
+  have h_es : e_sym2 s(a, b) = s(Fin.cast h_eq a, Fin.cast h_eq b) := by
+    show Sym2.map e_fin s(a, b) = _
+    rw [Sym2.map_pair_eq]
+    rfl
+  rw [h_es]
+  -- Quot.out orientations on both sides.
+  set p_lhs := Quot.out s(Fin.cast h_eq a, Fin.cast h_eq b)
+  set p_rhs := Quot.out s(a, b)
+  have h_lhs : (p_lhs.1 = Fin.cast h_eq a ∧ p_lhs.2 = Fin.cast h_eq b) ∨
+               (p_lhs.1 = Fin.cast h_eq b ∧ p_lhs.2 = Fin.cast h_eq a) := by
+    have := Sym2.eq_iff.mp (Quot.out_eq s(Fin.cast h_eq a, Fin.cast h_eq b))
+    rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · left; exact ⟨h1, h2⟩
+    · right; exact ⟨h1, h2⟩
+  have h_rhs : (p_rhs.1 = a ∧ p_rhs.2 = b) ∨ (p_rhs.1 = b ∧ p_rhs.2 = a) := by
+    have := Sym2.eq_iff.mp (Quot.out_eq s(a, b))
+    rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · left; exact ⟨h1, h2⟩
+    · right; exact ⟨h1, h2⟩
+  -- Pointwise τ equality on cast vertices.
+  have hτ : ∀ v : Fin ((n + 1) + K),
+      (if h : ((Fin.cast h_eq v) : ℕ) < K + 1
+        then (Fin.snoc (α := fun _ => Fin T) φ t) ⟨(Fin.cast h_eq v), h⟩
+        else σ ⟨(Fin.cast h_eq v).val - (K + 1),
+                by have := (Fin.cast h_eq v).isLt; omega⟩) =
+      (if h : ((v : Fin ((n + 1) + K)) : ℕ) < K
+        then φ ⟨v, h⟩
+        else (Fin.cons (α := fun _ => Fin T) t σ)
+              ⟨v.val - K, by have := v.isLt; omega⟩) := by
+    intro v
+    have hv_eq : ((Fin.cast h_eq v) : ℕ) = v.val := Fin.val_cast _ _
+    by_cases hvK : v.val < K
+    · have hvK1 : v.val < K + 1 := by omega
+      have h1 : ((Fin.cast h_eq v) : ℕ) < K + 1 := by rw [hv_eq]; exact hvK1
+      rw [dif_pos h1, dif_pos hvK]
+      have hrec : (⟨((Fin.cast h_eq v) : ℕ), h1⟩ : Fin (K + 1)) =
+                  (⟨v.val, hvK⟩ : Fin K).castSucc := by
+        apply Fin.ext
+        show ((Fin.cast h_eq v) : ℕ) = v.val
+        exact hv_eq
+      rw [hrec, Fin.snoc_castSucc]
+    by_cases hvK1 : v.val = K
+    · have h1 : ((Fin.cast h_eq v) : ℕ) < K + 1 := by rw [hv_eq]; omega
+      rw [dif_pos h1, dif_neg hvK]
+      have hlast : (⟨((Fin.cast h_eq v) : ℕ), h1⟩ : Fin (K + 1)) =
+                   Fin.last K := by
+        apply Fin.ext; show ((Fin.cast h_eq v) : ℕ) = K
+        rw [hv_eq]; exact hvK1
+      rw [hlast, Fin.snoc_last]
+      have hzero : (⟨v.val - K, by have := v.isLt; omega⟩ : Fin (n + 1)) =
+                   (0 : Fin (n + 1)) := by
+        apply Fin.ext; show v.val - K = 0; omega
+      rw [hzero]; rfl
+    · have h1 : ¬ ((Fin.cast h_eq v) : ℕ) < K + 1 := by
+        rw [hv_eq]; omega
+      rw [dif_neg h1, dif_neg hvK]
+      have hsucc : (⟨v.val - K, by have := v.isLt; omega⟩ : Fin (n + 1)) =
+                   (⟨v.val - K - 1, by have := v.isLt; omega⟩ : Fin n).succ := by
+        apply Fin.ext; simp; omega
+      rw [hsucc, Fin.cons_succ]
+      apply congr_arg σ
+      apply Fin.ext
+      show ((Fin.cast h_eq v) : ℕ) - (K + 1) = v.val - K - 1
+      rw [hv_eq]; omega
+  -- Apply hτ at the Quot.out endpoints; use B symmetry to handle swapped orientations.
+  -- Beta-reduce the lambda first.
+  beta_reduce
+  rcases h_lhs with ⟨hL1, hL2⟩ | ⟨hL1, hL2⟩ <;>
+    rcases h_rhs with ⟨hR1, hR2⟩ | ⟨hR1, hR2⟩ <;>
+    rw [hL1, hL2, hR1, hR2, hτ a, hτ b] <;>
+    first
+    | rfl
+    | exact hB _ _
+
 /-! ### §4 — The bridge theorem (canonical sorry)
 
 Stated abstractly: for any pair `ξ ξ'` such that ALL simple-graph
