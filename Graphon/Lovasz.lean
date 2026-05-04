@@ -965,6 +965,97 @@ theorem multiLabeledEvalK_sum_last_label {T K n : ℕ}
     | rfl
     | exact hB _ _
 
+/-! ### §3.5 — Automorphism-invariance of multigraph evaluation
+
+A bounded preliminary: any `(B, W)`-automorphism `σ : Fin T ≃ Fin T`
+acts trivially on multigraph evaluations (substitute `τ ∘ σ` in the
+σ-sum). This is the standard symmetry observation, NOT the bridge
+content (which would say simple-graph `tupleEquiv` implies multi
+evaluations agree).
+
+The orbit-based corollary: if `ξ' = σ ∘ ξ` for some aut σ, then
+`multiEval M ξ = multiEval M ξ'`. This is bounded (~30 lines) and
+serves as a stepping-stone for the full bridge. -/
+
+/-- **Automorphism invariance of `multiLabeledEvalK`**.
+
+If `σ : Fin T ≃ Fin T` is a `(B, W)`-automorphism (preserves W and B),
+then for any multigraph `M` and any labeled tuple `φ`,
+`multiLabeledEvalK M (σ ∘ φ) = multiLabeledEvalK M φ`. -/
+theorem multiLabeledEvalK_aut_invariant {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (M : MultiLabeledGraph K n)
+    (σ : Equiv.Perm (Fin T))
+    (hσ_W : ∀ i, W (σ i) = W i)
+    (hσ_B : ∀ i j, B (σ i) (σ j) = B i j)
+    (φ : Fin K → Fin T) :
+    multiLabeledEvalK K n M B W (σ ∘ φ) =
+    multiLabeledEvalK K n M B W φ := by
+  unfold multiLabeledEvalK
+  rw [← Equiv.sum_comp (Equiv.arrowCongr (Equiv.refl (Fin n)) σ)]
+  refine Finset.sum_congr rfl fun σ_inner _ => ?_
+  -- Per-σ-inner integrand factor equality. Use τ-parametric helpers
+  -- to avoid the let-binding unification issue.
+  have hW_eq : ∀ v : Fin n,
+      W (((Equiv.arrowCongr (Equiv.refl (Fin n)) σ) σ_inner) v) = W (σ_inner v) := by
+    intro v; show W (σ (σ_inner v)) = W (σ_inner v); exact hσ_W _
+  have hB_eq : ∀ τ_L τ_R : Fin (n + K) → Fin T,
+      (∀ v, τ_L v = σ (τ_R v)) →
+      (∏ e : Sym2 (Fin (n + K)),
+        B (τ_L (Quot.out e).1) (τ_L (Quot.out e).2) ^ M.mult e) =
+      (∏ e : Sym2 (Fin (n + K)),
+        B (τ_R (Quot.out e).1) (τ_R (Quot.out e).2) ^ M.mult e) := by
+    intro τ_L τ_R hτ
+    refine Finset.prod_congr rfl fun e _ => ?_
+    congr 1
+    rw [hτ, hτ]; exact hσ_B _ _
+  -- Bind τ_L and τ_R via `let` so they unfold via `show` for `rfl` checks.
+  let τ_R : Fin (n + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then φ ⟨v, h⟩
+    else σ_inner ⟨v - K, by have := v.isLt; omega⟩
+  let τ_L : Fin (n + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then (σ ∘ φ) ⟨v, h⟩
+    else ((Equiv.arrowCongr (Equiv.refl (Fin n)) σ) σ_inner)
+            ⟨v - K, by have := v.isLt; omega⟩
+  have hτ_pt : ∀ v : Fin (n + K), τ_L v = σ (τ_R v) := by
+    intro v
+    by_cases hv : (v : ℕ) < K
+    · show (if h : (v : ℕ) < K then (σ ∘ φ) ⟨v, h⟩ else _) =
+            σ (if h : (v : ℕ) < K then φ ⟨v, h⟩ else _)
+      rw [dif_pos hv, dif_pos hv]
+      rfl
+    · show (if h : (v : ℕ) < K then _ else
+              ((Equiv.arrowCongr (Equiv.refl (Fin n)) σ) σ_inner)
+                ⟨v - K, by have := v.isLt; omega⟩) =
+            σ (if h : (v : ℕ) < K then _ else
+                σ_inner ⟨v - K, by have := v.isLt; omega⟩)
+      rw [dif_neg hv, dif_neg hv]
+      rfl
+  -- Goal: (∏ W (σ∘σ_inner)) * (∏ B^M.mult on τ_L) = (∏ W σ_inner) * (∏ B^M.mult on τ_R)
+  change (∏ v : Fin n, W (((Equiv.arrowCongr (Equiv.refl (Fin n)) σ) σ_inner) v)) *
+       (∏ e : Sym2 (Fin (n + K)),
+         B (τ_L (Quot.out e).1) (τ_L (Quot.out e).2) ^ M.mult e) =
+       (∏ v : Fin n, W (σ_inner v)) *
+       (∏ e : Sym2 (Fin (n + K)),
+         B (τ_R (Quot.out e).1) (τ_R (Quot.out e).2) ^ M.mult e)
+  rw [Finset.prod_congr rfl (fun v _ => hW_eq v), hB_eq τ_L τ_R hτ_pt]
+
+/-- **Orbit-based invariance**: corollary of `multiLabeledEvalK_aut_invariant`.
+If `ξ' = σ ∘ ξ` for some `(B, W)`-automorphism `σ`, multigraph
+evaluations agree. -/
+theorem multiLabeledEvalK_orbit_invariant {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (M : MultiLabeledGraph K n)
+    {ξ ξ' : Fin K → Fin T}
+    (h : ∃ σ : Equiv.Perm (Fin T),
+      (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
+      (∀ i, ξ' i = σ (ξ i))) :
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  obtain ⟨σ, hσ_W, hσ_B, hξ'⟩ := h
+  have : ξ' = σ ∘ ξ := funext hξ'
+  rw [this]
+  exact (multiLabeledEvalK_aut_invariant B W M σ hσ_W hσ_B ξ).symm
+
 /-! ### §4 — The bridge theorem (canonical sorry)
 
 Stated abstractly: for any pair `ξ ξ'` such that ALL simple-graph
