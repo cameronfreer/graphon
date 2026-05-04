@@ -3,9 +3,13 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Mathlib.Algebra.BigOperators.Fin
+import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Combinatorics.SimpleGraph.Finite
+import Mathlib.Data.Fintype.BigOperators
 import Mathlib.Data.Real.Basic
 import Mathlib.Data.Sym.Sym2
+import Mathlib.Logic.Equiv.Fin.Basic
 import Mathlib.Tactic.Ring
 
 /-!
@@ -228,7 +232,7 @@ theorem multiLabeledEvalK_add_perσ {T K n : ℕ}
        (∏ v : Fin n, W (σ v)) * _
   rw [multiLabeledEvalK_perSym2_add B M₁ M₂ τ]
 
-/-! ### §3 — Disjoint-glue product (Lovász's F₁F₂) — STUB
+/-! ### §3 — Disjoint-glue product (Lovász's F₁F₂)
 
 The disjoint-glue product is the multiplication operation in the
 quantum-graph algebra `𝒢_k`. Vertex space: `Fin ((n₁ + n₂) + K)`.
@@ -242,13 +246,543 @@ Multiplicity at e ∈ Sym2(Fin ((n₁+n₂)+K)):
     `M₁.mult` of the lift via emb₁.
   - **M₂-only** (both endpoints val < K or val ≥ K + n₁):
     `M₂.mult` of the lift via emb₂.
-  - **Cross** (one M₁-unlabeled, one M₂-unlabeled): 0.
+  - **Cross** (one M₁-unlabeled, one M₂-unlabeled): 0. -/
 
-Then `multiLabeledEvalK_glue`: evaluation of M₁.glue M₂ factors as
-the product of evaluations.
+/-- **M₁-side cast**: project a vertex `v : Fin ((n₁+n₂)+K)` into `Fin (n₁+K)`
+when its `val` lies in M₁'s scope (i.e. `val < n₁+K`). Returns `none` for
+M₂-unlabeled vertices (`val ≥ n₁+K`). -/
+def glueCast₁ (K n₁ n₂ : ℕ) (v : Fin ((n₁ + n₂) + K)) : Option (Fin (n₁ + K)) :=
+  if h : v.val < n₁ + K then some ⟨v.val, h⟩ else none
 
-**Stubbed below — implementation deferred** (~250 lines mirroring
-`labeledEvalK_glue` at `MatrixDetermination.lean:5785`). -/
+/-- **M₂-side cast**: project a vertex `v : Fin ((n₁+n₂)+K)` into `Fin (n₂+K)`
+when its `val` is either a label (`val < K`, mapped to itself) or M₂-unlabeled
+(`val ≥ n₁+K`, shifted back by `n₁`). Returns `none` for M₁-unlabeled vertices. -/
+def glueCast₂ (K n₁ n₂ : ℕ) (v : Fin ((n₁ + n₂) + K)) : Option (Fin (n₂ + K)) :=
+  if h : v.val < K then some ⟨v.val, by omega⟩
+  else if h2 : v.val ≥ n₁ + K then some ⟨v.val - n₁, by have := v.isLt; omega⟩
+  else none
+
+/-- **Disjoint glue** of two k-labeled multigraphs (Lovász's F₁F₂ product).
+
+Vertex space `Fin ((n₁+n₂)+K)`: labels at positions `0..K-1` (shared);
+M₁'s unlabeled at `K..K+n₁-1`; M₂'s unlabeled at `K+n₁..K+n₁+n₂-1`.
+Multiplicity at `e` adds the M₁-contribution (when both endpoints are in
+M₁'s scope) and the M₂-contribution (when both endpoints are labels or in
+M₂'s shifted unlabeled range). Cross-type pairs (one M₁-unlabeled, one
+M₂-unlabeled) contribute 0. -/
+def MultiLabeledGraph.glue {K n₁ n₂ : ℕ}
+    (M₁ : MultiLabeledGraph K n₁) (M₂ : MultiLabeledGraph K n₂) :
+    MultiLabeledGraph K (n₁ + n₂) where
+  mult := Sym2.lift ⟨fun u v =>
+    (match glueCast₁ K n₁ n₂ u, glueCast₁ K n₁ n₂ v with
+     | some u', some v' => M₁.mult s(u', v')
+     | _, _ => 0) +
+    (match glueCast₂ K n₁ n₂ u, glueCast₂ K n₁ n₂ v with
+     | some u', some v' => M₂.mult s(u', v')
+     | _, _ => 0),
+   by
+     intro a b
+     rcases hc1a : glueCast₁ K n₁ n₂ a with _ | u₁a <;>
+       rcases hc1b : glueCast₁ K n₁ n₂ b with _ | u₁b <;>
+       rcases hc2a : glueCast₂ K n₁ n₂ a with _ | u₂a <;>
+       rcases hc2b : glueCast₂ K n₁ n₂ b with _ | u₂b <;>
+       simp only [hc1a, hc1b, hc2a, hc2b] <;>
+       (try rw [show s(u₁a, u₁b) = s(u₁b, u₁a) from Sym2.eq_swap]) <;>
+       (try rw [show s(u₂a, u₂b) = s(u₂b, u₂a) from Sym2.eq_swap])⟩
+  multNoLoop x := by
+    show (match glueCast₁ K n₁ n₂ x, glueCast₁ K n₁ n₂ x with
+          | some u', some v' => M₁.mult s(u', v')
+          | _, _ => 0) +
+         (match glueCast₂ K n₁ n₂ x, glueCast₂ K n₁ n₂ x with
+          | some u', some v' => M₂.mult s(u', v')
+          | _, _ => 0) = 0
+    rcases hc1 : glueCast₁ K n₁ n₂ x with _ | u₁ <;>
+      rcases hc2 : glueCast₂ K n₁ n₂ x with _ | u₂ <;>
+      simp [M₁.multNoLoop, M₂.multNoLoop]
+
+/-- Unfold lemma for `MultiLabeledGraph.glue.mult` at an unordered pair `s(a, b)`. -/
+theorem MultiLabeledGraph.glue_mult_pair {K n₁ n₂ : ℕ}
+    (M₁ : MultiLabeledGraph K n₁) (M₂ : MultiLabeledGraph K n₂)
+    (a b : Fin ((n₁ + n₂) + K)) :
+    (M₁.glue M₂).mult s(a, b) =
+    (match glueCast₁ K n₁ n₂ a, glueCast₁ K n₁ n₂ b with
+     | some u', some v' => M₁.mult s(u', v')
+     | _, _ => 0) +
+    (match glueCast₂ K n₁ n₂ a, glueCast₂ K n₁ n₂ b with
+     | some u', some v' => M₂.mult s(u', v')
+     | _, _ => 0) := rfl
+
+/-- **Sum factorization over `Fin (m + p)` colorings.** A function on
+`Fin (m+p) → Fin k` colorings restricted via `Fin.castAdd`/`Fin.natAdd`
+factors the sum into a product of independent sums. Mirrors
+`MatrixDetermination.lean`'s `sum_piFinAdd_factor`. -/
+private theorem sum_piFinAdd_factor {k m p : ℕ}
+    (f : (Fin m → Fin k) → ℝ) (g : (Fin p → Fin k) → ℝ) :
+    ∑ τ : Fin (m + p) → Fin k,
+      f (fun j => τ (Fin.castAdd p j)) * g (fun j => τ (Fin.natAdd m j)) =
+    (∑ τ : Fin m → Fin k, f τ) * (∑ τ : Fin p → Fin k, g τ) := by
+  let e : (Fin (m + p) → Fin k) ≃ (Fin m → Fin k) × (Fin p → Fin k) :=
+    (Equiv.arrowCongr finSumFinEquiv.symm (Equiv.refl (Fin k))).trans
+      (Equiv.sumArrowEquivProdArrow (Fin m) (Fin p) (Fin k))
+  have he : ∀ τ : Fin (m + p) → Fin k,
+      f (fun j => τ (Fin.castAdd p j)) * g (fun j => τ (Fin.natAdd m j)) =
+      f (e τ).1 * g (e τ).2 := fun _ => by rfl
+  simp_rw [he]
+  have h1 : ∑ x, f (e x).1 * g (e x).2 =
+      ∑ x : (Fin m → Fin k) × (Fin p → Fin k), f x.1 * g x.2 :=
+    Equiv.sum_comp e (fun y => f y.1 * g y.2)
+  rw [h1, Fintype.sum_prod_type]
+  exact (Fintype.sum_mul_sum f g).symm
+
+/-- For symmetric `B`, the `B`-product at `Quot.out` of an unordered pair equals
+`B` at the pair's actual endpoints. Resolves the `Quot.out` orientation. -/
+private theorem B_quot_out_eq {α : Type*} {T : ℕ} {B : Fin T → Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) (f : α → Fin T) (a b : α) :
+    B (f (Quot.out s(a, b)).1) (f (Quot.out s(a, b)).2) = B (f a) (f b) := by
+  set p := Quot.out s(a, b)
+  have key : (p.1 = a ∧ p.2 = b) ∨ (p.1 = b ∧ p.2 = a) := by
+    have := Sym2.eq_iff.mp (Quot.out_eq s(a, b))
+    rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> [left; right] <;> exact ⟨h1, h2⟩
+  rcases key with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> simp only [h1, h2, hB]
+
+/-- Same as `B_quot_out_eq` but with mult exponentiation. -/
+private theorem B_pow_quot_out_eq {α : Type*} {T : ℕ} {B : Fin T → Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) (f : α → Fin T) (a b : α) (m : ℕ) :
+    B (f (Quot.out s(a, b)).1) (f (Quot.out s(a, b)).2) ^ m = B (f a) (f b) ^ m := by
+  rw [B_quot_out_eq hB]
+
+/-- Identity-on-labels embedding `Fin (n₁ + K) ↪ Fin ((n₁ + n₂) + K)`. -/
+def glueEmb₁ (K n₁ n₂ : ℕ) : Fin (n₁ + K) ↪ Fin ((n₁ + n₂) + K) :=
+  ⟨fun v => ⟨v.val, by have := v.isLt; omega⟩,
+   fun a b h => Fin.ext (by simpa using congr_arg Fin.val h)⟩
+
+/-- Embedding `Fin (n₂ + K) ↪ Fin ((n₁ + n₂) + K)`: labels (val < K) are
+preserved; M₂'s unlabeled vertices (val ≥ K) are shifted by n₁. -/
+def glueEmb₂ (K n₁ n₂ : ℕ) : Fin (n₂ + K) ↪ Fin ((n₁ + n₂) + K) where
+  toFun v := if h : v.val < K then ⟨v.val, by omega⟩
+             else ⟨n₁ + v.val, by have := v.isLt; omega⟩
+  inj' a b h := by
+    by_cases ha : a.val < K <;> by_cases hb : b.val < K <;>
+      simp only [ha, hb, dif_pos, dif_neg, not_false_eq_true, Fin.mk.injEq] at h <;>
+      exact Fin.ext (by omega)
+
+/-- `glueCast₁ K n₁ n₂ (glueEmb₁ K n₁ n₂ v) = some v`. -/
+@[simp] theorem glueCast₁_glueEmb₁ (K n₁ n₂ : ℕ) (v : Fin (n₁ + K)) :
+    glueCast₁ K n₁ n₂ (glueEmb₁ K n₁ n₂ v) = some v := by
+  simp only [glueCast₁, glueEmb₁, Function.Embedding.coeFn_mk]
+  have : v.val < n₁ + K := v.isLt
+  rw [dif_pos this]
+
+/-- `glueCast₂ K n₁ n₂ (glueEmb₂ K n₁ n₂ v) = some v`. -/
+@[simp] theorem glueCast₂_glueEmb₂ (K n₁ n₂ : ℕ) (v : Fin (n₂ + K)) :
+    glueCast₂ K n₁ n₂ (glueEmb₂ K n₁ n₂ v) = some v := by
+  by_cases h : v.val < K
+  · have hemb : (glueEmb₂ K n₁ n₂ v) = ⟨v.val, by omega⟩ := by
+      show (if h' : v.val < K then (⟨v.val, by omega⟩ : Fin _)
+            else ⟨n₁ + v.val, by have := v.isLt; omega⟩) = _
+      rw [dif_pos h]
+    rw [hemb]
+    show (if h' : (⟨v.val, _⟩ : Fin ((n₁ + n₂) + K)).val < K
+          then some ⟨(⟨v.val, _⟩ : Fin ((n₁ + n₂) + K)).val, by omega⟩
+          else _) = some v
+    rw [dif_pos h]
+  · have hemb : (glueEmb₂ K n₁ n₂ v) =
+        ⟨n₁ + v.val, by have := v.isLt; omega⟩ := by
+      show (if h' : v.val < K then (⟨v.val, by omega⟩ : Fin _)
+            else ⟨n₁ + v.val, by have := v.isLt; omega⟩) = _
+      rw [dif_neg h]
+    rw [hemb]
+    show glueCast₂ K n₁ n₂ ⟨n₁ + v.val, _⟩ = some v
+    have hnK : ¬ (n₁ + v.val < K) := by omega
+    have hge : n₁ + v.val ≥ n₁ + K := by omega
+    simp only [glueCast₂, hnK, hge, ↓reduceDIte]
+    congr 1
+    apply Fin.ext
+    show n₁ + v.val - n₁ = v.val
+    omega
+
+/-- For an M₁-side vertex (val < n₁ + K), `glueCast₁` evaluated at it is
+`some` of its restriction. Allows treating M₁-only positions explicitly. -/
+theorem glueCast₁_of_val_lt (K n₁ n₂ : ℕ) (v : Fin ((n₁ + n₂) + K))
+    (h : v.val < n₁ + K) : glueCast₁ K n₁ n₂ v = some ⟨v.val, h⟩ := by
+  simp [glueCast₁, h]
+
+/-- For an M₂-unlabeled vertex (val ≥ n₁ + K), `glueCast₂` returns
+`some ⟨v.val - n₁, _⟩`. -/
+theorem glueCast₂_of_val_ge (K n₁ n₂ : ℕ) (v : Fin ((n₁ + n₂) + K))
+    (h : v.val ≥ n₁ + K) :
+    glueCast₂ K n₁ n₂ v = some ⟨v.val - n₁, by have := v.isLt; omega⟩ := by
+  have hnK : ¬ v.val < K := by omega
+  simp [glueCast₂, hnK, h]
+
+/-- For a label vertex (val < K), `glueCast₂` returns `some ⟨v.val, _⟩`. -/
+theorem glueCast₂_of_label (K n₁ n₂ : ℕ) (v : Fin ((n₁ + n₂) + K))
+    (h : v.val < K) : glueCast₂ K n₁ n₂ v = some ⟨v.val, by omega⟩ := by
+  simp [glueCast₂, h]
+
+/-- For an M₁-unlabeled vertex (K ≤ val < n₁ + K), `glueCast₂` returns `none`. -/
+theorem glueCast₂_of_M1_unlabeled (K n₁ n₂ : ℕ) (v : Fin ((n₁ + n₂) + K))
+    (hge : v.val ≥ K) (hlt : v.val < n₁ + K) :
+    glueCast₂ K n₁ n₂ v = none := by
+  have h1 : ¬ v.val < K := by omega
+  have h2 : ¬ v.val ≥ n₁ + K := by omega
+  simp [glueCast₂, h1, h2]
+
+/-- For an M₂-unlabeled vertex (val ≥ n₁ + K), `glueCast₁` returns `none`. -/
+theorem glueCast₁_of_M2_unlabeled (K n₁ n₂ : ℕ) (v : Fin ((n₁ + n₂) + K))
+    (h : v.val ≥ n₁ + K) : glueCast₁ K n₁ n₂ v = none := by
+  have h1 : ¬ v.val < n₁ + K := by omega
+  simp [glueCast₁, h1]
+
+/-- The first additive part of `(M₁.glue M₂).mult`: contribution from M₁
+(zero outside M₁'s scope, computed via `glueCast₁`). -/
+def gluePart₁ {K n₁ n₂ : ℕ}
+    (M₁ : MultiLabeledGraph K n₁) (_M₂ : MultiLabeledGraph K n₂)
+    (e : Sym2 (Fin ((n₁ + n₂) + K))) : ℕ :=
+  Sym2.lift ⟨fun u v =>
+    match glueCast₁ K n₁ n₂ u, glueCast₁ K n₁ n₂ v with
+    | some u', some v' => M₁.mult s(u', v')
+    | _, _ => 0,
+   by
+     intro a b
+     rcases hc1a : glueCast₁ K n₁ n₂ a with _ | u₁a <;>
+       rcases hc1b : glueCast₁ K n₁ n₂ b with _ | u₁b <;>
+       (simp only [hc1a, hc1b];
+        try rw [show s(u₁a, u₁b) = s(u₁b, u₁a) from Sym2.eq_swap])⟩ e
+
+/-- The second additive part of `(M₁.glue M₂).mult`: contribution from M₂
+(zero outside M₂'s scope, computed via `glueCast₂`). -/
+def gluePart₂ {K n₁ n₂ : ℕ}
+    (_M₁ : MultiLabeledGraph K n₁) (M₂ : MultiLabeledGraph K n₂)
+    (e : Sym2 (Fin ((n₁ + n₂) + K))) : ℕ :=
+  Sym2.lift ⟨fun u v =>
+    match glueCast₂ K n₁ n₂ u, glueCast₂ K n₁ n₂ v with
+    | some u', some v' => M₂.mult s(u', v')
+    | _, _ => 0,
+   by
+     intro a b
+     rcases hc2a : glueCast₂ K n₁ n₂ a with _ | u₂a <;>
+       rcases hc2b : glueCast₂ K n₁ n₂ b with _ | u₂b <;>
+       (simp only [hc2a, hc2b];
+        try rw [show s(u₂a, u₂b) = s(u₂b, u₂a) from Sym2.eq_swap])⟩ e
+
+/-- `(M₁.glue M₂).mult = gluePart₁ + gluePart₂`. -/
+theorem MultiLabeledGraph.glue_mult_eq_add {K n₁ n₂ : ℕ}
+    (M₁ : MultiLabeledGraph K n₁) (M₂ : MultiLabeledGraph K n₂)
+    (e : Sym2 (Fin ((n₁ + n₂) + K))) :
+    (M₁.glue M₂).mult e = gluePart₁ M₁ M₂ e + gluePart₂ M₁ M₂ e := by
+  refine Sym2.ind (fun a b => ?_) e
+  rfl
+
+/-- `gluePart₁` evaluated at `(glueEmb₁ a, glueEmb₁ b)` returns `M₁.mult s(a, b)`. -/
+theorem gluePart₁_emb₁ {K n₁ n₂ : ℕ}
+    (M₁ : MultiLabeledGraph K n₁) (M₂ : MultiLabeledGraph K n₂)
+    (a b : Fin (n₁ + K)) :
+    gluePart₁ M₁ M₂ s(glueEmb₁ K n₁ n₂ a, glueEmb₁ K n₁ n₂ b) = M₁.mult s(a, b) := by
+  show (match glueCast₁ K n₁ n₂ (glueEmb₁ K n₁ n₂ a), glueCast₁ K n₁ n₂ (glueEmb₁ K n₁ n₂ b) with
+        | some u', some v' => M₁.mult s(u', v')
+        | _, _ => 0) = M₁.mult s(a, b)
+  rw [glueCast₁_glueEmb₁, glueCast₁_glueEmb₁]
+
+/-- `gluePart₂` evaluated at `(glueEmb₂ a, glueEmb₂ b)` returns `M₂.mult s(a, b)`. -/
+theorem gluePart₂_emb₂ {K n₁ n₂ : ℕ}
+    (M₁ : MultiLabeledGraph K n₁) (M₂ : MultiLabeledGraph K n₂)
+    (a b : Fin (n₂ + K)) :
+    gluePart₂ M₁ M₂ s(glueEmb₂ K n₁ n₂ a, glueEmb₂ K n₁ n₂ b) = M₂.mult s(a, b) := by
+  show (match glueCast₂ K n₁ n₂ (glueEmb₂ K n₁ n₂ a), glueCast₂ K n₁ n₂ (glueEmb₂ K n₁ n₂ b) with
+        | some u', some v' => M₂.mult s(u', v')
+        | _, _ => 0) = M₂.mult s(a, b)
+  rw [glueCast₂_glueEmb₂, glueCast₂_glueEmb₂]
+
+/-- `gluePart₁` is zero outside the image of `glueEmb₁.sym2Map`. -/
+theorem gluePart₁_eq_zero_of_not_mem_image {K n₁ n₂ : ℕ}
+    (M₁ : MultiLabeledGraph K n₁) (M₂ : MultiLabeledGraph K n₂)
+    (e : Sym2 (Fin ((n₁ + n₂) + K)))
+    (h : ¬ ∃ e' : Sym2 (Fin (n₁ + K)), Sym2.map (glueEmb₁ K n₁ n₂) e' = e) :
+    gluePart₁ M₁ M₂ e = 0 := by
+  refine Sym2.ind (fun a b he => ?_) e h
+  show (match glueCast₁ K n₁ n₂ a, glueCast₁ K n₁ n₂ b with
+        | some u', some v' => M₁.mult s(u', v')
+        | _, _ => 0) = 0
+  rcases hca : glueCast₁ K n₁ n₂ a with _ | u_a <;>
+    rcases hcb : glueCast₁ K n₁ n₂ b with _ | u_b
+  any_goals rfl
+  -- Only some/some case remains: derive contradiction from `he`
+  exfalso
+  apply he
+  have ha_eq : (glueEmb₁ K n₁ n₂ u_a) = a := by
+    apply Fin.ext
+    have hac : a.val < n₁ + K := by
+      simp only [glueCast₁] at hca; split_ifs at hca with h_; · exact h_
+    have huval : u_a.val = a.val := by
+      simp only [glueCast₁, dif_pos hac] at hca
+      injection hca with hu
+      exact (congr_arg Fin.val hu).symm
+    show u_a.val = a.val
+    exact huval
+  have hb_eq : (glueEmb₁ K n₁ n₂ u_b) = b := by
+    apply Fin.ext
+    have hbc : b.val < n₁ + K := by
+      simp only [glueCast₁] at hcb; split_ifs at hcb with h_; · exact h_
+    have huval : u_b.val = b.val := by
+      simp only [glueCast₁, dif_pos hbc] at hcb
+      injection hcb with hu
+      exact (congr_arg Fin.val hu).symm
+    show u_b.val = b.val
+    exact huval
+  exact ⟨s(u_a, u_b), by rw [Sym2.map_pair_eq, ha_eq, hb_eq]⟩
+
+/-- `gluePart₂` is zero outside the image of `glueEmb₂.sym2Map`. -/
+theorem gluePart₂_eq_zero_of_not_mem_image {K n₁ n₂ : ℕ}
+    (M₁ : MultiLabeledGraph K n₁) (M₂ : MultiLabeledGraph K n₂)
+    (e : Sym2 (Fin ((n₁ + n₂) + K)))
+    (h : ¬ ∃ e' : Sym2 (Fin (n₂ + K)), Sym2.map (glueEmb₂ K n₁ n₂) e' = e) :
+    gluePart₂ M₁ M₂ e = 0 := by
+  refine Sym2.ind (fun a b he => ?_) e h
+  show (match glueCast₂ K n₁ n₂ a, glueCast₂ K n₁ n₂ b with
+        | some u', some v' => M₂.mult s(u', v')
+        | _, _ => 0) = 0
+  rcases hca : glueCast₂ K n₁ n₂ a with _ | u_a <;>
+    rcases hcb : glueCast₂ K n₁ n₂ b with _ | u_b
+  any_goals rfl
+  exfalso
+  apply he
+  -- For each non-none case in hca: either a.val < K and u_a.val = a.val,
+  -- or a.val ≥ n₁ + K and u_a.val = a.val - n₁.
+  have ha_eq : (glueEmb₂ K n₁ n₂ u_a) = a := by
+    apply Fin.ext
+    by_cases hak : a.val < K
+    · -- u_a.val = a.val
+      have huv : u_a.val = a.val := by
+        simp only [glueCast₂, dif_pos hak] at hca
+        injection hca with hu; exact (congr_arg Fin.val hu).symm
+      have hua : u_a.val < K := by omega
+      show (glueEmb₂ K n₁ n₂ u_a).val = a.val
+      simp only [glueEmb₂, Function.Embedding.coeFn_mk, dif_pos hua]
+      omega
+    · -- a.val ≥ K, then we must have a.val ≥ n₁ + K (else cast₂ = none).
+      have hageK : ¬ a.val < K := hak
+      simp only [glueCast₂, dif_neg hageK] at hca
+      split_ifs at hca with hak2
+      · injection hca with hu
+        -- u_a.val = a.val - n₁
+        have huv : u_a.val = a.val - n₁ := (congr_arg Fin.val hu).symm
+        -- a.val ≥ n₁ + K so a.val - n₁ ≥ K, hence u_a.val ≥ K
+        have hua : ¬ u_a.val < K := by omega
+        show (glueEmb₂ K n₁ n₂ u_a).val = a.val
+        simp only [glueEmb₂, Function.Embedding.coeFn_mk, dif_neg hua]
+        omega
+  have hb_eq : (glueEmb₂ K n₁ n₂ u_b) = b := by
+    apply Fin.ext
+    by_cases hbk : b.val < K
+    · have huv : u_b.val = b.val := by
+        simp only [glueCast₂, dif_pos hbk] at hcb
+        injection hcb with hu; exact (congr_arg Fin.val hu).symm
+      have hub : u_b.val < K := by omega
+      show (glueEmb₂ K n₁ n₂ u_b).val = b.val
+      simp only [glueEmb₂, Function.Embedding.coeFn_mk, dif_pos hub]
+      omega
+    · have hbgeK : ¬ b.val < K := hbk
+      simp only [glueCast₂, dif_neg hbgeK] at hcb
+      split_ifs at hcb with hbk2
+      · injection hcb with hu
+        have huv : u_b.val = b.val - n₁ := (congr_arg Fin.val hu).symm
+        have hub : ¬ u_b.val < K := by omega
+        show (glueEmb₂ K n₁ n₂ u_b).val = b.val
+        simp only [glueEmb₂, Function.Embedding.coeFn_mk, dif_neg hub]
+        omega
+  exact ⟨s(u_a, u_b), by rw [Sym2.map_pair_eq, ha_eq, hb_eq]⟩
+
+/-- **Sym2 product over `glueEmb₁` factors via prod over `Sym2 (Fin (n₁ + K))`.**
+For any function `g : Sym2 (Fin ((n₁+n₂)+K)) → ℝ` that equals `1` outside the
+image of `Sym2.map (glueEmb₁ ...)`, the product over `Sym2 (Fin ((n₁+n₂)+K))`
+equals the product over `Sym2 (Fin (n₁ + K))` after pulling back through
+`glueEmb₁.sym2Map`. -/
+private theorem prod_Sym2_emb₁_factor {K n₁ n₂ : ℕ} (g : Sym2 (Fin ((n₁ + n₂) + K)) → ℝ)
+    (h_one : ∀ e : Sym2 (Fin ((n₁ + n₂) + K)),
+      e ∉ Finset.map (glueEmb₁ K n₁ n₂).sym2Map (Finset.univ : Finset (Sym2 (Fin (n₁ + K)))) →
+      g e = 1) :
+    ∏ e : Sym2 (Fin ((n₁ + n₂) + K)), g e =
+    ∏ e' : Sym2 (Fin (n₁ + K)), g (Sym2.map (glueEmb₁ K n₁ n₂) e') := by
+  have h1 := Finset.prod_map (Finset.univ : Finset (Sym2 (Fin (n₁ + K))))
+              (glueEmb₁ K n₁ n₂).sym2Map g
+  simp only [Function.Embedding.sym2Map_apply] at h1
+  rw [← h1]
+  exact (Finset.prod_subset (Finset.subset_univ _) (fun e _ he => h_one e he)).symm
+
+private theorem prod_Sym2_emb₂_factor {K n₁ n₂ : ℕ} (g : Sym2 (Fin ((n₁ + n₂) + K)) → ℝ)
+    (h_one : ∀ e : Sym2 (Fin ((n₁ + n₂) + K)),
+      e ∉ Finset.map (glueEmb₂ K n₁ n₂).sym2Map (Finset.univ : Finset (Sym2 (Fin (n₂ + K)))) →
+      g e = 1) :
+    ∏ e : Sym2 (Fin ((n₁ + n₂) + K)), g e =
+    ∏ e' : Sym2 (Fin (n₂ + K)), g (Sym2.map (glueEmb₂ K n₁ n₂) e') := by
+  have h1 := Finset.prod_map (Finset.univ : Finset (Sym2 (Fin (n₂ + K))))
+              (glueEmb₂ K n₁ n₂).sym2Map g
+  simp only [Function.Embedding.sym2Map_apply] at h1
+  rw [← h1]
+  exact (Finset.prod_subset (Finset.subset_univ _) (fun e _ he => h_one e he)).symm
+
+/-- **Disjoint glue factorization** of multigraph evaluations.
+
+Lovász's F₁F₂ product (multigraph version): the evaluation of a glued multigraph
+factors as the product of evaluations. Generalizes `labeledEvalK_glue` from
+SimpleGraph to MultiLabeledGraph (with multiplicities). The proof factors over
+σ-sums via `sum_piFinAdd_factor`, the W-products via `Fin.prod_univ_add`, and
+the Sym2 B-products via `pow_add` + `prod_Sym2_embᵢ_factor`. -/
+theorem multiLabeledEvalK_glue {T K n₁ n₂ : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (M₁ : MultiLabeledGraph K n₁) (M₂ : MultiLabeledGraph K n₂)
+    (φ : Fin K → Fin T) :
+    multiLabeledEvalK K (n₁ + n₂) (M₁.glue M₂) B W φ =
+      multiLabeledEvalK K n₁ M₁ B W φ * multiLabeledEvalK K n₂ M₂ B W φ := by
+  unfold multiLabeledEvalK
+  -- Factor RHS into a single sum via sum_piFinAdd_factor
+  rw [← sum_piFinAdd_factor
+    (f := fun x : Fin n₁ → Fin T =>
+      let τ : Fin (n₁ + K) → Fin T := fun v =>
+        if h : (v : ℕ) < K then φ ⟨v, h⟩ else x ⟨v - K, by have := v.isLt; omega⟩
+      (∏ v : Fin n₁, W (x v)) *
+      ∏ e : Sym2 (Fin (n₁ + K)),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M₁.mult e)
+    (g := fun x : Fin n₂ → Fin T =>
+      let τ : Fin (n₂ + K) → Fin T := fun v =>
+        if h : (v : ℕ) < K then φ ⟨v, h⟩ else x ⟨v - K, by have := v.isLt; omega⟩
+      (∏ v : Fin n₂, W (x v)) *
+      ∏ e : Sym2 (Fin (n₂ + K)),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M₂.mult e)]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  -- σ : Fin (n₁ + n₂) → Fin T. Define τ_glue, τ₁, τ₂ as the colorings.
+  set σ₁ : Fin n₁ → Fin T := fun j => σ (Fin.castAdd n₂ j) with hσ₁
+  set σ₂ : Fin n₂ → Fin T := fun j => σ (Fin.natAdd n₁ j) with hσ₂
+  -- W-product factorization
+  have h_wt : ∏ v : Fin (n₁ + n₂), W (σ v) =
+      (∏ v : Fin n₁, W (σ₁ v)) * (∏ v : Fin n₂, W (σ₂ v)) := by
+    rw [hσ₁, hσ₂]
+    exact Fin.prod_univ_add (fun v => W (σ v))
+  -- Define the colorings as let-bindings
+  set τ_glue : Fin ((n₁ + n₂) + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then φ ⟨v, h⟩ else σ ⟨v - K, by have := v.isLt; omega⟩
+    with hτ_glue
+  set τ₁ : Fin (n₁ + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then φ ⟨v, h⟩ else σ₁ ⟨v - K, by have := v.isLt; omega⟩
+    with hτ₁
+  set τ₂ : Fin (n₂ + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then φ ⟨v, h⟩ else σ₂ ⟨v - K, by have := v.isLt; omega⟩
+    with hτ₂
+  -- Coloring relation: τ_glue ∘ glueEmb₁ = τ₁ and τ_glue ∘ glueEmb₂ = τ₂
+  have h_τ₁ : ∀ v : Fin (n₁ + K), τ_glue (glueEmb₁ K n₁ n₂ v) = τ₁ v := by
+    intro v
+    have hvlt : v.val < n₁ + n₂ + K := by have := v.isLt; omega
+    simp only [τ_glue, τ₁, glueEmb₁, Function.Embedding.coeFn_mk]
+    by_cases hv : v.val < K
+    · -- label: both branches yield φ ⟨v, hv⟩
+      have hv' : ((⟨v.val, hvlt⟩ : Fin ((n₁ + n₂) + K)) : ℕ) < K := hv
+      rw [dif_pos hv', dif_pos hv]
+    · have hv' : ¬ ((⟨v.val, hvlt⟩ : Fin ((n₁ + n₂) + K)) : ℕ) < K := hv
+      rw [dif_neg hv', dif_neg hv]
+      simp only [σ₁]
+      apply congr_arg σ
+      apply Fin.ext
+      simp
+  have h_τ₂ : ∀ v : Fin (n₂ + K), τ_glue (glueEmb₂ K n₁ n₂ v) = τ₂ v := by
+    intro v
+    have hvlt₁ : v.val < n₁ + n₂ + K := by have := v.isLt; omega
+    have hvlt₂ : n₁ + v.val < n₁ + n₂ + K := by have := v.isLt; omega
+    by_cases hv : v.val < K
+    · -- v is a label
+      have hemb : glueEmb₂ K n₁ n₂ v = ⟨v.val, hvlt₁⟩ := by
+        show (if h : v.val < K then (⟨v.val, by omega⟩ : Fin _)
+              else ⟨n₁ + v.val, by have := v.isLt; omega⟩) = _
+        rw [dif_pos hv]
+      rw [hemb]
+      show τ_glue ⟨v.val, hvlt₁⟩ = τ₂ v
+      rw [hτ_glue, hτ₂]
+      simp only [dif_pos (show ((⟨v.val, hvlt₁⟩ : Fin ((n₁+n₂)+K)) : ℕ) < K from hv)]
+    · -- v is M₂-unlabeled
+      have hemb : glueEmb₂ K n₁ n₂ v = ⟨n₁ + v.val, hvlt₂⟩ := by
+        show (if h : v.val < K then (⟨v.val, by omega⟩ : Fin _)
+              else ⟨n₁ + v.val, by have := v.isLt; omega⟩) = _
+        rw [dif_neg hv]
+      rw [hemb]
+      show τ_glue ⟨n₁ + v.val, hvlt₂⟩ = τ₂ v
+      rw [hτ_glue, hτ₂]
+      have hv1 : ¬ ((⟨n₁ + v.val, hvlt₂⟩ : Fin ((n₁ + n₂) + K)) : ℕ) < K := by
+        show ¬ n₁ + v.val < K; omega
+      simp only [dif_neg hv1, dif_neg hv]
+      simp only [σ₂]
+      apply congr_arg σ
+      apply Fin.ext
+      simp
+      omega
+  -- Sym2 product factorization via additivity of glue.mult
+  have h_sym2 : (∏ e : Sym2 (Fin ((n₁ + n₂) + K)),
+      B (τ_glue (Quot.out e).1) (τ_glue (Quot.out e).2) ^ (M₁.glue M₂).mult e) =
+      (∏ e : Sym2 (Fin (n₁ + K)),
+        B (τ₁ (Quot.out e).1) (τ₁ (Quot.out e).2) ^ M₁.mult e) *
+      (∏ e : Sym2 (Fin (n₂ + K)),
+        B (τ₂ (Quot.out e).1) (τ₂ (Quot.out e).2) ^ M₂.mult e) := by
+    -- Use the additive split: (M₁.glue M₂).mult = gluePart₁ + gluePart₂
+    have h_add : ∀ e, (M₁.glue M₂).mult e = gluePart₁ M₁ M₂ e + gluePart₂ M₁ M₂ e :=
+      M₁.glue_mult_eq_add M₂
+    -- Factor product via pow_add
+    have h_split : (∏ e : Sym2 (Fin ((n₁ + n₂) + K)),
+        B (τ_glue (Quot.out e).1) (τ_glue (Quot.out e).2) ^ (M₁.glue M₂).mult e) =
+        (∏ e : Sym2 (Fin ((n₁ + n₂) + K)),
+          B (τ_glue (Quot.out e).1) (τ_glue (Quot.out e).2) ^ gluePart₁ M₁ M₂ e) *
+        (∏ e : Sym2 (Fin ((n₁ + n₂) + K)),
+          B (τ_glue (Quot.out e).1) (τ_glue (Quot.out e).2) ^ gluePart₂ M₁ M₂ e) := by
+      rw [← Finset.prod_mul_distrib]
+      refine Finset.prod_congr rfl fun e _ => ?_
+      rw [h_add e, pow_add]
+    rw [h_split]
+    -- Match each side with prod_Sym2_embᵢ_factor
+    congr 1
+    · -- M₁ side
+      rw [prod_Sym2_emb₁_factor (g := fun e =>
+          B (τ_glue (Quot.out e).1) (τ_glue (Quot.out e).2) ^ gluePart₁ M₁ M₂ e)]
+      · -- The pulled-back form equals the M₁ Sym2 product
+        refine Finset.prod_congr rfl fun e _ => ?_
+        refine Sym2.ind (fun a b => ?_) e
+        rw [Sym2.map_pair_eq, gluePart₁_emb₁]
+        -- Need: B^M₁.mult s(a,b) at τ_glue ∘ emb₁ pair equals at τ₁ pair
+        rw [B_pow_quot_out_eq hB τ_glue (glueEmb₁ K n₁ n₂ a) (glueEmb₁ K n₁ n₂ b)]
+        rw [B_pow_quot_out_eq hB τ₁ a b]
+        rw [h_τ₁, h_τ₁]
+      · -- Outside the image, gluePart₁ = 0, so B^0 = 1
+        intro e he
+        have h0 : gluePart₁ M₁ M₂ e = 0 := by
+          apply gluePart₁_eq_zero_of_not_mem_image
+          intro ⟨e', hmap⟩
+          apply he
+          rw [Finset.mem_map]
+          refine ⟨e', Finset.mem_univ _, ?_⟩
+          rw [Function.Embedding.sym2Map_apply, hmap]
+        rw [h0]; exact pow_zero _
+    · -- M₂ side (analogous)
+      rw [prod_Sym2_emb₂_factor (g := fun e =>
+          B (τ_glue (Quot.out e).1) (τ_glue (Quot.out e).2) ^ gluePart₂ M₁ M₂ e)]
+      · refine Finset.prod_congr rfl fun e _ => ?_
+        refine Sym2.ind (fun a b => ?_) e
+        rw [Sym2.map_pair_eq, gluePart₂_emb₂]
+        rw [B_pow_quot_out_eq hB τ_glue (glueEmb₂ K n₁ n₂ a) (glueEmb₂ K n₁ n₂ b)]
+        rw [B_pow_quot_out_eq hB τ₂ a b]
+        rw [h_τ₂, h_τ₂]
+      · intro e he
+        have h0 : gluePart₂ M₁ M₂ e = 0 := by
+          apply gluePart₂_eq_zero_of_not_mem_image
+          intro ⟨e', hmap⟩
+          apply he
+          rw [Finset.mem_map]
+          refine ⟨e', Finset.mem_univ _, ?_⟩
+          rw [Function.Embedding.sym2Map_apply, hmap]
+        rw [h0]; exact pow_zero _
+  -- Combine W-product factorization and Sym2 product factorization
+  show (∏ v : Fin (n₁ + n₂), W (σ v)) *
+       (∏ e : Sym2 (Fin ((n₁ + n₂) + K)),
+         B (τ_glue (Quot.out e).1) (τ_glue (Quot.out e).2) ^ (M₁.glue M₂).mult e) =
+       _ * _
+  rw [h_wt, h_sym2]
+  ring
 
 /-! ### §4 — The bridge theorem (canonical sorry)
 
