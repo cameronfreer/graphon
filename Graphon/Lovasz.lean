@@ -1113,6 +1113,136 @@ theorem multiLabeledEvalK_orbit_invariant {T K n : ℕ}
   rw [this]
   exact (multiLabeledEvalK_aut_invariant B W M σ hσ_W hσ_B ξ).symm
 
+/-- **Bridge for n = 0** (label-only multigraphs). The simplest non-trivial
+case: when M has no unlabeled vertices, `multiLabeledEvalK` reduces to
+a product of B-power factors over `Sym2 (Fin K)`. The simple-graph
+`tupleEquiv` hypothesis (h_simple) applied to single-edge graphs gives
+B-equality at each non-loop pair, and `multNoLoop` handles the diagonal. -/
+theorem multiLabeledEvalK_tupleEquiv_invariant_n_zero {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (M : MultiLabeledGraph K 0)
+    {ξ ξ' : Fin K → Fin T}
+    (h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K)))
+        [DecidableRel F.Adj],
+      ∑ σ : Fin n' → Fin T,
+        (let τ : Fin (n' + K) → Fin T := fun v =>
+          if h : (v : ℕ) < K then ξ ⟨v, h⟩
+          else σ ⟨v - K, by have := v.isLt; omega⟩
+        (∏ v : Fin n', W (σ v)) *
+        ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+      ∑ σ : Fin n' → Fin T,
+        (let τ : Fin (n' + K) → Fin T := fun v =>
+          if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+          else σ ⟨v - K, by have := v.isLt; omega⟩
+        (∏ v : Fin n', W (σ v)) *
+        ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+    multiLabeledEvalK K 0 M B W ξ = multiLabeledEvalK K 0 M B W ξ' := by
+  classical
+  -- ── Step 1: per-pair B-equality on labels via single-edge graphs ──
+  have h_pair : ∀ a b : Fin K, a ≠ b → B (ξ a) (ξ b) = B (ξ' a) (ξ' b) := by
+    intro a b hab
+    let u : Fin (0 + K) := ⟨a.val, by have := a.isLt; omega⟩
+    let v : Fin (0 + K) := ⟨b.val, by have := b.isLt; omega⟩
+    have hne : u ≠ v := by
+      simp only [ne_eq, Fin.mk.injEq, u, v]; intro h; apply hab; exact Fin.ext h
+    let F : SimpleGraph (Fin (0 + K)) :=
+      { Adj := fun a b => (a = u ∧ b = v) ∨ (a = v ∧ b = u)
+        symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
+                                     (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+        loopless := fun _ h => by
+          rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+          · exact hne (h1.symm.trans h2)
+          · exact hne (h2.symm.trans h1) }
+    haveI : DecidableRel F.Adj := Classical.decRel _
+    have hedgeFin : F.edgeFinset = {s(u, v)} := by
+      apply Finset.eq_singleton_iff_unique_mem.mpr; constructor
+      · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
+      · intro e he
+        rw [SimpleGraph.mem_edgeFinset] at he
+        exact Sym2.ind (fun a b (hadj : F.Adj a b) => by
+          rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+          · rw [h1, h2]
+          · rw [h1, h2, Sym2.eq_swap]) e he
+    have hkey := h_simple 0 F
+    rw [hedgeFin, Fintype.sum_unique, Fintype.sum_unique] at hkey
+    simp only [Finset.prod_singleton, Finset.univ_eq_empty,
+               Finset.prod_empty, one_mul] at hkey
+    let τξ : Fin (0 + K) → Fin T := fun x => ξ ⟨x.val, by have := x.isLt; omega⟩
+    let τξ' : Fin (0 + K) → Fin T := fun x => ξ' ⟨x.val, by have := x.isLt; omega⟩
+    have h_eq_τξ : ∀ x : Fin (0 + K),
+        (if h : (x : ℕ) < K then ξ ⟨x.val, h⟩
+         else (default : Fin 0 → Fin T) ⟨x - K, by have := x.isLt; omega⟩) = τξ x := by
+      intro x; have hx : x.val < K := by have := x.isLt; omega
+      simp [hx, τξ]
+    have h_eq_τξ' : ∀ x : Fin (0 + K),
+        (if h : (x : ℕ) < K then ξ' ⟨x.val, h⟩
+         else (default : Fin 0 → Fin T) ⟨x - K, by have := x.isLt; omega⟩) = τξ' x := by
+      intro x; have hx : x.val < K := by have := x.isLt; omega
+      simp [hx, τξ']
+    rw [h_eq_τξ, h_eq_τξ, h_eq_τξ', h_eq_τξ'] at hkey
+    rw [B_quot_out_eq hB τξ u v, B_quot_out_eq hB τξ' u v] at hkey
+    have hτξ_u : τξ u = ξ a := by show ξ ⟨u.val, _⟩ = ξ a; congr
+    have hτξ_v : τξ v = ξ b := by show ξ ⟨v.val, _⟩ = ξ b; congr
+    have hτξ'_u : τξ' u = ξ' a := by show ξ' ⟨u.val, _⟩ = ξ' a; congr
+    have hτξ'_v : τξ' v = ξ' b := by show ξ' ⟨v.val, _⟩ = ξ' b; congr
+    rw [hτξ_u, hτξ_v, hτξ'_u, hτξ'_v] at hkey
+    exact hkey
+  -- ── Step 2: reduce both sides of the goal via Fintype.sum_unique ──
+  have hreduce : ∀ (η : Fin K → Fin T),
+      multiLabeledEvalK K 0 M B W η =
+      ∏ e : Sym2 (Fin (0 + K)),
+        B (η ⟨((Quot.out e).1 : ℕ), by have := (Quot.out e).1.isLt; omega⟩)
+          (η ⟨((Quot.out e).2 : ℕ), by have := (Quot.out e).2.isLt; omega⟩) ^ M.mult e := by
+    intro η
+    unfold multiLabeledEvalK
+    rw [Fintype.sum_unique]
+    simp only [Finset.univ_eq_empty, Finset.prod_empty, one_mul]
+    refine Finset.prod_congr rfl fun e _ => ?_
+    congr 2
+    · show (if h : (((Quot.out e).1 : ℕ)) < K then η ⟨_, h⟩ else _) = _
+      have h1_lt : ((Quot.out e).1 : ℕ) < K := by have := (Quot.out e).1.isLt; omega
+      rw [dif_pos h1_lt]
+    · show (if h : (((Quot.out e).2 : ℕ)) < K then η ⟨_, h⟩ else _) = _
+      have h2_lt : ((Quot.out e).2 : ℕ) < K := by have := (Quot.out e).2.isLt; omega
+      rw [dif_pos h2_lt]
+  rw [hreduce ξ, hreduce ξ']
+  -- ── Step 3: per-Sym2-pair argument ──
+  refine Finset.prod_congr rfl fun e _ => ?_
+  induction e using Sym2.ind with
+  | h x y =>
+    by_cases hxy : x = y
+    · subst hxy
+      -- multNoLoop ⟹ M.mult s(x,x) = 0 ⟹ B^0 = 1 on both sides.
+      rw [M.multNoLoop x, pow_zero, pow_zero]
+    · -- x ≠ y: route through h_pair on the corresponding Fin K elements.
+      let fξ : Fin (0 + K) → Fin T := fun z => ξ ⟨z.val, by have := z.isLt; omega⟩
+      let fξ' : Fin (0 + K) → Fin T := fun z => ξ' ⟨z.val, by have := z.isLt; omega⟩
+      have h1 : B (ξ ⟨((Quot.out s(x, y)).1 : ℕ),
+                    by have := (Quot.out s(x, y)).1.isLt; omega⟩)
+                  (ξ ⟨((Quot.out s(x, y)).2 : ℕ),
+                    by have := (Quot.out s(x, y)).2.isLt; omega⟩)
+              = B (fξ x) (fξ y) := by
+        change B (fξ (Quot.out s(x, y)).1) (fξ (Quot.out s(x, y)).2) = B (fξ x) (fξ y)
+        exact B_quot_out_eq hB fξ x y
+      have h2 : B (ξ' ⟨((Quot.out s(x, y)).1 : ℕ),
+                    by have := (Quot.out s(x, y)).1.isLt; omega⟩)
+                  (ξ' ⟨((Quot.out s(x, y)).2 : ℕ),
+                    by have := (Quot.out s(x, y)).2.isLt; omega⟩)
+              = B (fξ' x) (fξ' y) := by
+        change B (fξ' (Quot.out s(x, y)).1) (fξ' (Quot.out s(x, y)).2) = B (fξ' x) (fξ' y)
+        exact B_quot_out_eq hB fξ' x y
+      rw [h1, h2]
+      let xK : Fin K := ⟨x.val, by have := x.isLt; omega⟩
+      let yK : Fin K := ⟨y.val, by have := y.isLt; omega⟩
+      have hxKyK : xK ≠ yK := by
+        intro heq; apply hxy
+        exact Fin.ext (by simpa [xK, yK, Fin.ext_iff] using heq)
+      have hfξx : fξ x = ξ xK := by show ξ _ = ξ xK; rfl
+      have hfξy : fξ y = ξ yK := by show ξ _ = ξ yK; rfl
+      have hfξ'x : fξ' x = ξ' xK := by show ξ' _ = ξ' xK; rfl
+      have hfξ'y : fξ' y = ξ' yK := by show ξ' _ = ξ' yK; rfl
+      rw [hfξx, hfξy, hfξ'x, hfξ'y, h_pair xK yK hxKyK]
+
 /-! ### §4 — The bridge theorem (canonical sorry)
 
 Stated abstractly: for any pair `ξ ξ'` such that ALL simple-graph
