@@ -126,6 +126,63 @@ noncomputable def MultiLabeledGraph.ofSimple {K n : ℕ}
     rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h
     exact F.loopless _ h
 
+/-- **`multiLabeledEvalK` of `ofSimple F` matches the simple-graph
+σ-sum body** (the analog of `MatrixDetermination.lean:7156`).
+
+The 0/1-multigraph evaluation reduces to the simple-graph form:
+- For `e ∈ F.edgeFinset`: `B^1 = B` (factor present).
+- For `e ∉ F.edgeFinset`: `B^0 = 1` (no contribution).
+
+The RHS is the simple-graph evaluation pattern (analog of
+`labeledEvalK F`); its product is over `F.edgeFinset` rather than
+all of `Sym2`. -/
+theorem multiLabeledEvalK_ofSimple {T K n : ℕ}
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    multiLabeledEvalK K n (MultiLabeledGraph.ofSimple F) B W φ =
+    ∑ σ : Fin n → Fin T,
+      (let τ : Fin (n + K) → Fin T := fun v =>
+        if h : (v : ℕ) < K then φ ⟨v, h⟩
+        else σ ⟨v - K, by have := v.isLt; omega⟩
+      (∏ v : Fin n, W (σ v)) *
+      ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) := by
+  classical
+  -- Helper: τ-parametric Sym2 product reduces to F.edgeFinset product.
+  have hprod : ∀ τ : Fin (n + K) → Fin T,
+      (∏ e : Sym2 (Fin (n + K)),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^
+          (MultiLabeledGraph.ofSimple F).mult e) =
+      ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2) := by
+    intro τ
+    rw [← Finset.prod_filter_mul_prod_filter_not (Finset.univ : Finset (Sym2 (Fin (n + K))))
+          (· ∈ F.edgeFinset)]
+    have hnot : (∏ x ∈ (Finset.univ : Finset (Sym2 (Fin (n + K)))).filter
+            (fun e => ¬ e ∈ F.edgeFinset),
+          B (τ (Quot.out x).1) (τ (Quot.out x).2) ^
+            (MultiLabeledGraph.ofSimple F).mult x) = 1 :=
+      Finset.prod_eq_one fun e he => by
+        rw [Finset.mem_filter] at he
+        show B _ _ ^ (if _ then 1 else 0 : ℕ) = 1
+        rw [if_neg he.2]; exact pow_zero _
+    rw [hnot, mul_one]
+    rw [show ((Finset.univ : Finset (Sym2 (Fin (n + K)))).filter (· ∈ F.edgeFinset)) =
+          F.edgeFinset from by ext e; simp]
+    refine Finset.prod_congr rfl fun e he => ?_
+    show B _ _ ^ (if _ then 1 else 0 : ℕ) = _
+    rw [if_pos he]; exact pow_one _
+  unfold multiLabeledEvalK
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  set τ : Fin (n + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then φ ⟨v, h⟩
+    else σ ⟨v - K, by have := v.isLt; omega⟩
+  show (∏ v : Fin n, W (σ v)) *
+       (∏ e : Sym2 (Fin (n + K)),
+         B (τ (Quot.out e).1) (τ (Quot.out e).2) ^
+           (MultiLabeledGraph.ofSimple F).mult e) =
+       (∏ v : Fin n, W (σ v)) *
+       (∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))
+  rw [hprod τ]
+
 /-! ### §2 — Algebra of multigraphs (Lovász's `𝒢_k`)
 
 Bounded building blocks: `empty`, `add` (same-vertex pointwise
