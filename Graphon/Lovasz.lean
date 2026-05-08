@@ -857,6 +857,41 @@ def MultiLabeledGraph.trace {K n : ℕ}
     rw [Sym2.map_pair_eq]
     exact M.multNoLoop _
 
+/-- **Promotion** (section of `trace`): from `MultiLabeledGraph K (n+1)` build
+`MultiLabeledGraph (K+1) n` by reindexing the val-equal vertex space via the
+inverse cast. Round-trip property: `M.promote.trace = M` (definitionally up
+to `Sym2.map_id`). -/
+def MultiLabeledGraph.promote {K n : ℕ}
+    (M : MultiLabeledGraph K (n + 1)) : MultiLabeledGraph (K + 1) n where
+  mult e := M.mult (Sym2.map (Fin.cast (show n + (K + 1) = (n + 1) + K by omega)) e)
+  multNoLoop x := by
+    rw [Sym2.map_pair_eq]
+    exact M.multNoLoop _
+
+/-- **Trace-promote round-trip**: closing the last label of a promoted
+multigraph recovers the original. Both sides have val-equal vertex spaces
+`Fin ((n+1)+K)`; multiplicities agree pointwise via the cast composition
+identity. -/
+theorem MultiLabeledGraph.trace_promote {K n : ℕ}
+    (M : MultiLabeledGraph K (n + 1)) : M.promote.trace = M := by
+  have hmult : ∀ e, M.promote.trace.mult e = M.mult e := by
+    intro e
+    show M.mult (Sym2.map (Fin.cast _) (Sym2.map (Fin.cast _) e)) = M.mult e
+    rw [Sym2.map_map]
+    have h_id : (Fin.cast (show n + (K + 1) = (n + 1) + K by omega)) ∘
+                (Fin.cast (show (n + 1) + K = n + (K + 1) by omega)) = id := by
+      funext x
+      apply Fin.ext
+      rfl
+    rw [h_id, Sym2.map_id, id_eq]
+  rcases h : M with ⟨m, mn⟩
+  show MultiLabeledGraph.mk _ _ = MultiLabeledGraph.mk _ _
+  congr 1
+  funext e
+  have := hmult e
+  rw [h] at this
+  exact this
+
 /-- **Trace-closure identity** (Lovász eq. 6, p. 7).
 
 Summing `multiLabeledEvalK (K+1) n M B W` over the last label `t` of a
@@ -1021,6 +1056,18 @@ theorem multiLabeledEvalK_sum_last_label {T K n : ℕ}
     first
     | rfl
     | exact hB _ _
+
+/-- **Promote-unfolding identity**: a multigraph evaluation at level `(K, n+1)`
+unfolds into a `W`-weighted sum (over the value `t` of the new label) of the
+promoted multigraph at level `(K+1, n)`. Direct corollary of
+`multiLabeledEvalK_sum_last_label` and `MultiLabeledGraph.trace_promote`. -/
+theorem multiLabeledEvalK_promote_unfold {T K n : ℕ}
+    (M : MultiLabeledGraph K (n + 1)) (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (ξ : Fin K → Fin T) :
+    multiLabeledEvalK K (n + 1) M B W ξ =
+    ∑ t : Fin T, W t * multiLabeledEvalK (K + 1) n M.promote B W (Fin.snoc ξ t) := by
+  rw [multiLabeledEvalK_sum_last_label M.promote B hB W ξ]
+  rw [MultiLabeledGraph.trace_promote]
 
 /-! ### §3.5 — Automorphism-invariance of multigraph evaluation
 
@@ -1243,6 +1290,130 @@ theorem multiLabeledEvalK_tupleEquiv_invariant_n_zero {T K : ℕ}
       have hfξ'y : fξ' y = ξ' yK := by show ξ' _ = ξ' yK; rfl
       rw [hfξx, hfξy, hfξ'x, hfξ'y, h_pair xK yK hxKyK]
 
+/-! ### §3.8 — Equivalence predicates and Lovász Lemma 2.5
+
+This section introduces the two equivalence relations on label-tuples
+that bracket the bridge theorem:
+
+* `tupleEquivSimple` — agreement of all **simple-graph** evaluations
+  (Lovász TR-2004-82 §2, p. 6). This is the simple-graph `tupleEquiv`
+  inlined here so this module needs no dependency on
+  `Graphon/MatrixDetermination.lean`.
+* `tupleEquivMulti` — agreement of all **multigraph** evaluations
+  (the natural multigraph generalization).
+
+The bridge theorem (§4 below) is exactly `tupleEquivSimple → tupleEquivMulti`.
+The reverse direction `tupleEquivMulti → tupleEquivSimple` is trivial
+because `multiLabeledEvalK` of `MultiLabeledGraph.ofSimple F` recovers
+the simple-graph evaluation (`multiLabeledEvalK_ofSimple`).
+
+**Lovász Lemma 2.5** (informal): if `B` is twin-free, then
+`tupleEquivMulti ξ ξ'` if and only if `ξ` and `ξ'` lie in the same
+`(B, W)`-automorphism orbit.
+
+* The **forward direction** (orbit ⟹ multi-equivalence) is the
+  trivial corollary `multiLabeledEvalK_orbit_invariant` (already proved
+  above): aut-invariance of multigraph evaluation gives equality on every
+  multigraph automatically.
+* The **reverse direction** (multi-equivalence ⟹ orbit) is the deep paper
+  content. Lovász's proof goes through the connection-matrix rank /
+  idempotent decomposition argument (TR-2004-82 §3): the connection
+  matrix `M(B, W) ∈ ℝ^{T^k × T^k}` factors through twin-free quotients,
+  and equal multi-eval rows are exactly orbit equivalences. -/
+
+/-- **Simple-graph tuple equivalence** (Lovász §2, p. 6).
+
+Two label maps `ξ, ξ' : Fin K → Fin T` are simple-equivalent iff every
+level-`K` **simple** graph (with any number `n'` of unlabeled vertices)
+evaluates equally on them. This is the simple-graph `tupleEquiv`
+inlined to avoid a `MatrixDetermination` dependency. -/
+def tupleEquivSimple {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ ξ' : Fin K → Fin T) : Prop :=
+  ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+    ∑ σ : Fin n' → Fin T,
+      (let τ : Fin (n' + K) → Fin T := fun v =>
+        if h : (v : ℕ) < K then ξ ⟨v, h⟩
+        else σ ⟨v - K, by have := v.isLt; omega⟩
+      (∏ v : Fin n', W (σ v)) *
+      ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+    ∑ σ : Fin n' → Fin T,
+      (let τ : Fin (n' + K) → Fin T := fun v =>
+        if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+        else σ ⟨v - K, by have := v.isLt; omega⟩
+      (∏ v : Fin n', W (σ v)) *
+      ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))
+
+/-- **Multigraph tuple equivalence**.
+
+Two label maps `ξ, ξ' : Fin K → Fin T` are multi-equivalent iff every
+level-`K` **multigraph** (with any number `n` of unlabeled vertices)
+evaluates equally on them. This is the natural multigraph generalization
+of `tupleEquivSimple`. -/
+def tupleEquivMulti {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ ξ' : Fin K → Fin T) : Prop :=
+  ∀ (n : ℕ) (M : MultiLabeledGraph K n),
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ'
+
+/-- **Multi ⟹ simple** (trivial direction).
+
+If `ξ ξ'` agree on every multigraph evaluation, they agree on every
+simple-graph evaluation, since `MultiLabeledGraph.ofSimple F` reduces
+to the simple-graph form (`multiLabeledEvalK_ofSimple`). -/
+theorem tupleEquivSimple_of_tupleEquivMulti {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) {ξ ξ' : Fin K → Fin T}
+    (h : tupleEquivMulti B W ξ ξ') :
+    tupleEquivSimple B W ξ ξ' := by
+  intro n' F _
+  have hM := h n' (MultiLabeledGraph.ofSimple F)
+  rw [multiLabeledEvalK_ofSimple, multiLabeledEvalK_ofSimple] at hM
+  exact hM
+
+/-- **Lovász Lemma 2.5, forward direction** (orbit ⟹ multi-equivalence).
+
+If `ξ` and `ξ'` lie in the same `(B, W)`-automorphism orbit
+(`ξ' i = σ (ξ i)` for some weighted automorphism `σ`), then they agree
+on every multigraph evaluation. Immediate corollary of
+`multiLabeledEvalK_orbit_invariant`. -/
+theorem tupleEquivMulti_of_orbit {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) {ξ ξ' : Fin K → Fin T}
+    (h : ∃ σ : Equiv.Perm (Fin T),
+      (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
+      (∀ i, ξ' i = σ (ξ i))) :
+    tupleEquivMulti B W ξ ξ' := by
+  intro n M
+  exact multiLabeledEvalK_orbit_invariant B W M h
+
+/-- **Lovász Lemma 2.5, reverse direction** (multi-equivalence ⟹ orbit),
+*twin-free hypothesis*.
+
+If `B` is twin-free (rows of `B` distinct: `i ≠ j → B i ≠ B j`) and
+`ξ ξ'` agree on every multigraph evaluation, then they lie in the same
+`(B, W)`-automorphism orbit.
+
+This is the deep content of Lovász TR-2004-82 §3. The standard proof
+proceeds via:
+
+1. The **connection matrix** `M(B, W) ∈ ℝ^{T^k × T^k}` indexed by pairs
+   of label tuples, with entries `multiLabeledEvalK K 0 M_{φ,ψ} B W ξ`
+   (taking `M_{φ,ψ}` to be the "join" multigraph).
+2. The **idempotent decomposition**: under twin-freeness, `M(B, W)`
+   has rank equal to the number of orbits, with row spaces in
+   bijection with orbit equivalence classes.
+3. **Equal rows ⟺ same orbit**: two tuples have equal rows in the
+   connection matrix iff they are orbit-equivalent.
+
+**Status**: stated, sorry'd. ~500-1000 lines of paper-faithful future
+work; depends on developing `connectionMatrix` and its rank theorem. -/
+theorem tupleEquivMulti_implies_orbit {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T}
+    (_h : tupleEquivMulti B W ξ ξ') :
+    ∃ σ : Equiv.Perm (Fin T),
+      (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
+      (∀ i, ξ' i = σ (ξ i)) := by
+  sorry
+
 /-! ### §4 — The bridge theorem (canonical sorry)
 
 Stated abstractly: for any pair `ξ ξ'` such that ALL simple-graph
@@ -1265,14 +1436,19 @@ multigraph evaluations agree.
 the simple-graph evaluations at `ξ` and `ξ'` agree. This is the
 inlined definition of `tupleEquiv B W ξ ξ'`.
 
-**Status**: stub. Future proof requires the algebra-of-graphs
-infrastructure (§2 + §3 above), totalling ~300-500 lines. Stage in
-this module; do not pollute `MatrixDetermination.lean`. -/
+**Status**: partial — `n = 0` case dispatched via
+`multiLabeledEvalK_tupleEquiv_invariant_n_zero`. The general `n` case
+remains sorry'd. The natural induction on `n` via `promote_unfold`
+needs a "lifted simple-equivalence" hypothesis at level `K + 1`, which
+does NOT follow from the level-`K` `h_simple` alone (a level-(K+1)
+graph constrained at the new label position does not factor through
+a free σ-sum). The connection-matrix / idempotent-decomposition
+argument from Lovász §3 is the standard way to close this. -/
 theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (M : MultiLabeledGraph K n)
     {ξ ξ' : Fin K → Fin T}
-    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K)))
+    (h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K)))
         [DecidableRel F.Adj],
       ∑ σ : Fin n' → Fin T,
         (let τ : Fin (n' + K) → Fin T := fun v =>
@@ -1287,6 +1463,13 @@ theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
         (∏ v : Fin n', W (σ v)) *
         ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
-  sorry
+  -- Dispatch the n=0 case via the dedicated lemma.
+  match n, M with
+  | 0, M => exact multiLabeledEvalK_tupleEquiv_invariant_n_zero B hB W M h_simple
+  | n + 1, _M =>
+    -- The n+1 case requires either (i) a level-(K+1) lift of `h_simple`,
+    -- or (ii) the connection-matrix idempotent-decomposition argument
+    -- from Lovász TR-2004-82 §3. Neither is in scope yet.
+    sorry
 
 end Graphon.Lovasz
