@@ -1383,53 +1383,475 @@ theorem tupleEquivMulti_of_orbit {T K : ℕ}
   intro n M
   exact multiLabeledEvalK_orbit_invariant B W M h
 
+/-! ### §3.9 — Lovász Lemma 2.4 scaffolding (Claims 4.1–4.4)
+
+This subsection introduces the named helpers and Claims used in Lovász
+TR-2004-82's proof of Lemma 2.4. The chain mirrors the (private) chain
+already proved in `Graphon/MatrixDetermination.lean` as
+`tupleEquiv_restrict` / `tupleEquiv_extend` / `tupleEquiv_bijective_case`
+/ `tupleEquiv_surjective_case` / `tupleEquiv_implies_tupleOrbitRel`, but
+adapted to the inline `tupleEquivSimple` predicate to avoid the import
+cycle with `MatrixDetermination`. The current status:
+
+* **Claim 4.1** (`tupleEquivSimple_restrict`) — proved.
+* **Claim 4.2** (`tupleEquivSimple_extend`) — stated, sorry'd
+  (depends on the `coeffRestrict_equiv` / functional-span chain).
+* **Claim 4.3** (`tupleEquivSimple_bijective_case`) — stated, sorry'd
+  (single-edge-graph argument à la `labeledEvalK_singleEdge`).
+* **Claim 4.4** (`tupleEquivSimple_surjective_case`) — stated, sorry'd
+  (uses 4.2 + 4.3 + restriction-along-an-embedding).
+
+The main theorem `tupleEquivSimple_implies_orbit` is wired below via
+strong induction on `K`, with the architectural sorry localized to the
+non-surjective branch (mirroring `tupleEquiv_implies_tupleOrbitRel`). -/
+
+/-- **Weighted automorphism predicate**.
+
+A permutation `σ : Equiv.Perm (Fin T)` is a `(B, W)`-automorphism iff it
+preserves both the weight vector `W` and the matrix `B` entrywise. -/
+def IsWeightedAutomorphism {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (σ : Equiv.Perm (Fin T)) : Prop :=
+  (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j)
+
+/-- **Tuple-orbit relation** (Lovász TR-2004-82 §2, p. 5).
+
+Two tuples `ξ ξ' : Fin K → Fin T` are orbit-related iff some
+`(B, W)`-automorphism `σ` conjugates one to the other: `ξ' i = σ (ξ i)`.
+This is the explicit-σ form of the existential conclusion of
+`tupleEquivSimple_implies_orbit`. -/
+def tupleOrbitRel {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ ξ' : Fin K → Fin T) : Prop :=
+  ∃ σ : Equiv.Perm (Fin T),
+    IsWeightedAutomorphism B W σ ∧ ∀ i, ξ' i = σ (ξ i)
+
+/-- Restriction of a `(k+1)`-tuple to its first `k` coordinates via
+`Fin.castSucc`. Lovász's `φ'` notation (TR-2004-82 §4). -/
+def restrictTuple {T k : ℕ} (ξ : Fin (k + 1) → Fin T) : Fin k → Fin T :=
+  fun i => ξ i.castSucc
+
+/-- **Orbit ⟹ simple-equivalence** (forward direction of Lemma 2.5,
+specialized to simple graphs). If `ξ ξ'` are `(B, W)`-orbit related,
+they agree on every simple-graph evaluation. Used inside the strong
+induction to normalize `ψ` by `σ⁻¹` before extending the base.
+
+This is the simple-graph specialization of `tupleEquivMulti_of_orbit`
+(via `tupleEquivSimple_of_tupleEquivMulti`). Direct proof here avoids
+the multigraph detour. -/
+theorem tupleEquivSimple_of_tupleOrbitRel {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) {ξ ξ' : Fin K → Fin T}
+    (h : tupleOrbitRel B W ξ ξ') :
+    tupleEquivSimple B W ξ ξ' := by
+  -- Pass through tupleEquivMulti, then descend to simple via the
+  -- trivial direction.
+  obtain ⟨σ, ⟨hW, hB⟩, hconj⟩ := h
+  refine tupleEquivSimple_of_tupleEquivMulti B W ?_
+  intro n M
+  exact multiLabeledEvalK_orbit_invariant B W M ⟨σ, hW, hB, hconj⟩
+
+/-- **Claim 4.1 — Restriction preserves `tupleEquivSimple`**
+(Lovász TR-2004-82 §4, p. 6, "first paragraph").
+
+If `ξ ξ' : Fin (k+1) → Fin T` are simple-equivalent, then their
+restrictions to the first `k` coordinates (via `Fin.castSucc`) are
+also simple-equivalent.
+
+**Proof**: any simple graph `F'` on `Fin (n + k)` lifts to a simple
+graph `F` on `Fin (n + (k + 1))` via the embedding `Fin.succAboveEmb p`
+with `p = ⟨k, _⟩` (skip the pivot position `k`). The level-`(k+1)`
+evaluation of `F` at `ξ` equals the level-`k` evaluation of `F'` at
+`restrictTuple ξ`, because the embedding leaves the unlabeled vertices
+untouched while reindexing the label slot. The hypothesis applied at
+`F` then transfers to `F'`.
+
+This is the simple-graph analog of `tupleEquiv_restrict` (line 4461 of
+`MatrixDetermination.lean`). -/
+theorem tupleEquivSimple_restrict {T k : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i)
+    {ξ ξ' : Fin (k + 1) → Fin T}
+    (h : tupleEquivSimple B W ξ ξ') :
+    tupleEquivSimple B W (restrictTuple ξ) (restrictTuple ξ') := by
+  classical
+  intro n F' hdec
+  -- Helper: edge-product term is independent of the Sym2 representative
+  -- thanks to `hB`. Stated for both target sizes.
+  have h_edge_rep : ∀ {m : ℕ} (ν : Fin m → Fin T) (a b : Fin m),
+      B (ν (Quot.out (s(a, b) : Sym2 (Fin m))).1)
+        (ν (Quot.out (s(a, b) : Sym2 (Fin m))).2) = B (ν a) (ν b) := by
+    intro m ν a b
+    have h_out_eq : Sym2.mk (Quot.out (s(a, b) : Sym2 (Fin m))) = s(a, b) :=
+      Quot.out_eq _
+    rcases Sym2.mk_eq_mk_iff.mp h_out_eq with heq | heq
+    · rw [heq]
+    · rw [heq]; exact hB _ _
+  -- Pivot at position k; shift = succAboveEmb p maps Fin (n+k) → Fin (n+(k+1)).
+  have hk : k < n + (k + 1) := by omega
+  let p : Fin (n + (k + 1)) := ⟨k, hk⟩
+  let shift : Fin (n + k) ↪ Fin (n + (k + 1)) := Fin.succAboveEmb p
+  let F : SimpleGraph (Fin (n + (k + 1))) := SimpleGraph.map shift F'
+  haveI hF_dec : DecidableRel F.Adj := Classical.decRel _
+  -- Core translation. The sum on the LHS of `tupleEquivSimple` at
+  -- `(restrictTuple ξ, F')` equals the sum on the LHS at `(ξ, F)`.
+  suffices trans : ∀ (θ : Fin (k + 1) → Fin T),
+      (∑ σ : Fin n → Fin T,
+        (let τ : Fin (n + (k + 1)) → Fin T := fun v =>
+          if h : (v : ℕ) < k + 1 then θ ⟨v, h⟩
+          else σ ⟨v - (k + 1), by have := v.isLt; omega⟩
+        (∏ v : Fin n, W (σ v)) *
+        ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) =
+      (∑ σ : Fin n → Fin T,
+        (let τ : Fin (n + k) → Fin T := fun v =>
+          if h : (v : ℕ) < k then (restrictTuple θ) ⟨v, h⟩
+          else σ ⟨v - k, by have := v.isLt; omega⟩
+        (∏ v : Fin n, W (σ v)) *
+        ∏ e ∈ F'.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) by
+    -- Apply trans on both sides, then h at F.
+    rw [← trans ξ, ← trans ξ']
+    exact h n F
+  intro θ
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  -- Both sides have the form (∏ W σ) * (edge prod). The W-prods agree
+  -- definitionally; reduce to edge-product equality.
+  simp only
+  refine congrArg (fun x => (∏ v : Fin n, W (σ v)) * x) ?_
+  -- Edge product: Finset.prod_bij with shift.sym2Map.
+  symm
+  refine Finset.prod_bij (fun e _ => shift.sym2Map e) ?_ ?_ ?_ ?_
+  · -- 1. Map lands in F.edgeFinset.
+    intro e he
+    change shift.sym2Map e ∈ (SimpleGraph.map shift F').edgeFinset
+    rw [SimpleGraph.mem_edgeFinset] at he ⊢
+    induction e using Sym2.ind with
+    | _ a b =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at *
+      rw [SimpleGraph.mem_edgeSet] at he ⊢
+      exact ⟨a, b, he, rfl, rfl⟩
+  · -- 2. Injective.
+    intro e1 _ e2 _ hij
+    exact shift.sym2Map.injective hij
+  · -- 3. Surjective.
+    intro e he
+    change e ∈ (SimpleGraph.map shift F').edgeFinset at he
+    rw [SimpleGraph.mem_edgeFinset] at he
+    induction e using Sym2.ind with
+    | _ x y =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      obtain ⟨a, b, hab, hax, hby⟩ := he
+      refine ⟨s(a, b), ?_, ?_⟩
+      · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact hab
+      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+        rw [hax, hby]
+  · -- 4. Term-by-term equality.
+    intro e _
+    set ν' : Fin (n + k) → Fin T := fun v =>
+      if h : (v : ℕ) < k then (restrictTuple θ) ⟨v, h⟩
+      else σ ⟨(v : Fin (n + k)).val - k, by have := v.isLt; omega⟩ with hν'_def
+    set ν : Fin (n + (k + 1)) → Fin T := fun v =>
+      if h : (v : ℕ) < k + 1 then θ ⟨v, h⟩
+      else σ ⟨(v : Fin (n + (k + 1))).val - (k + 1),
+              by have := v.isLt; omega⟩ with hν_def
+    induction e using Sym2.ind with
+    | _ a b =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      change B (ν' (Quot.out s(a, b)).1) (ν' (Quot.out s(a, b)).2) =
+        B (ν (Quot.out s(shift a, shift b)).1)
+          (ν (Quot.out s(shift a, shift b)).2)
+      rw [h_edge_rep ν' a b, h_edge_rep ν (shift a) (shift b)]
+      -- Reduces to ν ∘ shift = ν' pointwise.
+      have hτ : ∀ v : Fin (n + k), ν (shift v) = ν' v := by
+        intro v
+        by_cases hv : (v : ℕ) < k
+        · -- Below the pivot: shift v = v.castSucc, .val preserved.
+          have h_shift_val : (shift v : Fin (n + (k + 1))).val = v.val := by
+            show (p.succAboveEmb v : Fin (n + (k + 1))).val = v.val
+            simp only [Fin.coe_succAboveEmb]
+            rw [Fin.succAbove_of_castSucc_lt]
+            · rfl
+            · show v.castSucc < p
+              simp only [Fin.lt_def, Fin.val_castSucc]
+              exact hv
+          have h_lt : ((shift v : Fin (n + (k + 1))) : ℕ) < k + 1 := by
+            rw [h_shift_val]; omega
+          simp only [hν_def, hν'_def, dif_pos h_lt, dif_pos hv, restrictTuple]
+          congr 1
+          apply Fin.ext
+          simp only [Fin.val_castSucc]
+          exact h_shift_val
+        · -- Above the pivot: shift v = v.succ, .val = v.val + 1.
+          have h_shift_val : (shift v : Fin (n + (k + 1))).val = v.val + 1 := by
+            show (p.succAboveEmb v : Fin (n + (k + 1))).val = v.val + 1
+            simp only [Fin.coe_succAboveEmb]
+            rw [Fin.succAbove_of_le_castSucc]
+            · rfl
+            · show p ≤ v.castSucc
+              simp only [Fin.le_def, Fin.val_castSucc]
+              show k ≤ v.val
+              omega
+          have h_nlt : ¬ ((shift v : Fin (n + (k + 1))) : ℕ) < k + 1 := by
+            rw [h_shift_val]; omega
+          have h_nlt' : ¬ (v : ℕ) < k := hv
+          simp only [hν_def, hν'_def, dif_neg h_nlt, dif_neg h_nlt']
+          congr 1
+          apply Fin.ext
+          show (shift v : Fin (n + (k + 1))).val - (k + 1) = v.val - k
+          rw [h_shift_val]; omega
+      rw [hτ a, hτ b]
+
+/-- **Claim 4.2 — Extension lemma**
+(Lovász TR-2004-82 §4, p. 6, "second paragraph").
+
+If `ξ ξ' : Fin k → Fin T` are simple-equivalent at level `k`, then for
+every level-`(k+1)` extension `μ` of `ξ` (`restrictTuple μ = ξ`) there
+exists a level-`(k+1)` extension `ν` of `ξ'` (`restrictTuple ν = ξ'`)
+such that `μ` and `ν` are simple-equivalent at level `k+1`.
+
+**Proof strategy** (Lovász): factor `coeffRestrict B W μ ξ` (the
+`W`-weighted sum over `t : Fin T` extending `ξ` to a copy of `μ`'s
+equivalence class at level `k+1`) as a class function, and argue
+via `functional_span_zero` that the coefficient extends to `ξ'`. The
+full chain is `tupleEquiv_extend` (`MatrixDetermination.lean:5110`)
+which depends on `coeffRestrict_equiv` (the IH-free Claim-4.2 core).
+
+**Status**: sorry. The full proof is ~1000 lines of paper-faithful
+algebraic work that lives in `MatrixDetermination.lean`. Adapting it
+here requires also porting `coeffRestrict_equiv`, `functional_span_zero`,
+and the product-trace identity — out of scope for this scaffolding pass. -/
+theorem tupleEquivSimple_extend {T k : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (_hB : ∀ i j, B i j = B j i)
+    {ξ ξ' : Fin k → Fin T}
+    (_h : tupleEquivSimple B W ξ ξ')
+    (μ : Fin (k + 1) → Fin T) (_hμ : restrictTuple μ = ξ) :
+    ∃ ν : Fin (k + 1) → Fin T,
+      restrictTuple ν = ξ' ∧ tupleEquivSimple B W μ ν := by
+  sorry
+
+/-- **Claim 4.3 — Bijective base case**
+(Lovász TR-2004-82 §4, p. 6, "third paragraph").
+
+If `ψ : Fin T → Fin T` is bijective and `tupleEquivSimple B W id ψ`
+holds, then `ψ` IS a `(B, W)`-automorphism (orbit relation holds with
+σ = ψ).
+
+**Proof strategy**: build single-edge simple graphs `F_{i,j}` (the
+graph on `Fin T` with a single edge `{i, j}`); their level-`T`
+evaluations at `id` and `ψ` extract `B i j = B (ψ i) (ψ j)`, giving
+the B-preservation half. Single-vertex graphs (no edges) similarly
+extract `W` preservation via the `∏ W(σ_inner)` factor. The pair is
+exactly `IsWeightedAutomorphism B W ψ`. (`Equiv.ofBijective` is used
+to convert the function-level bijection to `Equiv.Perm`.)
+
+**Status**: sorry. The full proof is ~200 lines in
+`MatrixDetermination.lean:5339`. -/
+theorem tupleEquivSimple_bijective_case {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (_hB : ∀ i j, B i j = B j i)
+    (ψ : Fin T → Fin T) (_hψ_bij : Function.Bijective ψ)
+    (_h : tupleEquivSimple B W (id : Fin T → Fin T) ψ) :
+    tupleOrbitRel B W (id : Fin T → Fin T) ψ := by
+  sorry
+
+/-- **Claim 4.4 — Surjective base case**
+(Lovász TR-2004-82 §4, p. 6, "fourth paragraph").
+
+If `φ : Fin k → Fin T` is surjective and `tupleEquivSimple B W φ ψ`,
+then `tupleOrbitRel B W φ ψ`.
+
+**Proof strategy**: pick a section `s : Fin T → Fin k` with
+`φ ∘ s = id`. Restrict the equivalence along `s` (via the
+embedding-restriction `tupleEquiv_restrict_along` in
+`MatrixDetermination.lean:4746`) to obtain
+`tupleEquivSimple B W id (ψ ∘ s)`. Show `ψ ∘ s` is bijective (since
+both `φ` and `ψ` produce the same multiset of values on `Fin k` →
+forced by the single-vertex evaluation; under twin-freeness this
+gives bijectivity). Apply Claim 4.3 to extract an automorphism `σ`.
+Verify `σ ∘ φ = ψ` pointwise on `Fin k` (uses surjectivity of `φ`).
+
+**Status**: sorry. The full proof is in
+`MatrixDetermination.lean:5731` (`tupleEquiv_surjective_case`) and
+its helper `tupleEquiv_surjective_case_both` at L5607. -/
+theorem tupleEquivSimple_surjective_case {T k : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (_hB : ∀ i j, B i j = B j i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (_IH_orbit : ∀ {ξ' ψ' : Fin (T - 1) → Fin T},
+      tupleEquivSimple B W ξ' ψ' → tupleOrbitRel B W ξ' ψ')
+    (φ ψ : Fin k → Fin T) (_hφ_surj : Function.Surjective φ)
+    (_h : tupleEquivSimple B W φ ψ) :
+    tupleOrbitRel B W φ ψ := by
+  sorry
+
+/-- **Surjective-extension uniqueness** (`tupleEquiv_ext_eq_of_surj`
+analog, `MatrixDetermination.lean:10801`).
+
+If `α : Fin k → Fin T` is surjective and `B` is twin-free, then two
+simple-equivalent extensions `Fin.snoc α a` and `Fin.snoc α b` must
+have `a = b`.
+
+**Proof strategy**: build single-edge simple graphs `F_{j, k}` on
+`Fin (0 + (k + 1))` for each `j : Fin k`; the level-`(k+1)`
+evaluation gives `B (α j) a = B (α j) b`. Surjectivity transfers
+this to `∀ t, B t a = B t b`, hence `B a = B b` by symmetry,
+contradicting twin-freeness unless `a = b`.
+
+**Status**: sorry. Faithful adaptation of the MatrixDetermination
+proof requires inlining `labeledEvalK_singleEdge`'s simple-graph
+form (which exists in MatrixDetermination but not here). -/
+theorem tupleEquivSimple_ext_eq_of_surj {T k : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (_hB : ∀ i j, B i j = B j i)
+    (_htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    {α : Fin k → Fin T}
+    (_hα_surj : Function.Surjective α)
+    {a b : Fin T}
+    (_h : tupleEquivSimple B W (Fin.snoc α a) (Fin.snoc α b)) :
+    a = b := by
+  sorry
+
 /-- **Lovász TR-2004-82 Lemma 2.4** (simple-graph form, our framework).
 
 If `B` is twin-free (`i ≠ j → B i ≠ B j`) and `ξ ξ'` agree on every
 **simple-graph** k-labeled evaluation (`tupleEquivSimple`), then they lie
 in the same `(B, W)`-automorphism orbit.
 
-This is the **canonical sorry** for Lovász §4: the deep paper content of
-Lemma 2.4 (paper p. 6). The standard paper proof goes through:
+**Proof structure** (paper-faithful strong induction, mirrors
+`tupleEquiv_implies_tupleOrbitRel` in `MatrixDetermination.lean:10873`).
 
-* **Claim 4.1** — equivalence preserved under restriction.
-* **Claim 4.2** — extension lemma (every level-`k+1` extension of `ξ` has
-  a matching extension of `ξ'`).
-* **Claim 4.3** — bijective base case (`ξ` bijective ⟹ orbit).
-* **Claim 4.4** — surjective base case (extend to bijective via 4.2).
-* **General case** — extend to surjective via 4.2.
+The proof is by **strong induction** on `K`, with IH supplied at every
+level `< K` (needed both at `K - 1` for the restriction step, and at
+`T - 1` for the surjective-base case Claim 4.4).
 
-A complete proof sketch (modulo a single architectural sorry in the
-non-surjective branch of the strong induction) lives in
-`Graphon/MatrixDetermination.lean` as `tupleEquiv_implies_tupleOrbitRel`.
-**That proof cannot be reused here directly** because
-`MatrixDetermination` already imports `Lovasz`, so a reverse import
-would be a cycle. Closing this sorry requires either:
+Steps in the inductive case `m = k + 1`:
 
-1. **Inlining/adapting** the `tupleEquiv_implies_tupleOrbitRel` proof
-   chain (Claim 4.1 through Claim 4.4 + the strong-induction kernel)
-   into `Graphon/Lovasz.lean`. ~2000 lines of paper-faithful work.
-2. **Refactoring** the import graph so that the §4 chain lives in a
-   shared lower module that both `Lovasz` and `MatrixDetermination`
-   can import.
+1. **Restrict** to level `k` (Claim 4.1, `tupleEquivSimple_restrict`)
+   and apply IH to extract an automorphism `σ` realizing the orbit
+   relation between `restrictTuple ξ` and `restrictTuple ξ'`.
+2. **Normalize** `ξ'` by `σ.symm` so that the first `k` coordinates
+   agree (using `tupleEquivSimple_of_tupleOrbitRel`).
+3. Express both as `Fin.snoc` of a common base `α := restrictTuple ξ`
+   over a single last coordinate.
+4. **Case split on surjectivity** of the base `α`:
+   - `α` surjective ⟹ Claim "ext-eq-of-surj"
+     (`tupleEquivSimple_ext_eq_of_surj`) forces the last coordinates
+     to agree, giving orbit immediately.
+   - `α` non-surjective, but `ξ` surjective ⟹ Claim 4.4
+     (`tupleEquivSimple_surjective_case`) at IH level `T - 1`.
+   - Both `α` and `ξ` non-surjective: the **architectural** sorry
+     branch. Lovász's standard plan goes through Claim 4.2 (extend by
+     a fresh element `r ∉ range α ∪ {a, b}`) and recurses on a strictly
+     smaller `(deficit, size)` measure. This requires a well-founded
+     induction refactor on `(deficit, size)` which is beyond a strong
+     `Nat`-induction on `size` alone.
 
-**Consequence**: this sorry is the strict generalization of the multi-
-graph version (since `tupleEquivSimple` is implied by `tupleEquivMulti`
-via `tupleEquivSimple_of_tupleEquivMulti`). Closing this single sorry
-discharges both `tupleEquivMulti_implies_orbit` (immediate chain) AND
-the bridge theorem `multiLabeledEvalK_tupleEquiv_invariant` (via
-`multiLabeledEvalK_orbit_invariant` after passing through orbit).
-
-**Status**: sorry'd as the *single* deep canonical sorry of this module. -/
+**Status**: proved modulo (i) the three internal Claim sorrys
+(`tupleEquivSimple_extend`, `tupleEquivSimple_bijective_case`,
+`tupleEquivSimple_surjective_case`, plus the helper
+`tupleEquivSimple_ext_eq_of_surj`), and (ii) the single architectural
+sorry in the non-surjective branch of the strong induction. The
+wiring is paper-faithful and matches the structure of the
+(private) proof in `Graphon/MatrixDetermination.lean`. -/
 theorem tupleEquivSimple_implies_orbit {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T}
-    (_h : tupleEquivSimple B W ξ ξ') :
+    (h : tupleEquivSimple B W ξ ξ') :
     ∃ σ : Equiv.Perm (Fin T),
       (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
       (∀ i, ξ' i = σ (ξ i)) := by
-  sorry
+  -- Convert the existential conclusion to `tupleOrbitRel` form.
+  suffices hOrbit : tupleOrbitRel B W ξ ξ' by
+    obtain ⟨σ, ⟨hW_eq, hB_eq⟩, hξ_eq⟩ := hOrbit
+    exact ⟨σ, hW_eq, hB_eq, hξ_eq⟩
+  -- Strong induction on K.
+  suffices strong : ∀ (m : ℕ) (ξ ξ' : Fin m → Fin T),
+      tupleEquivSimple B W ξ ξ' → tupleOrbitRel B W ξ ξ' from strong K ξ ξ' h
+  intro m
+  refine @Nat.strongRecOn
+    (fun j => ∀ (ξ ξ' : Fin j → Fin T),
+      tupleEquivSimple B W ξ ξ' → tupleOrbitRel B W ξ ξ')
+    m fun m IH_strong => ?_
+  intro ξ ξ' h
+  rcases m with _ | k
+  · -- m = 0: trivially, σ = refl (identity) works.
+    exact ⟨Equiv.refl _, ⟨fun _ => rfl, fun _ _ => rfl⟩, nofun⟩
+  · -- m = k + 1. IH supplies orbit relation at every level < k + 1.
+    have IH : ∀ {ξ' ψ' : Fin k → Fin T},
+        tupleEquivSimple B W ξ' ψ' → tupleOrbitRel B W ξ' ψ' :=
+      fun {ξ' ψ'} h' => IH_strong k (Nat.lt_succ_self k) ξ' ψ' h'
+    -- **Step 1**: restrict to level k, apply IH.
+    obtain ⟨σ, hσ_aut, hσ_conj⟩ :=
+      IH (tupleEquivSimple_restrict B W hB h)
+    -- **Step 2**: σ⁻¹ is also a weighted automorphism.
+    have hσs : IsWeightedAutomorphism B W σ.symm := by
+      refine ⟨fun i => ?_, fun i j => ?_⟩
+      · have := (hσ_aut.1 (σ.symm i)).symm
+        rwa [σ.apply_symm_apply] at this
+      · have := (hσ_aut.2 (σ.symm i) (σ.symm j)).symm
+        rwa [σ.apply_symm_apply, σ.apply_symm_apply] at this
+    -- **Step 3**: normalize ξ' by σ⁻¹.
+    have h' : tupleEquivSimple B W ξ (σ.symm ∘ ξ') := by
+      -- ξ ≃ ξ' and ξ' = σ ∘ (σ⁻¹ ∘ ξ'), so ξ ≃ σ⁻¹ ∘ ξ' via orbit invariance.
+      intro n F hdec
+      rw [h n F]
+      -- Now goal: simple-eval at ξ' = simple-eval at σ⁻¹ ∘ ξ'.
+      -- σ⁻¹ ∘ ξ' and ξ' are orbit-related via σ (σ takes σ⁻¹ ∘ ξ' to ξ').
+      have hrel : tupleOrbitRel B W (σ.symm ∘ ξ') ξ' :=
+        ⟨σ, hσ_aut, fun i => by
+          simp only [Function.comp_apply, σ.apply_symm_apply]⟩
+      exact (tupleEquivSimple_of_tupleOrbitRel B W hrel n F).symm
+    -- **Step 4**: the first k coordinates of ξ and σ⁻¹ ∘ ξ' now agree.
+    have hbase : restrictTuple (σ.symm ∘ ξ') = restrictTuple ξ := by
+      funext i
+      simp only [restrictTuple, Function.comp]
+      have hi := hσ_conj i
+      simp only [restrictTuple] at hi
+      rw [hi, σ.symm_apply_apply]
+    -- **Step 5**: express both as Fin.snoc of α := restrictTuple ξ.
+    set α := restrictTuple ξ with hα_def
+    have ha : ξ = Fin.snoc α (ξ (Fin.last k)) := by
+      ext i
+      by_cases hi : (i : ℕ) < k
+      · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl,
+            Fin.snoc_castSucc]
+        rfl
+      · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega),
+            Fin.snoc_last]
+    have hb : σ.symm ∘ ξ' = Fin.snoc α ((σ.symm ∘ ξ') (Fin.last k)) := by
+      ext i
+      by_cases hi : (i : ℕ) < k
+      · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl,
+            Fin.snoc_castSucc, ← hbase]
+        rfl
+      · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega),
+            Fin.snoc_last]
+    rw [ha, hb] at h'
+    -- **Step 6**: case split on surjectivity of α.
+    by_cases hα_surj : Function.Surjective α
+    · -- Surjective base: ext-eq-of-surj forces the last coordinates to match.
+      have hab :=
+        tupleEquivSimple_ext_eq_of_surj B W hB htwin hα_surj h'
+      refine ⟨σ, hσ_aut, fun i => ?_⟩
+      have : (σ.symm ∘ ξ') i = ξ i :=
+        congr_fun (hb.trans (hab ▸ ha.symm)) i
+      rwa [Function.comp_apply, Equiv.symm_apply_eq] at this
+    · -- α non-surjective.
+      by_cases hξ_surj : Function.Surjective ξ
+      · -- ξ surjective: apply Claim 4.4 (T ≤ k+1, so T-1 < k+1).
+        have hT1_lt : T - 1 < k + 1 := by
+          have := Fintype.card_le_of_surjective ξ hξ_surj
+          simp only [Fintype.card_fin] at this
+          omega
+        have IH_T1 : ∀ {ξ' ψ' : Fin (T - 1) → Fin T},
+            tupleEquivSimple B W ξ' ψ' → tupleOrbitRel B W ξ' ψ' :=
+          fun {ξ' ψ'} h' => IH_strong (T - 1) hT1_lt ξ' ψ' h'
+        exact tupleEquivSimple_surjective_case B W hB htwin IH_T1 ξ ξ' hξ_surj h
+      · -- **Architectural sorry**: neither α nor ξ surjective. Lovász's
+        -- "extend-and-recurse" plan requires Claim 4.2 + a well-founded
+        -- induction refactor on `(deficit, size)` — see the lengthy
+        -- comment at `MatrixDetermination.lean:10938` for the full
+        -- discussion of why strong induction on size alone cannot close
+        -- this branch.
+        sorry
 
 /-- **Lovász Lemma 2.5, reverse direction** (multi-equivalence ⟹ orbit),
 *twin-free hypothesis*.
