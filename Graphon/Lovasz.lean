@@ -1383,6 +1383,54 @@ theorem tupleEquivMulti_of_orbit {T K : ℕ}
   intro n M
   exact multiLabeledEvalK_orbit_invariant B W M h
 
+/-- **Lovász TR-2004-82 Lemma 2.4** (simple-graph form, our framework).
+
+If `B` is twin-free (`i ≠ j → B i ≠ B j`) and `ξ ξ'` agree on every
+**simple-graph** k-labeled evaluation (`tupleEquivSimple`), then they lie
+in the same `(B, W)`-automorphism orbit.
+
+This is the **canonical sorry** for Lovász §4: the deep paper content of
+Lemma 2.4 (paper p. 6). The standard paper proof goes through:
+
+* **Claim 4.1** — equivalence preserved under restriction.
+* **Claim 4.2** — extension lemma (every level-`k+1` extension of `ξ` has
+  a matching extension of `ξ'`).
+* **Claim 4.3** — bijective base case (`ξ` bijective ⟹ orbit).
+* **Claim 4.4** — surjective base case (extend to bijective via 4.2).
+* **General case** — extend to surjective via 4.2.
+
+A complete proof sketch (modulo a single architectural sorry in the
+non-surjective branch of the strong induction) lives in
+`Graphon/MatrixDetermination.lean` as `tupleEquiv_implies_tupleOrbitRel`.
+**That proof cannot be reused here directly** because
+`MatrixDetermination` already imports `Lovasz`, so a reverse import
+would be a cycle. Closing this sorry requires either:
+
+1. **Inlining/adapting** the `tupleEquiv_implies_tupleOrbitRel` proof
+   chain (Claim 4.1 through Claim 4.4 + the strong-induction kernel)
+   into `Graphon/Lovasz.lean`. ~2000 lines of paper-faithful work.
+2. **Refactoring** the import graph so that the §4 chain lives in a
+   shared lower module that both `Lovasz` and `MatrixDetermination`
+   can import.
+
+**Consequence**: this sorry is the strict generalization of the multi-
+graph version (since `tupleEquivSimple` is implied by `tupleEquivMulti`
+via `tupleEquivSimple_of_tupleEquivMulti`). Closing this single sorry
+discharges both `tupleEquivMulti_implies_orbit` (immediate chain) AND
+the bridge theorem `multiLabeledEvalK_tupleEquiv_invariant` (via
+`multiLabeledEvalK_orbit_invariant` after passing through orbit).
+
+**Status**: sorry'd as the *single* deep canonical sorry of this module. -/
+theorem tupleEquivSimple_implies_orbit {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T}
+    (_h : tupleEquivSimple B W ξ ξ') :
+    ∃ σ : Equiv.Perm (Fin T),
+      (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
+      (∀ i, ξ' i = σ (ξ i)) := by
+  sorry
+
 /-- **Lovász Lemma 2.5, reverse direction** (multi-equivalence ⟹ orbit),
 *twin-free hypothesis*.
 
@@ -1390,29 +1438,21 @@ If `B` is twin-free (rows of `B` distinct: `i ≠ j → B i ≠ B j`) and
 `ξ ξ'` agree on every multigraph evaluation, then they lie in the same
 `(B, W)`-automorphism orbit.
 
-This is the deep content of Lovász TR-2004-82 §3. The standard proof
-proceeds via:
+**Proof strategy** (chain): multi-equivalence ⟹ simple-equivalence
+(`tupleEquivSimple_of_tupleEquivMulti`, trivial direction) ⟹ orbit
+(`tupleEquivSimple_implies_orbit`, the canonical sorry).
 
-1. The **connection matrix** `M(B, W) ∈ ℝ^{T^k × T^k}` indexed by pairs
-   of label tuples, with entries `multiLabeledEvalK K 0 M_{φ,ψ} B W ξ`
-   (taking `M_{φ,ψ}` to be the "join" multigraph).
-2. The **idempotent decomposition**: under twin-freeness, `M(B, W)`
-   has rank equal to the number of orbits, with row spaces in
-   bijection with orbit equivalence classes.
-3. **Equal rows ⟺ same orbit**: two tuples have equal rows in the
-   connection matrix iff they are orbit-equivalent.
-
-**Status**: stated, sorry'd. ~500-1000 lines of paper-faithful future
-work; depends on developing `connectionMatrix` and its rank theorem. -/
+Closed modulo the canonical sorry on `tupleEquivSimple_implies_orbit`. -/
 theorem tupleEquivMulti_implies_orbit {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T}
-    (_h : tupleEquivMulti B W ξ ξ') :
+    (h : tupleEquivMulti B W ξ ξ') :
     ∃ σ : Equiv.Perm (Fin T),
       (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
-      (∀ i, ξ' i = σ (ξ i)) := by
-  sorry
+      (∀ i, ξ' i = σ (ξ i)) :=
+  tupleEquivSimple_implies_orbit B hB W htwin
+    (tupleEquivSimple_of_tupleEquivMulti B W h)
 
 /-! ### §4 — The bridge theorem (canonical sorry)
 
@@ -1471,5 +1511,30 @@ theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
     -- or (ii) the connection-matrix idempotent-decomposition argument
     -- from Lovász TR-2004-82 §3. Neither is in scope yet.
     sorry
+
+/-- **Twin-free bridge** (corollary). Under twin-freeness, the bridge
+follows by chaining through the orbit relation:
+
+  `tupleEquivSimple` → orbit (via `tupleEquivSimple_implies_orbit`)
+  → multi-eval-equality (via `multiLabeledEvalK_orbit_invariant`).
+
+This avoids the `n+1` sorry of the general bridge. It does NOT
+subsume `multiLabeledEvalK_tupleEquiv_invariant`: the latter must hold
+for all `B` (including `B` with twins), while this version requires
+twin-freeness.
+
+Closed modulo the canonical `tupleEquivSimple_implies_orbit` sorry. -/
+theorem multiLabeledEvalK_tupleEquiv_invariant_twinFree {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (M : MultiLabeledGraph K n)
+    {ξ ξ' : Fin K → Fin T}
+    (h : tupleEquivSimple B W ξ ξ') :
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  -- Step 1: simple-equivalence ⟹ orbit (the canonical sorry).
+  obtain ⟨σ, hW_eq, hB_eq, hξ_eq⟩ :=
+    tupleEquivSimple_implies_orbit B hB W htwin h
+  -- Step 2: orbit ⟹ multi-eval-equality (orbit-invariance, fully proved).
+  exact multiLabeledEvalK_orbit_invariant B W M ⟨σ, hW_eq, hB_eq, hξ_eq⟩
 
 end Graphon.Lovasz
