@@ -10,6 +10,7 @@ import Mathlib.Data.Fintype.BigOperators
 import Mathlib.Data.Real.Basic
 import Mathlib.Data.Sym.Sym2
 import Mathlib.Logic.Equiv.Fin.Basic
+import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Ring
 
 /-!
@@ -1396,10 +1397,12 @@ cycle with `MatrixDetermination`. The current status:
 * **Claim 4.1** (`tupleEquivSimple_restrict`) — proved.
 * **Claim 4.2** (`tupleEquivSimple_extend`) — stated, sorry'd
   (depends on the `coeffRestrict_equiv` / functional-span chain).
-* **Claim 4.3** (`tupleEquivSimple_bijective_case`) — stated, sorry'd
-  (single-edge-graph argument à la `labeledEvalK_singleEdge`).
-* **Claim 4.4** (`tupleEquivSimple_surjective_case`) — stated, sorry'd
-  (uses 4.2 + 4.3 + restriction-along-an-embedding).
+* **Claim 4.3** (`tupleEquivSimple_bijective_case`) — proved (restriction +
+  IH at `T-1` + bijection-uniqueness).
+* **Claim 4.4** (`tupleEquivSimple_surjective_case`) — proved via the
+  helpers `tupleEquivSimple_restrict_along` (restriction along an arbitrary
+  label-index injection) and `tupleEquivSimple_id_bijective` (twin-free + W>0
+  forces `tupleEquivSimple B W id χ` to make `χ` bijective).
 
 The main theorem `tupleEquivSimple_implies_orbit` is wired below via
 strong induction on `K`, with the architectural sorry localized to the
@@ -1697,36 +1700,507 @@ theorem tupleEquivSimple_bijective_case {T : ℕ}
       simp only [id]
       exact hagree ⟨i.val, hlt⟩
 
-/-- **Claim 4.4 — Surjective base case**
-(Lovász TR-2004-82 §4, p. 6, "fourth paragraph").
+/-- **Restriction along an arbitrary label-index injection** (Lovasz inline
+analog of `MatrixDetermination.tupleEquiv_restrict_along`).
+
+For any injection `r : Fin T' ↪ Fin k`, restricting tuple equivalence along
+`r` on the label positions preserves equivalence. Generalizes
+`tupleEquivSimple_restrict` (which uses the case `r = Fin.castSuccEmb`).
+
+Used inside `tupleEquivSimple_surjective_case` to restrict from `Fin k` down
+to `Fin T` along a section `r : Fin T ↪ Fin k` of `φ`. -/
+theorem tupleEquivSimple_restrict_along {T k T' : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i)
+    {φ ψ : Fin k → Fin T} (r : Fin T' ↪ Fin k)
+    (h : tupleEquivSimple B W φ ψ) :
+    tupleEquivSimple B W (φ ∘ r) (ψ ∘ r) := by
+  classical
+  intro n H hdec
+  -- Edge-product helper for any size.
+  have h_edge_rep : ∀ {m : ℕ} (ν : Fin m → Fin T) (a b : Fin m),
+      B (ν (Quot.out (s(a, b) : Sym2 (Fin m))).1)
+        (ν (Quot.out (s(a, b) : Sym2 (Fin m))).2) = B (ν a) (ν b) := by
+    intro m ν a b
+    have h_out_eq : Sym2.mk (Quot.out (s(a, b) : Sym2 (Fin m))) = s(a, b) :=
+      Quot.out_eq _
+    rcases Sym2.mk_eq_mk_iff.mp h_out_eq with heq | heq
+    · rw [heq]
+    · rw [heq]; exact hB _ _
+  -- Build shift : Fin (n + T') → Fin (n + k): label positions via r,
+  -- unlabeled positions shifted by (k - T').
+  let shiftFun : Fin (n + T') → Fin (n + k) := fun v =>
+    if hv : v.val < T' then
+      ⟨(r ⟨v.val, hv⟩).val, by have := (r ⟨v.val, hv⟩).isLt; omega⟩
+    else ⟨(v.val - T') + k, by have := v.isLt; omega⟩
+  have shiftFun_pos : ∀ (v : Fin (n + T')) (hv : v.val < T'),
+      shiftFun v = (⟨(r ⟨v.val, hv⟩).val,
+        by have := (r ⟨v.val, hv⟩).isLt; omega⟩ : Fin (n + k)) := fun _ hv => dif_pos hv
+  have shiftFun_neg : ∀ (v : Fin (n + T')) (hv : ¬ v.val < T'),
+      shiftFun v = (⟨(v.val - T') + k, by have := v.isLt; omega⟩ : Fin (n + k)) :=
+    fun _ hv => dif_neg hv
+  have hshift_inj : Function.Injective shiftFun := by
+    intro a b hab
+    apply Fin.ext
+    by_cases ha : a.val < T'
+    · have ha' : (shiftFun a).val = (r ⟨a.val, ha⟩).val := by
+        rw [shiftFun_pos a ha]
+      by_cases hb : b.val < T'
+      · have hb' : (shiftFun b).val = (r ⟨b.val, hb⟩).val := by
+          rw [shiftFun_pos b hb]
+        have hval : (r ⟨a.val, ha⟩).val = (r ⟨b.val, hb⟩).val := by
+          rw [← ha', ← hb', hab]
+        have heq : (⟨a.val, ha⟩ : Fin T') = ⟨b.val, hb⟩ :=
+          r.injective (Fin.ext hval)
+        simpa using heq
+      · exfalso
+        have hb' : (shiftFun b).val = (b.val - T') + k := by
+          rw [shiftFun_neg b hb]
+        have h1 : (shiftFun a).val < k := by rw [ha']; exact (r _).isLt
+        have h2 : (shiftFun b).val ≥ k := by rw [hb']; omega
+        have : (shiftFun a).val = (shiftFun b).val := by rw [hab]
+        omega
+    · have ha' : (shiftFun a).val = (a.val - T') + k := by
+        rw [shiftFun_neg a ha]
+      by_cases hb : b.val < T'
+      · exfalso
+        have hb' : (shiftFun b).val = (r ⟨b.val, hb⟩).val := by
+          rw [shiftFun_pos b hb]
+        have h1 : (shiftFun b).val < k := by rw [hb']; exact (r _).isLt
+        have h2 : (shiftFun a).val ≥ k := by rw [ha']; omega
+        have : (shiftFun a).val = (shiftFun b).val := by rw [hab]
+        omega
+      · have hb' : (shiftFun b).val = (b.val - T') + k := by
+          rw [shiftFun_neg b hb]
+        have heq : (shiftFun a).val = (shiftFun b).val := by rw [hab]
+        rw [ha', hb'] at heq
+        omega
+  let shift : Fin (n + T') ↪ Fin (n + k) := ⟨shiftFun, hshift_inj⟩
+  let G : SimpleGraph (Fin (n + k)) := SimpleGraph.map shift H
+  haveI hG_dec : DecidableRel G.Adj := Classical.decRel _
+  -- Core translation. The sum on the LHS of `tupleEquivSimple` at
+  -- `(φ ∘ r, H)` equals the sum at `(φ, G)`.
+  suffices trans : ∀ (θ : Fin k → Fin T),
+      (∑ σ : Fin n → Fin T,
+        (let τ : Fin (n + T') → Fin T := fun v =>
+          if h : (v : ℕ) < T' then (θ ∘ r) ⟨v, h⟩
+          else σ ⟨v - T', by have := v.isLt; omega⟩
+        (∏ v : Fin n, W (σ v)) *
+        ∏ e ∈ H.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) =
+      (∑ σ : Fin n → Fin T,
+        (let τ : Fin (n + k) → Fin T := fun v =>
+          if h : (v : ℕ) < k then θ ⟨v, h⟩
+          else σ ⟨v - k, by have := v.isLt; omega⟩
+        (∏ v : Fin n, W (σ v)) *
+        ∏ e ∈ G.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) by
+    rw [trans φ, trans ψ]
+    exact h n G
+  intro θ
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  simp only
+  refine congrArg (fun x => (∏ v : Fin n, W (σ v)) * x) ?_
+  -- Edge product: Finset.prod_bij with shift.sym2Map.
+  refine Finset.prod_bij (fun e _ => shift.sym2Map e) ?_ ?_ ?_ ?_
+  · intro e he
+    change shift.sym2Map e ∈ (SimpleGraph.map shift H).edgeFinset
+    rw [SimpleGraph.mem_edgeFinset] at he ⊢
+    induction e using Sym2.ind with
+    | _ a b =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at *
+      rw [SimpleGraph.mem_edgeSet] at he ⊢
+      exact ⟨a, b, he, rfl, rfl⟩
+  · intro e1 _ e2 _ hij
+    exact shift.sym2Map.injective hij
+  · intro e he
+    change e ∈ (SimpleGraph.map shift H).edgeFinset at he
+    rw [SimpleGraph.mem_edgeFinset] at he
+    induction e using Sym2.ind with
+    | _ x y =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      obtain ⟨a, b, hab, hax, hby⟩ := he
+      refine ⟨s(a, b), ?_, ?_⟩
+      · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact hab
+      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+        rw [hax, hby]
+  · intro e _
+    set ν' : Fin (n + T') → Fin T := fun v =>
+      if h : (v : ℕ) < T' then (θ ∘ r) ⟨v, h⟩
+      else σ ⟨(v : Fin (n + T')).val - T', by have := v.isLt; omega⟩ with hν'_def
+    set ν : Fin (n + k) → Fin T := fun v =>
+      if h : (v : ℕ) < k then θ ⟨v, h⟩
+      else σ ⟨(v : Fin (n + k)).val - k, by have := v.isLt; omega⟩ with hν_def
+    induction e using Sym2.ind with
+    | _ a b =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      change B (ν' (Quot.out s(a, b)).1) (ν' (Quot.out s(a, b)).2) =
+        B (ν (Quot.out s(shift a, shift b)).1) (ν (Quot.out s(shift a, shift b)).2)
+      rw [h_edge_rep ν' a b, h_edge_rep ν (shift a) (shift b)]
+      have hτ : ∀ v : Fin (n + T'), ν (shift v) = ν' v := by
+        intro v
+        by_cases hv : (v : ℕ) < T'
+        · have h_sh_eq : (shift v).val = (r ⟨v.val, hv⟩).val := by
+            show (shiftFun v).val = _
+            rw [shiftFun_pos v hv]
+          have h_lt : ((shift v : Fin (n + k)) : ℕ) < k := by
+            rw [h_sh_eq]; exact (r _).isLt
+          simp only [hν_def, hν'_def, dif_pos h_lt, dif_pos hv, Function.comp_apply]
+          congr 1
+          apply Fin.ext
+          show (shift v).val = (r ⟨v.val, hv⟩).val
+          exact h_sh_eq
+        · have h_sh_eq : (shift v).val = (v.val - T') + k := by
+            show (shiftFun v).val = _
+            rw [shiftFun_neg v hv]
+          have h_ge : ¬ ((shift v : Fin (n + k)) : ℕ) < k := by
+            rw [h_sh_eq]; omega
+          simp only [hν_def, hν'_def, dif_neg h_ge, dif_neg hv]
+          congr 1
+          apply Fin.ext
+          show (shift v).val - k = v.val - T'
+          rw [h_sh_eq]; omega
+      rw [hτ, hτ]
+
+/-- **Auxiliary bijectivity lemma** (analog of `tupleEquiv_id_bijective` from
+`MatrixDetermination.lean:5388`).
+
+Under twin-free `B` with positive weights `W`, `tupleEquivSimple B W id χ`
+forces `χ : Fin T → Fin T` to be bijective.
+
+**Strategy**: restrict to `Fin (T - 1)` via `tupleEquivSimple_restrict`; apply
+`IH_orbit` to obtain an automorphism τ with `χ ∘ castSucc = τ ∘ castSucc`. If
+`χ(Fin.last) ≠ τ(Fin.last)`, set `v := χ(Fin.last)`, `d := τ(Fin.last)`; derive
+`B d = B v` via (i) single-edge graphs + τ-automorphism (partial row equality
+on `Fin T \ {d}`), (ii) an `n' = 1` row-sum graph + τ-automorphism reindex (row
+sum equality), (iii) diagonal isolation using `hW > 0`. Row equality
+contradicts `htwin`, so `χ(Fin.last) = τ(Fin.last)`, hence `χ = τ` is bijective. -/
+theorem tupleEquivSimple_id_bijective {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (hB : ∀ i j, B i j = B j i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    (IH_orbit : ∀ {ξ' ψ' : Fin (T - 1) → Fin T},
+      tupleEquivSimple B W ξ' ψ' → tupleOrbitRel B W ξ' ψ')
+    (χ : Fin T → Fin T)
+    (h : tupleEquivSimple B W (id : Fin T → Fin T) χ) :
+    Function.Bijective χ := by
+  classical
+  rcases T with _ | S
+  · refine ⟨fun a => Fin.elim0 a, fun b => Fin.elim0 b⟩
+  · have h_restrict := tupleEquivSimple_restrict B W hB h
+    obtain ⟨τ, hτ_aut, hτ_conj⟩ := IH_orbit h_restrict
+    have hτ_eq : ∀ i : Fin S, χ i.castSucc = τ i.castSucc := by
+      intro i; have := hτ_conj i
+      simp only [restrictTuple, id_eq] at this; exact this
+    have h_last : χ (Fin.last S) = τ (Fin.last S) := by
+      by_contra h_ne
+      set v := χ (Fin.last S) with hv_def
+      set d := τ (Fin.last S) with hd_def
+      have hvd_ne : v ≠ d := h_ne
+      -- Single-edge graph (n' = 0): for a ≠ b, B a b = B (χ a) (χ b).
+      have single_edge_eq : ∀ (a b : Fin (S + 1)), a ≠ b →
+          B a b = B (χ a) (χ b) := by
+        intro a b hab
+        let u : Fin (0 + (S + 1)) := ⟨a.val, by have := a.isLt; omega⟩
+        let v_p : Fin (0 + (S + 1)) := ⟨b.val, by have := b.isLt; omega⟩
+        have huv_ne : u ≠ v_p := by
+          intro he; apply hab; apply Fin.ext
+          exact (Fin.mk.injEq _ _ _ _).mp he
+        let F : SimpleGraph (Fin (0 + (S + 1))) :=
+          { Adj := fun x y => (x = u ∧ y = v_p) ∨ (x = v_p ∧ y = u)
+            symm := fun _ _ h =>
+              h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
+                     (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+            loopless := fun _ h => by
+              rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+              · exact huv_ne (h1.symm.trans h2)
+              · exact huv_ne (h2.symm.trans h1) }
+        haveI : DecidableRel F.Adj := fun x y =>
+          if h₁ : x = u ∧ y = v_p then .isTrue (.inl h₁)
+          else if h₂ : x = v_p ∧ y = u then .isTrue (.inr h₂)
+          else .isFalse (fun h => h.elim (fun a => h₁ a) (fun a => h₂ a))
+        have hedge : F.edgeFinset = {s(u, v_p)} := by
+          apply Finset.eq_singleton_iff_unique_mem.mpr
+          refine ⟨?_, ?_⟩
+          · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
+          · intro e he; rw [SimpleGraph.mem_edgeFinset] at he
+            exact Sym2.ind (fun x y (hadj : F.Adj x y) => by
+              rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+              · rw [h1, h2]
+              · rw [h1, h2, Sym2.eq_swap]) e he
+        have key := h 0 F
+        simp only [Fintype.sum_unique, Finset.univ_eq_empty, Finset.prod_empty,
+          one_mul, hedge, Finset.prod_singleton] at key
+        -- Unfold τ at u and v_p: u.val = a.val < S+1, v_p.val = b.val < S+1.
+        set p := Quot.out (s(u, v_p) : Sym2 (Fin (0 + (S + 1))))
+        have hout : (Sym2.mk p : Sym2 (Fin (0 + (S + 1)))) = s(u, v_p) :=
+          Quot.out_eq _
+        have key' : (p.1 = u ∧ p.2 = v_p) ∨ (p.1 = v_p ∧ p.2 = u) := by
+          have := Sym2.eq_iff.mp hout
+          rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩
+          · exact Or.inl ⟨h1, h2⟩
+          · exact Or.inr ⟨h1, h2⟩
+        have hu_eq : (⟨u.val, (by have := a.isLt; omega : u.val < S + 1)⟩ :
+            Fin (S + 1)) = a := Fin.ext rfl
+        have hv_eq : (⟨v_p.val, (by have := b.isLt; omega : v_p.val < S + 1)⟩ :
+            Fin (S + 1)) = b := Fin.ext rfl
+        have hu_lt : (u : Fin (0 + (S + 1))).val < S + 1 := by
+          have := a.isLt; simp [u]
+        have hv_lt : (v_p : Fin (0 + (S + 1))).val < S + 1 := by
+          have := b.isLt; simp [v_p]
+        rcases key' with ⟨hpu, hpv⟩ | ⟨hpu, hpv⟩
+        · simp only [hpu, hpv, dif_pos hu_lt, dif_pos hv_lt, hu_eq, hv_eq, id_eq] at key
+          exact key
+        · simp only [hpu, hpv, dif_pos hv_lt, dif_pos hu_lt, hu_eq, hv_eq, id_eq] at key
+          -- key : B b a = B (χ b) (χ a); want B a b = B (χ a) (χ b).
+          calc B a b = B b a := hB _ _
+            _ = B (χ b) (χ a) := key
+            _ = B (χ a) (χ b) := hB _ _
+      have partial_row_eq : ∀ Y : Fin (S + 1), Y ≠ d → B d Y = B v Y := by
+        intro Y hY
+        obtain ⟨k_pre, hk_pre⟩ := τ.surjective Y
+        have hk_ne_last : k_pre ≠ Fin.last S := by
+          intro he; subst he; exact hY hk_pre.symm
+        have hkv : k_pre.val < S := by
+          have := k_pre.isLt
+          have : k_pre.val ≠ S := fun h => hk_ne_last (Fin.ext h)
+          omega
+        let i : Fin S := ⟨k_pre.val, hkv⟩
+        have hi_eq : k_pre = i.castSucc := Fin.ext rfl
+        have hτi : τ i.castSucc = Y := hi_eq ▸ hk_pre
+        have hne_li : Fin.last S ≠ i.castSucc := by
+          intro he; apply hk_ne_last; rw [hi_eq, ← he]
+        have key : B (Fin.last S) i.castSucc = B (χ (Fin.last S)) (χ i.castSucc) :=
+          single_edge_eq (Fin.last S) i.castSucc hne_li
+        rw [hτ_eq i, hτi, ← hv_def] at key
+        have hauto : B (Fin.last S) i.castSucc = B d Y := by
+          have := hτ_aut.2 (Fin.last S) i.castSucc
+          rw [← hd_def, hτi] at this
+          exact this.symm
+        rw [hauto] at key
+        exact key
+      -- Row-sum graph (n' = 1): edge between labeled-last and the single
+      -- unlabeled vertex. Endpoints in Fin (1 + (S+1)).
+      have row_sum_eq : ∑ t : Fin (S + 1), W t * B d t = ∑ t : Fin (S + 1), W t * B v t := by
+        have row_sum_last_v : ∑ t : Fin (S + 1), W t * B (Fin.last S) t =
+            ∑ t : Fin (S + 1), W t * B v t := by
+          -- u' is labeled position `last` (val = S < S+1).
+          -- v' is the unique unlabeled position (val = S+1 = (S+1)+0).
+          let u' : Fin (1 + (S + 1)) := ⟨S, by omega⟩
+          let v' : Fin (1 + (S + 1)) := ⟨S + 1, by omega⟩
+          have hne' : u' ≠ v' := by
+            intro he; have := congrArg Fin.val he; simp [u', v'] at this
+          let G : SimpleGraph (Fin (1 + (S + 1))) :=
+            { Adj := fun x y => (x = u' ∧ y = v') ∨ (x = v' ∧ y = u')
+              symm := fun _ _ h =>
+                h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
+                       (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+              loopless := fun _ h => by
+                rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+                · exact hne' (h1.symm.trans h2)
+                · exact hne' (h2.symm.trans h1) }
+          haveI : DecidableRel G.Adj := fun x y =>
+            if h₁ : x = u' ∧ y = v' then .isTrue (.inl h₁)
+            else if h₂ : x = v' ∧ y = u' then .isTrue (.inr h₂)
+            else .isFalse (fun h => h.elim (fun a => h₁ a) (fun a => h₂ a))
+          have hedge' : G.edgeFinset = {s(u', v')} := by
+            apply Finset.eq_singleton_iff_unique_mem.mpr
+            refine ⟨?_, ?_⟩
+            · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
+            · intro e he; rw [SimpleGraph.mem_edgeFinset] at he
+              exact Sym2.ind (fun x y (hadj : G.Adj x y) => by
+                rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+                · rw [h1, h2]
+                · rw [h1, h2, Sym2.eq_swap]) e he
+          -- The simple-eval form for a generic θ : Fin (S+1) → Fin (S+1).
+          have eval_θ : ∀ (θ : Fin (S + 1) → Fin (S + 1)),
+              (∑ σ : Fin 1 → Fin (S + 1),
+                (let τ' : Fin (1 + (S + 1)) → Fin (S + 1) := fun w =>
+                  if hw : (w : ℕ) < S + 1 then θ ⟨w, hw⟩
+                  else σ ⟨w - (S + 1), by have := w.isLt; omega⟩
+                (∏ q : Fin 1, W (σ q)) *
+                ∏ e ∈ G.edgeFinset, B (τ' (Quot.out e).1) (τ' (Quot.out e).2))) =
+                ∑ t : Fin (S + 1), W t * B (θ (Fin.last S)) t := by
+            intro θ
+            rw [← (Equiv.funUnique (Fin 1) (Fin (S + 1))).symm.sum_comp]
+            simp only [Equiv.funUnique_symm_apply]
+            refine Finset.sum_congr rfl ?_
+            intro m _
+            simp only [hedge', Finset.prod_singleton, Fin.prod_univ_one]
+            -- The W-prod is `W m`; the B-edge term equals `B (θ last) m`.
+            congr 1
+            -- Use Quot.out + Sym2 case-split.
+            set p := Quot.out (s(u', v') : Sym2 (Fin (1 + (S + 1))))
+            have hout : Sym2.mk p = s(u', v') := Quot.out_eq _
+            have key : (p.1 = u' ∧ p.2 = v') ∨ (p.1 = v' ∧ p.2 = u') := by
+              have := Sym2.eq_iff.mp hout
+              rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> [left; right] <;>
+                exact ⟨h1, h2⟩
+            have hu'_val : u'.val < S + 1 := by show S < S + 1; omega
+            have hv'_val : ¬ v'.val < S + 1 := by show ¬ S + 1 < S + 1; omega
+            have hu'_eq : (⟨u'.val, hu'_val⟩ : Fin (S + 1)) = Fin.last S := Fin.ext rfl
+            have hv'_sub : (⟨v'.val - (S + 1), by have := v'.isLt; omega⟩ : Fin 1) = 0 :=
+              Fin.ext (by show v'.val - (S + 1) = 0; omega)
+            rcases key with ⟨h1, h2⟩ | ⟨h1, h2⟩
+            · rw [h1, h2]
+              simp only [dif_pos hu'_val, dif_neg hv'_val,
+                hu'_eq, hv'_sub, uniqueElim_const]
+            · rw [h1, h2]
+              simp only [dif_pos hu'_val, dif_neg hv'_val,
+                hu'_eq, hv'_sub, uniqueElim_const]
+              exact hB _ _
+          have key := (eval_θ (id : Fin (S + 1) → Fin (S + 1))).symm.trans
+            ((h 1 G).trans (eval_θ χ))
+          simp only [id_eq] at key
+          rw [← hv_def] at key
+          exact key
+        have tau_reindex : ∑ t : Fin (S + 1), W t * B (Fin.last S) t =
+            ∑ t : Fin (S + 1), W t * B d t := by
+          have step1 : ∀ t, W t * B (Fin.last S) t = W (τ t) * B d (τ t) := by
+            intro t
+            have hW_eq : W t = W (τ t) := (hτ_aut.1 t).symm
+            have hB_eq : B (Fin.last S) t = B d (τ t) := by
+              have := hτ_aut.2 (Fin.last S) t
+              rw [← hd_def] at this
+              exact this.symm
+            rw [hW_eq, hB_eq]
+          calc ∑ t, W t * B (Fin.last S) t
+              = ∑ t, W (τ t) * B d (τ t) := Finset.sum_congr rfl (fun t _ => step1 t)
+            _ = ∑ s, W s * B d s := Equiv.sum_comp τ (fun s => W s * B d s)
+        rw [← tau_reindex]; exact row_sum_last_v
+      have diag_eq : B d d = B v d := by
+        have hWd : (0 : ℝ) < W d := hW d
+        have h_sum_diff : ∑ t : Fin (S + 1), W t * (B d t - B v t) = 0 := by
+          simp_rw [mul_sub]
+          rw [Finset.sum_sub_distrib, row_sum_eq, sub_self]
+        have h_split : ∀ t : Fin (S + 1), t ≠ d → W t * (B d t - B v t) = 0 := by
+          intro t ht
+          rw [partial_row_eq t ht]; ring
+        have h_only : ∑ t : Fin (S + 1), W t * (B d t - B v t) = W d * (B d d - B v d) := by
+          rw [show ∑ t, W t * (B d t - B v t) =
+                W d * (B d d - B v d) +
+                ∑ t ∈ Finset.univ.erase d, W t * (B d t - B v t) by
+              rw [← Finset.add_sum_erase _ _ (Finset.mem_univ d)]]
+          rw [show (∑ t ∈ Finset.univ.erase d, W t * (B d t - B v t)) = 0 from
+              Finset.sum_eq_zero (fun t ht => h_split t (Finset.mem_erase.mp ht).1)]
+          ring
+        rw [h_only] at h_sum_diff
+        have : B d d - B v d = 0 := by
+          rcases mul_eq_zero.mp h_sum_diff with h1 | h1
+          · exact absurd h1 (ne_of_gt hWd)
+          · exact h1
+        linarith
+      have hrow : B d = B v := by
+        funext Y
+        by_cases hY : Y = d
+        · subst hY; exact diag_eq
+        · exact partial_row_eq Y hY
+      exact (htwin d v (Ne.symm hvd_ne)) hrow
+    have hχ_eq_τ : χ = ⇑τ := by
+      funext i
+      by_cases hi : i = Fin.last S
+      · subst hi; exact h_last
+      · have hilt : i.val < S := by
+          have := i.isLt
+          have : i.val ≠ S := fun h => hi (Fin.ext h)
+          omega
+        rw [show i = (⟨i.val, hilt⟩ : Fin S).castSucc from Fin.ext rfl]
+        exact hτ_eq ⟨i.val, hilt⟩
+    rw [hχ_eq_τ]
+    exact τ.bijective
+
+/-- **Claim 4.4 — Surjective base case** (analog of
+`MatrixDetermination.tupleEquiv_surjective_case_both` followed by
+`tupleEquiv_surjective_case`).
 
 If `φ : Fin k → Fin T` is surjective and `tupleEquivSimple B W φ ψ`,
 then `tupleOrbitRel B W φ ψ`.
 
-**Proof strategy**: pick a section `s : Fin T → Fin k` with
-`φ ∘ s = id`. Restrict the equivalence along `s` (via the
-embedding-restriction `tupleEquiv_restrict_along` in
-`MatrixDetermination.lean:4746`) to obtain
-`tupleEquivSimple B W id (ψ ∘ s)`. Show `ψ ∘ s` is bijective (since
-both `φ` and `ψ` produce the same multiset of values on `Fin k` →
-forced by the single-vertex evaluation; under twin-freeness this
-gives bijectivity). Apply Claim 4.3 to extract an automorphism `σ`.
-Verify `σ ∘ φ = ψ` pointwise on `Fin k` (uses surjectivity of `φ`).
-
-**Status**: sorry. The full proof is in
-`MatrixDetermination.lean:5731` (`tupleEquiv_surjective_case`) and
-its helper `tupleEquiv_surjective_case_both` at L5607. -/
+**Proof strategy**: pick a section `s : Fin T → Fin k` with `φ ∘ s = id`.
+Restrict the equivalence along `s` (via `tupleEquivSimple_restrict_along`)
+to obtain `tupleEquivSimple B W id (ψ ∘ s)`. Apply `tupleEquivSimple_id_bijective`
+(uses `hW > 0`) to deduce `ψ ∘ s` is bijective, hence `ψ` is surjective.
+Apply Claim 4.3 (`tupleEquivSimple_bijective_case`) to get an automorphism `σ`
+with `ψ (s i) = σ i`. To extend to all of `Fin k`: for each `j` not in `im(s)`,
+build a variant section `s'` agreeing with `s` off `φ j` but with `s' (φ j) = j`,
+extract `σ'`, prove `σ = σ'` via the standard bijection-uniqueness argument. -/
 theorem tupleEquivSimple_surjective_case {T k : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (_hW : ∀ i, 0 < W i)
-    (_hB : ∀ i j, B i j = B j i)
-    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (_IH_orbit : ∀ {ξ' ψ' : Fin (T - 1) → Fin T},
+    (hW : ∀ i, 0 < W i)
+    (hB : ∀ i j, B i j = B j i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (IH_orbit : ∀ {ξ' ψ' : Fin (T - 1) → Fin T},
       tupleEquivSimple B W ξ' ψ' → tupleOrbitRel B W ξ' ψ')
-    (φ ψ : Fin k → Fin T) (_hφ_surj : Function.Surjective φ)
-    (_h : tupleEquivSimple B W φ ψ) :
+    (φ ψ : Fin k → Fin T) (hφ_surj : Function.Surjective φ)
+    (h : tupleEquivSimple B W φ ψ) :
     tupleOrbitRel B W φ ψ := by
-  sorry
+  classical
+  -- Sub-claim: for any section s of φ, ψ ∘ s is bijective.
+  have hψ_sect_bij : ∀ (s : Fin T → Fin k), (∀ i, φ (s i) = i) →
+      Function.Bijective (ψ ∘ s) := by
+    intro s hs
+    have hs_inj : Function.Injective s := fun a b hab => by
+      have ha := hs a; rw [hab, hs b] at ha; exact ha.symm
+    let sEmb : Fin T ↪ Fin k := ⟨s, hs_inj⟩
+    have h_s : tupleEquivSimple B W (φ ∘ s) (ψ ∘ s) :=
+      tupleEquivSimple_restrict_along B W hB sEmb h
+    have hφs_id : (φ ∘ s : Fin T → Fin T) = id := funext hs
+    have h_id : tupleEquivSimple B W (id : Fin T → Fin T) (ψ ∘ s) := hφs_id ▸ h_s
+    exact tupleEquivSimple_id_bijective B W hW hB htwin IH_orbit (ψ ∘ s) h_id
+  -- Helper: for any section s of φ, extract σ with ψ ∘ s = σ.
+  have section_to_aut : ∀ (s : Fin T → Fin k), (∀ i, φ (s i) = i) →
+      ∃ σ : Equiv.Perm (Fin T),
+        IsWeightedAutomorphism B W σ ∧ ∀ i, ψ (s i) = σ i := by
+    intro s hs
+    have hs_inj : Function.Injective s := fun a b hab => by
+      have ha := hs a; rw [hab, hs b] at ha; exact ha.symm
+    let sEmb : Fin T ↪ Fin k := ⟨s, hs_inj⟩
+    have h_s : tupleEquivSimple B W (φ ∘ s) (ψ ∘ s) :=
+      tupleEquivSimple_restrict_along B W hB sEmb h
+    have hφs_id : (φ ∘ s : Fin T → Fin T) = id := funext hs
+    have h_id : tupleEquivSimple B W (id : Fin T → Fin T) (ψ ∘ s) := hφs_id ▸ h_s
+    have hψs_bij : Function.Bijective (ψ ∘ s) := hψ_sect_bij s hs
+    obtain ⟨σ, hσ_aut, hσ_conj⟩ :=
+      tupleEquivSimple_bijective_case B W hB IH_orbit (ψ ∘ s) hψs_bij h_id
+    exact ⟨σ, hσ_aut, hσ_conj⟩
+  -- Step 1: build primary section r via Classical.choose.
+  have hφ_sect : ∀ i : Fin T, ∃ j : Fin k, φ j = i := hφ_surj
+  let r : Fin T → Fin k := fun i => Classical.choose (hφ_sect i)
+  have hr_spec : ∀ i : Fin T, φ (r i) = i :=
+    fun i => Classical.choose_spec (hφ_sect i)
+  obtain ⟨σ, hσ_aut, hψr_eq⟩ := section_to_aut r hr_spec
+  -- Step 2: show ψ j = σ (φ j) for every j : Fin k.
+  refine ⟨σ, hσ_aut, fun j => ?_⟩
+  by_cases hj : ∃ i, r i = j
+  · obtain ⟨i, rfl⟩ := hj
+    rw [hψr_eq i, hr_spec i]
+  · push_neg at hj
+    set i₀ : Fin T := φ j with hi₀
+    let r' : Fin T → Fin k := fun i => if i = i₀ then j else r i
+    have hr'_spec : ∀ i, φ (r' i) = i := by
+      intro i
+      by_cases hi : i = i₀
+      · simp only [r', if_pos hi]; rw [hi, hi₀]
+      · simp only [r', if_neg hi]; exact hr_spec i
+    have hr'_at_i0 : r' i₀ = j := by simp only [r', if_pos rfl]
+    have hr'_off_i0 : ∀ i, i ≠ i₀ → r' i = r i := fun i hi => by
+      simp only [r', if_neg hi]
+    obtain ⟨σ', hσ'_aut, hψr'_eq⟩ := section_to_aut r' hr'_spec
+    have h_agree : ∀ i, i ≠ i₀ → σ i = σ' i := by
+      intro i hi
+      have hstep : ψ (r i) = ψ (r' i) := by rw [hr'_off_i0 i hi]
+      rw [← hψr_eq i, hstep, hψr'_eq i]
+    have h_at_i0 : σ i₀ = σ' i₀ := by
+      by_contra hne
+      obtain ⟨i, hi⟩ := σ.surjective (σ' i₀)
+      have hi_ne : i ≠ i₀ := fun he => hne (he ▸ hi)
+      have hσ'_eq : σ' i = σ' i₀ := by rw [← h_agree i hi_ne]; exact hi
+      exact hi_ne (σ'.injective hσ'_eq)
+    have hσ_eq_σ' : σ = σ' := by
+      apply Equiv.ext
+      intro i
+      by_cases hi : i = i₀
+      · subst hi; exact h_at_i0
+      · exact h_agree i hi
+    rw [show j = r' i₀ from hr'_at_i0.symm, hψr'_eq i₀, ← hσ_eq_σ']
 
 /-- **Surjective-extension uniqueness** (`tupleEquiv_ext_eq_of_surj`
 analog, `MatrixDetermination.lean:10801`).
@@ -1870,13 +2344,12 @@ Steps in the inductive case `m = k + 1`:
      induction refactor on `(deficit, size)` which is beyond a strong
      `Nat`-induction on `size` alone.
 
-**Status**: proved modulo (i) the three internal Claim sorrys
-(`tupleEquivSimple_extend`, `tupleEquivSimple_bijective_case`,
-`tupleEquivSimple_surjective_case`, plus the helper
-`tupleEquivSimple_ext_eq_of_surj`), and (ii) the single architectural
-sorry in the non-surjective branch of the strong induction. The
-wiring is paper-faithful and matches the structure of the
-(private) proof in `Graphon/MatrixDetermination.lean`. -/
+**Status**: proved modulo (i) the Claim 4.2 sorry
+(`tupleEquivSimple_extend`), and (ii) the single architectural sorry in the
+non-surjective branch of the strong induction (neither `α` nor `ξ`
+surjective). Claims 4.1, 4.3, 4.4 and `tupleEquivSimple_ext_eq_of_surj` are
+all closed inline. The wiring is paper-faithful and matches the structure
+of the (private) proof in `Graphon/MatrixDetermination.lean`. -/
 theorem tupleEquivSimple_implies_orbit {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i)
