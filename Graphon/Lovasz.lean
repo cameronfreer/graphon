@@ -1718,6 +1718,7 @@ Verify `σ ∘ φ = ψ` pointwise on `Fin k` (uses surjectivity of `φ`).
 its helper `tupleEquiv_surjective_case_both` at L5607. -/
 theorem tupleEquivSimple_surjective_case {T k : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < W i)
     (_hB : ∀ i j, B i j = B j i)
     (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (_IH_orbit : ∀ {ξ' ψ' : Fin (T - 1) → Fin T},
@@ -1878,6 +1879,7 @@ wiring is paper-faithful and matches the structure of the
 (private) proof in `Graphon/MatrixDetermination.lean`. -/
 theorem tupleEquivSimple_implies_orbit {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T}
     (h : tupleEquivSimple B W ξ ξ') :
@@ -1970,7 +1972,7 @@ theorem tupleEquivSimple_implies_orbit {T K : ℕ}
         have IH_T1 : ∀ {ξ' ψ' : Fin (T - 1) → Fin T},
             tupleEquivSimple B W ξ' ψ' → tupleOrbitRel B W ξ' ψ' :=
           fun {ξ' ψ'} h' => IH_strong (T - 1) hT1_lt ξ' ψ' h'
-        exact tupleEquivSimple_surjective_case B W hB htwin IH_T1 ξ ξ' hξ_surj h
+        exact tupleEquivSimple_surjective_case B W hW hB htwin IH_T1 ξ ξ' hξ_surj h
       · -- **Architectural sorry**: neither α nor ξ surjective. Lovász's
         -- "extend-and-recurse" plan requires Claim 4.2 + a well-founded
         -- induction refactor on `(deficit, size)` — see the lengthy
@@ -1993,13 +1995,14 @@ If `B` is twin-free (rows of `B` distinct: `i ≠ j → B i ≠ B j`) and
 Closed modulo the canonical sorry on `tupleEquivSimple_implies_orbit`. -/
 theorem tupleEquivMulti_implies_orbit {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T}
     (h : tupleEquivMulti B W ξ ξ') :
     ∃ σ : Equiv.Perm (Fin T),
       (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
       (∀ i, ξ' i = σ (ξ i)) :=
-  tupleEquivSimple_implies_orbit B hB W htwin
+  tupleEquivSimple_implies_orbit B hB W hW htwin
     (tupleEquivSimple_of_tupleEquivMulti B W h)
 
 /-! ### §4 — The bridge theorem (canonical sorry)
@@ -2074,6 +2077,7 @@ twin-freeness.
 Closed modulo the canonical `tupleEquivSimple_implies_orbit` sorry. -/
 theorem multiLabeledEvalK_tupleEquiv_invariant_twinFree {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (M : MultiLabeledGraph K n)
     {ξ ξ' : Fin K → Fin T}
@@ -2081,7 +2085,7 @@ theorem multiLabeledEvalK_tupleEquiv_invariant_twinFree {T K n : ℕ}
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
   -- Step 1: simple-equivalence ⟹ orbit (the canonical sorry).
   obtain ⟨σ, hW_eq, hB_eq, hξ_eq⟩ :=
-    tupleEquivSimple_implies_orbit B hB W htwin h
+    tupleEquivSimple_implies_orbit B hB W hW htwin h
   -- Step 2: orbit ⟹ multi-eval-equality (orbit-invariance, fully proved).
   exact multiLabeledEvalK_orbit_invariant B W M ⟨σ, hW_eq, hB_eq, hξ_eq⟩
 
