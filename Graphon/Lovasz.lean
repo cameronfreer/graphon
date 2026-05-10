@@ -1641,15 +1641,61 @@ extract `W` preservation via the `∏ W(σ_inner)` factor. The pair is
 exactly `IsWeightedAutomorphism B W ψ`. (`Equiv.ofBijective` is used
 to convert the function-level bijection to `Equiv.Perm`.)
 
-**Status**: sorry. The full proof is ~200 lines in
-`MatrixDetermination.lean:5339`. -/
+**Status**: proved via IH-at-`T-1` route (matches `tupleEquiv_bijective_case`
+in `MatrixDetermination.lean:5339`). The proof restricts to the first
+`T-1` coordinates (Claim 4.1), applies IH to extract an automorphism `σ`
+agreeing with `ψ` on those coordinates, then uses bijectivity to force
+agreement at the last coordinate. -/
 theorem tupleEquivSimple_bijective_case {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (_hB : ∀ i j, B i j = B j i)
-    (ψ : Fin T → Fin T) (_hψ_bij : Function.Bijective ψ)
-    (_h : tupleEquivSimple B W (id : Fin T → Fin T) ψ) :
+    (hB : ∀ i j, B i j = B j i)
+    (IH_orbit : ∀ {ξ' ψ' : Fin (T - 1) → Fin T},
+      tupleEquivSimple B W ξ' ψ' → tupleOrbitRel B W ξ' ψ')
+    (ψ : Fin T → Fin T) (hψ_bij : Function.Bijective ψ)
+    (h : tupleEquivSimple B W (id : Fin T → Fin T) ψ) :
     tupleOrbitRel B W (id : Fin T → Fin T) ψ := by
-  sorry
+  rcases T with _ | S
+  · -- T = 0: Fin 0 is empty, trivial. σ = identity works.
+    exact ⟨Equiv.refl _, ⟨nofun, nofun⟩, nofun⟩
+  · -- T = S + 1. Restrict, apply IH, conclude by bijectivity.
+    -- Step 1: Claim 4.1 (`tupleEquivSimple_restrict`) gives equivalence at level S.
+    have h_restrict := tupleEquivSimple_restrict B W hB h
+    -- Step 2: IH at level S = T - 1 gives an automorphism σ.
+    obtain ⟨σ, hσ_aut, hσ_conj⟩ := IH_orbit h_restrict
+    -- Step 3: σ agrees with ψ on all castSucc values (the first S coords).
+    have hagree : ∀ i : Fin S, ψ i.castSucc = σ i.castSucc := by
+      intro i
+      have := hσ_conj i
+      simp only [restrictTuple, id] at this
+      exact this
+    -- Step 4: Two bijections agreeing on T-1 elements agree on the last.
+    have h_last : ψ (Fin.last S) = σ (Fin.last S) := by
+      by_contra h_ne
+      -- Use σ.surjective to find some j with σ j = ψ (Fin.last S).
+      obtain ⟨j, hj⟩ := σ.surjective (ψ (Fin.last S))
+      have jne : j ≠ Fin.last S := fun e => h_ne (e ▸ hj.symm)
+      have hlt : (j : ℕ) < S := by
+        have := j.isLt
+        have hval : j.val ≠ S := fun h => jne (Fin.ext h)
+        omega
+      -- j = ⟨j.val, hlt⟩.castSucc.
+      rw [show j = (⟨j.val, hlt⟩ : Fin S).castSucc from Fin.ext rfl] at hj
+      rw [← hagree ⟨j.val, hlt⟩] at hj
+      -- hj : ψ ⟨j.val, hlt⟩.castSucc = ψ (Fin.last S)
+      -- by ψ injectivity: castSucc = last, impossible.
+      exact absurd (hψ_bij.1 hj.symm) (Fin.castSucc_lt_last ⟨j.val, hlt⟩).ne'
+    -- Step 5: ψ = σ everywhere on Fin (S + 1), so tupleOrbitRel holds.
+    refine ⟨σ, hσ_aut, fun i => ?_⟩
+    by_cases hne : i = Fin.last S
+    · subst hne; exact h_last
+    · have hlt : (i : ℕ) < S := by
+        have := i.isLt
+        have hval : i.val ≠ S := fun h => hne (Fin.ext h)
+        omega
+      rw [show i = (⟨i.val, hlt⟩ : Fin S).castSucc from Fin.ext rfl]
+      -- Conclusion form: `ψ i = σ (id i)`. With id, becomes ψ i = σ i.
+      simp only [id]
+      exact hagree ⟨i.val, hlt⟩
 
 /-- **Claim 4.4 — Surjective base case**
 (Lovász TR-2004-82 §4, p. 6, "fourth paragraph").
@@ -1694,19 +1740,99 @@ evaluation gives `B (α j) a = B (α j) b`. Surjectivity transfers
 this to `∀ t, B t a = B t b`, hence `B a = B b` by symmetry,
 contradicting twin-freeness unless `a = b`.
 
-**Status**: sorry. Faithful adaptation of the MatrixDetermination
-proof requires inlining `labeledEvalK_singleEdge`'s simple-graph
-form (which exists in MatrixDetermination but not here). -/
+**Status**: proved by inlining the single-edge `labeledEvalK_singleEdge`
+form directly into the `tupleEquivSimple` unfolding (`n' = 0`,
+`Fintype.sum_unique` collapses the σ-sum). -/
 theorem tupleEquivSimple_ext_eq_of_surj {T k : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (_hB : ∀ i j, B i j = B j i)
-    (_htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    (hB : ∀ i j, B i j = B j i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
     {α : Fin k → Fin T}
-    (_hα_surj : Function.Surjective α)
+    (hα_surj : Function.Surjective α)
     {a b : Fin T}
-    (_h : tupleEquivSimple B W (Fin.snoc α a) (Fin.snoc α b)) :
+    (h : tupleEquivSimple B W (Fin.snoc α a) (Fin.snoc α b)) :
     a = b := by
-  sorry
+  classical
+  by_contra hab
+  -- Reduce to row equality B a = B b, then contradict twin-freeness.
+  suffices hrow : B a = B b by exact absurd hrow (htwin a b hab)
+  funext t
+  obtain ⟨j, rfl⟩ := hα_surj t
+  -- For each j : Fin k, build the single-edge graph on Fin (0 + (k+1))
+  -- with edge between positions j (= castSucc j as label) and k (= last
+  -- as label). Apply `h` at this graph to extract `B (α j) a = B (α j) b`.
+  suffices hmatch : B (α j) a = B (α j) b by
+    calc B a (α j) = B (α j) a := hB _ _
+      _ = B (α j) b := hmatch
+      _ = B b (α j) := (hB _ _).symm
+  -- Build the edge endpoints in Fin (0 + (k+1)).
+  let u : Fin (0 + (k + 1)) := ⟨j.val, by have := j.isLt; omega⟩
+  let v : Fin (0 + (k + 1)) := ⟨k, by omega⟩
+  have hne : u ≠ v := by
+    simp only [ne_eq, Fin.mk.injEq, u, v]
+    have := j.isLt; omega
+  -- Define the single-edge graph inline.
+  let F : SimpleGraph (Fin (0 + (k + 1))) :=
+    { Adj := fun x y => (x = u ∧ y = v) ∨ (x = v ∧ y = u)
+      symm := fun _ _ h =>
+        h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩) (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+      loopless := fun _ h => by
+        rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+        · exact hne (h1.symm.trans h2)
+        · exact hne (h2.symm.trans h1) }
+  haveI hF_dec : DecidableRel F.Adj := fun x y =>
+    if h₁ : x = u ∧ y = v then .isTrue (.inl h₁)
+    else if h₂ : x = v ∧ y = u then .isTrue (.inr h₂)
+    else .isFalse (fun h => h.elim (fun a => h₁ a) (fun a => h₂ a))
+  have hedge : F.edgeFinset = {s(u, v)} := by
+    apply Finset.eq_singleton_iff_unique_mem.mpr
+    refine ⟨?_, ?_⟩
+    · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
+    · intro e he; rw [SimpleGraph.mem_edgeFinset] at he
+      exact Sym2.ind (fun x y (hadj : F.Adj x y) => by
+        rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+        · rw [h1, h2]
+        · rw [h1, h2, Sym2.eq_swap]) e he
+  -- Apply h at this graph. The `n' = 0` case collapses the σ sum to a
+  -- single term (the empty function), and the W-product is empty.
+  have key := h 0 F
+  -- Unfold both sides via Fintype.sum_unique and the single-edge form.
+  -- The Sym2 representative of s(u, v) might be either (u, v) or (v, u);
+  -- handle both via Quot.out_eq + hB symmetry.
+  simp only [Fintype.sum_unique, Finset.univ_eq_empty, Finset.prod_empty,
+    one_mul, hedge, Finset.prod_singleton] at key
+  -- Now τ for both sides: positions < k+1 read the label map (snoc α _),
+  -- and there are no positions ≥ k+1 since n' = 0.
+  set p := Quot.out (s(u, v) : Sym2 (Fin (0 + (k + 1))))
+  have hout : (Sym2.mk p : Sym2 (Fin (0 + (k + 1)))) = s(u, v) := Quot.out_eq _
+  -- Case split on which order p represents.
+  have key' : (p.1 = u ∧ p.2 = v) ∨ (p.1 = v ∧ p.2 = u) := by
+    have := Sym2.eq_iff.mp hout
+    rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · exact Or.inl ⟨h1, h2⟩
+    · exact Or.inr ⟨h1, h2⟩
+  -- Simplify (Fin.snoc α x) at castSucc j and at last k to α j and x.
+  have hu_cs : (⟨u.val, (by have := j.isLt; omega : u.val < k + 1)⟩ :
+      Fin (k + 1)) = j.castSucc := Fin.ext rfl
+  have hv_la : (⟨v.val, (by omega : v.val < k + 1)⟩ :
+      Fin (k + 1)) = Fin.last k := Fin.ext rfl
+  rcases key' with ⟨hpu, hpv⟩ | ⟨hpu, hpv⟩
+  · -- p = (u, v): direct read.
+    simp only [hpu, hpv, dif_pos (show (u : Fin (0 + (k + 1))).val < k + 1
+      by have := j.isLt; simp [u]; omega),
+      dif_pos (show (v : Fin (0 + (k + 1))).val < k + 1 by simp [v]),
+      hu_cs, hv_la, Fin.snoc_castSucc, Fin.snoc_last] at key
+    exact key
+  · -- p = (v, u): swap via symmetry.
+    simp only [hpu, hpv, dif_pos (show (v : Fin (0 + (k + 1))).val < k + 1
+      by simp [v]),
+      dif_pos (show (u : Fin (0 + (k + 1))).val < k + 1
+      by have := j.isLt; simp [u]; omega),
+      hu_cs, hv_la, Fin.snoc_castSucc, Fin.snoc_last] at key
+    -- key : B a (α j) = B b (α j); want B (α j) a = B (α j) b.
+    calc B (α j) a = B a (α j) := hB _ _
+      _ = B b (α j) := key
+      _ = B (α j) b := hB _ _
 
 /-- **Lovász TR-2004-82 Lemma 2.4** (simple-graph form, our framework).
 
