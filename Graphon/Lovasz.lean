@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Algebra.BigOperators.Ring.Finset
+import Mathlib.Algebra.Order.BigOperators.Group.Finset
 import Mathlib.Combinatorics.SimpleGraph.Finite
 import Mathlib.Data.Fintype.BigOperators
 import Mathlib.Data.Real.Basic
@@ -1395,8 +1396,9 @@ adapted to the inline `tupleEquivSimple` predicate to avoid the import
 cycle with `MatrixDetermination`. The current status:
 
 * **Claim 4.1** (`tupleEquivSimple_restrict`) — proved.
-* **Claim 4.2** (`tupleEquivSimple_extend`) — stated, sorry'd
-  (depends on the `coeffRestrict_equiv` / functional-span chain).
+* **Claim 4.2** (`tupleEquivSimple_extend`) — proved MODULO the named
+  sorry `coeffRestrictSimple_equiv` (class constancy of the
+  restriction-weight coefficient — the IH-free Lovász §4 core).
 * **Claim 4.3** (`tupleEquivSimple_bijective_case`) — proved (restriction +
   IH at `T-1` + bijection-uniqueness).
 * **Claim 4.4** (`tupleEquivSimple_surjective_case`) — proved via the
@@ -1600,6 +1602,144 @@ theorem tupleEquivSimple_restrict {T k : ℕ}
           rw [h_shift_val]; omega
       rw [hτ a, hτ b]
 
+/-! ### §3.9.1 — Restriction-weight coefficient (Claim 4.2 architecture)
+
+The proof of Claim 4.2 (`tupleEquivSimple_extend`) below routes through
+a `coeffRestrictSimple` "restriction weight" coefficient:
+
+  `coeffRestrictSimple B W μ ξ := ∑ t : Fin T, [tupleEquivSimple B W μ (snoc ξ t)] · W t`
+
+i.e., the total `W`-mass of extensions `t` of `ξ` that are
+simple-equivalent (at level `k + 1`) to the given `(k + 1)`-tuple `μ`.
+
+Three lemmas drive the assembly:
+
+* `coeffRestrictSimple_pos_at_restrict` — the coefficient is positive
+  at `ξ = restrictTuple μ` (witnessed by `t = μ (Fin.last k)`, which
+  makes the indicator `tupleEquivSimple μ μ` true by reflexivity).
+* `coeffRestrictSimple_equiv` (NEW NAMED SORRY) — class constancy:
+  simple-equivalence of `ξ` and `ξ'` transfers `coeffRestrictSimple
+  B W μ ξ = coeffRestrictSimple B W μ ξ'`.
+* `exists_extension_of_coeffRestrictSimple_pos` — from positivity, some
+  `t` makes the indicator true, yielding the extension.
+
+The class-constancy step is the only architectural hurdle. Its full
+proof (`coeffRestrict_equiv` in `MatrixDetermination.lean`) requires
+the functional-span machinery — out of scope here. -/
+
+/-- **Restriction-weight coefficient** for a `(k+1)`-tuple `μ`
+at a level-`k` base `ξ`. Sums `W t` over `t : Fin T` such that the
+extended tuple `Fin.snoc ξ t` is simple-equivalent to `μ`. -/
+noncomputable def coeffRestrictSimple {T k : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (μ : Fin (k + 1) → Fin T) (ξ : Fin k → Fin T) : ℝ :=
+  ∑ t : Fin T,
+    haveI : Decidable (tupleEquivSimple B W μ (Fin.snoc ξ t)) := Classical.dec _
+    if tupleEquivSimple B W μ (Fin.snoc ξ t) then W t else 0
+
+/-- `μ` is `Fin.snoc`-canonical at its own restriction: any tuple
+equals `Fin.snoc` of its restriction with its last coordinate. -/
+private theorem snoc_restrict_eq {T k : ℕ} (μ : Fin (k + 1) → Fin T) :
+    Fin.snoc (restrictTuple μ) (μ (Fin.last k)) = μ := by
+  funext i
+  by_cases hi : (i : ℕ) < k
+  · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl,
+        Fin.snoc_castSucc]
+    rfl
+  · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega),
+        Fin.snoc_last]
+
+/-- Reflexivity of `tupleEquivSimple`. -/
+private theorem tupleEquivSimple_refl {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (ξ : Fin K → Fin T) :
+    tupleEquivSimple B W ξ ξ :=
+  fun _ _ _ => rfl
+
+/-- **Positivity of `coeffRestrictSimple` at its own restriction**.
+
+Under `0 < W`, the coefficient `coeffRestrictSimple B W μ
+(restrictTuple μ)` is strictly positive: the term `t = μ (Fin.last k)`
+contributes `W t > 0` (the indicator `tupleEquivSimple μ μ` holds by
+reflexivity), and all other terms are nonneg. -/
+theorem coeffRestrictSimple_pos_at_restrict {T k : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (μ : Fin (k + 1) → Fin T) :
+    0 < coeffRestrictSimple B W μ (restrictTuple μ) := by
+  classical
+  unfold coeffRestrictSimple
+  -- Witness term: t = μ (Fin.last k).
+  set t₀ : Fin T := μ (Fin.last k) with ht₀
+  -- Indicator at t₀ is true: snoc (restrictTuple μ) t₀ = μ, then refl.
+  have h_snoc_eq : Fin.snoc (restrictTuple μ) t₀ = μ := snoc_restrict_eq μ
+  have h_indicator : tupleEquivSimple B W μ (Fin.snoc (restrictTuple μ) t₀) := by
+    rw [h_snoc_eq]; exact tupleEquivSimple_refl B W μ
+  -- Apply Finset.sum_pos' (nonneg + exists-positive).
+  refine Finset.sum_pos' ?_ ⟨t₀, Finset.mem_univ _, ?_⟩
+  · intro i _
+    by_cases hi : tupleEquivSimple B W μ (Fin.snoc (restrictTuple μ) i)
+    · rw [if_pos hi]; exact (hW i).le
+    · rw [if_neg hi]
+  · rw [if_pos h_indicator]; exact hW t₀
+
+/-- **Existence of an extension witness from positive coefficient**.
+
+If the restriction-weight coefficient `coeffRestrictSimple B W μ ψ` is
+strictly positive (under `0 ≤ W`), then there is some `a : Fin T` such
+that `Fin.snoc ψ a` is simple-equivalent to `μ` at level `k + 1`. -/
+theorem exists_extension_of_coeffRestrictSimple_pos {T k : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (μ : Fin (k + 1) → Fin T) (ψ : Fin k → Fin T)
+    (hpos : 0 < coeffRestrictSimple B W μ ψ) :
+    ∃ a : Fin T, tupleEquivSimple B W μ (Fin.snoc ψ a) := by
+  classical
+  by_contra h_no
+  push_neg at h_no
+  -- Every term vanishes, so the sum is 0, contradicting positivity.
+  have h_all_zero : ∀ t : Fin T,
+      (if tupleEquivSimple B W μ (Fin.snoc ψ t) then W t else 0) = 0 := by
+    intro t
+    rw [if_neg (h_no t)]
+  have h_sum_zero : coeffRestrictSimple B W μ ψ = 0 := by
+    unfold coeffRestrictSimple
+    exact Finset.sum_eq_zero (fun t _ => h_all_zero t)
+  rw [h_sum_zero] at hpos
+  exact lt_irrefl 0 hpos
+
+/-- **Class-constancy of the restriction-weight coefficient**
+(Lovász TR-2004-82 §4 core; the IH-free heart of Claim 4.2).
+
+If `ξ` and `ξ'` are simple-equivalent at level `k`, the restriction
+weight `coeffRestrictSimple B W μ ξ` is invariant under replacing `ξ`
+by `ξ'`. This is the `MatrixDetermination.coeffRestrict_equiv`
+(line 9956) statement adapted to the inline `tupleEquivSimple`.
+
+**Architectural sorry (named)**: this is the precise content of the
+"coefficient" portion of Claim 4.2 in Lovász TR-2004-82 §4 (the
+paragraph beginning "We now extend the proof to `k+1`."). The proof
+in `MatrixDetermination.lean` routes via:
+
+1. `simpleGraphEvalOn_spans` — class-invariant functions on the
+   level-`(k+1)` quotient are spanned by simple-graph evaluations.
+2. `product_trace_identity` / `tr_k_generator_descends` — the
+   weighted last-label sum identity `∑_t W(t) · simpleEval F (snoc ξ t)
+   = simpleEval F.trace ξ` reduces the level-`(k+1)` evaluation at the
+   extension to a level-`k` evaluation at the base.
+3. Combining 1+2: simple-equivalence at level `k` transfers ANY
+   class-invariant evaluation at level `k+1`, including the indicator
+   `tupleEquivSimple μ (–)`, which yields the coefficient identity.
+
+The full chain is `~1000` lines in `MatrixDetermination.lean`. Porting
+it here would require also adding the functional-span infrastructure
+and the trace-closure identity. Listed here as a focused, named sorry
+to expose Claim 4.2 as a clean wrapper. -/
+theorem coeffRestrictSimple_equiv {T k : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (_hB : ∀ i j, B i j = B j i)
+    (μ : Fin (k + 1) → Fin T) {ξ ξ' : Fin k → Fin T}
+    (_h : tupleEquivSimple B W ξ ξ') :
+    coeffRestrictSimple B W μ ξ = coeffRestrictSimple B W μ ξ' := by
+  sorry
+
 /-- **Claim 4.2 — Extension lemma**
 (Lovász TR-2004-82 §4, p. 6, "second paragraph").
 
@@ -1608,26 +1748,45 @@ every level-`(k+1)` extension `μ` of `ξ` (`restrictTuple μ = ξ`) there
 exists a level-`(k+1)` extension `ν` of `ξ'` (`restrictTuple ν = ξ'`)
 such that `μ` and `ν` are simple-equivalent at level `k+1`.
 
-**Proof strategy** (Lovász): factor `coeffRestrict B W μ ξ` (the
-`W`-weighted sum over `t : Fin T` extending `ξ` to a copy of `μ`'s
-equivalence class at level `k+1`) as a class function, and argue
-via `functional_span_zero` that the coefficient extends to `ξ'`. The
-full chain is `tupleEquiv_extend` (`MatrixDetermination.lean:5110`)
-which depends on `coeffRestrict_equiv` (the IH-free Claim-4.2 core).
+**Proof** (this file): build the restriction-weight coefficient
+`coeffRestrictSimple B W μ` (sum of `W t` over `t` with
+`tupleEquivSimple μ (snoc ξ t)`).
 
-**Status**: sorry. The full proof is ~1000 lines of paper-faithful
-algebraic work that lives in `MatrixDetermination.lean`. Adapting it
-here requires also porting `coeffRestrict_equiv`, `functional_span_zero`,
-and the product-trace identity — out of scope for this scaffolding pass. -/
+* At `ξ = restrictTuple μ` the coefficient is positive
+  (`coeffRestrictSimple_pos_at_restrict`, witnessed by
+  `t = μ (Fin.last k)`).
+* Class constancy (`coeffRestrictSimple_equiv`) transfers positivity
+  from `restrictTuple μ` (= `ξ`) to `ξ'`.
+* Positivity yields some `a` with `tupleEquivSimple μ (snoc ξ' a)`
+  (`exists_extension_of_coeffRestrictSimple_pos`); take `ν = snoc ξ' a`.
+
+**Modulo**: the named sorry `coeffRestrictSimple_equiv` (the class
+constancy step — the IH-free Lovász §4 core). -/
 theorem tupleEquivSimple_extend {T k : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (_hB : ∀ i j, B i j = B j i)
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (hB : ∀ i j, B i j = B j i)
     {ξ ξ' : Fin k → Fin T}
-    (_h : tupleEquivSimple B W ξ ξ')
-    (μ : Fin (k + 1) → Fin T) (_hμ : restrictTuple μ = ξ) :
+    (h : tupleEquivSimple B W ξ ξ')
+    (μ : Fin (k + 1) → Fin T) (hμ : restrictTuple μ = ξ) :
     ∃ ν : Fin (k + 1) → Fin T,
       restrictTuple ν = ξ' ∧ tupleEquivSimple B W μ ν := by
-  sorry
+  classical
+  -- Step 1: positivity at restrictTuple μ.
+  have h_pos_restrict : 0 < coeffRestrictSimple B W μ (restrictTuple μ) :=
+    coeffRestrictSimple_pos_at_restrict B W hW μ
+  -- Step 2: rewrite restrictTuple μ as ξ.
+  rw [hμ] at h_pos_restrict
+  -- Step 3: class constancy transfers positivity ξ → ξ'.
+  have h_eq := coeffRestrictSimple_equiv B W hB μ h
+  have h_pos_ξ' : 0 < coeffRestrictSimple B W μ ξ' := h_eq ▸ h_pos_restrict
+  -- Step 4: extract an extension witness a.
+  obtain ⟨a, ha⟩ := exists_extension_of_coeffRestrictSimple_pos B W μ ξ' h_pos_ξ'
+  -- Step 5: ν = Fin.snoc ξ' a satisfies both conjuncts.
+  refine ⟨Fin.snoc ξ' a, ?_, ha⟩
+  -- restrictTuple (Fin.snoc ξ' a) = ξ' by Fin.snoc_castSucc.
+  funext i
+  show (Fin.snoc ξ' a : Fin (k + 1) → Fin T) i.castSucc = ξ' i
+  exact Fin.snoc_castSucc (α := fun _ => Fin T) a ξ' i
 
 /-- **Claim 4.3 — Bijective base case**
 (Lovász TR-2004-82 §4, p. 6, "third paragraph").
