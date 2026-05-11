@@ -1292,6 +1292,54 @@ theorem multiLabeledEvalK_tupleEquiv_invariant_n_zero {T K : ℕ}
       have hfξ'y : fξ' y = ξ' yK := by show ξ' _ = ξ' yK; rfl
       rw [hfξx, hfξy, hfξ'x, hfξ'y, h_pair xK yK hxKyK]
 
+/-- **The multigraph bridge — canonical sorry.**
+
+Every multigraph evaluation descends through the simple-graph version
+of `tupleEquiv`. This is the Lovász §3 content (Theorem 2.2 / Lemma 2.5)
+translated to our framework: simple-graph `tupleEquiv` ⟹ all
+multigraph evaluations agree.
+
+**Hypothesis form** (`h_simple`): for every level-K simple graph
+`F : SimpleGraph (Fin (n' + K))` (with any `n'` unlabeled vertices),
+the simple-graph evaluations at `ξ` and `ξ'` agree. This is the
+inlined definition of `tupleEquiv B W ξ ξ'`.
+
+**Status**: partial — `n = 0` case dispatched via
+`multiLabeledEvalK_tupleEquiv_invariant_n_zero`. The general `n` case
+remains sorry'd. The natural induction on `n` via `promote_unfold`
+needs a "lifted simple-equivalence" hypothesis at level `K + 1`, which
+does NOT follow from the level-`K` `h_simple` alone (a level-(K+1)
+graph constrained at the new label position does not factor through
+a free σ-sum). The connection-matrix / idempotent-decomposition
+argument from Lovász §3 is the standard way to close this. -/
+theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (M : MultiLabeledGraph K n)
+    {ξ ξ' : Fin K → Fin T}
+    (h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K)))
+        [DecidableRel F.Adj],
+      ∑ σ : Fin n' → Fin T,
+        (let τ : Fin (n' + K) → Fin T := fun v =>
+          if h : (v : ℕ) < K then ξ ⟨v, h⟩
+          else σ ⟨v - K, by have := v.isLt; omega⟩
+        (∏ v : Fin n', W (σ v)) *
+        ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+      ∑ σ : Fin n' → Fin T,
+        (let τ : Fin (n' + K) → Fin T := fun v =>
+          if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+          else σ ⟨v - K, by have := v.isLt; omega⟩
+        (∏ v : Fin n', W (σ v)) *
+        ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  -- Dispatch the n=0 case via the dedicated lemma.
+  match n, M with
+  | 0, M => exact multiLabeledEvalK_tupleEquiv_invariant_n_zero B hB W M h_simple
+  | n + 1, _M =>
+    -- The n+1 case requires either (i) a level-(K+1) lift of `h_simple`,
+    -- or (ii) the connection-matrix idempotent-decomposition argument
+    -- from Lovász TR-2004-82 §3. Neither is in scope yet.
+    sorry
+
 /-! ### §3.8 — Equivalence predicates and Lovász Lemma 2.5
 
 This section introduces the two equivalence relations on label-tuples
@@ -1884,7 +1932,55 @@ private theorem product_trace_identity_simple {T k : ℕ}
     ∑ t : Fin T, _W t *
       (L.map (fun p => @simpleEvalAt T (k + 1) p.1 _B _W p.2
         (Classical.decRel _) (Fin.snoc ξ' t))).prod := by
-  sorry
+  classical
+  -- **Step 1**: Build a combined multigraph `M_L : MultiLabeledGraph (k+1) N_L`
+  -- whose evaluation matches the product of `simpleEvalAt`s over the list.
+  -- We construct it by recursion on `L`: empty list ↦ empty (n = 0), cons ↦
+  -- glue head's `ofSimple` with tail's combined multigraph.
+  suffices hcombined : ∃ (N : ℕ) (M : MultiLabeledGraph (k + 1) N),
+      ∀ φ : Fin (k + 1) → Fin T,
+        (L.map (fun p => @simpleEvalAt T (k + 1) p.1 _B _W p.2
+          (Classical.decRel _) φ)).prod = multiLabeledEvalK (k + 1) N M _B _W φ by
+    obtain ⟨N, M, hM⟩ := hcombined
+    -- Rewrite both sides using hM at φ = Fin.snoc ξ t (resp. Fin.snoc ξ' t).
+    have hLHS : ∀ t : Fin T,
+        _W t * (L.map (fun p => @simpleEvalAt T (k + 1) p.1 _B _W p.2
+            (Classical.decRel _) (Fin.snoc ξ t))).prod =
+        _W t * multiLabeledEvalK (k + 1) N M _B _W (Fin.snoc ξ t) :=
+      fun t => by rw [hM (Fin.snoc ξ t)]
+    have hRHS : ∀ t : Fin T,
+        _W t * (L.map (fun p => @simpleEvalAt T (k + 1) p.1 _B _W p.2
+            (Classical.decRel _) (Fin.snoc ξ' t))).prod =
+        _W t * multiLabeledEvalK (k + 1) N M _B _W (Fin.snoc ξ' t) :=
+      fun t => by rw [hM (Fin.snoc ξ' t)]
+    rw [Finset.sum_congr rfl (fun t _ => hLHS t),
+        Finset.sum_congr rfl (fun t _ => hRHS t)]
+    -- Apply `multiLabeledEvalK_sum_last_label` to fold the t-sum into a trace.
+    rw [multiLabeledEvalK_sum_last_label M _B _hB _W ξ,
+        multiLabeledEvalK_sum_last_label M _B _hB _W ξ']
+    -- Now apply the bridge `multiLabeledEvalK_tupleEquiv_invariant` to `M.trace`.
+    exact multiLabeledEvalK_tupleEquiv_invariant _B _hB _W M.trace _h
+  -- **Step 2**: Construct the combined multigraph by induction on `L`.
+  clear _h
+  induction L with
+  | nil =>
+    refine ⟨0, MultiLabeledGraph.empty (k + 1) 0, fun φ => ?_⟩
+    -- LHS: empty list product = 1; RHS: empty multigraph evaluation = 1.
+    simp only [List.map_nil, List.prod_nil]
+    rw [multiLabeledEvalK_empty]
+    simp
+  | cons head tail ih =>
+    obtain ⟨N_tail, M_tail, h_tail⟩ := ih
+    -- Glue head's `ofSimple` with tail's combined multigraph.
+    refine ⟨head.1 + N_tail,
+      (MultiLabeledGraph.ofSimple head.2).glue M_tail, fun φ => ?_⟩
+    -- LHS: head's simpleEvalAt times tail's product.
+    -- RHS: glue eval = head's multi eval times tail's multi eval.
+    simp only [List.map_cons, List.prod_cons]
+    rw [h_tail φ]
+    rw [multiLabeledEvalK_glue _B _hB _W (MultiLabeledGraph.ofSimple head.2) M_tail φ]
+    -- Convert head's simpleEvalAt to multi eval via `simpleEvalAt_eq_multi`.
+    rw [simpleEvalAt_eq_multi]
 
 /-- **Class-constancy of the restriction-weight coefficient**
 (Lovász TR-2004-82 §4 core; the IH-free heart of Claim 4.2).
@@ -2930,54 +3026,6 @@ multigraph evaluation also agrees.
 The hypothesis `h_simple` is the simple-graph version of `tupleEquiv`,
 inlined here so this module needs no dependency on
 `Graphon/MatrixDetermination.lean`. -/
-
-/-- **The multigraph bridge — canonical sorry.**
-
-Every multigraph evaluation descends through the simple-graph version
-of `tupleEquiv`. This is the Lovász §3 content (Theorem 2.2 / Lemma 2.5)
-translated to our framework: simple-graph `tupleEquiv` ⟹ all
-multigraph evaluations agree.
-
-**Hypothesis form** (`h_simple`): for every level-K simple graph
-`F : SimpleGraph (Fin (n' + K))` (with any `n'` unlabeled vertices),
-the simple-graph evaluations at `ξ` and `ξ'` agree. This is the
-inlined definition of `tupleEquiv B W ξ ξ'`.
-
-**Status**: partial — `n = 0` case dispatched via
-`multiLabeledEvalK_tupleEquiv_invariant_n_zero`. The general `n` case
-remains sorry'd. The natural induction on `n` via `promote_unfold`
-needs a "lifted simple-equivalence" hypothesis at level `K + 1`, which
-does NOT follow from the level-`K` `h_simple` alone (a level-(K+1)
-graph constrained at the new label position does not factor through
-a free σ-sum). The connection-matrix / idempotent-decomposition
-argument from Lovász §3 is the standard way to close this. -/
-theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (M : MultiLabeledGraph K n)
-    {ξ ξ' : Fin K → Fin T}
-    (h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K)))
-        [DecidableRel F.Adj],
-      ∑ σ : Fin n' → Fin T,
-        (let τ : Fin (n' + K) → Fin T := fun v =>
-          if h : (v : ℕ) < K then ξ ⟨v, h⟩
-          else σ ⟨v - K, by have := v.isLt; omega⟩
-        (∏ v : Fin n', W (σ v)) *
-        ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
-      ∑ σ : Fin n' → Fin T,
-        (let τ : Fin (n' + K) → Fin T := fun v =>
-          if h : (v : ℕ) < K then ξ' ⟨v, h⟩
-          else σ ⟨v - K, by have := v.isLt; omega⟩
-        (∏ v : Fin n', W (σ v)) *
-        ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
-    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
-  -- Dispatch the n=0 case via the dedicated lemma.
-  match n, M with
-  | 0, M => exact multiLabeledEvalK_tupleEquiv_invariant_n_zero B hB W M h_simple
-  | n + 1, _M =>
-    -- The n+1 case requires either (i) a level-(K+1) lift of `h_simple`,
-    -- or (ii) the connection-matrix idempotent-decomposition argument
-    -- from Lovász TR-2004-82 §3. Neither is in scope yet.
-    sorry
 
 /-- **Twin-free bridge** (corollary). Under twin-freeness, the bridge
 follows by chaining through the orbit relation:
