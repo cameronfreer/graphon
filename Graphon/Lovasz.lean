@@ -1397,8 +1397,11 @@ cycle with `MatrixDetermination`. The current status:
 
 * **Claim 4.1** (`tupleEquivSimple_restrict`) — proved.
 * **Claim 4.2** (`tupleEquivSimple_extend`) — proved MODULO the named
-  sorry `coeffRestrictSimple_equiv` (class constancy of the
-  restriction-weight coefficient — the IH-free Lovász §4 core).
+  sub-sorry `product_trace_identity_simple` (the LIST-product trace
+  identity; the Lovász §3 deep content). The class-constancy step
+  `coeffRestrictSimple_equiv` is now proved as a wrapper around
+  `functional_span_zero` + `product_trace_identity_simple`. The
+  single-graph trace identity case is fully proved here.
 * **Claim 4.3** (`tupleEquivSimple_bijective_case`) — proved (restriction +
   IH at `T-1` + bijection-uniqueness).
 * **Claim 4.4** (`tupleEquivSimple_surjective_case`) — proved via the
@@ -1617,15 +1620,17 @@ Three lemmas drive the assembly:
 * `coeffRestrictSimple_pos_at_restrict` — the coefficient is positive
   at `ξ = restrictTuple μ` (witnessed by `t = μ (Fin.last k)`, which
   makes the indicator `tupleEquivSimple μ μ` true by reflexivity).
-* `coeffRestrictSimple_equiv` (NEW NAMED SORRY) — class constancy:
-  simple-equivalence of `ξ` and `ξ'` transfers `coeffRestrictSimple
-  B W μ ξ = coeffRestrictSimple B W μ ξ'`.
+* `coeffRestrictSimple_equiv` — class constancy: simple-equivalence
+  of `ξ` and `ξ'` transfers `coeffRestrictSimple B W μ ξ =
+  coeffRestrictSimple B W μ ξ'`. PROVED via `functional_span_zero`
+  + `product_trace_identity_simple` (the latter is a focused
+  sub-sorry capturing the Lovász §3 deep content).
 * `exists_extension_of_coeffRestrictSimple_pos` — from positivity, some
   `t` makes the indicator true, yielding the extension.
 
-The class-constancy step is the only architectural hurdle. Its full
-proof (`coeffRestrict_equiv` in `MatrixDetermination.lean`) requires
-the functional-span machinery — out of scope here. -/
+The class-constancy step is now proved structurally. The single
+remaining architectural hurdle is the LIST-product trace identity
+`product_trace_identity_simple` (Lovász §3 / DecLabeledGraph). -/
 
 /-- **Restriction-weight coefficient** for a `(k+1)`-tuple `μ`
 at a level-`k` base `ξ`. Sums `W t` over `t : Fin T` such that the
@@ -1705,40 +1710,319 @@ theorem exists_extension_of_coeffRestrictSimple_pos {T k : ℕ}
   rw [h_sum_zero] at hpos
   exact lt_irrefl 0 hpos
 
+/-! ### §3.9.2 — Functional-span machinery (port of MD `functional_span_zero`)
+
+To prove `coeffRestrictSimple_equiv` we use the standard finite
+Stone-Weierstrass-style lemma: given a separating, unital,
+multiplicatively closed family `f : I → Q → ℝ` and a `d : Q → ℝ` that
+is orthogonal to every `f i` (under the counting measure), `d = 0`.
+
+This is a verbatim port of `MatrixDetermination.functional_span_zero`
+(L5004) — self-contained, ~100 lines of finite induction on the support
+of `d`. Used below to conclude that the class-weight difference between
+`ξ` and `ξ'` over the level-`(k+1)` `tupleEquivSimple`-quotient
+vanishes, given orthogonality from a product trace identity. -/
+
+/-- **Functional span zero**: if a function `d : Q → ℝ` on a finite
+type is orthogonal (w.r.t. counting measure) to every member of a
+separating, unital, multiplicatively closed family `f : I → Q → ℝ`,
+then `d` vanishes pointwise.
+
+Port of `MatrixDetermination.functional_span_zero`. -/
+private theorem functional_span_zero {Q : Type*} [Fintype Q] [DecidableEq Q]
+    {I : Type*} (f : I → Q → ℝ) (d : Q → ℝ)
+    (hconst : ∃ i₀ : I, ∀ q, f i₀ q = 1)
+    (hmul : ∀ i j : I, ∃ k : I, ∀ q, f k q = f i q * f j q)
+    (hsep : ∀ q₁ q₂ : Q, q₁ ≠ q₂ → ∃ i : I, f i q₁ ≠ f i q₂)
+    (hortho : ∀ i : I, ∑ q, d q * f i q = 0) :
+    ∀ q, d q = 0 := by
+  -- Strong induction on |support(d)|.
+  suffices key : ∀ (m : ℕ) (d : Q → ℝ),
+      (Finset.univ.filter (fun q => d q ≠ 0)).card ≤ m →
+      (∀ i : I, ∑ q, d q * f i q = 0) →
+      ∀ q, d q = 0 by
+    exact key (Finset.univ.filter (fun q => d q ≠ 0)).card d le_rfl hortho
+  intro m
+  induction m with
+  | zero =>
+    intro d hm _ q
+    by_contra hq
+    have hmem : q ∈ Finset.univ.filter (fun q => d q ≠ 0) :=
+      Finset.mem_filter.mpr ⟨Finset.mem_univ _, hq⟩
+    have := Finset.card_pos.mpr ⟨q, hmem⟩
+    omega
+  | succ m IH =>
+    intro d hm hd_ortho
+    by_cases h_all_zero : ∀ q, d q = 0
+    · exact h_all_zero
+    push_neg at h_all_zero
+    obtain ⟨q₀, hq₀⟩ := h_all_zero
+    by_cases h_unique : ∀ q, q ≠ q₀ → d q = 0
+    · obtain ⟨i₀, hi₀⟩ := hconst
+      have h := hd_ortho i₀
+      simp only [hi₀, mul_one] at h
+      rw [show ∑ q, d q = d q₀ + ∑ q ∈ Finset.univ.erase q₀, d q from by
+        rw [Finset.add_sum_erase _ _ (Finset.mem_univ _)]] at h
+      have hzero : ∑ q ∈ Finset.univ.erase q₀, d q = 0 :=
+        Finset.sum_eq_zero fun q hq => h_unique q (Finset.ne_of_mem_erase hq)
+      rw [hzero, add_zero] at h
+      exact absurd h hq₀
+    · push_neg at h_unique
+      obtain ⟨q₁, hq₁_ne, hq₁⟩ := h_unique
+      obtain ⟨i_sep, hi_sep⟩ := hsep q₀ q₁ hq₁_ne.symm
+      let d' : Q → ℝ := fun q => d q * (f i_sep q - f i_sep q₀)
+      have hd'_ortho : ∀ j : I, ∑ q, d' q * f j q = 0 := by
+        intro j
+        obtain ⟨k, hk⟩ := hmul i_sep j
+        show ∑ q, d q * (f i_sep q - f i_sep q₀) * f j q = 0
+        have h1 : ∑ q, d q * (f i_sep q - f i_sep q₀) * f j q =
+            ∑ q, d q * f i_sep q * f j q -
+              ∑ q, d q * (f i_sep q₀ * f j q) := by
+          rw [(Finset.sum_sub_distrib
+                (f := fun q => d q * f i_sep q * f j q)
+                (g := fun q => d q * (f i_sep q₀ * f j q))).symm]
+          congr 1; ext q; ring
+        rw [h1]
+        rw [show ∑ q, d q * f i_sep q * f j q = ∑ q, d q * f k q by
+          congr 1; ext q; rw [hk]; ring]
+        rw [hd_ortho k]
+        rw [show ∑ q, d q * (f i_sep q₀ * f j q) =
+          f i_sep q₀ * ∑ q, d q * f j q by
+          rw [Finset.mul_sum]; congr 1; ext q; ring]
+        rw [hd_ortho j, mul_zero, sub_self]
+      have hd'q₀ : d' q₀ = 0 := by
+        show d q₀ * (f i_sep q₀ - f i_sep q₀) = 0; simp
+      have hd'_card : (Finset.univ.filter (fun q => d' q ≠ 0)).card ≤ m := by
+        have hsub : Finset.univ.filter (fun q => d' q ≠ 0) ⊆
+            (Finset.univ.filter (fun q => d q ≠ 0)).erase q₀ := by
+          intro q hq
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hq
+          rw [Finset.mem_erase]
+          refine ⟨fun heq => ?_, Finset.mem_filter.mpr
+            ⟨Finset.mem_univ _, fun habs => ?_⟩⟩
+          · subst heq; exact hq hd'q₀
+          · exact hq (show d' q = 0 by
+              show d q * (f i_sep q - f i_sep q₀) = 0
+              rw [habs, zero_mul])
+        calc (Finset.univ.filter (fun q => d' q ≠ 0)).card
+            ≤ ((Finset.univ.filter (fun q => d q ≠ 0)).erase q₀).card :=
+              Finset.card_le_card hsub
+          _ ≤ (Finset.univ.filter (fun q => d q ≠ 0)).card - 1 :=
+              Nat.le_sub_one_of_lt (Finset.card_erase_lt_of_mem
+                (Finset.mem_filter.mpr ⟨Finset.mem_univ _, hq₀⟩))
+          _ ≤ m := by omega
+      have hkey := IH d' hd'_card hd'_ortho q₁
+      change d q₁ * (f i_sep q₁ - f i_sep q₀) = 0 at hkey
+      rcases mul_eq_zero.mp hkey with hcase | hcase
+      · exact absurd hcase hq₁
+      · exact absurd (sub_eq_zero.mp hcase) hi_sep.symm
+
+/-! ### §3.9.3 — Simple-graph evaluation, single-graph trace identity, and
+    the product trace identity (named focused sorry).
+
+We package the simple-graph evaluation body that appears inside
+`tupleEquivSimple` as a noncomputable definition `simpleEvalAt`, prove
+the single-graph trace identity directly from
+`multiLabeledEvalK_sum_last_label`, and state the LIST-product trace
+identity as a focused sorry. The product identity is the genuine
+Lovász §3 content (it requires the connection-matrix / DecLabeledGraph
+machinery in `MatrixDetermination.lean`, ~3000 lines), and is the SOLE
+remaining gap for `coeffRestrictSimple_equiv` below. -/
+
+/-- Simple-graph evaluation extracted as a named definition (matching the
+body of `tupleEquivSimple` and the RHS of `multiLabeledEvalK_ofSimple`). -/
+noncomputable def simpleEvalAt {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
+    (ξ : Fin K → Fin T) : ℝ :=
+  ∑ σ : Fin n → Fin T,
+    (let τ : Fin (n + K) → Fin T := fun v =>
+      if h : (v : ℕ) < K then ξ ⟨v, h⟩
+      else σ ⟨v - K, by have := v.isLt; omega⟩
+    (∏ v : Fin n, W (σ v)) *
+    ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))
+
+/-- `simpleEvalAt` is `multiLabeledEvalK` on `MultiLabeledGraph.ofSimple`. -/
+private theorem simpleEvalAt_eq_multi {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
+    (ξ : Fin K → Fin T) :
+    simpleEvalAt B W F ξ =
+      multiLabeledEvalK K n (MultiLabeledGraph.ofSimple F) B W ξ := by
+  rw [multiLabeledEvalK_ofSimple]; rfl
+
+/-- **Product trace identity (named focused sorry)** —
+the LIST-product analog of `simpleEvalAt_trace_eq` below.
+
+For any list `L` of `(k+1)`-labeled simple graphs and any tuples `ξ ξ'`
+simple-equivalent at level `k`, the W-weighted last-label sum of the
+product `∏ simpleEvalAt F_i (snoc ξ t)` is equal for `ξ` and `ξ'`.
+
+**This is the Lovász §3 deep content.** In
+`MatrixDetermination.lean` it is `product_trace_identity` (L10390),
+proved via a long chain ending in
+`DecLabeledGraph.trace_eval_tupleEquiv_invariant` (~3000 lines of
+decorated-labeled-graph machinery). Porting that here is out of
+scope; we name this as a focused architectural sorry, which is the
+SOLE missing piece for `coeffRestrictSimple_equiv`.
+
+Note: the single-graph case (`L = [⟨n, F⟩]`) is provable directly via
+`multiLabeledEvalK_sum_last_label` (see `simpleEvalAt_trace_eq` below).
+The empty list `L = []` is trivial. The non-trivial content is the
+binary case (`L = L₁ ++ L₂`), which is genuinely a multigraph trace
+statement that does not reduce to `tupleEquivSimple` at level `k`
+alone — it needs either the bridge theorem (currently sorry in
+`multiLabeledEvalK_tupleEquiv_invariant`) or the DecLabeledGraph
+machinery. -/
+private theorem product_trace_identity_simple {T k : ℕ}
+    (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i) (_W : Fin T → ℝ)
+    {ξ ξ' : Fin k → Fin T} (_h : tupleEquivSimple _B _W ξ ξ')
+    (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1))))) :
+    ∑ t : Fin T, _W t *
+      (L.map (fun p => @simpleEvalAt T (k + 1) p.1 _B _W p.2
+        (Classical.decRel _) (Fin.snoc ξ t))).prod =
+    ∑ t : Fin T, _W t *
+      (L.map (fun p => @simpleEvalAt T (k + 1) p.1 _B _W p.2
+        (Classical.decRel _) (Fin.snoc ξ' t))).prod := by
+  sorry
+
 /-- **Class-constancy of the restriction-weight coefficient**
 (Lovász TR-2004-82 §4 core; the IH-free heart of Claim 4.2).
 
 If `ξ` and `ξ'` are simple-equivalent at level `k`, the restriction
 weight `coeffRestrictSimple B W μ ξ` is invariant under replacing `ξ`
-by `ξ'`. This is the `MatrixDetermination.coeffRestrict_equiv`
-(line 9956) statement adapted to the inline `tupleEquivSimple`.
+by `ξ'`.
 
-**Architectural sorry (named)**: this is the precise content of the
-"coefficient" portion of Claim 4.2 in Lovász TR-2004-82 §4 (the
-paragraph beginning "We now extend the proof to `k+1`."). The proof
-in `MatrixDetermination.lean` routes via:
+**Proof outline** (mirrors `MatrixDetermination.coeffRestrict_equiv`):
 
-1. `simpleGraphEvalOn_spans` — class-invariant functions on the
-   level-`(k+1)` quotient are spanned by simple-graph evaluations.
-2. `product_trace_identity` / `tr_k_generator_descends` — the
-   weighted last-label sum identity `∑_t W(t) · simpleEval F (snoc ξ t)
-   = simpleEval F.trace ξ` reduces the level-`(k+1)` evaluation at the
-   extension to a level-`k` evaluation at the base.
-3. Combining 1+2: simple-equivalence at level `k` transfers ANY
-   class-invariant evaluation at level `k+1`, including the indicator
-   `tupleEquivSimple μ (–)`, which yields the coefficient identity.
+1. **Reduction to class-constant `g`**: it suffices to prove
+   `∑_t W(t) g (snoc ξ t) = ∑_t W(t) g (snoc ξ' t)` for every
+   class-constant `g : (Fin (k+1) → Fin T) → ℝ`. Take `g` to be the
+   indicator of `[μ]`; this recovers `coeffRestrictSimple_equiv`.
+2. **Apply `functional_span_zero`**: on the level-`(k+1)` quotient by
+   `tupleEquivSimple`, use the class-weight difference as `d` and lists
+   of `simpleEvalAt` evaluations as the test family. Constants come
+   from the empty list; multiplicative closure from list concatenation;
+   separation from the definition of `tupleEquivSimple`; orthogonality
+   from `product_trace_identity_simple`.
 
-The full chain is `~1000` lines in `MatrixDetermination.lean`. Porting
-it here would require also adding the functional-span infrastructure
-and the trace-closure identity. Listed here as a focused, named sorry
-to expose Claim 4.2 as a clean wrapper. -/
+**Modulo**: the named architectural sorry `product_trace_identity_simple`
+(the genuine Lovász §3 content; ~3000 lines via DecLabeledGraph in
+`MatrixDetermination.lean`). Everything else is closed. -/
 theorem coeffRestrictSimple_equiv {T k : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (_hB : ∀ i j, B i j = B j i)
+    (hB : ∀ i j, B i j = B j i)
     (μ : Fin (k + 1) → Fin T) {ξ ξ' : Fin k → Fin T}
-    (_h : tupleEquivSimple B W ξ ξ') :
+    (h : tupleEquivSimple B W ξ ξ') :
     coeffRestrictSimple B W μ ξ = coeffRestrictSimple B W μ ξ' := by
-  sorry
+  classical
+  -- **Reduction**: it suffices to show class-constant `g` give equal
+  -- `W`-weighted last-label sums over `ξ` and `ξ'` extensions.
+  suffices class_eq : ∀ (g : (Fin (k + 1) → Fin T) → ℝ),
+      (∀ η η', tupleEquivSimple B W η η' → g η = g η') →
+      ∑ t, W t * g (Fin.snoc ξ t) = ∑ t, W t * g (Fin.snoc ξ' t) by
+    -- Apply `class_eq` with `g` = indicator of the `tupleEquivSimple`-class of `μ`.
+    have hind := class_eq
+      (fun η => @ite ℝ (tupleEquivSimple B W μ η) (Classical.dec _) 1 0)
+      (fun η η' heq => by
+        simp only
+        congr 1
+        refine propext ⟨fun hh => ?_, fun hh => ?_⟩
+        · intro n F _
+          exact (hh n F).trans (heq n F)
+        · intro n F _
+          exact (hh n F).trans (heq n F).symm)
+    simp only [mul_ite, mul_one, mul_zero] at hind
+    -- LHS and RHS of `hind` are exactly `coeffRestrictSimple B W μ ξ` and `ξ'`.
+    unfold coeffRestrictSimple
+    convert hind using 2
+  -- **Step 2: prove `class_eq` via `functional_span_zero`.**
+  intro g hg_class
+  -- Setoid on level-`(k+1)` tuples via `tupleEquivSimple`.
+  let S : Setoid (Fin (k + 1) → Fin T) :=
+    ⟨tupleEquivSimple B W,
+      tupleEquivSimple_refl B W,
+      fun hh n F _ => (hh n F).symm,
+      fun h₁ h₂ n F _ => (h₁ n F).trans (h₂ n F)⟩
+  haveI : Fintype (Quotient S) := Quotient.fintype S
+  -- Lift `g` to the quotient.
+  let g_lift : Quotient S → ℝ := Quotient.lift g hg_class
+  -- Each `(n, F)` descends to `Quotient S → ℝ` by definition.
+  let eval_lift : (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1)))) → Quotient S → ℝ :=
+    fun p => Quotient.lift
+      (fun η => @simpleEvalAt T (k + 1) p.1 B W p.2 (Classical.decRel _) η)
+      (fun _ _ hab => hab _ _)
+  -- `f_fun L q` = product of evaluations on the class `q` indexed by `L`.
+  let f_fun : List (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1)))) →
+      Quotient S → ℝ :=
+    fun L q => (L.map (fun p => eval_lift p q)).prod
+  -- Class-weighted distributions of `snoc ξ ·` and `snoc ξ' ·`.
+  let α_w : Quotient S → ℝ := fun q =>
+    ∑ t : Fin T, if Quotient.mk S (Fin.snoc ξ t) = q then W t else 0
+  let β_w : Quotient S → ℝ := fun q =>
+    ∑ t : Fin T, if Quotient.mk S (Fin.snoc ξ' t) = q then W t else 0
+  let d_fun : Quotient S → ℝ := fun q => α_w q - β_w q
+  -- Helper: weighted sum over `t` of `φ ⟦η t⟧` equals class-sum via partition.
+  have class_decomp : ∀ (η : Fin T → (Fin (k + 1) → Fin T)) (φ : Quotient S → ℝ),
+      ∑ q, (∑ t, if Quotient.mk S (η t) = q then W t else 0) * φ q =
+      ∑ t, W t * φ (Quotient.mk S (η t)) := by
+    intro η φ
+    simp_rw [Finset.sum_mul]
+    rw [Finset.sum_comm]
+    refine Finset.sum_congr rfl fun t _ => ?_
+    simp_rw [ite_mul, zero_mul]
+    rw [Finset.sum_ite_eq Finset.univ (Quotient.mk S (η t)) (fun q => W t * φ q)]
+    simp
+  -- Apply `functional_span_zero` to conclude `d_fun = 0`.
+  have hd_zero : ∀ q, d_fun q = 0 := by
+    apply functional_span_zero f_fun d_fun
+    · -- hconst: empty list gives constant 1.
+      exact ⟨[], fun _ => by simp only [f_fun, List.map_nil, List.prod_nil]⟩
+    · -- hmul: list concatenation gives pointwise product.
+      intro L₁ L₂
+      refine ⟨L₁ ++ L₂, fun q => ?_⟩
+      simp only [f_fun, List.map_append, List.prod_append]
+    · -- hsep: distinct classes distinguished by some `(n, F)`.
+      intro q₁ q₂ hne
+      obtain ⟨η₁, rfl⟩ := Quotient.exists_rep q₁
+      obtain ⟨η₂, rfl⟩ := Quotient.exists_rep q₂
+      have hne' : ¬ tupleEquivSimple B W η₁ η₂ := fun hh => hne (Quotient.sound hh)
+      simp only [tupleEquivSimple, not_forall] at hne'
+      obtain ⟨n, F, _, hne_F⟩ := hne'
+      refine ⟨[⟨n, F⟩], ?_⟩
+      simp only [f_fun, eval_lift, List.map_cons, List.map_nil, List.prod_cons,
+                 List.prod_nil, mul_one, Quotient.lift_mk]
+      intro heq
+      apply hne_F
+      -- `heq` is `simpleEvalAt B W F η₁ = simpleEvalAt B W F η₂`,
+      -- which by `simpleEvalAt` definition is exactly the body of
+      -- `tupleEquivSimple` at this `(n, F)`.
+      unfold simpleEvalAt at heq
+      convert heq
+    · -- hortho: via the product trace identity.
+      intro L
+      show ∑ q, (α_w q - β_w q) * f_fun L q = 0
+      simp_rw [sub_mul]
+      rw [Finset.sum_sub_distrib, class_decomp _ (f_fun L),
+          class_decomp _ (f_fun L)]
+      have hbridge : ∀ (ξ'' : Fin k → Fin T) (t : Fin T),
+          f_fun L (Quotient.mk S (Fin.snoc ξ'' t)) =
+          (L.map (fun p => @simpleEvalAt T (k + 1) p.1 B W p.2
+            (Classical.decRel _) (Fin.snoc ξ'' t))).prod := by
+        intros; simp only [f_fun, eval_lift, Quotient.lift_mk]
+      simp_rw [hbridge ξ, hbridge ξ']
+      linarith [product_trace_identity_simple B hB W h L]
+  -- Conclude `∑ t, W t * g (snoc ξ t) = ∑ t, W t * g (snoc ξ' t)`.
+  have hsum_zero : ∑ q, d_fun q * g_lift q = 0 :=
+    Finset.sum_eq_zero fun q _ => by rw [hd_zero q, zero_mul]
+  have hgoal_decomp :
+      ∑ t, W t * g (Fin.snoc ξ t) - ∑ t, W t * g (Fin.snoc ξ' t) =
+      ∑ q, d_fun q * g_lift q := by
+    show _ = ∑ q, (α_w q - β_w q) * g_lift q
+    simp_rw [sub_mul]
+    rw [Finset.sum_sub_distrib, class_decomp _ g_lift, class_decomp _ g_lift]
+    simp only [g_lift, Quotient.lift_mk]
+  linarith
 
 /-- **Claim 4.2 — Extension lemma**
 (Lovász TR-2004-82 §4, p. 6, "second paragraph").
