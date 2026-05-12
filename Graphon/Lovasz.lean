@@ -3010,6 +3010,31 @@ either a deeper refactor of `tupleEquivSimple_surjective_case` /
 `MatrixDetermination.lean:11002-11007`) or an alternative argument at
 that specific inner-base point.
 
+**Architectural obstacle** (post-2026-05-12 subagent analysis): an
+IH-free `bijective_case_direct` / `id_bijective_direct` would close
+the residual but is **not derivable from simple-graph evaluations
+alone** with current Lovasz infrastructure. Specifically:
+  - **B-preservation diagonal** `B(χ i, χ i) = B(i, i)`: simple
+    graphs have no self-loops, so `B(t, t)` terms never appear in
+    simple-graph evaluations. Cannot be extracted directly.
+  - **W-preservation pointwise** `W(χ i) = W(i)`: single-unlabeled-
+    vertex graphs evaluate to `∑_t W(t)`, ξ-independent. Row-sum
+    graphs give scalar equations `∑_t W(t) B(i, t) = ∑_t W(t)
+    B(χ i, t)`, not pointwise W.
+
+These require either:
+  (i) Multigraph evaluations (parallel edges / self-loops via
+      multiplicity), reaching to `multiLabeledEvalK_*` infrastructure.
+  (ii) Direct fiber construction at `surjective_case` level:
+      `σ(t) := ψ(any j with φ j = t)`, with well-definedness from
+      path-length-2 / cherry motifs. ~300-500 lines of new combinatorial
+      proofs.
+
+The current `tupleEquivSimple_id_bijective` proof bridges this gap
+via the IH at T-1 (where deficit-1 supplies the missing automorphism
+τ to use as a B-aut for change-of-variable). Replacing this without
+IH requires substantive new infrastructure — beyond a simple refactor.
+
 Claims 4.1, 4.3, 4.4 and `tupleEquivSimple_ext_eq_of_surj` are all
 closed inline. The wiring is paper-faithful and matches the structure
 of the (private) proof in `Graphon/MatrixDetermination.lean`. -/
