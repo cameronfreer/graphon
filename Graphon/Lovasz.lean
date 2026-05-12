@@ -3318,7 +3318,25 @@ subsume `multiLabeledEvalK_tupleEquiv_invariant`: the latter must hold
 for all `B` (including `B` with twins), while this version requires
 twin-freeness.
 
-Closed modulo the canonical `tupleEquivSimple_implies_orbit` sorry. -/
+**Dependency** (made explicit per post-architectural-analysis): this
+proof routes through `tupleEquivSimple_implies_orbit`, whose residual
+sorry at `T > k+1` (architectural) is itself blocked by the bridge —
+specifically, the IH-free `bijective_case_direct` route closure
+requires either multigraph diagonal/W extraction (which IS the
+bridge) or the direct fiber construction (~300-500 lines new
+combinatorial proofs).
+
+**Net non-cyclic content** for the twin-free bridge:
+  - The `T ≤ k+1` sub-case of `tupleEquivSimple_implies_orbit` is
+    fully closed via the deficit-induction.
+  - For `T > k+1`, the chain depends on resolving the architectural
+    sorry, which depends on the bridge itself (or substantive new
+    work).
+
+Therefore the twin-free bridge is **proved modulo a self-cyclic
+dependency** in the `T > k+1` sub-case. The non-cyclic frontier is
+the Lovász §3 rank theorem (Theorem 2.2) — proving it independently
+of the chain would unlock everything. -/
 theorem multiLabeledEvalK_tupleEquiv_invariant_twinFree {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i)
