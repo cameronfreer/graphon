@@ -1485,6 +1485,117 @@ def tupleOrbitRel {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
 def restrictTuple {T k : ℕ} (ξ : Fin (k + 1) → Fin T) : Fin k → Fin T :=
   fun i => ξ i.castSucc
 
+/-- Range of a tuple `φ : Fin k → Fin T` as a `Finset (Fin T)`.
+
+Used as the well-founded measure in the deficit-induction proof of
+`tupleEquivSimple_implies_orbit`'s non-surjective branch. -/
+noncomputable def rangeFinset {T k : ℕ} (φ : Fin k → Fin T) : Finset (Fin T) :=
+  Finset.image φ Finset.univ
+
+/-- Deficit of `φ : Fin k → Fin T`: `T - |range φ|`. Zero iff `φ` is
+surjective. The deficit strictly decreases when extending by a fresh
+element (see `deficit_lt_of_not_mem`), giving the well-founded measure
+used in Lovász's "extend-and-recurse" plan for Lemma 2.4's
+non-surjective branch. -/
+noncomputable def deficit {T k : ℕ} (φ : Fin k → Fin T) : ℕ :=
+  T - (rangeFinset φ).card
+
+lemma rangeFinset_card_le {T k : ℕ} (φ : Fin k → Fin T) :
+    (rangeFinset φ).card ≤ T := by
+  classical
+  have := Finset.card_le_univ (rangeFinset φ)
+  simpa [Fintype.card_fin] using this
+
+lemma rangeFinset_snoc {T k : ℕ} (φ : Fin k → Fin T) (a : Fin T) :
+    rangeFinset (Fin.snoc φ a : Fin (k + 1) → Fin T) =
+      insert a (rangeFinset φ) := by
+  classical
+  ext x
+  simp only [rangeFinset, Finset.mem_image, Finset.mem_univ, true_and,
+             Finset.mem_insert]
+  constructor
+  · rintro ⟨i, hi⟩
+    by_cases h : (i : ℕ) < k
+    · refine Or.inr ⟨⟨i, h⟩, ?_⟩
+      rw [show i = (⟨i, h⟩ : Fin k).castSucc from Fin.ext rfl,
+          Fin.snoc_castSucc] at hi
+      exact hi
+    · have hi_last : i = Fin.last k := by
+        apply Fin.ext
+        have := i.isLt
+        simp [Fin.val_last]
+        omega
+      subst hi_last
+      rw [Fin.snoc_last] at hi
+      exact Or.inl hi.symm
+  · rintro (rfl | ⟨i, rfl⟩)
+    · exact ⟨Fin.last k, Fin.snoc_last (α := fun _ => Fin T) _ _⟩
+    · refine ⟨i.castSucc, ?_⟩
+      exact Fin.snoc_castSucc (α := fun _ => Fin T) a φ i
+
+/-- **Deficit strictly decreases on snoc with a fresh element.**
+
+If `a ∉ range φ`, then `deficit (Fin.snoc φ a) < deficit φ`. This is the
+key well-founded measure decrease that drives Lovász's
+"extend-and-recurse" argument in `tupleEquivSimple_implies_orbit`. -/
+lemma deficit_lt_of_not_mem {T k : ℕ} (φ : Fin k → Fin T) (a : Fin T)
+    (ha : a ∉ rangeFinset φ) :
+    deficit (Fin.snoc φ a : Fin (k + 1) → Fin T) < deficit φ := by
+  classical
+  simp only [deficit, rangeFinset_snoc]
+  rw [Finset.card_insert_of_notMem ha]
+  -- a ∉ range and a ∈ univ ⟹ range.card < |univ| = T.
+  have hstrict : (rangeFinset φ).card < T := by
+    have hsub : rangeFinset φ ⊂ Finset.univ := by
+      refine ⟨Finset.subset_univ _, ?_⟩
+      intro hsuper
+      exact ha (hsuper (Finset.mem_univ a))
+    have := Finset.card_lt_card hsub
+    simpa [Fintype.card_fin] using this
+  omega
+
+/-- Surjectivity reads off `rangeFinset = univ`. -/
+lemma surjective_iff_rangeFinset_eq_univ {T k : ℕ} (φ : Fin k → Fin T) :
+    Function.Surjective φ ↔ rangeFinset φ = Finset.univ := by
+  classical
+  refine ⟨fun hsurj => ?_, fun heq y => ?_⟩
+  · apply Finset.eq_univ_iff_forall.mpr
+    intro y
+    obtain ⟨i, hi⟩ := hsurj y
+    exact Finset.mem_image.mpr ⟨i, Finset.mem_univ _, hi⟩
+  · have : y ∈ rangeFinset φ := heq ▸ Finset.mem_univ y
+    obtain ⟨i, _, hi⟩ := Finset.mem_image.mp this
+    exact ⟨i, hi⟩
+
+/-- Surjectivity iff deficit = 0. -/
+lemma deficit_eq_zero_iff_surjective {T k : ℕ} (φ : Fin k → Fin T) :
+    deficit φ = 0 ↔ Function.Surjective φ := by
+  classical
+  rw [surjective_iff_rangeFinset_eq_univ, deficit]
+  have hle : (rangeFinset φ).card ≤ T := rangeFinset_card_le φ
+  constructor
+  · intro h
+    have hcard : (rangeFinset φ).card = T := by omega
+    apply Finset.eq_univ_of_card
+    rw [Fintype.card_fin]
+    exact hcard
+  · intro h
+    have : (rangeFinset φ).card = T := by
+      rw [h, Finset.card_univ, Fintype.card_fin]
+    omega
+
+/-- If `φ` is not surjective, some `a : Fin T` is missing from the
+range. -/
+lemma exists_not_mem_rangeFinset {T k : ℕ} (φ : Fin k → Fin T)
+    (h : ¬ Function.Surjective φ) :
+    ∃ a, a ∉ rangeFinset φ := by
+  classical
+  rw [surjective_iff_rangeFinset_eq_univ] at h
+  by_contra hcontra
+  push_neg at hcontra
+  apply h
+  exact Finset.eq_univ_iff_forall.mpr hcontra
+
 /-- **Orbit ⟹ simple-equivalence** (forward direction of Lemma 2.5,
 specialized to simple graphs). If `ξ ξ'` are `(B, W)`-orbit related,
 they agree on every simple-graph evaluation. Used inside the strong
@@ -2883,11 +2994,24 @@ Steps in the inductive case `m = k + 1`:
      induction refactor on `(deficit, size)` which is beyond a strong
      `Nat`-induction on `size` alone.
 
-**Status**: proved modulo (i) the Claim 4.2 sorry
-(`tupleEquivSimple_extend`), and (ii) the single architectural sorry in the
-non-surjective branch of the strong induction (neither `α` nor `ξ`
-surjective). Claims 4.1, 4.3, 4.4 and `tupleEquivSimple_ext_eq_of_surj` are
-all closed inline. The wiring is paper-faithful and matches the structure
+**Status**: proved modulo (i) the Claim 4.2 sub-sorry
+(`product_trace_identity_simple` via `tupleEquivSimple_extend`), and
+(ii) a refined sorry at the inner-base of the deficit-induction in the
+non-surjective branch — specifically the case `T - 1 ≥ k + 1` (i.e.,
+`T ≥ k + 2`) where the outer strong-induction-on-`K` cannot supply the
+IH at size `T - 1` required by `tupleEquivSimple_surjective_case`.
+
+The architectural sorry has been REFACTORED: the previous "neither
+α nor ξ surj" case is now CLOSED via deficit-induction (Lovász's
+"extend-and-recurse") for the sub-case `T ≤ k + 1`. The residual
+sub-case `T > k + 1` remains as a more specific sorry, requiring
+either a deeper refactor of `tupleEquivSimple_surjective_case` /
+`tupleEquivSimple_id_bijective` to avoid the deficit-1 IH (see
+`MatrixDetermination.lean:11002-11007`) or an alternative argument at
+that specific inner-base point.
+
+Claims 4.1, 4.3, 4.4 and `tupleEquivSimple_ext_eq_of_surj` are all
+closed inline. The wiring is paper-faithful and matches the structure
 of the (private) proof in `Graphon/MatrixDetermination.lean`. -/
 theorem tupleEquivSimple_implies_orbit {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
@@ -2985,13 +3109,144 @@ theorem tupleEquivSimple_implies_orbit {T K : ℕ}
             tupleEquivSimple B W ξ' ψ' → tupleOrbitRel B W ξ' ψ' :=
           fun {ξ' ψ'} h' => IH_strong (T - 1) hT1_lt ξ' ψ' h'
         exact tupleEquivSimple_surjective_case B W hW hB htwin IH_T1 ξ ξ' hξ_surj h
-      · -- **Architectural sorry**: neither α nor ξ surjective. Lovász's
-        -- "extend-and-recurse" plan requires Claim 4.2 + a well-founded
-        -- induction refactor on `(deficit, size)` — see the lengthy
-        -- comment at `MatrixDetermination.lean:10938` for the full
-        -- discussion of why strong induction on size alone cannot close
-        -- this branch.
-        sorry
+      · -- **Neither α nor ξ surjective**: use deficit-induction
+        -- (Lovász's "extend-and-recurse" plan, Claim 4.2). The deficit of
+        -- `ξ` is positive (since ξ non-surjective). Extend `ξ` by an element
+        -- `c ∉ range ξ` via Claim 4.2, obtaining `ν : Fin (k+2) → Fin T`
+        -- with `restrictTuple ν = σ⁻¹∘ξ'` and `tupleEquivSimple (Fin.snoc ξ c) ν`.
+        -- The extended tuple has strictly smaller deficit. Apply the
+        -- inner deficit-induction to extract σ', then restrict.
+        --
+        -- The inner deficit-induction handles arbitrary sizes ≥ k+1, and its
+        -- surjective base case (deficit 0) invokes `surjective_case` with
+        -- `IH_orbit` at size T-1, sourced from the outer `IH_strong` (the
+        -- outer is at level `k+1` and T ≤ inner-base-size, with surjective_case
+        -- needing IH at T-1 < inner-base-size; the outer's range covers this
+        -- when T ≤ k+1, and we use a further reduction when T > k+1).
+        --
+        -- The proof is wrapped in an auxiliary deficit-induction lemma.
+        have aux : ∀ (d : ℕ),
+            ∀ (s : ℕ) (φ ψ : Fin s → Fin T),
+              s ≥ k + 1 →
+              deficit φ = d →
+              tupleEquivSimple B W φ ψ →
+              tupleOrbitRel B W φ ψ := by
+          intro d
+          induction d using Nat.strong_induction_on with
+          | _ d IH_d => ?_
+          intro s φ ψ hs_ge hdef hphi
+          by_cases hφ_surj : Function.Surjective φ
+          · -- Inner-base: φ surjective ⟹ T ≤ s. Apply surjective_case.
+            have hT_le_s : T ≤ s := by
+              have := Fintype.card_le_of_surjective φ hφ_surj
+              simpa [Fintype.card_fin] using this
+            -- surjective_case needs IH_orbit at size T-1 in codomain T.
+            -- Source: outer IH_strong, which gives IH at sizes < k+1.
+            -- When T-1 < k+1, this directly applies. When T-1 ≥ k+1,
+            -- we recurse via this same aux at a smaller deficit... but
+            -- at size T-1, the deficit can be ≥ 1 > 0 = current.
+            -- Strategy: split on T vs k+1.
+            by_cases hT_outer : T - 1 < k + 1
+            · have IH_T1 : ∀ {φ' ψ' : Fin (T - 1) → Fin T},
+                  tupleEquivSimple B W φ' ψ' → tupleOrbitRel B W φ' ψ' :=
+                fun {φ' ψ'} h' => IH_strong (T - 1) hT_outer φ' ψ' h'
+              exact tupleEquivSimple_surjective_case B W hW hB htwin
+                IH_T1 φ ψ hφ_surj hphi
+            · -- **Residual sorry**: T - 1 ≥ k + 1 (i.e., T ≥ k + 2).
+              -- At this inner-base of the deficit-induction, `φ : Fin s → Fin T`
+              -- is surjective (deficit 0) with `s ≥ T ≥ k + 2`. The
+              -- `tupleEquivSimple_surjective_case` requires `IH_orbit` at size
+              -- `T - 1` in codomain `T`. The outer `IH_strong` only supplies
+              -- sizes `< k + 1`, which doesn't reach `T - 1 ≥ k + 1`. The
+              -- inner deficit-IH only goes to strictly smaller deficit; at
+              -- size `T - 1` the deficit is `≥ 1 > 0 = current`, so this
+              -- IH is at LARGER deficit, not smaller.
+              --
+              -- As noted in `MatrixDetermination.lean:11002-11007`, no
+              -- linear measure on `(deficit, size)` allows both directions
+              -- (extend decreases deficit/increases size; restrict in
+              -- surjective_case decreases size/increases deficit). Closing
+              -- this case requires either: (i) restructuring
+              -- `tupleEquivSimple_surjective_case` / `tupleEquivSimple_id_bijective`
+              -- to avoid the deficit-1 IH (use extension from deficit-0 size-T
+              -- instances), or (ii) a different proof strategy at this
+              -- specific point.
+              --
+              -- This sorry is STRICTLY MORE SPECIFIC than the original
+              -- architectural sorry at the same site: the case `T ≤ k + 1`
+              -- is now fully closed via the deficit-induction.
+              sorry
+          · -- Inner-step: φ non-surjective ⟹ deficit > 0. Extend by Claim 4.2.
+            have hdef_pos : 0 < deficit φ := by
+              rw [← deficit_eq_zero_iff_surjective] at hφ_surj
+              omega
+            obtain ⟨c, hc⟩ := exists_not_mem_rangeFinset φ hφ_surj
+            -- restrict the symmetry of `hphi` first: actually we want to
+            -- apply Claim 4.2 starting from `φ' ψ' : Fin (s-1) → Fin T`.
+            -- But Claim 4.2 takes the SMALLER tuple as input. So we need to
+            -- restrict φ to size s-1 first... actually no, the user's plan
+            -- says we extend φ at the CURRENT size.
+            --
+            -- Look at Claim 4.2 signature again:
+            --   ξ ξ' : Fin k → Fin T  ⟹  ν : Fin (k+1) → Fin T,
+            --     restrictTuple ν = ξ', tupleEquivSimple (Fin.snoc ξ c) ν
+            -- where μ = Fin.snoc ξ c (size k+1). Here ν has restrictTuple ν = ξ'.
+            -- So Claim 4.2 starts at size s and produces extensions at size s+1.
+            obtain ⟨ν, hν_restrict, hν_equiv⟩ :=
+              tupleEquivSimple_extend B W hW hB hphi (Fin.snoc φ c)
+                (show restrictTuple (Fin.snoc φ c : Fin (s + 1) → Fin T) = φ by
+                  funext i
+                  show (Fin.snoc φ c : Fin (s + 1) → Fin T) i.castSucc = φ i
+                  exact Fin.snoc_castSucc (α := fun _ => Fin T) c φ i)
+            -- Now apply inner deficit-IH at smaller deficit.
+            have hd_lt : deficit (Fin.snoc φ c : Fin (s + 1) → Fin T) < d := by
+              rw [← hdef]
+              exact deficit_lt_of_not_mem φ c hc
+            have hs_succ_ge : s + 1 ≥ k + 1 := by omega
+            obtain ⟨σ', hσ'_aut, hσ'_conj⟩ :=
+              IH_d _ hd_lt (s + 1) (Fin.snoc φ c) ν hs_succ_ge rfl hν_equiv
+            -- Restrict the conclusion to size s via Fin.castSucc.
+            refine ⟨σ', hσ'_aut, fun i => ?_⟩
+            have hi_conj := hσ'_conj i.castSucc
+            rw [show (Fin.snoc φ c : Fin (s + 1) → Fin T) i.castSucc = φ i from
+                Fin.snoc_castSucc (α := fun _ => Fin T) c φ i] at hi_conj
+            -- ν i.castSucc = ψ i via hν_restrict.
+            have hν_at_i : ν i.castSucc = ψ i := by
+              have := congr_fun hν_restrict i
+              simpa [restrictTuple] using this
+            rw [← hν_at_i]
+            exact hi_conj
+        -- Apply aux at the current outer context: s = k+1, d = deficit ξ.
+        -- Conclude using aux with the rewritten `h'` form.
+        -- We want orbit-rel(ξ, ξ'). h' gives tupleEquivSimple of the snoc forms.
+        -- aux directly takes tupleEquivSimple ξ (σ.symm ∘ ξ'), gives orbit-rel.
+        -- Then conjugate by σ to get orbit-rel(ξ, ξ').
+        have h_unsnoc :
+            tupleEquivSimple B W ξ (σ.symm ∘ ξ') := by
+          rw [ha, hb]
+          exact h'
+        have h_orbit_unsnoc :=
+          aux (deficit ξ) (k + 1) ξ (σ.symm ∘ ξ') le_rfl rfl h_unsnoc
+        -- Compose: σ.symm ∘ ξ' = σ' ∘ ξ, so ξ' = σ ∘ σ' ∘ ξ.
+        -- As Equiv: (σ'.trans σ) x = σ (σ' x), so use τ = σ'.trans σ.
+        obtain ⟨σ', hσ'_aut, hσ'_conj⟩ := h_orbit_unsnoc
+        refine ⟨σ'.trans σ, ?_, fun i => ?_⟩
+        · refine ⟨fun j => ?_, fun j j' => ?_⟩
+          · -- W ((σ'.trans σ) j) = W j. (σ'.trans σ) j = σ (σ' j).
+            show W (σ (σ' j)) = W j
+            rw [hσ_aut.1 (σ' j), hσ'_aut.1 j]
+          · -- B ((σ'.trans σ) j) ((σ'.trans σ) j') = B j j'.
+            show B (σ (σ' j)) (σ (σ' j')) = B j j'
+            rw [hσ_aut.2 (σ' j) (σ' j'), hσ'_aut.2 j j']
+        · -- ξ' i = (σ'.trans σ) (ξ i) = σ (σ' (ξ i)).
+          show ξ' i = σ (σ' (ξ i))
+          have hi := hσ'_conj i
+          -- hi : (σ.symm ∘ ξ') i = σ' (ξ i)
+          have hi' : σ.symm (ξ' i) = σ' (ξ i) := hi
+          -- Apply σ to both sides:
+          have := congrArg σ hi'
+          rw [σ.apply_symm_apply] at this
+          exact this
 
 /-- **Lovász Lemma 2.5, reverse direction** (multi-equivalence ⟹ orbit),
 *twin-free hypothesis*.
