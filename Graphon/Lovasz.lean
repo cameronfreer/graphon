@@ -1292,7 +1292,19 @@ theorem multiLabeledEvalK_tupleEquiv_invariant_n_zero {T K : ℕ}
       have hfξ'y : fξ' y = ξ' yK := by show ξ' _ = ξ' yK; rfl
       rw [hfξx, hfξy, hfξ'x, hfξ'y, h_pair xK yK hxKyK]
 
-/-- **The multigraph bridge — canonical sorry.**
+/-- **The multigraph bridge — SECONDARY paper root** (general,
+non-twin-free version).
+
+**Dependency hierarchy** (post-2026-05-12 architectural decision):
+  - **PRIMARY ROOT**: `connection_matrix_rank_theorem` at L3018
+    (Lovász §3 Theorem 2.2, simple-graph form, requires twin-free).
+  - **SECONDARY**: this bridge (no twin-free hypothesis; strictly
+    stronger statement).
+
+For the twin-free version that downstream consumers actually need,
+use `multiLabeledEvalK_tupleEquiv_invariant_twinFree` (already proved
+modulo `connection_matrix_rank_theorem`). This general bridge can be
+treated as off-axis if all consumers can use the twin-free variant.
 
 Every multigraph evaluation descends through the simple-graph version
 of `tupleEquiv`. This is the Lovász §3 content (Theorem 2.2 / Lemma 2.5)
@@ -3001,7 +3013,20 @@ construction in `tupleEquivSimple_surjective_case` /
 `MatrixDetermination.lean:11002-11007`). -/
 
 /-- **Connection-matrix rank theorem** (Lovász TR-2004-82 §3,
-Theorem 2.2; equivalence-class form).
+Theorem 2.2; equivalence-class form) — **PRIMARY paper root**.
+
+**Dependency hierarchy** (post-2026-05-12 architectural decision):
+  - **PRIMARY ROOT**: this theorem (Lovász §3 Theorem 2.2,
+    simple-graph form, twin-free).
+  - **SECONDARY**: `multiLabeledEvalK_tupleEquiv_invariant` at L1315
+    (general, non-twin-free multigraph form).
+
+Closing this theorem discharges everything the downstream
+matrix-determination chain needs (which all has twin-free hypothesis):
+`tupleEquivSimple_implies_orbit`, `tupleEquivMulti_implies_orbit`,
+`multiLabeledEvalK_tupleEquiv_invariant_twinFree`. The secondary
+multigraph bridge is a strictly stronger non-twin-free statement
+that may be left as an off-axis generalization.
 
 Under twin-free `B` (rows of `B` distinct: `i ≠ j → B i ≠ B j`) and
 strictly positive `W`, if two label maps `ξ ξ' : Fin K → Fin T` have
@@ -3012,7 +3037,7 @@ equal rows in the connection matrix `N(K, B, W)` (i.e.,
 **Equivalent paper form**: `rk N(K, B, W) = orb_K(B, W)`.
 
 This is the canonical architectural sorry of the Lovász §3 track. All
-downstream consumers — `tupleEquivSimple_implies_orbit`,
+twin-free downstream consumers — `tupleEquivSimple_implies_orbit`,
 `tupleEquivMulti_implies_orbit`, `multiLabeledEvalK_tupleEquiv_invariant_twinFree`
 — route through this theorem. -/
 theorem connection_matrix_rank_theorem {T K : ℕ}
