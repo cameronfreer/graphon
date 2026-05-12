@@ -2959,6 +2959,71 @@ theorem tupleEquivSimple_ext_eq_of_surj {T k : ℕ}
       _ = B b (α j) := key
       _ = B (α j) b := hB _ _
 
+/-! ### §3.95 — Connection-matrix rank theorem (canonical architectural sorry)
+
+This subsection introduces the **connection matrix** `N(K, B, W)` over
+k-labeled (multi-)graphs and states the **rank theorem** (Lovász
+TR-2004-82 §3, Theorem 2.2). The rank theorem is the deep Lovász §3
+content underlying Lemma 2.4 / Lemma 2.5 in our framework.
+
+**Connection matrix** `N(K, B, W)` (Lovász §2, p. 4): rows indexed by
+label maps `ξ : Fin K → Fin T`, columns indexed by k-labeled (simple)
+graphs `F`. Entry `N(K, B, W)[ξ, F] := simpleEvalK F B W ξ`. Two rows
+`ξ, ξ'` are equal iff `tupleEquivSimple B W ξ ξ'` holds.
+
+In our framework we do not materialize the matrix explicitly; we instead
+encode "row equality" as `tupleEquivSimple` and "rank vs orbit count" as
+the proposition
+
+```
+tupleEquivSimple B W ξ ξ' → tupleOrbitRel B W ξ ξ'
+```
+
+under twin-free `B` and strictly positive `W`. This is exactly Lovász's
+Theorem 2.2 ("rk N(K, B, W) = orb_K(B, W)") in the equivalence-class
+form: distinct rank = distinct orbit, so row equality forces orbit
+equality.
+
+**Status**: SORRY'd at the rank theorem. All downstream content
+(`tupleEquivSimple_implies_orbit`, `tupleEquivMulti_implies_orbit`, the
+twin-free multigraph bridge corollary) routes through this single named
+sorry. The remaining sorry (general non-twin-free `n+1` multigraph
+bridge, `multiLabeledEvalK_tupleEquiv_invariant`) is independent.
+
+**Reduction to the deep paper content**: the proof structure mirrors the
+strong induction + deficit-induction in
+`tupleEquiv_implies_tupleOrbitRel` (`MatrixDetermination.lean:10873`),
+with the architectural sorry at the inner-base `T - 1 ≥ k + 1` case of
+the deficit-induction. Closing this requires either a multigraph-
+evaluation route (diagonal / self-loop extraction) or a direct fiber
+construction in `tupleEquivSimple_surjective_case` /
+`tupleEquivSimple_id_bijective` that avoids the deficit-1 IH (see
+`MatrixDetermination.lean:11002-11007`). -/
+
+/-- **Connection-matrix rank theorem** (Lovász TR-2004-82 §3,
+Theorem 2.2; equivalence-class form).
+
+Under twin-free `B` (rows of `B` distinct: `i ≠ j → B i ≠ B j`) and
+strictly positive `W`, if two label maps `ξ ξ' : Fin K → Fin T` have
+equal rows in the connection matrix `N(K, B, W)` (i.e.,
+`tupleEquivSimple B W ξ ξ'`), then they lie in the same
+`(B, W)`-automorphism orbit (`tupleOrbitRel B W ξ ξ'`).
+
+**Equivalent paper form**: `rk N(K, B, W) = orb_K(B, W)`.
+
+This is the canonical architectural sorry of the Lovász §3 track. All
+downstream consumers — `tupleEquivSimple_implies_orbit`,
+`tupleEquivMulti_implies_orbit`, `multiLabeledEvalK_tupleEquiv_invariant_twinFree`
+— route through this theorem. -/
+theorem connection_matrix_rank_theorem {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T}
+    (_h : tupleEquivSimple B W ξ ξ') :
+    tupleOrbitRel B W ξ ξ' := by
+  sorry
+
 /-- **Lovász TR-2004-82 Lemma 2.4** (simple-graph form, our framework).
 
 If `B` is twin-free (`i ≠ j → B i ≠ B j`) and `ξ ξ'` agree on every
@@ -3047,231 +3112,13 @@ theorem tupleEquivSimple_implies_orbit {T K : ℕ}
     ∃ σ : Equiv.Perm (Fin T),
       (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
       (∀ i, ξ' i = σ (ξ i)) := by
-  -- Convert the existential conclusion to `tupleOrbitRel` form.
-  suffices hOrbit : tupleOrbitRel B W ξ ξ' by
-    obtain ⟨σ, ⟨hW_eq, hB_eq⟩, hξ_eq⟩ := hOrbit
-    exact ⟨σ, hW_eq, hB_eq, hξ_eq⟩
-  -- Strong induction on K.
-  suffices strong : ∀ (m : ℕ) (ξ ξ' : Fin m → Fin T),
-      tupleEquivSimple B W ξ ξ' → tupleOrbitRel B W ξ ξ' from strong K ξ ξ' h
-  intro m
-  refine @Nat.strongRecOn
-    (fun j => ∀ (ξ ξ' : Fin j → Fin T),
-      tupleEquivSimple B W ξ ξ' → tupleOrbitRel B W ξ ξ')
-    m fun m IH_strong => ?_
-  intro ξ ξ' h
-  rcases m with _ | k
-  · -- m = 0: trivially, σ = refl (identity) works.
-    exact ⟨Equiv.refl _, ⟨fun _ => rfl, fun _ _ => rfl⟩, nofun⟩
-  · -- m = k + 1. IH supplies orbit relation at every level < k + 1.
-    have IH : ∀ {ξ' ψ' : Fin k → Fin T},
-        tupleEquivSimple B W ξ' ψ' → tupleOrbitRel B W ξ' ψ' :=
-      fun {ξ' ψ'} h' => IH_strong k (Nat.lt_succ_self k) ξ' ψ' h'
-    -- **Step 1**: restrict to level k, apply IH.
-    obtain ⟨σ, hσ_aut, hσ_conj⟩ :=
-      IH (tupleEquivSimple_restrict B W hB h)
-    -- **Step 2**: σ⁻¹ is also a weighted automorphism.
-    have hσs : IsWeightedAutomorphism B W σ.symm := by
-      refine ⟨fun i => ?_, fun i j => ?_⟩
-      · have := (hσ_aut.1 (σ.symm i)).symm
-        rwa [σ.apply_symm_apply] at this
-      · have := (hσ_aut.2 (σ.symm i) (σ.symm j)).symm
-        rwa [σ.apply_symm_apply, σ.apply_symm_apply] at this
-    -- **Step 3**: normalize ξ' by σ⁻¹.
-    have h' : tupleEquivSimple B W ξ (σ.symm ∘ ξ') := by
-      -- ξ ≃ ξ' and ξ' = σ ∘ (σ⁻¹ ∘ ξ'), so ξ ≃ σ⁻¹ ∘ ξ' via orbit invariance.
-      intro n F hdec
-      rw [h n F]
-      -- Now goal: simple-eval at ξ' = simple-eval at σ⁻¹ ∘ ξ'.
-      -- σ⁻¹ ∘ ξ' and ξ' are orbit-related via σ (σ takes σ⁻¹ ∘ ξ' to ξ').
-      have hrel : tupleOrbitRel B W (σ.symm ∘ ξ') ξ' :=
-        ⟨σ, hσ_aut, fun i => by
-          simp only [Function.comp_apply, σ.apply_symm_apply]⟩
-      exact (tupleEquivSimple_of_tupleOrbitRel B W hrel n F).symm
-    -- **Step 4**: the first k coordinates of ξ and σ⁻¹ ∘ ξ' now agree.
-    have hbase : restrictTuple (σ.symm ∘ ξ') = restrictTuple ξ := by
-      funext i
-      simp only [restrictTuple, Function.comp]
-      have hi := hσ_conj i
-      simp only [restrictTuple] at hi
-      rw [hi, σ.symm_apply_apply]
-    -- **Step 5**: express both as Fin.snoc of α := restrictTuple ξ.
-    set α := restrictTuple ξ with hα_def
-    have ha : ξ = Fin.snoc α (ξ (Fin.last k)) := by
-      ext i
-      by_cases hi : (i : ℕ) < k
-      · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl,
-            Fin.snoc_castSucc]
-        rfl
-      · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega),
-            Fin.snoc_last]
-    have hb : σ.symm ∘ ξ' = Fin.snoc α ((σ.symm ∘ ξ') (Fin.last k)) := by
-      ext i
-      by_cases hi : (i : ℕ) < k
-      · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl,
-            Fin.snoc_castSucc, ← hbase]
-        rfl
-      · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega),
-            Fin.snoc_last]
-    rw [ha, hb] at h'
-    -- **Step 6**: case split on surjectivity of α.
-    by_cases hα_surj : Function.Surjective α
-    · -- Surjective base: ext-eq-of-surj forces the last coordinates to match.
-      have hab :=
-        tupleEquivSimple_ext_eq_of_surj B W hB htwin hα_surj h'
-      refine ⟨σ, hσ_aut, fun i => ?_⟩
-      have : (σ.symm ∘ ξ') i = ξ i :=
-        congr_fun (hb.trans (hab ▸ ha.symm)) i
-      rwa [Function.comp_apply, Equiv.symm_apply_eq] at this
-    · -- α non-surjective.
-      by_cases hξ_surj : Function.Surjective ξ
-      · -- ξ surjective: apply Claim 4.4 (T ≤ k+1, so T-1 < k+1).
-        have hT1_lt : T - 1 < k + 1 := by
-          have := Fintype.card_le_of_surjective ξ hξ_surj
-          simp only [Fintype.card_fin] at this
-          omega
-        have IH_T1 : ∀ {ξ' ψ' : Fin (T - 1) → Fin T},
-            tupleEquivSimple B W ξ' ψ' → tupleOrbitRel B W ξ' ψ' :=
-          fun {ξ' ψ'} h' => IH_strong (T - 1) hT1_lt ξ' ψ' h'
-        exact tupleEquivSimple_surjective_case B W hW hB htwin IH_T1 ξ ξ' hξ_surj h
-      · -- **Neither α nor ξ surjective**: use deficit-induction
-        -- (Lovász's "extend-and-recurse" plan, Claim 4.2). The deficit of
-        -- `ξ` is positive (since ξ non-surjective). Extend `ξ` by an element
-        -- `c ∉ range ξ` via Claim 4.2, obtaining `ν : Fin (k+2) → Fin T`
-        -- with `restrictTuple ν = σ⁻¹∘ξ'` and `tupleEquivSimple (Fin.snoc ξ c) ν`.
-        -- The extended tuple has strictly smaller deficit. Apply the
-        -- inner deficit-induction to extract σ', then restrict.
-        --
-        -- The inner deficit-induction handles arbitrary sizes ≥ k+1, and its
-        -- surjective base case (deficit 0) invokes `surjective_case` with
-        -- `IH_orbit` at size T-1, sourced from the outer `IH_strong` (the
-        -- outer is at level `k+1` and T ≤ inner-base-size, with surjective_case
-        -- needing IH at T-1 < inner-base-size; the outer's range covers this
-        -- when T ≤ k+1, and we use a further reduction when T > k+1).
-        --
-        -- The proof is wrapped in an auxiliary deficit-induction lemma.
-        have aux : ∀ (d : ℕ),
-            ∀ (s : ℕ) (φ ψ : Fin s → Fin T),
-              s ≥ k + 1 →
-              deficit φ = d →
-              tupleEquivSimple B W φ ψ →
-              tupleOrbitRel B W φ ψ := by
-          intro d
-          induction d using Nat.strong_induction_on with
-          | _ d IH_d => ?_
-          intro s φ ψ hs_ge hdef hphi
-          by_cases hφ_surj : Function.Surjective φ
-          · -- Inner-base: φ surjective ⟹ T ≤ s. Apply surjective_case.
-            have hT_le_s : T ≤ s := by
-              have := Fintype.card_le_of_surjective φ hφ_surj
-              simpa [Fintype.card_fin] using this
-            -- surjective_case needs IH_orbit at size T-1 in codomain T.
-            -- Source: outer IH_strong, which gives IH at sizes < k+1.
-            -- When T-1 < k+1, this directly applies. When T-1 ≥ k+1,
-            -- we recurse via this same aux at a smaller deficit... but
-            -- at size T-1, the deficit can be ≥ 1 > 0 = current.
-            -- Strategy: split on T vs k+1.
-            by_cases hT_outer : T - 1 < k + 1
-            · have IH_T1 : ∀ {φ' ψ' : Fin (T - 1) → Fin T},
-                  tupleEquivSimple B W φ' ψ' → tupleOrbitRel B W φ' ψ' :=
-                fun {φ' ψ'} h' => IH_strong (T - 1) hT_outer φ' ψ' h'
-              exact tupleEquivSimple_surjective_case B W hW hB htwin
-                IH_T1 φ ψ hφ_surj hphi
-            · -- **Residual sorry**: T - 1 ≥ k + 1 (i.e., T ≥ k + 2).
-              -- At this inner-base of the deficit-induction, `φ : Fin s → Fin T`
-              -- is surjective (deficit 0) with `s ≥ T ≥ k + 2`. The
-              -- `tupleEquivSimple_surjective_case` requires `IH_orbit` at size
-              -- `T - 1` in codomain `T`. The outer `IH_strong` only supplies
-              -- sizes `< k + 1`, which doesn't reach `T - 1 ≥ k + 1`. The
-              -- inner deficit-IH only goes to strictly smaller deficit; at
-              -- size `T - 1` the deficit is `≥ 1 > 0 = current`, so this
-              -- IH is at LARGER deficit, not smaller.
-              --
-              -- As noted in `MatrixDetermination.lean:11002-11007`, no
-              -- linear measure on `(deficit, size)` allows both directions
-              -- (extend decreases deficit/increases size; restrict in
-              -- surjective_case decreases size/increases deficit). Closing
-              -- this case requires either: (i) restructuring
-              -- `tupleEquivSimple_surjective_case` / `tupleEquivSimple_id_bijective`
-              -- to avoid the deficit-1 IH (use extension from deficit-0 size-T
-              -- instances), or (ii) a different proof strategy at this
-              -- specific point.
-              --
-              -- This sorry is STRICTLY MORE SPECIFIC than the original
-              -- architectural sorry at the same site: the case `T ≤ k + 1`
-              -- is now fully closed via the deficit-induction.
-              sorry
-          · -- Inner-step: φ non-surjective ⟹ deficit > 0. Extend by Claim 4.2.
-            have hdef_pos : 0 < deficit φ := by
-              rw [← deficit_eq_zero_iff_surjective] at hφ_surj
-              omega
-            obtain ⟨c, hc⟩ := exists_not_mem_rangeFinset φ hφ_surj
-            -- restrict the symmetry of `hphi` first: actually we want to
-            -- apply Claim 4.2 starting from `φ' ψ' : Fin (s-1) → Fin T`.
-            -- But Claim 4.2 takes the SMALLER tuple as input. So we need to
-            -- restrict φ to size s-1 first... actually no, the user's plan
-            -- says we extend φ at the CURRENT size.
-            --
-            -- Look at Claim 4.2 signature again:
-            --   ξ ξ' : Fin k → Fin T  ⟹  ν : Fin (k+1) → Fin T,
-            --     restrictTuple ν = ξ', tupleEquivSimple (Fin.snoc ξ c) ν
-            -- where μ = Fin.snoc ξ c (size k+1). Here ν has restrictTuple ν = ξ'.
-            -- So Claim 4.2 starts at size s and produces extensions at size s+1.
-            obtain ⟨ν, hν_restrict, hν_equiv⟩ :=
-              tupleEquivSimple_extend B W hW hB hphi (Fin.snoc φ c)
-                (show restrictTuple (Fin.snoc φ c : Fin (s + 1) → Fin T) = φ by
-                  funext i
-                  show (Fin.snoc φ c : Fin (s + 1) → Fin T) i.castSucc = φ i
-                  exact Fin.snoc_castSucc (α := fun _ => Fin T) c φ i)
-            -- Now apply inner deficit-IH at smaller deficit.
-            have hd_lt : deficit (Fin.snoc φ c : Fin (s + 1) → Fin T) < d := by
-              rw [← hdef]
-              exact deficit_lt_of_not_mem φ c hc
-            have hs_succ_ge : s + 1 ≥ k + 1 := by omega
-            obtain ⟨σ', hσ'_aut, hσ'_conj⟩ :=
-              IH_d _ hd_lt (s + 1) (Fin.snoc φ c) ν hs_succ_ge rfl hν_equiv
-            -- Restrict the conclusion to size s via Fin.castSucc.
-            refine ⟨σ', hσ'_aut, fun i => ?_⟩
-            have hi_conj := hσ'_conj i.castSucc
-            rw [show (Fin.snoc φ c : Fin (s + 1) → Fin T) i.castSucc = φ i from
-                Fin.snoc_castSucc (α := fun _ => Fin T) c φ i] at hi_conj
-            -- ν i.castSucc = ψ i via hν_restrict.
-            have hν_at_i : ν i.castSucc = ψ i := by
-              have := congr_fun hν_restrict i
-              simpa [restrictTuple] using this
-            rw [← hν_at_i]
-            exact hi_conj
-        -- Apply aux at the current outer context: s = k+1, d = deficit ξ.
-        -- Conclude using aux with the rewritten `h'` form.
-        -- We want orbit-rel(ξ, ξ'). h' gives tupleEquivSimple of the snoc forms.
-        -- aux directly takes tupleEquivSimple ξ (σ.symm ∘ ξ'), gives orbit-rel.
-        -- Then conjugate by σ to get orbit-rel(ξ, ξ').
-        have h_unsnoc :
-            tupleEquivSimple B W ξ (σ.symm ∘ ξ') := by
-          rw [ha, hb]
-          exact h'
-        have h_orbit_unsnoc :=
-          aux (deficit ξ) (k + 1) ξ (σ.symm ∘ ξ') le_rfl rfl h_unsnoc
-        -- Compose: σ.symm ∘ ξ' = σ' ∘ ξ, so ξ' = σ ∘ σ' ∘ ξ.
-        -- As Equiv: (σ'.trans σ) x = σ (σ' x), so use τ = σ'.trans σ.
-        obtain ⟨σ', hσ'_aut, hσ'_conj⟩ := h_orbit_unsnoc
-        refine ⟨σ'.trans σ, ?_, fun i => ?_⟩
-        · refine ⟨fun j => ?_, fun j j' => ?_⟩
-          · -- W ((σ'.trans σ) j) = W j. (σ'.trans σ) j = σ (σ' j).
-            show W (σ (σ' j)) = W j
-            rw [hσ_aut.1 (σ' j), hσ'_aut.1 j]
-          · -- B ((σ'.trans σ) j) ((σ'.trans σ) j') = B j j'.
-            show B (σ (σ' j)) (σ (σ' j')) = B j j'
-            rw [hσ_aut.2 (σ' j) (σ' j'), hσ'_aut.2 j j']
-        · -- ξ' i = (σ'.trans σ) (ξ i) = σ (σ' (ξ i)).
-          show ξ' i = σ (σ' (ξ i))
-          have hi := hσ'_conj i
-          -- hi : (σ.symm ∘ ξ') i = σ' (ξ i)
-          have hi' : σ.symm (ξ' i) = σ' (ξ i) := hi
-          -- Apply σ to both sides:
-          have := congrArg σ hi'
-          rw [σ.apply_symm_apply] at this
-          exact this
+  -- Route through the canonical `connection_matrix_rank_theorem`
+  -- (Lovász §3 Theorem 2.2). The rank theorem produces the
+  -- `tupleOrbitRel` form directly; we unpack it to the explicit
+  -- existential conclusion.
+  obtain ⟨σ, ⟨hW_eq, hB_eq⟩, hξ_eq⟩ :=
+    connection_matrix_rank_theorem B hB W hW htwin h
+  exact ⟨σ, hW_eq, hB_eq, hξ_eq⟩
 
 /-- **Lovász Lemma 2.5, reverse direction** (multi-equivalence ⟹ orbit),
 *twin-free hypothesis*.
