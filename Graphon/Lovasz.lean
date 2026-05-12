@@ -2983,9 +2983,19 @@ label maps `ξ : Fin K → Fin T`, columns indexed by k-labeled (simple)
 graphs `F`. Entry `N(K, B, W)[ξ, F] := simpleEvalK F B W ξ`. Two rows
 `ξ, ξ'` are equal iff `tupleEquivSimple B W ξ ξ'` holds.
 
-In our framework we do not materialize the matrix explicitly; we instead
-encode "row equality" as `tupleEquivSimple` and "rank vs orbit count" as
-the proposition
+In our framework we do not materialize the matrix explicitly; we
+instead **encode "row equality" as `tupleEquivSimple`** directly. By
+the definition of `tupleEquivSimple` (∀ n F, `simpleEvalAt` ξ =
+`simpleEvalAt` ξ'), this is precisely row-extensional equality —
+the row of `ξ` in `N(K, B, W)` IS the function
+`(n, F) ↦ simpleEvalAt B W F ξ`.
+
+The forward direction (orbit ⟹ row equality) is proved as
+`tupleEquivSimple_of_tupleOrbitRel` (L1619, FULLY PROVED): if two
+tuples are in the same orbit, their rows agree.
+
+The reverse direction (row equality ⟹ orbit, under twin-free + W > 0)
+is the rank theorem itself, stated as the proposition
 
 ```
 tupleEquivSimple B W ξ ξ' → tupleOrbitRel B W ξ ξ'
