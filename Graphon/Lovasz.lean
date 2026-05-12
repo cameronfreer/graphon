@@ -3022,42 +3022,79 @@ construction in `tupleEquivSimple_surjective_case` /
 `tupleEquivSimple_id_bijective` that avoids the deficit-1 IH (see
 `MatrixDetermination.lean:11002-11007`). -/
 
-/-- **Connection-matrix rank theorem** (Lovász TR-2004-82 §3,
+/-! **Connection-matrix rank theorem** (Lovász TR-2004-82 §3,
 Theorem 2.2; equivalence-class form) — **PRIMARY paper root**.
 
 **Dependency hierarchy** (post-2026-05-12 architectural decision):
-  - **PRIMARY ROOT**: this theorem (Lovász §3 Theorem 2.2,
+  - **PRIMARY ROOT**: the rank theorem (Lovász §3 Theorem 2.2,
     simple-graph form, twin-free).
   - **SECONDARY**: `multiLabeledEvalK_tupleEquiv_invariant` at L1315
     (general, non-twin-free multigraph form).
 
-Closing this theorem discharges everything the downstream
+Closing the rank theorem discharges everything the downstream
 matrix-determination chain needs (which all has twin-free hypothesis):
 `tupleEquivSimple_implies_orbit`, `tupleEquivMulti_implies_orbit`,
 `multiLabeledEvalK_tupleEquiv_invariant_twinFree`. The secondary
 multigraph bridge is a strictly stronger non-twin-free statement
 that may be left as an off-axis generalization.
 
-Under twin-free `B` (rows of `B` distinct: `i ≠ j → B i ≠ B j`) and
-strictly positive `W`, if two label maps `ξ ξ' : Fin K → Fin T` have
-equal rows in the connection matrix `N(K, B, W)` (i.e.,
-`tupleEquivSimple B W ξ ξ'`), then they lie in the same
-`(B, W)`-automorphism orbit (`tupleOrbitRel B W ξ ξ'`).
+Under twin-free `B` and strictly positive `W`, the rank theorem
+states `tupleEquivSimple ⟹ tupleOrbitRel`. The **separation**
+contrapositive (`orbit_separation_by_simple_graph` below) is the
+canonical primary sorry; the rank theorem is a short contradiction
+proof from it. -/
 
-**Equivalent paper form**: `rk N(K, B, W) = orb_K(B, W)`.
+/-- **Orbit separation by simple graph** (Lovász §3 — separation form
+of Theorem 2.2). If two tuples are in DIFFERENT `(B, W)`-automorphism
+orbits, some simple labeled graph separates their evaluations.
 
-This is the canonical architectural sorry of the Lovász §3 track. All
-twin-free downstream consumers — `tupleEquivSimple_implies_orbit`,
-`tupleEquivMulti_implies_orbit`, `multiLabeledEvalK_tupleEquiv_invariant_twinFree`
-— route through this theorem. -/
-theorem connection_matrix_rank_theorem {T K : ℕ}
+This is the CONTRAPOSITIVE form of `connection_matrix_rank_theorem`:
+- Rank theorem: row equality ⟹ orbit equality.
+- Separation: orbit inequality ⟹ row inequality (some column witnesses).
+
+**Status**: this is now THE canonical primary sorry. Per the
+post-2026-05-12 reformulation, the rank theorem is proved from this
+separation theorem by a short contradiction. Future work should
+attack THIS separation statement — it's often easier to prove by
+exhibiting a specific separating graph than to argue rank-equality
+directly.
+
+**Suggested proof approach** (Lovász §3 + §4):
+  - Induction on orbit-class structure / connection matrix rank.
+  - For each non-trivial orbit-class pair, identify a separating
+    simple graph via algebra-of-graphs / idempotent decomposition.
+
+Hypotheses: `htwin`, `hW > 0`, `hB` symmetric, ξ ξ' NOT orbit-related.
+Conclusion: ∃ a simple graph whose evaluation differs at ξ and ξ'. -/
+theorem orbit_separation_by_simple_graph {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
     (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T}
-    (_h : tupleEquivSimple B W ξ ξ') :
-    tupleOrbitRel B W ξ ξ' := by
+    (_h : ¬ tupleOrbitRel B W ξ ξ') :
+    ∃ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (_ : DecidableRel F.Adj),
+      simpleEvalAt B W F ξ ≠ simpleEvalAt B W F ξ' := by
   sorry
+
+/-- **Connection-matrix rank theorem** (Lovász TR-2004-82 §3 Theorem 2.2):
+under twin-free `B` and `W > 0`, `tupleEquivSimple ⟹ tupleOrbitRel`.
+
+Proved as a contradiction proof from `orbit_separation_by_simple_graph`
+(the contrapositive form, where the canonical sorry now lives). -/
+theorem connection_matrix_rank_theorem {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T}
+    (h : tupleEquivSimple B W ξ ξ') :
+    tupleOrbitRel B W ξ ξ' := by
+  -- Contradiction via the separation theorem.
+  by_contra h_no_orbit
+  obtain ⟨n, F, _hF, h_sep⟩ :=
+    orbit_separation_by_simple_graph B hB W hW htwin h_no_orbit
+  -- `h : tupleEquivSimple B W ξ ξ'` says all simple-graph evaluations
+  -- agree; `h_sep` says one of them differs. Contradiction.
+  exact h_sep (h n F)
 
 /-- **Lovász TR-2004-82 Lemma 2.4** (simple-graph form, our framework).
 
