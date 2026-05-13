@@ -3247,27 +3247,47 @@ theorem orbitIndicator_mem_simpleGraphSpan {T K : ℕ}
           p.1 * @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 η)).sum := by
   sorry
 
-/-- **Orbit separation by simple graph** (Lovász §3 — separation form
-of Theorem 2.2). If two tuples are in DIFFERENT `(B, W)`-automorphism
-orbits, some simple labeled graph separates their evaluations.
+/-! ### Orbit separation: edge-or-degree → simple-graph form
 
-This is the CONTRAPOSITIVE form of `connection_matrix_rank_theorem`:
-- Rank theorem: row equality ⟹ orbit equality.
-- Separation: orbit inequality ⟹ row inequality (some column witnesses).
+Post-2026-05-13 separator_search empirical analysis: across 21K non-
+orbit pairs at small (T, K), 100% are separated by a SINGLE edge —
+either label-label or label-to-unlabeled. This motivates an
+intermediate theorem `orbit_separation_by_edge_or_degree` giving an
+explicit edge OR degree-profile witness, from which the simple graph
+is a single-edge graph (n=0) or a single-edge "rooted star" (n=1).
 
-**Status**: proved from `orbitIndicator_mem_simpleGraphSpan` (the new
-canonical primary sorry) via a short contradiction:
+Falsification: see `scripts/falsify_edge_degree_conjecture.py`. 64K
+pairs tested, zero counterexamples. -/
 
-Given `¬ tupleOrbitRel B W ξ ξ'`, apply
-`orbitIndicator_mem_simpleGraphSpan` to `ξ` to obtain coefficients `cs`.
-The indicator evaluates to `1` at `ξ` (reflexivity, `orbitIndicator_self`)
-and `0` at `ξ'` (`orbitIndicator_of_not_orbit`). Since the two
-linear-combination evaluations differ (`1 ≠ 0`), at least one summand
-must differ between `ξ` and `ξ'`, supplying the separating simple
-graph.
+/-- **Orbit separation by edge or degree** (Lovász §3 — empirically-
+validated form). The NEW canonical primary sorry, replacing the
+abstract `orbit_separation_by_simple_graph` with a concrete
+edge-OR-row-sum witness.
 
-Hypotheses: `htwin`, `hW > 0`, `hB` symmetric, ξ ξ' NOT orbit-related.
-Conclusion: ∃ a simple graph whose evaluation differs at ξ and ξ'. -/
+Statement: if ξ ξ' are in different orbits (twin-free + W > 0), then
+either:
+- Some label-label B-entry differs at distinct labels.
+- Or some W-weighted row sum differs.
+
+**Empirical evidence** (`scripts/falsify_edge_degree_conjecture.py`):
+PASS across 64,638 random pairs at T ≤ 5, K ≤ 3 (including tuples
+with repeated coordinates). 876 profile-matching pairs, all in same
+orbit. Zero counterexamples.
+
+**Status**: NEW canonical primary sorry. Closing this discharges
+`orbit_separation_by_simple_graph` (via the bounded single-edge graph
+construction) and the entire twin-free chain. -/
+theorem orbit_separation_by_edge_or_degree {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T}
+    (_h : ¬ tupleOrbitRel B W ξ ξ') :
+    (∃ a b : Fin K, a ≠ b ∧ B (ξ a) (ξ b) ≠ B (ξ' a) (ξ' b)) ∨
+    (∃ a : Fin K,
+      (∑ t : Fin T, W t * B (ξ a) t) ≠ (∑ t : Fin T, W t * B (ξ' a) t)) := by
+  sorry
+
 theorem orbit_separation_by_simple_graph {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
@@ -3276,6 +3296,9 @@ theorem orbit_separation_by_simple_graph {T K : ℕ}
     (_h : ¬ tupleOrbitRel B W ξ ξ') :
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (_ : DecidableRel F.Adj),
       simpleEvalAt B W F ξ ≠ simpleEvalAt B W F ξ' := by
+  -- TODO: apply orbit_separation_by_edge_or_degree, then construct
+  -- the single-edge simple graph for each branch. Bounded Sym2
+  -- bookkeeping (~80-100 lines).
   sorry
 
 /-- **Orbit separation, identity case** — narrowest case of
