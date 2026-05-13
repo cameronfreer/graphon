@@ -3185,19 +3185,23 @@ theorem orbitIndicator_of_not_orbit {T K : ℕ}
 
 /-- **Orbit indicators lie in the ℝ-span of simple-graph evaluations**
 (Lovász §3 — fullness of the simple-graph evaluation algebra under
-twin-free `B`).
+twin-free `B`) — **SECONDARY / OFF-AXIS** (post-2026-05-13 reanalysis).
 
 For any source tuple `ξ : Fin K → Fin T`, the orbit indicator
 `orbitIndicator B W ξ` can be written as an ℝ-linear combination of
 simple-graph evaluations `simpleEvalAt B W F : (Fin K → Fin T) → ℝ`
 (ranging over simple graphs `F` on `Fin (n + K)` for various `n`).
 
-**This is the new canonical primary sorry**, replacing the previous
-`orbit_separation_by_simple_graph` direct statement. It is a cleaner
-ℝ-linear-algebra formulation of the same content: rather than asserting
-*some* separating graph exists for *each* non-orbit-pair, this asserts
-the existence of a single coefficient list witnessing the indicator
-function (a Lagrange-interpolation-style construction).
+**Status reverted to OFF-AXIS**: the natural Lagrange-interpolation
+route produces PRODUCTS of `simpleEvalAt` (= multigraph evals via
+glue), not linear combinations. Converting back to a linear
+combination of simple-graph evals would itself need Lemma 2.5
+content — circular.
+
+The PRIMARY ROOT is now `orbit_separation_by_simple_graph` (the
+contrapositive form, which doesn't require product expansion). This
+span theorem is a stronger CONSEQUENCE that may follow from
+separation + the multigraph bridge.
 
 The representation uses pairs `(c, ⟨n, ⟨F, dec⟩⟩)` where
 `c : ℝ` is a coefficient, `n : ℕ` is an unlabeled-vertex count,
@@ -3265,51 +3269,14 @@ graph.
 Hypotheses: `htwin`, `hW > 0`, `hB` symmetric, ξ ξ' NOT orbit-related.
 Conclusion: ∃ a simple graph whose evaluation differs at ξ and ξ'. -/
 theorem orbit_separation_by_simple_graph {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T}
-    (h : ¬ tupleOrbitRel B W ξ ξ') :
+    (_h : ¬ tupleOrbitRel B W ξ ξ') :
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (_ : DecidableRel F.Adj),
       simpleEvalAt B W F ξ ≠ simpleEvalAt B W F ξ' := by
-  -- Step 1: obtain the indicator coefficient list for `ξ`.
-  obtain ⟨cs, hcs⟩ := orbitIndicator_mem_simpleGraphSpan B hB W hW htwin ξ
-  -- Step 2: evaluate at ξ (gives 1) and at ξ' (gives 0).
-  have h_at_ξ : orbitIndicator B W ξ ξ = 1 := orbitIndicator_self B W ξ
-  have h_at_ξ' : orbitIndicator B W ξ ξ' = 0 := orbitIndicator_of_not_orbit B W h
-  -- Step 3: the two list-sums must differ since 1 ≠ 0.
-  have h_sums_ne :
-      (cs.map (fun p => p.1 *
-        @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 ξ)).sum ≠
-      (cs.map (fun p => p.1 *
-        @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 ξ')).sum := by
-    have e_ξ : orbitIndicator B W ξ ξ =
-        (cs.map (fun p => p.1 *
-          @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 ξ)).sum := by
-      rw [hcs]
-    have e_ξ' : orbitIndicator B W ξ ξ' =
-        (cs.map (fun p => p.1 *
-          @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 ξ')).sum := by
-      rw [hcs]
-    rw [← e_ξ, ← e_ξ', h_at_ξ, h_at_ξ']
-    exact one_ne_zero
-  -- Step 4: from sum inequality, extract a list element with differing
-  -- simpleEvalAt values at ξ vs ξ'.
-  by_contra h_no_sep
-  push_neg at h_no_sep
-  -- h_no_sep : ∀ n F dec, simpleEvalAt B W F ξ = simpleEvalAt B W F ξ'
-  apply h_sums_ne
-  -- Show the two `List.map`-sums are equal by showing element-wise equality.
-  have h_map_eq :
-      (cs.map (fun p => p.1 *
-        @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 ξ)) =
-      (cs.map (fun p => p.1 *
-        @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 ξ')) := by
-    refine List.map_congr_left ?_
-    intro p _
-    have hp := h_no_sep p.2.1 p.2.2.1 p.2.2.2
-    rw [hp]
-  rw [h_map_eq]
+  sorry
 
 /-- **Orbit separation, identity case** — narrowest case of
 `orbit_separation_by_simple_graph` where `K = T` and the source tuple is
