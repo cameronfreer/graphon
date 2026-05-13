@@ -3076,6 +3076,52 @@ theorem orbit_separation_by_simple_graph {T K : ℕ}
       simpleEvalAt B W F ξ ≠ simpleEvalAt B W F ξ' := by
   sorry
 
+/-- **Orbit separation, identity case** — narrowest case of
+`orbit_separation_by_simple_graph` where `K = T` and the source tuple is
+the identity.
+
+If `ψ : Fin T → Fin T` is NOT orbit-related to the identity tuple (under
+twin-free `B` and `W > 0`), some simple labeled graph separates the
+evaluations of `id` and `ψ`.
+
+**Status**: proved as a thin wrapper around the general
+`orbit_separation_by_simple_graph`. The narrowed case is exposed as a
+named entry point for downstream consumers that only need separation
+against the identity tuple (e.g. the `id`-bijectivity branch of
+`tupleEquivSimple_id_bijective`).
+
+**Architectural note** (Lovász §3, post-2026-05-12 analysis):
+
+The "natural" reduction strategy — case-split `ψ` into non-bijective vs
+bijective — does NOT yield a shorter proof of this narrowed case.
+
+*Case A* (`ψ` not bijective): contrapositive of
+`tupleEquivSimple_id_bijective` would deduce `¬ tupleEquivSimple B W id ψ`
+and hence supply a separating `F`, BUT `tupleEquivSimple_id_bijective`
+itself depends on `IH_orbit : ∀ ξ' ψ', tupleEquivSimple B W ξ' ψ' →
+tupleOrbitRel B W ξ' ψ'` at `Fin (T - 1)`. That IH is exactly the rank
+theorem at one smaller size, which is unavailable here without circular
+reasoning.
+
+*Case B* (`ψ` bijective): `tupleEquivSimple_bijective_case` applied
+contrapositively reduces to a hypothesis-only contradiction; but the
+forward direction also takes an `IH_orbit` parameter.
+
+In short, Case A and Case B are both **non-trivial** at the narrowest
+case, because the `IH_orbit` they require is itself the rank theorem at
+size `T - 1`. So `orbit_separation_id` is no easier than the general
+statement at its base. We therefore route through the canonical
+`orbit_separation_by_simple_graph` directly. -/
+theorem orbit_separation_id {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ψ : Fin T → Fin T}
+    (h_no_orbit : ¬ tupleOrbitRel B W (id : Fin T → Fin T) ψ) :
+    ∃ (n : ℕ) (F : SimpleGraph (Fin (n + T))) (_ : DecidableRel F.Adj),
+      simpleEvalAt B W F (id : Fin T → Fin T) ≠ simpleEvalAt B W F ψ :=
+  orbit_separation_by_simple_graph B hB W hW htwin h_no_orbit
+
 /-- **Connection-matrix rank theorem** (Lovász TR-2004-82 §3 Theorem 2.2):
 under twin-free `B` and `W > 0`, `tupleEquivSimple ⟹ tupleOrbitRel`.
 
