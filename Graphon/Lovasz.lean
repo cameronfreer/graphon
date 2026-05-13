@@ -3212,7 +3212,25 @@ under twin-free `B` is **dense** in the space of orbit-invariant
 functions; the orbit indicators form a basis of this latter space;
 hence each indicator is a finite ℝ-linear combination. This is the
 multigraph-algebra fullness theorem of Lovász §3, restricted to
-simple graphs under the twin-free hypothesis. -/
+simple graphs under the twin-free hypothesis.
+
+**Natural Lagrange-interpolation route** (per post-2026-05-13 user
+analysis): for each orbit class O' ≠ orbit(ξ), pick a separating
+simple graph F_{O'} (its existence is `orbit_separation_by_simple_graph`,
+PROVED from this theorem — a circular dependency). The indicator is
+the product `∏_{O' ≠ orbit(ξ)} (simpleEvalAt F_{O'} - w_{O'}) /
+(v_{O'} - w_{O'})` over orbit classes.
+
+**Obstacle** (multigraph-vs-simple-graph product): expanding the
+product yields PRODUCTS of `simpleEvalAt`s, which via the
+glue-multigraph identity are MULTIGRAPH evaluations (since disjoint
+unions of simple graphs at shared labels can produce label-label
+multi-edges). Converting these multigraph evals back to simple-graph
+linear combinations is itself the Lemma 2.5 content. The
+contrapositive `orbit_separation_by_simple_graph` does NOT have this
+issue (it just exhibits a single separating graph) — so the
+"separation" form may be the actually attackable formulation, with
+the span form derived from it via a careful product-expansion route. -/
 theorem orbitIndicator_mem_simpleGraphSpan {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
