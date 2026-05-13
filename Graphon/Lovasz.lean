@@ -3044,6 +3044,187 @@ contrapositive (`orbit_separation_by_simple_graph` below) is the
 canonical primary sorry; the rank theorem is a short contradiction
 proof from it. -/
 
+/-! ### Lovász §3 — Idempotent decomposition: orbit indicators
+
+This section introduces the **orbit indicator** for `(B, W)`-automorphism
+orbits of `Fin K → Fin T`, plus the named architectural lemma asserting
+that orbit indicators lie in the ℝ-span of simple-graph evaluations
+(Lovász §3 multigraph-algebra fullness, restricted to simple graphs
+under twin-free `B`).
+
+The canonical primary sorry of the Lovász chain is *migrated* from
+`orbit_separation_by_simple_graph` to `orbitIndicator_mem_simpleGraphSpan`
+— a cleaner ℝ-linear-algebra statement that captures the same content. -/
+
+/-- **`tupleOrbitRel` is reflexive.**
+
+Witnessed by the identity automorphism. -/
+theorem tupleOrbitRel_refl {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ : Fin K → Fin T) :
+    tupleOrbitRel B W ξ ξ :=
+  ⟨Equiv.refl _, ⟨fun _ => rfl, fun _ _ => rfl⟩, fun _ => rfl⟩
+
+/-- **`tupleOrbitRel` is symmetric.**
+
+If `σ` realizes `ξ' = σ ∘ ξ`, then `σ.symm` realizes `ξ = σ.symm ∘ ξ'`. -/
+theorem tupleOrbitRel_symm {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    {ξ ξ' : Fin K → Fin T} (h : tupleOrbitRel B W ξ ξ') :
+    tupleOrbitRel B W ξ' ξ := by
+  obtain ⟨σ, ⟨hW_aut, hB_aut⟩, hσ⟩ := h
+  refine ⟨σ.symm, ⟨?_, ?_⟩, ?_⟩
+  · -- W (σ.symm i) = W i
+    intro i
+    have := hW_aut (σ.symm i)
+    -- W (σ (σ.symm i)) = W (σ.symm i), and σ (σ.symm i) = i
+    rw [σ.apply_symm_apply] at this
+    exact this.symm
+  · -- B (σ.symm i) (σ.symm j) = B i j
+    intro i j
+    have := hB_aut (σ.symm i) (σ.symm j)
+    rw [σ.apply_symm_apply, σ.apply_symm_apply] at this
+    exact this.symm
+  · -- ξ i = σ.symm (ξ' i)
+    intro i
+    have := hσ i
+    rw [this, σ.symm_apply_apply]
+
+/-- **`tupleOrbitRel` is transitive.**
+
+If `σ₁` realizes `ξ' = σ₁ ∘ ξ` and `σ₂` realizes `ξ'' = σ₂ ∘ ξ'`, then
+`σ₂ * σ₁` realizes `ξ'' = (σ₂ * σ₁) ∘ ξ`. -/
+theorem tupleOrbitRel_trans {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    {ξ ξ' ξ'' : Fin K → Fin T}
+    (h₁ : tupleOrbitRel B W ξ ξ') (h₂ : tupleOrbitRel B W ξ' ξ'') :
+    tupleOrbitRel B W ξ ξ'' := by
+  obtain ⟨σ₁, ⟨hW₁, hB₁⟩, hσ₁⟩ := h₁
+  obtain ⟨σ₂, ⟨hW₂, hB₂⟩, hσ₂⟩ := h₂
+  refine ⟨σ₁.trans σ₂, ⟨?_, ?_⟩, ?_⟩
+  · intro i
+    show W (σ₂ (σ₁ i)) = W i
+    rw [hW₂ (σ₁ i), hW₁ i]
+  · intro i j
+    show B (σ₂ (σ₁ i)) (σ₂ (σ₁ j)) = B i j
+    rw [hB₂ (σ₁ i) (σ₁ j), hB₁ i j]
+  · intro i
+    show ξ'' i = σ₂ (σ₁ (ξ i))
+    rw [hσ₂ i, hσ₁ i]
+
+/-- **`tupleOrbitRel` is an equivalence relation.** -/
+theorem tupleOrbitRel_equivalence {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    Equivalence (tupleOrbitRel B W (K := K)) :=
+  { refl := tupleOrbitRel_refl B W
+    symm := tupleOrbitRel_symm B W
+    trans := tupleOrbitRel_trans B W }
+
+/-- **Setoid on tuples** induced by `tupleOrbitRel`. -/
+def tupleOrbitSetoid {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (K : ℕ) : Setoid (Fin K → Fin T) :=
+  ⟨tupleOrbitRel B W, tupleOrbitRel_equivalence B W⟩
+
+/-- **Quotient of `Fin K → Fin T` by the `(B, W)`-orbit relation.**
+
+`OrbitClass T K B W` parametrizes `(B, W)`-automorphism orbits of
+`K`-tuples. Used as the index set for the idempotent decomposition in
+Lovász §3. -/
+def OrbitClass (T K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :=
+  Quotient (tupleOrbitSetoid B W K)
+
+/-- **Orbit indicator** of a `K`-tuple `ξ`.
+
+`orbitIndicator B W ξ ξ' = 1` if `ξ` and `ξ'` are orbit-related and
+`0` otherwise. Equivalently, the {0,1}-indicator of the orbit-class
+of `ξ` (a representative-dependent name for a representative-invariant
+function — invariance is `orbitIndicator_orbit_invariant`). -/
+noncomputable def orbitIndicator {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ : Fin K → Fin T) : (Fin K → Fin T) → ℝ :=
+  fun ξ' =>
+    haveI : Decidable (tupleOrbitRel B W ξ ξ') := Classical.dec _
+    if tupleOrbitRel B W ξ ξ' then 1 else 0
+
+/-- **Orbit-invariance of `orbitIndicator`** (as a function of the source).
+
+Replacing the source representative `ξ` by an orbit-related `ξ_alt`
+gives the same indicator function. -/
+theorem orbitIndicator_orbit_invariant {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    {ξ ξ_alt : Fin K → Fin T} (h : tupleOrbitRel B W ξ ξ_alt) :
+    orbitIndicator B W ξ = orbitIndicator B W ξ_alt := by
+  funext η
+  unfold orbitIndicator
+  by_cases hξη : tupleOrbitRel B W ξ η
+  · -- ξ ~ η. Need ξ_alt ~ η. From ξ ~ ξ_alt (h), get ξ_alt ~ ξ, then trans.
+    have h_alt : tupleOrbitRel B W ξ_alt η :=
+      tupleOrbitRel_trans B W (tupleOrbitRel_symm B W h) hξη
+    simp [hξη, h_alt]
+  · -- ¬ ξ ~ η. Need ¬ ξ_alt ~ η. Otherwise ξ ~ ξ_alt ~ η.
+    have h_alt : ¬ tupleOrbitRel B W ξ_alt η := by
+      intro h_alt_pos
+      exact hξη (tupleOrbitRel_trans B W h h_alt_pos)
+    simp [hξη, h_alt]
+
+/-- **`orbitIndicator ξ ξ = 1`** (reflexivity). -/
+theorem orbitIndicator_self {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ : Fin K → Fin T) :
+    orbitIndicator B W ξ ξ = 1 := by
+  unfold orbitIndicator
+  simp [tupleOrbitRel_refl B W ξ]
+
+/-- **`orbitIndicator ξ ξ' = 0` when not orbit-related.** -/
+theorem orbitIndicator_of_not_orbit {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    {ξ ξ' : Fin K → Fin T} (h : ¬ tupleOrbitRel B W ξ ξ') :
+    orbitIndicator B W ξ ξ' = 0 := by
+  unfold orbitIndicator
+  simp [h]
+
+/-- **Orbit indicators lie in the ℝ-span of simple-graph evaluations**
+(Lovász §3 — fullness of the simple-graph evaluation algebra under
+twin-free `B`).
+
+For any source tuple `ξ : Fin K → Fin T`, the orbit indicator
+`orbitIndicator B W ξ` can be written as an ℝ-linear combination of
+simple-graph evaluations `simpleEvalAt B W F : (Fin K → Fin T) → ℝ`
+(ranging over simple graphs `F` on `Fin (n + K)` for various `n`).
+
+**This is the new canonical primary sorry**, replacing the previous
+`orbit_separation_by_simple_graph` direct statement. It is a cleaner
+ℝ-linear-algebra formulation of the same content: rather than asserting
+*some* separating graph exists for *each* non-orbit-pair, this asserts
+the existence of a single coefficient list witnessing the indicator
+function (a Lagrange-interpolation-style construction).
+
+The representation uses pairs `(c, ⟨n, ⟨F, dec⟩⟩)` where
+`c : ℝ` is a coefficient, `n : ℕ` is an unlabeled-vertex count,
+`F : SimpleGraph (Fin (n + K))` is a simple labeled graph, and
+`dec : DecidableRel F.Adj` is the required decidability witness.
+
+**Status**: canonical primary sorry (migrated from
+`orbit_separation_by_simple_graph`).
+
+**Proof approach** (Lovász §3): the simple-graph evaluation algebra
+under twin-free `B` is **dense** in the space of orbit-invariant
+functions; the orbit indicators form a basis of this latter space;
+hence each indicator is a finite ℝ-linear combination. This is the
+multigraph-algebra fullness theorem of Lovász §3, restricted to
+simple graphs under the twin-free hypothesis. -/
+theorem orbitIndicator_mem_simpleGraphSpan {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ : Fin K → Fin T) :
+    ∃ (cs : List (ℝ × Σ (n : ℕ) (F : SimpleGraph (Fin (n + K))),
+        DecidableRel F.Adj)),
+      orbitIndicator B W ξ = fun η =>
+        (cs.map (fun p =>
+          p.1 * @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 η)).sum := by
+  sorry
+
 /-- **Orbit separation by simple graph** (Lovász §3 — separation form
 of Theorem 2.2). If two tuples are in DIFFERENT `(B, W)`-automorphism
 orbits, some simple labeled graph separates their evaluations.
@@ -3052,29 +3233,65 @@ This is the CONTRAPOSITIVE form of `connection_matrix_rank_theorem`:
 - Rank theorem: row equality ⟹ orbit equality.
 - Separation: orbit inequality ⟹ row inequality (some column witnesses).
 
-**Status**: this is now THE canonical primary sorry. Per the
-post-2026-05-12 reformulation, the rank theorem is proved from this
-separation theorem by a short contradiction. Future work should
-attack THIS separation statement — it's often easier to prove by
-exhibiting a specific separating graph than to argue rank-equality
-directly.
+**Status**: proved from `orbitIndicator_mem_simpleGraphSpan` (the new
+canonical primary sorry) via a short contradiction:
 
-**Suggested proof approach** (Lovász §3 + §4):
-  - Induction on orbit-class structure / connection matrix rank.
-  - For each non-trivial orbit-class pair, identify a separating
-    simple graph via algebra-of-graphs / idempotent decomposition.
+Given `¬ tupleOrbitRel B W ξ ξ'`, apply
+`orbitIndicator_mem_simpleGraphSpan` to `ξ` to obtain coefficients `cs`.
+The indicator evaluates to `1` at `ξ` (reflexivity, `orbitIndicator_self`)
+and `0` at `ξ'` (`orbitIndicator_of_not_orbit`). Since the two
+linear-combination evaluations differ (`1 ≠ 0`), at least one summand
+must differ between `ξ` and `ξ'`, supplying the separating simple
+graph.
 
 Hypotheses: `htwin`, `hW > 0`, `hB` symmetric, ξ ξ' NOT orbit-related.
 Conclusion: ∃ a simple graph whose evaluation differs at ξ and ξ'. -/
 theorem orbit_separation_by_simple_graph {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (_hW : ∀ i, 0 < W i)
-    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T}
-    (_h : ¬ tupleOrbitRel B W ξ ξ') :
+    (h : ¬ tupleOrbitRel B W ξ ξ') :
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (_ : DecidableRel F.Adj),
       simpleEvalAt B W F ξ ≠ simpleEvalAt B W F ξ' := by
-  sorry
+  -- Step 1: obtain the indicator coefficient list for `ξ`.
+  obtain ⟨cs, hcs⟩ := orbitIndicator_mem_simpleGraphSpan B hB W hW htwin ξ
+  -- Step 2: evaluate at ξ (gives 1) and at ξ' (gives 0).
+  have h_at_ξ : orbitIndicator B W ξ ξ = 1 := orbitIndicator_self B W ξ
+  have h_at_ξ' : orbitIndicator B W ξ ξ' = 0 := orbitIndicator_of_not_orbit B W h
+  -- Step 3: the two list-sums must differ since 1 ≠ 0.
+  have h_sums_ne :
+      (cs.map (fun p => p.1 *
+        @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 ξ)).sum ≠
+      (cs.map (fun p => p.1 *
+        @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 ξ')).sum := by
+    have e_ξ : orbitIndicator B W ξ ξ =
+        (cs.map (fun p => p.1 *
+          @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 ξ)).sum := by
+      rw [hcs]
+    have e_ξ' : orbitIndicator B W ξ ξ' =
+        (cs.map (fun p => p.1 *
+          @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 ξ')).sum := by
+      rw [hcs]
+    rw [← e_ξ, ← e_ξ', h_at_ξ, h_at_ξ']
+    exact one_ne_zero
+  -- Step 4: from sum inequality, extract a list element with differing
+  -- simpleEvalAt values at ξ vs ξ'.
+  by_contra h_no_sep
+  push_neg at h_no_sep
+  -- h_no_sep : ∀ n F dec, simpleEvalAt B W F ξ = simpleEvalAt B W F ξ'
+  apply h_sums_ne
+  -- Show the two `List.map`-sums are equal by showing element-wise equality.
+  have h_map_eq :
+      (cs.map (fun p => p.1 *
+        @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 ξ)) =
+      (cs.map (fun p => p.1 *
+        @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 ξ')) := by
+    refine List.map_congr_left ?_
+    intro p _
+    have hp := h_no_sep p.2.1 p.2.2.1 p.2.2.2
+    rw [hp]
+  rw [h_map_eq]
 
 /-- **Orbit separation, identity case** — narrowest case of
 `orbit_separation_by_simple_graph` where `K = T` and the source tuple is
