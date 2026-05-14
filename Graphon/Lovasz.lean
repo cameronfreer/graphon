@@ -3353,6 +3353,54 @@ noncomputable def weightedAdjIter {T : ℕ} (B : Fin T → Fin T → ℝ)
   | 0, f => f
   | m + 1, f => weightedAdj B W (weightedAdjIter B W m f)
 
+/-- **Closed-walk profile** at vertex `i` of length `m`.
+
+`CW_m(i) := ∑_{v_1,...,v_{m-1}} W(v_1)...W(v_{m-1}) ·
+            B(i, v_1) · B(v_1, v_2) · ... · B(v_{m-1}, i)`
+
+Compositional form: let `g_i(v) := B(v, i)`. Then for `m ≥ 1`,
+`CW_m(i) = (A^{m-1} g_i)(i)` where `A` is `weightedAdj`. Encoded
+recursively via `weightedAdjIter`.
+
+For `m = 0`: trivially `1` (empty product).
+For `m = 1`: `B(i, i) = 0` for simple graphs without self-loops.
+For `m ≥ 2`: well-defined closed walk sum. -/
+noncomputable def closedWalkProfile {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (i : Fin T) : ℕ → ℝ
+  | 0     => 1
+  | m + 1 => weightedAdjIter B W m (fun v => B v i) i
+
+/-- **Closed walks separate vertex orbits** (focused K=1 target).
+If two vertices are NOT in the same `(B, W)`-orbit (under twin-free
+`B` + `W > 0`), some closed-walk profile separates them.
+
+This is the canonical focused stepping-stone for
+`rooted_profiles_separate_vertex_orbits`: closed walks are rooted
+cycles, hence a sub-family of the full rooted simple-graph family.
+A proof here transfers to the rooted-profile target by the bridge
+`closedWalkProfile = simpleEvalAt of rooted m-cycle`.
+
+**Empirical evidence** (`scripts/closed_walk_search.py`,
+2026-05-14): all 291 non-orbit pairs tested across random
+twin-free matrices (T = 2..10) AND cycle-disjoint-union families
+(C₃⊔C₄ through C₆⊔C₇, including C₃⊔C₄⊔C₅) were separated by some
+closed walk of bounded length. Adversarial cycle unions are
+separated by m = max(component-sizes), e.g. C₅⊔C₆ at m = 5
+(CW₅ = 2 at C₅-vertex, CW₅ = 0 at C₆-vertex). Random matrices
+separate at m = 2 (weighted degree-squared).
+
+**Caveat**: vertex cospectral mates (Schwenk-style constructions)
+could in principle defeat closed walks for some pathological B.
+Empirically not found in the corpus; treat as a focused conjecture
+until either proved or refuted on an adversarial corpus extension. -/
+theorem closed_walk_profiles_separate_vertex_orbits {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {i j : Fin T} (_h : ¬ vertexOrbitRel B W i j) :
+    ∃ m : ℕ, closedWalkProfile B W i m ≠ closedWalkProfile B W j m := by
+  sorry
+
 /-- **Rooted profiles separate vertex orbits** (Lovász §3 K=1 case).
 If two vertices are NOT in the same `(B, W)`-orbit (under twin-free
 B + W > 0), some rooted simple graph evaluation separates them.
@@ -3364,12 +3412,16 @@ specialized to vertex (single-label) tuples.
 - Path profiles ALONE: FAIL on cycle-disjoint-union families
   (`scripts/path_profile_search.py`). Regular graphs have identical
   path profiles at every vertex.
-- Closed-walk / rooted-cycle profiles: under investigation
-  (`scripts/closed_walk_search.py`). The C₅⊔C₆ separator is a
-  rooted 5-cycle, so closed walks are the natural next refinement
-  after paths fail.
+- Closed-walk / rooted-cycle profiles: PASS broadly (291/291 pairs
+  on the test corpus, `scripts/closed_walk_search.py`). Cycle
+  disjoint unions C_n⊔C_m separate at length max(n,m); random
+  twin-free matrices separate at m=2.
 - The full rooted simple-graph family (paths + cycles + trees +
-  arbitrary connected) suffices in all tested cases. -/
+  arbitrary connected) suffices in all tested cases.
+
+**Reduction route**: prove `closed_walk_profiles_separate_vertex_orbits`
+(declared above as a focused target), then realise the separating
+closed walk as a rooted m-cycle SimpleGraph evaluation. -/
 theorem rooted_profiles_separate_vertex_orbits {T : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
