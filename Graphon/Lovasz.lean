@@ -3259,24 +3259,29 @@ is a single-edge graph (n=0) or a single-edge "rooted star" (n=1).
 Falsification: see `scripts/falsify_edge_degree_conjecture.py`. 64K
 pairs tested, zero counterexamples. -/
 
-/-! **Orbit separation by edge or degree** (Lovász §3 — empirically-
-validated form). The NEW canonical primary sorry, replacing the
-abstract `orbit_separation_by_simple_graph` with a concrete
-edge-OR-row-sum witness.
+/-! **Orbit separation by edge or degree** — **KNOWN-FALSE / OFF-AXIS**
+(refuted 2026-05-14 by C₅ ⊔ C₆ counterexample at K=1).
 
-Statement: if ξ ξ' are in different orbits (twin-free + W > 0), then
-either:
-- Some label-label B-entry differs at distinct labels.
-- Or some W-weighted row sum differs.
+**Counterexample**: B = adjacency of C₅ ⊔ C₆, W = uniform 1.
+- ξ = (0,) (vertex in C₅), ξ' = (5,) (vertex in C₆).
+- K = 1: edge profile vacuous (no a ≠ b).
+- Weighted degrees agree: both = 2 (regular graphs).
+- But no aut σ ∈ Aut(C₅ ⊔ C₆) = D₅ × D₆ sends C₅-vertex to C₆-vertex
+  (component preservation).
 
-**Empirical evidence** (`scripts/falsify_edge_degree_conjecture.py`):
-PASS across 64,638 random pairs at T ≤ 5, K ≤ 3 (including tuples
-with repeated coordinates). 876 profile-matching pairs, all in same
-orbit. Zero counterexamples.
+Falsification: `scripts/falsify_edge_degree_conjecture.py` updated
+with C₅ ⊔ C₆ test; 60 counterexamples found in this single family.
 
-**Status**: NEW canonical primary sorry. Closing this discharges
-`orbit_separation_by_simple_graph` (via the bounded single-edge graph
-construction) and the entire twin-free chain. -/
+The minimal separating simple graph for this pair is a **5-cycle
+rooted at the label** (n_unlabeled = 4, 5 edges): the label vertex
+participates in 2 distinct 5-cycles in C₅ but 0 in C₆. Found by
+`scripts/separator_search.py cycles`.
+
+**Implication**: edge + degree profiles are insufficient. The
+canonical primary sorry must reflect this — restore
+`orbit_separation_by_simple_graph` as the abstract primary, with
+explicit acknowledgment that the separator family includes rooted
+cycles / paths / trees of unbounded size. -/
 
 /-- **Weighted degree** of vertex `i` in `(B, W)`. -/
 noncomputable def weightedDegree {T : ℕ} (B : Fin T → Fin T → ℝ)
@@ -3295,186 +3300,27 @@ def sameTupleDegreeProfile {T K : ℕ} (B : Fin T → Fin T → ℝ)
     (W : Fin T → ℝ) (ξ ξ' : Fin K → Fin T) : Prop :=
   ∀ a : Fin K, weightedDegree B W (ξ a) = weightedDegree B W (ξ' a)
 
-theorem orbit_separation_by_edge_or_degree {T K : ℕ}
+-- NOTE: previously-stated `orbit_separation_by_edge_or_degree` and
+-- `same_edge_and_degree_profile_implies_orbit` are KNOWN-FALSE per
+-- 2026-05-14 C₅ ⊔ C₆ analysis (60 counterexamples in this single
+-- family). Removed entirely (rather than sorry'd) to prevent
+-- transitive use of a false theorem. See docstring above and
+-- `scripts/falsify_edge_degree_conjecture.py` + `separator_search.py`.
+--
+-- The minimal separator for the C₅ vs C₆ K=1 pair is a 5-cycle
+-- rooted at the label (n_unlabeled = 4, 5 edges). The genuine
+-- Lovász §3 content requires UNBOUNDED rooted simple-graph
+-- separator families.
+
+theorem orbit_separation_by_simple_graph {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
     (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T}
     (_h : ¬ tupleOrbitRel B W ξ ξ') :
-    (∃ a b : Fin K, a ≠ b ∧ B (ξ a) (ξ b) ≠ B (ξ' a) (ξ' b)) ∨
-    (∃ a : Fin K,
-      (∑ t : Fin T, W t * B (ξ a) t) ≠ (∑ t : Fin T, W t * B (ξ' a) t)) := by
-  sorry
-
-/-- **Contrapositive form** (the finite-matrix automorphism extension
-theorem). If ξ ξ' share the same edge AND degree profiles, they are
-in the same `(B, W)`-orbit.
-
-This is equivalent to `orbit_separation_by_edge_or_degree` via
-classical contrapositive. Stated separately as a clearer target for
-direct attack: a finite matrix automorphism theorem, NOT a graph
-evaluation theorem. -/
-theorem same_edge_and_degree_profile_implies_orbit {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {ξ ξ' : Fin K → Fin T}
-    (h_edge : sameTupleEdgeProfile B ξ ξ')
-    (h_degree : sameTupleDegreeProfile B W ξ ξ') :
-    tupleOrbitRel B W ξ ξ' := by
-  -- Contrapositive of `orbit_separation_by_edge_or_degree`.
-  by_contra h_no_orbit
-  rcases orbit_separation_by_edge_or_degree B hB W hW htwin h_no_orbit with
-    ⟨a, b, hab, hne⟩ | ⟨a, hne⟩
-  · -- Edge profile matches but hne says some pair differs.
-    exact hne (h_edge a b hab)
-  · -- Degree profile matches but hne says some weighted degree differs.
-    have h_eq := h_degree a
-    unfold weightedDegree at h_eq
-    exact hne h_eq
-
-theorem orbit_separation_by_simple_graph {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {ξ ξ' : Fin K → Fin T}
-    (h : ¬ tupleOrbitRel B W ξ ξ') :
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (_ : DecidableRel F.Adj),
       simpleEvalAt B W F ξ ≠ simpleEvalAt B W F ξ' := by
-  classical
-  rcases orbit_separation_by_edge_or_degree B hB W hW htwin h with
-    ⟨a, b, hab, hne⟩ | ⟨a, hne⟩
-  · -- Case 1: edge case. Build single-edge graph on Fin (0 + K) with edge
-    -- between positions a and b (both as labels).
-    let u : Fin (0 + K) := ⟨a.val, by have := a.isLt; omega⟩
-    let v : Fin (0 + K) := ⟨b.val, by have := b.isLt; omega⟩
-    have huv : u ≠ v := by
-      simp only [ne_eq, Fin.mk.injEq, u, v]
-      intro heq
-      exact hab (Fin.ext heq)
-    let F : SimpleGraph (Fin (0 + K)) :=
-      { Adj := fun x y => (x = u ∧ y = v) ∨ (x = v ∧ y = u)
-        symm := fun _ _ h =>
-          h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
-                 (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
-        loopless := fun _ h => by
-          rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
-          · exact huv (h1.symm.trans h2)
-          · exact huv (h2.symm.trans h1) }
-    haveI hF_dec : DecidableRel F.Adj := fun x y =>
-      if h₁ : x = u ∧ y = v then .isTrue (.inl h₁)
-      else if h₂ : x = v ∧ y = u then .isTrue (.inr h₂)
-      else .isFalse (fun h => h.elim (fun a => h₁ a) (fun a => h₂ a))
-    refine ⟨0, F, hF_dec, ?_⟩
-    intro hcontra
-    apply hne
-    have hedge : F.edgeFinset = {s(u, v)} := by
-      apply Finset.eq_singleton_iff_unique_mem.mpr
-      refine ⟨?_, ?_⟩
-      · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
-      · intro e he; rw [SimpleGraph.mem_edgeFinset] at he
-        exact Sym2.ind (fun x y (hadj : F.Adj x y) => by
-          rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
-          · rw [h1, h2]
-          · rw [h1, h2, Sym2.eq_swap]) e he
-    simp only [simpleEvalAt, Fintype.sum_unique, Finset.univ_eq_empty,
-      Finset.prod_empty, one_mul, hedge, Finset.prod_singleton] at hcontra
-    have hu_lt : u.val < K := by simp [u]
-    have hv_lt : v.val < K := by simp [v]
-    have hua : (⟨u.val, hu_lt⟩ : Fin K) = a := Fin.ext rfl
-    have hvb : (⟨v.val, hv_lt⟩ : Fin K) = b := Fin.ext rfl
-    -- After simp, hcontra reads:
-    --   B (τξ (Quot.out s(u, v)).1) (τξ (Quot.out s(u, v)).2)
-    --     = B (τξ' (Quot.out s(u, v)).1) (τξ' (Quot.out s(u, v)).2)
-    -- where τξ / τξ' are the if-then-else.
-    -- We resolve Quot.out via Sym2.eq_iff + Quot.out_eq.
-    set p := Quot.out (s(u, v) : Sym2 (Fin (0 + K))) with hp_def
-    have hout : (Sym2.mk p : Sym2 (Fin (0 + K))) = s(u, v) := Quot.out_eq _
-    have hor : (p.1 = u ∧ p.2 = v) ∨ (p.1 = v ∧ p.2 = u) := by
-      rcases Sym2.eq_iff.mp hout with ⟨h1, h2⟩ | ⟨h1, h2⟩
-      · exact Or.inl ⟨h1, h2⟩
-      · exact Or.inr ⟨h1, h2⟩
-    rcases hor with ⟨hpu, hpv⟩ | ⟨hpu, hpv⟩
-    · simp only [hpu, hpv, dif_pos hu_lt, dif_pos hv_lt, hua, hvb] at hcontra
-      exact hcontra
-    · simp only [hpu, hpv, dif_pos hu_lt, dif_pos hv_lt, hua, hvb] at hcontra
-      -- hcontra : B (ξ b) (ξ a) = B (ξ' b) (ξ' a)
-      calc B (ξ a) (ξ b) = B (ξ b) (ξ a) := hB _ _
-        _ = B (ξ' b) (ξ' a) := hcontra
-        _ = B (ξ' a) (ξ' b) := hB _ _
-  · -- Case 2: degree case. Build single-edge graph on Fin (1 + K) with edge
-    -- between position a (as label) and position K (the single unlabeled vertex).
-    let u : Fin (1 + K) := ⟨a.val, by have := a.isLt; omega⟩
-    let v : Fin (1 + K) := ⟨K, by omega⟩
-    have huv : u ≠ v := by
-      simp only [ne_eq, Fin.mk.injEq, u, v]
-      have := a.isLt; omega
-    let F : SimpleGraph (Fin (1 + K)) :=
-      { Adj := fun x y => (x = u ∧ y = v) ∨ (x = v ∧ y = u)
-        symm := fun _ _ h =>
-          h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
-                 (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
-        loopless := fun _ h => by
-          rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
-          · exact huv (h1.symm.trans h2)
-          · exact huv (h2.symm.trans h1) }
-    haveI hF_dec : DecidableRel F.Adj := fun x y =>
-      if h₁ : x = u ∧ y = v then .isTrue (.inl h₁)
-      else if h₂ : x = v ∧ y = u then .isTrue (.inr h₂)
-      else .isFalse (fun h => h.elim (fun a => h₁ a) (fun a => h₂ a))
-    refine ⟨1, F, hF_dec, ?_⟩
-    intro hcontra
-    apply hne
-    have hedge : F.edgeFinset = {s(u, v)} := by
-      apply Finset.eq_singleton_iff_unique_mem.mpr
-      refine ⟨?_, ?_⟩
-      · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
-      · intro e he; rw [SimpleGraph.mem_edgeFinset] at he
-        exact Sym2.ind (fun x y (hadj : F.Adj x y) => by
-          rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
-          · rw [h1, h2]
-          · rw [h1, h2, Sym2.eq_swap]) e he
-    -- simpleEvalAt unfolds to:
-    --   ∑ σ : Fin 1 → Fin T, (∏ v : Fin 1, W (σ v)) * (single B factor)
-    simp only [simpleEvalAt, hedge, Finset.prod_singleton,
-      Fin.prod_univ_one] at hcontra
-    have hu_lt : u.val < K := by simp [u]
-    have hv_lt : ¬ v.val < K := by simp [v]
-    have hua : (⟨u.val, hu_lt⟩ : Fin K) = a := Fin.ext rfl
-    have hv_minus_zero : (⟨v.val - K, by have := v.isLt; omega⟩ : Fin 1) = 0 := by
-      apply Fin.ext
-      simp [v]
-    set p := Quot.out (s(u, v) : Sym2 (Fin (1 + K))) with hp_def
-    have hout : (Sym2.mk p : Sym2 (Fin (1 + K))) = s(u, v) := Quot.out_eq _
-    have hor : (p.1 = u ∧ p.2 = v) ∨ (p.1 = v ∧ p.2 = u) := by
-      rcases Sym2.eq_iff.mp hout with ⟨h1, h2⟩ | ⟨h1, h2⟩
-      · exact Or.inl ⟨h1, h2⟩
-      · exact Or.inr ⟨h1, h2⟩
-    -- Reindex (Fin 1 → Fin T) ≃ Fin T via Equiv.funUnique.
-    have hreindex : ∀ (f : Fin T → ℝ),
-        ∑ σ : Fin 1 → Fin T, f (σ 0) = ∑ t : Fin T, f t := by
-      intro f
-      have := Equiv.sum_comp (Equiv.funUnique (Fin 1) (Fin T)) f
-      simpa [Equiv.funUnique_apply] using this
-    rcases hor with ⟨hpu, hpv⟩ | ⟨hpu, hpv⟩
-    · -- p = (u, v): p.1 = u (val < K, reads ξ at a); p.2 = v (val = K, reads σ at 0).
-      simp only [hpu, hpv, dif_pos hu_lt, dif_neg hv_lt, hua,
-        hv_minus_zero] at hcontra
-      rw [hreindex (fun t => W t * B (ξ a) t),
-          hreindex (fun t => W t * B (ξ' a) t)] at hcontra
-      exact hcontra
-    · -- p = (v, u): p.1 = v (val = K, reads σ at 0); p.2 = u (val < K, reads ξ at a).
-      simp only [hpu, hpv, dif_pos hu_lt, dif_neg hv_lt, hua,
-        hv_minus_zero] at hcontra
-      rw [hreindex (fun t => W t * B t (ξ a)),
-          hreindex (fun t => W t * B t (ξ' a))] at hcontra
-      -- hcontra : ∑ t, W t * B t (ξ a) = ∑ t, W t * B t (ξ' a)
-      -- Goal : ∑ t, W t * B (ξ a) t = ∑ t, W t * B (ξ' a) t. Use hB symmetry.
-      have hL : (∑ t, W t * B (ξ a) t) = ∑ t, W t * B t (ξ a) := by
-        apply Finset.sum_congr rfl; intro t _; rw [hB]
-      have hR : (∑ t, W t * B (ξ' a) t) = ∑ t, W t * B t (ξ' a) := by
-        apply Finset.sum_congr rfl; intro t _; rw [hB]
-      rw [hL, hR]; exact hcontra
+  sorry
 
 /-- **Orbit separation, identity case** — narrowest case of
 `orbit_separation_by_simple_graph` where `K = T` and the source tuple is

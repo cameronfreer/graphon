@@ -86,12 +86,58 @@ def matches_degree_profile(ξ, ξ_prime, B, W, K, tol=1e-9):
     return True
 
 
+def make_cycle_disjoint_union(sizes):
+    """Build B = adjacency matrix of disjoint union of cycles of given sizes.
+    Returns (B, W) with uniform W = 1.
+    """
+    T = sum(sizes)
+    B = np.zeros((T, T))
+    offset = 0
+    for n in sizes:
+        for i in range(n):
+            j = (i + 1) % n
+            B[offset + i, offset + j] = 1.0
+            B[offset + j, offset + i] = 1.0
+        offset += n
+    W = np.ones(T)
+    return B, W
+
+
 def main():
     rng = np.random.default_rng(2026)
     counterexamples = []
     total_pairs = 0
     matched_profile = 0
     profile_implies_orbit = 0
+
+    # **ADVERSARIAL CASE**: C_5 ⊔ C_6 (per 2026-05-14 user analysis).
+    # vertex 0 in C_5 and vertex 5 in C_6 both have weighted degree 2;
+    # at K = 1 edge profile is vacuous; but no aut sends them to each
+    # other (component preservation).
+    print("=" * 70)
+    print("Adversarial: C_5 ⊔ C_6, K = 1")
+    print("=" * 70)
+    B_adv, W_adv = make_cycle_disjoint_union([5, 6])
+    auts_adv = compute_aut_group(B_adv, W_adv)
+    print(f"|Aut(C_5 ⊔ C_6)| = {len(auts_adv)} (expected D_5 × D_6 = 10 × 12 = 120)")
+    for K in [1]:
+        for ξ in cartprod(range(11), repeat=K):
+            for ξ_prime in cartprod(range(11), repeat=K):
+                total_pairs += 1
+                if not matches_edge_profile(ξ, ξ_prime, B_adv, K):
+                    continue
+                if not matches_degree_profile(ξ, ξ_prime, B_adv, W_adv, K):
+                    continue
+                matched_profile += 1
+                if in_same_orbit(ξ, ξ_prime, auts_adv):
+                    profile_implies_orbit += 1
+                else:
+                    counterexamples.append({
+                        'B_family': 'C_5 ⊔ C_6',
+                        'T': 11, 'K': K,
+                        'ξ': ξ, 'ξ_prime': ξ_prime,
+                        '|Aut|': len(auts_adv),
+                    })
 
     for T in [2, 3, 4, 5]:
         for K in [1, 2, 3]:

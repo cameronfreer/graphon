@@ -260,3 +260,49 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+def cycle_separator_search():
+    """Search for the minimal separator for C_5 ⊔ C_6 at K=1, ξ=(0,) vs ξ'=(5,)."""
+    import numpy as np
+    sizes = [5, 6]
+    T = sum(sizes)
+    B = np.zeros((T, T))
+    offset = 0
+    for n in sizes:
+        for i in range(n):
+            j = (i + 1) % n
+            B[offset + i, offset + j] = 1.0
+            B[offset + j, offset + i] = 1.0
+        offset += n
+    W = np.ones(T)
+    K = 1
+    ξ = (0,)   # vertex in C_5
+    ξ_prime = (5,)  # vertex in C_6
+
+    print("\n" + "=" * 70)
+    print("C_5 ⊔ C_6 separator search at K=1, ξ=(0,) vs ξ'=(5,)")
+    print("=" * 70)
+
+    # Search by increasing n_unlabeled, then by edge count.
+    for n_unlabeled in range(0, 5):
+        n_total = K + n_unlabeled
+        all_possible_edges = [(i, j) for i in range(n_total) for j in range(i+1, n_total)]
+        n_e_max = len(all_possible_edges)
+        for n_edges in range(0, n_e_max + 1):
+            for edge_combo in combinations(all_possible_edges, n_edges):
+                edges = list(edge_combo)
+                v1 = simple_eval_at(edges, n_unlabeled, K, B, W, ξ)
+                v2 = simple_eval_at(edges, n_unlabeled, K, B, W, ξ_prime)
+                if not np.isclose(v1, v2, atol=1e-8, rtol=1e-7):
+                    print(f"SEPARATOR FOUND: n_unlabeled={n_unlabeled}, "
+                          f"n_edges={n_edges}, edges={edges}")
+                    print(f"  v(C_5 vertex) = {v1:.4f}")
+                    print(f"  v(C_6 vertex) = {v2:.4f}")
+                    return edges, n_unlabeled
+    print("No separator found in search range (n_unlabeled ≤ 4).")
+    return None, None
+
+
+if __name__ == '__main__' and len(sys.argv) > 1 and sys.argv[1] == 'cycles':
+    cycle_separator_search()
