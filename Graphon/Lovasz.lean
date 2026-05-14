@@ -3259,7 +3259,7 @@ is a single-edge graph (n=0) or a single-edge "rooted star" (n=1).
 Falsification: see `scripts/falsify_edge_degree_conjecture.py`. 64K
 pairs tested, zero counterexamples. -/
 
-/-- **Orbit separation by edge or degree** (Lovász §3 — empirically-
+/-! **Orbit separation by edge or degree** (Lovász §3 — empirically-
 validated form). The NEW canonical primary sorry, replacing the
 abstract `orbit_separation_by_simple_graph` with a concrete
 edge-OR-row-sum witness.
@@ -3277,6 +3277,24 @@ orbit. Zero counterexamples.
 **Status**: NEW canonical primary sorry. Closing this discharges
 `orbit_separation_by_simple_graph` (via the bounded single-edge graph
 construction) and the entire twin-free chain. -/
+
+/-- **Weighted degree** of vertex `i` in `(B, W)`. -/
+noncomputable def weightedDegree {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (i : Fin T) : ℝ :=
+  ∑ t : Fin T, W t * B i t
+
+/-- **Same tuple edge profile**: ξ and ξ' agree on all label-label
+B-entries at distinct labels. -/
+def sameTupleEdgeProfile {T K : ℕ} (B : Fin T → Fin T → ℝ)
+    (ξ ξ' : Fin K → Fin T) : Prop :=
+  ∀ a b : Fin K, a ≠ b → B (ξ a) (ξ b) = B (ξ' a) (ξ' b)
+
+/-- **Same tuple degree profile**: ξ and ξ' have equal weighted
+degrees at every label position. -/
+def sameTupleDegreeProfile {T K : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (ξ ξ' : Fin K → Fin T) : Prop :=
+  ∀ a : Fin K, weightedDegree B W (ξ a) = weightedDegree B W (ξ' a)
+
 theorem orbit_separation_by_edge_or_degree {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
@@ -3287,6 +3305,33 @@ theorem orbit_separation_by_edge_or_degree {T K : ℕ}
     (∃ a : Fin K,
       (∑ t : Fin T, W t * B (ξ a) t) ≠ (∑ t : Fin T, W t * B (ξ' a) t)) := by
   sorry
+
+/-- **Contrapositive form** (the finite-matrix automorphism extension
+theorem). If ξ ξ' share the same edge AND degree profiles, they are
+in the same `(B, W)`-orbit.
+
+This is equivalent to `orbit_separation_by_edge_or_degree` via
+classical contrapositive. Stated separately as a clearer target for
+direct attack: a finite matrix automorphism theorem, NOT a graph
+evaluation theorem. -/
+theorem same_edge_and_degree_profile_implies_orbit {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T}
+    (h_edge : sameTupleEdgeProfile B ξ ξ')
+    (h_degree : sameTupleDegreeProfile B W ξ ξ') :
+    tupleOrbitRel B W ξ ξ' := by
+  -- Contrapositive of `orbit_separation_by_edge_or_degree`.
+  by_contra h_no_orbit
+  rcases orbit_separation_by_edge_or_degree B hB W hW htwin h_no_orbit with
+    ⟨a, b, hab, hne⟩ | ⟨a, hne⟩
+  · -- Edge profile matches but hne says some pair differs.
+    exact hne (h_edge a b hab)
+  · -- Degree profile matches but hne says some weighted degree differs.
+    have h_eq := h_degree a
+    unfold weightedDegree at h_eq
+    exact hne h_eq
 
 theorem orbit_separation_by_simple_graph {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
