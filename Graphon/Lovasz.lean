@@ -3360,10 +3360,16 @@ B + W > 0), some rooted simple graph evaluation separates them.
 This is the K=1 case of `orbit_separation_by_simple_graph`,
 specialized to vertex (single-label) tuples.
 
-**Empirical evidence** (`scripts/path_profile_search.py`): rooted
-PATH profiles separate vertex orbits in all tested cases including
-the C₅⊔C₆ adversarial family. The Krylov/path-algebra route looks
-viable. -/
+**Empirical evidence stack** (post-2026-05-14 falsification passes):
+- Path profiles ALONE: FAIL on cycle-disjoint-union families
+  (`scripts/path_profile_search.py`). Regular graphs have identical
+  path profiles at every vertex.
+- Closed-walk / rooted-cycle profiles: under investigation
+  (`scripts/closed_walk_search.py`). The C₅⊔C₆ separator is a
+  rooted 5-cycle, so closed walks are the natural next refinement
+  after paths fail.
+- The full rooted simple-graph family (paths + cycles + trees +
+  arbitrary connected) suffices in all tested cases. -/
 theorem rooted_profiles_separate_vertex_orbits {T : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
