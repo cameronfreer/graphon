@@ -3340,12 +3340,30 @@ noncomputable def rootedProfile {T n : ℕ} (B : Fin T → Fin T → ℝ)
     [DecidableRel F.Adj] : ℝ :=
   simpleEvalAt B W F (fun _ : Fin 1 => i)
 
+/-- **Weighted adjacency operator** `A f i := ∑ j, W j · B i j · f j`.
+The key linear operator for the Krylov/path-profile route to
+separation in the K=1 case. -/
+noncomputable def weightedAdj {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (f : Fin T → ℝ) (i : Fin T) : ℝ :=
+  ∑ j : Fin T, W j * B i j * f j
+
+/-- **Iterated weighted adjacency**: `A^m` as a function. -/
+noncomputable def weightedAdjIter {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) : ℕ → (Fin T → ℝ) → Fin T → ℝ
+  | 0, f => f
+  | m + 1, f => weightedAdj B W (weightedAdjIter B W m f)
+
 /-- **Rooted profiles separate vertex orbits** (Lovász §3 K=1 case).
 If two vertices are NOT in the same `(B, W)`-orbit (under twin-free
 B + W > 0), some rooted simple graph evaluation separates them.
 
 This is the K=1 case of `orbit_separation_by_simple_graph`,
-specialized to vertex (single-label) tuples. -/
+specialized to vertex (single-label) tuples.
+
+**Empirical evidence** (`scripts/path_profile_search.py`): rooted
+PATH profiles separate vertex orbits in all tested cases including
+the C₅⊔C₆ adversarial family. The Krylov/path-algebra route looks
+viable. -/
 theorem rooted_profiles_separate_vertex_orbits {T : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
