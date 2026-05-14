@@ -112,9 +112,13 @@ def closed_walk_profile(i, m, B, W):
     return Nm[i, i] / W[i]
 
 
-def closed_walks_separate(i, j, B, W, max_m=7, tol=1e-8):
-    """Check if some closed walk profile of length ≤ max_m separates i and j."""
-    for m in range(2, max_m + 1):
+def closed_walks_separate(i, j, B, W, max_m=7, tol=1e-8, min_m=3):
+    """Check if some closed walk profile of length min_m ≤ m ≤ max_m separates i and j.
+
+    min_m = 3 (default): length ≥ 3, as required by the Lean bridge
+    (closed walks of length 2 cannot be realized by simple graphs).
+    """
+    for m in range(min_m, max_m + 1):
         c_i = closed_walk_profile(i, m, B, W)
         c_j = closed_walk_profile(j, m, B, W)
         if not np.isclose(c_i, c_j, atol=tol, rtol=1e-7):
