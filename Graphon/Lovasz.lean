@@ -3399,7 +3399,51 @@ theorem closed_walk_profiles_separate_vertex_orbits {T : ℕ}
     (_hW : ∀ i, 0 < W i)
     (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {i j : Fin T} (_h : ¬ vertexOrbitRel B W i j) :
-    ∃ m : ℕ, closedWalkProfile B W i m ≠ closedWalkProfile B W j m := by
+    ∃ m : ℕ, closedWalkProfile B W i (m + 2) ≠ closedWalkProfile B W j (m + 2) := by
+  sorry
+
+/-- **Rooted cycle graph** at length `m + 2`. Edges are consecutive
+pairs `(j, j+1)` plus the wrap edge `(0, m+1)`. The K=1 label placement
+makes vertex 0 the "root" of the rooted cycle. The `m + 2` offset
+ensures `m + 2 ≥ 2`, so the graph has at least one edge. -/
+def rootedCycleGraph (m : ℕ) : SimpleGraph (Fin (m + 2)) where
+  Adj a b := (a.val + 1 = b.val) ∨ (b.val + 1 = a.val) ∨
+             (a.val = 0 ∧ b.val = m + 1) ∨ (a.val = m + 1 ∧ b.val = 0)
+  symm := fun a b h => by
+    rcases h with h | h | ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · exact Or.inr (Or.inl h)
+    · exact Or.inl h
+    · exact Or.inr (Or.inr (Or.inr ⟨h2, h1⟩))
+    · exact Or.inr (Or.inr (Or.inl ⟨h2, h1⟩))
+  loopless := fun a h => by
+    rcases h with h | h | ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · omega
+    · omega
+    · have := a.isLt; omega
+    · have := a.isLt; omega
+
+instance (m : ℕ) : DecidableRel (rootedCycleGraph m).Adj := by
+  intro a b
+  unfold rootedCycleGraph
+  exact inferInstance
+
+/-- **Bridge lemma**: `rootedProfile` of `rootedCycleGraph m` at vertex
+`i` equals the closed-walk profile `closedWalkProfile B W i (m+2)`.
+
+Pure combinatorics: the edges of the cycle on `Fin (m+2)` are exactly
+`{j, j+1}` for `j : Fin (m+2)` plus the wrap `{0, m+1}`, so the edge
+product in `simpleEvalAt` factors as the closed-walk product
+`B(i, σ 0) · B(σ 0, σ 1) · ... · B(σ m, i)`, matching
+`(weightedAdjIter B W (m+1) g_i)(i)` where `g_i(v) := B(v, i)`.
+
+**Status**: focused infrastructure sorry. Needed to wire
+`closed_walk_profiles_separate_vertex_orbits` into
+`rooted_profiles_separate_vertex_orbits`. ~100-200 lines of Fin
+arithmetic + `Quot.out` reasoning. -/
+theorem rootedProfile_rootedCycleGraph_eq_closedWalkProfile {T m : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (i : Fin T) :
+    rootedProfile B W i (rootedCycleGraph m) = closedWalkProfile B W i (m + 2) := by
   sorry
 
 /-- **Rooted profiles separate vertex orbits** (Lovász §3 K=1 case).
@@ -3414,23 +3458,30 @@ specialized to vertex (single-label) tuples.
   (`scripts/path_profile_search.py`). Regular graphs have identical
   path profiles at every vertex.
 - Closed-walk / rooted-cycle profiles: PASS broadly (291/291 pairs
-  on the test corpus, `scripts/closed_walk_search.py`). Cycle
-  disjoint unions C_n⊔C_m separate at length max(n,m); random
-  twin-free matrices separate at m=2.
+  on the test corpus, `scripts/closed_walk_search.py`); zero
+  cospectral-vertex counterexamples on full enumeration of all
+  twin-free simple graphs through T ≤ 6.
 - The full rooted simple-graph family (paths + cycles + trees +
   arbitrary connected) suffices in all tested cases.
 
-**Reduction route**: prove `closed_walk_profiles_separate_vertex_orbits`
-(declared above as a focused target), then realise the separating
-closed walk as a rooted m-cycle SimpleGraph evaluation. -/
+**Proof**: deduced from `closed_walk_profiles_separate_vertex_orbits`
+(focused target, m ≥ 2 form) via the combinatorial bridge lemma
+`rootedProfile_rootedCycleGraph_eq_closedWalkProfile`. The (m+2)-cycle
+realizes the separating closed walk as a rooted simple-graph evaluation. -/
 theorem rooted_profiles_separate_vertex_orbits {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (_hW : ∀ i, 0 < W i)
-    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {i j : Fin T} (_h : ¬ vertexOrbitRel B W i j) :
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {i j : Fin T} (h : ¬ vertexOrbitRel B W i j) :
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) (_ : DecidableRel F.Adj),
       rootedProfile B W i F ≠ rootedProfile B W j F := by
-  sorry
+  -- Closed-walk separation (m ≥ 2 form) gives some m with CW_{m+2}(i) ≠ CW_{m+2}(j).
+  obtain ⟨m, hne⟩ := closed_walk_profiles_separate_vertex_orbits B hB W hW htwin h
+  -- The rooted (m+2)-cycle realizes the separation via the bridge.
+  refine ⟨m + 1, rootedCycleGraph m, inferInstance, ?_⟩
+  rw [rootedProfile_rootedCycleGraph_eq_closedWalkProfile B hB W i,
+      rootedProfile_rootedCycleGraph_eq_closedWalkProfile B hB W j]
+  exact hne
 
 /-- **Bridge from K=1 rooted profile to general orbit separation**.
 At K = 1, `orbit_separation_by_simple_graph` follows from
