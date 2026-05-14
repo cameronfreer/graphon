@@ -3312,6 +3312,85 @@ def sameTupleDegreeProfile {T K : ℕ} (B : Fin T → Fin T → ℝ)
 -- Lovász §3 content requires UNBOUNDED rooted simple-graph
 -- separator families.
 
+/-! ### §3.95.5 — K=1 rooted profile target
+
+Per 2026-05-14 user directive: introduce a K=1 rooted-profile
+specialization of the separation theorem. This is the simplest
+non-trivial Lovász separation form: under twin-free B + W > 0,
+distinct vertex orbits are separated by some rooted simple graph
+evaluation.
+
+This statement is empirically valid (C₅ vs C₆ separator is a
+5-cycle rooted at the label). Unlike the false edge-or-degree
+conjecture, the rooted-profile family is unbounded — but the
+separation IS by a SINGLE simple graph, not a polynomial in
+multiple. -/
+
+/-- **Vertex orbit relation** — K=1 specialization of `tupleOrbitRel`.
+Two vertices are orbit-related iff some `(B, W)`-automorphism maps
+one to the other. -/
+def vertexOrbitRel {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (i j : Fin T) : Prop :=
+  ∃ σ : Equiv.Perm (Fin T), IsWeightedAutomorphism B W σ ∧ σ i = j
+
+/-- **Rooted simple-graph profile** at vertex `i`: the simple-graph
+evaluation with the single label position fixed to `i`. -/
+noncomputable def rootedProfile {T n : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (i : Fin T) (F : SimpleGraph (Fin (n + 1)))
+    [DecidableRel F.Adj] : ℝ :=
+  simpleEvalAt B W F (fun _ : Fin 1 => i)
+
+/-- **Rooted profiles separate vertex orbits** (Lovász §3 K=1 case).
+If two vertices are NOT in the same `(B, W)`-orbit (under twin-free
+B + W > 0), some rooted simple graph evaluation separates them.
+
+This is the K=1 case of `orbit_separation_by_simple_graph`,
+specialized to vertex (single-label) tuples. -/
+theorem rooted_profiles_separate_vertex_orbits {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {i j : Fin T} (_h : ¬ vertexOrbitRel B W i j) :
+    ∃ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) (_ : DecidableRel F.Adj),
+      rootedProfile B W i F ≠ rootedProfile B W j F := by
+  sorry
+
+/-- **Bridge from K=1 rooted profile to general orbit separation**.
+At K = 1, `orbit_separation_by_simple_graph` follows from
+`rooted_profiles_separate_vertex_orbits` by reducing the tuple
+relation to vertex relation. -/
+theorem orbit_separation_by_simple_graph_K1 {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin 1 → Fin T}
+    (h : ¬ tupleOrbitRel B W ξ ξ') :
+    ∃ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) (_ : DecidableRel F.Adj),
+      simpleEvalAt B W F ξ ≠ simpleEvalAt B W F ξ' := by
+  -- ξ = fun _ => ξ 0; ξ' = fun _ => ξ' 0; tupleOrbitRel ↔ vertexOrbitRel.
+  have hvert : ¬ vertexOrbitRel B W (ξ 0) (ξ' 0) := by
+    intro ⟨σ, hσ_aut, hσ_eq⟩
+    apply h
+    refine ⟨σ, hσ_aut, ?_⟩
+    intro i
+    have : i = (0 : Fin 1) := Subsingleton.elim _ _
+    rw [this]
+    exact hσ_eq.symm
+  obtain ⟨n, F, _hF_dec, hne⟩ :=
+    rooted_profiles_separate_vertex_orbits B hB W hW htwin hvert
+  refine ⟨n, F, inferInstance, ?_⟩
+  -- simpleEvalAt B W F ξ = rootedProfile B W (ξ 0) F = same with ξ' 0.
+  have h_unfold : ∀ ζ : Fin 1 → Fin T,
+      simpleEvalAt B W F ζ = rootedProfile B W (ζ 0) F := by
+    intro ζ
+    unfold rootedProfile
+    congr 1
+    funext k
+    have : k = (0 : Fin 1) := Subsingleton.elim _ _
+    rw [this]
+  rw [h_unfold ξ, h_unfold ξ']
+  exact hne
+
 theorem orbit_separation_by_simple_graph {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
