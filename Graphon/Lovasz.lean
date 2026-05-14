@@ -3380,19 +3380,20 @@ cycles, hence a sub-family of the full rooted simple-graph family.
 A proof here transfers to the rooted-profile target by the bridge
 `closedWalkProfile = simpleEvalAt of rooted m-cycle`.
 
-**Empirical evidence** (`scripts/closed_walk_search.py`,
-2026-05-14): all 291 non-orbit pairs tested across random
-twin-free matrices (T = 2..10) AND cycle-disjoint-union families
-(C₃⊔C₄ through C₆⊔C₇, including C₃⊔C₄⊔C₅) were separated by some
-closed walk of bounded length. Adversarial cycle unions are
-separated by m = max(component-sizes), e.g. C₅⊔C₆ at m = 5
-(CW₅ = 2 at C₅-vertex, CW₅ = 0 at C₆-vertex). Random matrices
-separate at m = 2 (weighted degree-squared).
+**Empirical evidence** (two falsification passes, 2026-05-14):
+1. `scripts/closed_walk_search.py`: 291/291 non-orbit pairs
+   separated across random twin-free matrices (T = 2..10) and
+   cycle-disjoint-union families (C₃⊔C₄ through C₆⊔C₇, including
+   C₃⊔C₄⊔C₅). Cycle unions separate at m = max(component-sizes),
+   random matrices at m = 2 (weighted degree-squared).
+2. `scripts/cospectral_vertex_search.py`: FULL enumeration of all
+   twin-free simple graphs on T = 4, 5, 6 (W = 1; 22,096 graphs)
+   plus 3,671 twin-free random graphs on T = 7. ZERO cospectral
+   vertex / different-orbit counterexamples found.
 
-**Caveat**: vertex cospectral mates (Schwenk-style constructions)
-could in principle defeat closed walks for some pathological B.
-Empirically not found in the corpus; treat as a focused conjecture
-until either proved or refuted on an adversarial corpus extension. -/
+**Caveat**: Schwenk-style vertex cospectral pairs are known to
+exist for non-twin-free or larger graphs. Treat this conjecture
+as empirically robust but not yet formally proved. -/
 theorem closed_walk_profiles_separate_vertex_orbits {T : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
