@@ -3436,6 +3436,31 @@ instance (m : ℕ) : DecidableRel (rootedCycleGraph m).Adj := by
   unfold rootedCycleGraph
   exact inferInstance
 
+/-- Adjacency unfolding lemma for `rootedCycleGraph`. -/
+@[simp] lemma rootedCycleGraph_adj_iff {m : ℕ} (a b : Fin (m + 2)) :
+    (rootedCycleGraph m).Adj a b ↔
+      (a.val + 1 = b.val) ∨ (b.val + 1 = a.val) ∨
+      (a.val = 0 ∧ b.val = m + 1) ∨ (a.val = m + 1 ∧ b.val = 0) :=
+  Iff.rfl
+
+/-- Loopless property unfolding. -/
+lemma rootedCycleGraph_not_adj_self {m : ℕ} (a : Fin (m + 2)) :
+    ¬ (rootedCycleGraph m).Adj a a :=
+  (rootedCycleGraph m).loopless a
+
+/-- Sum decomposition: a sum over `Fin (k+1) → α` decomposes as a double sum
+over the head (element of `α`) and the tail (`Fin k → α`). Re-indexing via
+`Fin.consEquiv`. Used to express the recursive structure of `weightedAdjIter`
+as a single sum over walk-coordinate functions. -/
+lemma sum_fin_succ_eq_sum_cons {T n : ℕ} [AddCommMonoid β]
+    (f : (Fin (n + 1) → Fin T) → β) :
+    ∑ σ : Fin (n + 1) → Fin T, f σ
+      = ∑ x : Fin T, ∑ σ' : Fin n → Fin T, f (Fin.cons x σ') := by
+  classical
+  rw [← (Fin.consEquiv (fun _ : Fin (n + 1) => Fin T)).sum_comp]
+  rw [← Finset.sum_product']
+  rfl
+
 /-- **Bridge lemma**: `rootedProfile` of `rootedCycleGraph (m+1)` at
 vertex `i` equals the closed-walk profile `closedWalkProfile B W i (m+3)`.
 
