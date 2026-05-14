@@ -3289,17 +3289,147 @@ theorem orbit_separation_by_edge_or_degree {T K : ℕ}
   sorry
 
 theorem orbit_separation_by_simple_graph {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (_hW : ∀ i, 0 < W i)
-    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T}
-    (_h : ¬ tupleOrbitRel B W ξ ξ') :
+    (h : ¬ tupleOrbitRel B W ξ ξ') :
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (_ : DecidableRel F.Adj),
       simpleEvalAt B W F ξ ≠ simpleEvalAt B W F ξ' := by
-  -- TODO: apply orbit_separation_by_edge_or_degree, then construct
-  -- the single-edge simple graph for each branch. Bounded Sym2
-  -- bookkeeping (~80-100 lines).
-  sorry
+  classical
+  rcases orbit_separation_by_edge_or_degree B hB W hW htwin h with
+    ⟨a, b, hab, hne⟩ | ⟨a, hne⟩
+  · -- Case 1: edge case. Build single-edge graph on Fin (0 + K) with edge
+    -- between positions a and b (both as labels).
+    let u : Fin (0 + K) := ⟨a.val, by have := a.isLt; omega⟩
+    let v : Fin (0 + K) := ⟨b.val, by have := b.isLt; omega⟩
+    have huv : u ≠ v := by
+      simp only [ne_eq, Fin.mk.injEq, u, v]
+      intro heq
+      exact hab (Fin.ext heq)
+    let F : SimpleGraph (Fin (0 + K)) :=
+      { Adj := fun x y => (x = u ∧ y = v) ∨ (x = v ∧ y = u)
+        symm := fun _ _ h =>
+          h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
+                 (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+        loopless := fun _ h => by
+          rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+          · exact huv (h1.symm.trans h2)
+          · exact huv (h2.symm.trans h1) }
+    haveI hF_dec : DecidableRel F.Adj := fun x y =>
+      if h₁ : x = u ∧ y = v then .isTrue (.inl h₁)
+      else if h₂ : x = v ∧ y = u then .isTrue (.inr h₂)
+      else .isFalse (fun h => h.elim (fun a => h₁ a) (fun a => h₂ a))
+    refine ⟨0, F, hF_dec, ?_⟩
+    intro hcontra
+    apply hne
+    have hedge : F.edgeFinset = {s(u, v)} := by
+      apply Finset.eq_singleton_iff_unique_mem.mpr
+      refine ⟨?_, ?_⟩
+      · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
+      · intro e he; rw [SimpleGraph.mem_edgeFinset] at he
+        exact Sym2.ind (fun x y (hadj : F.Adj x y) => by
+          rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+          · rw [h1, h2]
+          · rw [h1, h2, Sym2.eq_swap]) e he
+    simp only [simpleEvalAt, Fintype.sum_unique, Finset.univ_eq_empty,
+      Finset.prod_empty, one_mul, hedge, Finset.prod_singleton] at hcontra
+    have hu_lt : u.val < K := by simp [u]
+    have hv_lt : v.val < K := by simp [v]
+    have hua : (⟨u.val, hu_lt⟩ : Fin K) = a := Fin.ext rfl
+    have hvb : (⟨v.val, hv_lt⟩ : Fin K) = b := Fin.ext rfl
+    -- After simp, hcontra reads:
+    --   B (τξ (Quot.out s(u, v)).1) (τξ (Quot.out s(u, v)).2)
+    --     = B (τξ' (Quot.out s(u, v)).1) (τξ' (Quot.out s(u, v)).2)
+    -- where τξ / τξ' are the if-then-else.
+    -- We resolve Quot.out via Sym2.eq_iff + Quot.out_eq.
+    set p := Quot.out (s(u, v) : Sym2 (Fin (0 + K))) with hp_def
+    have hout : (Sym2.mk p : Sym2 (Fin (0 + K))) = s(u, v) := Quot.out_eq _
+    have hor : (p.1 = u ∧ p.2 = v) ∨ (p.1 = v ∧ p.2 = u) := by
+      rcases Sym2.eq_iff.mp hout with ⟨h1, h2⟩ | ⟨h1, h2⟩
+      · exact Or.inl ⟨h1, h2⟩
+      · exact Or.inr ⟨h1, h2⟩
+    rcases hor with ⟨hpu, hpv⟩ | ⟨hpu, hpv⟩
+    · simp only [hpu, hpv, dif_pos hu_lt, dif_pos hv_lt, hua, hvb] at hcontra
+      exact hcontra
+    · simp only [hpu, hpv, dif_pos hu_lt, dif_pos hv_lt, hua, hvb] at hcontra
+      -- hcontra : B (ξ b) (ξ a) = B (ξ' b) (ξ' a)
+      calc B (ξ a) (ξ b) = B (ξ b) (ξ a) := hB _ _
+        _ = B (ξ' b) (ξ' a) := hcontra
+        _ = B (ξ' a) (ξ' b) := hB _ _
+  · -- Case 2: degree case. Build single-edge graph on Fin (1 + K) with edge
+    -- between position a (as label) and position K (the single unlabeled vertex).
+    let u : Fin (1 + K) := ⟨a.val, by have := a.isLt; omega⟩
+    let v : Fin (1 + K) := ⟨K, by omega⟩
+    have huv : u ≠ v := by
+      simp only [ne_eq, Fin.mk.injEq, u, v]
+      have := a.isLt; omega
+    let F : SimpleGraph (Fin (1 + K)) :=
+      { Adj := fun x y => (x = u ∧ y = v) ∨ (x = v ∧ y = u)
+        symm := fun _ _ h =>
+          h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
+                 (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+        loopless := fun _ h => by
+          rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+          · exact huv (h1.symm.trans h2)
+          · exact huv (h2.symm.trans h1) }
+    haveI hF_dec : DecidableRel F.Adj := fun x y =>
+      if h₁ : x = u ∧ y = v then .isTrue (.inl h₁)
+      else if h₂ : x = v ∧ y = u then .isTrue (.inr h₂)
+      else .isFalse (fun h => h.elim (fun a => h₁ a) (fun a => h₂ a))
+    refine ⟨1, F, hF_dec, ?_⟩
+    intro hcontra
+    apply hne
+    have hedge : F.edgeFinset = {s(u, v)} := by
+      apply Finset.eq_singleton_iff_unique_mem.mpr
+      refine ⟨?_, ?_⟩
+      · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
+      · intro e he; rw [SimpleGraph.mem_edgeFinset] at he
+        exact Sym2.ind (fun x y (hadj : F.Adj x y) => by
+          rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+          · rw [h1, h2]
+          · rw [h1, h2, Sym2.eq_swap]) e he
+    -- simpleEvalAt unfolds to:
+    --   ∑ σ : Fin 1 → Fin T, (∏ v : Fin 1, W (σ v)) * (single B factor)
+    simp only [simpleEvalAt, hedge, Finset.prod_singleton,
+      Fin.prod_univ_one] at hcontra
+    have hu_lt : u.val < K := by simp [u]
+    have hv_lt : ¬ v.val < K := by simp [v]
+    have hua : (⟨u.val, hu_lt⟩ : Fin K) = a := Fin.ext rfl
+    have hv_minus_zero : (⟨v.val - K, by have := v.isLt; omega⟩ : Fin 1) = 0 := by
+      apply Fin.ext
+      simp [v]
+    set p := Quot.out (s(u, v) : Sym2 (Fin (1 + K))) with hp_def
+    have hout : (Sym2.mk p : Sym2 (Fin (1 + K))) = s(u, v) := Quot.out_eq _
+    have hor : (p.1 = u ∧ p.2 = v) ∨ (p.1 = v ∧ p.2 = u) := by
+      rcases Sym2.eq_iff.mp hout with ⟨h1, h2⟩ | ⟨h1, h2⟩
+      · exact Or.inl ⟨h1, h2⟩
+      · exact Or.inr ⟨h1, h2⟩
+    -- Reindex (Fin 1 → Fin T) ≃ Fin T via Equiv.funUnique.
+    have hreindex : ∀ (f : Fin T → ℝ),
+        ∑ σ : Fin 1 → Fin T, f (σ 0) = ∑ t : Fin T, f t := by
+      intro f
+      have := Equiv.sum_comp (Equiv.funUnique (Fin 1) (Fin T)) f
+      simpa [Equiv.funUnique_apply] using this
+    rcases hor with ⟨hpu, hpv⟩ | ⟨hpu, hpv⟩
+    · -- p = (u, v): p.1 = u (val < K, reads ξ at a); p.2 = v (val = K, reads σ at 0).
+      simp only [hpu, hpv, dif_pos hu_lt, dif_neg hv_lt, hua,
+        hv_minus_zero] at hcontra
+      rw [hreindex (fun t => W t * B (ξ a) t),
+          hreindex (fun t => W t * B (ξ' a) t)] at hcontra
+      exact hcontra
+    · -- p = (v, u): p.1 = v (val = K, reads σ at 0); p.2 = u (val < K, reads ξ at a).
+      simp only [hpu, hpv, dif_pos hu_lt, dif_neg hv_lt, hua,
+        hv_minus_zero] at hcontra
+      rw [hreindex (fun t => W t * B t (ξ a)),
+          hreindex (fun t => W t * B t (ξ' a))] at hcontra
+      -- hcontra : ∑ t, W t * B t (ξ a) = ∑ t, W t * B t (ξ' a)
+      -- Goal : ∑ t, W t * B (ξ a) t = ∑ t, W t * B (ξ' a) t. Use hB symmetry.
+      have hL : (∑ t, W t * B (ξ a) t) = ∑ t, W t * B t (ξ a) := by
+        apply Finset.sum_congr rfl; intro t _; rw [hB]
+      have hR : (∑ t, W t * B (ξ' a) t) = ∑ t, W t * B t (ξ' a) := by
+        apply Finset.sum_congr rfl; intro t _; rw [hB]
+      rw [hL, hR]; exact hcontra
 
 /-- **Orbit separation, identity case** — narrowest case of
 `orbit_separation_by_simple_graph` where `K = T` and the source tuple is
