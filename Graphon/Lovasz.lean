@@ -3487,6 +3487,43 @@ lemma cycleSucc_adj {m : ℕ} (j : Fin (m + 2)) :
     refine ⟨hj_eq, ?_⟩
     exact cycleSucc_val_of_eq j hj_eq
 
+/-- Every edge of `rootedCycleGraph (m+1)` (for `m+3 ≥ 3` vertices) is of
+the form `s(j, cycleSucc j)` for some `j : Fin (m+3)`. The `m+1` offset
+ensures the cycle has at least 3 vertices, so the edge map is injective
+(distinct `j` give distinct unordered pairs, since a 2-cycle would
+require `m+2 = 2`). -/
+lemma rootedCycleGraph_adj_iff_succ {m : ℕ} (a b : Fin (m + 3)) :
+    (rootedCycleGraph (m + 1)).Adj a b ↔
+      cycleSucc a = b ∨ cycleSucc b = a := by
+  constructor
+  · intro h
+    rw [rootedCycleGraph_adj_iff] at h
+    rcases h with h | h | ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · -- a.val + 1 = b.val: cycleSucc a = b (in the within-range branch)
+      left
+      apply Fin.ext
+      rw [cycleSucc_val_of_lt a (by have := b.isLt; omega)]
+      exact h
+    · -- b.val + 1 = a.val: cycleSucc b = a
+      right
+      apply Fin.ext
+      rw [cycleSucc_val_of_lt b (by have := a.isLt; omega)]
+      exact h
+    · -- a.val = 0 ∧ b.val = m + 2: cycleSucc b = a (b wraps to 0 = a)
+      right
+      apply Fin.ext
+      rw [cycleSucc_val_of_eq b h2]
+      exact h1.symm
+    · -- a.val = m + 2 ∧ b.val = 0: cycleSucc a = b (a wraps to 0 = b)
+      left
+      apply Fin.ext
+      rw [cycleSucc_val_of_eq a h1]
+      exact h2.symm
+  · intro h
+    rcases h with h | h
+    · rw [← h]; exact cycleSucc_adj a
+    · rw [← h]; exact (rootedCycleGraph (m + 1)).symm (cycleSucc_adj b)
+
 /-- **Bridge lemma**: `rootedProfile` of `rootedCycleGraph (m+1)` at
 vertex `i` equals the closed-walk profile `closedWalkProfile B W i (m+3)`.
 
