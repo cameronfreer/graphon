@@ -3606,6 +3606,25 @@ lemma rootedCycleGraph_edgeProduct_eq {T m : ℕ}
   · rw [h1, h2]
   · rw [h1, h2]; exact hB _ _
 
+/-- `cycleSucc 0 = ⟨1, _⟩` in `Fin (m + 3)`. -/
+private lemma cycleSucc_zero {m : ℕ} :
+    cycleSucc (⟨0, by omega⟩ : Fin (m + 3)) = ⟨1, by omega⟩ := by
+  apply Fin.ext
+  rw [cycleSucc_val_of_lt _ (by show 0 + 1 < m + 3; omega)]
+
+/-- `cycleSucc` of `⟨m+2, _⟩` wraps to `⟨0, _⟩`. -/
+private lemma cycleSucc_last_eq {m : ℕ} :
+    cycleSucc (⟨m + 2, by omega⟩ : Fin (m + 3)) = ⟨0, by omega⟩ := by
+  apply Fin.ext
+  rw [cycleSucc_val_of_eq _ (by show (m + 2 : ℕ) = m + 1 + 1; omega)]
+
+/-- `cycleSucc` at index `k + 1` is `k + 2` (when `k + 1 < m + 2`). -/
+private lemma cycleSucc_mid {m : ℕ} (k : Fin (m + 1)) :
+    cycleSucc (⟨k.val + 1, by have := k.isLt; omega⟩ : Fin (m + 3))
+      = ⟨k.val + 2, by have := k.isLt; omega⟩ := by
+  apply Fin.ext
+  rw [cycleSucc_val_of_lt _ (by have := k.isLt; show k.val + 1 + 1 < m + 3; omega)]
+
 /-- **Bridge lemma**: `rootedProfile` of `rootedCycleGraph (m+1)` at
 vertex `i` equals the closed-walk profile `closedWalkProfile B W i (m+3)`.
 
@@ -3623,8 +3642,9 @@ a multigraph evaluation, requiring edge multiplicity 2).
 
 **Status**: focused infrastructure sorry. Needed to wire
 `closed_walk_profiles_separate_vertex_orbits` into
-`rooted_profiles_separate_vertex_orbits`. ~100-200 lines of Fin
-arithmetic + `Quot.out` reasoning. -/
+`rooted_profiles_separate_vertex_orbits`. ~30-80 lines of Fin
+arithmetic + `Quot.out` reasoning (down from 100-200 thanks to
+the cycleSucc helper set). -/
 theorem rootedProfile_rootedCycleGraph_eq_closedWalkProfile {T m : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (i : Fin T) :
