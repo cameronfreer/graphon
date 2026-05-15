@@ -3606,6 +3606,13 @@ lemma rootedCycleGraph_edgeProduct_eq {T m : ℕ}
   · rw [h1, h2]
   · rw [h1, h2]; exact hB _ _
 
+/-- One-step unfold of `weightedAdjIter`: `M^{k+1} g v = ∑ u, W u · B v u · M^k g u`. -/
+private lemma weightedAdjIter_succ {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (k : ℕ) (g : Fin T → ℝ) (v : Fin T) :
+    weightedAdjIter B W (k + 1) g v
+      = ∑ u : Fin T, W u * B v u * weightedAdjIter B W k g u := by
+  rfl
+
 /-- `cycleSucc 0 = ⟨1, _⟩` in `Fin (m + 3)`. -/
 private lemma cycleSucc_zero {m : ℕ} :
     cycleSucc (⟨0, by omega⟩ : Fin (m + 3)) = ⟨1, by omega⟩ := by
