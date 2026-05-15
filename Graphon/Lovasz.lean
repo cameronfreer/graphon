@@ -3583,6 +3583,29 @@ lemma rootedCycleGraph_edgeFinset_eq {m : ℕ} :
     · left; rw [← h1, ← h2]
     · right; rw [← h1, ← h2]
 
+/-- For a symmetric `B`, the τ-parametric edge product over the cycle
+factors via `cycleSucc`: each edge `s(j, cycleSucc j)` contributes
+`B (τ j) (τ (cycleSucc j))`, regardless of `Quot.out` orientation. -/
+lemma rootedCycleGraph_edgeProduct_eq {T m : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (τ : Fin (m + 3) → Fin T) :
+    (∏ e ∈ (rootedCycleGraph (m + 1)).edgeFinset,
+        B (τ (Quot.out e).1) (τ (Quot.out e).2))
+    = ∏ j : Fin (m + 3), B (τ j) (τ (cycleSucc j)) := by
+  classical
+  rw [rootedCycleGraph_edgeFinset_eq]
+  rw [Finset.prod_image (fun _ _ _ _ h => cycleSucc_pair_injective h)]
+  apply Finset.prod_congr rfl
+  intro j _
+  -- For each j: Quot.out of s(j, cycleSucc j) gives some (a, b) with
+  -- Sym2.mk (a, b) = s(j, cycleSucc j); use Sym2.eq_iff + hB symmetry.
+  have hp : (Sym2.mk (Quot.out (s(j, cycleSucc j) : Sym2 _)))
+            = (s(j, cycleSucc j) : Sym2 _) := Quot.out_eq _
+  rw [Sym2.eq_iff] at hp
+  rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · rw [h1, h2]
+  · rw [h1, h2]; exact hB _ _
+
 /-- **Bridge lemma**: `rootedProfile` of `rootedCycleGraph (m+1)` at
 vertex `i` equals the closed-walk profile `closedWalkProfile B W i (m+3)`.
 
