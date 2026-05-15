@@ -3461,6 +3461,32 @@ lemma sum_fin_succ_eq_sum_cons {T n : ℕ} [AddCommMonoid β]
   rw [← Finset.sum_product']
   rfl
 
+/-- Cyclic successor on `Fin (m + 2)`: maps `j` to `j + 1` modulo `m + 2`. -/
+def cycleSucc {m : ℕ} (j : Fin (m + 2)) : Fin (m + 2) :=
+  if h : j.val + 1 < m + 2 then ⟨j.val + 1, h⟩ else ⟨0, by omega⟩
+
+@[simp] lemma cycleSucc_val_of_lt {m : ℕ} (j : Fin (m + 2)) (hj : j.val + 1 < m + 2) :
+    (cycleSucc j).val = j.val + 1 := by
+  unfold cycleSucc; rw [dif_pos hj]
+
+@[simp] lemma cycleSucc_val_of_eq {m : ℕ} (j : Fin (m + 2)) (hj : j.val = m + 1) :
+    (cycleSucc j).val = 0 := by
+  unfold cycleSucc
+  have : ¬ (j.val + 1 < m + 2) := by omega
+  rw [dif_neg this]
+
+lemma cycleSucc_adj {m : ℕ} (j : Fin (m + 2)) :
+    (rootedCycleGraph m).Adj j (cycleSucc j) := by
+  rcases lt_or_ge (j.val + 1) (m + 2) with h | h
+  · -- consecutive case
+    left
+    exact (cycleSucc_val_of_lt j h).symm
+  · -- wrap case: j.val = m + 1; cycleSucc j has val = 0.
+    have hj_eq : j.val = m + 1 := by have := j.isLt; omega
+    right; right; right
+    refine ⟨hj_eq, ?_⟩
+    exact cycleSucc_val_of_eq j hj_eq
+
 /-- **Bridge lemma**: `rootedProfile` of `rootedCycleGraph (m+1)` at
 vertex `i` equals the closed-walk profile `closedWalkProfile B W i (m+3)`.
 
