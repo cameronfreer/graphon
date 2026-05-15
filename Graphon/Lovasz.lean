@@ -3524,6 +3524,65 @@ lemma rootedCycleGraph_adj_iff_succ {m : ℕ} (a b : Fin (m + 3)) :
     · rw [← h]; exact cycleSucc_adj a
     · rw [← h]; exact (rootedCycleGraph (m + 1)).symm (cycleSucc_adj b)
 
+/-- `cycleSucc` is not its own inverse: `cycleSucc (cycleSucc j) ≠ j` on
+`Fin (m + 3)` (which has at least 3 elements, so no 2-cycles exist). -/
+lemma cycleSucc_cycleSucc_ne {m : ℕ} (k : Fin (m + 3)) :
+    cycleSucc (cycleSucc k) ≠ k := by
+  intro h
+  have hval : (cycleSucc (cycleSucc k)).val = k.val := congrArg Fin.val h
+  have hk := k.isLt
+  by_cases h1 : k.val + 1 < m + 3
+  · have hsk : (cycleSucc k).val = k.val + 1 := cycleSucc_val_of_lt _ h1
+    by_cases h2 : (cycleSucc k).val + 1 < m + 3
+    · have : (cycleSucc (cycleSucc k)).val = k.val + 2 := by
+        rw [cycleSucc_val_of_lt _ h2, hsk]
+      omega
+    · have hsk_eq : (cycleSucc k).val = m + 2 := by
+        have := (cycleSucc k).isLt; omega
+      have : (cycleSucc (cycleSucc k)).val = 0 :=
+        cycleSucc_val_of_eq _ hsk_eq
+      omega
+  · have hk_eq : k.val = m + 2 := by omega
+    have hsk : (cycleSucc k).val = 0 := cycleSucc_val_of_eq _ hk_eq
+    have hsk_lt : (cycleSucc k).val + 1 < m + 3 := by rw [hsk]; omega
+    have : (cycleSucc (cycleSucc k)).val = 1 := by
+      rw [cycleSucc_val_of_lt _ hsk_lt, hsk]
+    omega
+
+/-- The map `j ↦ s(j, cycleSucc j)` is injective on `Fin (m + 3)`. -/
+lemma cycleSucc_pair_injective {m : ℕ} :
+    Function.Injective
+      (fun j : Fin (m + 3) => (s(j, cycleSucc j) : Sym2 (Fin (m + 3)))) := by
+  intro j k hjk
+  rw [Sym2.eq_iff] at hjk
+  rcases hjk with ⟨h1, _⟩ | ⟨h1, h2⟩
+  · exact h1
+  · exfalso
+    apply cycleSucc_cycleSucc_ne k
+    rw [← h1]; exact h2
+
+/-- The edge finset of `rootedCycleGraph (m+1)` is exactly the image of
+the map `j ↦ s(j, cycleSucc j)` over `Fin (m + 3)`. -/
+lemma rootedCycleGraph_edgeFinset_eq {m : ℕ} :
+    (rootedCycleGraph (m + 1)).edgeFinset =
+      Finset.univ.image (fun j : Fin (m + 3) => s(j, cycleSucc j)) := by
+  classical
+  ext e
+  refine e.ind ?_
+  intro a b
+  rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, rootedCycleGraph_adj_iff_succ]
+  simp only [Finset.mem_image, Finset.mem_univ, true_and]
+  constructor
+  · rintro (h | h)
+    · exact ⟨a, by rw [h]⟩
+    · refine ⟨b, ?_⟩
+      rw [h]; exact Sym2.eq_swap
+  · rintro ⟨j, hj⟩
+    rw [Sym2.eq_iff] at hj
+    rcases hj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · left; rw [← h1, ← h2]
+    · right; rw [← h1, ← h2]
+
 /-- **Bridge lemma**: `rootedProfile` of `rootedCycleGraph (m+1)` at
 vertex `i` equals the closed-walk profile `closedWalkProfile B W i (m+3)`.
 
