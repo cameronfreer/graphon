@@ -3700,7 +3700,81 @@ private lemma cycle_prod_factored {T m : ℕ} (B : Fin T → Fin T → ℝ) (i :
        else σ ⟨(cycleSucc j).val - 1, by have := (cycleSucc j).isLt; omega⟩))
     = B i (σ 0) * (∏ k : Fin (m + 1), B (σ k.castSucc) (σ k.succ)) *
       B (σ (Fin.last (m + 1))) i := by
-  sorry
+  -- Step 1: cycleSucc values at the three positions we care about.
+  have h0_val : ((0 : Fin (m + 3)) : ℕ) = 0 := rfl
+  have hcs_zero : (cycleSucc (0 : Fin (m + 3))).val = 1 := by
+    have := cycleSucc_val_of_lt (0 : Fin (m + 3)) (by rw [h0_val]; omega)
+    rw [this, h0_val]
+  have h_last_succ_val : (((Fin.last (m + 1)).succ : Fin (m + 3)) : ℕ) = m + 2 := by
+    simp [Fin.val_succ, Fin.val_last]
+  have hcs_last : (cycleSucc ((Fin.last (m + 1)).succ : Fin (m + 3))).val = 0 := by
+    apply cycleSucc_val_of_eq
+    rw [h_last_succ_val]
+  have h_mid_succ_val : ∀ k : Fin (m + 1),
+      ((k.castSucc.succ : Fin (m + 3)) : ℕ) = k.val + 1 := by
+    intro k
+    simp [Fin.val_succ, Fin.val_castSucc]
+  have hcs_mid : ∀ k : Fin (m + 1),
+      (cycleSucc (k.castSucc.succ : Fin (m + 3))).val = k.val + 2 := by
+    intro k
+    have := cycleSucc_val_of_lt (k.castSucc.succ : Fin (m + 3))
+      (by rw [h_mid_succ_val]; have := k.isLt; omega)
+    rw [this, h_mid_succ_val]
+  -- Step 2: split product.
+  rw [Fin.prod_univ_succ, Fin.prod_univ_castSucc]
+  -- Step 3: reduce each factor using cycleSucc values + Fin.val computations.
+  -- Root factor: B (τ 0) (τ (cycleSucc 0)) = B i (σ 0).
+  have h_root : B
+        (if h : ((0 : Fin (m + 3)) : ℕ) < 1 then i
+         else σ ⟨((0 : Fin (m + 3)) : ℕ) - 1, by
+           have := (0 : Fin (m + 3)).isLt; omega⟩)
+        (if h : ((cycleSucc (0 : Fin (m + 3))) : ℕ) < 1 then i
+         else σ ⟨((cycleSucc (0 : Fin (m + 3))) : ℕ) - 1, by
+           have := (cycleSucc (0 : Fin (m + 3))).isLt; omega⟩)
+      = B i (σ 0) := by
+    rw [dif_pos (show ((0 : Fin (m + 3)) : ℕ) < 1 by show 0 < 1; omega)]
+    rw [dif_neg (by rw [hcs_zero]; omega)]
+    congr 2
+  -- Closing factor: B (τ last.succ) (τ (cycleSucc last.succ)) = B (σ last) i.
+  have h_close : B
+        (if h : (((Fin.last (m + 1)).succ : Fin (m + 3)) : ℕ) < 1 then i
+         else σ ⟨(((Fin.last (m + 1)).succ : Fin (m + 3)) : ℕ) - 1, by
+           have := ((Fin.last (m + 1)).succ : Fin (m + 3)).isLt; omega⟩)
+        (if h : ((cycleSucc ((Fin.last (m + 1)).succ : Fin (m + 3))) : ℕ) < 1 then i
+         else σ ⟨((cycleSucc ((Fin.last (m + 1)).succ : Fin (m + 3))) : ℕ) - 1, by
+           have := (cycleSucc ((Fin.last (m + 1)).succ : Fin (m + 3))).isLt; omega⟩)
+      = B (σ (Fin.last (m + 1))) i := by
+    rw [dif_neg (by rw [h_last_succ_val]; omega)]
+    rw [dif_pos (by rw [hcs_last]; omega)]
+    congr 2
+  -- Middle factor: ∀ k, B (τ k.castSucc.succ) (τ (cycleSucc k.castSucc.succ)) = B (σ k.castSucc) (σ k.succ).
+  have h_middle : ∀ k : Fin (m + 1),
+      B (if h : ((k.castSucc.succ : Fin (m + 3)) : ℕ) < 1 then i
+         else σ ⟨((k.castSucc.succ : Fin (m + 3)) : ℕ) - 1, by
+           have := (k.castSucc.succ : Fin (m + 3)).isLt; omega⟩)
+        (if h : ((cycleSucc (k.castSucc.succ : Fin (m + 3))) : ℕ) < 1 then i
+         else σ ⟨((cycleSucc (k.castSucc.succ : Fin (m + 3))) : ℕ) - 1, by
+           have := (cycleSucc (k.castSucc.succ : Fin (m + 3))).isLt; omega⟩)
+      = B (σ k.castSucc) (σ k.succ) := by
+    intro k
+    rw [dif_neg (by rw [h_mid_succ_val]; omega)]
+    rw [dif_neg (by rw [hcs_mid k]; omega)]
+    congr 1
+    apply congrArg σ; apply Fin.ext
+    show ((cycleSucc (k.castSucc.succ : Fin (m + 3))).val - 1 : ℕ) = (k.succ : Fin (m + 2)).val
+    rw [hcs_mid k]; simp [Fin.val_succ]
+  -- Assemble.
+  rw [h_root, h_close]
+  rw [show (∏ i_1 : Fin (m + 1), B
+        (if h : ((i_1.castSucc.succ : Fin (m + 3)) : ℕ) < 1 then i
+         else σ ⟨((i_1.castSucc.succ : Fin (m + 3)) : ℕ) - 1, by
+           have := (i_1.castSucc.succ : Fin (m + 3)).isLt; omega⟩)
+        (if h : ((cycleSucc (i_1.castSucc.succ : Fin (m + 3))) : ℕ) < 1 then i
+         else σ ⟨((cycleSucc (i_1.castSucc.succ : Fin (m + 3))) : ℕ) - 1, by
+           have := (cycleSucc (i_1.castSucc.succ : Fin (m + 3))).isLt; omega⟩))
+      = ∏ k : Fin (m + 1), B (σ k.castSucc) (σ k.succ) from
+    Finset.prod_congr rfl (fun k _ => h_middle k)]
+  ring
 
 /-- The cycle product in the rooted cycle evaluation is exactly the
 coordinate-wise term in the closed-walk expansion. -/
