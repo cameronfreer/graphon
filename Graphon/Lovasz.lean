@@ -3666,11 +3666,9 @@ private lemma cycleEvalTerm_eq_weightedAdjIterTerm {T m : ℕ}
     (∏ v : Fin (m + 2), W (σ v)) *
       ∏ j : Fin (m + 3), B (τ j) (τ (cycleSucc j))) =
     weightedAdjIterTerm B W (m + 2) (fun v => B v i) i σ := by
-  -- The cycle product = walk-chain product, by induction on m. The
-  -- closure uses Fin.prod_univ_succ + Fin.prod_univ_castSucc to peel
-  -- the root/wrap edges, and the cycleSucc evaluation lemmas to compute
-  -- explicit Fin successors. Currently sorry'd: needs OfNat-aware cycle
-  -- succ rewriting that the existing `⟨_, _⟩`-pattern lemmas don't fire on.
+  -- Closure pending Fin-normalization: simp can't unify OfNat numerals
+  -- with the ⟨_, _⟩ constructor form expected by cycleSucc_{zero, mid,
+  -- last_eq} lemmas. See task #78 for next-session approach.
   sorry
 
 /-- **Bridge lemma**: `rootedProfile` of `rootedCycleGraph (m+1)` at
