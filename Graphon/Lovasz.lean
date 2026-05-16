@@ -3689,6 +3689,19 @@ private lemma weightedAdjIterTerm_succ_form {T : ℕ} (B : Fin T → Fin T → �
                  Fin.succ_last]
       ring
 
+/-- The cycle B-product on `rootedCycleGraph (m+1)` factors as
+root edge × interior chain × closing edge. Pure combinatorial identity
+via `Fin.prod_univ_succ` + `Fin.prod_univ_castSucc`. -/
+private lemma cycle_prod_factored {T m : ℕ} (B : Fin T → Fin T → ℝ) (i : Fin T)
+    (σ : Fin (m + 2) → Fin T) :
+    (∏ j : Fin (m + 3), B
+      (if h : (j : ℕ) < 1 then i else σ ⟨j.val - 1, by have := j.isLt; omega⟩)
+      (if h : ((cycleSucc j) : ℕ) < 1 then i
+       else σ ⟨(cycleSucc j).val - 1, by have := (cycleSucc j).isLt; omega⟩))
+    = B i (σ 0) * (∏ k : Fin (m + 1), B (σ k.castSucc) (σ k.succ)) *
+      B (σ (Fin.last (m + 1))) i := by
+  sorry
+
 /-- The cycle product in the rooted cycle evaluation is exactly the
 coordinate-wise term in the closed-walk expansion. -/
 private lemma cycleEvalTerm_eq_weightedAdjIterTerm {T m : ℕ}
@@ -3699,22 +3712,16 @@ private lemma cycleEvalTerm_eq_weightedAdjIterTerm {T m : ℕ}
     (∏ v : Fin (m + 2), W (σ v)) *
       ∏ j : Fin (m + 3), B (τ j) (τ (cycleSucc j))) =
     weightedAdjIterTerm B W (m + 2) (fun v => B v i) i σ := by
-  -- Rewrite RHS using the path-chain normal form.
   rw [weightedAdjIterTerm_succ_form]
-  -- RHS = (∏ k : Fin (m+2), W (σ k)) * B i (σ 0) *
-  --       (∏ k : Fin (m+1), B (σ k.castSucc) (σ k.succ)) * B (σ (Fin.last (m+1))) i.
-  -- LHS = (∏ W σ) * (cycle prod). Need to show cycle prod factors as
-  -- B i (σ 0) * (chain) * B (σ last) i.
-  induction m generalizing i with
-  | zero =>
-      simp_rw [Fin.prod_univ_succ, Fin.prod_univ_zero, mul_one,
-               cycleSucc_ofNat_zero]
-      have h1 : cycleSucc (Fin.succ (0 : Fin 2) : Fin 3) = ⟨2, by decide⟩ := by decide
-      have h2 : cycleSucc ((Fin.succ (0 : Fin 1)).succ : Fin 3) = ⟨0, by decide⟩ := by decide
-      rw [h1, h2]
-      simp [Fin.last]
-      ring
-  | succ m _ => sorry
+  -- LHS has `let τ := ...`; eliminate via show to expose the if-then-else.
+  show (∏ v : Fin (m + 2), W (σ v)) *
+       (∏ j : Fin (m + 3), B
+         (if h : (j : ℕ) < 1 then i else σ ⟨j.val - 1, by have := j.isLt; omega⟩)
+         (if h : ((cycleSucc j) : ℕ) < 1 then i
+          else σ ⟨(cycleSucc j).val - 1, by have := (cycleSucc j).isLt; omega⟩))
+       = _
+  rw [cycle_prod_factored]
+  ring
 
 /-- **Bridge lemma**: `rootedProfile` of `rootedCycleGraph (m+1)` at
 vertex `i` equals the closed-walk profile `closedWalkProfile B W i (m+3)`.
