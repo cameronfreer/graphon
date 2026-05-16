@@ -3400,9 +3400,21 @@ inherently multigraph evaluations (edge multiplicity 2) and
 cannot be realized by simple graphs. Empirically, length-3
 closed walks always separate when length-2 closed walks do.
 
+4. `scripts/closed_walk_weighted_search.py` (2026-05-16): 78 weighted
+   twin-free cases (random weighted, W-perturbed cycles/complete graphs,
+   block-diagonal, W-perturbed Petersen) — 0 counterexamples.
+
 **Caveat**: Schwenk-style vertex cospectral pairs are known to
 exist for non-twin-free or larger graphs. Treat this conjecture
-as empirically robust but not yet formally proved. -/
+as empirically robust but not yet formally proved.
+
+**STATUS (2026-05-16)**: Designated as a PAPER-ROOT theorem (K=1
+spectral). A full Lean proof would require ~500-1000 LOC of
+finite-dimensional spectral infrastructure (Cayley-Hamilton +
+spectral theorem + twin-free → orbit upgrade). Not a near-term
+tactical target; downstream consumers should cite Lovász §3
+analogues until formalization is undertaken as a dedicated
+spectral-module project. -/
 theorem closed_walk_profiles_separate_vertex_orbits {T : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
