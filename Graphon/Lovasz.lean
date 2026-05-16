@@ -3665,6 +3665,30 @@ private lemma weightedAdjIter_eq_sum_term {T : ℕ} (B : Fin T → Fin T → ℝ
       rw [sum_fin_succ_eq_sum_cons]
       simp [weightedAdjIterTerm, Finset.mul_sum]
 
+/-- Explicit closed form for `weightedAdjIterTerm` of level `n + 1`:
+weight product × root-edge × interior chain × terminal `g`. -/
+private lemma weightedAdjIterTerm_succ_form {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (g : Fin T → ℝ) :
+    ∀ (n : ℕ) (v : Fin T) (σ : Fin (n + 1) → Fin T),
+      weightedAdjIterTerm B W (n + 1) g v σ =
+        (∏ k : Fin (n + 1), W (σ k)) *
+        B v (σ 0) *
+        (∏ k : Fin n, B (σ k.castSucc) (σ k.succ)) *
+        g (σ (Fin.last n)) := by
+  intro n
+  induction n with
+  | zero =>
+      intro v σ
+      simp [weightedAdjIterTerm, Fin.prod_univ_succ, Fin.prod_univ_zero]
+  | succ n ih =>
+      intro v σ
+      show W (σ 0) * B v (σ 0) *
+           weightedAdjIterTerm B W (n + 1) g (σ 0) (fun k => σ k.succ) = _
+      rw [ih (σ 0) (fun k => σ k.succ)]
+      simp only [Fin.prod_univ_succ, Fin.succ_castSucc, Fin.castSucc_zero,
+                 Fin.succ_last]
+      ring
+
 /-- The cycle product in the rooted cycle evaluation is exactly the
 coordinate-wise term in the closed-walk expansion. -/
 private lemma cycleEvalTerm_eq_weightedAdjIterTerm {T m : ℕ}
@@ -3675,6 +3699,12 @@ private lemma cycleEvalTerm_eq_weightedAdjIterTerm {T m : ℕ}
     (∏ v : Fin (m + 2), W (σ v)) *
       ∏ j : Fin (m + 3), B (τ j) (τ (cycleSucc j))) =
     weightedAdjIterTerm B W (m + 2) (fun v => B v i) i σ := by
+  -- Rewrite RHS using the path-chain normal form.
+  rw [weightedAdjIterTerm_succ_form]
+  -- RHS = (∏ k : Fin (m+2), W (σ k)) * B i (σ 0) *
+  --       (∏ k : Fin (m+1), B (σ k.castSucc) (σ k.succ)) * B (σ (Fin.last (m+1))) i.
+  -- LHS = (∏ W σ) * (cycle prod). Need to show cycle prod factors as
+  -- B i (σ 0) * (chain) * B (σ last) i.
   induction m generalizing i with
   | zero =>
       simp_rw [Fin.prod_univ_succ, Fin.prod_univ_zero, mul_one,
@@ -3682,7 +3712,7 @@ private lemma cycleEvalTerm_eq_weightedAdjIterTerm {T m : ℕ}
       have h1 : cycleSucc (Fin.succ (0 : Fin 2) : Fin 3) = ⟨2, by decide⟩ := by decide
       have h2 : cycleSucc ((Fin.succ (0 : Fin 1)).succ : Fin 3) = ⟨0, by decide⟩ := by decide
       rw [h1, h2]
-      simp [weightedAdjIterTerm]
+      simp [Fin.last]
       ring
   | succ m _ => sorry
 
