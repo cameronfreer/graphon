@@ -3632,6 +3632,47 @@ private lemma cycleSucc_mid {m : ℕ} (k : Fin (m + 1)) :
   apply Fin.ext
   rw [cycleSucc_val_of_lt _ (by have := k.isLt; show k.val + 1 + 1 < m + 3; omega)]
 
+/-- Term-by-term expansion of `weightedAdjIter`: a coordinate assignment
+`σ : Fin n → Fin T` contributes the W-product and the directed path product
+from the current vertex through `σ`. -/
+private noncomputable def weightedAdjIterTerm {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) : (n : ℕ) → (Fin T → ℝ) → Fin T → (Fin n → Fin T) → ℝ
+  | 0, g, v, _ => g v
+  | n + 1, g, v, σ =>
+      W (σ 0) * B v (σ 0) *
+        weightedAdjIterTerm B W n g (σ 0) (fun k => σ k.succ)
+
+/-- `weightedAdjIter` is the sum of its coordinate-wise path terms. -/
+private lemma weightedAdjIter_eq_sum_term {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (n : ℕ) (g : Fin T → ℝ) (v : Fin T) :
+    weightedAdjIter B W n g v =
+      ∑ σ : Fin n → Fin T, weightedAdjIterTerm B W n g v σ := by
+  induction n generalizing v with
+  | zero =>
+      simp [weightedAdjIter, weightedAdjIterTerm]
+  | succ n ih =>
+      rw [weightedAdjIter_succ]
+      simp_rw [ih]
+      rw [sum_fin_succ_eq_sum_cons]
+      simp [weightedAdjIterTerm, Finset.mul_sum]
+
+/-- The cycle product in the rooted cycle evaluation is exactly the
+coordinate-wise term in the closed-walk expansion. -/
+private lemma cycleEvalTerm_eq_weightedAdjIterTerm {T m : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (i : Fin T)
+    (σ : Fin (m + 2) → Fin T) :
+    (let τ : Fin (m + 3) → Fin T := fun v =>
+      if h : (v : ℕ) < 1 then i else σ ⟨v - 1, by have := v.isLt; omega⟩
+    (∏ v : Fin (m + 2), W (σ v)) *
+      ∏ j : Fin (m + 3), B (τ j) (τ (cycleSucc j))) =
+    weightedAdjIterTerm B W (m + 2) (fun v => B v i) i σ := by
+  -- The cycle product = walk-chain product, by induction on m. The
+  -- closure uses Fin.prod_univ_succ + Fin.prod_univ_castSucc to peel
+  -- the root/wrap edges, and the cycleSucc evaluation lemmas to compute
+  -- explicit Fin successors. Currently sorry'd: needs OfNat-aware cycle
+  -- succ rewriting that the existing `⟨_, _⟩`-pattern lemmas don't fire on.
+  sorry
+
 /-- **Bridge lemma**: `rootedProfile` of `rootedCycleGraph (m+1)` at
 vertex `i` equals the closed-walk profile `closedWalkProfile B W i (m+3)`.
 
@@ -3653,11 +3694,24 @@ a multigraph evaluation, requiring edge multiplicity 2).
 arithmetic + `Quot.out` reasoning (down from 100-200 thanks to
 the cycleSucc helper set). -/
 theorem rootedProfile_rootedCycleGraph_eq_closedWalkProfile {T m : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (i : Fin T) :
     rootedProfile B W i (rootedCycleGraph (m + 1)) =
       closedWalkProfile B W i (m + 3) := by
-  sorry
+  classical
+  show rootedProfile B W i (rootedCycleGraph (m + 1)) =
+       weightedAdjIter B W (m + 2) (fun v => B v i) i
+  unfold rootedProfile simpleEvalAt
+  rw [weightedAdjIter_eq_sum_term]
+  apply Finset.sum_congr rfl
+  intro σ _
+  let τ : Fin (m + 3) → Fin T := fun v =>
+    if h : (v : ℕ) < 1 then i else σ ⟨v - 1, by have := v.isLt; omega⟩
+  change (∏ v : Fin (m + 2), W (σ v)) *
+         (∏ e ∈ (rootedCycleGraph (m + 1)).edgeFinset,
+           B (τ (Quot.out e).1) (τ (Quot.out e).2)) = _
+  rw [rootedCycleGraph_edgeProduct_eq B hB τ]
+  exact cycleEvalTerm_eq_weightedAdjIterTerm B W i σ
 
 /-- **Rooted profiles separate vertex orbits** (Lovász §3 K=1 case).
 If two vertices are NOT in the same `(B, W)`-orbit (under twin-free
