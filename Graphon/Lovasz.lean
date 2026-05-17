@@ -1316,14 +1316,25 @@ multigraph evaluations agree.
 the simple-graph evaluations at `ξ` and `ξ'` agree. This is the
 inlined definition of `tupleEquiv B W ξ ξ'`.
 
-**Status**: partial — `n = 0` case dispatched via
-`multiLabeledEvalK_tupleEquiv_invariant_n_zero`. The general `n` case
-remains sorry'd. The natural induction on `n` via `promote_unfold`
-needs a "lifted simple-equivalence" hypothesis at level `K + 1`, which
-does NOT follow from the level-`K` `h_simple` alone (a level-(K+1)
-graph constrained at the new label position does not factor through
-a free σ-sum). The connection-matrix / idempotent-decomposition
-argument from Lovász §3 is the standard way to close this. -/
+**Status** (2026-05-17): designated PRIMARY PAPER-ROOT theorem
+(Lovász TR-2004-82 Theorem 2.2 / Lemma 2.5 content). The n = 0 case
+is dispatched via `multiLabeledEvalK_tupleEquiv_invariant_n_zero`.
+The general n case requires the connection-matrix / idempotent-
+decomposition argument from Lovász §3 — substantial spectral/rank
+infrastructure (~300-500 LOC) beyond a quick closure. Natural
+induction on n via `promote_unfold` needs a "lifted simple-equivalence"
+hypothesis at level K + 1, which does NOT follow from the level-K
+`h_simple` alone.
+
+**Downstream impact** (closes #62 ⟹ unlocks):
+- IH-free Claims 4.3/4.4 (via multigraph evaluations giving
+  B-diagonal + W-pointwise data, currently unavailable in
+  simple-graph framework alone).
+- Task #70 (`orbit_separation_by_simple_graph`).
+- Remaining MatrixDetermination chain.
+
+Treat as foundational citation for downstream consumers until a
+dedicated paper-root formalization project is undertaken. -/
 theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (M : MultiLabeledGraph K n)
@@ -3922,6 +3933,31 @@ theorem orbit_separation_by_simple_graph_K1 {T : ℕ}
   rw [h_unfold ξ, h_unfold ξ']
   exact hne
 
+/-- **General-K orbit separation theorem** (Lovász §3 contrapositive form).
+
+If two tuples `ξ ξ' : Fin K → Fin T` are NOT in the same `(B, W)`-orbit,
+some level-K simple-graph evaluation separates them.
+
+**Status** (2026-05-17): BLOCKED on `multiLabeledEvalK_tupleEquiv_invariant`
+(task #62, primary paper-root). The proof requires:
+1. Strong induction on K.
+2. Case-split on surjectivity of `restrictTuple ξ`.
+3. For the non-surjective branch: WF measure on (deficit, size), which
+   requires **IH-free Claims 4.3/4.4** to avoid a circular IH at deficit-1
+   size-T-1.
+
+The IH-free Claims need diagonal `B(ψ i, ψ i)` and pointwise `W(ψ i)`
+data, which are NOT extractable from simple-graph evaluations alone
+(see docstring of `tupleEquivSimple_implies_orbit` for full analysis).
+Both require multigraph evaluations — i.e., closing #62.
+
+**Path A** (recommended): close #62, then derive #70 via IH-free Claims.
+**Path B**: direct combinatorial fiber construction (~300-500 LOC).
+**Path C** (current): treat as derived paper-root, blocked on #62.
+
+Downstream K=1 specialization (`rooted_profiles_separate_vertex_orbits`,
+proved this session) handles the most-used case; this general-K target
+remains for completeness of the Lovász §3 chain. -/
 theorem orbit_separation_by_simple_graph {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
