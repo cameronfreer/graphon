@@ -197,6 +197,79 @@ theorem multiLabeledEvalKLoop_of_toLoop {T K n : ℕ}
     multiLabeledEvalKLoop K n M.toLoop B W φ =
       multiLabeledEvalK K n M B W φ := rfl
 
+/-- **Automorphism invariance of `multiLabeledEvalKLoop`**.
+
+Mirrors `multiLabeledEvalK_aut_invariant`. The proof transfers directly
+because the only difference is the domain of the Sym2 product (with vs
+without diagonals), and `hσ_B` applies uniformly to diagonal pairs too. -/
+theorem multiLabeledEvalKLoop_aut_invariant {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (M : MultiLabeledGraphLoop K n)
+    (σ : Equiv.Perm (Fin T))
+    (hσ_W : ∀ i, W (σ i) = W i)
+    (hσ_B : ∀ i j, B (σ i) (σ j) = B i j)
+    (φ : Fin K → Fin T) :
+    multiLabeledEvalKLoop K n M B W (σ ∘ φ) =
+    multiLabeledEvalKLoop K n M B W φ := by
+  unfold multiLabeledEvalKLoop
+  rw [← Equiv.sum_comp (Equiv.arrowCongr (Equiv.refl (Fin n)) σ)]
+  refine Finset.sum_congr rfl fun σ_inner _ => ?_
+  have hW_eq : ∀ v : Fin n,
+      W (((Equiv.arrowCongr (Equiv.refl (Fin n)) σ) σ_inner) v) = W (σ_inner v) := by
+    intro v; show W (σ (σ_inner v)) = W (σ_inner v); exact hσ_W _
+  have hB_eq : ∀ τ_L τ_R : Fin (n + K) → Fin T,
+      (∀ v, τ_L v = σ (τ_R v)) →
+      (∏ e : Sym2 (Fin (n + K)),
+        B (τ_L (Quot.out e).1) (τ_L (Quot.out e).2) ^ M.mult e) =
+      (∏ e : Sym2 (Fin (n + K)),
+        B (τ_R (Quot.out e).1) (τ_R (Quot.out e).2) ^ M.mult e) := by
+    intro τ_L τ_R hτ
+    refine Finset.prod_congr rfl fun e _ => ?_
+    congr 1
+    rw [hτ, hτ]; exact hσ_B _ _
+  let τ_R : Fin (n + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then φ ⟨v, h⟩
+    else σ_inner ⟨v - K, by have := v.isLt; omega⟩
+  let τ_L : Fin (n + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then (σ ∘ φ) ⟨v, h⟩
+    else ((Equiv.arrowCongr (Equiv.refl (Fin n)) σ) σ_inner)
+            ⟨v - K, by have := v.isLt; omega⟩
+  have hτ_pt : ∀ v : Fin (n + K), τ_L v = σ (τ_R v) := by
+    intro v
+    by_cases hv : (v : ℕ) < K
+    · show (if h : (v : ℕ) < K then (σ ∘ φ) ⟨v, h⟩ else _) =
+            σ (if h : (v : ℕ) < K then φ ⟨v, h⟩ else _)
+      rw [dif_pos hv, dif_pos hv]
+      rfl
+    · show (if h : (v : ℕ) < K then _ else
+              ((Equiv.arrowCongr (Equiv.refl (Fin n)) σ) σ_inner)
+                ⟨v - K, by have := v.isLt; omega⟩) =
+            σ (if h : (v : ℕ) < K then _ else
+                σ_inner ⟨v - K, by have := v.isLt; omega⟩)
+      rw [dif_neg hv, dif_neg hv]
+      rfl
+  change (∏ v : Fin n, W (((Equiv.arrowCongr (Equiv.refl (Fin n)) σ) σ_inner) v)) *
+       (∏ e : Sym2 (Fin (n + K)),
+         B (τ_L (Quot.out e).1) (τ_L (Quot.out e).2) ^ M.mult e) =
+       (∏ v : Fin n, W (σ_inner v)) *
+       (∏ e : Sym2 (Fin (n + K)),
+         B (τ_R (Quot.out e).1) (τ_R (Quot.out e).2) ^ M.mult e)
+  rw [Finset.prod_congr rfl (fun v _ => hW_eq v), hB_eq τ_L τ_R hτ_pt]
+
+/-- **Orbit invariance of `multiLabeledEvalKLoop`** (corollary). -/
+theorem multiLabeledEvalKLoop_orbit_invariant {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (M : MultiLabeledGraphLoop K n)
+    {ξ ξ' : Fin K → Fin T}
+    (h : ∃ σ : Equiv.Perm (Fin T),
+      (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
+      (∀ i, ξ' i = σ (ξ i))) :
+    multiLabeledEvalKLoop K n M B W ξ = multiLabeledEvalKLoop K n M B W ξ' := by
+  obtain ⟨σ, hσ_W, hσ_B, hξ'⟩ := h
+  have : ξ' = σ ∘ ξ := funext hξ'
+  rw [this]
+  exact (multiLabeledEvalKLoop_aut_invariant B W M σ hσ_W hσ_B ξ).symm
+
 /-- **Simple-graph embedding** into the multigraph carrier.
 
 For any `F : SimpleGraph (Fin (n + K))` with decidable adjacency, the
@@ -1559,6 +1632,38 @@ def tupleEquivMulti {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ
     (ξ ξ' : Fin K → Fin T) : Prop :=
   ∀ (n : ℕ) (M : MultiLabeledGraph K n),
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ'
+
+/-- **Loop-multigraph tuple equivalence**.
+
+Two label maps `ξ, ξ' : Fin K → Fin T` are loop-multi-equivalent iff
+every level-`K` **multigraph with self-loops** evaluates equally on
+them. Strictly stronger than `tupleEquivMulti` (loop case includes
+diagonal contributions). The target of task #79: prove
+`tupleEquivSimple → tupleEquivLoop` via the Lovász §3 rank theorem. -/
+def tupleEquivLoop {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ ξ' : Fin K → Fin T) : Prop :=
+  ∀ (n : ℕ) (M : MultiLabeledGraphLoop K n),
+    multiLabeledEvalKLoop K n M B W ξ = multiLabeledEvalKLoop K n M B W ξ'
+
+/-- **Loop ⟹ multi** (trivial direction via the `toLoop` injection). -/
+theorem tupleEquivMulti_of_tupleEquivLoop {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) {ξ ξ' : Fin K → Fin T}
+    (h : tupleEquivLoop B W ξ ξ') :
+    tupleEquivMulti B W ξ ξ' := by
+  intro n M
+  have hL := h n M.toLoop
+  rw [multiLabeledEvalKLoop_of_toLoop, multiLabeledEvalKLoop_of_toLoop] at hL
+  exact hL
+
+/-- **Lovász Lemma 2.5 (loop), forward direction** (orbit ⟹ loop equiv). -/
+theorem tupleEquivLoop_of_orbit {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) {ξ ξ' : Fin K → Fin T}
+    (h : ∃ σ : Equiv.Perm (Fin T),
+      (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
+      (∀ i, ξ' i = σ (ξ i))) :
+    tupleEquivLoop B W ξ ξ' := by
+  intro n M
+  exact multiLabeledEvalKLoop_orbit_invariant B W M h
 
 /-- **Multi ⟹ simple** (trivial direction).
 
