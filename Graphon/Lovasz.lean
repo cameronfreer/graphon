@@ -1357,11 +1357,60 @@ theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
   -- Dispatch the n=0 case via the dedicated lemma.
   match n, M with
   | 0, M => exact multiLabeledEvalK_tupleEquiv_invariant_n_zero B hB W M h_simple
-  | n + 1, _M =>
-    -- The n+1 case requires either (i) a level-(K+1) lift of `h_simple`,
-    -- or (ii) the connection-matrix idempotent-decomposition argument
-    -- from Lovász TR-2004-82 §3. Neither is in scope yet.
-    sorry
+  | n + 1, M =>
+    -- Sub-case: if all multiplicities are ≤ 1, M corresponds to a simple
+    -- graph and the invariance follows directly from h_simple via
+    -- multiLabeledEvalK_ofSimple. Otherwise the standard approach
+    -- (Lovász §3 rank theorem / connection-matrix idempotent
+    -- decomposition) is required.
+    by_cases h_mult_le_one : ∀ e, M.mult e ≤ 1
+    · -- Build the corresponding simple graph and reduce.
+      classical
+      let F : SimpleGraph (Fin ((n + 1) + K)) :=
+        { Adj := fun a b => a ≠ b ∧ M.mult s(a, b) = 1
+          symm := fun a b ⟨hne, hmult⟩ =>
+            ⟨hne.symm, by rwa [Sym2.eq_swap]⟩
+          loopless := fun a ⟨hne, _⟩ => hne rfl }
+      haveI : DecidableRel F.Adj := Classical.decRel _
+      -- Show M.mult = (MultiLabeledGraph.ofSimple F).mult pointwise.
+      have hmult_eq : ∀ e, M.mult e = (MultiLabeledGraph.ofSimple F).mult e := by
+        intro e
+        induction e with
+        | h a b =>
+          show M.mult s(a, b) = if s(a, b) ∈ F.edgeFinset then 1 else 0
+          by_cases hM : M.mult s(a, b) = 0
+          · rw [hM]
+            have : ¬ s(a, b) ∈ F.edgeFinset := by
+              rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
+              show ¬ F.Adj a b
+              intro ⟨_, hmult⟩
+              rw [hM] at hmult
+              exact absurd hmult (by omega)
+            rw [if_neg this]
+          · have hM_one : M.mult s(a, b) = 1 := by
+              have := h_mult_le_one s(a, b); omega
+            rw [hM_one]
+            have : s(a, b) ∈ F.edgeFinset := by
+              rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
+              show F.Adj a b
+              refine ⟨?_, hM_one⟩
+              intro hab
+              rw [hab] at hM_one
+              have := M.multNoLoop b
+              omega
+            rw [if_pos this]
+      -- Rewrite multiLabeledEvalK using pointwise equality of mult.
+      have hev : ∀ ζ : Fin K → Fin T,
+          multiLabeledEvalK K (n + 1) M B W ζ =
+          multiLabeledEvalK K (n + 1) (MultiLabeledGraph.ofSimple F) B W ζ := by
+        intro ζ
+        unfold multiLabeledEvalK
+        refine Finset.sum_congr rfl fun σ _ => ?_
+        simp_rw [hmult_eq]
+      rw [hev ξ, hev ξ', multiLabeledEvalK_ofSimple, multiLabeledEvalK_ofSimple]
+      exact h_simple (n + 1) F
+    · -- Multiplicity ≥ 2 sub-case: requires Lovász §3 rank theorem.
+      sorry
 
 /-! ### §3.8 — Equivalence predicates and Lovász Lemma 2.5
 
