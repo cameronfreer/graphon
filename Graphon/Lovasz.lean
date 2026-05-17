@@ -87,11 +87,48 @@ namespace Graphon.Lovasz
 
 open scoped BigOperators
 
-/-! ### §1 — Multigraph carrier -/
+/-! ### §1 — Multigraph carrier
 
-/-- **Lovász k-labeled multigraph** on `Fin (n + K)`. Edge multiplicity
-function on `Sym2 (Fin (n + K))`. `multNoLoop` ensures no self-loops
-(`mult s(x, x) = 0`), per Lovász §2 page 3. -/
+**Design note (2026-05-17)**: the current `MultiLabeledGraph` carrier
+forbids self-loops via `multNoLoop`. This is a restriction relative to
+Lovász's full framework (TR-2004-82 §2, p. 3) where self-loops are
+allowed via edge-multiset semantics.
+
+**Why this matters for closing #62 and downstream**:
+- The IH-free versions of Claims 4.3/4.4 (needed for #70) require
+  extracting `B(ψ i, ψ i) = B(i, i)` (diagonal preservation). With
+  `multNoLoop`, this is NOT extractable even via multigraph
+  evaluations. A self-loop at label-position i with multiplicity 1
+  evaluates to `B(ξ i, ξ i)` directly.
+- Pointwise W-preservation `W(ψ i) = W(i)` requires either:
+  (a) a W-factor at label vertices (our current eval only includes W
+      at unlabeled), OR
+  (b) a "vertex weight" multigraph operator analogous to self-loops.
+
+**Recommended next-session design** (separate-carrier approach):
+1. Add `MultiLabeledGraphLoop K n` carrier WITHOUT `multNoLoop`.
+2. Define `multiLabeledEvalKLoop` mirror including `B(τx, τx)^M.mult s(x,x)`.
+3. Lift current `MultiLabeledGraph` content via injection
+   `MultiLabeledGraph → MultiLabeledGraphLoop`. Existing #62 results
+   transfer to no-loop multigraphs trivially.
+4. State the full Lovász Theorem 2.2 over `MultiLabeledGraphLoop`:
+   simple-graph `h_simple` ⟹ multi-loop evaluation equivalence.
+5. Use specific self-loop multigraphs to extract `B(ψ i, ψ i) = B(i, i)`
+   and derive IH-free Claims 4.3/4.4.
+
+**W-pointwise (W(ψ i) = W(i)) is a separate open design question**:
+- Current eval `multiLabeledEvalK` only includes W at UNLABELED vertices.
+- Lovász's framework allows vertex weights `α(v)` at all vertices
+  (with `α(label) = 1` by convention in homomorphism counts).
+- Extracting `W(ψ i)` for label i requires a different evaluator (e.g.,
+  with vertex weight at labels) or going through aut-from-orbit.
+- Likely resolution: aut-from-orbit route — once we have orbit
+  equivalence (via #70 closure with self-loops), aut preservation of W
+  follows from `IsWeightedAutomorphism.W_preserves`. So W-pointwise is
+  a CONSEQUENCE, not a primitive, of orbit equivalence.
+
+**Conclusion**: extend with self-loop carrier first (Path A), defer
+W-pointwise as a downstream derivation. -/
 structure MultiLabeledGraph (K n : ℕ) where
   mult : Sym2 (Fin (n + K)) → ℕ
   multNoLoop : ∀ x : Fin (n + K), mult s(x, x) = 0
