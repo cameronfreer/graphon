@@ -1704,6 +1704,49 @@ theorem tupleEquivLoop_of_orbit {T K : ℕ}
   intro n M
   exact multiLabeledEvalKLoop_orbit_invariant B W M h
 
+/-- **Diagonal observable** (canonical #79 paper-root, 2026-05-17).
+
+If `ξ ξ'` are tuple-equivalent via simple-graph evaluations, then they
+agree on the diagonal `B(η a, η a)` at each label position `a`.
+
+**Mathematical content**: `η ↦ B(η a, η a)` is orbit-invariant (clearly:
+for any automorphism σ, `B(σ(η a), σ(η a)) = B(η a, η a)` by B-preservation).
+By Lovász TR-2004-82 Theorem 2.2 (rank theorem), every orbit-invariant
+function on tuples is in the span of simple-graph evaluations. Hence
+`tupleEquivSimple` (equality on all simple evals) forces equality on
+this diagonal observable.
+
+**Status**: PAPER-ROOT. The proof requires:
+1. The orbit-invariant function η ↦ B(η a, η a) lifts to the column
+   space of M(B, W).
+2. Simple-graph rows of M(B, W) span the same column space as full
+   multigraph rows (rank theorem).
+
+Both steps are the substantive content of Lovász §3 (connection-matrix
+rank / idempotent decomposition argument). Estimated ~300-500 LOC for
+a full Lean proof.
+
+**Downstream wiring**: the n=0 loop bridge `multiLabeledEvalKLoop_n_zero_of_diag`
+takes both h_offdiag (derivable from h_simple) and h_diag (this
+theorem's output). Closing this paper-root unlocks the full n=0
+loop case, then the general n via Lovász §3 induction, then #62
+mult-≥-2 sub-case, then IH-free Claims 4.3/4.4, then #70. -/
+theorem diagonal_observable_of_tupleEquivSimple {T K : ℕ}
+    (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i)
+    (_W : Fin T → ℝ) (_hW : ∀ i, 0 < _W i)
+    (_htwin : ∀ i j, i ≠ j → _B i ≠ _B j)
+    {ξ ξ' : Fin K → Fin T}
+    (_h : tupleEquivSimple _B _W ξ ξ') :
+    ∀ a : Fin K, _B (ξ a) (ξ a) = _B (ξ' a) (ξ' a) := by
+  sorry
+
+-- The n=0 loop bridge from `tupleEquivSimple` follows by combining:
+--   1. existing `multiLabeledEvalK_tupleEquiv_invariant_n_zero` (off-diagonal),
+--   2. `diagonal_observable_of_tupleEquivSimple` (paper-root),
+--   3. `multiLabeledEvalKLoop_n_zero_of_diag` (assembly).
+-- Wiring deferred until #79 step 5 lands (avoids motive-not-type-correct
+-- issues with naive rw on Fin.mk constructions during off-diagonal extraction).
+
 /-- **Multi ⟹ simple** (trivial direction).
 
 If `ξ ξ'` agree on every multigraph evaluation, they agree on every
