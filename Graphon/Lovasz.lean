@@ -270,6 +270,45 @@ theorem multiLabeledEvalKLoop_orbit_invariant {T K n : ℕ}
   rw [this]
   exact (multiLabeledEvalKLoop_aut_invariant B W M σ hσ_W hσ_B ξ).symm
 
+/-- **Loop n=0 bridge** (step 4 of #79). At `n = 0`, the loop multigraph
+evaluation is a product of B-power factors over `Sym2 (Fin K)`,
+including diagonal pairs `s(a, a)` weighted by their multiplicity.
+Equality between `ξ` and `ξ'` holds given:
+- per-pair B-equality at non-diagonal label positions (`h_offdiag`,
+  derivable from `tupleEquivSimple`), and
+- per-vertex diagonal observable (`h_diag`, the data needed beyond
+  simple-graph equivalence — supplied by the rank theorem).
+
+This isolates the diagonal observable as the SOLE additional input
+needed for the n=0 loop case. -/
+theorem multiLabeledEvalKLoop_n_zero_of_diag {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (M : MultiLabeledGraphLoop K 0)
+    {ξ ξ' : Fin K → Fin T}
+    (h_offdiag : ∀ a b : Fin K, a ≠ b → B (ξ a) (ξ b) = B (ξ' a) (ξ' b))
+    (h_diag : ∀ a : Fin K, B (ξ a) (ξ a) = B (ξ' a) (ξ' a)) :
+    multiLabeledEvalKLoop K 0 M B W ξ = multiLabeledEvalKLoop K 0 M B W ξ' := by
+  classical
+  unfold multiLabeledEvalKLoop
+  rw [Fintype.sum_unique, Fintype.sum_unique]
+  simp only [Finset.univ_eq_empty, Finset.prod_empty, one_mul]
+  -- ∏ e : Sym2 (Fin (0+K)), B (τξ ·) ^ M.mult e = same with τξ'
+  apply Finset.prod_congr rfl
+  intro e _
+  congr 1
+  -- Goal: B (τξ (Quot.out e).1) (τξ (Quot.out e).2) =
+  --       B (τξ' (Quot.out e).1) (τξ' (Quot.out e).2)
+  -- where τξ x = ξ ⟨x.val, _⟩, since v.val < K for all v : Fin (0+K).
+  set p := Quot.out (e : Sym2 (Fin (0 + K)))
+  -- Compute τ at p.1, p.2 (both have val < K).
+  have hp1 : (p.1 : ℕ) < K := by have := p.1.isLt; omega
+  have hp2 : (p.2 : ℕ) < K := by have := p.2.isLt; omega
+  rw [dif_pos hp1, dif_pos hp2, dif_pos hp1, dif_pos hp2]
+  -- Goal: B (ξ ⟨p.1, _⟩) (ξ ⟨p.2, _⟩) = B (ξ' ⟨p.1, _⟩) (ξ' ⟨p.2, _⟩).
+  by_cases hp_eq : (⟨p.1.val, hp1⟩ : Fin K) = ⟨p.2.val, hp2⟩
+  · rw [hp_eq]; exact h_diag _
+  · exact h_offdiag _ _ hp_eq
+
 /-- **Simple-graph embedding** into the multigraph carrier.
 
 For any `F : SimpleGraph (Fin (n + K))` with decidable adjacency, the
