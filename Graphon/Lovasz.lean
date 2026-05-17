@@ -133,6 +133,24 @@ structure MultiLabeledGraph (K n : ℕ) where
   mult : Sym2 (Fin (n + K)) → ℕ
   multNoLoop : ∀ x : Fin (n + K), mult s(x, x) = 0
 
+/-- **Lovász k-labeled multigraph with self-loops** on `Fin (n + K)`.
+
+Same as `MultiLabeledGraph` but WITHOUT the `multNoLoop` constraint.
+Allows self-loops `s(x, x)` to carry positive multiplicity, matching
+Lovász TR-2004-82 §2 (p. 3) "graphs" with edge-multiset semantics.
+
+Used as the target carrier for the full rank theorem (closing #62's
+mult-≥-2 sub-case and unlocking IH-free Claims 4.3/4.4). See §1
+design note above. -/
+structure MultiLabeledGraphLoop (K n : ℕ) where
+  mult : Sym2 (Fin (n + K)) → ℕ
+
+/-- Inject `MultiLabeledGraph` into `MultiLabeledGraphLoop` (forget
+the `multNoLoop` constraint). -/
+def MultiLabeledGraph.toLoop {K n : ℕ} (M : MultiLabeledGraph K n) :
+    MultiLabeledGraphLoop K n where
+  mult := M.mult
+
 /-- **Multigraph evaluation** at a labeled tuple `φ : Fin K → Fin T`.
 
 Sum over unlabeled assignments `σ : Fin n → Fin T` of W-product times
@@ -149,6 +167,35 @@ noncomputable def multiLabeledEvalK {T : ℕ} (K n : ℕ)
     (∏ v : Fin n, W (σ v)) *
     ∏ e : Sym2 (Fin (n + K)),
       B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e
+
+/-- **Multigraph evaluation with self-loops**.
+
+Mirror of `multiLabeledEvalK` for `MultiLabeledGraphLoop`. The
+`B^mult` product runs over the FULL `Sym2 (Fin (n + K))`, including
+diagonal pairs `s(x, x)` which contribute `B(τ x, τ x)^M.mult s(x, x)`.
+
+When `M.mult s(x, x) = 0` for all x (i.e., `M = M_noLoop.toLoop` for
+some `M_noLoop : MultiLabeledGraph`), this reduces to `multiLabeledEvalK`
+(see `multiLabeledEvalKLoop_of_toLoop`). -/
+noncomputable def multiLabeledEvalKLoop {T : ℕ} (K n : ℕ)
+    (M : MultiLabeledGraphLoop K n) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (φ : Fin K → Fin T) : ℝ :=
+  ∑ σ : Fin n → Fin T,
+    let τ : Fin (n + K) → Fin T := fun v =>
+      if h : (v : ℕ) < K then φ ⟨v, h⟩
+      else σ ⟨v - K, by have := v.isLt; omega⟩
+    (∏ v : Fin n, W (σ v)) *
+    ∏ e : Sym2 (Fin (n + K)),
+      B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e
+
+/-- **No-loop reduction**: when injected from `MultiLabeledGraph`, the
+loop-aware evaluator agrees with `multiLabeledEvalK` (diagonal terms
+contribute `B^0 = 1`). -/
+theorem multiLabeledEvalKLoop_of_toLoop {T K n : ℕ}
+    (M : MultiLabeledGraph K n) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (φ : Fin K → Fin T) :
+    multiLabeledEvalKLoop K n M.toLoop B W φ =
+      multiLabeledEvalK K n M B W φ := rfl
 
 /-- **Simple-graph embedding** into the multigraph carrier.
 
