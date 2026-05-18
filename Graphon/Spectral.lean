@@ -85,22 +85,39 @@ Proof outline: by induction on m, using the conjugation
 and the symmetric `S`. Both operators have the same powers up to
 diagonal-similarity scaling. -/
 
-/-- **Translation lemma** (#77 stepping stone, partial scaffold).
+/-- `symAdjIter` is associative: left-multiplication by `S` is the same
+as the recursive (right-multiplication) definition.
 
-The closed-walk profile of length `m + 1` at vertex `i` equals the
-diagonal of `S^(m+1)` divided by `W i`. Equivalently:
-
-`closedWalkProfile B W i (m + 1) * W i = symAdjIter B W (m + 1) i i`
-
-**Status**: stated. Proof by induction on m using the conjugation
-`M = D^{-1/2} S D^{1/2}` between `weightedAdj` and `symAdj`. -/
-theorem closedWalkProfile_eq_symAdjIter_diag {T : ℕ}
-    (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i)
-    (_W : Fin T → ℝ) (_hW : ∀ i, 0 < _W i)
-    (i : Fin T) (m : ℕ) :
-    Graphon.Lovasz.closedWalkProfile _B _W i (m + 1) * _W i =
-      symAdjIter _B _W (m + 1) i i := by
+Proof deferred. The standard induction works but requires careful
+Finset.sum_comm + Finset.mul_sum manipulation that has been
+finicky to get right with Lean's simp behavior on iterated sums. -/
+lemma symAdjIter_left_mult {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (v i : Fin T) (n : ℕ) :
+    ∑ k : Fin T, symAdj B W v k * symAdjIter B W n k i =
+      symAdjIter B W (n + 1) v i := by
   sorry
+
+/-- **Strong translation lemma**: at any vertex `v`, the weighted-adjacency
+iterate scales to the symmetric iterate. -/
+lemma weightedAdjIter_eq_symAdjIter_scaled {T : ℕ}
+    (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i)
+    (_W : Fin T → ℝ) (_hW : ∀ i, 0 < _W i) (i : Fin T)
+    (m : ℕ) (v : Fin T) :
+    Graphon.Lovasz.weightedAdjIter _B _W m (fun u => _B u i) v *
+      Real.sqrt (_W v) * Real.sqrt (_W i) =
+    symAdjIter _B _W (m + 1) v i := by
+  sorry
+
+theorem closedWalkProfile_eq_symAdjIter_diag {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (i : Fin T) (m : ℕ) :
+    Graphon.Lovasz.closedWalkProfile B W i (m + 1) * W i =
+      symAdjIter B W (m + 1) i i := by
+  show Graphon.Lovasz.weightedAdjIter B W m (fun v => B v i) i * W i =
+       symAdjIter B W (m + 1) i i
+  have h := weightedAdjIter_eq_symAdjIter_scaled B hB W hW i m i
+  rw [← h, mul_assoc, sqrt_W_sq W hW i]
 
 /-! ### Spectral decomposition + orbit upgrade (Lovász §3 content)
 
