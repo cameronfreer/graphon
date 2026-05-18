@@ -1704,48 +1704,25 @@ theorem tupleEquivLoop_of_orbit {T K : ℕ}
   intro n M
   exact multiLabeledEvalKLoop_orbit_invariant B W M h
 
-/-- **Diagonal observable** (canonical #79 paper-root, 2026-05-17).
+/-! **Diagonal observable** (#79, 2026-05-17 / 2026-05-18).
 
-If `ξ ξ'` are tuple-equivalent via simple-graph evaluations, then they
-agree on the diagonal `B(η a, η a)` at each label position `a`.
+The theorem `diagonal_observable_of_tupleEquivSimple` is defined LATER
+in this file (after `diagonal_observable_K1`), at the position where
+all required dependencies (`tupleEquivSimple_restrict_along`,
+`rooted_profiles_separate_vertex_orbits`) are in scope.
 
-**Mathematical content**: `η ↦ B(η a, η a)` is orbit-invariant (clearly:
-for any automorphism σ, `B(σ(η a), σ(η a)) = B(η a, η a)` by B-preservation).
-By Lovász TR-2004-82 Theorem 2.2 (rank theorem), every orbit-invariant
-function on tuples is in the span of simple-graph evaluations. Hence
-`tupleEquivSimple` (equality on all simple evals) forces equality on
-this diagonal observable.
-
-**Status**: PAPER-ROOT. The proof requires:
-1. The orbit-invariant function η ↦ B(η a, η a) lifts to the column
-   space of M(B, W).
-2. Simple-graph rows of M(B, W) span the same column space as full
-   multigraph rows (rank theorem).
-
-Both steps are the substantive content of Lovász §3 (connection-matrix
-rank / idempotent decomposition argument). Estimated ~300-500 LOC for
-a full Lean proof.
-
-**Downstream wiring**: the n=0 loop bridge `multiLabeledEvalKLoop_n_zero_of_diag`
-takes both h_offdiag (derivable from h_simple) and h_diag (this
-theorem's output). Closing this paper-root unlocks the full n=0
-loop case, then the general n via Lovász §3 induction, then #62
-mult-≥-2 sub-case, then IH-free Claims 4.3/4.4, then #70. -/
-theorem diagonal_observable_of_tupleEquivSimple {T K : ℕ}
-    (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i)
-    (_W : Fin T → ℝ) (_hW : ∀ i, 0 < _W i)
-    (_htwin : ∀ i j, i ≠ j → _B i ≠ _B j)
-    {ξ ξ' : Fin K → Fin T}
-    (_h : tupleEquivSimple _B _W ξ ξ') :
-    ∀ a : Fin K, _B (ξ a) (ξ a) = _B (ξ' a) (ξ' a) := by
-  sorry
+**Mathematical content**: `η ↦ B(η a, η a)` is orbit-invariant. The
+proof reduces to the K=1 case (via `tupleEquivSimple_restrict_along`)
+which routes through `rooted_profiles_separate_vertex_orbits` (#77
+paper-root). This collapses #79's diagonal observable into the #77
+spectral chain, more direct than the rank-theorem route. -/
 
 -- The n=0 loop bridge from `tupleEquivSimple` follows by combining:
 --   1. existing `multiLabeledEvalK_tupleEquiv_invariant_n_zero` (off-diagonal),
---   2. `diagonal_observable_of_tupleEquivSimple` (paper-root),
+--   2. `diagonal_observable_of_tupleEquivSimple` (closed modulo #77),
 --   3. `multiLabeledEvalKLoop_n_zero_of_diag` (assembly).
--- Wiring deferred until #79 step 5 lands (avoids motive-not-type-correct
--- issues with naive rw on Fin.mk constructions during off-diagonal extraction).
+-- Wiring deferred (avoids motive-not-type-correct issues with naive rw
+-- on Fin.mk constructions during off-diagonal extraction).
 
 /-- **Multi ⟹ simple** (trivial direction).
 
@@ -4252,6 +4229,94 @@ theorem orbit_separation_by_simple_graph_K1 {T : ℕ}
     rw [this]
   rw [h_unfold ξ, h_unfold ξ']
   exact hne
+
+/-- **Diagonal observable at K=1** — derived from rooted-profile separation.
+
+For K=1, the diagonal observable `B(ξ 0, ξ 0) = B(ξ' 0, ξ' 0)` follows
+from `tupleEquivSimple B W ξ ξ'` via:
+1. `tupleEquivSimple` at K=1 ⟹ all rooted profiles agree at (ξ 0, ξ' 0).
+2. Contrapositive of `rooted_profiles_separate_vertex_orbits` (proved
+   modulo #77) ⟹ `vertexOrbitRel B W (ξ 0) (ξ' 0)`.
+3. Vertex orbit relation gives `σ` automorphism with `σ (ξ 0) = ξ' 0`.
+4. `B(ξ 0, ξ 0) = B(σ (ξ 0), σ (ξ 0)) = B(ξ' 0, ξ' 0)` by aut B-preservation.
+
+**Status**: proved modulo #77 (closed_walk_profiles_separate, K=1 spectral
+paper-root). Note this reduces `diagonal_observable_of_tupleEquivSimple`
+at K=1 to a paper-root we already have (#77) rather than to the rank
+theorem. -/
+theorem diagonal_observable_K1 {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin 1 → Fin T}
+    (h : tupleEquivSimple B W ξ ξ') :
+    B (ξ 0) (ξ 0) = B (ξ' 0) (ξ' 0) := by
+  -- Step 1: tupleEquivSimple → vertexOrbitRel via contrapositive of rooted_profiles_separate.
+  by_contra h_ne
+  -- Suppose B(ξ 0, ξ 0) ≠ B(ξ' 0, ξ' 0). Show this contradicts h.
+  -- First derive vertexOrbitRel from h (negation of separation).
+  have h_vert : vertexOrbitRel B W (ξ 0) (ξ' 0) := by
+    by_contra h_no_vert
+    obtain ⟨n, F, _hF_dec, hne⟩ :=
+      rooted_profiles_separate_vertex_orbits B hB W hW htwin h_no_vert
+    -- hne : rootedProfile B W (ξ 0) F ≠ rootedProfile B W (ξ' 0) F.
+    -- But h says simpleEvalAt F ξ = simpleEvalAt F ξ' = rootedProfile.
+    apply hne
+    have h_unfold : ∀ ζ : Fin 1 → Fin T,
+        simpleEvalAt B W F ζ = rootedProfile B W (ζ 0) F := by
+      intro ζ
+      unfold rootedProfile
+      congr 1
+      funext k
+      have : k = (0 : Fin 1) := Subsingleton.elim _ _
+      rw [this]
+    rw [← h_unfold ξ, ← h_unfold ξ']
+    exact h n F
+  -- Step 2: derive B-equality from vertexOrbitRel.
+  obtain ⟨σ, hσ_aut, hσ_eq⟩ := h_vert
+  apply h_ne
+  calc B (ξ 0) (ξ 0)
+      = B (σ (ξ 0)) (σ (ξ 0)) := (hσ_aut.2 (ξ 0) (ξ 0)).symm
+    _ = B (ξ' 0) (ξ' 0) := by rw [hσ_eq]
+
+/-- **Diagonal observable** — general K version, derived from K=1 case
+via `tupleEquivSimple_restrict_along`.
+
+For each label position `a : Fin K`, fix the embedding `r : Fin 1 ↪ Fin K`
+sending `0 ↦ a`. Restriction gives `tupleEquivSimple` at K=1 for the
+single coordinate. Apply `diagonal_observable_K1` to conclude.
+
+**Status**: proved modulo #77 (the K=1 spectral paper-root). This replaces
+the earlier sorry-stub `diagonal_observable_of_tupleEquivSimple` that
+was a placeholder pending the rank-theorem path. Routing through the
+K=1 spectral chain (#77) is more direct than the rank theorem.
+
+**Architectural consequence**: #79's diagonal observable now reduces
+to #77 (K=1 spectral paper-root) rather than to a separate rank theorem.
+This collapses two paper-roots into one.
+
+**Downstream**: any consumer of `diagonal_observable_of_tupleEquivSimple`
+(e.g., the n=0 loop bridge `multiLabeledEvalKLoop_n_zero_of_diag`)
+inherits dependency on #77. -/
+theorem diagonal_observable_of_tupleEquivSimple {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T}
+    (h : tupleEquivSimple B W ξ ξ') :
+    ∀ a : Fin K, B (ξ a) (ξ a) = B (ξ' a) (ξ' a) := by
+  intro a
+  -- Build embedding r : Fin 1 ↪ Fin K sending 0 ↦ a.
+  let r : Fin 1 ↪ Fin K := ⟨fun _ => a, fun _ _ _ => Subsingleton.elim _ _⟩
+  -- Restrict tupleEquivSimple along r.
+  have h1 : tupleEquivSimple B W (ξ ∘ r) (ξ' ∘ r) :=
+    tupleEquivSimple_restrict_along B W hB r h
+  -- (ξ ∘ r) 0 = ξ a, (ξ' ∘ r) 0 = ξ' a.
+  have h_K1 := diagonal_observable_K1 B hB W hW htwin h1
+  -- h_K1 : B ((ξ ∘ r) 0) ((ξ ∘ r) 0) = B ((ξ' ∘ r) 0) ((ξ' ∘ r) 0)
+  -- Simplify: (ξ ∘ r) 0 = ξ (r 0) = ξ a.
+  show B (ξ a) (ξ a) = B (ξ' a) (ξ' a)
+  exact h_K1
 
 /-- **General-K orbit separation theorem** (Lovász §3 contrapositive form).
 
