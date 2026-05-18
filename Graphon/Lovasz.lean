@@ -3678,6 +3678,30 @@ noncomputable def closedWalkProfile {T : ℕ} (B : Fin T → Fin T → ℝ)
   | 0     => 1
   | m + 1 => weightedAdjIter B W m (fun v => B v i) i
 
+/-! ### §4 — Spectral scaffolding for #77 (deferred)
+
+Per 2026-05-18 design plan, the K=1 spectral closing lemma
+`vertex_orbit_of_closed_walks_eq` factors through finite-dimensional
+spectral theory on the symmetric operator `S := D^{1/2} B D^{1/2}`
+where `D = diag(W)`.
+
+**Key identity** (to be proved as a stepping stone):
+`closedWalkProfile B W i (m + 1) = (S^m)[i, i] / W i` for `m ≥ 1`.
+
+Closure path:
+1. Bridge: closed walks ↔ diagonal moments of S^m.
+2. Cayley-Hamilton: equality at m = 0..T-1 suffices.
+3. Spectral decomposition: S = ∑ λ_k u_k u_k^T (mathlib's
+   `Matrix.IsSymm.eigenvectorBasis`).
+4. Equal spectral diagonals + twin-free → orbit upgrade.
+
+**Scaffolding deferred**: importing `Real.sqrt` machinery
+(`Analysis.SpecialFunctions.Pow.*`) introduces simp lemmas that
+conflict with earlier proofs in this file. The spectral work
+should be done in a SEPARATE FILE `Graphon/Spectral.lean` that
+imports the necessary analysis modules without polluting Lovasz.lean.
+That refactor is the natural next-session task. -/
+
 /-! **K=1 spectral closing chain** (former #77 docstring, 2026-05-18).
 
 Empirical evidence (cumulative across 4 falsification scripts):
