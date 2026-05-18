@@ -3769,16 +3769,26 @@ theorem vertex_orbit_of_closed_walks_eq {T : ℕ}
     vertexOrbitRel _B _W i j := by
   sorry
 
-/-- **#77** derived from the spectral closing lemma. Contrapositive form. -/
+/-- **#77** — REFUTED 2026-05-18.
+
+Statement is FALSE: the double-pin tree (T=9) has twin-free B + W = 1
+with two non-orbit vertices (1, 5) whose closed-walk profiles agree
+for all m. Retained as a sorry'd statement to document the
+counterexample and prevent accidental downstream use.
+
+The proof previously routed through `vertex_orbit_of_closed_walks_eq`
+(also REFUTED). Do not assume this theorem in downstream work.
+
+Counterexample: edges (0,1)(1,2)(2,3)(3,7)(0,4)(4,5)(5,6)(4,8); vertices
+1 and 5 are spectrally equivalent (closed walks match for all m) but
+|Aut| = 1, so they are in different orbits. -/
 theorem closed_walk_profiles_separate_vertex_orbits {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {i j : Fin T} (h : ¬ vertexOrbitRel B W i j) :
-    ∃ m : ℕ, closedWalkProfile B W i (m + 3) ≠ closedWalkProfile B W j (m + 3) := by
-  by_contra h_no_sep
-  push_neg at h_no_sep
-  exact h (vertex_orbit_of_closed_walks_eq B hB W hW htwin h_no_sep)
+    (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i) (_W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < _W i)
+    (_htwin : ∀ i j, i ≠ j → _B i ≠ _B j)
+    {i j : Fin T} (_h : ¬ vertexOrbitRel _B _W i j) :
+    ∃ m : ℕ, closedWalkProfile _B _W i (m + 3) ≠ closedWalkProfile _B _W j (m + 3) := by
+  sorry
 
 /-- **Rooted cycle graph** at length `m + 2`. Edges are consecutive
 pairs `(j, j+1)` plus the wrap edge `(0, m+1)`. The K=1 label placement
@@ -4224,24 +4234,25 @@ specialized to vertex (single-label) tuples.
 - The full rooted simple-graph family (paths + cycles + trees +
   arbitrary connected) suffices in all tested cases.
 
-**Proof**: deduced from `closed_walk_profiles_separate_vertex_orbits`
-(focused target, m ≥ 2 form) via the combinatorial bridge lemma
-`rootedProfile_rootedCycleGraph_eq_closedWalkProfile`. The (m+2)-cycle
-realizes the separating closed walk as a rooted simple-graph evaluation. -/
+**STATUS (2026-05-18)**: PAPER-ROOT (was: proved via closed walks,
+REFUTED).
+
+Previous proof routed through `closed_walk_profiles_separate_vertex_orbits`
++ the `rootedCycleGraph` bridge. That route is INVALID — the
+double-pin tree counterexample (2026-05-18) shows closed walks alone
+are insufficient even under twin-free + W > 0.
+
+The THEOREM itself is TRUE (Lovász Lemma 2.4 K=1 specialization), but
+proving it requires the FULL rooted simple-graph family (paths, trees,
+asymmetric shapes), which is the Lovász §3 rank theorem content. -/
 theorem rooted_profiles_separate_vertex_orbits {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {i j : Fin T} (h : ¬ vertexOrbitRel B W i j) :
+    (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i)
+    (_W : Fin T → ℝ) (_hW : ∀ i, 0 < _W i)
+    (_htwin : ∀ i j, i ≠ j → _B i ≠ _B j)
+    {i j : Fin T} (_h : ¬ vertexOrbitRel _B _W i j) :
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) (_ : DecidableRel F.Adj),
-      rootedProfile B W i F ≠ rootedProfile B W j F := by
-  -- Closed-walk separation (length ≥ 3 form) gives some m with CW_{m+3}(i) ≠ CW_{m+3}(j).
-  obtain ⟨m, hne⟩ := closed_walk_profiles_separate_vertex_orbits B hB W hW htwin h
-  -- The rooted (m+3)-cycle realizes the separation via the bridge.
-  refine ⟨m + 2, rootedCycleGraph (m + 1), inferInstance, ?_⟩
-  rw [rootedProfile_rootedCycleGraph_eq_closedWalkProfile B hB W i,
-      rootedProfile_rootedCycleGraph_eq_closedWalkProfile B hB W j]
-  exact hne
+      rootedProfile _B _W i F ≠ rootedProfile _B _W j F := by
+  sorry
 
 /-- **Bridge from K=1 rooted profile to general orbit separation**.
 At K = 1, `orbit_separation_by_simple_graph` follows from
