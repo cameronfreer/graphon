@@ -18,8 +18,11 @@ This file's PUBLIC API target is one named theorem:
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Data.Real.Basic
+import Graphon.Lovasz
 
 namespace Graphon.Spectral
+
+open Graphon.Lovasz
 
 open scoped BigOperators
 
@@ -74,15 +77,32 @@ lemma symAdjIter_succ {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ
 
 /-! ### Bridge: closed walk profiles ↔ diagonal moments of `S^m`
 
-The key identity (to be proved in a later commit):
-`closedWalkProfile B W i (m + 1) = symAdjIter B W m i i / W i` for `m ≥ 1`.
+The key identity (to be proved by induction):
+`closedWalkProfile B W i k = symAdjIter B W k i i / W i` for `k ≥ 1`.
 
 Proof outline: by induction on m, using the conjugation
 `M = D^{-1/2} S D^{1/2}` between the (non-symmetric) `weightedAdj` operator
 and the symmetric `S`. Both operators have the same powers up to
-diagonal-similarity scaling.
+diagonal-similarity scaling. -/
 
-### Spectral decomposition + orbit upgrade (Lovász §3 content)
+/-- **Translation lemma** (#77 stepping stone, partial scaffold).
+
+The closed-walk profile of length `m + 1` at vertex `i` equals the
+diagonal of `S^(m+1)` divided by `W i`. Equivalently:
+
+`closedWalkProfile B W i (m + 1) * W i = symAdjIter B W (m + 1) i i`
+
+**Status**: stated. Proof by induction on m using the conjugation
+`M = D^{-1/2} S D^{1/2}` between `weightedAdj` and `symAdj`. -/
+theorem closedWalkProfile_eq_symAdjIter_diag {T : ℕ}
+    (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i)
+    (_W : Fin T → ℝ) (_hW : ∀ i, 0 < _W i)
+    (i : Fin T) (m : ℕ) :
+    Graphon.Lovasz.closedWalkProfile _B _W i (m + 1) * _W i =
+      symAdjIter _B _W (m + 1) i i := by
+  sorry
+
+/-! ### Spectral decomposition + orbit upgrade (Lovász §3 content)
 
 The full closure requires:
 1. Real symmetric matrices have orthonormal eigenvector basis
@@ -92,7 +112,6 @@ The full closure requires:
 3. Twin-free B + positive W ⟹ spectral measures determine orbit class.
 
 Step 3 is the genuine paper-root content. Empirically robust across
-4 falsification corpora (>25,000 twin-free graphs, 0 counterexamples).
--/
+4 falsification corpora (>25,000 twin-free graphs, 0 counterexamples). -/
 
 end Graphon.Spectral
