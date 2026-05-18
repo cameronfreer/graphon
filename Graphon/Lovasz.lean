@@ -3726,17 +3726,39 @@ single named theorem.
 
 **Mathematical content**: closed walk profiles `CW_m(i) = (S^m)[i,i]/W[i]`
 (where `S = D^{1/2} B D^{1/2}`) determine the spectral diagonal data
-at i. By Cayley-Hamilton + finite-dimensional spectral theory + twin-free
-hypothesis, equal spectral diagonals at i, j force a `(B, W)`-aut σ
-with `σ i = j`.
+at i. The conjecture was that Cayley-Hamilton + spectral theory +
+twin-free could force orbit relation.
 
-**Empirical evidence** (cumulative from #77 falsification scripts):
-- 291/291 random + cycle-disjoint-union pairs separated at length ≥ 3.
-- 22,096 twin-free simple graphs (T ≤ 6 full enum): 0 counterexamples.
-- 7 adversarial known cospectral structures: 0 counterexamples.
-- 78 weighted twin-free cases: 0 counterexamples.
+**STATUS (2026-05-18): REFUTED**.
 
-**Status**: PAPER-ROOT. Full Lean proof ~500-1000 LOC. -/
+Counterexample: vertices 1 and 5 in the 9-vertex "double-pin tree"
+have identical (S^m)[i, i] for all m but lie in different orbits
+(|Aut| = 1). The graph is twin-free. See
+`scripts/spectral_orbit_validation.py`.
+
+**Implications**:
+- This theorem is FALSE as stated. The sorry'd statement is retained
+  for architectural documentation; it should NOT be assumed downstream.
+- `closed_walk_profiles_separate_vertex_orbits` (proved below via
+  contrapositive of this) inherits the issue; its statement is also
+  false in this form.
+- `rooted_profiles_separate_vertex_orbits` (the K=1 specialization
+  of Lovász Lemma 2.4) is TRUE but our current proof route via the
+  closed-walk bridge is INVALID. Needs to be re-proved through the
+  full rooted simple-graph family (paths, trees, asymmetric shapes),
+  not just rooted cycles.
+
+**Earlier empirical evidence** turned out to be incomplete:
+- The cospectral_vertex_search.py corpus stopped at T = 6.
+- The double-pin counterexample is on T = 9 — outside the prior
+  exhaustive enum range.
+- Random/adversarial scripts didn't include this specific
+  graph structure.
+
+**Salvaged content**: the bridge theorems `rootedProfile_rootedCycleGraph_eq_closedWalkProfile`
+and `closedWalkProfile_eq_symAdjIter_diag` (in Spectral.lean) are
+still valuable. They translate between representations; what's wrong
+is the orbit-upgrade INFERENCE from closed walks alone. -/
 theorem vertex_orbit_of_closed_walks_eq {T : ℕ}
     (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i)
     (_W : Fin T → ℝ) (_hW : ∀ i, 0 < _W i)

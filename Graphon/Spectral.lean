@@ -194,35 +194,39 @@ The full closure requires:
 Step 3 is the genuine paper-root content. Empirically robust across
 4 falsification corpora (>25,000 twin-free graphs, 0 counterexamples). -/
 
-/-- **Named spectral theorem for #77** (canonical paper-root in Spectral.lean).
+/-- **Named spectral theorem for #77** (REFUTED 2026-05-18).
 
+**REFUTATION**: vertices 1 and 5 in the 9-vertex "double-pin tree"
+(scripts/spectral_orbit_validation.py) have identical diagonal
+moments [1, 0, 2, 0, 6, 0, ...] but |Aut| = 1 (different orbits).
+The graph IS twin-free. So this conjecture is FALSE.
+
+The statement remains here as a sorry'd FALSE conjecture for
+documentation purposes. It should NOT be assumed in downstream
+proofs. The correct route to vertex_orbit_of_closed_walks_eq
+(if that conjecture itself survives) requires the FULL rooted
+simple-graph family (Lovász §3 rank theorem), NOT just closed
+walks / diagonal moments.
+
+**Original conjecture** (DISPROVEN):
 If two vertices i, j have matching diagonal entries `(S^m)[i, i] = (S^m)[j, j]`
 for all m, under twin-free B + W > 0, then there exists a (B, W)-aut σ
 mapping i to j.
 
-**Two-step decomposition** (validate independently):
+**Counterexample**: double-pin tree T = 9:
+  edges: (0,1), (1,2), (2,3), (3,7) — arm 1
+         (0,4), (4,5), (5,6), (4,8) — arm 2 (extra leaf at 4)
+  Vertices 1, 5 are cospectral (equal moments) but not orbit-related.
 
-1. **Spectral measure equality** (provable, Vandermonde):
-   `∀ m, (S^m)[i,i] = (S^m)[j,j]` ⟹ ∀ eigenspace `E_k`, `⟨e_i, P_k e_i⟩
-   = ⟨e_j, P_k e_j⟩` where `P_k` is the spectral projector.
-   Uses real symmetric spectral theorem (mathlib has it).
+**Architectural impact**: any downstream Lemma proved via this
+sorry'd conjecture is on shaky ground. Specifically affected:
+- closed_walk_profiles_separate_vertex_orbits (Lovasz.lean #77)
+- rooted_profiles_separate_vertex_orbits (proved via the above)
+- diagonal_observable_K1 + _of_tupleEquivSimple (proved via the above)
 
-2. **Orbit upgrade** (RISKY, validation needed):
-   Spectral measure equality at i, j + twin-free B + W > 0 ⟹ ∃ aut σ.
-
-**Validation question for step 2**: classical Schwenk-style vertex
-cospectral constructions show equal spectral measures do NOT in
-general imply same orbit. The conjecture relies on twin-free B +
-W > 0 to upgrade. Empirically validated (0 counterexamples on 4
-corpora >25,000 graphs) but not a known classical theorem in this
-exact form. May require Lovász §3 rank-theorem content.
-
-**Status**: sorry'd. Before committing substantial proof work, the
-orbit upgrade step should be validated against either a published
-theorem or a concrete counterexample search on twin-free + W>0 with
-spectral-measure-equivalent non-orbit pairs.
-
-Estimated effort if step 2 holds: ~300-500 LOC. -/
+The "rooted_profiles_separate" THEOREM is still TRUE (Lovász Lemma 2.4
+K=1) — just its proof route via closed walks is invalid. Need to
+re-prove via the FULL rooted simple-graph family. -/
 theorem same_diag_powers_imp_vertex_orbit {T : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
