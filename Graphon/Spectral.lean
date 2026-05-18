@@ -194,4 +194,43 @@ The full closure requires:
 Step 3 is the genuine paper-root content. Empirically robust across
 4 falsification corpora (>25,000 twin-free graphs, 0 counterexamples). -/
 
+/-- **Named spectral theorem for #77** (canonical paper-root in Spectral.lean).
+
+If two vertices i, j have matching diagonal entries `(S^m)[i, i] = (S^m)[j, j]`
+for all m, under twin-free B + W > 0, then there exists a (B, W)-aut σ
+mapping i to j.
+
+**Two-step decomposition** (validate independently):
+
+1. **Spectral measure equality** (provable, Vandermonde):
+   `∀ m, (S^m)[i,i] = (S^m)[j,j]` ⟹ ∀ eigenspace `E_k`, `⟨e_i, P_k e_i⟩
+   = ⟨e_j, P_k e_j⟩` where `P_k` is the spectral projector.
+   Uses real symmetric spectral theorem (mathlib has it).
+
+2. **Orbit upgrade** (RISKY, validation needed):
+   Spectral measure equality at i, j + twin-free B + W > 0 ⟹ ∃ aut σ.
+
+**Validation question for step 2**: classical Schwenk-style vertex
+cospectral constructions show equal spectral measures do NOT in
+general imply same orbit. The conjecture relies on twin-free B +
+W > 0 to upgrade. Empirically validated (0 counterexamples on 4
+corpora >25,000 graphs) but not a known classical theorem in this
+exact form. May require Lovász §3 rank-theorem content.
+
+**Status**: sorry'd. Before committing substantial proof work, the
+orbit upgrade step should be validated against either a published
+theorem or a concrete counterexample search on twin-free + W>0 with
+spectral-measure-equivalent non-orbit pairs.
+
+Estimated effort if step 2 holds: ~300-500 LOC. -/
+theorem same_diag_powers_imp_vertex_orbit {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {i j : Fin T}
+    (_h_diag : ∀ m : ℕ, symAdjIter B W m i i = symAdjIter B W m j j) :
+    ∃ σ : Equiv.Perm (Fin T),
+      (∀ k, W (σ k) = W k) ∧ (∀ k l, B (σ k) (σ l) = B k l) ∧ σ i = j := by
+  sorry
+
 end Graphon.Spectral
