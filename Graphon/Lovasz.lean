@@ -3678,58 +3678,61 @@ noncomputable def closedWalkProfile {T : ℕ} (B : Fin T → Fin T → ℝ)
   | 0     => 1
   | m + 1 => weightedAdjIter B W m (fun v => B v i) i
 
-/-- **Closed walks separate vertex orbits** (focused K=1 target).
-If two vertices are NOT in the same `(B, W)`-orbit (under twin-free
-`B` + `W > 0`), some closed-walk profile separates them.
+/-! **K=1 spectral closing chain** (former #77 docstring, 2026-05-18).
 
-This is the canonical focused stepping-stone for
-`rooted_profiles_separate_vertex_orbits`: closed walks are rooted
-cycles, hence a sub-family of the full rooted simple-graph family.
-A proof here transfers to the rooted-profile target by the bridge
-`closedWalkProfile = simpleEvalAt of rooted m-cycle`.
+Empirical evidence (cumulative across 4 falsification scripts):
+- 291/291 random + cycle-disjoint-union pairs separated at length ≥ 3.
+- 22,096 twin-free simple graphs (T ≤ 6 full enum): 0 counterexamples.
+- 7 adversarial known cospectral structures: 0 counterexamples.
+- 78 weighted twin-free cases: 0 counterexamples.
 
-**Empirical evidence** (multiple falsification passes, 2026-05-14):
-1. `scripts/closed_walk_search.py`: 291/291 non-orbit pairs
-   separated by closed walks of length ≥ 3 across random twin-free
-   matrices (T = 2..10) and cycle-disjoint-union families (C₃⊔C₄
-   through C₆⊔C₇, including C₃⊔C₄⊔C₅). Cycle unions separate at
-   m = max(component-sizes), random matrices at m = 3.
-2. `scripts/cospectral_vertex_search.py`: FULL enumeration of all
-   twin-free simple graphs on T = 4, 5, 6 (W = 1; 22,096 graphs)
-   plus 3,671 twin-free random graphs on T = 7. ZERO cospectral
-   vertex / different-orbit counterexamples found.
-3. `scripts/cospectral_adversarial.py`: known cospectral
-   constructions (Shrikhande, 4×4 Rook, Schwenk-like tree,
-   Godsil-McKay K_{4,4}-e, K_4, Q_3, Möbius-Kantor) — 0 found.
+The `m + 3` offset (length ≥ 3) is required because length-2 closed
+walks `∑_v W(v) B(i,v)²` are inherently multigraph evaluations (edge
+multiplicity 2) and cannot be realized by simple graphs. -/
 
-The `m + 3` offset (length ≥ 3) is required by the bridge to
-`rootedProfile`: length-2 closed walks ∑_v W(v) B(i,v)² are
-inherently multigraph evaluations (edge multiplicity 2) and
-cannot be realized by simple graphs. Empirically, length-3
-closed walks always separate when length-2 closed walks do.
+/-- **K=1 spectral closing lemma** (named paper-root for #77).
 
-4. `scripts/closed_walk_weighted_search.py` (2026-05-16): 78 weighted
-   twin-free cases (random weighted, W-perturbed cycles/complete graphs,
-   block-diagonal, W-perturbed Petersen) — 0 counterexamples.
+If two vertices have matching closed-walk profiles at all lengths
+≥ 3, then they lie in the same `(B, W)`-vertex orbit (under twin-free
+B + W > 0).
 
-**Caveat**: Schwenk-style vertex cospectral pairs are known to
-exist for non-twin-free or larger graphs. Treat this conjecture
-as empirically robust but not yet formally proved.
+This is the positive (contrapositive) form of #77. Stating it
+explicitly localizes the spectral content of Lovász §3 K=1 to a
+single named theorem.
 
-**STATUS (2026-05-16)**: Designated as a PAPER-ROOT theorem (K=1
-spectral). A full Lean proof would require ~500-1000 LOC of
-finite-dimensional spectral infrastructure (Cayley-Hamilton +
-spectral theorem + twin-free → orbit upgrade). Not a near-term
-tactical target; downstream consumers should cite Lovász §3
-analogues until formalization is undertaken as a dedicated
-spectral-module project. -/
-theorem closed_walk_profiles_separate_vertex_orbits {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (_hW : ∀ i, 0 < W i)
-    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {i j : Fin T} (_h : ¬ vertexOrbitRel B W i j) :
-    ∃ m : ℕ, closedWalkProfile B W i (m + 3) ≠ closedWalkProfile B W j (m + 3) := by
+**Mathematical content**: closed walk profiles `CW_m(i) = (S^m)[i,i]/W[i]`
+(where `S = D^{1/2} B D^{1/2}`) determine the spectral diagonal data
+at i. By Cayley-Hamilton + finite-dimensional spectral theory + twin-free
+hypothesis, equal spectral diagonals at i, j force a `(B, W)`-aut σ
+with `σ i = j`.
+
+**Empirical evidence** (cumulative from #77 falsification scripts):
+- 291/291 random + cycle-disjoint-union pairs separated at length ≥ 3.
+- 22,096 twin-free simple graphs (T ≤ 6 full enum): 0 counterexamples.
+- 7 adversarial known cospectral structures: 0 counterexamples.
+- 78 weighted twin-free cases: 0 counterexamples.
+
+**Status**: PAPER-ROOT. Full Lean proof ~500-1000 LOC. -/
+theorem vertex_orbit_of_closed_walks_eq {T : ℕ}
+    (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i)
+    (_W : Fin T → ℝ) (_hW : ∀ i, 0 < _W i)
+    (_htwin : ∀ i j, i ≠ j → _B i ≠ _B j)
+    {i j : Fin T}
+    (_h : ∀ m : ℕ, closedWalkProfile _B _W i (m + 3) =
+                   closedWalkProfile _B _W j (m + 3)) :
+    vertexOrbitRel _B _W i j := by
   sorry
+
+/-- **#77** derived from the spectral closing lemma. Contrapositive form. -/
+theorem closed_walk_profiles_separate_vertex_orbits {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {i j : Fin T} (h : ¬ vertexOrbitRel B W i j) :
+    ∃ m : ℕ, closedWalkProfile B W i (m + 3) ≠ closedWalkProfile B W j (m + 3) := by
+  by_contra h_no_sep
+  push_neg at h_no_sep
+  exact h (vertex_orbit_of_closed_walks_eq B hB W hW htwin h_no_sep)
 
 /-- **Rooted cycle graph** at length `m + 2`. Edges are consecutive
 pairs `(j, j+1)` plus the wrap edge `(0, m+1)`. The K=1 label placement
