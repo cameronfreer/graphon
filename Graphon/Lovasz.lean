@@ -4425,6 +4425,11 @@ theorem orbit_separation_by_simple_graph {T K : ℕ}
     (_h : ¬ tupleOrbitRel B W ξ ξ') :
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (_ : DecidableRel F.Adj),
       simpleEvalAt B W F ξ ≠ simpleEvalAt B W F ξ' := by
+  -- Derivable as contrapositive of `tupleEquivSimple_implies_orbit`
+  -- (declared later in the file). After the 2026-05-20 refactor,
+  -- `tupleEquivSimple_implies_orbit` no longer routes through this theorem,
+  -- so the cycle is broken. To turn this into a clean derivation, reorder
+  -- so `tupleEquivSimple_implies_orbit` precedes this declaration.
   sorry
 
 /-- **Orbit separation, identity case** — narrowest case of
@@ -4581,13 +4586,75 @@ theorem tupleEquivSimple_implies_orbit {T K : ℕ}
     ∃ σ : Equiv.Perm (Fin T),
       (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
       (∀ i, ξ' i = σ (ξ i)) := by
-  -- Route through the canonical `connection_matrix_rank_theorem`
-  -- (Lovász §3 Theorem 2.2). The rank theorem produces the
-  -- `tupleOrbitRel` form directly; we unpack it to the explicit
-  -- existential conclusion.
-  obtain ⟨σ, ⟨hW_eq, hB_eq⟩, hξ_eq⟩ :=
-    connection_matrix_rank_theorem B hB W hW htwin h
-  exact ⟨σ, hW_eq, hB_eq, hξ_eq⟩
+  -- Direct proof via strong induction on K using the simple-graph Claims 4.1-4.4.
+  -- Mirrors `MatrixDetermination.lean:10873 tupleEquiv_implies_tupleOrbitRel`.
+  -- This breaks the cycle through `connection_matrix_rank_theorem` → #70 by
+  -- routing through the simple-graph claims (`tupleEquivSimple_restrict`, etc.)
+  -- which are proved independently of #70.
+  suffices strong : ∀ (m : ℕ) (φ ψ : Fin m → Fin T),
+      tupleEquivSimple B W φ ψ → tupleOrbitRel B W φ ψ by
+    obtain ⟨σ, hσ_aut, hσ_conj⟩ := strong K ξ ξ' h
+    exact ⟨σ, hσ_aut.1, hσ_aut.2, hσ_conj⟩
+  intro m
+  refine @Nat.strongRecOn
+    (fun j => ∀ (φ ψ : Fin j → Fin T), tupleEquivSimple B W φ ψ → tupleOrbitRel B W φ ψ)
+    m fun m IH_strong => ?_
+  intro φ ψ hpsi
+  rcases m with _ | k
+  · exact ⟨Equiv.refl _, ⟨fun _ => rfl, fun _ _ => rfl⟩, nofun⟩
+  · -- m = k + 1.
+    have IH : ∀ {φ' ψ' : Fin k → Fin T},
+        tupleEquivSimple B W φ' ψ' → tupleOrbitRel B W φ' ψ' :=
+      fun {φ' ψ'} h' => IH_strong k (Nat.lt_succ_self k) φ' ψ' h'
+    -- Step 1: restrict and apply IH.
+    obtain ⟨σ, hσ_aut, hσ_conj⟩ := IH (tupleEquivSimple_restrict B W hB hpsi)
+    -- Step 2: σ.symm IsWeightedAutomorphism.
+    have hσs : IsWeightedAutomorphism B W σ.symm :=
+      ⟨fun i => by have := (hσ_aut.1 (σ.symm i)).symm; rwa [σ.apply_symm_apply] at this,
+       fun i j => by have := (hσ_aut.2 (σ.symm i) (σ.symm j)).symm
+                     rwa [σ.apply_symm_apply, σ.apply_symm_apply] at this⟩
+    -- Step 3: normalize ψ by σ.symm.
+    have h' : tupleEquivSimple B W φ (σ.symm ∘ ψ) := fun n F _ =>
+      (hpsi n F).trans (tupleEquivSimple_of_tupleOrbitRel B W
+        ⟨σ.symm, hσs, fun _ => rfl⟩ n F)
+    -- Step 4: first k coordinates agree.
+    have hbase : restrictTuple (σ.symm ∘ ψ) = restrictTuple φ := by
+      funext i; simp only [restrictTuple, Function.comp]
+      have := hσ_conj i; simp only [restrictTuple] at this
+      rw [this, σ.symm_apply_apply]
+    -- Step 5: snoc decomposition.
+    set α := restrictTuple φ
+    have ha : φ = Fin.snoc α (φ (Fin.last k)) := by
+      ext i; by_cases hi : (i : ℕ) < k
+      · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl, Fin.snoc_castSucc]; rfl
+      · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega), Fin.snoc_last]
+    have hb : σ.symm ∘ ψ = Fin.snoc α ((σ.symm ∘ ψ) (Fin.last k)) := by
+      ext i; by_cases hi : (i : ℕ) < k
+      · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl, Fin.snoc_castSucc, ← hbase]
+        rfl
+      · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega), Fin.snoc_last]
+    rw [ha, hb] at h'
+    -- Step 6: case split on α's surjectivity.
+    by_cases hα_surj : Function.Surjective α
+    · have hab := tupleEquivSimple_ext_eq_of_surj B W hB htwin hα_surj h'
+      exact ⟨σ, hσ_aut, fun i => by
+        have : (σ.symm ∘ ψ) i = φ i := congr_fun (hb.trans (hab ▸ ha.symm)) i
+        rwa [Function.comp_apply, Equiv.symm_apply_eq] at this⟩
+    · by_cases hφ_surj : Function.Surjective φ
+      · -- φ surjective: apply Claim 4.4.
+        have hT1_lt : T - 1 < k + 1 := by
+          have := Fintype.card_le_of_surjective φ hφ_surj
+          simp only [Fintype.card_fin] at this; omega
+        have IH_T1 : ∀ {φ' ψ' : Fin (T - 1) → Fin T},
+            tupleEquivSimple B W φ' ψ' → tupleOrbitRel B W φ' ψ' :=
+          fun {φ' ψ'} h' => IH_strong (T - 1) hT1_lt φ' ψ' h'
+        exact tupleEquivSimple_surjective_case B W hW hB htwin IH_T1 φ ψ hφ_surj hpsi
+      · -- Both α and φ non-surjective: architectural sorry mirroring
+        -- MatrixDetermination.lean:10938-11010. Closing this requires either
+        -- the extension theorem (#62) or a well-founded induction refactor
+        -- on (deficit, size). This is the new canonical sorry root, replacing
+        -- the previous routing through connection_matrix_rank_theorem and #70.
+        sorry
 /-- **K=1 Stone-Weierstrass / Lagrange interpolation closure**
 (named algebraic residue, deferred). **This is the K=1 rank theorem proper.**
 
