@@ -5832,4 +5832,83 @@ theorem multiLabeledEvalK_tupleEquiv_invariant_twinFree {T K n : ℕ}
   -- Step 2: orbit ⟹ multi-eval-equality (orbit-invariance, fully proved).
   exact multiLabeledEvalK_orbit_invariant B W M ⟨σ, hW_eq, hB_eq, hξ_eq⟩
 
+/-! ### §3.9 — Rank algebra for the multigraph bridge (project #62)
+
+This section sets up the canonical algebraic framework for closing #62
+(`multiLabeledEvalK_tupleEquiv_invariant`, declared earlier). The plan,
+per Lovász TR-2004-82 §3:
+
+1. Define `InSimpleProfileClosure B W K` — the set of functions
+   `(Fin K → Fin T) → ℝ` in the closure of simple-graph evaluations
+   under `+, scalar mul, *, const`.
+2. Prove easy closure facts: constants, add, smul, mul, descends-to-quotient.
+3. Prove the canonical theorem (paper-root):
+   every multigraph evaluation is in the simple-profile closure
+   (`multigraphEval_in_simpleProfileClosure`).
+4. From the canonical theorem, derive #62 trivially (requires reordering
+   so #62 follows this section, OR refactoring #62 to take the closure
+   theorem as a hypothesis).
+
+The canonical theorem encapsulates the substantive Lovász §3 content
+(connection-matrix / idempotent decomposition algebraic argument).
+Closing it ~300-500 LOC project. -/
+
+/-- **Closure of simple-graph evaluations** under `+, *, smul, const`.
+A function `f : (Fin K → Fin T) → ℝ` is in the closure iff it can be
+built from simple-graph evaluations using ring operations. -/
+inductive InSimpleProfileClosure {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (K : ℕ) : ((Fin K → Fin T) → ℝ) → Prop
+  | of_simple (n : ℕ) (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj] :
+      InSimpleProfileClosure B W K (fun ξ => simpleEvalAt B W F ξ)
+  | const (c : ℝ) : InSimpleProfileClosure B W K (fun _ => c)
+  | add {f g} : InSimpleProfileClosure B W K f →
+      InSimpleProfileClosure B W K g →
+      InSimpleProfileClosure B W K (fun ξ => f ξ + g ξ)
+  | smul (c : ℝ) {f} : InSimpleProfileClosure B W K f →
+      InSimpleProfileClosure B W K (fun ξ => c * f ξ)
+  | mul {f g} : InSimpleProfileClosure B W K f →
+      InSimpleProfileClosure B W K g →
+      InSimpleProfileClosure B W K (fun ξ => f ξ * g ξ)
+
+/-- **Closure functions descend to `tupleEquivSimple`-classes**: if `f` is
+in the simple-profile closure and `ξ ξ'` are simple-equivalent, then
+`f ξ = f ξ'`. -/
+theorem InSimpleProfileClosure.descends {T K : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {f : (Fin K → Fin T) → ℝ} (hf : InSimpleProfileClosure B W K f)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquivSimple B W ξ ξ') :
+    f ξ = f ξ' := by
+  induction hf with
+  | of_simple n F => exact h n F
+  | const c => rfl
+  | add _ _ ih_f ih_g => simp only; rw [ih_f, ih_g]
+  | smul c _ ih_f => simp only; rw [ih_f]
+  | mul _ _ ih_f ih_g => simp only; rw [ih_f, ih_g]
+
+/-- **Canonical theorem (paper-root for #62)**: every multigraph evaluation
+is in the simple-profile closure.
+
+**Proof outline** (Lovász §3 substantive content, ~300-500 LOC):
+The space of functions on `tupleEquivSimple`-classes forms a
+finite-dimensional ℝ-algebra. Simple-graph evaluations span this algebra
+(by the rank theorem). Multigraph evaluations factor through this algebra
+via the connection-matrix idempotent decomposition. The "subgraph counts"
+of all multigraphs are polynomial combinations of subgraph counts of
+simple graphs (a classical observation in the theory of graph homomorphisms).
+
+**Status**: paper-root sorry. Closing this immediately closes #62
+(`multiLabeledEvalK_tupleEquiv_invariant`) as a one-line wrapper:
+```
+theorem #62 ... := by
+  apply (multigraphEval_in_simpleProfileClosure B hB W M).descends
+  intro n' F hF; exact h_simple n' F
+```
+(after the section is reordered to precede #62, or with #62 refactored
+to forward-reference this theorem.) -/
+theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (M : MultiLabeledGraph K n) :
+    InSimpleProfileClosure B W K (fun ξ => multiLabeledEvalK K n M B W ξ) := by
+  sorry
+
 end Graphon.Lovasz
