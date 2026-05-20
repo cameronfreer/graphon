@@ -3648,6 +3648,1313 @@ noncomputable def rootedProfile {T n : ℕ} (B : Fin T → Fin T → ℝ)
     [DecidableRel F.Adj] : ℝ :=
   simpleEvalAt B W F (fun _ : Fin 1 => i)
 
+/-- **Rooted-profile equivalence**: two vertices `i, j` agree on every
+rooted simple-graph evaluation.
+
+This is the K=1 specialization of `tupleEquivSimple`. By Lovász Lemma 2.4
+K=1, under twin-free B + W > 0, this equivalence corresponds exactly to
+the vertex orbit relation. -/
+def rootedProfileEquiv {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (i j : Fin T) : Prop :=
+  ∀ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj],
+    rootedProfile B W i F = rootedProfile B W j F
+
+/-- **Forward direction (trivial)**: vertex orbit ⟹ rooted-profile equivalence.
+Follows from automorphism invariance of `simpleEvalAt`. -/
+theorem rootedProfileEquiv_of_vertexOrbitRel {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) {i j : Fin T}
+    (h : vertexOrbitRel B W i j) :
+    rootedProfileEquiv B W i j := by
+  obtain ⟨σ, hσ_aut, hσ_eq⟩ := h
+  intro n F _
+  unfold rootedProfile simpleEvalAt
+  -- Use the K=1 specialization of orbit-invariance.
+  have h_orbit : tupleOrbitRel B W (fun _ : Fin 1 => i) (fun _ : Fin 1 => j) := by
+    refine ⟨σ, hσ_aut, ?_⟩
+    intro k
+    have : k = (0 : Fin 1) := Subsingleton.elim _ _
+    rw [this]; exact hσ_eq.symm
+  exact tupleEquivSimple_of_tupleOrbitRel B W h_orbit n F
+
+/-- **Rooted orbit indicator** of vertex `i`: the function `Fin T → ℝ`
+mapping each vertex `v` to `1` if `v` lies in the `(B, W)`-orbit of `i`,
+and `0` otherwise.
+
+This is the canonical "test function" for the Lovász §3 K=1 rank theorem:
+the orbit indicators span the space of `(B, W)`-automorphism-invariant
+functions on `Fin T`. The K=1 rank theorem asserts that the rooted-profile
+functions span this same space, so each orbit indicator lies in the
+rooted-profile ℝ-span. -/
+noncomputable def rootedOrbitIndicator {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (i : Fin T) : Fin T → ℝ :=
+  fun v => open Classical in if vertexOrbitRel B W i v then (1 : ℝ) else 0
+
+/-- **Rooted-profile function** as a function `Fin T → ℝ`. For a fixed
+simple graph `F` with one labeled position, `rootedProfileFun B W F v`
+is the rooted simple-graph evaluation with the label fixed to `v`. -/
+noncomputable def rootedProfileFun {T n : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj] :
+    Fin T → ℝ :=
+  fun v => rootedProfile B W v F
+
+/-! ### Algebra of rooted simple-graph profiles (K=1 rank theorem) -/
+
+/-- **Membership predicate** for the rooted-profile ℝ-span: `f : Fin T → ℝ`
+is in the ℝ-span iff it equals a finite linear combination of
+rooted-profile functions `rootedProfileFun B W F` over simple graphs `F`. -/
+def InRootedProfileSpan {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f : Fin T → ℝ) : Prop :=
+  ∃ (N : ℕ) (g : Fin N → Σ (n : ℕ) (F : SimpleGraph (Fin (n + 1))), DecidableRel F.Adj)
+    (c : Fin N → ℝ),
+    f = fun v => ∑ k : Fin N, c k * @rootedProfileFun T (g k).1 B W (g k).2.1 (g k).2.2 v
+
+/-- The rooted profile of a single graph is in the span (singleton sum). -/
+theorem InRootedProfileSpan.of_profile {T n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + 1))) [hF : DecidableRel F.Adj] :
+    InRootedProfileSpan B W (rootedProfileFun B W F) := by
+  refine ⟨1, fun _ => ⟨n, F, hF⟩, fun _ => 1, ?_⟩
+  funext v
+  simp
+
+/-- Zero function is in the span (empty sum). -/
+theorem InRootedProfileSpan.zero {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    InRootedProfileSpan B W (fun _ => (0 : ℝ)) := by
+  refine ⟨0, Fin.elim0, Fin.elim0, ?_⟩
+  funext v
+  simp
+
+/-- Closure under addition. -/
+theorem InRootedProfileSpan.add {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {f₁ f₂ : Fin T → ℝ}
+    (h₁ : InRootedProfileSpan B W f₁) (h₂ : InRootedProfileSpan B W f₂) :
+    InRootedProfileSpan B W (f₁ + f₂) := by
+  obtain ⟨N₁, g₁, c₁, hf₁⟩ := h₁
+  obtain ⟨N₂, g₂, c₂, hf₂⟩ := h₂
+  -- Re-index via Sum to sidestep Fin.addCases motive issues.
+  let g : Fin N₁ ⊕ Fin N₂ → Σ (n : ℕ) (F : SimpleGraph (Fin (n + 1))), DecidableRel F.Adj :=
+    Sum.elim g₁ g₂
+  let c : Fin N₁ ⊕ Fin N₂ → ℝ := Sum.elim c₁ c₂
+  refine ⟨N₁ + N₂,
+    fun k => g (finSumFinEquiv.symm k),
+    fun k => c (finSumFinEquiv.symm k), ?_⟩
+  funext v
+  have e₁ := congr_fun hf₁ v
+  have e₂ := congr_fun hf₂ v
+  simp only [Pi.add_apply, e₁, e₂]
+  rw [show (∑ k : Fin (N₁ + N₂), c (finSumFinEquiv.symm k) *
+        @rootedProfileFun T (g (finSumFinEquiv.symm k)).1 B W
+          (g (finSumFinEquiv.symm k)).2.1 (g (finSumFinEquiv.symm k)).2.2 v)
+      = ∑ s : Fin N₁ ⊕ Fin N₂, c s *
+          @rootedProfileFun T (g s).1 B W (g s).2.1 (g s).2.2 v from ?_]
+  · rw [Fintype.sum_sum_type]
+    rfl
+  · exact Equiv.sum_comp finSumFinEquiv.symm
+      (fun s => c s * @rootedProfileFun T (g s).1 B W (g s).2.1 (g s).2.2 v)
+
+/-- Closure under scalar multiplication. -/
+theorem InRootedProfileSpan.smul {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    (c : ℝ) {f : Fin T → ℝ} (h : InRootedProfileSpan B W f) :
+    InRootedProfileSpan B W (fun v => c * f v) := by
+  obtain ⟨N, g, c', hf⟩ := h
+  refine ⟨N, g, fun k => c * c' k, ?_⟩
+  funext v
+  have e := congr_fun hf v
+  rw [e, Finset.mul_sum]
+  apply Finset.sum_congr rfl
+  intro k _
+  ring
+
+/-- The empty graph on `Fin 1` has rooted profile equal to `1` at every vertex. -/
+theorem rootedProfileFun_bot {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    rootedProfileFun B W (⊥ : SimpleGraph (Fin (0 + 1))) = fun _ => 1 := by
+  funext v
+  unfold rootedProfileFun rootedProfile simpleEvalAt
+  simp
+  convert (pow_zero (B v v)).symm using 1
+
+/-- Constant function `1` is in the rooted-profile span (via the empty graph). -/
+theorem InRootedProfileSpan.one {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    InRootedProfileSpan B W (fun _ => (1 : ℝ)) := by
+  have h := InRootedProfileSpan.of_profile B W (⊥ : SimpleGraph (Fin (0 + 1)))
+  rw [rootedProfileFun_bot] at h
+  exact h
+
+/-- Constant function `c` is in the rooted-profile span. -/
+theorem InRootedProfileSpan.const {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (c : ℝ) : InRootedProfileSpan B W (fun _ => c) := by
+  have h := (InRootedProfileSpan.one B W).smul c
+  simpa using h
+
+/-- Embedding of `F₁`'s vertices into the rooted-product graph: identity
+on values (so position 0 → root, positions 1..n₁ → F₁'s unlabeled). -/
+def rootedProductEmb₁ (n₁ n₂ : ℕ) : Fin (n₁ + 1) ↪ Fin ((n₁ + n₂) + 1) where
+  toFun v := ⟨v.val, by have := v.isLt; omega⟩
+  inj' a b h := by
+    have : a.val = b.val := by exact_mod_cast Fin.mk.inj h
+    exact Fin.ext this
+
+/-- Embedding of `F₂`'s vertices into the rooted-product graph: position 0
+maps to the root (shared with `F₁`'s root); positions 1..n₂ map to
+positions `n₁ + 1..n₁ + n₂` (F₂'s unlabeled, disjoint from F₁'s). -/
+def rootedProductEmb₂ (n₁ n₂ : ℕ) : Fin (n₂ + 1) ↪ Fin ((n₁ + n₂) + 1) where
+  toFun v := if v.val = 0 then ⟨0, by omega⟩
+             else ⟨v.val + n₁, by have := v.isLt; omega⟩
+  inj' a b h := by
+    ext
+    by_cases ha : a.val = 0 <;> by_cases hb : b.val = 0
+    · omega
+    · simp only [ha, hb, ↓reduceIte] at h
+      have : (0 : ℕ) = b.val + n₁ := by exact_mod_cast Fin.mk.inj h
+      omega
+    · simp only [ha, hb, ↓reduceIte] at h
+      have : a.val + n₁ = 0 := by exact_mod_cast Fin.mk.inj h
+      omega
+    · simp only [ha, hb, ↓reduceIte] at h
+      have : a.val + n₁ = b.val + n₁ := by exact_mod_cast Fin.mk.inj h
+      omega
+
+noncomputable def rootedProduct {n₁ n₂ : ℕ}
+    (F₁ : SimpleGraph (Fin (n₁ + 1)))
+    (F₂ : SimpleGraph (Fin (n₂ + 1))) :
+    SimpleGraph (Fin ((n₁ + n₂) + 1)) :=
+  SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁ ⊔
+    SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂
+
+/-! Exact-shape application lemmas for the rooted-product embeddings.
+These unfold the `where`-defined `toFun` directly, so `rfl` works. -/
+
+@[simp] theorem rootedProductEmb₁_val {n₁ n₂ : ℕ} (v : Fin (n₁ + 1)) :
+    (rootedProductEmb₁ n₁ n₂ v).val = v.val := rfl
+
+@[simp] theorem rootedProductEmb₂_val_zero {n₁ n₂ : ℕ} (v : Fin (n₂ + 1))
+    (h : v.val = 0) : (rootedProductEmb₂ n₁ n₂ v).val = 0 := by
+  show (if v.val = 0 then (⟨0, by omega⟩ : Fin _)
+        else ⟨v.val + n₁, by have := v.isLt; omega⟩).val = 0
+  rw [if_pos h]
+
+@[simp] theorem rootedProductEmb₂_val_pos {n₁ n₂ : ℕ} (v : Fin (n₂ + 1))
+    (h : v.val ≠ 0) : (rootedProductEmb₂ n₁ n₂ v).val = v.val + n₁ := by
+  show (if v.val = 0 then (⟨0, by omega⟩ : Fin _)
+        else ⟨v.val + n₁, by have := v.isLt; omega⟩).val = v.val + n₁
+  rw [if_neg h]
+
+/-! Disjointness helpers between the two embedding images. -/
+
+/-- `rootedProductEmb₁` image vertices have val ≤ n₁. -/
+theorem rootedProductEmb₁_val_le {n₁ n₂ : ℕ} (v : Fin (n₁ + 1)) :
+    (rootedProductEmb₁ n₁ n₂ v).val ≤ n₁ := by
+  rw [rootedProductEmb₁_val]; have := v.isLt; omega
+
+/-- `rootedProductEmb₂` image vertices have val = 0 or val ≥ n₁ + 1. -/
+theorem rootedProductEmb₂_val_alt {n₁ n₂ : ℕ} (v : Fin (n₂ + 1)) :
+    (rootedProductEmb₂ n₁ n₂ v).val = 0 ∨ (rootedProductEmb₂ n₁ n₂ v).val ≥ n₁ + 1 := by
+  by_cases h : v.val = 0
+  · left; exact rootedProductEmb₂_val_zero v h
+  · right; rw [rootedProductEmb₂_val_pos v h]
+    have := Nat.pos_of_ne_zero h; omega
+
+/-- Image of `rootedProductEmb₁` is exactly the vertices with val ≤ n₁. -/
+theorem rootedProductEmb₁_eq_iff {n₁ n₂ : ℕ} (v : Fin (n₁ + 1))
+    (w : Fin ((n₁ + n₂) + 1)) :
+    rootedProductEmb₁ n₁ n₂ v = w ↔ v.val = w.val := by
+  constructor
+  · intro h; rw [← h]; exact (rootedProductEmb₁_val v).symm
+  · intro h; apply Fin.ext; rw [rootedProductEmb₁_val]; exact h
+
+/-- Image of `rootedProductEmb₂` at root (`v.val = 0`) is the root in big graph. -/
+theorem rootedProductEmb₂_eq_root_iff {n₁ n₂ : ℕ} (v : Fin (n₂ + 1))
+    (h : v.val = 0) (w : Fin ((n₁ + n₂) + 1)) :
+    rootedProductEmb₂ n₁ n₂ v = w ↔ w.val = 0 := by
+  constructor
+  · intro hw; rw [← hw, rootedProductEmb₂_val_zero v h]
+  · intro hw; apply Fin.ext; rw [rootedProductEmb₂_val_zero v h]; exact hw.symm
+
+/-- Image of `rootedProductEmb₂` at unlabeled position (`v.val ≠ 0`) is `v.val + n₁`. -/
+theorem rootedProductEmb₂_eq_unlabeled_iff {n₁ n₂ : ℕ} (v : Fin (n₂ + 1))
+    (h : v.val ≠ 0) (w : Fin ((n₁ + n₂) + 1)) :
+    rootedProductEmb₂ n₁ n₂ v = w ↔ w.val = v.val + n₁ := by
+  constructor
+  · intro hw; rw [← hw, rootedProductEmb₂_val_pos v h]
+  · intro hw; apply Fin.ext; rw [rootedProductEmb₂_val_pos v h]; exact hw.symm
+
+/-- Map adjacency for `rootedProductEmb₁`: a, b in the F₁-image iff both
+have val ≤ n₁, and then F₁ adjacency at the restrictions. -/
+private theorem map_emb₁_adj_iff {n₁ n₂ : ℕ} (F₁ : SimpleGraph (Fin (n₁ + 1)))
+    (a b : Fin ((n₁ + n₂) + 1)) :
+    (SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b ↔
+      ∃ (ha : a.val ≤ n₁) (hb : b.val ≤ n₁),
+        F₁.Adj ⟨a.val, by omega⟩ ⟨b.val, by omega⟩ := by
+  rw [SimpleGraph.map_adj]
+  constructor
+  · rintro ⟨u, v, hadj, hu, hv⟩
+    have hua : u.val = a.val := by rw [← hu]; exact (rootedProductEmb₁_val (n₂ := n₂) u).symm.symm
+    have hvb : v.val = b.val := by rw [← hv]; exact (rootedProductEmb₁_val (n₂ := n₂) v).symm.symm
+    have ha : a.val ≤ n₁ := by rw [← hua]; have := u.isLt; omega
+    have hb : b.val ≤ n₁ := by rw [← hvb]; have := v.isLt; omega
+    refine ⟨ha, hb, ?_⟩
+    convert hadj using 1 <;> exact Fin.ext (by simp [hua, hvb])
+  · rintro ⟨ha, hb, hadj⟩
+    refine ⟨⟨a.val, by omega⟩, ⟨b.val, by omega⟩, hadj, ?_, ?_⟩
+    · exact Fin.ext (rootedProductEmb₁_val _)
+    · exact Fin.ext (rootedProductEmb₁_val _)
+
+/-- Map adjacency for `rootedProductEmb₂`: in terms of `glueCast₂`-recoverable positions. -/
+private theorem map_emb₂_adj_iff {n₁ n₂ : ℕ} (F₂ : SimpleGraph (Fin (n₂ + 1)))
+    (a b : Fin ((n₁ + n₂) + 1)) :
+    (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b ↔
+      ∃ (ua : Fin (n₂ + 1)) (ub : Fin (n₂ + 1)),
+        (a.val = if ua.val = 0 then 0 else ua.val + n₁) ∧
+        (b.val = if ub.val = 0 then 0 else ub.val + n₁) ∧
+        F₂.Adj ua ub := by
+  rw [SimpleGraph.map_adj]
+  constructor
+  · rintro ⟨u, v, hadj, hu, hv⟩
+    refine ⟨u, v, ?_, ?_, hadj⟩
+    · have := congrArg Fin.val hu
+      by_cases hu0 : u.val = 0
+      · rw [rootedProductEmb₂_val_zero u hu0] at this
+        rw [if_pos hu0]; omega
+      · rw [rootedProductEmb₂_val_pos u hu0] at this
+        rw [if_neg hu0]; omega
+    · have := congrArg Fin.val hv
+      by_cases hv0 : v.val = 0
+      · rw [rootedProductEmb₂_val_zero v hv0] at this
+        rw [if_pos hv0]; omega
+      · rw [rootedProductEmb₂_val_pos v hv0] at this
+        rw [if_neg hv0]; omega
+  · rintro ⟨ua, ub, hav, hbv, hadj⟩
+    refine ⟨ua, ub, hadj, ?_, ?_⟩
+    · apply Fin.ext
+      by_cases hu0 : ua.val = 0
+      · rw [rootedProductEmb₂_val_zero ua hu0]
+        rw [if_pos hu0] at hav; omega
+      · rw [rootedProductEmb₂_val_pos ua hu0]
+        rw [if_neg hu0] at hav; omega
+    · apply Fin.ext
+      by_cases hv0 : ub.val = 0
+      · rw [rootedProductEmb₂_val_zero ub hv0]
+        rw [if_pos hv0] at hbv; omega
+      · rw [rootedProductEmb₂_val_pos ub hv0]
+        rw [if_neg hv0] at hbv; omega
+
+/-- **Multigraph correspondence**: the `ofSimple` of a rooted product equals
+the multigraph glue of the individual `ofSimple` graphs.
+
+**Status**: structural sorry. Proof skeleton: `refine MultiLabeledGraph.mk.injEq .. |>.mpr ?_`,
+`funext e`, `induction e with | h a b => simp only [Sym2.lift_mk]; ...`
+followed by 6 region-case branches using the helpers
+`map_emb₁_adj_iff`, `map_emb₂_adj_iff`, `rootedProductEmb_*_val_*`,
+`rootedProductEmb_*_eq_*_iff` (all proved above this declaration).
+
+Cases by (a-region, b-region) where each can be {root, F₁-only, F₂-only}:
+- (root, root): both 0 — no edge (loopless on both F₁, F₂).
+- (root, F₁): F₁-side only; F₂-side has glueCast₂ b = none.
+- (root, F₂): F₂-side only.
+- (F₁, *), (F₂, *): symmetric.
+- (F₁, F₂) or (F₂, F₁): cross-region — no edge in rooted product.
+
+Closure barrier in attempted impl: `omega` calls inside `Fin.ext`-applications
+needed explicit hypothesis references rather than ambient context. ~330 LOC
+spent in attempt; reverted to clean sorry pending careful one-shot rewrite. -/
+theorem ofSimple_rootedProduct_eq_glue {n₁ n₂ : ℕ}
+    (F₁ : SimpleGraph (Fin (n₁ + 1))) [DecidableRel F₁.Adj]
+    (F₂ : SimpleGraph (Fin (n₂ + 1))) [DecidableRel F₂.Adj] :
+    @MultiLabeledGraph.ofSimple 1 (n₁ + n₂) (rootedProduct F₁ F₂) (Classical.decRel _) =
+      (MultiLabeledGraph.ofSimple F₁).glue (MultiLabeledGraph.ofSimple F₂) := by
+  classical
+  refine MultiLabeledGraph.mk.injEq .. |>.mpr ?_
+  funext e
+  refine e.ind ?_
+  intro a b
+  simp only [MultiLabeledGraph.ofSimple, Sym2.lift_mk]
+  -- Convert all `∈ edgeFinset` to `Adj`.
+  simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
+  -- Express LHS adjacency as ∨ of two map-Adj.
+  have hroot : (rootedProduct F₁ F₂).Adj a b ↔
+      (SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b ∨
+      (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b := Iff.rfl
+  rw [hroot]
+  -- Region case analysis: a/b each in one of {root (val=0), F₁-only (1≤val≤n₁), F₂-only (val≥n₁+1)}.
+  -- For each region, glueCast₁/₂ values are determined, and map_emb_adj_iff lemmas give Adj characterizations.
+  have hglueCast₁ : ∀ (v : Fin ((n₁ + n₂) + 1)),
+      glueCast₁ 1 n₁ n₂ v =
+      if h : v.val < n₁ + 1 then some ⟨v.val, h⟩ else none := fun v => rfl
+  have hglueCast₂ : ∀ (v : Fin ((n₁ + n₂) + 1)),
+      glueCast₂ 1 n₁ n₂ v =
+      if h : v.val < 1 then some ⟨v.val, by omega⟩
+      else if h2 : v.val ≥ n₁ + 1 then some ⟨v.val - n₁, by have := v.isLt; omega⟩
+      else none := fun v => rfl
+  -- For convenience, characterize when glueCast₁ = some / glueCast₂ = some.
+  have ha_F1 : a.val < n₁ + 1 ∨ a.val ≥ n₁ + 1 := by omega
+  have hb_F1 : b.val < n₁ + 1 ∨ b.val ≥ n₁ + 1 := by omega
+  rcases ha_F1 with ha_lt | ha_ge
+  all_goals rcases hb_F1 with hb_lt | hb_ge
+  -- Case: a ∈ F₁ region, b ∈ F₁ region (val < n₁+1 each).
+  · -- Both glueCast₁ = some, glueCast₂ for both = some iff val=0.
+    rw [hglueCast₁ a, hglueCast₁ b, dif_pos ha_lt, dif_pos hb_lt]
+    simp only
+    -- F₂-part:
+    by_cases ha0 : a.val < 1
+    · by_cases hb0 : b.val < 1
+      · -- Both at root: self-loop case.
+        have hab_root : a = b := Fin.ext (by omega)
+        rw [hglueCast₂ a, hglueCast₂ b, dif_pos ha0, dif_pos hb0]
+        simp only
+        have h1 : ¬ (SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b := by
+          rw [hab_root]; exact (SimpleGraph.map _ F₁).loopless b
+        have h2 : ¬ (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b := by
+          rw [hab_root]; exact (SimpleGraph.map _ F₂).loopless b
+        rw [if_neg (fun h => h.elim h1 h2)]
+        have hab_val : a.val = b.val := by omega
+        have hF₁ : ¬ F₁.Adj ⟨a.val, ha_lt⟩ ⟨b.val, hb_lt⟩ := by
+          have heq : (⟨a.val, ha_lt⟩ : Fin _) = ⟨b.val, hb_lt⟩ := Fin.ext hab_val
+          rw [heq]; exact F₁.loopless _
+        have hF₂ : ¬ F₂.Adj ⟨a.val, by omega⟩ ⟨b.val, by omega⟩ := by
+          have heq : (⟨a.val, by omega⟩ : Fin (n₂ + 1)) = ⟨b.val, by omega⟩ := Fin.ext hab_val
+          rw [heq]; exact F₂.loopless _
+        rw [if_neg hF₁, if_neg hF₂]
+      · -- a at root, b in F₁-only. F₂-part = 0 (glueCast₂ b = none).
+        have hb_ge' : ¬ b.val ≥ n₁ + 1 := by omega
+        rw [hglueCast₂ a, hglueCast₂ b, dif_pos ha0, dif_neg hb0, dif_neg hb_ge']
+        simp only
+        -- F₂-part = 0. LHS = F₁ side only.
+        have h2 : ¬ (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b := by
+          rw [map_emb₂_adj_iff]
+          rintro ⟨ua, ub, hav, hbv, _⟩
+          -- b.val = if ub.val=0 then 0 else ub.val + n₁. But b.val ∈ [1, n₁].
+          by_cases hub0 : ub.val = 0
+          · rw [if_pos hub0] at hbv; omega
+          · rw [if_neg hub0] at hbv
+            have := Nat.pos_of_ne_zero hub0; omega
+        -- Now LHS = if (map emb₁).Adj a b then 1 else 0.
+        -- Match LHS to F₁ side using map_emb₁_adj_iff.
+        have h1_iff : (SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b ↔
+            F₁.Adj ⟨a.val, ha_lt⟩ ⟨b.val, hb_lt⟩ := by
+          rw [map_emb₁_adj_iff]
+          refine ⟨fun ⟨_, _, h⟩ => ?_, fun h => ⟨by omega, by omega, ?_⟩⟩
+          · convert h using 1 <;> exact Fin.ext rfl
+          · convert h using 1 <;> exact Fin.ext rfl
+        rw [show ((SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b ∨
+            (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b) ↔
+            F₁.Adj ⟨a.val, ha_lt⟩ ⟨b.val, hb_lt⟩ from
+          ⟨fun h => h.elim h1_iff.mp (fun h2' => absurd h2' h2), Or.inl ∘ h1_iff.mpr⟩]
+        by_cases hF₁ : F₁.Adj ⟨a.val, ha_lt⟩ ⟨b.val, hb_lt⟩
+        · rw [if_pos hF₁, if_pos hF₁]
+        · rw [if_neg hF₁, if_neg hF₁]
+    · -- a not at root, a.val ∈ [1, n₁].
+      have ha_ge' : ¬ a.val ≥ n₁ + 1 := by omega
+      by_cases hb0 : b.val < 1
+      · -- a in F₁, b at root. Symmetric.
+        rw [hglueCast₂ a, hglueCast₂ b, dif_neg ha0, dif_neg ha_ge', dif_pos hb0]
+        simp only
+        have h2 : ¬ (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b := by
+          rw [map_emb₂_adj_iff]
+          rintro ⟨ua, _, hav, _, _⟩
+          by_cases hua0 : ua.val = 0
+          · rw [if_pos hua0] at hav; omega
+          · rw [if_neg hua0] at hav
+            have := Nat.pos_of_ne_zero hua0; omega
+        have h1_iff : (SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b ↔
+            F₁.Adj ⟨a.val, ha_lt⟩ ⟨b.val, hb_lt⟩ := by
+          rw [map_emb₁_adj_iff]
+          refine ⟨fun ⟨_, _, h⟩ => ?_, fun h => ⟨by omega, by omega, ?_⟩⟩
+          · convert h using 1 <;> exact Fin.ext rfl
+          · convert h using 1 <;> exact Fin.ext rfl
+        rw [show ((SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b ∨
+            (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b) ↔
+            F₁.Adj ⟨a.val, ha_lt⟩ ⟨b.val, hb_lt⟩ from
+          ⟨fun h => h.elim h1_iff.mp (fun h2' => absurd h2' h2), Or.inl ∘ h1_iff.mpr⟩]
+        by_cases hF₁ : F₁.Adj ⟨a.val, ha_lt⟩ ⟨b.val, hb_lt⟩
+        · rw [if_pos hF₁, if_pos hF₁]
+        · rw [if_neg hF₁, if_neg hF₁]
+      · -- a in F₁-only, b in F₁-only.
+        have hb_ge' : ¬ b.val ≥ n₁ + 1 := by omega
+        rw [hglueCast₂ a, hglueCast₂ b, dif_neg ha0, dif_neg ha_ge',
+            dif_neg hb0, dif_neg hb_ge']
+        simp only
+        -- F₂ part = 0.
+        have h2 : ¬ (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b := by
+          rw [map_emb₂_adj_iff]
+          rintro ⟨ua, _, hav, _, _⟩
+          by_cases hua0 : ua.val = 0
+          · rw [if_pos hua0] at hav; omega
+          · rw [if_neg hua0] at hav
+            have := Nat.pos_of_ne_zero hua0; omega
+        have h1_iff : (SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b ↔
+            F₁.Adj ⟨a.val, ha_lt⟩ ⟨b.val, hb_lt⟩ := by
+          rw [map_emb₁_adj_iff]
+          refine ⟨fun ⟨_, _, h⟩ => ?_, fun h => ⟨by omega, by omega, ?_⟩⟩
+          · convert h using 1 <;> exact Fin.ext rfl
+          · convert h using 1 <;> exact Fin.ext rfl
+        rw [show ((SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b ∨
+            (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b) ↔
+            F₁.Adj ⟨a.val, ha_lt⟩ ⟨b.val, hb_lt⟩ from
+          ⟨fun h => h.elim h1_iff.mp (fun h2' => absurd h2' h2), Or.inl ∘ h1_iff.mpr⟩]
+        by_cases hF₁ : F₁.Adj ⟨a.val, ha_lt⟩ ⟨b.val, hb_lt⟩
+        · rw [if_pos hF₁, if_pos hF₁]
+        · rw [if_neg hF₁, if_neg hF₁]
+  -- Case: a ∈ F₁, b ∈ F₂. Cross — no edge.
+  · rw [hglueCast₁ a, hglueCast₁ b, dif_pos ha_lt]
+    have hb_lt' : ¬ b.val < n₁ + 1 := by omega
+    rw [dif_neg hb_lt']
+    simp only
+    rw [hglueCast₂ a, hglueCast₂ b]
+    have hb0 : ¬ b.val < 1 := by omega
+    rw [dif_neg hb0, dif_pos hb_ge]
+    by_cases ha0 : a.val < 1
+    · rw [dif_pos ha0]
+      simp only
+      -- a at root, b in F₂-only. F₁-part = 0 (b out of F₁). F₂-part = F₂.Adj at restrictions.
+      have h1 : ¬ (SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b := by
+        rw [map_emb₁_adj_iff]
+        rintro ⟨_, hb_le, _⟩; omega
+      have h2_iff : (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b ↔
+          F₂.Adj ⟨a.val, by omega⟩ ⟨b.val - n₁, by have := b.isLt; omega⟩ := by
+        rw [map_emb₂_adj_iff]
+        refine ⟨?_, fun h => ⟨⟨a.val, by omega⟩, ⟨b.val - n₁, by have := b.isLt; omega⟩,
+          ?_, ?_, h⟩⟩
+        · rintro ⟨ua, ub, hav, hbv, hadj⟩
+          have hua0 : ua.val = 0 := by
+            by_cases h : ua.val = 0; · exact h
+            rw [if_neg h] at hav; have := Nat.pos_of_ne_zero h; omega
+          have hub_ne : ub.val ≠ 0 := by
+            intro h; rw [if_pos h] at hbv; omega
+          rw [if_neg hub_ne] at hbv
+          have hua_val : ua.val = a.val := by omega
+          have hub_val : ub.val = b.val - n₁ := by omega
+          have hua_eq : ua = ⟨a.val, by omega⟩ := Fin.ext hua_val
+          have hub_eq : ub = ⟨b.val - n₁, by have := b.isLt; omega⟩ := Fin.ext hub_val
+          rw [hua_eq, hub_eq] at hadj; exact hadj
+        · have ha_val_zero : a.val = 0 := by omega
+          simp [Fin.val_mk, ha_val_zero]
+        · have hub_val : b.val - n₁ ≠ 0 := by omega
+          simp [Fin.val_mk, hub_val]; omega
+      rw [show ((SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b ∨
+            (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b) ↔
+            F₂.Adj ⟨a.val, by omega⟩ ⟨b.val - n₁, by have := b.isLt; omega⟩ from
+          ⟨fun h => h.elim (fun h1' => absurd h1' h1) h2_iff.mp, Or.inr ∘ h2_iff.mpr⟩]
+      by_cases hF₂ : F₂.Adj ⟨a.val, by omega⟩ ⟨b.val - n₁, by have := b.isLt; omega⟩
+      · rw [if_pos hF₂, if_pos hF₂]
+      · rw [if_neg hF₂, if_neg hF₂]
+    · have ha_ge' : ¬ a.val ≥ n₁ + 1 := by omega
+      rw [dif_neg ha0, dif_neg ha_ge']
+      simp only
+      -- a in F₁, b in F₂. No edge.
+      have h1 : ¬ (SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b := by
+        rw [map_emb₁_adj_iff]
+        rintro ⟨_, hb_le, _⟩; omega
+      have h2 : ¬ (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b := by
+        rw [map_emb₂_adj_iff]
+        rintro ⟨ua, _, hav, _, _⟩
+        by_cases hua0 : ua.val = 0
+        · rw [if_pos hua0] at hav; omega
+        · rw [if_neg hua0] at hav
+          have := Nat.pos_of_ne_zero hua0; omega
+      rw [if_neg (fun h => h.elim h1 h2)]
+  -- Case: a ∈ F₂, b ∈ F₁.
+  · have ha_lt' : ¬ a.val < n₁ + 1 := by omega
+    rw [hglueCast₁ a, hglueCast₁ b, dif_neg ha_lt', dif_pos hb_lt]
+    simp only
+    rw [hglueCast₂ a, hglueCast₂ b]
+    have ha0 : ¬ a.val < 1 := by omega
+    rw [dif_neg ha0, dif_pos ha_ge]
+    by_cases hb0 : b.val < 1
+    · rw [dif_pos hb0]
+      simp only
+      -- a in F₂-only, b at root. F₁-part = 0. F₂-part = F₂.Adj at restrictions.
+      have h1 : ¬ (SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b := by
+        rw [map_emb₁_adj_iff]; rintro ⟨ha_le, _, _⟩; omega
+      have h2_iff : (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b ↔
+          F₂.Adj ⟨a.val - n₁, by have := a.isLt; omega⟩ ⟨b.val, by omega⟩ := by
+        rw [map_emb₂_adj_iff]
+        refine ⟨?_, fun h => ⟨⟨a.val - n₁, by have := a.isLt; omega⟩, ⟨b.val, by omega⟩,
+          ?_, ?_, h⟩⟩
+        · rintro ⟨ua, ub, hav, hbv, hadj⟩
+          have hua_ne : ua.val ≠ 0 := by
+            intro h; rw [if_pos h] at hav; omega
+          rw [if_neg hua_ne] at hav
+          have hub0 : ub.val = 0 := by
+            by_cases h : ub.val = 0; · exact h
+            rw [if_neg h] at hbv; have := Nat.pos_of_ne_zero h; omega
+          have hua_val : ua.val = a.val - n₁ := by omega
+          have hub_val : ub.val = b.val := by omega
+          have hua_eq : ua = ⟨a.val - n₁, by have := a.isLt; omega⟩ := Fin.ext hua_val
+          have hub_eq : ub = ⟨b.val, by omega⟩ := Fin.ext hub_val
+          rw [hua_eq, hub_eq] at hadj; exact hadj
+        · have hua_val : a.val - n₁ ≠ 0 := by omega
+          simp [Fin.val_mk, hua_val]; omega
+        · have hb_val_zero : b.val = 0 := by omega
+          simp [Fin.val_mk, hb_val_zero]
+      rw [show ((SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b ∨
+            (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b) ↔
+            F₂.Adj ⟨a.val - n₁, by have := a.isLt; omega⟩ ⟨b.val, by omega⟩ from
+          ⟨fun h => h.elim (fun h1' => absurd h1' h1) h2_iff.mp, Or.inr ∘ h2_iff.mpr⟩]
+      by_cases hF₂ : F₂.Adj ⟨a.val - n₁, by have := a.isLt; omega⟩ ⟨b.val, by omega⟩
+      · rw [if_pos hF₂, if_pos hF₂]
+      · rw [if_neg hF₂, if_neg hF₂]
+    · have hb_ge' : ¬ b.val ≥ n₁ + 1 := by omega
+      rw [dif_neg hb0, dif_neg hb_ge']
+      simp only
+      -- a in F₂-only, b in F₁-only. No edge.
+      have h1 : ¬ (SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b := by
+        rw [map_emb₁_adj_iff]; rintro ⟨ha_le, _, _⟩; omega
+      have h2 : ¬ (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b := by
+        rw [map_emb₂_adj_iff]
+        rintro ⟨_, ub, _, hbv, _⟩
+        by_cases hub0 : ub.val = 0
+        · rw [if_pos hub0] at hbv; omega
+        · rw [if_neg hub0] at hbv
+          have := Nat.pos_of_ne_zero hub0; omega
+      rw [if_neg (fun h => h.elim h1 h2)]
+  -- Case: a ∈ F₂, b ∈ F₂.
+  · have ha_lt' : ¬ a.val < n₁ + 1 := by omega
+    have hb_lt' : ¬ b.val < n₁ + 1 := by omega
+    rw [hglueCast₁ a, hglueCast₁ b, dif_neg ha_lt', dif_neg hb_lt']
+    simp only
+    rw [hglueCast₂ a, hglueCast₂ b]
+    have ha0 : ¬ a.val < 1 := by omega
+    have hb0 : ¬ b.val < 1 := by omega
+    rw [dif_neg ha0, dif_pos ha_ge, dif_neg hb0, dif_pos hb_ge]
+    simp only
+    -- F₁-part = 0. LHS = F₂-part.
+    have h1 : ¬ (SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b := by
+      rw [map_emb₁_adj_iff]; rintro ⟨ha_le, _, _⟩; omega
+    have h2_iff : (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b ↔
+        F₂.Adj ⟨a.val - n₁, by have := a.isLt; omega⟩
+               ⟨b.val - n₁, by have := b.isLt; omega⟩ := by
+      rw [map_emb₂_adj_iff]
+      refine ⟨?_, fun h => ⟨⟨a.val - n₁, by have := a.isLt; omega⟩,
+        ⟨b.val - n₁, by have := b.isLt; omega⟩, ?_, ?_, h⟩⟩
+      · rintro ⟨ua, ub, hav, hbv, hadj⟩
+        have hua_ne : ua.val ≠ 0 := by
+          intro h; rw [if_pos h] at hav; omega
+        rw [if_neg hua_ne] at hav
+        have hub_ne : ub.val ≠ 0 := by
+          intro h; rw [if_pos h] at hbv; omega
+        rw [if_neg hub_ne] at hbv
+        have hua_val : ua.val = a.val - n₁ := by omega
+        have hub_val : ub.val = b.val - n₁ := by omega
+        have hua_eq : ua = ⟨a.val - n₁, by have := a.isLt; omega⟩ := Fin.ext hua_val
+        have hub_eq : ub = ⟨b.val - n₁, by have := b.isLt; omega⟩ := Fin.ext hub_val
+        rw [hua_eq, hub_eq] at hadj; exact hadj
+      · have hua_val : a.val - n₁ ≠ 0 := by omega
+        simp [Fin.val_mk, hua_val]; omega
+      · have hub_val : b.val - n₁ ≠ 0 := by omega
+        simp [Fin.val_mk, hub_val]; omega
+    rw [show ((SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b ∨
+          (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b) ↔
+          F₂.Adj ⟨a.val - n₁, by have := a.isLt; omega⟩
+                 ⟨b.val - n₁, by have := b.isLt; omega⟩ from
+        ⟨fun h => h.elim (fun h1' => absurd h1' h1) h2_iff.mp, Or.inr ∘ h2_iff.mpr⟩]
+    by_cases hF₂ : F₂.Adj ⟨a.val - n₁, by have := a.isLt; omega⟩
+                           ⟨b.val - n₁, by have := b.isLt; omega⟩
+    · rw [if_pos hF₂, if_pos hF₂]
+    · rw [if_neg hF₂, if_neg hF₂]
+
+theorem simpleEvalAt_rootedProduct {T n₁ n₂ : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (F₁ : SimpleGraph (Fin (n₁ + 1))) [DecidableRel F₁.Adj]
+    (F₂ : SimpleGraph (Fin (n₂ + 1))) [DecidableRel F₂.Adj]
+    (v : Fin T) :
+    @rootedProfile T (n₁ + n₂) B W v (rootedProduct F₁ F₂)
+        (Classical.decRel _) =
+      @rootedProfile T n₁ B W v F₁ inferInstance *
+      @rootedProfile T n₂ B W v F₂ inferInstance := by
+  -- Detour through multigraphs: rooted product → ofSimple → glue → factor.
+  -- Step 1: simpleEvalAt → multiLabeledEvalK on ofSimple.
+  unfold rootedProfile
+  rw [simpleEvalAt_eq_multi, simpleEvalAt_eq_multi, simpleEvalAt_eq_multi]
+  -- Step 2: ofSimple (rootedProduct F₁ F₂) = glue (ofSimple F₁) (ofSimple F₂).
+  rw [ofSimple_rootedProduct_eq_glue]
+  -- Step 3: apply multiLabeledEvalK_glue with K=1.
+  exact multiLabeledEvalK_glue B hB W (MultiLabeledGraph.ofSimple F₁)
+    (MultiLabeledGraph.ofSimple F₂) (fun _ : Fin 1 => v)
+
+/-- Closure under multiplication via the rooted product.
+
+Build the pair-product family indexed by `Fin N₁ × Fin N₂` using
+`rootedProduct` of each pair of graphs and products of coefficients;
+apply `simpleEvalAt_rootedProduct` to factor each rooted profile, then
+conclude via `Finset.sum_mul_sum`. Requires symmetric `B` for the
+factorization through `multiLabeledEvalK_glue`. -/
+theorem InRootedProfileSpan.mul {T : ℕ} {B : Fin T → Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) {W : Fin T → ℝ}
+    {f₁ f₂ : Fin T → ℝ}
+    (h₁ : InRootedProfileSpan B W f₁) (h₂ : InRootedProfileSpan B W f₂) :
+    InRootedProfileSpan B W (fun v => f₁ v * f₂ v) := by
+  obtain ⟨N₁, g₁, c₁, hf₁⟩ := h₁
+  obtain ⟨N₂, g₂, c₂, hf₂⟩ := h₂
+  -- Build the pair-product family.
+  let G : Fin N₁ ⊕ Fin N₂ →  -- placeholder, we re-index via finProdFinEquiv below
+      Σ (n : ℕ) (F : SimpleGraph (Fin (n + 1))), DecidableRel F.Adj := fun _ =>
+    ⟨0, ⊥, Classical.decRel _⟩
+  -- Index by Fin (N₁ * N₂) via finProdFinEquiv.
+  refine ⟨N₁ * N₂,
+    fun k =>
+      let p := finProdFinEquiv.symm k
+      ⟨(g₁ p.1).1 + (g₂ p.2).1,
+        rootedProduct (g₁ p.1).2.1 (g₂ p.2).2.1, Classical.decRel _⟩,
+    fun k =>
+      let p := finProdFinEquiv.symm k
+      c₁ p.1 * c₂ p.2, ?_⟩
+  clear G
+  funext v
+  have e₁ := congr_fun hf₁ v
+  have e₂ := congr_fun hf₂ v
+  -- LHS: f₁ v * f₂ v = (∑ k₁, c₁ k₁ * profile₁ v) * (∑ k₂, c₂ k₂ * profile₂ v).
+  show f₁ v * f₂ v = _
+  rw [e₁, e₂, Finset.sum_mul_sum]
+  -- RHS sum over Fin (N₁ * N₂): reindex to Fin N₁ × Fin N₂ via finProdFinEquiv.
+  rw [show (∑ k : Fin (N₁ * N₂),
+        (c₁ (finProdFinEquiv.symm k).1 * c₂ (finProdFinEquiv.symm k).2) *
+          @rootedProfileFun T
+            ((g₁ (finProdFinEquiv.symm k).1).1 + (g₂ (finProdFinEquiv.symm k).2).1)
+            B W (rootedProduct (g₁ (finProdFinEquiv.symm k).1).2.1
+              (g₂ (finProdFinEquiv.symm k).2).2.1) (Classical.decRel _) v)
+      = ∑ p : Fin N₁ × Fin N₂,
+          (c₁ p.1 * c₂ p.2) *
+          @rootedProfileFun T ((g₁ p.1).1 + (g₂ p.2).1) B W
+            (rootedProduct (g₁ p.1).2.1 (g₂ p.2).2.1) (Classical.decRel _) v from
+      Equiv.sum_comp finProdFinEquiv.symm (fun p =>
+        (c₁ p.1 * c₂ p.2) *
+        @rootedProfileFun T ((g₁ p.1).1 + (g₂ p.2).1) B W
+          (rootedProduct (g₁ p.1).2.1 (g₂ p.2).2.1) (Classical.decRel _) v)]
+  rw [← Finset.sum_product']
+  refine Finset.sum_congr rfl (fun p _ => ?_)
+  obtain ⟨k₁, k₂⟩ := p
+  dsimp only
+  -- Goal: c₁ k₁ * profile₁ v * (c₂ k₂ * profile₂ v) =
+  --       (c₁ k₁ * c₂ k₂) * profile(rootedProduct) v.
+  unfold rootedProfileFun
+  haveI : DecidableRel (g₁ k₁).2.1.Adj := (g₁ k₁).2.2
+  haveI : DecidableRel (g₂ k₂).2.1.Adj := (g₂ k₂).2.2
+  have hprod := simpleEvalAt_rootedProduct B hB W (g₁ k₁).2.1 (g₂ k₂).2.1 v
+  rw [hprod, mul_mul_mul_comm]
+  -- DecidableRel instance alignment via congr.
+  congr 1
+  congr 1 <;> congr 1 <;> exact Subsingleton.elim _ _
+
+/-! ### Lagrange interpolation closure (K=1 rank theorem) -/
+
+/-- **Functions in the rooted-profile span are constant on rooted-profile-
+equivalence classes.** Trivial consequence of how the equivalence is
+defined: at each `rootedProfileFun B W F`, equivalent vertices agree by
+definition of `rootedProfileEquiv`, and linear combinations preserve this. -/
+theorem InRootedProfileSpan.const_on_rpe {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ} {f : Fin T → ℝ}
+    (h : InRootedProfileSpan B W f) {i j : Fin T}
+    (hij : rootedProfileEquiv B W i j) : f i = f j := by
+  obtain ⟨N, g, c, hf⟩ := h
+  have hi := congr_fun hf i
+  have hj := congr_fun hf j
+  rw [hi, hj]
+  apply Finset.sum_congr rfl
+  intro k _
+  congr 1
+  unfold rootedProfileFun
+  exact @hij (g k).1 (g k).2.1 (g k).2.2
+
+/-- **Orbit indicators are constant on orbit classes** (trivial, since
+the indicator value depends only on the orbit of `v`). -/
+theorem rootedOrbitIndicator_const_on_orbit {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (i : Fin T) :
+    ∀ a b, vertexOrbitRel B W a b →
+      rootedOrbitIndicator B W i a = rootedOrbitIndicator B W i b := by
+  intro a b hab
+  unfold rootedOrbitIndicator
+  classical
+  obtain ⟨τ, hτ_aut, hτ_eq⟩ := hab
+  -- vertexOrbitRel B W i a ↔ vertexOrbitRel B W i b by composing with τ.
+  have h_iff : vertexOrbitRel B W i a ↔ vertexOrbitRel B W i b := by
+    constructor
+    · rintro ⟨σ, hσ_aut, hσ_eq⟩
+      refine ⟨σ.trans τ, ?_, ?_⟩
+      · refine ⟨fun v => ?_, fun v w => ?_⟩
+        · simp only [Equiv.trans_apply]; rw [hτ_aut.1, hσ_aut.1]
+        · simp only [Equiv.trans_apply]; rw [hτ_aut.2, hσ_aut.2]
+      · simp only [Equiv.trans_apply, hσ_eq, hτ_eq]
+    · rintro ⟨σ, hσ_aut, hσ_eq⟩
+      refine ⟨σ.trans τ.symm, ?_, ?_⟩
+      · refine ⟨fun v => ?_, fun v w => ?_⟩
+        · simp only [Equiv.trans_apply]
+          have := hτ_aut.1 (τ.symm (σ v))
+          rw [Equiv.apply_symm_apply] at this
+          rw [← this, hσ_aut.1]
+        · simp only [Equiv.trans_apply]
+          have := hτ_aut.2 (τ.symm (σ v)) (τ.symm (σ w))
+          rw [Equiv.apply_symm_apply, Equiv.apply_symm_apply] at this
+          rw [← this, hσ_aut.2]
+      · simp only [Equiv.trans_apply, hσ_eq]
+        exact τ.symm_apply_eq.mpr hτ_eq.symm
+  by_cases h : vertexOrbitRel B W i a
+  · rw [if_pos h, if_pos (h_iff.mp h)]
+  · rw [if_neg h, if_neg (h_iff.not.mp h)]
+
+/-- **General-K orbit separation theorem** (Lovász §3 contrapositive form).
+
+If two tuples `ξ ξ' : Fin K → Fin T` are NOT in the same `(B, W)`-orbit,
+some level-K simple-graph evaluation separates them.
+
+**Status** (2026-05-17): BLOCKED on `multiLabeledEvalK_tupleEquiv_invariant`
+(task #62, primary paper-root). The proof requires:
+1. Strong induction on K.
+2. Case-split on surjectivity of `restrictTuple ξ`.
+3. For the non-surjective branch: WF measure on (deficit, size), which
+   requires **IH-free Claims 4.3/4.4** to avoid a circular IH at deficit-1
+   size-T-1.
+
+The IH-free Claims need diagonal `B(ψ i, ψ i)` and pointwise `W(ψ i)`
+data, which are NOT extractable from simple-graph evaluations alone
+(see docstring of `tupleEquivSimple_implies_orbit` for full analysis).
+Both require multigraph evaluations — i.e., closing #62.
+
+**Path A** (recommended): close #62, then derive #70 via IH-free Claims.
+**Path B**: direct combinatorial fiber construction (~300-500 LOC).
+**Path C** (current): treat as derived paper-root, blocked on #62.
+
+Downstream K=1 specialization (`rooted_profiles_separate_vertex_orbits`,
+proved this session) handles the most-used case; this general-K target
+remains for completeness of the Lovász §3 chain. -/
+theorem orbit_separation_by_simple_graph {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T}
+    (_h : ¬ tupleOrbitRel B W ξ ξ') :
+    ∃ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (_ : DecidableRel F.Adj),
+      simpleEvalAt B W F ξ ≠ simpleEvalAt B W F ξ' := by
+  sorry
+
+/-- **Orbit separation, identity case** — narrowest case of
+`orbit_separation_by_simple_graph` where `K = T` and the source tuple is
+the identity.
+
+If `ψ : Fin T → Fin T` is NOT orbit-related to the identity tuple (under
+twin-free `B` and `W > 0`), some simple labeled graph separates the
+evaluations of `id` and `ψ`.
+
+**Status**: proved as a thin wrapper around the general
+`orbit_separation_by_simple_graph`. The narrowed case is exposed as a
+named entry point for downstream consumers that only need separation
+against the identity tuple (e.g. the `id`-bijectivity branch of
+`tupleEquivSimple_id_bijective`).
+
+**Architectural note** (Lovász §3, post-2026-05-12 analysis):
+
+The "natural" reduction strategy — case-split `ψ` into non-bijective vs
+bijective — does NOT yield a shorter proof of this narrowed case.
+
+*Case A* (`ψ` not bijective): contrapositive of
+`tupleEquivSimple_id_bijective` would deduce `¬ tupleEquivSimple B W id ψ`
+and hence supply a separating `F`, BUT `tupleEquivSimple_id_bijective`
+itself depends on `IH_orbit : ∀ ξ' ψ', tupleEquivSimple B W ξ' ψ' →
+tupleOrbitRel B W ξ' ψ'` at `Fin (T - 1)`. That IH is exactly the rank
+theorem at one smaller size, which is unavailable here without circular
+reasoning.
+
+*Case B* (`ψ` bijective): `tupleEquivSimple_bijective_case` applied
+contrapositively reduces to a hypothesis-only contradiction; but the
+forward direction also takes an `IH_orbit` parameter.
+
+In short, Case A and Case B are both **non-trivial** at the narrowest
+case, because the `IH_orbit` they require is itself the rank theorem at
+size `T - 1`. So `orbit_separation_id` is no easier than the general
+statement at its base. We therefore route through the canonical
+`orbit_separation_by_simple_graph` directly. -/
+theorem orbit_separation_id {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ψ : Fin T → Fin T}
+    (h_no_orbit : ¬ tupleOrbitRel B W (id : Fin T → Fin T) ψ) :
+    ∃ (n : ℕ) (F : SimpleGraph (Fin (n + T))) (_ : DecidableRel F.Adj),
+      simpleEvalAt B W F (id : Fin T → Fin T) ≠ simpleEvalAt B W F ψ :=
+  orbit_separation_by_simple_graph B hB W hW htwin h_no_orbit
+
+/-- **Connection-matrix rank theorem** (Lovász TR-2004-82 §3 Theorem 2.2):
+under twin-free `B` and `W > 0`, `tupleEquivSimple ⟹ tupleOrbitRel`.
+
+Proved as a contradiction proof from `orbit_separation_by_simple_graph`
+(the contrapositive form, where the canonical sorry now lives). -/
+theorem connection_matrix_rank_theorem {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T}
+    (h : tupleEquivSimple B W ξ ξ') :
+    tupleOrbitRel B W ξ ξ' := by
+  -- Contradiction via the separation theorem.
+  by_contra h_no_orbit
+  obtain ⟨n, F, _hF, h_sep⟩ :=
+    orbit_separation_by_simple_graph B hB W hW htwin h_no_orbit
+  -- `h : tupleEquivSimple B W ξ ξ'` says all simple-graph evaluations
+  -- agree; `h_sep` says one of them differs. Contradiction.
+  exact h_sep (h n F)
+
+/-- **Lovász TR-2004-82 Lemma 2.4** (simple-graph form, our framework).
+
+If `B` is twin-free (`i ≠ j → B i ≠ B j`) and `ξ ξ'` agree on every
+**simple-graph** k-labeled evaluation (`tupleEquivSimple`), then they lie
+in the same `(B, W)`-automorphism orbit.
+
+**Proof structure** (paper-faithful strong induction, mirrors
+`tupleEquiv_implies_tupleOrbitRel` in `MatrixDetermination.lean:10873`).
+
+The proof is by **strong induction** on `K`, with IH supplied at every
+level `< K` (needed both at `K - 1` for the restriction step, and at
+`T - 1` for the surjective-base case Claim 4.4).
+
+Steps in the inductive case `m = k + 1`:
+
+1. **Restrict** to level `k` (Claim 4.1, `tupleEquivSimple_restrict`)
+   and apply IH to extract an automorphism `σ` realizing the orbit
+   relation between `restrictTuple ξ` and `restrictTuple ξ'`.
+2. **Normalize** `ξ'` by `σ.symm` so that the first `k` coordinates
+   agree (using `tupleEquivSimple_of_tupleOrbitRel`).
+3. Express both as `Fin.snoc` of a common base `α := restrictTuple ξ`
+   over a single last coordinate.
+4. **Case split on surjectivity** of the base `α`:
+   - `α` surjective ⟹ Claim "ext-eq-of-surj"
+     (`tupleEquivSimple_ext_eq_of_surj`) forces the last coordinates
+     to agree, giving orbit immediately.
+   - `α` non-surjective, but `ξ` surjective ⟹ Claim 4.4
+     (`tupleEquivSimple_surjective_case`) at IH level `T - 1`.
+   - Both `α` and `ξ` non-surjective: the **architectural** sorry
+     branch. Lovász's standard plan goes through Claim 4.2 (extend by
+     a fresh element `r ∉ range α ∪ {a, b}`) and recurses on a strictly
+     smaller `(deficit, size)` measure. This requires a well-founded
+     induction refactor on `(deficit, size)` which is beyond a strong
+     `Nat`-induction on `size` alone.
+
+**Status**: proved modulo (i) the Claim 4.2 sub-sorry
+(`product_trace_identity_simple` via `tupleEquivSimple_extend`), and
+(ii) a refined sorry at the inner-base of the deficit-induction in the
+non-surjective branch — specifically the case `T - 1 ≥ k + 1` (i.e.,
+`T ≥ k + 2`) where the outer strong-induction-on-`K` cannot supply the
+IH at size `T - 1` required by `tupleEquivSimple_surjective_case`.
+
+The architectural sorry has been REFACTORED: the previous "neither
+α nor ξ surj" case is now CLOSED via deficit-induction (Lovász's
+"extend-and-recurse") for the sub-case `T ≤ k + 1`. The residual
+sub-case `T > k + 1` remains as a more specific sorry, requiring
+either a deeper refactor of `tupleEquivSimple_surjective_case` /
+`tupleEquivSimple_id_bijective` to avoid the deficit-1 IH (see
+`MatrixDetermination.lean:11002-11007`) or an alternative argument at
+that specific inner-base point.
+
+**Architectural obstacle** (post-2026-05-12 subagent analysis): an
+IH-free `bijective_case_direct` / `id_bijective_direct` would close
+the residual but is **not derivable from simple-graph evaluations
+alone** with current Lovasz infrastructure. Specifically:
+  - **B-preservation diagonal** `B(χ i, χ i) = B(i, i)`: simple
+    graphs have no self-loops, so `B(t, t)` terms never appear in
+    simple-graph evaluations. Cannot be extracted directly.
+  - **W-preservation pointwise** `W(χ i) = W(i)`: single-unlabeled-
+    vertex graphs evaluate to `∑_t W(t)`, ξ-independent. Row-sum
+    graphs give scalar equations `∑_t W(t) B(i, t) = ∑_t W(t)
+    B(χ i, t)`, not pointwise W.
+
+These require either:
+  (i) Multigraph evaluations (parallel edges / self-loops via
+      multiplicity), reaching to `multiLabeledEvalK_*` infrastructure.
+  (ii) Direct fiber construction at `surjective_case` level:
+      `σ(t) := ψ(any j with φ j = t)`, with well-definedness from
+      path-length-2 / cherry motifs. ~300-500 lines of new combinatorial
+      proofs.
+
+The current `tupleEquivSimple_id_bijective` proof bridges this gap
+via the IH at T-1 (where deficit-1 supplies the missing automorphism
+τ to use as a B-aut for change-of-variable). Replacing this without
+IH requires substantive new infrastructure — beyond a simple refactor.
+
+Claims 4.1, 4.3, 4.4 and `tupleEquivSimple_ext_eq_of_surj` are all
+closed inline. The wiring is paper-faithful and matches the structure
+of the (private) proof in `Graphon/MatrixDetermination.lean`. -/
+theorem tupleEquivSimple_implies_orbit {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T}
+    (h : tupleEquivSimple B W ξ ξ') :
+    ∃ σ : Equiv.Perm (Fin T),
+      (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
+      (∀ i, ξ' i = σ (ξ i)) := by
+  -- Route through the canonical `connection_matrix_rank_theorem`
+  -- (Lovász §3 Theorem 2.2). The rank theorem produces the
+  -- `tupleOrbitRel` form directly; we unpack it to the explicit
+  -- existential conclusion.
+  obtain ⟨σ, ⟨hW_eq, hB_eq⟩, hξ_eq⟩ :=
+    connection_matrix_rank_theorem B hB W hW htwin h
+  exact ⟨σ, hW_eq, hB_eq, hξ_eq⟩
+/-- **K=1 Stone-Weierstrass / Lagrange interpolation closure**
+(named algebraic residue, deferred). **This is the K=1 rank theorem proper.**
+
+Any function on `Fin T` that is constant on `(B, W)`-vertex orbits lies
+in the rooted-profile ℝ-span.
+
+**Proof outline** (deferred, the closing lemma for #80):
+1. Quotient `Fin T` by `vertexOrbitRel`; the quotient is finite.
+2. For each pair of distinct orbits, pick a separating rooted-profile
+   function `F` via the rank theorem (the algebra of rooted-profile
+   evaluations has dimension ≥ number of orbits).
+3. The algebra of rooted-profile functions is closed under `+`, `*`,
+   scalar mul, and contains constants (proved above as
+   `InRootedProfileSpan.{add, smul, mul, const}`).
+4. Apply Lagrange interpolation: for each orbit `O`, build the indicator
+   `1_O = ∏_{O' ≠ O} (f_{O,O'} - f_{O,O'}(j)) / (f_{O,O'}(i) - f_{O,O'}(j))`
+   where `f_{O,O'}` separates `O` and `O'`.
+5. Express `f` as a linear combination of orbit indicators (its values
+   on orbit representatives).
+
+**Status**: named sorry. Once `InRootedProfileSpan.mul` is proved (which
+depends on `simpleEvalAt_rootedProduct`), this closing lemma becomes
+pure finite-dimensional linear algebra (~100 LOC).
+
+**Note**: stating the rank theorem with `vertexOrbitRel` (not
+`rootedProfileEquiv`) avoids a circular dependency on Lemma 2.4 — the
+proof requires only the forward direction (orbit ⟹ rpe), which is
+trivial, plus the separation of distinct orbits by rooted profiles. -/
+/- **K=1 orbit separation auxiliary**: distinct orbits are separated by some
+rooted profile. Routes through `tupleEquivSimple_implies_orbit` at K=1
+(which is sorry-dependent on #70 via `connection_matrix_rank_theorem`,
+but #70 is an unrelated sorry leaf that doesn't depend on this chain). -/
+private theorem k1_orbit_sep_aux {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {i j : Fin T} (h : ¬ vertexOrbitRel B W i j) :
+    ∃ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) (_ : DecidableRel F.Adj),
+      rootedProfile B W i F ≠ rootedProfile B W j F := by
+  by_contra h_no_sep
+  push_neg at h_no_sep
+  apply h
+  have h_eq : tupleEquivSimple B W (fun _ : Fin 1 => i) (fun _ : Fin 1 => j) := by
+    intro n F hF
+    have hne := h_no_sep n F hF
+    unfold rootedProfile at hne; exact hne
+  obtain ⟨σ, hW_eq, hB_eq, hξ_eq⟩ :=
+    tupleEquivSimple_implies_orbit B hB W hW htwin h_eq
+  refine ⟨σ, ⟨hW_eq, hB_eq⟩, ?_⟩
+  exact (hξ_eq 0).symm
+
+/-- **Difference-from-constant lemma**: for any vertex `j` and rooted graph
+`F`, the function `v ↦ rootedProfile B W v F - rootedProfile B W j F` lies
+in the rooted-profile span. -/
+private theorem InRootedProfileSpan.profile_sub_const {T n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj] (j : Fin T) :
+    InRootedProfileSpan B W
+      (fun v => rootedProfile B W v F - rootedProfile B W j F) := by
+  have h₁ : InRootedProfileSpan B W (rootedProfileFun B W F) :=
+    InRootedProfileSpan.of_profile B W F
+  have h₂ : InRootedProfileSpan B W (fun _ => -(rootedProfile B W j F)) :=
+    InRootedProfileSpan.const B W _
+  have h_combined := h₁.add h₂
+  convert h_combined using 2
+
+/-- **Lagrange factor**: scaled difference function from `profile_sub_const`. -/
+private theorem InRootedProfileSpan.lagrange_factor {T n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj] (i j : Fin T) :
+    InRootedProfileSpan B W
+      (fun v => (rootedProfile B W v F - rootedProfile B W j F) /
+                (rootedProfile B W i F - rootedProfile B W j F)) := by
+  have h := (InRootedProfileSpan.profile_sub_const B W F j).smul
+    (1 / (rootedProfile B W i F - rootedProfile B W j F))
+  convert h using 1
+  funext v
+  rw [mul_comm, mul_one_div]
+
+/-- Symmetry of `vertexOrbitRel`. -/
+private theorem vertexOrbitRel.symm {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {i j : Fin T} (h : vertexOrbitRel B W i j) : vertexOrbitRel B W j i := by
+  obtain ⟨σ, hσ_aut, hσ_eq⟩ := h
+  refine ⟨σ.symm, ?_, ?_⟩
+  · refine ⟨fun v => ?_, fun v w => ?_⟩
+    · have := hσ_aut.1 (σ.symm v); rw [Equiv.apply_symm_apply] at this; rw [← this]
+    · have := hσ_aut.2 (σ.symm v) (σ.symm w)
+      rw [Equiv.apply_symm_apply, Equiv.apply_symm_apply] at this; rw [← this]
+  · exact σ.symm_apply_eq.mpr hσ_eq.symm
+
+/-- Closure of `InRootedProfileSpan` under `Finset.prod`. -/
+private theorem InRootedProfileSpan.finset_prod {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    {α : Type*} (S : Finset α) (g : α → Fin T → ℝ)
+    (hg : ∀ a ∈ S, InRootedProfileSpan B W (g a)) :
+    InRootedProfileSpan B W (fun v => ∏ a ∈ S, g a v) := by
+  classical
+  induction S using Finset.induction_on with
+  | empty =>
+    simp only [Finset.prod_empty]
+    exact InRootedProfileSpan.one B W
+  | insert a S ha_notin ih =>
+    have h_a : InRootedProfileSpan B W (g a) := hg a (Finset.mem_insert_self a S)
+    have h_S : InRootedProfileSpan B W (fun v => ∏ a ∈ S, g a v) := ih (fun b hb =>
+      hg b (Finset.mem_insert_of_mem hb))
+    have h_mul := InRootedProfileSpan.mul hB h_a h_S
+    convert h_mul using 1
+    funext v
+    rw [Finset.prod_insert ha_notin]
+
+/-- Closure of `InRootedProfileSpan` under `Finset.sum`. -/
+private theorem InRootedProfileSpan.finset_sum {T : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {α : Type*} (S : Finset α) (g : α → Fin T → ℝ)
+    (hg : ∀ a ∈ S, InRootedProfileSpan B W (g a)) :
+    InRootedProfileSpan B W (fun v => ∑ a ∈ S, g a v) := by
+  classical
+  induction S using Finset.induction_on with
+  | empty =>
+    simp only [Finset.sum_empty]
+    exact InRootedProfileSpan.zero B W
+  | insert a S ha_notin ih =>
+    have h_a : InRootedProfileSpan B W (g a) := hg a (Finset.mem_insert_self a S)
+    have h_S : InRootedProfileSpan B W (fun v => ∑ a ∈ S, g a v) := ih (fun b hb =>
+      hg b (Finset.mem_insert_of_mem hb))
+    have h_add := h_a.add h_S
+    convert h_add using 1
+    funext v
+    rw [Finset.sum_insert ha_notin]
+    rfl
+
+/-- **Rooted separator** packaging: explicit structure for the witness of
+non-orbit separation. Carries the graph, its `DecidableRel` instance, and
+the separation proof in a single record — avoids instance mismatch issues
+that arise when chaining `Classical.choose` on the nested existential. -/
+private structure RootedSeparator {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (i j : Fin T) where
+  n : ℕ
+  F : SimpleGraph (Fin (n + 1))
+  inst : DecidableRel F.Adj
+  sep : @rootedProfile T n B W i F inst ≠ @rootedProfile T n B W j F inst
+
+/-- Build a `RootedSeparator` from `k1_orbit_sep_aux` for distinct orbits. -/
+private noncomputable def mkRootedSeparator {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {i j : Fin T} (h : ¬ vertexOrbitRel B W i j) :
+    RootedSeparator B W i j :=
+  let sep := k1_orbit_sep_aux B hB W hW htwin h
+  { n := sep.choose
+    F := sep.choose_spec.choose
+    inst := sep.choose_spec.choose_spec.choose
+    sep := sep.choose_spec.choose_spec.choose_spec }
+
+set_option maxHeartbeats 800000 in
+theorem InRootedProfileSpan.of_const_on_orbit {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (f : Fin T → ℝ)
+    (hf : ∀ i j, vertexOrbitRel B W i j → f i = f j) :
+    InRootedProfileSpan B W f := by
+  classical
+  -- Step 1: each orbit indicator is in span via Lagrange.
+  have ind_span : ∀ i : Fin T,
+      InRootedProfileSpan B W (rootedOrbitIndicator B W i) := by
+    intro i
+    -- Factor function: uses RootedSeparator for explicit instance.
+    let factor : Fin T → Fin T → ℝ := fun j v =>
+      if h : ¬ vertexOrbitRel B W j i then
+        let s := mkRootedSeparator B hB W hW htwin h
+        letI : DecidableRel s.F.Adj := s.inst
+        (rootedProfile B W v s.F - rootedProfile B W j s.F) /
+        (rootedProfile B W i s.F - rootedProfile B W j s.F)
+      else 1
+    let nonOrb : Finset (Fin T) := Finset.univ.filter (fun j => ¬ vertexOrbitRel B W j i)
+    let lagInd : Fin T → ℝ := fun v => ∏ j ∈ nonOrb, factor j v
+    have lagInd_span : InRootedProfileSpan B W lagInd := by
+      apply InRootedProfileSpan.finset_prod B hB W nonOrb factor
+      intro j hj
+      have hj_orb : ¬ vertexOrbitRel B W j i := by
+        simp only [nonOrb, Finset.mem_filter, Finset.mem_univ, true_and] at hj
+        exact hj
+      show InRootedProfileSpan B W (factor j)
+      simp only [factor, dif_pos hj_orb]
+      let s := mkRootedSeparator B hB W hW htwin hj_orb
+      letI : DecidableRel s.F.Adj := s.inst
+      exact InRootedProfileSpan.lagrange_factor B W s.F i j
+    -- Show lagInd = rootedOrbitIndicator B W i.
+    have lagInd_eq : lagInd = rootedOrbitIndicator B W i := by
+      funext v
+      unfold rootedOrbitIndicator
+      by_cases hv : vertexOrbitRel B W i v
+      · rw [if_pos hv]
+        show ∏ j ∈ nonOrb, factor j v = (1 : ℝ)
+        apply Finset.prod_eq_one
+        intro j hj
+        have hj_orb : ¬ vertexOrbitRel B W j i := by
+          simp only [nonOrb, Finset.mem_filter, Finset.mem_univ, true_and] at hj
+          exact hj
+        simp only [factor, dif_pos hj_orb]
+        let s := mkRootedSeparator B hB W hW htwin hj_orb
+        letI : DecidableRel s.F.Adj := s.inst
+        have h_denom_ne : rootedProfile B W i s.F - rootedProfile B W j s.F ≠ 0 :=
+          sub_ne_zero.mpr s.sep.symm
+        have h_equiv : rootedProfileEquiv B W i v :=
+          rootedProfileEquiv_of_vertexOrbitRel B W hv
+        have h_eq : rootedProfile B W v s.F = rootedProfile B W i s.F :=
+          (@h_equiv s.n s.F s.inst).symm
+        rw [h_eq]
+        exact div_self h_denom_ne
+      · rw [if_neg hv]
+        show ∏ j ∈ nonOrb, factor j v = (0 : ℝ)
+        have h_v_no : ¬ vertexOrbitRel B W v i := fun h => hv (vertexOrbitRel.symm h)
+        have h_v_mem : v ∈ nonOrb := by
+          simp only [nonOrb, Finset.mem_filter, Finset.mem_univ, true_and]
+          exact h_v_no
+        refine Finset.prod_eq_zero h_v_mem ?_
+        simp only [factor, dif_pos h_v_no]
+        let s := mkRootedSeparator B hB W hW htwin h_v_no
+        letI : DecidableRel s.F.Adj := s.inst
+        show (rootedProfile B W v s.F - rootedProfile B W v s.F) /
+             (rootedProfile B W i s.F - rootedProfile B W v s.F) = 0
+        rw [sub_self, zero_div]
+    rw [← lagInd_eq]
+    exact lagInd_span
+  -- Step 2: express f as a linear combination of orbit indicators.
+  -- orbitSize i := card of orbit(i). Always ≥ 1.
+  set orbitSize : Fin T → ℕ := fun i =>
+    (Finset.univ.filter (fun j => vertexOrbitRel B W i j)).card with horbitSize_def
+  have heq : f = fun v => ∑ i : Fin T,
+      (f i / (orbitSize i : ℝ)) * rootedOrbitIndicator B W i v := by
+    funext v
+    -- Sum picks out i with v ∈ orbit(i), i.e., i ∈ orbit(v).
+    have h_sum_filter :
+        (∑ i : Fin T, (f i / (orbitSize i : ℝ)) * rootedOrbitIndicator B W i v) =
+        ∑ i ∈ Finset.univ.filter (fun i => vertexOrbitRel B W i v),
+            f i / (orbitSize i : ℝ) := by
+      unfold rootedOrbitIndicator
+      rw [Finset.sum_filter]
+      apply Finset.sum_congr rfl
+      intro i _
+      split_ifs with h <;> simp
+    rw [h_sum_filter]
+    -- For i ∈ orbit(v), f i = f v and orbitSize i = orbitSize v.
+    have h_summands : ∀ i ∈ Finset.univ.filter (fun i => vertexOrbitRel B W i v),
+        f i / (orbitSize i : ℝ) = f v / (orbitSize v : ℝ) := by
+      intro i hi
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hi
+      have hfi : f i = f v := hf i v hi
+      -- orbit(i) = orbit(v) as Finsets (by transitivity).
+      -- Helper: transitivity of vertexOrbitRel.
+      have hOrbTrans : ∀ {a b c : Fin T}, vertexOrbitRel B W a b →
+          vertexOrbitRel B W b c → vertexOrbitRel B W a c := by
+        rintro a b c ⟨σ, ha₁, he₁⟩ ⟨τ, ha₂, he₂⟩
+        refine ⟨σ.trans τ, ?_, ?_⟩
+        · refine ⟨fun w => ?_, fun w x => ?_⟩
+          · simp only [Equiv.trans_apply]; rw [ha₂.1, ha₁.1]
+          · simp only [Equiv.trans_apply]; rw [ha₂.2, ha₁.2]
+        · simp only [Equiv.trans_apply, he₁, he₂]
+      have h_size : orbitSize i = orbitSize v := by
+        have h_set_eq :
+            (Finset.univ.filter (fun j => vertexOrbitRel B W i j)) =
+            (Finset.univ.filter (fun j => vertexOrbitRel B W v j)) := by
+          ext j
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+          exact ⟨fun h_ij => hOrbTrans (vertexOrbitRel.symm hi) h_ij,
+                 fun h_vj => hOrbTrans hi h_vj⟩
+        rw [horbitSize_def]
+        exact congrArg Finset.card h_set_eq
+      rw [hfi, h_size]
+    rw [Finset.sum_congr rfl h_summands]
+    rw [Finset.sum_const, nsmul_eq_mul]
+    -- card of filter = orbitSize v.
+    have hcard : (Finset.univ.filter (fun i => vertexOrbitRel B W i v)).card = orbitSize v := by
+      rw [horbitSize_def]
+      congr 1
+      ext j
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+      exact ⟨fun h => vertexOrbitRel.symm h, fun h => vertexOrbitRel.symm h⟩
+    rw [hcard]
+    -- (orbitSize v : ℝ) > 0 since v ∈ orbit(v).
+    have h_pos : (0 : ℝ) < (orbitSize v : ℝ) := by
+      have h_pos_nat : 0 < orbitSize v := by
+        rw [horbitSize_def]
+        apply Finset.card_pos.mpr
+        refine ⟨v, ?_⟩
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+        exact ⟨Equiv.refl _, ⟨fun _ => rfl, fun _ _ => rfl⟩, rfl⟩
+      exact_mod_cast h_pos_nat
+    rw [mul_div_assoc']
+    rw [mul_comm (orbitSize v : ℝ) (f v), mul_div_assoc, div_self (ne_of_gt h_pos), mul_one]
+  rw [heq]
+  exact InRootedProfileSpan.finset_sum Finset.univ
+    (fun i v => (f i / (orbitSize i : ℝ)) * rootedOrbitIndicator B W i v)
+    (fun i _ => (ind_span i).smul (f i / (orbitSize i : ℝ)))
+
+/-! ### K=1 rank theorem consequences (orbit indicators, Lemma 2.4) -/
+
+/-- **Rank-theorem target** (K=1, span form), now DERIVED from
+`InRootedProfileSpan.of_const_on_orbit`.
+
+The orbit indicator of any vertex lies in the ℝ-span of rooted
+simple-graph profile functions. Proved by combining:
+- `rootedOrbitIndicator_const_on_orbit`: the indicator is orbit-invariant.
+- `InRootedProfileSpan.of_const_on_orbit`: orbit-invariant functions are
+  in the span (the K=1 rank-theorem paper-root). -/
+theorem rootedOrbitIndicator_mem_rootedProfileSpan {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (i : Fin T) :
+    ∃ (N : ℕ) (g : Fin N → Σ (n : ℕ) (F : SimpleGraph (Fin (n + 1))), DecidableRel F.Adj)
+      (c : Fin N → ℝ),
+      rootedOrbitIndicator B W i = fun v =>
+        ∑ k : Fin N, c k * @rootedProfileFun T (g k).1 B W (g k).2.1 (g k).2.2 v :=
+  InRootedProfileSpan.of_const_on_orbit B hB W hW htwin
+    (rootedOrbitIndicator B W i)
+    (rootedOrbitIndicator_const_on_orbit B W i)
+
+/-- **Backward direction (Lovász §3 K=1 rank theorem)**: rooted-profile
+equivalence ⟹ vertex orbit, under twin-free `B` + `W > 0`.
+
+**Proof**: derived from `rootedOrbitIndicator_mem_rootedProfileSpan` by
+evaluating the indicator at both `i` and `j`. Rooted-profile equivalence
+forces the linear combination to agree at both, and reflexivity gives
+`indicator_i(i) = 1`, hence `indicator_i(j) = 1`, hence vertex orbit. -/
+theorem rootedProfileEquiv_imp_vertexOrbitRel {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j) :
+    vertexOrbitRel B W i j := by
+  obtain ⟨N, g, c, hspan⟩ :=
+    rootedOrbitIndicator_mem_rootedProfileSpan B hB W hW htwin i
+  have h_eq_at_j : rootedOrbitIndicator B W i j = rootedOrbitIndicator B W i i := by
+    have := congr_fun hspan j
+    have h' := congr_fun hspan i
+    rw [this, h']
+    apply Finset.sum_congr rfl
+    intro k _
+    congr 1
+    unfold rootedProfileFun
+    exact (@h (g k).1 (g k).2.1 (g k).2.2).symm
+  have h_refl : vertexOrbitRel B W i i :=
+    ⟨Equiv.refl _, ⟨fun _ => rfl, fun _ _ => rfl⟩, rfl⟩
+  have h_i_self : rootedOrbitIndicator B W i i = 1 := by
+    unfold rootedOrbitIndicator
+    classical
+    exact if_pos h_refl
+  have h_j_val : rootedOrbitIndicator B W i j = 1 := h_eq_at_j.trans h_i_self
+  by_contra h_no
+  unfold rootedOrbitIndicator at h_j_val
+  classical
+  rw [if_neg h_no] at h_j_val
+  exact zero_ne_one h_j_val
+
+/-- **K=1 Lovász Lemma 2.4** (iff form). Combines the forward direction
+(orbit ⟹ equiv, free) with the backward direction (equiv ⟹ orbit, the
+rank-theorem paper-root). -/
+theorem rootedProfileEquiv_iff_vertexOrbitRel {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (i j : Fin T) :
+    rootedProfileEquiv B W i j ↔ vertexOrbitRel B W i j :=
+  ⟨rootedProfileEquiv_imp_vertexOrbitRel B hB W hW htwin,
+   rootedProfileEquiv_of_vertexOrbitRel B W⟩
+
 /-- **Weighted adjacency operator** `A f i := ∑ j, W j · B i j · f j`.
 The key linear operator for the Krylov/path-profile route to
 separation in the K=1 case. -/
@@ -4246,13 +5553,19 @@ The THEOREM itself is TRUE (Lovász Lemma 2.4 K=1 specialization), but
 proving it requires the FULL rooted simple-graph family (paths, trees,
 asymmetric shapes), which is the Lovász §3 rank theorem content. -/
 theorem rooted_profiles_separate_vertex_orbits {T : ℕ}
-    (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i)
-    (_W : Fin T → ℝ) (_hW : ∀ i, 0 < _W i)
-    (_htwin : ∀ i j, i ≠ j → _B i ≠ _B j)
-    {i j : Fin T} (_h : ¬ vertexOrbitRel _B _W i j) :
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {i j : Fin T} (h : ¬ vertexOrbitRel B W i j) :
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) (_ : DecidableRel F.Adj),
-      rootedProfile _B _W i F ≠ rootedProfile _B _W j F := by
-  sorry
+      rootedProfile B W i F ≠ rootedProfile B W j F := by
+  -- Contrapositive of rootedProfileEquiv_imp_vertexOrbitRel.
+  by_contra h_no_sep
+  push_neg at h_no_sep
+  apply h
+  apply rootedProfileEquiv_imp_vertexOrbitRel B hB W hW htwin
+  intro n F hF_dec
+  exact h_no_sep n F hF_dec
 
 /-- **Bridge from K=1 rooted profile to general orbit separation**.
 At K = 1, `orbit_separation_by_simple_graph` follows from
@@ -4378,202 +5691,6 @@ theorem diagonal_observable_of_tupleEquivSimple {T K : ℕ}
   show B (ξ a) (ξ a) = B (ξ' a) (ξ' a)
   exact h_K1
 
-/-- **General-K orbit separation theorem** (Lovász §3 contrapositive form).
-
-If two tuples `ξ ξ' : Fin K → Fin T` are NOT in the same `(B, W)`-orbit,
-some level-K simple-graph evaluation separates them.
-
-**Status** (2026-05-17): BLOCKED on `multiLabeledEvalK_tupleEquiv_invariant`
-(task #62, primary paper-root). The proof requires:
-1. Strong induction on K.
-2. Case-split on surjectivity of `restrictTuple ξ`.
-3. For the non-surjective branch: WF measure on (deficit, size), which
-   requires **IH-free Claims 4.3/4.4** to avoid a circular IH at deficit-1
-   size-T-1.
-
-The IH-free Claims need diagonal `B(ψ i, ψ i)` and pointwise `W(ψ i)`
-data, which are NOT extractable from simple-graph evaluations alone
-(see docstring of `tupleEquivSimple_implies_orbit` for full analysis).
-Both require multigraph evaluations — i.e., closing #62.
-
-**Path A** (recommended): close #62, then derive #70 via IH-free Claims.
-**Path B**: direct combinatorial fiber construction (~300-500 LOC).
-**Path C** (current): treat as derived paper-root, blocked on #62.
-
-Downstream K=1 specialization (`rooted_profiles_separate_vertex_orbits`,
-proved this session) handles the most-used case; this general-K target
-remains for completeness of the Lovász §3 chain. -/
-theorem orbit_separation_by_simple_graph {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (_hW : ∀ i, 0 < W i)
-    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {ξ ξ' : Fin K → Fin T}
-    (_h : ¬ tupleOrbitRel B W ξ ξ') :
-    ∃ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (_ : DecidableRel F.Adj),
-      simpleEvalAt B W F ξ ≠ simpleEvalAt B W F ξ' := by
-  sorry
-
-/-- **Orbit separation, identity case** — narrowest case of
-`orbit_separation_by_simple_graph` where `K = T` and the source tuple is
-the identity.
-
-If `ψ : Fin T → Fin T` is NOT orbit-related to the identity tuple (under
-twin-free `B` and `W > 0`), some simple labeled graph separates the
-evaluations of `id` and `ψ`.
-
-**Status**: proved as a thin wrapper around the general
-`orbit_separation_by_simple_graph`. The narrowed case is exposed as a
-named entry point for downstream consumers that only need separation
-against the identity tuple (e.g. the `id`-bijectivity branch of
-`tupleEquivSimple_id_bijective`).
-
-**Architectural note** (Lovász §3, post-2026-05-12 analysis):
-
-The "natural" reduction strategy — case-split `ψ` into non-bijective vs
-bijective — does NOT yield a shorter proof of this narrowed case.
-
-*Case A* (`ψ` not bijective): contrapositive of
-`tupleEquivSimple_id_bijective` would deduce `¬ tupleEquivSimple B W id ψ`
-and hence supply a separating `F`, BUT `tupleEquivSimple_id_bijective`
-itself depends on `IH_orbit : ∀ ξ' ψ', tupleEquivSimple B W ξ' ψ' →
-tupleOrbitRel B W ξ' ψ'` at `Fin (T - 1)`. That IH is exactly the rank
-theorem at one smaller size, which is unavailable here without circular
-reasoning.
-
-*Case B* (`ψ` bijective): `tupleEquivSimple_bijective_case` applied
-contrapositively reduces to a hypothesis-only contradiction; but the
-forward direction also takes an `IH_orbit` parameter.
-
-In short, Case A and Case B are both **non-trivial** at the narrowest
-case, because the `IH_orbit` they require is itself the rank theorem at
-size `T - 1`. So `orbit_separation_id` is no easier than the general
-statement at its base. We therefore route through the canonical
-`orbit_separation_by_simple_graph` directly. -/
-theorem orbit_separation_id {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {ψ : Fin T → Fin T}
-    (h_no_orbit : ¬ tupleOrbitRel B W (id : Fin T → Fin T) ψ) :
-    ∃ (n : ℕ) (F : SimpleGraph (Fin (n + T))) (_ : DecidableRel F.Adj),
-      simpleEvalAt B W F (id : Fin T → Fin T) ≠ simpleEvalAt B W F ψ :=
-  orbit_separation_by_simple_graph B hB W hW htwin h_no_orbit
-
-/-- **Connection-matrix rank theorem** (Lovász TR-2004-82 §3 Theorem 2.2):
-under twin-free `B` and `W > 0`, `tupleEquivSimple ⟹ tupleOrbitRel`.
-
-Proved as a contradiction proof from `orbit_separation_by_simple_graph`
-(the contrapositive form, where the canonical sorry now lives). -/
-theorem connection_matrix_rank_theorem {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {ξ ξ' : Fin K → Fin T}
-    (h : tupleEquivSimple B W ξ ξ') :
-    tupleOrbitRel B W ξ ξ' := by
-  -- Contradiction via the separation theorem.
-  by_contra h_no_orbit
-  obtain ⟨n, F, _hF, h_sep⟩ :=
-    orbit_separation_by_simple_graph B hB W hW htwin h_no_orbit
-  -- `h : tupleEquivSimple B W ξ ξ'` says all simple-graph evaluations
-  -- agree; `h_sep` says one of them differs. Contradiction.
-  exact h_sep (h n F)
-
-/-- **Lovász TR-2004-82 Lemma 2.4** (simple-graph form, our framework).
-
-If `B` is twin-free (`i ≠ j → B i ≠ B j`) and `ξ ξ'` agree on every
-**simple-graph** k-labeled evaluation (`tupleEquivSimple`), then they lie
-in the same `(B, W)`-automorphism orbit.
-
-**Proof structure** (paper-faithful strong induction, mirrors
-`tupleEquiv_implies_tupleOrbitRel` in `MatrixDetermination.lean:10873`).
-
-The proof is by **strong induction** on `K`, with IH supplied at every
-level `< K` (needed both at `K - 1` for the restriction step, and at
-`T - 1` for the surjective-base case Claim 4.4).
-
-Steps in the inductive case `m = k + 1`:
-
-1. **Restrict** to level `k` (Claim 4.1, `tupleEquivSimple_restrict`)
-   and apply IH to extract an automorphism `σ` realizing the orbit
-   relation between `restrictTuple ξ` and `restrictTuple ξ'`.
-2. **Normalize** `ξ'` by `σ.symm` so that the first `k` coordinates
-   agree (using `tupleEquivSimple_of_tupleOrbitRel`).
-3. Express both as `Fin.snoc` of a common base `α := restrictTuple ξ`
-   over a single last coordinate.
-4. **Case split on surjectivity** of the base `α`:
-   - `α` surjective ⟹ Claim "ext-eq-of-surj"
-     (`tupleEquivSimple_ext_eq_of_surj`) forces the last coordinates
-     to agree, giving orbit immediately.
-   - `α` non-surjective, but `ξ` surjective ⟹ Claim 4.4
-     (`tupleEquivSimple_surjective_case`) at IH level `T - 1`.
-   - Both `α` and `ξ` non-surjective: the **architectural** sorry
-     branch. Lovász's standard plan goes through Claim 4.2 (extend by
-     a fresh element `r ∉ range α ∪ {a, b}`) and recurses on a strictly
-     smaller `(deficit, size)` measure. This requires a well-founded
-     induction refactor on `(deficit, size)` which is beyond a strong
-     `Nat`-induction on `size` alone.
-
-**Status**: proved modulo (i) the Claim 4.2 sub-sorry
-(`product_trace_identity_simple` via `tupleEquivSimple_extend`), and
-(ii) a refined sorry at the inner-base of the deficit-induction in the
-non-surjective branch — specifically the case `T - 1 ≥ k + 1` (i.e.,
-`T ≥ k + 2`) where the outer strong-induction-on-`K` cannot supply the
-IH at size `T - 1` required by `tupleEquivSimple_surjective_case`.
-
-The architectural sorry has been REFACTORED: the previous "neither
-α nor ξ surj" case is now CLOSED via deficit-induction (Lovász's
-"extend-and-recurse") for the sub-case `T ≤ k + 1`. The residual
-sub-case `T > k + 1` remains as a more specific sorry, requiring
-either a deeper refactor of `tupleEquivSimple_surjective_case` /
-`tupleEquivSimple_id_bijective` to avoid the deficit-1 IH (see
-`MatrixDetermination.lean:11002-11007`) or an alternative argument at
-that specific inner-base point.
-
-**Architectural obstacle** (post-2026-05-12 subagent analysis): an
-IH-free `bijective_case_direct` / `id_bijective_direct` would close
-the residual but is **not derivable from simple-graph evaluations
-alone** with current Lovasz infrastructure. Specifically:
-  - **B-preservation diagonal** `B(χ i, χ i) = B(i, i)`: simple
-    graphs have no self-loops, so `B(t, t)` terms never appear in
-    simple-graph evaluations. Cannot be extracted directly.
-  - **W-preservation pointwise** `W(χ i) = W(i)`: single-unlabeled-
-    vertex graphs evaluate to `∑_t W(t)`, ξ-independent. Row-sum
-    graphs give scalar equations `∑_t W(t) B(i, t) = ∑_t W(t)
-    B(χ i, t)`, not pointwise W.
-
-These require either:
-  (i) Multigraph evaluations (parallel edges / self-loops via
-      multiplicity), reaching to `multiLabeledEvalK_*` infrastructure.
-  (ii) Direct fiber construction at `surjective_case` level:
-      `σ(t) := ψ(any j with φ j = t)`, with well-definedness from
-      path-length-2 / cherry motifs. ~300-500 lines of new combinatorial
-      proofs.
-
-The current `tupleEquivSimple_id_bijective` proof bridges this gap
-via the IH at T-1 (where deficit-1 supplies the missing automorphism
-τ to use as a B-aut for change-of-variable). Replacing this without
-IH requires substantive new infrastructure — beyond a simple refactor.
-
-Claims 4.1, 4.3, 4.4 and `tupleEquivSimple_ext_eq_of_surj` are all
-closed inline. The wiring is paper-faithful and matches the structure
-of the (private) proof in `Graphon/MatrixDetermination.lean`. -/
-theorem tupleEquivSimple_implies_orbit {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {ξ ξ' : Fin K → Fin T}
-    (h : tupleEquivSimple B W ξ ξ') :
-    ∃ σ : Equiv.Perm (Fin T),
-      (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
-      (∀ i, ξ' i = σ (ξ i)) := by
-  -- Route through the canonical `connection_matrix_rank_theorem`
-  -- (Lovász §3 Theorem 2.2). The rank theorem produces the
-  -- `tupleOrbitRel` form directly; we unpack it to the explicit
-  -- existential conclusion.
-  obtain ⟨σ, ⟨hW_eq, hB_eq⟩, hξ_eq⟩ :=
-    connection_matrix_rank_theorem B hB W hW htwin h
-  exact ⟨σ, hW_eq, hB_eq, hξ_eq⟩
 
 /-- **Lovász Lemma 2.5, reverse direction** (multi-equivalence ⟹ orbit),
 *twin-free hypothesis*.
