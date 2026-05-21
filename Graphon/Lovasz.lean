@@ -2386,14 +2386,14 @@ The unlabeled-unlabeled isolated case (1) is algebraically closable but
 is not the bottleneck. The label-unlabeled isolated case (2) — the K=1
 square moment — IS the bottleneck. -/
 private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (M : MultiLabeledGraph K n)
     (e₀ : Sym2 (Fin (n + K)))
-    (_he₀_unlabeled : ¬ isLLEdge e₀)
-    (_he₀_doubled : M.mult e₀ = 2)
-    (_h_others_le_one : ∀ e, e ≠ e₀ → M.mult e ≤ 1)
+    (he₀_unlabeled : ¬ isLLEdge e₀)
+    (he₀_doubled : M.mult e₀ = 2)
+    (h_others_le_one : ∀ e, e ≠ e₀ → M.mult e ≤ 1)
     {ξ ξ' : Fin K → Fin T}
-    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+    (h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
         ∑ σ : Fin n' → Fin T,
           (let τ : Fin (n' + K) → Fin T := fun v =>
             if h : (v : ℕ) < K then ξ ⟨v, h⟩
@@ -2407,7 +2407,47 @@ private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
           (∏ v : Fin n', W (σ v)) *
           ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
-  sorry
+  classical
+  -- Case analysis on the orientation of `e₀`.
+  induction e₀ using Sym2.ind with
+  | h a b =>
+    -- `M.mult e₀ = 2` ⟹ `a ≠ b` (no self-loop).
+    have hab_ne : a ≠ b := by
+      intro h_eq
+      have h_loop : M.mult s(a, b) = 0 := by rw [h_eq]; exact M.multNoLoop b
+      rw [he₀_doubled] at h_loop; omega
+    by_cases ha_lab : a.val < K
+    · by_cases hb_lab : b.val < K
+      · -- Both labels: contradicts `he₀_unlabeled`.
+        exact absurd (show a.val < K ∧ b.val < K from ⟨ha_lab, hb_lab⟩) he₀_unlabeled
+      · -- `a` label, `b` unlabeled. Label-unlabeled case.
+        push_neg at hb_lab
+        by_cases h_b_iso : ∀ e, e ≠ s(a, b) → b ∈ e → M.mult e = 0
+        · -- Isolated label-unlabeled doubled edge. Factor + square moment.
+          -- The σ-sum reduces to `(∑_t W(t)·B(ξ_⟨a.val⟩, t)²) · labeledEvalK F' ξ`
+          -- where F' is the simple graph on remaining vertices (mults ≤ 1).
+          -- Match the square-moment factor via `label_unlabeled_square_moment_descends`
+          -- and F' via `h_simple`. Reduction body sorry'd pending σ-sum factorization
+          -- (~150 LOC of Fin reindexing).
+          sorry
+        · -- Non-isolated label-unlabeled. Mixed moments; harder than isolated case.
+          sorry
+    · push_neg at ha_lab
+      by_cases hb_lab : b.val < K
+      · -- `a` unlabeled, `b` label. Symmetric to label-unlabeled case.
+        by_cases h_a_iso : ∀ e, e ≠ s(a, b) → a ∈ e → M.mult e = 0
+        · -- Isolated unlabeled-label (symmetric via Sym2). Same paper-root reduction.
+          sorry
+        · sorry
+      · -- Both unlabeled.
+        push_neg at hb_lab
+        by_cases h_iso : ∀ e, e ≠ s(a, b) → (a ∈ e ∨ b ∈ e) → M.mult e = 0
+        · -- Isolated unlabeled-unlabeled doubled edge.
+          exact multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends
+            B hB W M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one h_iso h_simple
+        · -- Non-isolated unlabeled-unlabeled. Reducible to isolated case via
+          -- additional peeling; sorry pending.
+          sorry
 
 /-- **Canonical paper-root for #62**: every multigraph evaluation is in
 the simple-profile closure.
