@@ -2272,6 +2272,78 @@ private theorem multigraphEval_unlabeled_excess_descends {T K n : ℕ}
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
   sorry
 
+/-- **FINAL PAPER-ROOT (minimal hard residue)** — K=1 square moment
+identity. Under `tupleEquivSimple ξ ξ'`,
+  `∑_t W(t) · B(ξ_a, t)² = ∑_t W(t) · B(ξ'_a, t)²`
+for any label coordinate `a : Fin K`.
+
+This is the genuine Lovász §3 bottleneck. The square moment is
+auto-invariant (Aut(B, W) permutes `t` while preserving W and B²) but
+is **NOT** a polynomial in single-edge simple-graph evaluations:
+no simple graph evaluates to `B(ξ_a, t)²`, and the polynomial closure
+of single-edge evals contains only products like `B(x, t) · B(y, t)`
+(which differ from `B(x, t)²` unless `x = y`).
+
+Lovász Lemma 2.5 says every auto-invariant function lies in the
+multigraph eval span, but reducing this to simple-graph evals requires
+the connection-matrix / idempotent decomposition (Lovász §3 proper).
+~300-500 LOC of new spectral/rank infrastructure.
+
+**Status**: NAMED FINAL PAPER-ROOT (2026-05-19). Sorry'd. -/
+private theorem label_unlabeled_square_moment_descends {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    {ξ ξ' : Fin K → Fin T}
+    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)))
+    (a : Fin K) :
+    ∑ t : Fin T, W t * B (ξ a) t ^ 2 = ∑ t : Fin T, W t * B (ξ' a) t ^ 2 := by
+  sorry
+
+/-- **Isolated unlabeled-unlabeled doubled-edge subcase**. M has one
+doubled edge `(i, j)` with both `i, j` unlabeled (val ≥ K), and no
+other edges touch `i` or `j`. All other multiplicities ≤ 1.
+
+**Status**: algebraically closable (ξ-independent scalar prefactor
+`∑_{s,t} W(s)W(t) B(s,t)²` times a simple-graph evaluation on the
+remaining vertices). Sorry'd pending the σ-sum factorization
+infrastructure (~200 LOC of Equiv-based Fin reindexing). -/
+private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends
+    {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (M : MultiLabeledGraph K n)
+    (i j : Fin (n + K))
+    (_hi : K ≤ i.val) (_hj : K ≤ j.val) (_hij : i ≠ j)
+    (_h_doubled : M.mult s(i, j) = 2)
+    (_h_others_le_one : ∀ e, e ≠ s(i, j) → M.mult e ≤ 1)
+    (_h_isolated : ∀ e, e ≠ s(i, j) → (i ∈ e ∨ j ∈ e) → M.mult e = 0)
+    {ξ ξ' : Fin K → Fin T}
+    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  sorry
+
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
 edge involving an unlabeled vertex, all other multiplicities ≤ 1.
 
