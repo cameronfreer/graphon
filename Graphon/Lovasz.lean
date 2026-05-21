@@ -1873,6 +1873,111 @@ theorem InSimpleProfileClosure.of_const_on_tupleEquivSimple {T K : ℕ}
     (fun ξ ζ => (f ξ / (classSize ξ : ℝ)) * (if Equiv ξ ζ then 1 else 0))
     (fun ξ _ => (ind_closure ξ).smul (f ξ / (classSize ξ : ℝ)))
 
+/-! ### §3.9.5 — Multiplicity peel infrastructure (for LL-excess sub-case)
+
+Helpers for closing the **LL-excess sub-case** of #86 via polynomial
+decomposition. The key identity is the "single label-label peel":
+
+  multiLabeledEvalK M B W ξ =
+    B(ξ_a, ξ_b) * multiLabeledEvalK (M.decAt s(a, b)) B W ξ
+
+valid for any label-label edge `(a, b)` (both `a.val, b.val < K`) with
+`M.mult s(a, b) ≥ 1`. Iterating across LL edges reduces M to its
+LL-kernel (LL multiplicities all zero), which is a simple graph when
+all non-LL multiplicities are ≤ 1. -/
+
+/-- **Decrement multiplicity at one edge.** A focused multigraph operation:
+zero-saturated subtraction at `e₀`, identity elsewhere. -/
+private def MultiLabeledGraph.decAt {K n : ℕ} (M : MultiLabeledGraph K n)
+    (e₀ : Sym2 (Fin (n + K))) : MultiLabeledGraph K n where
+  mult e := if e = e₀ then M.mult e - 1 else M.mult e
+  multNoLoop x := by
+    show (if s(x, x) = e₀ then M.mult s(x, x) - 1 else M.mult s(x, x)) = 0
+    rw [M.multNoLoop x]
+    split <;> rfl
+
+/-- **Single LL-edge peel identity.** For a label-label edge `(a, b)` with
+`a.val, b.val < K` and `M.mult s(a, b) ≥ 1`, the multigraph evaluation
+factors as `B(ξ_a, ξ_b)` times the evaluation of `M.decAt s(a, b)`. -/
+private lemma multiLabeledEvalK_decAt_LL_peel {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (M : MultiLabeledGraph K n)
+    (a b : Fin (n + K)) (ha : a.val < K) (hb : b.val < K)
+    (hm : 1 ≤ M.mult s(a, b))
+    (ξ : Fin K → Fin T) :
+    multiLabeledEvalK K n M B W ξ =
+      B (ξ ⟨a.val, ha⟩) (ξ ⟨b.val, hb⟩) *
+      multiLabeledEvalK K n (M.decAt s(a, b)) B W ξ := by
+  classical
+  unfold multiLabeledEvalK
+  rw [Finset.mul_sum]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  let τ : Fin (n + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then ξ ⟨v, h⟩
+    else σ ⟨v - K, by have := v.isLt; omega⟩
+  -- Reshape the goal to use the named τ.
+  change (∏ v : Fin n, W (σ v)) *
+         (∏ e : Sym2 (Fin (n + K)),
+           B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e) =
+         B (ξ ⟨a.val, ha⟩) (ξ ⟨b.val, hb⟩) *
+         ((∏ v : Fin n, W (σ v)) *
+          (∏ e : Sym2 (Fin (n + K)),
+            B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ (M.decAt s(a, b)).mult e))
+  -- Compute τ at a, b (both labels).
+  have hτa : τ a = ξ ⟨a.val, ha⟩ := by
+    show (if h : (a : ℕ) < K then ξ ⟨a.val, h⟩ else _) = _
+    rw [dif_pos ha]
+  have hτb : τ b = ξ ⟨b.val, hb⟩ := by
+    show (if h : (b : ℕ) < K then ξ ⟨b.val, h⟩ else _) = _
+    rw [dif_pos hb]
+  set e₀ : Sym2 (Fin (n + K)) := s(a, b) with he₀
+  -- Apply Finset.mul_prod_erase at e₀ on both sides of the equation.
+  have hLHS_split : (∏ e : Sym2 (Fin (n + K)),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e) =
+      (B (τ (Quot.out e₀).1) (τ (Quot.out e₀).2) ^ M.mult e₀) *
+      (∏ e ∈ (Finset.univ.erase e₀ : Finset (Sym2 (Fin (n + K)))),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e) :=
+    (Finset.mul_prod_erase _ _ (Finset.mem_univ _)).symm
+  have hRHS_split : (∏ e : Sym2 (Fin (n + K)),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ (M.decAt s(a, b)).mult e) =
+      (B (τ (Quot.out e₀).1) (τ (Quot.out e₀).2) ^ (M.decAt s(a, b)).mult e₀) *
+      (∏ e ∈ (Finset.univ.erase e₀ : Finset (Sym2 (Fin (n + K)))),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ (M.decAt s(a, b)).mult e) :=
+    (Finset.mul_prod_erase _ _ (Finset.mem_univ _)).symm
+  -- decAt's mult at e₀ is M.mult e₀ - 1.
+  have hM'_e₀ : (M.decAt s(a, b)).mult e₀ = M.mult e₀ - 1 := by
+    show (if e₀ = e₀ then M.mult e₀ - 1 else _) = _
+    rw [if_pos rfl]
+  -- decAt's mult agrees with M off e₀.
+  have hM'_ne : ∀ e ∈ (Finset.univ.erase e₀ : Finset (Sym2 (Fin (n + K)))),
+      (M.decAt s(a, b)).mult e = M.mult e := by
+    intro e he
+    rw [Finset.mem_erase] at he
+    show (if e = e₀ then _ else _) = _
+    rw [if_neg he.1]
+  -- B at Quot.out e₀ via symmetry.
+  have hquot : B (τ (Quot.out e₀).1) (τ (Quot.out e₀).2) =
+               B (ξ ⟨a.val, ha⟩) (ξ ⟨b.val, hb⟩) := by
+    rw [B_quot_out_eq hB τ a b, hτa, hτb]
+  -- Equate the erase products (over Sym2, NOT Fin n).
+  have h_erase_eq : (∏ e ∈ (Finset.univ.erase e₀ : Finset (Sym2 (Fin (n + K)))),
+                     B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ (M.decAt s(a, b)).mult e) =
+                    (∏ e ∈ (Finset.univ.erase e₀ : Finset (Sym2 (Fin (n + K)))),
+                     B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e) := by
+    refine Finset.prod_congr rfl fun e he => ?_
+    rw [hM'_ne e he]
+  rw [hLHS_split, hRHS_split, hM'_e₀, h_erase_eq, hquot]
+  -- Goal: W_prod * (B^M.mult e₀ * ∏_erase B^M.mult) =
+  --       B * (W_prod * (B^(M.mult e₀ - 1) * ∏_erase B^M.mult))
+  -- Use M.mult e₀ = (M.mult e₀ - 1) + 1 and pow_succ.
+  have hmsucc : M.mult e₀ = (M.mult e₀ - 1) + 1 := by omega
+  rw [show (B (ξ ⟨a.val, ha⟩) (ξ ⟨b.val, hb⟩)) ^ M.mult e₀ =
+       (B (ξ ⟨a.val, ha⟩) (ξ ⟨b.val, hb⟩)) ^ (M.mult e₀ - 1) *
+       B (ξ ⟨a.val, ha⟩) (ξ ⟨b.val, hb⟩) from by
+    conv_lhs => rw [hmsucc]
+    rw [pow_succ]]
+  ring
+
 /-- **Canonical paper-root for #62**: every multigraph evaluation is in
 the simple-profile closure.
 
