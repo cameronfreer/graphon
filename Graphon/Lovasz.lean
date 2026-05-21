@@ -1606,6 +1606,11 @@ theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
       rw [hev ξ, hev ξ', multiLabeledEvalK_ofSimple, multiLabeledEvalK_ofSimple]
       exact h_simple (n + 1) F
     · -- Multiplicity ≥ 2 sub-case: requires Lovász §3 rank theorem.
+      -- Reducible to `multigraphEval_in_simpleProfileClosure` (#86, paper-root
+      -- in §3.9 at end of file). The wiring requires either reordering this
+      -- theorem after §3.9 or inlining the closure inductive's simpleEvalAt
+      -- dependency; deferred to future restructuring session.
+      -- See `multiLabeledEvalK_descends_simpleEquiv` for the clean wrapper.
       sorry
 
 /-! ### §3.8 — Equivalence predicates and Lovász Lemma 2.5
