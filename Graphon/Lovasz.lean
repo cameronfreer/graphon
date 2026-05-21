@@ -1723,15 +1723,155 @@ proof. Currently sorry'd as Step 1 target. Closing this collapses #86's
 remaining content to "multigraph evaluations are tupleEquivSimple-
 invariant" (Step 2, the substantive Lovász §3 descent). -/
 theorem InSimpleProfileClosure.of_const_on_tupleEquivSimple {T K : ℕ}
-    (_B : Fin T → Fin T → ℝ) (_W : Fin T → ℝ)
-    (_f : (Fin K → Fin T) → ℝ)
-    (_hf : ∀ ξ ξ' : Fin K → Fin T,
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f : (Fin K → Fin T) → ℝ)
+    (hf : ∀ ξ ξ' : Fin K → Fin T,
       (∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
-        @inlineSimpleEval T K n' _B _W F _ ξ =
-        @inlineSimpleEval T K n' _B _W F _ ξ') →
-      _f ξ = _f ξ') :
-    InSimpleProfileClosure _B _W K _f := by
-  sorry
+        @inlineSimpleEval T K n' B W F _ ξ =
+        @inlineSimpleEval T K n' B W F _ ξ') →
+      f ξ = f ξ') :
+    InSimpleProfileClosure B W K f := by
+  classical
+  -- Define the inlined-equivalence relation locally.
+  let Equiv : (Fin K → Fin T) → (Fin K → Fin T) → Prop := fun ξ ξ' =>
+    ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+      @inlineSimpleEval T K n' B W F _ ξ = @inlineSimpleEval T K n' B W F _ ξ'
+  -- Step 1: each class indicator is in closure via Lagrange.
+  have ind_closure : ∀ ξ : Fin K → Fin T,
+      InSimpleProfileClosure B W K (fun ζ => if Equiv ξ ζ then (1 : ℝ) else 0) := by
+    intro ξ
+    -- Factor function: uses TupleSimpleSeparator for explicit instance.
+    let factor : (Fin K → Fin T) → (Fin K → Fin T) → ℝ := fun η ζ =>
+      if h : ¬ Equiv η ξ then
+        let s := mkTupleSimpleSeparator B W (h := h)
+        letI : DecidableRel s.F.Adj := s.inst
+        (@inlineSimpleEval T K s.n B W s.F _ ζ - @inlineSimpleEval T K s.n B W s.F _ η) /
+        (@inlineSimpleEval T K s.n B W s.F _ ξ - @inlineSimpleEval T K s.n B W s.F _ η)
+      else 1
+    let nonClass : Finset (Fin K → Fin T) :=
+      Finset.univ.filter (fun η => ¬ Equiv η ξ)
+    let lagInd : (Fin K → Fin T) → ℝ := fun ζ => ∏ η ∈ nonClass, factor η ζ
+    have lagInd_mem : InSimpleProfileClosure B W K lagInd := by
+      apply InSimpleProfileClosure.finset_prod B W nonClass factor
+      intro η hη
+      have hη_no : ¬ Equiv η ξ := by
+        simp only [nonClass, Finset.mem_filter, Finset.mem_univ, true_and] at hη
+        exact hη
+      show InSimpleProfileClosure B W K (factor η)
+      simp only [factor, dif_pos hη_no]
+      let s := mkTupleSimpleSeparator B W (h := hη_no)
+      letI : DecidableRel s.F.Adj := s.inst
+      exact InSimpleProfileClosure.inlineSimpleEval_lagrange_factor B W s.F
+        (@inlineSimpleEval T K s.n B W s.F _ ξ)
+        (@inlineSimpleEval T K s.n B W s.F _ η)
+    -- Show lagInd = (if Equiv ξ ζ then 1 else 0).
+    have lagInd_eq : lagInd = fun ζ => if Equiv ξ ζ then (1 : ℝ) else 0 := by
+      funext ζ
+      by_cases hζ : Equiv ξ ζ
+      · rw [if_pos hζ]
+        show ∏ η ∈ nonClass, factor η ζ = (1 : ℝ)
+        apply Finset.prod_eq_one
+        intro η hη
+        have hη_no : ¬ Equiv η ξ := by
+          simp only [nonClass, Finset.mem_filter, Finset.mem_univ, true_and] at hη
+          exact hη
+        simp only [factor, dif_pos hη_no]
+        let s := mkTupleSimpleSeparator B W (h := hη_no)
+        letI : DecidableRel s.F.Adj := s.inst
+        -- Numerator: eval at ζ = eval at ξ (since Equiv ξ ζ).
+        have h_eq : @inlineSimpleEval T K s.n B W s.F _ ζ =
+            @inlineSimpleEval T K s.n B W s.F _ ξ := (@hζ s.n s.F s.inst).symm
+        have h_denom_ne :
+            @inlineSimpleEval T K s.n B W s.F _ ξ -
+            @inlineSimpleEval T K s.n B W s.F _ η ≠ 0 :=
+          sub_ne_zero.mpr (fun he => s.sep he.symm)
+        rw [h_eq]
+        exact div_self h_denom_ne
+      · rw [if_neg hζ]
+        show ∏ η ∈ nonClass, factor η ζ = (0 : ℝ)
+        -- ζ itself is in nonClass; the ζ-factor is 0.
+        have h_ζ_no : ¬ Equiv ζ ξ := fun h_eq_ζ_ξ => by
+          apply hζ
+          intro n F hF
+          exact (@h_eq_ζ_ξ n F hF).symm
+        have h_ζ_mem : ζ ∈ nonClass := by
+          simp only [nonClass, Finset.mem_filter, Finset.mem_univ, true_and]
+          exact h_ζ_no
+        refine Finset.prod_eq_zero h_ζ_mem ?_
+        simp only [factor, dif_pos h_ζ_no]
+        let s := mkTupleSimpleSeparator B W (h := h_ζ_no)
+        letI : DecidableRel s.F.Adj := s.inst
+        show (@inlineSimpleEval T K s.n B W s.F _ ζ -
+              @inlineSimpleEval T K s.n B W s.F _ ζ) /
+             (@inlineSimpleEval T K s.n B W s.F _ ξ -
+              @inlineSimpleEval T K s.n B W s.F _ ζ) = 0
+        rw [sub_self, zero_div]
+    rw [← lagInd_eq]
+    exact lagInd_mem
+  -- Step 2: express f as a linear combination of class indicators.
+  set classSize : (Fin K → Fin T) → ℕ := fun ξ =>
+    (Finset.univ.filter (fun ζ => Equiv ξ ζ)).card with hclassSize_def
+  have heq : f = fun ζ => ∑ ξ : Fin K → Fin T,
+      (f ξ / (classSize ξ : ℝ)) * (if Equiv ξ ζ then 1 else 0) := by
+    funext ζ
+    -- Reduce sum to ξ such that Equiv ξ ζ (i.e., ξ in class of ζ).
+    have h_sum_filter :
+        (∑ ξ : Fin K → Fin T,
+            (f ξ / (classSize ξ : ℝ)) * (if Equiv ξ ζ then (1:ℝ) else 0)) =
+        ∑ ξ ∈ Finset.univ.filter (fun ξ => Equiv ξ ζ),
+            f ξ / (classSize ξ : ℝ) := by
+      rw [Finset.sum_filter]
+      apply Finset.sum_congr rfl
+      intro ξ _
+      split_ifs with h <;> simp
+    rw [h_sum_filter]
+    -- For ξ with Equiv ξ ζ: f ξ = f ζ and classSize ξ = classSize ζ.
+    have hEquiv_symm : ∀ {a b : Fin K → Fin T}, Equiv a b → Equiv b a :=
+      fun {a b} h n F _ => (h n F).symm
+    have hEquiv_trans : ∀ {a b c : Fin K → Fin T},
+        Equiv a b → Equiv b c → Equiv a c :=
+      fun {a b c} h₁ h₂ n F _ => (h₁ n F).trans (h₂ n F)
+    have h_summands : ∀ ξ ∈ Finset.univ.filter (fun ξ => Equiv ξ ζ),
+        f ξ / (classSize ξ : ℝ) = f ζ / (classSize ζ : ℝ) := by
+      intro ξ hξ
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hξ
+      have hfξ : f ξ = f ζ := hf ξ ζ hξ
+      have h_size : classSize ξ = classSize ζ := by
+        have h_set_eq :
+            (Finset.univ.filter (fun η => Equiv ξ η)) =
+            (Finset.univ.filter (fun η => Equiv ζ η)) := by
+          ext η
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+          exact ⟨fun h_ξη => hEquiv_trans (hEquiv_symm hξ) h_ξη,
+                 fun h_ζη => hEquiv_trans hξ h_ζη⟩
+        rw [hclassSize_def]
+        exact congrArg Finset.card h_set_eq
+      rw [hfξ, h_size]
+    rw [Finset.sum_congr rfl h_summands]
+    rw [Finset.sum_const, nsmul_eq_mul]
+    -- card of filter = classSize ζ.
+    have hcard : (Finset.univ.filter (fun ξ => Equiv ξ ζ)).card = classSize ζ := by
+      rw [hclassSize_def]
+      congr 1
+      ext ξ
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+      exact ⟨fun h => hEquiv_symm h, fun h => hEquiv_symm h⟩
+    rw [hcard]
+    -- (classSize ζ : ℝ) > 0 since ζ ∈ class(ζ) (Equiv ζ ζ).
+    have h_pos : (0 : ℝ) < (classSize ζ : ℝ) := by
+      have h_pos_nat : 0 < classSize ζ := by
+        rw [hclassSize_def]
+        apply Finset.card_pos.mpr
+        refine ⟨ζ, ?_⟩
+        simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+        intro n F _; rfl
+      exact_mod_cast h_pos_nat
+    rw [mul_div_assoc']
+    rw [mul_comm (classSize ζ : ℝ) (f ζ), mul_div_assoc, div_self (ne_of_gt h_pos), mul_one]
+  rw [heq]
+  exact InSimpleProfileClosure.finset_sum B W Finset.univ
+    (fun ξ ζ => (f ξ / (classSize ξ : ℝ)) * (if Equiv ξ ζ then 1 else 0))
+    (fun ξ _ => (ind_closure ξ).smul (f ξ / (classSize ξ : ℝ)))
 
 /-- **Canonical paper-root for #62**: every multigraph evaluation is in
 the simple-profile closure.
