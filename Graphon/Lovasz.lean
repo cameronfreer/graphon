@@ -1636,6 +1636,103 @@ For now, #86 remains the canonical paper-root. Stating step 1
 separately would just add a sorry without progress — defer to a focused
 Lagrange session where the proof can actually close. -/
 
+/-! ### §3.9 — Lagrange fullness (Step 1 toward #86) -/
+
+/-- Abbreviation for the inlined simple-graph evaluation at `ξ`, for a
+specific `(n, F, [DecidableRel F.Adj])` triple. Matches the body of
+`InSimpleProfileClosure.of_simple` and `tupleEquivSimple`. -/
+private noncomputable def inlineSimpleEval {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
+    (ξ : Fin K → Fin T) : ℝ :=
+  ∑ σ : Fin n → Fin T,
+    (let τ : Fin (n + K) → Fin T := fun v =>
+      if h : (v : ℕ) < K then ξ ⟨v, h⟩
+      else σ ⟨v - K, by have := v.isLt; omega⟩
+    (∏ v : Fin n, W (σ v)) *
+    ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))
+
+/-- `inlineSimpleEval` for fixed `F` is in `InSimpleProfileClosure` (basic
+`of_simple` witness, viewed as a function of `ξ`). -/
+private theorem inlineSimpleEval_mem {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + K))) [hF : DecidableRel F.Adj] :
+    InSimpleProfileClosure B W K (fun ξ => inlineSimpleEval B W F ξ) :=
+  InSimpleProfileClosure.of_simple n F
+
+/-- **Tuple simple-graph separator**: packages the witness for two
+non-equivalent tuples — the `(n, F, [dec], sep_proof)` quadruple.
+Analog of `RootedSeparator` from the K=1 chain. -/
+private structure TupleSimpleSeparator {T K : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (ξ ξ' : Fin K → Fin T) where
+  n : ℕ
+  F : SimpleGraph (Fin (n + K))
+  inst : DecidableRel F.Adj
+  sep : @inlineSimpleEval T K n B W F inst ξ ≠ @inlineSimpleEval T K n B W F inst ξ'
+
+/-- Constructor from negation of (inlined) `tupleEquivSimple`, via
+`Classical.choose` (since `TupleSimpleSeparator` is `Type`-valued). -/
+private noncomputable def mkTupleSimpleSeparator {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    {ξ ξ' : Fin K → Fin T}
+    (h : ¬ ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+      @inlineSimpleEval T K n' B W F _ ξ = @inlineSimpleEval T K n' B W F _ ξ') :
+    TupleSimpleSeparator B W ξ ξ' :=
+  let h' : ∃ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (_ : DecidableRel F.Adj),
+      @inlineSimpleEval T K n B W F _ ξ ≠ @inlineSimpleEval T K n B W F _ ξ' := by
+    push_neg at h; exact h
+  { n := h'.choose
+    F := h'.choose_spec.choose
+    inst := h'.choose_spec.choose_spec.choose
+    sep := h'.choose_spec.choose_spec.choose_spec }
+
+/-- Difference of `inlineSimpleEval` from a constant is in the closure. -/
+private theorem InSimpleProfileClosure.inlineSimpleEval_sub_const {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj] (c : ℝ) :
+    InSimpleProfileClosure B W K (fun ξ => inlineSimpleEval B W F ξ - c) := by
+  have h₁ := inlineSimpleEval_mem B W F
+  have h₂ : InSimpleProfileClosure B W K (fun _ => c) :=
+    InSimpleProfileClosure.const c
+  exact h₁.sub h₂
+
+/-- Lagrange factor for `inlineSimpleEval`: scaled difference. -/
+private theorem InSimpleProfileClosure.inlineSimpleEval_lagrange_factor
+    {T K n : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
+    (cξ cξ' : ℝ) :
+    InSimpleProfileClosure B W K
+      (fun ζ => (inlineSimpleEval B W F ζ - cξ') / (cξ - cξ')) := by
+  have h := (InSimpleProfileClosure.inlineSimpleEval_sub_const B W F cξ').smul
+    (1 / (cξ - cξ'))
+  convert h using 1
+  funext ζ
+  rw [mul_comm, mul_one_div]
+
+/-- **Step 1 of #86**: every function constant on (inlined) `tupleEquivSimple`-
+classes is in `InSimpleProfileClosure`.
+
+**Proof**: Lagrange interpolation. For each pair (ξ, ξ') with distinct
+simple-graph profiles, fix a separating graph (via `mkTupleSimpleSeparator`).
+Build per-tuple Lagrange indicators via products of `inlineSimpleEval_lagrange_factor`s.
+Express any `tupleEquivSimple`-invariant function as a linear combination of
+indicators using `finset_sum` and `smul`.
+
+**Status**: ~200 LOC of Lagrange port from the K=1 `of_const_on_orbit`
+proof. Currently sorry'd as Step 1 target. Closing this collapses #86's
+remaining content to "multigraph evaluations are tupleEquivSimple-
+invariant" (Step 2, the substantive Lovász §3 descent). -/
+theorem InSimpleProfileClosure.of_const_on_tupleEquivSimple {T K : ℕ}
+    (_B : Fin T → Fin T → ℝ) (_W : Fin T → ℝ)
+    (_f : (Fin K → Fin T) → ℝ)
+    (_hf : ∀ ξ ξ' : Fin K → Fin T,
+      (∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+        @inlineSimpleEval T K n' _B _W F _ ξ =
+        @inlineSimpleEval T K n' _B _W F _ ξ') →
+      _f ξ = _f ξ') :
+    InSimpleProfileClosure _B _W K _f := by
+  sorry
+
 /-- **Canonical paper-root for #62**: every multigraph evaluation is in
 the simple-profile closure.
 
