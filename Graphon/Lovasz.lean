@@ -1978,6 +1978,248 @@ private lemma multiLabeledEvalK_decAt_LL_peel {T K n : ℕ}
     rw [pow_succ]]
   ring
 
+/-- **LL predicate** on Sym2 pairs: both endpoints have val < K (are labels). -/
+private def isLLEdge {K n : ℕ} : Sym2 (Fin (n + K)) → Prop := fun e =>
+  Sym2.lift ⟨fun a b => (a.val < K ∧ b.val < K),
+    fun a b => propext ⟨fun ⟨h1, h2⟩ => ⟨h2, h1⟩, fun ⟨h1, h2⟩ => ⟨h2, h1⟩⟩⟩ e
+
+private instance {K n : ℕ} : DecidablePred (@isLLEdge K n) := fun e =>
+  Quot.recOnSubsingleton (motive := fun e => Decidable (isLLEdge e)) e
+    (fun p => (inferInstance : Decidable (p.1.val < K ∧ p.2.val < K)))
+
+@[simp] private lemma isLLEdge_mk {K n : ℕ} (a b : Fin (n + K)) :
+    isLLEdge s(a, b) ↔ a.val < K ∧ b.val < K := Iff.rfl
+
+/-- **LL multiplicity sum**: total multiplicity over LL edges. Used as the
+strong-induction measure for closing the LL-excess sub-case of #86. -/
+private def MultiLabeledGraph.LLSum {K n : ℕ} (M : MultiLabeledGraph K n) : ℕ :=
+  ∑ e ∈ (Finset.univ.filter isLLEdge : Finset (Sym2 (Fin (n + K)))), M.mult e
+
+/-- **LL-excess invariance** (auxiliary for #86's LL-excess sub-case). Strong
+induction on `M.LLSum` reduces to the all-mults-≤-1 simple-graph case via
+iterated peeling. Each peel: applies `multiLabeledEvalK_decAt_LL_peel` at
+a chosen LL edge; the `B(ξ_a, ξ_b)` factor matches at ξ vs ξ' via h_simple
+on the single-edge LL graph. -/
+private lemma multigraphEval_LL_excess_descends_aux {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    {ξ ξ' : Fin K → Fin T}
+    (h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)))
+    (N : ℕ) :
+    ∀ M : MultiLabeledGraph K n,
+      (∀ e, ¬ isLLEdge e → M.mult e ≤ 1) →
+      M.LLSum = N →
+      multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  classical
+  induction N with
+  | zero =>
+    intro M h_nonLL_le_one hN
+    -- M.LLSum = 0 ⟹ all LL mults are 0 ⟹ all mults ≤ 1 ⟹ simple-graph case.
+    have h_LL_zero : ∀ e, isLLEdge e → M.mult e = 0 := by
+      intro e he
+      have hmem : e ∈ (Finset.univ.filter isLLEdge : Finset (Sym2 (Fin (n + K)))) :=
+        Finset.mem_filter.mpr ⟨Finset.mem_univ _, he⟩
+      have hsum : (∑ e' ∈ (Finset.univ.filter isLLEdge : Finset (Sym2 (Fin (n + K)))),
+                    M.mult e') = 0 := hN
+      exact Nat.eq_zero_of_le_zero
+        (hsum ▸ Finset.single_le_sum (f := fun e' => M.mult e')
+          (fun _ _ => Nat.zero_le _) hmem)
+    have h_all_le_one : ∀ e, M.mult e ≤ 1 := by
+      intro e
+      by_cases he : isLLEdge e
+      · rw [h_LL_zero e he]; omega
+      · exact h_nonLL_le_one e he
+    -- Build the corresponding simple graph and apply h_simple.
+    let F : SimpleGraph (Fin (n + K)) :=
+      { Adj := fun a b => a ≠ b ∧ M.mult s(a, b) = 1
+        symm := fun a b ⟨hne, hmult⟩ =>
+          ⟨hne.symm, by rwa [Sym2.eq_swap]⟩
+        loopless := fun a ⟨hne, _⟩ => hne rfl }
+    haveI : DecidableRel F.Adj := Classical.decRel _
+    have hmult_eq : ∀ e, M.mult e = (MultiLabeledGraph.ofSimple F).mult e := by
+      intro e
+      induction e with
+      | h a b =>
+        show M.mult s(a, b) = if s(a, b) ∈ F.edgeFinset then 1 else 0
+        by_cases hM : M.mult s(a, b) = 0
+        · rw [hM]
+          have : ¬ s(a, b) ∈ F.edgeFinset := by
+            rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
+            intro ⟨_, hmult⟩
+            rw [hM] at hmult; exact absurd hmult (by omega)
+          rw [if_neg this]
+        · have hM_one : M.mult s(a, b) = 1 := by
+            have := h_all_le_one s(a, b); omega
+          rw [hM_one]
+          have : s(a, b) ∈ F.edgeFinset := by
+            rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
+            refine ⟨?_, hM_one⟩
+            intro hab; rw [hab] at hM_one
+            have := M.multNoLoop b; omega
+          rw [if_pos this]
+    have hev : ∀ ζ : Fin K → Fin T,
+        multiLabeledEvalK K n M B W ζ =
+        multiLabeledEvalK K n (MultiLabeledGraph.ofSimple F) B W ζ := by
+      intro ζ
+      unfold multiLabeledEvalK
+      refine Finset.sum_congr rfl fun σ _ => ?_
+      simp_rw [hmult_eq]
+    rw [hev ξ, hev ξ', multiLabeledEvalK_ofSimple, multiLabeledEvalK_ofSimple]
+    exact h_simple n F
+  | succ k IH =>
+    intro M h_nonLL_le_one hN
+    -- LLSum = k + 1 ⟹ ∃ LL edge with mult ≥ 1.
+    have h_sum_pos : 0 < M.LLSum := by rw [hN]; omega
+    have h_exists : ∃ e ∈ (Finset.univ.filter isLLEdge :
+        Finset (Sym2 (Fin (n + K)))), 1 ≤ M.mult e := by
+      by_contra h
+      push_neg at h
+      have : M.LLSum = 0 := by
+        unfold MultiLabeledGraph.LLSum
+        exact Finset.sum_eq_zero fun e he => by have := h e he; omega
+      omega
+    obtain ⟨e₀, he₀_mem, he₀_mult⟩ := h_exists
+    rw [Finset.mem_filter] at he₀_mem
+    have he₀_LL := he₀_mem.2
+    -- Extract a, b from e₀ via Sym2 induction.
+    induction e₀ using Sym2.ind with
+    | h a b =>
+      rw [isLLEdge_mk] at he₀_LL
+      obtain ⟨ha, hb⟩ := he₀_LL
+      -- Peel at s(a, b).
+      have hM_decAt_LLSum : (M.decAt s(a, b)).LLSum = k := by
+        unfold MultiLabeledGraph.LLSum
+        have h_decAt_mem :
+            s(a, b) ∈ (Finset.univ.filter isLLEdge : Finset (Sym2 (Fin (n + K)))) := by
+          rw [Finset.mem_filter]; exact ⟨Finset.mem_univ _, by rw [isLLEdge_mk]; exact ⟨ha, hb⟩⟩
+        have h_sum_split : (∑ e ∈ (Finset.univ.filter isLLEdge :
+              Finset (Sym2 (Fin (n + K)))), (M.decAt s(a, b)).mult e) =
+            (∑ e ∈ (Finset.univ.filter isLLEdge).erase s(a, b),
+              (M.decAt s(a, b)).mult e) + (M.decAt s(a, b)).mult s(a, b) :=
+          (Finset.sum_erase_add _ _ h_decAt_mem).symm
+        rw [h_sum_split]
+        have h_decAt_e₀ : (M.decAt s(a, b)).mult s(a, b) = M.mult s(a, b) - 1 := by
+          show (if s(a, b) = s(a, b) then M.mult s(a, b) - 1 else _) = _
+          rw [if_pos rfl]
+        have h_decAt_ne : ∀ e ∈ ((Finset.univ.filter isLLEdge).erase s(a, b) :
+            Finset (Sym2 (Fin (n + K)))),
+            (M.decAt s(a, b)).mult e = M.mult e := by
+          intro e he
+          rw [Finset.mem_erase] at he
+          show (if e = s(a, b) then _ else _) = _
+          rw [if_neg he.1]
+        have h_erase_sum : (∑ e ∈ (Finset.univ.filter isLLEdge).erase s(a, b),
+              (M.decAt s(a, b)).mult e) =
+            (∑ e ∈ (Finset.univ.filter isLLEdge).erase s(a, b), M.mult e) :=
+          Finset.sum_congr rfl h_decAt_ne
+        rw [h_erase_sum, h_decAt_e₀]
+        have hM_LLSum_split : M.LLSum =
+            (∑ e ∈ (Finset.univ.filter isLLEdge).erase s(a, b), M.mult e) +
+            M.mult s(a, b) :=
+          (Finset.sum_erase_add _ _ h_decAt_mem).symm
+        have h_mult_pos : 1 ≤ M.mult s(a, b) := he₀_mult
+        rw [hM_LLSum_split] at hN
+        omega
+      have h_decAt_nonLL : ∀ e, ¬ isLLEdge e → (M.decAt s(a, b)).mult e ≤ 1 := by
+        intro e he
+        show (if e = s(a, b) then M.mult e - 1 else M.mult e) ≤ 1
+        have h_e_ne : e ≠ s(a, b) := by
+          intro h_eq
+          apply he
+          rw [h_eq, isLLEdge_mk]
+          exact ⟨ha, hb⟩
+        rw [if_neg h_e_ne]
+        exact h_nonLL_le_one e he
+      have h_IH := IH (M.decAt s(a, b)) h_decAt_nonLL hM_decAt_LLSum
+      -- Apply peel to express both sides via decAt.
+      rw [multiLabeledEvalK_decAt_LL_peel B hB W M a b ha hb he₀_mult ξ,
+          multiLabeledEvalK_decAt_LL_peel B hB W M a b ha hb he₀_mult ξ']
+      -- Single-edge LL h_simple: B(ξ_⟨a⟩)(ξ_⟨b⟩) = B(ξ'_⟨a⟩)(ξ'_⟨b⟩).
+      have h_single_edge : B (ξ ⟨a.val, ha⟩) (ξ ⟨b.val, hb⟩) =
+                          B (ξ' ⟨a.val, ha⟩) (ξ' ⟨b.val, hb⟩) := by
+        -- Use h_simple at n' = 0 with a single-edge graph between labels ⟨a.val, ha⟩, ⟨b.val, hb⟩.
+        let aK : Fin K := ⟨a.val, ha⟩
+        let bK : Fin K := ⟨b.val, hb⟩
+        have h_aK_ne_bK : aK ≠ bK := by
+          intro h_eq
+          have : a.val = b.val := by
+            have := congr_arg Fin.val h_eq
+            simpa [aK, bK] using this
+          -- a ≠ b in Fin (n + K). isLL says a.val < K, b.val < K. M.multNoLoop says s(a,a) = 0.
+          -- But we have he₀_mult : 1 ≤ M.mult s(a, b). If a = b, M.mult s(a, a) = 0. Contradiction.
+          have hab : a = b := Fin.ext this
+          rw [hab] at he₀_mult
+          have := M.multNoLoop b
+          omega
+        -- Build the single-edge simple graph on Fin (0 + K).
+        let aF : Fin (0 + K) := ⟨aK.val, by have := aK.isLt; omega⟩
+        let bF : Fin (0 + K) := ⟨bK.val, by have := bK.isLt; omega⟩
+        have h_aF_ne_bF : aF ≠ bF := by
+          intro h_eq
+          apply h_aK_ne_bK
+          exact Fin.ext (by have := congr_arg Fin.val h_eq; simpa [aF, bF] using this)
+        let G : SimpleGraph (Fin (0 + K)) :=
+          { Adj := fun u v => (u = aF ∧ v = bF) ∨ (u = bF ∧ v = aF)
+            symm := fun u v => by rintro (⟨h1, h2⟩ | ⟨h1, h2⟩) <;> [right; left] <;> exact ⟨h2, h1⟩
+            loopless := fun u h => by
+              rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+              · exact h_aF_ne_bF (h1.symm.trans h2)
+              · exact h_aF_ne_bF (h2.symm.trans h1) }
+        haveI : DecidableRel G.Adj := Classical.decRel _
+        have hG_edge : G.edgeFinset = {s(aF, bF)} := by
+          ext e
+          induction e with
+          | h u v =>
+            rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, Finset.mem_singleton]
+            show ((u = aF ∧ v = bF) ∨ (u = bF ∧ v = aF)) ↔ s(u, v) = s(aF, bF)
+            rw [Sym2.eq_iff]
+        have heq := h_simple 0 G
+        -- General reduction for single-edge n=0 eval (works for any η).
+        have hreduce : ∀ (η : Fin K → Fin T),
+            (∑ σ : Fin 0 → Fin T,
+              (let τ : Fin (0 + K) → Fin T := fun v =>
+                if h : (v : ℕ) < K then η ⟨v, h⟩
+                else σ ⟨v - K, by have := v.isLt; omega⟩
+              (∏ v : Fin 0, W (σ v)) *
+              ∏ e ∈ G.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) =
+            B (η aK) (η bK) := by
+          intro η
+          rw [Fintype.sum_unique]
+          let τ : Fin (0 + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then η ⟨v, h⟩
+            else (default : Fin 0 → Fin T) ⟨v - K, by have := v.isLt; omega⟩
+          change (∏ v : Fin 0, W ((default : Fin 0 → Fin T) v)) *
+                 (∏ e ∈ G.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+                 B (η aK) (η bK)
+          rw [hG_edge]
+          simp only [Finset.prod_singleton]
+          rw [Fin.prod_univ_zero, one_mul]
+          rw [B_quot_out_eq hB τ aF bF]
+          have hτaF : τ aF = η aK := by
+            show (if h : (aF : ℕ) < K then η ⟨aF.val, h⟩ else _) = _
+            have h_lt : (aF : ℕ) < K := aK.isLt
+            rw [dif_pos h_lt]
+          have hτbF : τ bF = η bK := by
+            show (if h : (bF : ℕ) < K then η ⟨bF.val, h⟩ else _) = _
+            have h_lt : (bF : ℕ) < K := bK.isLt
+            rw [dif_pos h_lt]
+          rw [hτaF, hτbF]
+        rw [hreduce ξ, hreduce ξ'] at heq
+        show B (ξ ⟨a.val, ha⟩) (ξ ⟨b.val, hb⟩) = B (ξ' ⟨a.val, ha⟩) (ξ' ⟨b.val, hb⟩)
+        exact heq
+      rw [h_single_edge, h_IH]
+
 /-- **Canonical paper-root for #62**: every multigraph evaluation is in
 the simple-profile closure.
 
@@ -2076,21 +2318,19 @@ theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
         Quot.recOnSubsingleton (motive := fun e => Decidable (isLL e)) e
           (fun p => (inferInstance : Decidable (p.1.val < K ∧ p.2.val < K)))
       by_cases h_LL_excess : ∀ e, M.mult e ≥ 2 → isLL e
-      · -- **LL-excess sub-case**: every mult≥2 edge is label-label.
-        -- **Strategy** (polynomial decomposition, Lovász §3.2):
-        --   multiLabeledEvalK M ξ
-        --     = (∏_{LL e} B(ξ_a, ξ_b) ^ M.mult e) * multiLabeledEvalK M.killLL ξ
-        -- where M.killLL zeros out LL multiplicities. The factor is constant
-        -- in σ (purely ξ-determined), so pulls out of the σ-sum. The residue
-        -- M.killLL has all mults ≤ 1 (by hypothesis), hence corresponds to a
-        -- simple graph, whose evaluation matches at ξ and ξ' by h_equiv.
-        -- Each LL B(ξ_a, ξ_b) = single-edge simple-graph eval, also matched
-        -- by h_equiv; powers preserve equality.
-        --
-        -- **Status**: refined LL sub-case sorry. Reducible to (a) the LL
-        -- factorization identity and (b) the all-LL-stripped graph being
-        -- simple; both ~150 LOC of focused Sym2 / σ-sum manipulation.
-        sorry
+      · -- **LL-excess sub-case** — CLOSED via `multigraphEval_LL_excess_descends_aux`.
+        -- Strong induction on M.LLSum: each iteration peels a single LL edge
+        -- via `multiLabeledEvalK_decAt_LL_peel`, applying h_equiv on the
+        -- single-edge LL graph to match B(ξ_a, ξ_b) at ξ vs ξ'. Base case:
+        -- all LL mults zero → M has all mults ≤ 1 → simple graph case.
+        have h_nonLL_le_one : ∀ e, ¬ isLLEdge e → M.mult e ≤ 1 := by
+          intro e he
+          by_contra h_ge
+          push_neg at h_ge
+          have hLL := h_LL_excess e (by omega)
+          exact he hLL
+        exact multigraphEval_LL_excess_descends_aux B hB W
+          (fun n' F _ => h_equiv n' F) M.LLSum M h_nonLL_le_one rfl
       · -- **Unlabeled-excess sub-case**: some mult≥2 edge has at least
         -- one unlabeled endpoint. This is the genuinely hard Lovász §3
         -- content (connection-matrix / idempotent decomposition of the
