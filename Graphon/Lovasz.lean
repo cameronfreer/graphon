@@ -2456,8 +2456,77 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         (fun k => W ((splitSigma.symm (α, ρ)) k))]
     refine Finset.prod_congr rfl fun k _ => ?_
     rw [h_at_rest α ρ k.val k.property]
-  -- Steps 6-8 pending: factor B-product via isolation, define F_rest,
-  -- apply h_simple, conclude.
+  -- Step 6: B-product factorization.
+  -- For σ = splitSigma.symm (α, ρ) and τ extending it with ξ at labels,
+  -- the Sym2 product factors as B(α 0, α 1)^2 times the product over edges
+  -- not touching i or j.
+  have hB_factor : ∀ (α : Fin 2 → Fin T) (ρ : {k // ¬ p k} → Fin T)
+      (η : Fin K → Fin T),
+      (∏ e : Sym2 (Fin (n + K)),
+        B ((fun v : Fin (n + K) =>
+              if h : (v : ℕ) < K then η ⟨v, h⟩
+              else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩)
+            (Quot.out e).1)
+          ((fun v : Fin (n + K) =>
+              if h : (v : ℕ) < K then η ⟨v, h⟩
+              else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩)
+            (Quot.out e).2) ^ M.mult e) =
+      B (α 0) (α 1) ^ 2 *
+      (∏ e ∈ (Finset.univ.filter (fun e : Sym2 (Fin (n + K)) => i ∉ e ∧ j ∉ e) :
+              Finset (Sym2 (Fin (n + K)))),
+        B ((fun v : Fin (n + K) =>
+              if h : (v : ℕ) < K then η ⟨v, h⟩
+              else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩)
+            (Quot.out e).1)
+          ((fun v : Fin (n + K) =>
+              if h : (v : ℕ) < K then η ⟨v, h⟩
+              else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩)
+            (Quot.out e).2) ^ M.mult e) := by
+    intro α ρ η
+    set τ : Fin (n + K) → Fin T := fun v =>
+      if h : (v : ℕ) < K then η ⟨v, h⟩
+      else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩
+    -- τ at i = α 0, τ at j = α 1.
+    have hτi : τ i = α 0 := by
+      show (if h : (i : ℕ) < K then η ⟨i.val, h⟩ else _) = α 0
+      rw [dif_neg (by omega : ¬ ((i : ℕ) < K))]
+      show (splitSigma.symm (α, ρ)) ⟨i.val - K, _⟩ = α 0
+      have h_eq : (⟨i.val - K, by have := i.isLt; omega⟩ : Fin n) = u_p := rfl
+      rw [h_eq]
+      exact h_at_u α ρ
+    have hτj : τ j = α 1 := by
+      show (if h : (j : ℕ) < K then η ⟨j.val, h⟩ else _) = α 1
+      rw [dif_neg (by omega : ¬ ((j : ℕ) < K))]
+      show (splitSigma.symm (α, ρ)) ⟨j.val - K, _⟩ = α 1
+      have h_eq : (⟨j.val - K, by have := j.isLt; omega⟩ : Fin n) = v_p := rfl
+      rw [h_eq]
+      exact h_at_v α ρ
+    -- Apply Finset.mul_prod_erase at s(i, j).
+    rw [← Finset.mul_prod_erase _ _ (Finset.mem_univ s(i, j))]
+    rw [h_doubled, B_quot_out_eq hB τ i j, hτi, hτj]
+    congr 1
+    -- Goal: ∏ e ∈ erase, B(τ_e)^M.mult e = ∏ e ∈ filter (i ∉ e ∧ j ∉ e), B(τ_e)^M.mult e.
+    rw [← Finset.prod_filter_mul_prod_filter_not (Finset.univ.erase s(i, j))
+          (fun e => i ∈ e ∨ j ∈ e)
+          (fun e => B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e)]
+    have h_touching : (∏ e ∈ (Finset.univ.erase s(i, j) :
+          Finset (Sym2 (Fin (n + K)))).filter (fun e => i ∈ e ∨ j ∈ e),
+          B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e) = 1 := by
+      apply Finset.prod_eq_one
+      intro e he
+      rw [Finset.mem_filter, Finset.mem_erase] at he
+      obtain ⟨⟨he_ne, _⟩, h_touches⟩ := he
+      rw [h_isolated e he_ne h_touches, pow_zero]
+    rw [h_touching, one_mul]
+    -- Convert erase ∩ ¬touching = filter (i ∉ e ∧ j ∉ e).
+    refine Finset.prod_congr (Finset.ext fun e => ?_) (fun _ _ => rfl)
+    simp only [Finset.mem_filter, Finset.mem_erase, Finset.mem_univ, true_and, and_true,
+               not_or]
+    refine ⟨fun ⟨_, h⟩ => h, fun h => ⟨fun h_eq => ?_, h⟩⟩
+    rw [h_eq] at h
+    exact h.1 (Sym2.mem_mk_left i j)
+  -- Steps 7-8 pending: define F_rest as a simple graph on Fin (n - 2 + K),
+  -- show restBProduct = simpleEvalAt F_rest, apply h_simple, conclude.
   sorry
 
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
