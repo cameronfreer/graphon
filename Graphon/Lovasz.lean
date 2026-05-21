@@ -2397,10 +2397,39 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
           dsimp only
           rw [if_neg (by decide : (1 : Fin 2) ≠ 0)]
           rw [if_neg (show ¬ ((mkV : Subtype p).val = u_p) from hvu_ne)] }
-  -- The remaining proof requires substantial σ-sum factorization (Equiv chains).
-  -- Status: pending implementation (~150 LOC of careful Equiv-based reindexing,
-  -- σ-sum factorization via Equiv.piEquivPiSubtypeProd, identification of the
-  -- remainder as `labeledEvalK F_rest`, and application of `h_simple`).
+  -- Step 4: combined σ-sum split equiv.
+  let splitSigma : (Fin n → Fin T) ≃ ((Fin 2 → Fin T) × ({k : Fin n // ¬ p k} → Fin T)) :=
+    (Equiv.piEquivPiSubtypeProd p (fun _ => Fin T)).trans
+      (Equiv.prodCongr (Equiv.arrowCongr subtypeEquiv (Equiv.refl (Fin T))) (Equiv.refl _))
+  -- Local lemma: at u_p, splitSigma.symm reads off α 0; at v_p, reads off α 1.
+  have h_at_u : ∀ (α : Fin 2 → Fin T) (ρ : {k // ¬ p k} → Fin T),
+      (splitSigma.symm (α, ρ)) u_p = α 0 := by
+    intro α ρ
+    show (Equiv.piEquivPiSubtypeProd p (fun _ => Fin T)).symm
+         (((Equiv.arrowCongr subtypeEquiv (Equiv.refl (Fin T))).symm α), ρ) u_p = α 0
+    rw [Equiv.piEquivPiSubtypeProd_symm_apply]
+    rw [dif_pos (Or.inl rfl : p u_p)]
+    show (Equiv.arrowCongr subtypeEquiv (Equiv.refl (Fin T))).symm α
+         ⟨u_p, Or.inl rfl⟩ = α 0
+    show α (subtypeEquiv ⟨u_p, Or.inl rfl⟩) = α 0
+    congr 1
+    show (if (⟨u_p, Or.inl rfl⟩ : Subtype p).val = u_p then (0 : Fin 2) else 1) = 0
+    rw [if_pos rfl]
+  have h_at_v : ∀ (α : Fin 2 → Fin T) (ρ : {k // ¬ p k} → Fin T),
+      (splitSigma.symm (α, ρ)) v_p = α 1 := by
+    intro α ρ
+    show (Equiv.piEquivPiSubtypeProd p (fun _ => Fin T)).symm
+         (((Equiv.arrowCongr subtypeEquiv (Equiv.refl (Fin T))).symm α), ρ) v_p = α 1
+    rw [Equiv.piEquivPiSubtypeProd_symm_apply]
+    rw [dif_pos (Or.inr rfl : p v_p)]
+    show (Equiv.arrowCongr subtypeEquiv (Equiv.refl (Fin T))).symm α
+         ⟨v_p, Or.inr rfl⟩ = α 1
+    show α (subtypeEquiv ⟨v_p, Or.inr rfl⟩) = α 1
+    congr 1
+    show (if (⟨v_p, Or.inr rfl⟩ : Subtype p).val = u_p then (0 : Fin 2) else 1) = 1
+    rw [if_neg hvu_ne]
+  -- Steps 5-8 pending: factor W-product, factor B-product via isolation,
+  -- define F_rest, apply h_simple, conclude.
   sorry
 
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
