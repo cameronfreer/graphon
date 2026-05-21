@@ -2246,15 +2246,80 @@ an unlabeled vertex" — even that requires the substantive Lovász §3
 algebra. If that subcase reduces, general multiplicities follow by
 products (per Lovász §3.3).
 
-**Architecture note**: making this a named theorem (rather than an
-in-body sorry inside #86) lets future work attack the smallest subcase
-in isolation and confirms #86 cleanly reduces to this single substantive
-residue. -/
+**Architecture note**: this is the general unlabeled-excess case. The
+**final paper-root** is the smaller doubled-edge subcase
+`multigraphEval_one_doubled_unlabeled_edge_descends` (see below), which
+isolates the K=1 square moment as the genuine Lovász §3 residue. -/
 private theorem multigraphEval_unlabeled_excess_descends {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (M : MultiLabeledGraph K n)
     (_h_unlabeled_excess :
       ∃ e : Sym2 (Fin (n + K)), ¬ isLLEdge e ∧ 2 ≤ M.mult e)
+    {ξ ξ' : Fin K → Fin T}
+    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  sorry
+
+/-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
+edge involving an unlabeled vertex, all other multiplicities ≤ 1.
+
+**Algebraic analysis** (2026-05-19): given the above hypotheses, with
+`e₀ = s(a, b)` the unique mult-2 edge having at least one endpoint
+with `val ≥ K`, the σ-sum body of `multiLabeledEvalK M ξ` carries the
+factor `B(τ_a, τ_b)²`. Three sub-sub-cases:
+
+1. **Unlabeled-unlabeled, isolated endpoints** (no other edges touch
+   `a` or `b`):
+   `multiLabeledEvalK M ξ = (∑_{s,t} W(s)W(t) B(s,t)²) · labeledEvalK F' ξ`
+   where the prefactor is **ξ-INDEPENDENT** and `F'` is the simple graph
+   on the remaining vertices. Both factors match at ξ vs ξ' (the
+   prefactor trivially, F' via `h_simple`). **Closable** via direct
+   σ-sum factorization.
+
+2. **Label-unlabeled, isolated unlabeled endpoint** (no other edges
+   touch the unlabeled vertex `j`): the σ_j-sum reduces to the K=1
+   square moment `∑_t W(t) · B(ξ_a, t)²`. This is **NOT** a polynomial
+   in single-edge simple-graph evaluations (no simple graph evaluates
+   to `B(ξ_a, t)²`). Its ξ-invariance under `tupleEquivSimple` is
+   exactly the substantive Lovász §3 content (Lemma 2.5: every
+   auto-invariant function is in the simple-graph eval span; the
+   square moment is auto-invariant).
+
+3. **General doubled edge with other edges touching the endpoint(s)**:
+   the σ-sum involves mixed moments combining `B(?,t)²` with other
+   `B(t, ?)¹` factors. Strictly harder than case 2; reducible to
+   case 2 after handling the label-touching contributions, but the
+   reduction is itself non-trivial.
+
+**Conclusion**: the **smallest genuine paper-root** is the K=1 square
+moment identity (case 2 — the simplest case requiring genuine Lovász §3
+content). Closing it requires the connection-matrix / idempotent
+decomposition of the multigraph algebra `𝒜_K`. ~300-500 LOC of new
+spectral/rank infrastructure.
+
+**Status** (2026-05-19): PROMOTED as the final paper-root per directive.
+The unlabeled-unlabeled isolated case (1) is algebraically closable but
+is not the bottleneck. The label-unlabeled isolated case (2) — the K=1
+square moment — IS the bottleneck. -/
+private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (M : MultiLabeledGraph K n)
+    (e₀ : Sym2 (Fin (n + K)))
+    (_he₀_unlabeled : ¬ isLLEdge e₀)
+    (_he₀_doubled : M.mult e₀ = 2)
+    (_h_others_le_one : ∀ e, e ≠ e₀ → M.mult e ≤ 1)
     {ξ ξ' : Fin K → Fin T}
     (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
         ∑ σ : Fin n' → Fin T,
