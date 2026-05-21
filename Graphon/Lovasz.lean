@@ -2428,8 +2428,36 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
     congr 1
     show (if (⟨v_p, Or.inr rfl⟩ : Subtype p).val = u_p then (0 : Fin 2) else 1) = 1
     rw [if_neg hvu_ne]
-  -- Steps 5-8 pending: factor W-product, factor B-product via isolation,
-  -- define F_rest, apply h_simple, conclude.
+  have h_at_rest : ∀ (α : Fin 2 → Fin T) (ρ : {k // ¬ p k} → Fin T)
+      (k : Fin n) (hk : ¬ p k),
+      (splitSigma.symm (α, ρ)) k = ρ ⟨k, hk⟩ := by
+    intro α ρ k hk
+    show (Equiv.piEquivPiSubtypeProd p (fun _ => Fin T)).symm
+         (((Equiv.arrowCongr subtypeEquiv (Equiv.refl (Fin T))).symm α), ρ) k = ρ ⟨k, hk⟩
+    rw [Equiv.piEquivPiSubtypeProd_symm_apply]
+    rw [dif_neg hk]
+  -- Step 5: W-product factorization.
+  have hW_factor : ∀ (α : Fin 2 → Fin T) (ρ : {k // ¬ p k} → Fin T),
+      (∏ k : Fin n, W ((splitSigma.symm (α, ρ)) k)) =
+      W (α 0) * W (α 1) * ∏ k : {k // ¬ p k}, W (ρ k) := by
+    intro α ρ
+    rw [← Finset.prod_filter_mul_prod_filter_not Finset.univ p
+        (fun k => W ((splitSigma.symm (α, ρ)) k))]
+    have h_filter_p_eq : (Finset.univ.filter p : Finset (Fin n)) = {u_p, v_p} := by
+      ext k
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_insert,
+                 Finset.mem_singleton]
+      rfl
+    rw [h_filter_p_eq, Finset.prod_pair hu_p_ne_v_p, h_at_u α ρ, h_at_v α ρ]
+    congr 1
+    -- Remaining: filter (¬p) product = ∏ k : Subtype (¬p), W (ρ k).
+    rw [Finset.prod_subtype (Finset.univ.filter (¬ p ·)) (p := (¬ p ·))
+        (fun k => by simp only [Finset.mem_filter, Finset.mem_univ, true_and])
+        (fun k => W ((splitSigma.symm (α, ρ)) k))]
+    refine Finset.prod_congr rfl fun k _ => ?_
+    rw [h_at_rest α ρ k.val k.property]
+  -- Steps 6-8 pending: factor B-product via isolation, define F_rest,
+  -- apply h_simple, conclude.
   sorry
 
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
