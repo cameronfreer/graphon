@@ -1553,6 +1553,63 @@ theorem InSimpleProfileClosure.descends {T K : ℕ}
   | smul c _ ih_f => simp only; rw [ih_f]
   | mul _ _ ih_f ih_g => simp only; rw [ih_f, ih_g]
 
+/-- **Zero is in the closure** (empty Finset.sum gives 0; or `smul 0` any
+member). -/
+theorem InSimpleProfileClosure.zero {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (K : ℕ) :
+    InSimpleProfileClosure B W K (fun _ => (0 : ℝ)) := by
+  have h := (InSimpleProfileClosure.const (B := B) (W := W) (K := K) 0).smul 0
+  convert h using 1
+  funext _; ring
+
+/-- **Closure under subtraction**: `f - g ∈ closure` if both are. -/
+theorem InSimpleProfileClosure.sub {T K : ℕ} {B : Fin T → Fin T → ℝ}
+    {W : Fin T → ℝ} {f g : (Fin K → Fin T) → ℝ}
+    (hf : InSimpleProfileClosure B W K f) (hg : InSimpleProfileClosure B W K g) :
+    InSimpleProfileClosure B W K (fun ξ => f ξ - g ξ) := by
+  have h := hf.add (hg.smul (-1))
+  convert h using 1
+  funext ξ; ring
+
+/-- **Closure under `Finset.sum`** over an index set. -/
+theorem InSimpleProfileClosure.finset_sum {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    {α : Type*} (S : Finset α) (g : α → (Fin K → Fin T) → ℝ)
+    (hg : ∀ a ∈ S, InSimpleProfileClosure B W K (g a)) :
+    InSimpleProfileClosure B W K (fun ξ => ∑ a ∈ S, g a ξ) := by
+  classical
+  induction S using Finset.induction_on with
+  | empty =>
+    simp only [Finset.sum_empty]
+    exact InSimpleProfileClosure.zero B W K
+  | insert a S ha_notin ih =>
+    have h_a : InSimpleProfileClosure B W K (g a) := hg a (Finset.mem_insert_self a S)
+    have h_S := ih (fun b hb => hg b (Finset.mem_insert_of_mem hb))
+    have h_add := h_a.add h_S
+    convert h_add using 1
+    funext ξ
+    rw [Finset.sum_insert ha_notin]
+
+/-- **Closure under `Finset.prod`** over an index set. -/
+theorem InSimpleProfileClosure.finset_prod {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    {α : Type*} (S : Finset α) (g : α → (Fin K → Fin T) → ℝ)
+    (hg : ∀ a ∈ S, InSimpleProfileClosure B W K (g a)) :
+    InSimpleProfileClosure B W K (fun ξ => ∏ a ∈ S, g a ξ) := by
+  classical
+  induction S using Finset.induction_on with
+  | empty =>
+    simp only [Finset.prod_empty]
+    have := InSimpleProfileClosure.const (B := B) (W := W) (K := K) 1
+    exact this
+  | insert a S ha_notin ih =>
+    have h_a : InSimpleProfileClosure B W K (g a) := hg a (Finset.mem_insert_self a S)
+    have h_S := ih (fun b hb => hg b (Finset.mem_insert_of_mem hb))
+    have h_mul := h_a.mul h_S
+    convert h_mul using 1
+    funext ξ
+    rw [Finset.prod_insert ha_notin]
+
 /-- **Canonical paper-root for #62**: every multigraph evaluation is in
 the simple-profile closure.
 
