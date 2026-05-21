@@ -2220,6 +2220,58 @@ private lemma multigraphEval_LL_excess_descends_aux {T K n : ℕ}
         exact heq
       rw [h_single_edge, h_IH]
 
+/-- **CANONICAL PAPER-ROOT** — unlabeled-excess descent (the final Lovász §3
+core). After polynomial decomposition handles all label-label multiplicities
+(via `multigraphEval_LL_excess_descends_aux`), the remaining residue is
+the case where some mult≥2 edge touches at least one unlabeled vertex.
+Polynomial decomposition does NOT apply directly: the B-factor at such
+an edge depends on σ (the unlabeled coloring), so it cannot be pulled
+out of the σ-sum.
+
+**Hypotheses**:
+  - `B` symmetric.
+  - `h_simple`: the inlined `tupleEquivSimple` hypothesis at level K.
+  - `h_unlabeled_excess`: there exists an edge with multiplicity ≥ 2
+    that touches at least one unlabeled vertex (val ≥ K).
+
+**Conclusion**: `multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ'`.
+
+**Status** (2026-05-19): this is the residual Lovász §3 content of #86,
+the canonical paper-root for #62. Closing requires the connection-matrix
+/ idempotent decomposition of the multigraph algebra `𝒜_K` (~300-500 LOC
+of new spectral/rank infrastructure).
+
+**Smallest non-trivial subcase** (next target): "one doubled edge involving
+an unlabeled vertex" — even that requires the substantive Lovász §3
+algebra. If that subcase reduces, general multiplicities follow by
+products (per Lovász §3.3).
+
+**Architecture note**: making this a named theorem (rather than an
+in-body sorry inside #86) lets future work attack the smallest subcase
+in isolation and confirms #86 cleanly reduces to this single substantive
+residue. -/
+private theorem multigraphEval_unlabeled_excess_descends {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (M : MultiLabeledGraph K n)
+    (_h_unlabeled_excess :
+      ∃ e : Sym2 (Fin (n + K)), ¬ isLLEdge e ∧ 2 ≤ M.mult e)
+    {ξ ξ' : Fin K → Fin T}
+    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  sorry
+
 /-- **Canonical paper-root for #62**: every multigraph evaluation is in
 the simple-profile closure.
 
@@ -2231,27 +2283,26 @@ via the connection-matrix idempotent decomposition. The "subgraph
 counts" of all multigraphs are polynomial combinations of subgraph
 counts of simple graphs.
 
-**Status** (2026-05-19): paper-root sorry, REFINED into two
-sub-cases in the descent body:
+**Status** (2026-05-19): #86 is now a clean wrapper over three cases:
 
-  1. **LL-excess sub-case** — every mult≥2 edge has both endpoints
-     being labels (val < K). Reducible via the **polynomial
-     decomposition** (Lovász §3.2 F₁F₂-product): factor
-       `multiLabeledEvalK M ξ = LLprod(ξ) * multiLabeledEvalK M.killLL ξ`
-     where `LLprod(ξ) = ∏_{LL e} B(ξ_a, ξ_b)^{M.mult e}` is a
-     polynomial in single-edge simple-graph evaluations, and
-     `M.killLL` (mult zeroed on all LL edges) has all multiplicities
-     ≤ 1, hence corresponds to a simple graph. ~150 LOC of focused
-     Sym2 / σ-sum manipulation.
+  1. **n = 0 / mults ≤ 1**: dispatched in-line via existing infrastructure
+     (`multiLabeledEvalK_tupleEquiv_invariant_n_zero` / simple-graph
+     correspondence + `h_equiv`).
 
-  2. **Unlabeled-excess sub-case** — some mult≥2 edge touches an
-     unlabeled vertex (val ≥ K). This is the **substantive Lovász §3
-     content** (connection-matrix / idempotent decomposition of the
-     multigraph algebra `𝒜_K`). ~300-500 LOC of new spectral / rank
-     infrastructure.
+  2. **LL-excess sub-case** (every mult≥2 edge is label-label):
+     **CLOSED** via `multigraphEval_LL_excess_descends_aux` (strong
+     induction on `M.LLSum`; iterated single-edge peel; base case
+     reduces to a simple graph). Polynomial decomposition à la
+     Lovász §3.2 (F₁F₂-product).
+
+  3. **Unlabeled-excess sub-case** (some mult≥2 edge touches an
+     unlabeled vertex): **DISPATCHED** to the named paper-root
+     `multigraphEval_unlabeled_excess_descends` (the final residual
+     Lovász §3 content; ~300-500 LOC of new spectral/rank
+     infrastructure for the multigraph algebra `𝒜_K`).
 
 Step 1 (`of_const_on_tupleEquivSimple`, Lagrange fullness) is PROVED.
-The two sub-case sorries above replace the previous single mult≥2 sorry. -/
+The only remaining sorry is inside `multigraphEval_unlabeled_excess_descends`. -/
 theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (M : MultiLabeledGraph K n) :
@@ -2331,16 +2382,20 @@ theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
           exact he hLL
         exact multigraphEval_LL_excess_descends_aux B hB W
           (fun n' F _ => h_equiv n' F) M.LLSum M h_nonLL_le_one rfl
-      · -- **Unlabeled-excess sub-case**: some mult≥2 edge has at least
-        -- one unlabeled endpoint. This is the genuinely hard Lovász §3
-        -- content (connection-matrix / idempotent decomposition of the
-        -- multigraph algebra). No polynomial factorization in terms of
-        -- simple-graph evaluations is known to work directly here.
-        --
-        -- **Status**: canonical paper-root sorry (the substantive
-        -- Lovász §3 algebra). Closing requires ~300-500 LOC of new
-        -- spectral/rank infrastructure for the multigraph algebra.
-        sorry
+      · -- **Unlabeled-excess sub-case** — dispatched to the canonical
+        -- paper-root `multigraphEval_unlabeled_excess_descends`. The
+        -- hypothesis `h_LL_excess` is false here, so some mult≥2 edge
+        -- is non-LL (touches an unlabeled vertex).
+        have h_unlabeled_excess :
+            ∃ e : Sym2 (Fin ((n + 1) + K)), ¬ isLLEdge e ∧ 2 ≤ M.mult e := by
+          push_neg at h_LL_excess
+          obtain ⟨e, he_mult, he_notLL⟩ := h_LL_excess
+          refine ⟨e, ?_, he_mult⟩
+          -- The local `isLL` and the global `isLLEdge` are definitionally equal.
+          intro h_isLL
+          exact he_notLL h_isLL
+        exact multigraphEval_unlabeled_excess_descends B hB W M h_unlabeled_excess
+          (fun n' F _ => h_equiv n' F)
 
 /-- **The multigraph bridge — SECONDARY paper root** (general,
 non-twin-free version).
