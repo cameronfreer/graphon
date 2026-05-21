@@ -1610,6 +1610,32 @@ theorem InSimpleProfileClosure.finset_prod {T K : ℕ}
     funext ξ
     rw [Finset.prod_insert ha_notin]
 
+/-! ### §3.8 — Architecture for closing #86
+
+The closure infrastructure above (`InSimpleProfileClosure` with `descends`,
+algebra closures, `zero`/`add`/`sub`/`smul`/`mul`/`finset_sum`/`finset_prod`)
+provides the building blocks. The path to #86:
+
+1. **Lagrange fullness**: prove `of_const_on_tupleEquivSimple` — every
+   `tupleEquivSimple`-invariant function is in the closure. Pure Lagrange
+   interpolation, ~200 LOC. Mirrors K=1 `of_const_on_orbit`.
+
+2. **Multigraph descent**: prove multigraph evaluations are
+   `tupleEquivSimple`-invariant. THIS IS THE SUBSTANTIVE LOVÁSZ §3
+   CONTENT (cannot be assumed; must be proved by the connection-matrix
+   idempotent decomposition or polynomial-decomposition argument).
+
+3. Combine: #86 follows from steps 1 + 2.
+
+Both steps are non-trivial. Step 1 is finite algebra/Lagrange (doable
+with the K=1 chain pattern). Step 2 is the remaining real Lovász §3
+content. Splitting them clarifies what's needed but does not reduce the
+algebraic burden.
+
+For now, #86 remains the canonical paper-root. Stating step 1
+separately would just add a sorry without progress — defer to a focused
+Lagrange session where the proof can actually close. -/
+
 /-- **Canonical paper-root for #62**: every multigraph evaluation is in
 the simple-profile closure.
 
