@@ -2320,15 +2320,15 @@ remaining vertices). Sorry'd pending the σ-sum factorization
 infrastructure (~200 LOC of Equiv-based Fin reindexing). -/
 private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends
     {T K n : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (M : MultiLabeledGraph K n)
     (i j : Fin (n + K))
-    (_hi : K ≤ i.val) (_hj : K ≤ j.val) (_hij : i ≠ j)
-    (_h_doubled : M.mult s(i, j) = 2)
-    (_h_others_le_one : ∀ e, e ≠ s(i, j) → M.mult e ≤ 1)
-    (_h_isolated : ∀ e, e ≠ s(i, j) → (i ∈ e ∨ j ∈ e) → M.mult e = 0)
+    (hi : K ≤ i.val) (hj : K ≤ j.val) (hij : i ≠ j)
+    (h_doubled : M.mult s(i, j) = 2)
+    (h_others_le_one : ∀ e, e ≠ s(i, j) → M.mult e ≤ 1)
+    (h_isolated : ∀ e, e ≠ s(i, j) → (i ∈ e ∨ j ∈ e) → M.mult e = 0)
     {ξ ξ' : Fin K → Fin T}
-    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+    (h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
         ∑ σ : Fin n' → Fin T,
           (let τ : Fin (n' + K) → Fin T := fun v =>
             if h : (v : ℕ) < K then ξ ⟨v, h⟩
@@ -2342,6 +2342,65 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
           (∏ v : Fin n', W (σ v)) *
           ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  classical
+  -- Step 1: u_p ≠ v_p (the unlabeled positions of i, j in Fin n).
+  let u_p : Fin n := ⟨i.val - K, by have := i.isLt; omega⟩
+  let v_p : Fin n := ⟨j.val - K, by have := j.isLt; omega⟩
+  have hu_p_ne_v_p : u_p ≠ v_p := by
+    intro h_eq
+    apply hij
+    apply Fin.ext
+    have hval : u_p.val = v_p.val := by rw [h_eq]
+    show i.val = j.val
+    have : i.val - K = j.val - K := hval
+    omega
+  -- The doubled edge `s(i, j)` is not a self-loop (multNoLoop + mult = 2 > 0).
+  have hi_lift : i = ⟨u_p.val + K, by have := i.isLt; omega⟩ := by
+    apply Fin.ext; show i.val = (i.val - K) + K; omega
+  have hj_lift : j = ⟨v_p.val + K, by have := j.isLt; omega⟩ := by
+    apply Fin.ext; show j.val = (j.val - K) + K; omega
+  -- Step 2: LL/non-LL predicate on Fin n positions.
+  let p : Fin n → Prop := fun k => k = u_p ∨ k = v_p
+  haveI hpdec : DecidablePred p := fun k =>
+    (inferInstance : Decidable (k = u_p ∨ k = v_p))
+  -- Step 3: Subtype p ≃ Fin 2, with u_p ↦ 0, v_p ↦ 1.
+  let mkU : Subtype p := ⟨u_p, Or.inl rfl⟩
+  let mkV : Subtype p := ⟨v_p, Or.inr rfl⟩
+  have hmkU_val : (mkU : Subtype p).val = u_p := rfl
+  have hmkV_val : (mkV : Subtype p).val = v_p := rfl
+  have hvu_ne : v_p ≠ u_p := fun h => hu_p_ne_v_p h.symm
+  let subtypeEquiv : Subtype p ≃ Fin 2 :=
+    { toFun := fun x => if x.val = u_p then (0 : Fin 2) else 1
+      invFun := fun i => if i = (0 : Fin 2) then mkU else mkV
+      left_inv := fun x => by
+        rcases x.property with h_u | h_v
+        · have hx : x = mkU := Subtype.ext h_u
+          subst hx
+          dsimp only
+          rw [if_pos hmkU_val, if_pos rfl]
+        · have hx : x = mkV := Subtype.ext h_v
+          subst hx
+          dsimp only
+          rw [if_neg (show ¬ ((mkV : Subtype p).val = u_p) from hvu_ne)]
+          rw [if_neg (by decide : (1 : Fin 2) ≠ 0)]
+      right_inv := fun i => by
+        by_cases hi0 : i = (0 : Fin 2)
+        · subst hi0
+          dsimp only
+          rw [if_pos rfl, if_pos hmkU_val]
+        · have hi1 : i = 1 := by
+            apply Fin.ext
+            have h_lt : i.val < 2 := i.isLt
+            have h_ne : i.val ≠ 0 := fun heq => hi0 (Fin.ext heq)
+            show i.val = 1; omega
+          subst hi1
+          dsimp only
+          rw [if_neg (by decide : (1 : Fin 2) ≠ 0)]
+          rw [if_neg (show ¬ ((mkV : Subtype p).val = u_p) from hvu_ne)] }
+  -- The remaining proof requires substantial σ-sum factorization (Equiv chains).
+  -- Status: pending implementation (~150 LOC of careful Equiv-based reindexing,
+  -- σ-sum factorization via Equiv.piEquivPiSubtypeProd, identification of the
+  -- remainder as `labeledEvalK F_rest`, and application of `h_simple`).
   sorry
 
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
