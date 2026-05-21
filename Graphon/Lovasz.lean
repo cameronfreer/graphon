@@ -5911,4 +5911,21 @@ theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
     InSimpleProfileClosure B W K (fun ξ => multiLabeledEvalK K n M B W ξ) := by
   sorry
 
+/-- **Thin wrapper #62 closure** (modulo `multigraphEval_in_simpleProfileClosure`).
+
+Given the canonical paper-root, multigraph evaluations descend to
+`tupleEquivSimple`-classes via `.descends`. This is the "clean" form of
+#62 — the predecessor `multiLabeledEvalK_tupleEquiv_invariant` at L1602
+remains in its position with an inlined `h_simple` hypothesis (kept for
+the existing call site `product_trace_identity_simple` at L2393).
+
+Once `multigraphEval_in_simpleProfileClosure` (#86) closes, this wrapper
+is automatic; #62's mult-≥-2 sorry collapses to the same paper-root. -/
+theorem multiLabeledEvalK_descends_simpleEquiv {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (M : MultiLabeledGraph K n)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquivSimple B W ξ ξ') :
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' :=
+  (multigraphEval_in_simpleProfileClosure B hB W M).descends h
+
 end Graphon.Lovasz
