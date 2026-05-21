@@ -1884,22 +1884,118 @@ via the connection-matrix idempotent decomposition. The "subgraph
 counts" of all multigraphs are polynomial combinations of subgraph
 counts of simple graphs.
 
-**Status**: paper-root sorry, REDUCED to the multigraph descent step.
-Step 1 (`of_const_on_tupleEquivSimple`, Lagrange fullness) is now PROVED;
-Step 2 (multigraph evaluations are tupleEquivSimple-invariant) is the
-remaining content. Closing Step 2 makes #86 immediate via
-`of_const_on_tupleEquivSimple` + `descends`. -/
+**Status** (2026-05-19): paper-root sorry, REFINED into two
+sub-cases in the descent body:
+
+  1. **LL-excess sub-case** — every mult≥2 edge has both endpoints
+     being labels (val < K). Reducible via the **polynomial
+     decomposition** (Lovász §3.2 F₁F₂-product): factor
+       `multiLabeledEvalK M ξ = LLprod(ξ) * multiLabeledEvalK M.killLL ξ`
+     where `LLprod(ξ) = ∏_{LL e} B(ξ_a, ξ_b)^{M.mult e}` is a
+     polynomial in single-edge simple-graph evaluations, and
+     `M.killLL` (mult zeroed on all LL edges) has all multiplicities
+     ≤ 1, hence corresponds to a simple graph. ~150 LOC of focused
+     Sym2 / σ-sum manipulation.
+
+  2. **Unlabeled-excess sub-case** — some mult≥2 edge touches an
+     unlabeled vertex (val ≥ K). This is the **substantive Lovász §3
+     content** (connection-matrix / idempotent decomposition of the
+     multigraph algebra `𝒜_K`). ~300-500 LOC of new spectral / rank
+     infrastructure.
+
+Step 1 (`of_const_on_tupleEquivSimple`, Lagrange fullness) is PROVED.
+The two sub-case sorries above replace the previous single mult≥2 sorry. -/
 theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (M : MultiLabeledGraph K n) :
     InSimpleProfileClosure B W K (fun ξ => multiLabeledEvalK K n M B W ξ) := by
   apply InSimpleProfileClosure.of_const_on_tupleEquivSimple
   intro ξ ξ' h_equiv
-  -- Step 2 (remaining substantive Lovász §3 content): multigraph evaluations
-  -- are constant on tupleEquivSimple-classes. Cannot be assumed; must be
-  -- proved by the connection-matrix idempotent decomposition or
-  -- polynomial-decomposition argument.
-  sorry
+  -- Descent: multiLabeledEvalK is constant on inlined-tupleEquivSimple classes.
+  -- Case split on n and multiplicities, matching the existing
+  -- `multiLabeledEvalK_tupleEquiv_invariant` (#62) wrapper structure.
+  -- The mult ≥ 2 case is the substantive Lovász §3 content (sorry'd here).
+  match n, M with
+  | 0, M => exact multiLabeledEvalK_tupleEquiv_invariant_n_zero B hB W M
+              (fun n' F hF => h_equiv n' F)
+  | n + 1, M =>
+    by_cases h_mult_le_one : ∀ e, M.mult e ≤ 1
+    · classical
+      let F : SimpleGraph (Fin ((n + 1) + K)) :=
+        { Adj := fun a b => a ≠ b ∧ M.mult s(a, b) = 1
+          symm := fun a b ⟨hne, hmult⟩ =>
+            ⟨hne.symm, by rwa [Sym2.eq_swap]⟩
+          loopless := fun a ⟨hne, _⟩ => hne rfl }
+      haveI : DecidableRel F.Adj := Classical.decRel _
+      have hmult_eq : ∀ e, M.mult e = (MultiLabeledGraph.ofSimple F).mult e := by
+        intro e
+        induction e with
+        | h a b =>
+          show M.mult s(a, b) = if s(a, b) ∈ F.edgeFinset then 1 else 0
+          by_cases hM : M.mult s(a, b) = 0
+          · rw [hM]
+            have : ¬ s(a, b) ∈ F.edgeFinset := by
+              rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
+              intro ⟨_, hmult⟩
+              rw [hM] at hmult; exact absurd hmult (by omega)
+            rw [if_neg this]
+          · have hM_one : M.mult s(a, b) = 1 := by
+              have := h_mult_le_one s(a, b); omega
+            rw [hM_one]
+            have : s(a, b) ∈ F.edgeFinset := by
+              rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
+              refine ⟨?_, hM_one⟩
+              intro hab; rw [hab] at hM_one
+              have := M.multNoLoop b; omega
+            rw [if_pos this]
+      have hev : ∀ ζ : Fin K → Fin T,
+          multiLabeledEvalK K (n + 1) M B W ζ =
+          multiLabeledEvalK K (n + 1) (MultiLabeledGraph.ofSimple F) B W ζ := by
+        intro ζ
+        unfold multiLabeledEvalK
+        refine Finset.sum_congr rfl fun σ _ => ?_
+        simp_rw [hmult_eq]
+      rw [hev ξ, hev ξ', multiLabeledEvalK_ofSimple, multiLabeledEvalK_ofSimple]
+      exact h_equiv (n + 1) F
+    · -- Multiplicity ≥ 2 sub-case. Architectural refinement: split on
+      -- whether the excess multiplicity sits at label-label edges (LL,
+      -- handled by polynomial decomposition) or at edges touching some
+      -- unlabeled vertex (the genuinely hard Lovász §3 content).
+      classical
+      -- LL predicate on Sym2 pairs of vertices in `Fin ((n+1)+K)`:
+      -- both endpoints have val < K (i.e., are labels).
+      let isLL : Sym2 (Fin ((n + 1) + K)) → Prop := fun e =>
+        Sym2.lift ⟨fun a b => (a.val < K ∧ b.val < K),
+          fun a b => propext ⟨fun ⟨h1, h2⟩ => ⟨h2, h1⟩, fun ⟨h1, h2⟩ => ⟨h2, h1⟩⟩⟩ e
+      haveI : DecidablePred isLL := fun e =>
+        Quot.recOnSubsingleton (motive := fun e => Decidable (isLL e)) e
+          (fun p => (inferInstance : Decidable (p.1.val < K ∧ p.2.val < K)))
+      by_cases h_LL_excess : ∀ e, M.mult e ≥ 2 → isLL e
+      · -- **LL-excess sub-case**: every mult≥2 edge is label-label.
+        -- **Strategy** (polynomial decomposition, Lovász §3.2):
+        --   multiLabeledEvalK M ξ
+        --     = (∏_{LL e} B(ξ_a, ξ_b) ^ M.mult e) * multiLabeledEvalK M.killLL ξ
+        -- where M.killLL zeros out LL multiplicities. The factor is constant
+        -- in σ (purely ξ-determined), so pulls out of the σ-sum. The residue
+        -- M.killLL has all mults ≤ 1 (by hypothesis), hence corresponds to a
+        -- simple graph, whose evaluation matches at ξ and ξ' by h_equiv.
+        -- Each LL B(ξ_a, ξ_b) = single-edge simple-graph eval, also matched
+        -- by h_equiv; powers preserve equality.
+        --
+        -- **Status**: refined LL sub-case sorry. Reducible to (a) the LL
+        -- factorization identity and (b) the all-LL-stripped graph being
+        -- simple; both ~150 LOC of focused Sym2 / σ-sum manipulation.
+        sorry
+      · -- **Unlabeled-excess sub-case**: some mult≥2 edge has at least
+        -- one unlabeled endpoint. This is the genuinely hard Lovász §3
+        -- content (connection-matrix / idempotent decomposition of the
+        -- multigraph algebra). No polynomial factorization in terms of
+        -- simple-graph evaluations is known to work directly here.
+        --
+        -- **Status**: canonical paper-root sorry (the substantive
+        -- Lovász §3 algebra). Closing requires ~300-500 LOC of new
+        -- spectral/rank infrastructure for the multigraph algebra.
+        sorry
 
 /-- **The multigraph bridge — SECONDARY paper root** (general,
 non-twin-free version).
