@@ -1884,12 +1884,21 @@ via the connection-matrix idempotent decomposition. The "subgraph
 counts" of all multigraphs are polynomial combinations of subgraph
 counts of simple graphs.
 
-**Status**: paper-root sorry. Closing this immediately closes #62
-(`multiLabeledEvalK_tupleEquiv_invariant`) via `.descends`. -/
+**Status**: paper-root sorry, REDUCED to the multigraph descent step.
+Step 1 (`of_const_on_tupleEquivSimple`, Lagrange fullness) is now PROVED;
+Step 2 (multigraph evaluations are tupleEquivSimple-invariant) is the
+remaining content. Closing Step 2 makes #86 immediate via
+`of_const_on_tupleEquivSimple` + `descends`. -/
 theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (M : MultiLabeledGraph K n) :
     InSimpleProfileClosure B W K (fun ξ => multiLabeledEvalK K n M B W ξ) := by
+  apply InSimpleProfileClosure.of_const_on_tupleEquivSimple
+  intro ξ ξ' h_equiv
+  -- Step 2 (remaining substantive Lovász §3 content): multigraph evaluations
+  -- are constant on tupleEquivSimple-classes. Cannot be assumed; must be
+  -- proved by the connection-matrix idempotent decomposition or
+  -- polynomial-decomposition argument.
   sorry
 
 /-- **The multigraph bridge — SECONDARY paper root** (general,
