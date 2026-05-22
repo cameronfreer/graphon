@@ -2611,15 +2611,15 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
   -- Step 7 continued: build the complement Equiv {k // ¬ p k} ≃ Fin (n - 2).
   let complEquiv : {k // ¬ p k} ≃ Fin (n - 2) :=
     Fintype.equivFinOfCardEq h_card_compl
-  -- The restEmbed: maps Fin (n - 2 + K) → Fin (n + K) by sending labels to
-  -- labels and unlabeled rest-positions through complEquiv.symm.
-  let restEmbed : Fin (n - 2 + K) → Fin (n + K) := fun v =>
-    if h : (v : ℕ) < K then
-      ⟨v.val, by omega⟩
-    else
-      let r : Fin (n - 2) := ⟨v.val - K, by have := v.isLt; omega⟩
-      let k : Fin n := (complEquiv.symm r).val
-      ⟨k.val + K, by have := k.isLt; omega⟩
+  -- The restEmbed: instantiate top-level restEmbedAux with the injection
+  -- from Fin (n-2) into Fin n via complEquiv.symm.
+  let g_rest : Fin (n - 2) → Fin n := fun r => (complEquiv.symm r).val
+  have g_rest_injective : Function.Injective g_rest := by
+    intro r₁ r₂ h_eq
+    have : (complEquiv.symm r₁ : {k // ¬ p k}) = complEquiv.symm r₂ :=
+      Subtype.ext h_eq
+    exact complEquiv.symm.injective this
+  let restEmbed : Fin (n - 2 + K) → Fin (n + K) := @restEmbedAux n K (n - 2) g_rest
   -- F_rest: simple graph on Fin (n - 2 + K) with edges from mult-1 edges of M.
   let F_rest : SimpleGraph (Fin (n - 2 + K)) :=
     { Adj := fun a b => a ≠ b ∧ M.mult s(restEmbed a, restEmbed b) = 1
@@ -2676,10 +2676,9 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         show (a ≠ b ∧ M.mult s(restEmbed a, restEmbed b) = 1) ↔
              (a ≠ b ∧ M.mult (Sym2.map restEmbed s(a, b)) = 1)
         rw [Sym2.map_pair_eq]
-    -- Step 7b₂ continued: restEmbed injectivity (sorry pending — case analysis
-    -- on val < K with deeply nested Fin/Subtype proofs requires careful syntax).
-    have restEmbed_injective : Function.Injective restEmbed := by
-      sorry
+    -- Step 7b₂ continued: restEmbed injectivity via the top-level lemma.
+    have restEmbed_injective : Function.Injective restEmbed :=
+      restEmbedAux_injective g_rest_injective
     -- Step 7b₂ remainder (sorry): use restEmbed_injective + hmem + Finset.prod_nbij
     -- to reindex edge product, handling Quot.out orientation with hB.
     sorry
