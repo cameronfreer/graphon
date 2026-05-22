@@ -2590,6 +2590,14 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         ∏ e ∈ (Finset.univ.filter (fun e : Sym2 (Fin (n + K)) => i ∉ e ∧ j ∉ e) :
                 Finset (Sym2 (Fin (n + K)))),
           B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e)) := by
+    intro α η
+    -- Step 7a: reindex the σ_rest-sum to a ρ-sum via Equiv.arrowCongr complEquiv.
+    let arrowE : ({k : Fin n // ¬ p k} → Fin T) ≃ (Fin (n - 2) → Fin T) :=
+      Equiv.arrowCongr complEquiv (Equiv.refl (Fin T))
+    rw [← arrowE.sum_comp]
+    -- Now: ∑ ρ, F_rest_body (arrowE ρ) = ∑ ρ, [W-prod * complement-B-prod].
+    -- Step 7b (per-ρ): show F_rest_body (arrowE ρ) = W-prod * complement-B-prod.
+    refine Finset.sum_congr rfl fun ρ _ => ?_
     sorry
   -- Step 8 (pending h_rest_eval body): combine h_simple_F_rest, h_rest_eval,
   -- hW_factor, hB_factor to get multiLabeledEvalK M ξ = multiLabeledEvalK M ξ'.
