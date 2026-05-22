@@ -2693,7 +2693,25 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         M.mult e = 1 →
         ∃ e' : Sym2 (Fin (n - 2 + K)),
           e' ∈ F_rest.edgeFinset ∧ Sym2.map restEmbed e' = e := by
-      sorry
+      intro e he hmult
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at he
+      induction e with
+      | h a b =>
+        obtain ⟨hi_notin, hj_notin⟩ := he
+        rw [Sym2.mem_iff, not_or] at hi_notin hj_notin
+        -- hi_notin : i ≠ a ∧ i ≠ b; hj_notin : j ≠ a ∧ j ≠ b.
+        have ha_ne_i : a ≠ i := fun h => hi_notin.1 h.symm
+        have hb_ne_i : b ≠ i := fun h => hi_notin.2 h.symm
+        have ha_ne_j : a ≠ j := fun h => hj_notin.1 h.symm
+        have hb_ne_j : b ≠ j := fun h => hj_notin.2 h.symm
+        -- a ≠ b from M.mult = 1 + multNoLoop.
+        have hab_ne : a ≠ b := by
+          intro h_eq
+          rw [h_eq] at hmult
+          have := M.multNoLoop b
+          omega
+        -- Remaining: build preimage endpoints + prove image equality + F_rest membership.
+        sorry
     -- Step 7b₂ remainder (sorry): use restEmbed_injective + hmem + Finset.prod_nbij
     -- to reindex edge product, handling Quot.out orientation with hB.
     sorry
