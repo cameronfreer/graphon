@@ -2710,8 +2710,76 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
           rw [h_eq] at hmult
           have := M.multNoLoop b
           omega
-        -- Remaining: build preimage endpoints + prove image equality + F_rest membership.
-        sorry
+        -- Endpoint preimage helper.
+        have endpoint_preimage : ∀ x : Fin (n + K), x ≠ i → x ≠ j →
+            ∃ y : Fin (n - 2 + K), restEmbed y = x := by
+          intro x hxi hxj
+          by_cases hx_lab : x.val < K
+          · -- Label case.
+            refine ⟨⟨x.val, by have := hn_ge_2; omega⟩, ?_⟩
+            apply Fin.ext
+            exact restEmbedAux_val_lab g_rest ⟨x.val, by have := hn_ge_2; omega⟩ hx_lab
+          · -- Unlabeled case.
+            push_neg at hx_lab
+            let x_un : Fin n := ⟨x.val - K, by have := x.isLt; omega⟩
+            have hx_un_ne_u_p : x_un ≠ u_p := by
+              intro h_eq
+              apply hxi
+              apply Fin.ext
+              have hval : x_un.val = u_p.val := by rw [h_eq]
+              have h_x_K : x_un.val = x.val - K := rfl
+              have h_u_eq : u_p.val = i.val - K := rfl
+              show x.val = i.val
+              omega
+            have hx_un_ne_v_p : x_un ≠ v_p := by
+              intro h_eq
+              apply hxj
+              apply Fin.ext
+              have hval : x_un.val = v_p.val := by rw [h_eq]
+              have h_x_K : x_un.val = x.val - K := rfl
+              have h_v_eq : v_p.val = j.val - K := rfl
+              show x.val = j.val
+              omega
+            have hx_un_not_p : ¬ p x_un := by
+              intro h
+              rcases h with h_u | h_v
+              · exact hx_un_ne_u_p h_u
+              · exact hx_un_ne_v_p h_v
+            let x_subt : {k : Fin n // ¬ p k} := ⟨x_un, hx_un_not_p⟩
+            let x_fin : Fin (n - 2) := complEquiv x_subt
+            refine ⟨⟨x_fin.val + K, by have := x_fin.isLt; omega⟩, ?_⟩
+            apply Fin.ext
+            -- restEmbed y = x.
+            have hy_not_lab : ¬ (x_fin.val + K < K) := by omega
+            rw [restEmbedAux_val_rest g_rest _ hy_not_lab]
+            -- (g_rest ⟨(x_fin.val + K) - K, _⟩).val + K = x.val.
+            -- Simplify: (x_fin.val + K) - K = x_fin.val.
+            have h_arg_simp : (⟨x_fin.val + K - K,
+                by have := x_fin.isLt; omega⟩ : Fin (n - 2)) = x_fin := by
+              apply Fin.ext; show x_fin.val + K - K = x_fin.val; omega
+            rw [h_arg_simp]
+            show (complEquiv.symm x_fin).val.val + K = x.val
+            -- complEquiv.symm x_fin = complEquiv.symm (complEquiv x_subt) = x_subt.
+            rw [show x_fin = complEquiv x_subt from rfl, Equiv.symm_apply_apply]
+            show x_un.val + K = x.val
+            have : x_un.val = x.val - K := rfl
+            omega
+        -- Apply to a and b.
+        obtain ⟨a', ha'⟩ := endpoint_preimage a ha_ne_i ha_ne_j
+        obtain ⟨b', hb'⟩ := endpoint_preimage b hb_ne_i hb_ne_j
+        refine ⟨s(a', b'), ?_, ?_⟩
+        · -- s(a', b') ∈ F_rest.edgeFinset via hmem.
+          rw [hmem]
+          refine ⟨?_, ?_⟩
+          · -- a' ≠ b': restEmbed a' = a ≠ b = restEmbed b'.
+            show a' ≠ b'
+            intro h_eq
+            exact hab_ne (ha'.symm.trans ((congrArg restEmbed h_eq).trans hb'))
+          · -- M.mult (Sym2.map restEmbed s(a', b')) = 1.
+            rw [Sym2.map_pair_eq, ha', hb']
+            exact hmult
+        · -- Sym2.map restEmbed s(a', b') = s(a, b).
+          rw [Sym2.map_pair_eq, ha', hb']
     -- Step 7b₂ remainder (sorry): use restEmbed_injective + hmem + Finset.prod_nbij
     -- to reindex edge product, handling Quot.out orientation with hB.
     sorry
