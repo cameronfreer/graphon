@@ -2568,14 +2568,31 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
       loopless := fun a ⟨hne, _⟩ => hne rfl }
   haveI : DecidableRel F_rest.Adj := Classical.decRel _
   -- Step 7 application: instantiate h_simple at F_rest. This gives the
-  -- equality of F_rest's evaluation at ξ vs ξ' for free; the remaining
-  -- work is to identify our complement product as this evaluation.
+  -- equality of F_rest's evaluation at ξ vs ξ' for free.
   have h_simple_F_rest := h_simple (n - 2) F_rest
-  -- Step 7 remainder: the local lemma h_rest_eval relating F_rest's
-  -- inlined σ-sum evaluation to our complement product. Requires careful
-  -- handling of `default : Fin T` (needs T ≠ 0 case split for inhabited
-  -- instance) OR parametrize by α via splitSigma.symm (α, ρ). Body sorry'd.
-  -- Once h_rest_eval compiles, Step 8 is a scalar-congruence proof.
+  -- Step 7 named local lemma h_rest_eval (statement only; body sorry'd).
+  -- Parameterized by α : Fin 2 → Fin T so τ is fully defined via
+  -- σ = splitSigma.symm (α, ρ); no `default : Fin T` needed (Path 2).
+  have h_rest_eval : ∀ (α : Fin 2 → Fin T) (η : Fin K → Fin T),
+      (∑ σ_rest : Fin (n - 2) → Fin T,
+        (let τ_rest : Fin (n - 2 + K) → Fin T := fun v =>
+          if h : (v : ℕ) < K then η ⟨v, h⟩
+          else σ_rest ⟨v - K, by have := v.isLt; omega⟩
+        (∏ v : Fin (n - 2), W (σ_rest v)) *
+        ∏ e ∈ F_rest.edgeFinset,
+          B (τ_rest (Quot.out e).1) (τ_rest (Quot.out e).2))) =
+      (∑ ρ : {k : Fin n // ¬ p k} → Fin T,
+        (let σ : Fin n → Fin T := splitSigma.symm (α, ρ)
+         let τ : Fin (n + K) → Fin T := fun v =>
+          if h : (v : ℕ) < K then η ⟨v, h⟩
+          else σ ⟨v - K, by have := v.isLt; omega⟩
+        (∏ k : {k : Fin n // ¬ p k}, W (ρ k)) *
+        ∏ e ∈ (Finset.univ.filter (fun e : Sym2 (Fin (n + K)) => i ∉ e ∧ j ∉ e) :
+                Finset (Sym2 (Fin (n + K)))),
+          B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e)) := by
+    sorry
+  -- Step 8 (pending h_rest_eval body): combine h_simple_F_rest, h_rest_eval,
+  -- hW_factor, hB_factor to get multiLabeledEvalK M ξ = multiLabeledEvalK M ξ'.
   sorry
 
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
