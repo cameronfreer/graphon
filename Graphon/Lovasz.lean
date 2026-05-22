@@ -1990,6 +1990,66 @@ private instance {K n : ℕ} : DecidablePred (@isLLEdge K n) := fun e =>
 @[simp] private lemma isLLEdge_mk {K n : ℕ} (a b : Fin (n + K)) :
     isLLEdge s(a, b) ↔ a.val < K ∧ b.val < K := Iff.rfl
 
+/-- **Restriction embedding helper**: given an injection `g : Fin m → Fin n`
+on unlabeled positions, build a map `Fin (m + K) → Fin (n + K)` that:
+- Sends labels (val < K) identity-preserving.
+- Sends rest-positions (val ≥ K) through `g`, shifted by K.
+Used in the UU isolated subcase (Step 7) to embed F_rest's vertex space
+into M's. Lifted to top-level to avoid deep `⟨_, by ...⟩` nesting. -/
+private def restEmbedAux {n K m : ℕ} (g : Fin m → Fin n) :
+    Fin (m + K) → Fin (n + K) := fun v =>
+  if h : v.val < K then ⟨v.val, by omega⟩
+  else
+    let v_K : Fin m := ⟨v.val - K, by have := v.isLt; omega⟩
+    ⟨(g v_K).val + K, by have := (g v_K).isLt; omega⟩
+
+private lemma restEmbedAux_val_lab {n K m : ℕ} (g : Fin m → Fin n)
+    (v : Fin (m + K)) (h : v.val < K) :
+    (restEmbedAux g v).val = v.val := by
+  unfold restEmbedAux
+  rw [dif_pos h]
+
+private lemma restEmbedAux_val_rest {n K m : ℕ} (g : Fin m → Fin n)
+    (v : Fin (m + K)) (h : ¬ v.val < K) :
+    (restEmbedAux g v).val =
+    (g ⟨v.val - K, by have := v.isLt; omega⟩).val + K := by
+  unfold restEmbedAux
+  rw [dif_neg h]
+
+private theorem restEmbedAux_injective {n K m : ℕ} {g : Fin m → Fin n}
+    (hg : Function.Injective g) :
+    Function.Injective (@restEmbedAux n K m g) := by
+  intro x y h_eq
+  apply Fin.ext
+  have h_val : (restEmbedAux g x).val = (restEmbedAux g y).val := congr_arg Fin.val h_eq
+  by_cases hx : x.val < K
+  · by_cases hy : y.val < K
+    · rw [restEmbedAux_val_lab g x hx, restEmbedAux_val_lab g y hy] at h_val
+      exact h_val
+    · push_neg at hy
+      rw [restEmbedAux_val_lab g x hx,
+          restEmbedAux_val_rest g y (not_lt.mpr hy)] at h_val
+      omega
+  · push_neg at hx
+    by_cases hy : y.val < K
+    · rw [restEmbedAux_val_rest g x (not_lt.mpr hx),
+          restEmbedAux_val_lab g y hy] at h_val
+      omega
+    · push_neg at hy
+      rw [restEmbedAux_val_rest g x (not_lt.mpr hx),
+          restEmbedAux_val_rest g y (not_lt.mpr hy)] at h_val
+      have h_inner : (g ⟨x.val - K, by have := x.isLt; omega⟩ : Fin n).val =
+                     (g ⟨y.val - K, by have := y.isLt; omega⟩ : Fin n).val := by omega
+      have h_g_eq : g ⟨x.val - K, by have := x.isLt; omega⟩ =
+                    g ⟨y.val - K, by have := y.isLt; omega⟩ := Fin.ext h_inner
+      have h_arg_eq : (⟨x.val - K, by have := x.isLt; omega⟩ : Fin m) =
+                      (⟨y.val - K, by have := y.isLt; omega⟩ : Fin m) := hg h_g_eq
+      have h_val_eq : x.val - K = y.val - K := by
+        have := congr_arg Fin.val h_arg_eq
+        simpa using this
+      show x.val = y.val
+      omega
+
 /-- **LL multiplicity sum**: total multiplicity over LL edges. Used as the
 strong-induction measure for closing the LL-excess sub-case of #86. -/
 private def MultiLabeledGraph.LLSum {K n : ℕ} (M : MultiLabeledGraph K n) : ℕ :=
