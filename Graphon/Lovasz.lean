@@ -2571,10 +2571,11 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
   -- equality of F_rest's evaluation at ξ vs ξ' for free; the remaining
   -- work is to identify our complement product as this evaluation.
   have h_simple_F_rest := h_simple (n - 2) F_rest
-  -- Step 7 remainder: show labeledEvalK F_rest matches the complement
-  -- product (via Sym2.map restEmbed and ρ → Fin (n-2) reindex through
-  -- complEquiv). Once that local lemma is named, Step 8 conclusion is
-  -- a scalar-congruence proof over (α, ρ).
+  -- Step 7 remainder: the local lemma h_rest_eval relating F_rest's
+  -- inlined σ-sum evaluation to our complement product. Requires careful
+  -- handling of `default : Fin T` (needs T ≠ 0 case split for inhabited
+  -- instance) OR parametrize by α via splitSigma.symm (α, ρ). Body sorry'd.
+  -- Once h_rest_eval compiles, Step 8 is a scalar-congruence proof.
   sorry
 
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
