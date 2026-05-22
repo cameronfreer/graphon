@@ -2525,8 +2525,32 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
     refine ⟨fun ⟨_, h⟩ => h, fun h => ⟨fun h_eq => ?_, h⟩⟩
     rw [h_eq] at h
     exact h.1 (Sym2.mem_mk_left i j)
-  -- Steps 7-8 pending: define F_rest as a simple graph on Fin (n - 2 + K),
-  -- show restBProduct = simpleEvalAt F_rest, apply h_simple, conclude.
+  -- Step 7 foundations: cardinality of complement subtype, n ≥ 2.
+  have hn_ge_2 : 2 ≤ n := by
+    by_contra h
+    push_neg at h
+    -- h : n < 2. Since u_p : Fin n, n ≥ 1. So n = 1. Then Fin 1 is subsingleton.
+    have h_ge_1 : 1 ≤ n := Nat.one_le_iff_ne_zero.mpr (fun heq => by
+      rw [heq] at u_p
+      exact u_p.elim0)
+    have hn1 : n = 1 := by omega
+    subst hn1
+    exact hu_p_ne_v_p (Subsingleton.elim u_p v_p)
+  -- Subtype p = {u_p, v_p} has exactly 2 elements (using subtypeEquiv).
+  have h_card_p : Fintype.card (Subtype p) = 2 := by
+    rw [Fintype.card_of_bijective subtypeEquiv.bijective]
+    simp
+  -- The complement has cardinality n - 2.
+  have h_card_compl : Fintype.card {k // ¬ p k} = n - 2 := by
+    have h_total : Fintype.card (Subtype p) + Fintype.card {k // ¬ p k} =
+                   Fintype.card (Fin n) := by
+      rw [← Fintype.card_sum]
+      exact Fintype.card_congr (Equiv.sumCompl p)
+    rw [Fintype.card_fin] at h_total
+    omega
+  -- Steps 7 continued (sorry'd): define equiv {k // ¬ p k} ≃ Fin (n - 2),
+  -- build F_rest : SimpleGraph (Fin (n - 2 + K)), show labeledEvalK F_rest
+  -- matches the complement product, apply h_simple, conclude.
   sorry
 
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
