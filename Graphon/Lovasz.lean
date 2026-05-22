@@ -2616,7 +2616,8 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         show (a ≠ b ∧ M.mult s(restEmbed a, restEmbed b) = 1) ↔
              (a ≠ b ∧ M.mult (Sym2.map restEmbed s(a, b)) = 1)
         rw [Sym2.map_pair_eq]
-    -- Step 7b₂ continued: restEmbed injectivity (sorry pending).
+    -- Step 7b₂ continued: restEmbed injectivity (sorry pending — case analysis
+    -- on val < K with deeply nested Fin/Subtype proofs requires careful syntax).
     have restEmbed_injective : Function.Injective restEmbed := by
       sorry
     -- Step 7b₂ remainder (sorry): use restEmbed_injective + hmem + Finset.prod_nbij
