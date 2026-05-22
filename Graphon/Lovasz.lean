@@ -2679,6 +2679,9 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
     -- Step 7b₂ continued: restEmbed injectivity via the top-level lemma.
     have restEmbed_injective : Function.Injective restEmbed :=
       restEmbedAux_injective g_rest_injective
+    -- Sym2 injectivity (lift restEmbed_injective to Sym2.map).
+    have hSym2inj : Function.Injective (fun e : Sym2 (Fin (n - 2 + K)) =>
+        Sym2.map restEmbed e) := Sym2.map.injective restEmbed_injective
     -- Step 7b₂ remainder (sorry): use restEmbed_injective + hmem + Finset.prod_nbij
     -- to reindex edge product, handling Quot.out orientation with hB.
     sorry
