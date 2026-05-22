@@ -2548,9 +2548,28 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
       exact Fintype.card_congr (Equiv.sumCompl p)
     rw [Fintype.card_fin] at h_total
     omega
-  -- Steps 7 continued (sorry'd): define equiv {k // ¬ p k} ≃ Fin (n - 2),
-  -- build F_rest : SimpleGraph (Fin (n - 2 + K)), show labeledEvalK F_rest
-  -- matches the complement product, apply h_simple, conclude.
+  -- Step 7 continued: build the complement Equiv {k // ¬ p k} ≃ Fin (n - 2).
+  let complEquiv : {k // ¬ p k} ≃ Fin (n - 2) :=
+    Fintype.equivFinOfCardEq h_card_compl
+  -- The restEmbed: maps Fin (n - 2 + K) → Fin (n + K) by sending labels to
+  -- labels and unlabeled rest-positions through complEquiv.symm.
+  let restEmbed : Fin (n - 2 + K) → Fin (n + K) := fun v =>
+    if h : (v : ℕ) < K then
+      ⟨v.val, by omega⟩
+    else
+      let r : Fin (n - 2) := ⟨v.val - K, by have := v.isLt; omega⟩
+      let k : Fin n := (complEquiv.symm r).val
+      ⟨k.val + K, by have := k.isLt; omega⟩
+  -- F_rest: simple graph on Fin (n - 2 + K) with edges from mult-1 edges of M.
+  let F_rest : SimpleGraph (Fin (n - 2 + K)) :=
+    { Adj := fun a b => a ≠ b ∧ M.mult s(restEmbed a, restEmbed b) = 1
+      symm := fun a b ⟨hne, hmult⟩ =>
+        ⟨hne.symm, by rwa [Sym2.eq_swap]⟩
+      loopless := fun a ⟨hne, _⟩ => hne rfl }
+  haveI : DecidableRel F_rest.Adj := Classical.decRel _
+  -- Step 7 remainder + Step 8: show labeledEvalK F_rest matches the
+  -- complement product (via Sym2.map restEmbed and ρ → Fin (n-2) reindex),
+  -- apply h_simple, conclude with scalar.
   sorry
 
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
