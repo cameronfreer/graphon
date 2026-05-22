@@ -2567,9 +2567,14 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         ⟨hne.symm, by rwa [Sym2.eq_swap]⟩
       loopless := fun a ⟨hne, _⟩ => hne rfl }
   haveI : DecidableRel F_rest.Adj := Classical.decRel _
-  -- Step 7 remainder + Step 8: show labeledEvalK F_rest matches the
-  -- complement product (via Sym2.map restEmbed and ρ → Fin (n-2) reindex),
-  -- apply h_simple, conclude with scalar.
+  -- Step 7 application: instantiate h_simple at F_rest. This gives the
+  -- equality of F_rest's evaluation at ξ vs ξ' for free; the remaining
+  -- work is to identify our complement product as this evaluation.
+  have h_simple_F_rest := h_simple (n - 2) F_rest
+  -- Step 7 remainder: show labeledEvalK F_rest matches the complement
+  -- product (via Sym2.map restEmbed and ρ → Fin (n-2) reindex through
+  -- complEquiv). Once that local lemma is named, Step 8 conclusion is
+  -- a scalar-congruence proof over (α, ρ).
   sorry
 
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
