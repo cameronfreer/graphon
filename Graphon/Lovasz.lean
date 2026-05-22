@@ -2602,7 +2602,22 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
     have hW_rest : (∏ r : Fin (n - 2), W ((arrowE ρ) r)) =
                    ∏ k : {k : Fin n // ¬ p k}, W (ρ k) :=
       complEquiv.symm.prod_comp (fun k => W (ρ k))
-    -- Step 7b₂ (hE_rest): edge-product match via Sym2.map restEmbed (sorry pending).
+    -- Step 7b₂ (hE_rest): edge-product match via Sym2.map restEmbed.
+    -- First: membership equivalence for F_rest.edgeFinset.
+    have hmem : ∀ e : Sym2 (Fin (n - 2 + K)),
+        e ∈ F_rest.edgeFinset ↔
+        (Sym2.lift ⟨fun a b : Fin (n - 2 + K) => a ≠ b, fun _ _ => propext ne_comm⟩ e ∧
+         M.mult (Sym2.map restEmbed e) = 1) := by
+      intro e
+      induction e with
+      | h a b =>
+        show s(a, b) ∈ F_rest.edgeFinset ↔ (a ≠ b ∧ M.mult (Sym2.map restEmbed s(a, b)) = 1)
+        rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
+        show (a ≠ b ∧ M.mult s(restEmbed a, restEmbed b) = 1) ↔
+             (a ≠ b ∧ M.mult (Sym2.map restEmbed s(a, b)) = 1)
+        rw [Sym2.map_pair_eq]
+    -- Step 7b₂ remainder (sorry): use hmem + restEmbed injectivity + Finset.prod_nbij
+    -- to reindex edge product. Handle Quot.out orientation with hB.
     sorry
   -- Step 8 (pending h_rest_eval body): combine h_simple_F_rest, h_rest_eval,
   -- hW_factor, hB_factor to get multiLabeledEvalK M ξ = multiLabeledEvalK M ξ'.
