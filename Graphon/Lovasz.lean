@@ -2598,6 +2598,11 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
     -- Now: ∑ ρ, F_rest_body (arrowE ρ) = ∑ ρ, [W-prod * complement-B-prod].
     -- Step 7b (per-ρ): show F_rest_body (arrowE ρ) = W-prod * complement-B-prod.
     refine Finset.sum_congr rfl fun ρ _ => ?_
+    -- Step 7b₁ (hW_rest): W-product match via Equiv.prod_comp complEquiv.symm.
+    have hW_rest : (∏ r : Fin (n - 2), W ((arrowE ρ) r)) =
+                   ∏ k : {k : Fin n // ¬ p k}, W (ρ k) :=
+      complEquiv.symm.prod_comp (fun k => W (ρ k))
+    -- Step 7b₂ (hE_rest): edge-product match via Sym2.map restEmbed (sorry pending).
     sorry
   -- Step 8 (pending h_rest_eval body): combine h_simple_F_rest, h_rest_eval,
   -- hW_factor, hB_factor to get multiLabeledEvalK M ξ = multiLabeledEvalK M ξ'.
