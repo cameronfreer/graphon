@@ -2616,8 +2616,11 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         show (a ≠ b ∧ M.mult s(restEmbed a, restEmbed b) = 1) ↔
              (a ≠ b ∧ M.mult (Sym2.map restEmbed s(a, b)) = 1)
         rw [Sym2.map_pair_eq]
-    -- Step 7b₂ remainder (sorry): use hmem + restEmbed injectivity + Finset.prod_nbij
-    -- to reindex edge product. Handle Quot.out orientation with hB.
+    -- Step 7b₂ continued: restEmbed injectivity (sorry pending).
+    have restEmbed_injective : Function.Injective restEmbed := by
+      sorry
+    -- Step 7b₂ remainder (sorry): use restEmbed_injective + hmem + Finset.prod_nbij
+    -- to reindex edge product, handling Quot.out orientation with hB.
     sorry
   -- Step 8 (pending h_rest_eval body): combine h_simple_F_rest, h_rest_eval,
   -- hW_factor, hB_factor to get multiLabeledEvalK M ξ = multiLabeledEvalK M ξ'.
