@@ -2682,6 +2682,18 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
     -- Sym2 injectivity (lift restEmbed_injective to Sym2.map).
     have hSym2inj : Function.Injective (fun e : Sym2 (Fin (n - 2 + K)) =>
         Sym2.map restEmbed e) := Sym2.map.injective restEmbed_injective
+    -- Surjectivity onto mult-1 complement edges. For each edge e in the
+    -- complement filter with M.mult e = 1, build a preimage in F_rest.edgeFinset
+    -- via complEquiv on unlabeled endpoints and label-identity on label endpoints.
+    -- Uses the isolation hypothesis to ensure non-(u_p, v_p) unlabeled endpoints
+    -- have ¬ p, hence are in the complEquiv domain.
+    have h_surj : ∀ e : Sym2 (Fin (n + K)),
+        e ∈ (Finset.univ.filter (fun e => i ∉ e ∧ j ∉ e) :
+              Finset (Sym2 (Fin (n + K)))) →
+        M.mult e = 1 →
+        ∃ e' : Sym2 (Fin (n - 2 + K)),
+          e' ∈ F_rest.edgeFinset ∧ Sym2.map restEmbed e' = e := by
+      sorry
     -- Step 7b₂ remainder (sorry): use restEmbed_injective + hmem + Finset.prod_nbij
     -- to reindex edge product, handling Quot.out orientation with hB.
     sorry
