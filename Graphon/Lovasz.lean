@@ -2784,13 +2784,12 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
     -- Both sides are W-product * B-product. Split via congr 1.
     dsimp only
     rw [hW_rest]
-    -- Now the LHS W-product matches the RHS W-product. Remaining: B-product match.
-    -- Goal reduces to: ∏ e ∈ F_rest.edgeFinset, B(τ_rest_e) =
-    --                  ∏ e ∈ complement_filter, B(τ_e)^M.mult e.
-    -- Apply Finset.prod_nbij with f := Sym2.map restEmbed.
-    -- Steps 7b₂ assembly remainder (sorry pending): split target by M.mult = 1
-    -- vs M.mult = 0 (latter contributes 1), then prod_nbij from F_rest to mult-1
-    -- subset, with value preservation via B_quot_out_eq + hB.
+    congr 1
+    -- Now goal is: ∏ e ∈ F_rest.edgeFinset, B(τ_rest_e) =
+    --              ∏ e ∈ complement_filter, B(τ_e)^M.mult e.
+    -- Step 1: split complement_filter by M.mult = 1 (others contribute 1).
+    -- Step 2: apply Finset.prod_nbij with i := Sym2.map restEmbed.
+    -- Sorry pending; B-product reindex assembly.
     sorry
   -- Step 8 (pending h_rest_eval body): combine h_simple_F_rest, h_rest_eval,
   -- hW_factor, hB_factor to get multiLabeledEvalK M ξ = multiLabeledEvalK M ξ'.
