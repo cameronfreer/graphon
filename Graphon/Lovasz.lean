@@ -2794,10 +2794,25 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
     set τ_orig : Fin (n + K) → Fin T := fun v =>
       if h : (v : ℕ) < K then η ⟨v, h⟩
       else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩ with hτ_orig_def
-    -- Step 1: prove h_value (per-edge value preservation under Sym2.map restEmbed).
-    -- Step 2: prove h_rhs_filter (mult-split).
-    -- Step 3: prove h_lhs_reindex (prod_nbij).
-    -- Step 4: rw [h_lhs_reindex, h_rhs_filter].
+    -- Step 0: hτ_compat — τ_orig (restEmbed v) = τ_rest v.
+    have hτ_compat : ∀ v : Fin (n - 2 + K), τ_orig (restEmbed v) = τ_rest v := by
+      intro v
+      by_cases h_lab : v.val < K
+      · -- Label case.
+        have h_re_val : (restEmbed v).val = v.val := restEmbedAux_val_lab g_rest v h_lab
+        have h_re_lab : (restEmbed v).val < K := by rw [h_re_val]; exact h_lab
+        show (if h : (restEmbed v).val < K then η ⟨(restEmbed v).val, h⟩
+              else (splitSigma.symm (α, ρ))
+                ⟨(restEmbed v).val - K, by have := (restEmbed v).isLt; omega⟩) =
+             (if h : v.val < K then η ⟨v.val, h⟩
+              else (arrowE ρ) ⟨v.val - K, by have := v.isLt; omega⟩)
+        rw [dif_pos h_re_lab, dif_pos h_lab]
+        congr 1
+        exact Fin.ext h_re_val
+      · -- Rest case (sorry pending — needs h_at_rest + Subtype manipulation).
+        sorry
+    -- Step 1-4 pending: h_value via hτ_compat + Quot.out_eq + Sym2.eq_iff + hB;
+    -- h_rhs_filter via Finset.prod_filter; h_lhs_reindex via Finset.prod_nbij.
     sorry
   -- Step 8 (pending h_rest_eval body): combine h_simple_F_rest, h_rest_eval,
   -- hW_factor, hB_factor to get multiLabeledEvalK M ξ = multiLabeledEvalK M ξ'.
