@@ -2809,7 +2809,10 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         rw [dif_pos h_re_lab, dif_pos h_lab]
         congr 1
         exact Fin.ext h_re_val
-      · -- Rest case (sorry pending — needs h_at_rest + Subtype manipulation).
+      · -- Rest case (sorry pending — motive issue on rw [h_re_val] when
+        -- (restEmbed v).val appears in dependent Fin bound proofs).
+        -- Next iteration: use `have ... := restEmbedAux_val_rest ...` to get
+        -- the formula in non-dependent form, then careful Subtype.ext for k.
         sorry
     -- Step 1-4 pending: h_value via hτ_compat + Quot.out_eq + Sym2.eq_iff + hB;
     -- h_rhs_filter via Finset.prod_filter; h_lhs_reindex via Finset.prod_nbij.
