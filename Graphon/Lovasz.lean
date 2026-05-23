@@ -2851,8 +2851,39 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         rw [Sym2.map_pair_eq]
         rw [B_quot_out_eq hB τ_orig (restEmbed a) (restEmbed b)]
         rw [hτ_compat a, hτ_compat b]
-    -- Step 2-4 pending: h_rhs_filter via Finset.prod_filter;
-    -- h_lhs_reindex via Finset.prod_nbij; rewrites to close.
+    -- Step 2: h_rhs_filter — split complement product by M.mult = 1.
+    have h_rhs_filter :
+        (∏ e ∈ (Finset.univ.filter (fun e : Sym2 (Fin (n + K)) =>
+                i ∉ e ∧ j ∉ e) : Finset (Sym2 (Fin (n + K)))),
+          B (τ_orig (Quot.out e).1) (τ_orig (Quot.out e).2) ^ M.mult e) =
+        (∏ e ∈ ((Finset.univ.filter (fun e : Sym2 (Fin (n + K)) =>
+                  i ∉ e ∧ j ∉ e)).filter (fun e => M.mult e = 1) :
+                Finset (Sym2 (Fin (n + K)))),
+          B (τ_orig (Quot.out e).1) (τ_orig (Quot.out e).2)) := by
+      rw [← Finset.prod_filter_mul_prod_filter_not
+            (Finset.univ.filter (fun e : Sym2 (Fin (n + K)) => i ∉ e ∧ j ∉ e))
+            (fun e => M.mult e = 1)
+            (fun e => B (τ_orig (Quot.out e).1) (τ_orig (Quot.out e).2) ^ M.mult e)]
+      have h_zero_part :
+          (∏ e ∈ (Finset.univ.filter (fun e : Sym2 (Fin (n + K)) =>
+                  i ∉ e ∧ j ∉ e)).filter (fun e => ¬ M.mult e = 1),
+            B (τ_orig (Quot.out e).1) (τ_orig (Quot.out e).2) ^ M.mult e) = 1 := by
+        apply Finset.prod_eq_one
+        intro e he
+        rw [Finset.mem_filter, Finset.mem_filter] at he
+        obtain ⟨⟨_, h_compl⟩, h_ne_1⟩ := he
+        have h_ne_doubled : e ≠ s(i, j) := by
+          intro heq
+          rw [heq] at h_compl
+          exact h_compl.1 (Sym2.mem_mk_left i j)
+        have h_le_1 : M.mult e ≤ 1 := h_others_le_one e h_ne_doubled
+        have h_zero : M.mult e = 0 := by omega
+        rw [h_zero, pow_zero]
+      rw [h_zero_part, mul_one]
+      refine Finset.prod_congr rfl fun e he => ?_
+      rw [Finset.mem_filter] at he
+      rw [he.2, pow_one]
+    -- Step 3-4 pending: h_lhs_reindex via Finset.prod_nbij; rewrites to close.
     sorry
   -- Step 8 (pending h_rest_eval body): combine h_simple_F_rest, h_rest_eval,
   -- hW_factor, hB_factor to get multiLabeledEvalK M ξ = multiLabeledEvalK M ξ'.
