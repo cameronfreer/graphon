@@ -2787,9 +2787,17 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
     congr 1
     -- Now goal is: ∏ e ∈ F_rest.edgeFinset, B(τ_rest_e) =
     --              ∏ e ∈ complement_filter, B(τ_e)^M.mult e.
-    -- Step 1: split complement_filter by M.mult = 1 (others contribute 1).
-    -- Step 2: apply Finset.prod_nbij with i := Sym2.map restEmbed.
-    -- Sorry pending; B-product reindex assembly.
+    -- Introduce named τ's to make h_value, h_rhs_filter, h_lhs_reindex tractable.
+    set τ_rest : Fin (n - 2 + K) → Fin T := fun v =>
+      if h : (v : ℕ) < K then η ⟨v, h⟩
+      else (arrowE ρ) ⟨v - K, by have := v.isLt; omega⟩ with hτ_rest_def
+    set τ_orig : Fin (n + K) → Fin T := fun v =>
+      if h : (v : ℕ) < K then η ⟨v, h⟩
+      else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩ with hτ_orig_def
+    -- Step 1: prove h_value (per-edge value preservation under Sym2.map restEmbed).
+    -- Step 2: prove h_rhs_filter (mult-split).
+    -- Step 3: prove h_lhs_reindex (prod_nbij).
+    -- Step 4: rw [h_lhs_reindex, h_rhs_filter].
     sorry
   -- Step 8 (pending h_rest_eval body): combine h_simple_F_rest, h_rest_eval,
   -- hW_factor, hB_factor to get multiLabeledEvalK M ξ = multiLabeledEvalK M ξ'.
