@@ -2883,8 +2883,30 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
       refine Finset.prod_congr rfl fun e he => ?_
       rw [Finset.mem_filter] at he
       rw [he.2, pow_one]
-    -- Step 3-4 pending: h_lhs_reindex via Finset.prod_nbij; rewrites to close.
-    sorry
+    -- Step 3: h_lhs_reindex via Finset.prod_nbij.
+    have h_lhs_reindex :
+        (∏ e ∈ F_rest.edgeFinset,
+          B (τ_rest (Quot.out e).1) (τ_rest (Quot.out e).2)) =
+        (∏ e ∈ ((Finset.univ.filter (fun e : Sym2 (Fin (n + K)) =>
+                  i ∉ e ∧ j ∉ e)).filter (fun e => M.mult e = 1) :
+                Finset (Sym2 (Fin (n + K)))),
+          B (τ_orig (Quot.out e).1) (τ_orig (Quot.out e).2)) := by
+      refine Finset.prod_nbij (fun e => Sym2.map restEmbed e) ?mem ?inj ?surj ?value
+      case mem =>
+        -- Sym2.map restEmbed e ∈ complement.filter (M.mult = 1).
+        sorry
+      case inj => exact fun _ _ _ _ h_eq => hSym2inj h_eq
+      case surj =>
+        intro e he
+        simp only [Finset.coe_filter, Finset.mem_coe, Finset.mem_filter,
+                   Finset.mem_univ, true_and, Set.mem_setOf_eq] at he
+        obtain ⟨he_compl, he_mult⟩ := he
+        obtain ⟨e', he'_mem, he'_eq⟩ := h_surj e
+          (Finset.mem_filter.mpr ⟨Finset.mem_univ _, he_compl⟩) he_mult
+        exact ⟨e', he'_mem, he'_eq⟩
+      case value => exact h_value
+    -- Step 4: close via rewrites.
+    rw [h_lhs_reindex, h_rhs_filter]
   -- Step 8 (pending h_rest_eval body): combine h_simple_F_rest, h_rest_eval,
   -- hW_factor, hB_factor to get multiLabeledEvalK M ξ = multiLabeledEvalK M ξ'.
   sorry
