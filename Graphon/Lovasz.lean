@@ -2883,6 +2883,47 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
       refine Finset.prod_congr rfl fun e he => ?_
       rw [Finset.mem_filter] at he
       rw [he.2, pow_one]
+    -- Helpers: restEmbed never hits i or j (image avoids u_p, v_p positions).
+    have h_restEmbed_ne_i : ∀ v : Fin (n - 2 + K), restEmbed v ≠ i := by
+      intro v h_eq
+      by_cases h_lab : v.val < K
+      · have hv : (restEmbed v).val = v.val := restEmbedAux_val_lab g_rest v h_lab
+        have : v.val = i.val := by rw [← hv, h_eq]
+        omega
+      · push_neg at h_lab
+        have hv : (restEmbed v).val =
+            (g_rest ⟨v.val - K, by have := v.isLt; omega⟩).val + K :=
+          restEmbedAux_val_rest g_rest v (not_lt.mpr h_lab)
+        have h_eq_val : (restEmbed v).val = i.val := by rw [h_eq]
+        have h_i_lift_val : i.val = u_p.val + K := by
+          have := congr_arg Fin.val hi_lift; simpa using this
+        have h_g_val : (g_rest ⟨v.val - K, by have := v.isLt; omega⟩).val = u_p.val := by omega
+        have h_complEquiv_prop := (complEquiv.symm
+            (⟨v.val - K, by have := v.isLt; omega⟩ : Fin (n - 2))).property
+        apply h_complEquiv_prop
+        left
+        apply Fin.ext
+        exact h_g_val
+    have h_restEmbed_ne_j : ∀ v : Fin (n - 2 + K), restEmbed v ≠ j := by
+      intro v h_eq
+      by_cases h_lab : v.val < K
+      · have hv : (restEmbed v).val = v.val := restEmbedAux_val_lab g_rest v h_lab
+        have : v.val = j.val := by rw [← hv, h_eq]
+        omega
+      · push_neg at h_lab
+        have hv : (restEmbed v).val =
+            (g_rest ⟨v.val - K, by have := v.isLt; omega⟩).val + K :=
+          restEmbedAux_val_rest g_rest v (not_lt.mpr h_lab)
+        have h_eq_val : (restEmbed v).val = j.val := by rw [h_eq]
+        have h_j_lift_val : j.val = v_p.val + K := by
+          have := congr_arg Fin.val hj_lift; simpa using this
+        have h_g_val : (g_rest ⟨v.val - K, by have := v.isLt; omega⟩).val = v_p.val := by omega
+        have h_complEquiv_prop := (complEquiv.symm
+            (⟨v.val - K, by have := v.isLt; omega⟩ : Fin (n - 2))).property
+        apply h_complEquiv_prop
+        right
+        apply Fin.ext
+        exact h_g_val
     -- Step 3: h_lhs_reindex via Finset.prod_nbij.
     have h_lhs_reindex :
         (∏ e ∈ F_rest.edgeFinset,
@@ -2893,8 +2934,24 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
           B (τ_orig (Quot.out e).1) (τ_orig (Quot.out e).2)) := by
       refine Finset.prod_nbij (fun e => Sym2.map restEmbed e) ?mem ?inj ?surj ?value
       case mem =>
-        -- Sym2.map restEmbed e ∈ complement.filter (M.mult = 1).
-        sorry
+        intro e he
+        rw [Finset.mem_filter, Finset.mem_filter]
+        refine ⟨⟨Finset.mem_univ _, ?_⟩, ?_⟩
+        · show i ∉ Sym2.map restEmbed e ∧ j ∉ Sym2.map restEmbed e
+          induction e with
+          | h a b =>
+            rw [Sym2.map_pair_eq]
+            refine ⟨?_, ?_⟩
+            · rw [Sym2.mem_iff]
+              rintro (heq | heq)
+              · exact h_restEmbed_ne_i a heq.symm
+              · exact h_restEmbed_ne_i b heq.symm
+            · rw [Sym2.mem_iff]
+              rintro (heq | heq)
+              · exact h_restEmbed_ne_j a heq.symm
+              · exact h_restEmbed_ne_j b heq.symm
+        · show M.mult (Sym2.map restEmbed e) = 1
+          exact ((hmem e).mp he).2
       case inj => exact fun _ _ _ _ h_eq => hSym2inj h_eq
       case surj =>
         intro e he
