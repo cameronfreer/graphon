@@ -2839,8 +2839,20 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         have hk_subt : (⟨k.val, k.property⟩ : {x : Fin n // ¬ p x}) = k := Subtype.ext rfl
         rw [hk_subt]
         rfl
-    -- Step 1-4 pending: h_value via hτ_compat + Quot.out_eq + Sym2.eq_iff + hB;
-    -- h_rhs_filter via Finset.prod_filter; h_lhs_reindex via Finset.prod_nbij.
+    -- Step 1: h_value — per-edge B value preservation under Sym2.map restEmbed.
+    have h_value : ∀ e ∈ F_rest.edgeFinset,
+        B (τ_rest (Quot.out e).1) (τ_rest (Quot.out e).2) =
+        B (τ_orig (Quot.out (Sym2.map restEmbed e)).1)
+          (τ_orig (Quot.out (Sym2.map restEmbed e)).2) := by
+      intro e _
+      induction e with
+      | h a b =>
+        rw [B_quot_out_eq hB τ_rest a b]
+        rw [Sym2.map_pair_eq]
+        rw [B_quot_out_eq hB τ_orig (restEmbed a) (restEmbed b)]
+        rw [hτ_compat a, hτ_compat b]
+    -- Step 2-4 pending: h_rhs_filter via Finset.prod_filter;
+    -- h_lhs_reindex via Finset.prod_nbij; rewrites to close.
     sorry
   -- Step 8 (pending h_rest_eval body): combine h_simple_F_rest, h_rest_eval,
   -- hW_factor, hB_factor to get multiLabeledEvalK M ξ = multiLabeledEvalK M ξ'.
