@@ -2964,8 +2964,12 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
       case value => exact h_value
     -- Step 4: close via rewrites.
     rw [h_lhs_reindex, h_rhs_filter]
-  -- Step 8 (pending h_rest_eval body): combine h_simple_F_rest, h_rest_eval,
-  -- hW_factor, hB_factor to get multiLabeledEvalK M ξ = multiLabeledEvalK M ξ'.
+  -- Step 8: scalar congruence via normal-form lemma h_norm.
+  -- h_norm η : multiLabeledEvalK M η = scalar · (F_rest σ_rest-sum at η)
+  -- where scalar := ∑ α, W(α 0)·W(α 1)·B(α 0)(α 1)².
+  -- Combine via h_simple_F_rest at the F_rest eval. Pending — substantial
+  -- multi-step rewrite chain using splitSigma reindex + Fintype.sum_prod_type +
+  -- hW_factor + hB_factor (parametric in η) + h_rest_eval + Finset.sum_mul.
   sorry
 
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
