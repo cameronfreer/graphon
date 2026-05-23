@@ -2809,11 +2809,36 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         rw [dif_pos h_re_lab, dif_pos h_lab]
         congr 1
         exact Fin.ext h_re_val
-      · -- Rest case (sorry pending — motive issue on rw [h_re_val] when
-        -- (restEmbed v).val appears in dependent Fin bound proofs).
-        -- Next iteration: use `have ... := restEmbedAux_val_rest ...` to get
-        -- the formula in non-dependent form, then careful Subtype.ext for k.
-        sorry
+      · -- Rest case.
+        push_neg at h_lab
+        have h_v_not_lab : ¬ v.val < K := not_lt.mpr h_lab
+        let r : Fin (n - 2) := ⟨v.val - K, by have := v.isLt; omega⟩
+        let k : {x : Fin n // ¬ p x} := complEquiv.symm r
+        have h_re_val : (restEmbed v).val = k.val.val + K :=
+          restEmbedAux_val_rest g_rest v h_v_not_lab
+        have h_re_not_lab : ¬ (restEmbed v).val < K := by
+          intro h_lt; have := h_re_val; omega
+        show (if h : (restEmbed v).val < K then η ⟨(restEmbed v).val, h⟩
+              else (splitSigma.symm (α, ρ))
+                ⟨(restEmbed v).val - K, by have := (restEmbed v).isLt; omega⟩) =
+             (if h : v.val < K then η ⟨v.val, h⟩
+              else (arrowE ρ) ⟨v.val - K, by have := v.isLt; omega⟩)
+        rw [dif_neg h_re_not_lab, dif_neg h_v_not_lab]
+        have hk_fin :
+            (⟨(restEmbed v).val - K, by have := (restEmbed v).isLt; omega⟩ : Fin n) = k.val := by
+          apply Fin.ext
+          have : (restEmbed v).val - K = k.val.val := by have := h_re_val; omega
+          exact this
+        have h_step :
+            (splitSigma.symm (α, ρ))
+              ⟨(restEmbed v).val - K, by have := (restEmbed v).isLt; omega⟩ =
+            (splitSigma.symm (α, ρ)) k.val := by rw [hk_fin]
+        rw [h_step, h_at_rest α ρ k.val k.property]
+        -- Goal: ρ ⟨k.val, k.property⟩ = arrowE ρ r.
+        show ρ ⟨k.val, k.property⟩ = (arrowE ρ) r
+        have hk_subt : (⟨k.val, k.property⟩ : {x : Fin n // ¬ p x}) = k := Subtype.ext rfl
+        rw [hk_subt]
+        rfl
     -- Step 1-4 pending: h_value via hτ_compat + Quot.out_eq + Sym2.eq_iff + hB;
     -- h_rhs_filter via Finset.prod_filter; h_lhs_reindex via Finset.prod_nbij.
     sorry
