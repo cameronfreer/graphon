@@ -3089,15 +3089,15 @@ private theorem multigraphEval_label_unlabeled_nonisolated_descends
 /-- **Unlabeled-label isolated reduction**: symmetric to label-unlabeled
 isolated via Sym2.eq_swap. Same dependency: `label_unlabeled_square_moment_descends`. -/
 private theorem multigraphEval_unlabeled_label_isolated_descends
-    {T K n : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+    {T K n : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (M : MultiLabeledGraph K n)
     (a b : Fin (n + K))
-    (_ha : K ≤ a.val) (_hb : b.val < K) (_hab : a ≠ b)
-    (_h_doubled : M.mult s(a, b) = 2)
-    (_h_others_le_one : ∀ e, e ≠ s(a, b) → M.mult e ≤ 1)
-    (_h_a_iso : ∀ e, e ≠ s(a, b) → a ∈ e → M.mult e = 0)
+    (ha : K ≤ a.val) (hb : b.val < K) (hab : a ≠ b)
+    (h_doubled : M.mult s(a, b) = 2)
+    (h_others_le_one : ∀ e, e ≠ s(a, b) → M.mult e ≤ 1)
+    (h_a_iso : ∀ e, e ≠ s(a, b) → a ∈ e → M.mult e = 0)
     {ξ ξ' : Fin K → Fin T}
-    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+    (h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
         ∑ σ : Fin n' → Fin T,
           (let τ : Fin (n' + K) → Fin T := fun v =>
             if h : (v : ℕ) < K then ξ ⟨v, h⟩
@@ -3111,20 +3111,30 @@ private theorem multigraphEval_unlabeled_label_isolated_descends
           (∏ v : Fin n', W (σ v)) *
           ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
-  sorry
+  -- Symmetric to label-unlabeled isolated via Sym2.eq_swap.
+  -- Swap a and b: the doubled edge s(a, b) = s(b, a), and we apply
+  -- multigraphEval_label_unlabeled_isolated_descends with (b, a) instead of (a, b).
+  have h_swap : s(a, b) = (s(b, a) : Sym2 (Fin (n + K))) := Sym2.eq_swap
+  apply multigraphEval_label_unlabeled_isolated_descends B hB W M b a hb ha hab.symm
+  · rw [← h_swap]; exact h_doubled
+  · intro e he
+    exact h_others_le_one e (by rw [h_swap]; exact he)
+  · intro e he hae
+    exact h_a_iso e (by rw [h_swap]; exact he) hae
+  · exact h_simple
 
 /-- **Unlabeled-label non-isolated reduction**: symmetric to
-label-unlabeled non-isolated. -/
+label-unlabeled non-isolated via Sym2.eq_swap. -/
 private theorem multigraphEval_unlabeled_label_nonisolated_descends
-    {T K n : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+    {T K n : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (M : MultiLabeledGraph K n)
     (a b : Fin (n + K))
-    (_ha : K ≤ a.val) (_hb : b.val < K) (_hab : a ≠ b)
-    (_h_doubled : M.mult s(a, b) = 2)
-    (_h_others_le_one : ∀ e, e ≠ s(a, b) → M.mult e ≤ 1)
-    (_h_a_not_iso : ¬ ∀ e, e ≠ s(a, b) → a ∈ e → M.mult e = 0)
+    (ha : K ≤ a.val) (hb : b.val < K) (hab : a ≠ b)
+    (h_doubled : M.mult s(a, b) = 2)
+    (h_others_le_one : ∀ e, e ≠ s(a, b) → M.mult e ≤ 1)
+    (h_a_not_iso : ¬ ∀ e, e ≠ s(a, b) → a ∈ e → M.mult e = 0)
     {ξ ξ' : Fin K → Fin T}
-    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+    (h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
         ∑ σ : Fin n' → Fin T,
           (let τ : Fin (n' + K) → Fin T := fun v =>
             if h : (v : ℕ) < K then ξ ⟨v, h⟩
@@ -3138,7 +3148,16 @@ private theorem multigraphEval_unlabeled_label_nonisolated_descends
           (∏ v : Fin n', W (σ v)) *
           ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
-  sorry
+  have h_swap : s(a, b) = (s(b, a) : Sym2 (Fin (n + K))) := Sym2.eq_swap
+  apply multigraphEval_label_unlabeled_nonisolated_descends B hB W M b a hb ha hab.symm
+  · rw [← h_swap]; exact h_doubled
+  · intro e he
+    exact h_others_le_one e (by rw [h_swap]; exact he)
+  · intro h_b_iso
+    apply h_a_not_iso
+    intro e he hae
+    exact h_b_iso e (by rw [← h_swap]; exact he) hae
+  · exact h_simple
 
 /-- **UU non-isolated reduction**: doubled edge between two unlabeled vertices
 with at least one OTHER edge touching `a` or `b`. Reduces to the proved
