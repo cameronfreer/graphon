@@ -2983,8 +2983,12 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
     unfold multiLabeledEvalK
     rw [← splitSigma.symm.sum_comp]
     rw [Fintype.sum_prod_type]
-    -- Goal: ∑ α, ∑ ρ, body(splitSigma.symm (α, ρ)) η = scalar * F_rest_eval η
-    -- Pending: per-(α, ρ) factor + h_rest_eval + Finset.sum_mul.
+    -- Goal: ∑ α, ∑ ρ, body(splitSigma.symm (α, ρ)) η = scalar * F_rest_eval η.
+    -- Per-(α, ρ) factor body via hW_factor + hB_factor.
+    -- Per-α: pull (W(α 0)·W(α 1)·B(α 0)(α 1)^2) out of ρ-sum via Finset.mul_sum.
+    -- Apply h_rest_eval α η to identify inner ρ-sum with F_rest_eval η.
+    -- Pull F_rest_eval out via Finset.sum_mul; unfold scalar.
+    -- Pending: substantial calc chain.
     sorry
   -- Conclude via h_norm + h_simple_F_rest.
   have h_compat : F_rest_eval ξ = F_rest_eval ξ' := h_simple_F_rest
