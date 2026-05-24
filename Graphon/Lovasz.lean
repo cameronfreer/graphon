@@ -2977,10 +2977,18 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
       ∏ e ∈ F_rest.edgeFinset,
         B (τ_rest (Quot.out e).1) (τ_rest (Quot.out e).2))
   -- h_norm: multiLabeledEvalK M η = scalar * F_rest_eval η.
-  -- Strategy: splitSigma reindex + sum_prod_type + per-(α,ρ) factor + h_rest_eval.
-  -- Pending substantial rewrite chain. Once h_norm closes,
-  -- `rw [h_norm ξ, h_norm ξ', h_simple_F_rest]` finishes the theorem.
-  sorry
+  have h_norm : ∀ η : Fin K → Fin T,
+      multiLabeledEvalK K n M B W η = scalar * F_rest_eval η := by
+    intro η
+    unfold multiLabeledEvalK
+    rw [← splitSigma.symm.sum_comp]
+    rw [Fintype.sum_prod_type]
+    -- Goal: ∑ α, ∑ ρ, body(splitSigma.symm (α, ρ)) η = scalar * F_rest_eval η
+    -- Pending: per-(α, ρ) factor + h_rest_eval + Finset.sum_mul.
+    sorry
+  -- Conclude via h_norm + h_simple_F_rest.
+  have h_compat : F_rest_eval ξ = F_rest_eval ξ' := h_simple_F_rest
+  rw [h_norm ξ, h_norm ξ', h_compat]
 
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
 edge involving an unlabeled vertex, all other multiplicities ≤ 1.
