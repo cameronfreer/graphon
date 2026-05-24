@@ -3100,30 +3100,40 @@ private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
       · -- `a` label, `b` unlabeled. Label-unlabeled case.
         push_neg at hb_lab
         by_cases h_b_iso : ∀ e, e ≠ s(a, b) → b ∈ e → M.mult e = 0
-        · -- Isolated label-unlabeled doubled edge. Factor + square moment.
-          -- The σ-sum reduces to `(∑_t W(t)·B(ξ_⟨a.val⟩, t)²) · labeledEvalK F' ξ`
-          -- where F' is the simple graph on remaining vertices (mults ≤ 1).
-          -- Match the square-moment factor via `label_unlabeled_square_moment_descends`
-          -- and F' via `h_simple`. Reduction body sorry'd pending σ-sum factorization
-          -- (~150 LOC of Fin reindexing).
+        · -- **Isolated label-unlabeled doubled edge** — BLOCKED BY paper-root.
+          -- Proof pattern parallels `multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends`:
+          -- splitSigma at unlabeled b, factor σ-sum into:
+          --   (∑_t W(t)·B(ξ_⟨a.val⟩, t)²) · F_rest_eval ξ.
+          -- F_rest closes via `h_simple`; scalar factor closes via
+          -- `label_unlabeled_square_moment_descends` (FINAL paper-root).
+          -- ~600 LOC parallel proof similar to UU isolated.
           sorry
-        · -- Non-isolated label-unlabeled. Mixed moments; harder than isolated case.
+        · -- **Non-isolated label-unlabeled** — BLOCKED BY paper-root + peeling.
+          -- Reduce to isolated case by peeling other edges touching b (mult-1, label-b
+          -- or unlabeled-b). Each peel goes through `multiLabeledEvalK_decAt_LL_peel`
+          -- (if label-b) or a non-LL peel infrastructure (not yet built). Then
+          -- close via isolated case → square moment paper-root.
           sorry
     · push_neg at ha_lab
       by_cases hb_lab : b.val < K
-      · -- `a` unlabeled, `b` label. Symmetric to label-unlabeled case.
+      · -- `a` unlabeled, `b` label. **Symmetric to label-unlabeled** via Sym2.eq_swap.
         by_cases h_a_iso : ∀ e, e ≠ s(a, b) → a ∈ e → M.mult e = 0
-        · -- Isolated unlabeled-label (symmetric via Sym2). Same paper-root reduction.
+        · -- **Isolated unlabeled-label** — same paper-root reduction as label-unlabeled
+          -- isolated, with endpoints swapped (Sym2 symmetry).
           sorry
-        · sorry
+        · -- **Non-isolated unlabeled-label** — symmetric to non-isolated label-unlabeled.
+          sorry
       · -- Both unlabeled.
         push_neg at hb_lab
         by_cases h_iso : ∀ e, e ≠ s(a, b) → (a ∈ e ∨ b ∈ e) → M.mult e = 0
-        · -- Isolated unlabeled-unlabeled doubled edge.
+        · -- **Isolated unlabeled-unlabeled doubled edge** — CLOSED via
+          -- `multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends` (proved).
           exact multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends
             B hB W M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one h_iso h_simple
-        · -- Non-isolated unlabeled-unlabeled. Reducible to isolated case via
-          -- additional peeling; sorry pending.
+        · -- **Non-isolated unlabeled-unlabeled** — reducible to isolated case via
+          -- peel reduction. Each peel of an other edge touching a or b requires
+          -- non-LL peel infrastructure (since these edges have unlabeled endpoint).
+          -- BLOCKED BY: peel infrastructure + isolated UU theorem (proved).
           sorry
 
 /-- **Canonical paper-root for #62**: every multigraph evaluation is in
