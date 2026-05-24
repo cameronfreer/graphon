@@ -2965,11 +2965,21 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
     -- Step 4: close via rewrites.
     rw [h_lhs_reindex, h_rhs_filter]
   -- Step 8: scalar congruence via normal-form lemma h_norm.
-  -- h_norm η : multiLabeledEvalK M η = scalar · (F_rest σ_rest-sum at η)
-  -- where scalar := ∑ α, W(α 0)·W(α 1)·B(α 0)(α 1)².
-  -- Combine via h_simple_F_rest at the F_rest eval. Pending — substantial
-  -- multi-step rewrite chain using splitSigma reindex + Fintype.sum_prod_type +
-  -- hW_factor + hB_factor (parametric in η) + h_rest_eval + Finset.sum_mul.
+  -- Local scalar (α-only factor, ξ-independent).
+  let scalar : ℝ := ∑ α : Fin 2 → Fin T, W (α 0) * W (α 1) * B (α 0) (α 1) ^ 2
+  -- F_rest_eval η is the F_rest σ_rest-sum (inlined form, same as in h_rest_eval LHS).
+  let F_rest_eval : (Fin K → Fin T) → ℝ := fun η =>
+    ∑ σ_rest : Fin (n - 2) → Fin T,
+      (let τ_rest : Fin (n - 2 + K) → Fin T := fun v =>
+        if h : (v : ℕ) < K then η ⟨v, h⟩
+        else σ_rest ⟨v - K, by have := v.isLt; omega⟩
+      (∏ v : Fin (n - 2), W (σ_rest v)) *
+      ∏ e ∈ F_rest.edgeFinset,
+        B (τ_rest (Quot.out e).1) (τ_rest (Quot.out e).2))
+  -- h_norm: multiLabeledEvalK M η = scalar * F_rest_eval η.
+  -- Strategy: splitSigma reindex + sum_prod_type + per-(α,ρ) factor + h_rest_eval.
+  -- Pending substantial rewrite chain. Once h_norm closes,
+  -- `rw [h_norm ξ, h_norm ξ', h_simple_F_rest]` finishes the theorem.
   sorry
 
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
