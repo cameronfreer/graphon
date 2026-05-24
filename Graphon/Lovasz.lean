@@ -3021,6 +3021,40 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
   have h_compat : F_rest_eval ξ = F_rest_eval ξ' := h_simple_F_rest
   rw [h_norm ξ, h_norm ξ', h_compat]
 
+/-- **UU non-isolated reduction**: doubled edge between two unlabeled vertices
+with at least one OTHER edge touching `a` or `b`. Reduces to the proved
+isolated UU theorem via peeling the offending edges. Dependency: the proved
+`multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends`. -/
+private theorem multigraphEval_unlabeled_unlabeled_nonisolated_descends
+    {T K n : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (M : MultiLabeledGraph K n)
+    (a b : Fin (n + K))
+    (_ha : K ≤ a.val) (_hb : K ≤ b.val) (_hab : a ≠ b)
+    (_h_doubled : M.mult s(a, b) = 2)
+    (_h_others_le_one : ∀ e, e ≠ s(a, b) → M.mult e ≤ 1)
+    (_h_not_iso : ¬ ∀ e, e ≠ s(a, b) → (a ∈ e ∨ b ∈ e) → M.mult e = 0)
+    {ξ ξ' : Fin K → Fin T}
+    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  -- BLOCKED BY: peel reduction to isolated UU case
+  -- (`multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends` is proved).
+  -- Each peel removes one other edge touching `a` or `b`. Peel must handle
+  -- non-LL edges (since other edges have at least one unlabeled endpoint —
+  -- specifically `a` or `b`). Requires new non-LL peel infrastructure.
+  sorry
+
 /-- **FINAL PAPER-ROOT** — smallest unlabeled-excess subcase: one doubled
 edge involving an unlabeled vertex, all other multiplicities ≤ 1.
 
@@ -3130,11 +3164,9 @@ private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
           -- `multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends` (proved).
           exact multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends
             B hB W M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one h_iso h_simple
-        · -- **Non-isolated unlabeled-unlabeled** — reducible to isolated case via
-          -- peel reduction. Each peel of an other edge touching a or b requires
-          -- non-LL peel infrastructure (since these edges have unlabeled endpoint).
-          -- BLOCKED BY: peel infrastructure + isolated UU theorem (proved).
-          sorry
+        · -- **Non-isolated unlabeled-unlabeled** — dispatch to named reduction.
+          exact multigraphEval_unlabeled_unlabeled_nonisolated_descends
+            B hB W M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one h_iso h_simple
 
 /-- **Canonical paper-root for #62**: every multigraph evaluation is in
 the simple-profile closure.
