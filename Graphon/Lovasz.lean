@@ -3021,6 +3021,125 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
   have h_compat : F_rest_eval ξ = F_rest_eval ξ' := h_simple_F_rest
   rw [h_norm ξ, h_norm ξ', h_compat]
 
+/-- **Label-unlabeled isolated reduction**: doubled edge with one label endpoint
+`a` and one unlabeled endpoint `b`, where no other edges touch `b`. Reduces to
+the K=1 square moment via splitSigma at `b` (parallel to UU isolated proof):
+the σ_b-sum factors as `(∑_t W(t) · B(ξ_a, t)²) · F_rest_eval ξ`, where the
+scalar factor IS the K=1 square moment. Dependency: the FINAL paper-root
+`label_unlabeled_square_moment_descends`. ~600 LOC parallel to UU isolated. -/
+private theorem multigraphEval_label_unlabeled_isolated_descends
+    {T K n : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (M : MultiLabeledGraph K n)
+    (a b : Fin (n + K))
+    (_ha : a.val < K) (_hb : K ≤ b.val) (_hab : a ≠ b)
+    (_h_doubled : M.mult s(a, b) = 2)
+    (_h_others_le_one : ∀ e, e ≠ s(a, b) → M.mult e ≤ 1)
+    (_h_b_iso : ∀ e, e ≠ s(a, b) → b ∈ e → M.mult e = 0)
+    {ξ ξ' : Fin K → Fin T}
+    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  -- BLOCKED BY: label_unlabeled_square_moment_descends (FINAL paper-root).
+  -- Proof pattern: parallel to UU isolated. splitSigma at b → factor σ-sum
+  -- into scalar(ξ) · F_rest_eval ξ where scalar(ξ) = ∑_t W(t) · B(ξ_⟨a.val⟩, t)².
+  -- Apply label_unlabeled_square_moment_descends to match scalar at ξ vs ξ'.
+  -- F_rest_eval matches via h_simple on the simple graph from M's mult-1 edges.
+  sorry
+
+/-- **Label-unlabeled non-isolated reduction**: same orientation as above
+but with other edges touching `b`. Reduces to the isolated case via peeling
+those other edges. BLOCKED BY: label_unlabeled_square_moment_descends +
+non-LL peel infrastructure. -/
+private theorem multigraphEval_label_unlabeled_nonisolated_descends
+    {T K n : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (M : MultiLabeledGraph K n)
+    (a b : Fin (n + K))
+    (_ha : a.val < K) (_hb : K ≤ b.val) (_hab : a ≠ b)
+    (_h_doubled : M.mult s(a, b) = 2)
+    (_h_others_le_one : ∀ e, e ≠ s(a, b) → M.mult e ≤ 1)
+    (_h_b_not_iso : ¬ ∀ e, e ≠ s(a, b) → b ∈ e → M.mult e = 0)
+    {ξ ξ' : Fin K → Fin T}
+    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  sorry
+
+/-- **Unlabeled-label isolated reduction**: symmetric to label-unlabeled
+isolated via Sym2.eq_swap. Same dependency: `label_unlabeled_square_moment_descends`. -/
+private theorem multigraphEval_unlabeled_label_isolated_descends
+    {T K n : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (M : MultiLabeledGraph K n)
+    (a b : Fin (n + K))
+    (_ha : K ≤ a.val) (_hb : b.val < K) (_hab : a ≠ b)
+    (_h_doubled : M.mult s(a, b) = 2)
+    (_h_others_le_one : ∀ e, e ≠ s(a, b) → M.mult e ≤ 1)
+    (_h_a_iso : ∀ e, e ≠ s(a, b) → a ∈ e → M.mult e = 0)
+    {ξ ξ' : Fin K → Fin T}
+    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  sorry
+
+/-- **Unlabeled-label non-isolated reduction**: symmetric to
+label-unlabeled non-isolated. -/
+private theorem multigraphEval_unlabeled_label_nonisolated_descends
+    {T K n : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (M : MultiLabeledGraph K n)
+    (a b : Fin (n + K))
+    (_ha : K ≤ a.val) (_hb : b.val < K) (_hab : a ≠ b)
+    (_h_doubled : M.mult s(a, b) = 2)
+    (_h_others_le_one : ∀ e, e ≠ s(a, b) → M.mult e ≤ 1)
+    (_h_a_not_iso : ¬ ∀ e, e ≠ s(a, b) → a ∈ e → M.mult e = 0)
+    {ξ ξ' : Fin K → Fin T}
+    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  sorry
+
 /-- **UU non-isolated reduction**: doubled edge between two unlabeled vertices
 with at least one OTHER edge touching `a` or `b`. Reduces to the proved
 isolated UU theorem via peeling the offending edges. Dependency: the proved
@@ -3134,29 +3253,18 @@ private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
       · -- `a` label, `b` unlabeled. Label-unlabeled case.
         push_neg at hb_lab
         by_cases h_b_iso : ∀ e, e ≠ s(a, b) → b ∈ e → M.mult e = 0
-        · -- **Isolated label-unlabeled doubled edge** — BLOCKED BY paper-root.
-          -- Proof pattern parallels `multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends`:
-          -- splitSigma at unlabeled b, factor σ-sum into:
-          --   (∑_t W(t)·B(ξ_⟨a.val⟩, t)²) · F_rest_eval ξ.
-          -- F_rest closes via `h_simple`; scalar factor closes via
-          -- `label_unlabeled_square_moment_descends` (FINAL paper-root).
-          -- ~600 LOC parallel proof similar to UU isolated.
-          sorry
-        · -- **Non-isolated label-unlabeled** — BLOCKED BY paper-root + peeling.
-          -- Reduce to isolated case by peeling other edges touching b (mult-1, label-b
-          -- or unlabeled-b). Each peel goes through `multiLabeledEvalK_decAt_LL_peel`
-          -- (if label-b) or a non-LL peel infrastructure (not yet built). Then
-          -- close via isolated case → square moment paper-root.
-          sorry
+        · exact multigraphEval_label_unlabeled_isolated_descends
+            B hB W M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one h_b_iso h_simple
+        · exact multigraphEval_label_unlabeled_nonisolated_descends
+            B hB W M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one h_b_iso h_simple
     · push_neg at ha_lab
       by_cases hb_lab : b.val < K
-      · -- `a` unlabeled, `b` label. **Symmetric to label-unlabeled** via Sym2.eq_swap.
+      · -- `a` unlabeled, `b` label.
         by_cases h_a_iso : ∀ e, e ≠ s(a, b) → a ∈ e → M.mult e = 0
-        · -- **Isolated unlabeled-label** — same paper-root reduction as label-unlabeled
-          -- isolated, with endpoints swapped (Sym2 symmetry).
-          sorry
-        · -- **Non-isolated unlabeled-label** — symmetric to non-isolated label-unlabeled.
-          sorry
+        · exact multigraphEval_unlabeled_label_isolated_descends
+            B hB W M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one h_a_iso h_simple
+        · exact multigraphEval_unlabeled_label_nonisolated_descends
+            B hB W M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one h_a_iso h_simple
       · -- Both unlabeled.
         push_neg at hb_lab
         by_cases h_iso : ∀ e, e ≠ s(a, b) → (a ∈ e ∨ b ∈ e) → M.mult e = 0
