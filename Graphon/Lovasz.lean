@@ -2983,12 +2983,36 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
     unfold multiLabeledEvalK
     rw [← splitSigma.symm.sum_comp]
     rw [Fintype.sum_prod_type]
-    -- Goal: ∑ α, ∑ ρ, body(splitSigma.symm (α, ρ)) η = scalar * F_rest_eval η.
-    -- Per-(α, ρ) factor body via hW_factor + hB_factor.
-    -- Per-α: pull (W(α 0)·W(α 1)·B(α 0)(α 1)^2) out of ρ-sum via Finset.mul_sum.
-    -- Apply h_rest_eval α η to identify inner ρ-sum with F_rest_eval η.
-    -- Pull F_rest_eval out via Finset.sum_mul; unfold scalar.
-    -- Pending: substantial calc chain.
+    -- Per-(α, ρ) body factor via hW_factor + hB_factor.
+    rw [show (∑ α : Fin 2 → Fin T, ∑ ρ : {k : Fin n // ¬ p k} → Fin T,
+              (let τ : Fin (n + K) → Fin T := fun v =>
+                if h : (v : ℕ) < K then η ⟨v, h⟩
+                else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩
+              (∏ v : Fin n, W ((splitSigma.symm (α, ρ)) v)) *
+              ∏ e : Sym2 (Fin (n + K)),
+                B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e)) =
+            ∑ α : Fin 2 → Fin T, ∑ ρ : {k : Fin n // ¬ p k} → Fin T,
+              (W (α 0) * W (α 1) * B (α 0) (α 1) ^ 2) *
+              ((∏ k : {k : Fin n // ¬ p k}, W (ρ k)) *
+               (∏ e ∈ (Finset.univ.filter
+                  (fun e : Sym2 (Fin (n + K)) => i ∉ e ∧ j ∉ e) :
+                  Finset (Sym2 (Fin (n + K)))),
+                 B ((fun v : Fin (n + K) =>
+                      if h : (v : ℕ) < K then η ⟨v, h⟩
+                      else (splitSigma.symm (α, ρ))
+                        ⟨v - K, by have := v.isLt; omega⟩)
+                    (Quot.out e).1)
+                   ((fun v : Fin (n + K) =>
+                      if h : (v : ℕ) < K then η ⟨v, h⟩
+                      else (splitSigma.symm (α, ρ))
+                        ⟨v - K, by have := v.isLt; omega⟩)
+                    (Quot.out e).2) ^ M.mult e)) from by
+      refine Finset.sum_congr rfl fun α _ => Finset.sum_congr rfl fun ρ _ => ?_
+      dsimp only
+      rw [hW_factor α ρ, hB_factor α ρ η]
+      ring]
+    -- Remaining: pull α-scalar out via Finset.mul_sum, apply h_rest_eval,
+    -- and Finset.sum_mul. Pending.
     sorry
   -- Conclude via h_norm + h_simple_F_rest.
   have h_compat : F_rest_eval ξ = F_rest_eval ξ' := h_simple_F_rest
