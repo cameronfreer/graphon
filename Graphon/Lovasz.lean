@@ -3011,9 +3011,12 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
       dsimp only
       rw [hW_factor α ρ, hB_factor α ρ η]
       ring]
-    -- Remaining: pull α-scalar out via Finset.mul_sum, apply h_rest_eval,
-    -- and Finset.sum_mul. Pending.
-    sorry
+    -- Pull α-scalar out of inner ρ-sum (Finset.mul_sum direction).
+    simp_rw [← Finset.mul_sum]
+    -- Apply h_rest_eval in reverse to identify inner ρ-sum with F_rest_eval η.
+    simp_rw [← h_rest_eval _ η]
+    -- Pull F_rest_eval η out of α-sum (closes goal definitionally).
+    rw [← Finset.sum_mul]
   -- Conclude via h_norm + h_simple_F_rest.
   have h_compat : F_rest_eval ξ = F_rest_eval ξ' := h_simple_F_rest
   rw [h_norm ξ, h_norm ξ', h_compat]
