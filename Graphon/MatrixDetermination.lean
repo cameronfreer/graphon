@@ -7241,6 +7241,8 @@ private theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
   have hLovasz : Graphon.Lovasz.multiLabeledEvalK K n M' B W ξ =
                  Graphon.Lovasz.multiLabeledEvalK K n M' B W ξ' :=
     Graphon.Lovasz.multiLabeledEvalK_tupleEquiv_invariant B hB W hW htwin M'
+      (fun {ξ₀ ξ₀'} hh c =>
+        Graphon.Lovasz.label_unlabeled_square_moment_descends B hB W hW htwin hh c)
       (fun n' F _ => by
         have heq := h n' F
         unfold labeledEvalK at heq

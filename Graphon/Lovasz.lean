@@ -2329,7 +2329,9 @@ private theorem multigraphEval_unlabeled_excess_descends {T K n : ℕ}
             if h : (v : ℕ) < K then ξ' ⟨v, h⟩
             else σ ⟨v - K, by have := v.isLt; omega⟩
           (∏ v : Fin n', W (σ v)) *
-          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)))
+    (_h_sq_moment : ∀ (c : Fin K),
+        ∑ t : Fin T, W t * B (ξ c) t ^ 2 = ∑ t : Fin T, W t * B (ξ' c) t ^ 2) :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
   sorry
 
@@ -3511,7 +3513,9 @@ private theorem multigraphEval_label_unlabeled_nonisolated_descends
             if h : (v : ℕ) < K then ξ' ⟨v, h⟩
             else σ ⟨v - K, by have := v.isLt; omega⟩
           (∏ v : Fin n', W (σ v)) *
-          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)))
+    (_h_sq_moment : ∀ (c : Fin K),
+        ∑ t : Fin T, W t * B (ξ c) t ^ 2 = ∑ t : Fin T, W t * B (ξ' c) t ^ 2) :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
   sorry
 
@@ -3582,7 +3586,9 @@ private theorem multigraphEval_unlabeled_label_nonisolated_descends
             if h : (v : ℕ) < K then ξ' ⟨v, h⟩
             else σ ⟨v - K, by have := v.isLt; omega⟩
           (∏ v : Fin n', W (σ v)) *
-          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)))
+    (h_sq_moment : ∀ (c : Fin K),
+        ∑ t : Fin T, W t * B (ξ c) t ^ 2 = ∑ t : Fin T, W t * B (ξ' c) t ^ 2) :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
   have h_swap : s(a, b) = (s(b, a) : Sym2 (Fin (n + K))) := Sym2.eq_swap
   apply multigraphEval_label_unlabeled_nonisolated_descends B hB W hW htwin M b a hb ha hab.symm
@@ -3594,6 +3600,7 @@ private theorem multigraphEval_unlabeled_label_nonisolated_descends
     intro e he hae
     exact h_b_iso e (by rw [← h_swap]; exact he) hae
   · exact h_simple
+  · exact h_sq_moment
 
 /-- **UU non-isolated reduction**: doubled edge between two unlabeled vertices
 with at least one OTHER edge touching `a` or `b`.
@@ -3735,7 +3742,7 @@ private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
             h_b_iso h_simple h_sq_moment
         · exact multigraphEval_label_unlabeled_nonisolated_descends
             B hB W hW htwin M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one
-            h_b_iso h_simple
+            h_b_iso h_simple h_sq_moment
     · push_neg at ha_lab
       by_cases hb_lab : b.val < K
       · -- `a` unlabeled, `b` label.
@@ -3745,7 +3752,7 @@ private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
             h_a_iso h_simple h_sq_moment
         · exact multigraphEval_unlabeled_label_nonisolated_descends
             B hB W hW htwin M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one
-            h_a_iso h_simple
+            h_a_iso h_simple h_sq_moment
       · -- Both unlabeled.
         push_neg at hb_lab
         by_cases h_iso : ∀ e, e ≠ s(a, b) → (a ∈ e ∨ b ∈ e) → M.mult e = 0
@@ -3791,7 +3798,23 @@ The only remaining sorry is inside `multigraphEval_unlabeled_excess_descends`. -
 theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (M : MultiLabeledGraph K n) :
+    (M : MultiLabeledGraph K n)
+    (h_sq_moment : ∀ {ξ₀ ξ₀' : Fin K → Fin T},
+        (∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+          ∑ σ : Fin n' → Fin T,
+            (let τ : Fin (n' + K) → Fin T := fun v =>
+              if h : (v : ℕ) < K then ξ₀ ⟨v, h⟩
+              else σ ⟨v - K, by have := v.isLt; omega⟩
+            (∏ v : Fin n', W (σ v)) *
+            ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+          ∑ σ : Fin n' → Fin T,
+            (let τ : Fin (n' + K) → Fin T := fun v =>
+              if h : (v : ℕ) < K then ξ₀' ⟨v, h⟩
+              else σ ⟨v - K, by have := v.isLt; omega⟩
+            (∏ v : Fin n', W (σ v)) *
+            ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) →
+        ∀ (c : Fin K),
+          ∑ t : Fin T, W t * B (ξ₀ c) t ^ 2 = ∑ t : Fin T, W t * B (ξ₀' c) t ^ 2) :
     InSimpleProfileClosure B W K (fun ξ => multiLabeledEvalK K n M B W ξ) := by
   apply InSimpleProfileClosure.of_const_on_tupleEquivSimple
   intro ξ ξ' h_equiv
@@ -3881,7 +3904,7 @@ theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
           intro h_isLL
           exact he_notLL h_isLL
         exact multigraphEval_unlabeled_excess_descends B hB W hW htwin M h_unlabeled_excess
-          (fun n' F _ => h_equiv n' F)
+          (fun n' F _ => h_equiv n' F) (h_sq_moment h_equiv)
 
 /-- **The multigraph bridge — SECONDARY paper root** (general,
 non-twin-free version).
@@ -3930,6 +3953,22 @@ theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (M : MultiLabeledGraph K n)
+    (h_sq_moment : ∀ {ξ₀ ξ₀' : Fin K → Fin T},
+        (∀ (n'' : ℕ) (F : SimpleGraph (Fin (n'' + K))) [DecidableRel F.Adj],
+          ∑ σ : Fin n'' → Fin T,
+            (let τ : Fin (n'' + K) → Fin T := fun v =>
+              if h : (v : ℕ) < K then ξ₀ ⟨v, h⟩
+              else σ ⟨v - K, by have := v.isLt; omega⟩
+            (∏ v : Fin n'', W (σ v)) *
+            ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+          ∑ σ : Fin n'' → Fin T,
+            (let τ : Fin (n'' + K) → Fin T := fun v =>
+              if h : (v : ℕ) < K then ξ₀' ⟨v, h⟩
+              else σ ⟨v - K, by have := v.isLt; omega⟩
+            (∏ v : Fin n'', W (σ v)) *
+            ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) →
+        ∀ (c : Fin K),
+          ∑ t : Fin T, W t * B (ξ₀ c) t ^ 2 = ∑ t : Fin T, W t * B (ξ₀' c) t ^ 2)
     {ξ ξ' : Fin K → Fin T}
     (h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K)))
         [DecidableRel F.Adj],
@@ -4005,7 +4044,7 @@ theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
       -- `multigraphEval_in_simpleProfileClosure` (#86, declared above in §3.7).
       -- The closure inductive's `descends` reduces this to the `h_simple`
       -- hypothesis directly.
-      exact (multigraphEval_in_simpleProfileClosure B hB W hW htwin M).descends h_simple
+      exact (multigraphEval_in_simpleProfileClosure B hB W hW htwin M h_sq_moment).descends h_simple
 
 /-! ### §3.8 — Equivalence predicates and Lovász Lemma 2.5
 
@@ -4755,6 +4794,22 @@ machinery. -/
 private theorem product_trace_identity_simple {T k : ℕ}
     (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i) (_W : Fin T → ℝ)
     (_hW : ∀ i, 0 < _W i) (_htwin : ∀ i j, i ≠ j → _B i ≠ _B j)
+    (_h_sq_moment : ∀ {ξ₀ ξ₀' : Fin k → Fin T},
+        (∀ (n'' : ℕ) (F : SimpleGraph (Fin (n'' + k))) [DecidableRel F.Adj],
+          ∑ σ : Fin n'' → Fin T,
+            (let τ : Fin (n'' + k) → Fin T := fun v =>
+              if h : (v : ℕ) < k then ξ₀ ⟨v, h⟩
+              else σ ⟨v - k, by have := v.isLt; omega⟩
+            (∏ v : Fin n'', _W (σ v)) *
+            ∏ e ∈ F.edgeFinset, _B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+          ∑ σ : Fin n'' → Fin T,
+            (let τ : Fin (n'' + k) → Fin T := fun v =>
+              if h : (v : ℕ) < k then ξ₀' ⟨v, h⟩
+              else σ ⟨v - k, by have := v.isLt; omega⟩
+            (∏ v : Fin n'', _W (σ v)) *
+            ∏ e ∈ F.edgeFinset, _B (τ (Quot.out e).1) (τ (Quot.out e).2))) →
+        ∀ (c : Fin k),
+          ∑ t : Fin T, _W t * _B (ξ₀ c) t ^ 2 = ∑ t : Fin T, _W t * _B (ξ₀' c) t ^ 2)
     {ξ ξ' : Fin k → Fin T} (_h : tupleEquivSimple _B _W ξ ξ')
     (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1))))) :
     ∑ t : Fin T, _W t *
@@ -4790,7 +4845,7 @@ private theorem product_trace_identity_simple {T k : ℕ}
     rw [multiLabeledEvalK_sum_last_label M _B _hB _W ξ,
         multiLabeledEvalK_sum_last_label M _B _hB _W ξ']
     -- Now apply the bridge `multiLabeledEvalK_tupleEquiv_invariant` to `M.trace`.
-    exact multiLabeledEvalK_tupleEquiv_invariant _B _hB _W _hW _htwin M.trace _h
+    exact multiLabeledEvalK_tupleEquiv_invariant _B _hB _W _hW _htwin M.trace _h_sq_moment _h
   -- **Step 2**: Construct the combined multigraph by induction on `L`.
   clear _h
   induction L with
@@ -4840,6 +4895,22 @@ theorem coeffRestrictSimple_equiv {T k : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (h_sq_moment : ∀ {ξ₀ ξ₀' : Fin k → Fin T},
+        (∀ (n'' : ℕ) (F : SimpleGraph (Fin (n'' + k))) [DecidableRel F.Adj],
+          ∑ σ : Fin n'' → Fin T,
+            (let τ : Fin (n'' + k) → Fin T := fun v =>
+              if h : (v : ℕ) < k then ξ₀ ⟨v, h⟩
+              else σ ⟨v - k, by have := v.isLt; omega⟩
+            (∏ v : Fin n'', W (σ v)) *
+            ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+          ∑ σ : Fin n'' → Fin T,
+            (let τ : Fin (n'' + k) → Fin T := fun v =>
+              if h : (v : ℕ) < k then ξ₀' ⟨v, h⟩
+              else σ ⟨v - k, by have := v.isLt; omega⟩
+            (∏ v : Fin n'', W (σ v)) *
+            ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) →
+        ∀ (c : Fin k),
+          ∑ t : Fin T, W t * B (ξ₀ c) t ^ 2 = ∑ t : Fin T, W t * B (ξ₀' c) t ^ 2)
     (μ : Fin (k + 1) → Fin T) {ξ ξ' : Fin k → Fin T}
     (h : tupleEquivSimple B W ξ ξ') :
     coeffRestrictSimple B W μ ξ = coeffRestrictSimple B W μ ξ' := by
@@ -4939,7 +5010,7 @@ theorem coeffRestrictSimple_equiv {T k : ℕ}
             (Classical.decRel _) (Fin.snoc ξ'' t))).prod := by
         intros; simp only [f_fun, eval_lift, Quotient.lift_mk]
       simp_rw [hbridge ξ, hbridge ξ']
-      linarith [product_trace_identity_simple B hB W hW htwin h L]
+      linarith [product_trace_identity_simple B hB W hW htwin h_sq_moment h L]
   -- Conclude `∑ t, W t * g (snoc ξ t) = ∑ t, W t * g (snoc ξ' t)`.
   have hsum_zero : ∑ q, d_fun q * g_lift q = 0 :=
     Finset.sum_eq_zero fun q _ => by rw [hd_zero q, zero_mul]
@@ -4977,6 +5048,22 @@ constancy step — the IH-free Lovász §4 core). -/
 theorem tupleEquivSimple_extend {T k : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (h_sq_moment : ∀ {ξ₀ ξ₀' : Fin k → Fin T},
+        (∀ (n'' : ℕ) (F : SimpleGraph (Fin (n'' + k))) [DecidableRel F.Adj],
+          ∑ σ : Fin n'' → Fin T,
+            (let τ : Fin (n'' + k) → Fin T := fun v =>
+              if h : (v : ℕ) < k then ξ₀ ⟨v, h⟩
+              else σ ⟨v - k, by have := v.isLt; omega⟩
+            (∏ v : Fin n'', W (σ v)) *
+            ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+          ∑ σ : Fin n'' → Fin T,
+            (let τ : Fin (n'' + k) → Fin T := fun v =>
+              if h : (v : ℕ) < k then ξ₀' ⟨v, h⟩
+              else σ ⟨v - k, by have := v.isLt; omega⟩
+            (∏ v : Fin n'', W (σ v)) *
+            ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) →
+        ∀ (c : Fin k),
+          ∑ t : Fin T, W t * B (ξ₀ c) t ^ 2 = ∑ t : Fin T, W t * B (ξ₀' c) t ^ 2)
     {ξ ξ' : Fin k → Fin T}
     (h : tupleEquivSimple B W ξ ξ')
     (μ : Fin (k + 1) → Fin T) (hμ : restrictTuple μ = ξ) :
@@ -4989,7 +5076,7 @@ theorem tupleEquivSimple_extend {T k : ℕ}
   -- Step 2: rewrite restrictTuple μ as ξ.
   rw [hμ] at h_pos_restrict
   -- Step 3: class constancy transfers positivity ξ → ξ'.
-  have h_eq := coeffRestrictSimple_equiv B W hB hW htwin μ h
+  have h_eq := coeffRestrictSimple_equiv B W hB hW htwin h_sq_moment μ h
   have h_pos_ξ' : 0 < coeffRestrictSimple B W μ ξ' := h_eq ▸ h_pos_restrict
   -- Step 4: extract an extension witness a.
   obtain ⟨a, ha⟩ := exists_extension_of_coeffRestrictSimple_pos B W μ ξ' h_pos_ξ'
@@ -7630,7 +7717,7 @@ Route 2 (rooted-profile span + orbit invariance + K→K=1 reduction).
 
 This is the genuine Lovász §3 bottleneck. Closes the
 unlabeled-excess branch of #86 (multigraph bridge). -/
-private theorem label_unlabeled_square_moment_descends {T K : ℕ}
+theorem label_unlabeled_square_moment_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j)
