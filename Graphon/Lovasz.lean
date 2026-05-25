@@ -2992,20 +2992,23 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
 `a` and one unlabeled endpoint `b`, where no other edges touch `b`. Reduces to
 the K=1 square moment via splitSigma at `b` (parallel to UU isolated proof):
 the σ_b-sum factors as `(∑_t W(t) · B(ξ_a, t)²) · F_rest_eval ξ`, where the
-scalar factor IS the K=1 square moment. Dependency: the FINAL paper-root
-`label_unlabeled_square_moment_descends`. ~600 LOC parallel to UU isolated. -/
+scalar factor IS the K=1 square moment.
+
+The extra parameter `h_sq_moment` is the FINAL paper-root content
+(`label_unlabeled_square_moment_descends`), supplied by callers since it
+lives later in the file (after the K=1 rank theorem). -/
 private theorem multigraphEval_label_unlabeled_isolated_descends
-    {T K n : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
+    {T K n : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
     (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (M : MultiLabeledGraph K n)
     (a b : Fin (n + K))
-    (_ha : a.val < K) (_hb : K ≤ b.val) (_hab : a ≠ b)
-    (_h_doubled : M.mult s(a, b) = 2)
-    (_h_others_le_one : ∀ e, e ≠ s(a, b) → M.mult e ≤ 1)
-    (_h_b_iso : ∀ e, e ≠ s(a, b) → b ∈ e → M.mult e = 0)
+    (ha : a.val < K) (hb : K ≤ b.val) (_hab : a ≠ b)
+    (h_doubled : M.mult s(a, b) = 2)
+    (h_others_le_one : ∀ e, e ≠ s(a, b) → M.mult e ≤ 1)
+    (h_b_iso : ∀ e, e ≠ s(a, b) → b ∈ e → M.mult e = 0)
     {ξ ξ' : Fin K → Fin T}
-    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+    (h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
         ∑ σ : Fin n' → Fin T,
           (let τ : Fin (n' + K) → Fin T := fun v =>
             if h : (v : ℕ) < K then ξ ⟨v, h⟩
@@ -3017,14 +3020,469 @@ private theorem multigraphEval_label_unlabeled_isolated_descends
             if h : (v : ℕ) < K then ξ' ⟨v, h⟩
             else σ ⟨v - K, by have := v.isLt; omega⟩
           (∏ v : Fin n', W (σ v)) *
-          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)))
+    (h_sq_moment : ∀ (c : Fin K),
+        ∑ t : Fin T, W t * B (ξ c) t ^ 2 = ∑ t : Fin T, W t * B (ξ' c) t ^ 2) :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
-  -- BLOCKED BY: label_unlabeled_square_moment_descends (FINAL paper-root).
-  -- Proof pattern: parallel to UU isolated. splitSigma at b → factor σ-sum
-  -- into scalar(ξ) · F_rest_eval ξ where scalar(ξ) = ∑_t W(t) · B(ξ_⟨a.val⟩, t)².
-  -- Apply label_unlabeled_square_moment_descends to match scalar at ξ vs ξ'.
-  -- F_rest_eval matches via h_simple on the simple graph from M's mult-1 edges.
-  sorry
+  classical
+  -- aK : Fin K — the label index for a. ξ aK = ξ ⟨a.val, ha⟩.
+  let aK : Fin K := ⟨a.val, ha⟩
+  -- u_p : Fin n — the unlabeled position of b. n ≥ 1 since u_p exists.
+  let u_p : Fin n := ⟨b.val - K, by have := b.isLt; omega⟩
+  have hb_lift : b = ⟨u_p.val + K, by have := b.isLt; omega⟩ := by
+    apply Fin.ext; show b.val = (b.val - K) + K; omega
+  -- Predicate: positions in p are the singleton {u_p}.
+  let p : Fin n → Prop := fun k => k = u_p
+  haveI hpdec : DecidablePred p := fun k => (inferInstance : Decidable (k = u_p))
+  -- Step: Subtype p ≃ Fin 1.
+  let mkU : Subtype p := ⟨u_p, rfl⟩
+  let subtypeEquiv : Subtype p ≃ Fin 1 :=
+    { toFun := fun _ => 0
+      invFun := fun _ => mkU
+      left_inv := fun x => by
+        have hx : x = mkU := Subtype.ext x.property
+        subst hx; rfl
+      right_inv := fun i => by
+        have : i = 0 := Subsingleton.elim _ _
+        subst this; rfl }
+  -- splitSigma equiv.
+  let splitSigma : (Fin n → Fin T) ≃ ((Fin 1 → Fin T) × ({k : Fin n // ¬ p k} → Fin T)) :=
+    (Equiv.piEquivPiSubtypeProd p (fun _ => Fin T)).trans
+      (Equiv.prodCongr (Equiv.arrowCongr subtypeEquiv (Equiv.refl (Fin T))) (Equiv.refl _))
+  have h_at_u : ∀ (α : Fin 1 → Fin T) (ρ : {k // ¬ p k} → Fin T),
+      (splitSigma.symm (α, ρ)) u_p = α 0 := by
+    intro α ρ
+    show (Equiv.piEquivPiSubtypeProd p (fun _ => Fin T)).symm
+         (((Equiv.arrowCongr subtypeEquiv (Equiv.refl (Fin T))).symm α), ρ) u_p = α 0
+    rw [Equiv.piEquivPiSubtypeProd_symm_apply]
+    rw [dif_pos (rfl : p u_p)]
+    show (Equiv.arrowCongr subtypeEquiv (Equiv.refl (Fin T))).symm α ⟨u_p, rfl⟩ = α 0
+    show α (subtypeEquiv ⟨u_p, rfl⟩) = α 0
+    rfl
+  have h_at_rest : ∀ (α : Fin 1 → Fin T) (ρ : {k // ¬ p k} → Fin T)
+      (k : Fin n) (hk : ¬ p k),
+      (splitSigma.symm (α, ρ)) k = ρ ⟨k, hk⟩ := by
+    intro α ρ k hk
+    show (Equiv.piEquivPiSubtypeProd p (fun _ => Fin T)).symm
+         (((Equiv.arrowCongr subtypeEquiv (Equiv.refl (Fin T))).symm α), ρ) k = ρ ⟨k, hk⟩
+    rw [Equiv.piEquivPiSubtypeProd_symm_apply]
+    rw [dif_neg hk]
+  -- W-product factorization.
+  have hW_factor : ∀ (α : Fin 1 → Fin T) (ρ : {k // ¬ p k} → Fin T),
+      (∏ k : Fin n, W ((splitSigma.symm (α, ρ)) k)) =
+      W (α 0) * ∏ k : {k // ¬ p k}, W (ρ k) := by
+    intro α ρ
+    rw [← Finset.prod_filter_mul_prod_filter_not Finset.univ p
+        (fun k => W ((splitSigma.symm (α, ρ)) k))]
+    have h_filter_p_eq : (Finset.univ.filter p : Finset (Fin n)) = {u_p} := by
+      ext k
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_singleton]
+      rfl
+    rw [h_filter_p_eq, Finset.prod_singleton, h_at_u α ρ]
+    congr 1
+    rw [Finset.prod_subtype (Finset.univ.filter (¬ p ·)) (p := (¬ p ·))
+        (fun k => by simp only [Finset.mem_filter, Finset.mem_univ, true_and])
+        (fun k => W ((splitSigma.symm (α, ρ)) k))]
+    refine Finset.prod_congr rfl fun k _ => ?_
+    rw [h_at_rest α ρ k.val k.property]
+  -- B-product factorization. For η : Fin K → Fin T, τ extends with η at labels;
+  -- the Sym2 product factors as B(η aK, α 0)^2 times non-b complement product.
+  have hB_factor : ∀ (α : Fin 1 → Fin T) (ρ : {k // ¬ p k} → Fin T)
+      (η : Fin K → Fin T),
+      (∏ e : Sym2 (Fin (n + K)),
+        B ((fun v : Fin (n + K) =>
+              if h : (v : ℕ) < K then η ⟨v, h⟩
+              else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩)
+            (Quot.out e).1)
+          ((fun v : Fin (n + K) =>
+              if h : (v : ℕ) < K then η ⟨v, h⟩
+              else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩)
+            (Quot.out e).2) ^ M.mult e) =
+      B (η aK) (α 0) ^ 2 *
+      (∏ e ∈ (Finset.univ.filter (fun e : Sym2 (Fin (n + K)) => b ∉ e) :
+              Finset (Sym2 (Fin (n + K)))),
+        B ((fun v : Fin (n + K) =>
+              if h : (v : ℕ) < K then η ⟨v, h⟩
+              else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩)
+            (Quot.out e).1)
+          ((fun v : Fin (n + K) =>
+              if h : (v : ℕ) < K then η ⟨v, h⟩
+              else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩)
+            (Quot.out e).2) ^ M.mult e) := by
+    intro α ρ η
+    set τ : Fin (n + K) → Fin T := fun v =>
+      if h : (v : ℕ) < K then η ⟨v, h⟩
+      else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩
+    -- τ at a = η aK; τ at b = α 0.
+    have hτa : τ a = η aK := by
+      show (if h : (a : ℕ) < K then η ⟨a.val, h⟩ else _) = η aK
+      rw [dif_pos ha]
+    have hτb : τ b = α 0 := by
+      show (if h : (b : ℕ) < K then η ⟨b.val, h⟩ else _) = α 0
+      rw [dif_neg (by omega : ¬ ((b : ℕ) < K))]
+      show (splitSigma.symm (α, ρ)) ⟨b.val - K, _⟩ = α 0
+      have h_eq : (⟨b.val - K, by have := b.isLt; omega⟩ : Fin n) = u_p := rfl
+      rw [h_eq]
+      exact h_at_u α ρ
+    -- Peel off s(a, b).
+    rw [← Finset.mul_prod_erase _ _ (Finset.mem_univ s(a, b))]
+    rw [h_doubled, B_quot_out_eq hB τ a b, hτa, hτb]
+    congr 1
+    -- Goal: ∏ e ∈ erase, ... = ∏ e ∈ filter (b ∉ e), ...
+    rw [← Finset.prod_filter_mul_prod_filter_not (Finset.univ.erase s(a, b))
+          (fun e => b ∈ e)
+          (fun e => B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e)]
+    have h_touching : (∏ e ∈ (Finset.univ.erase s(a, b) :
+          Finset (Sym2 (Fin (n + K)))).filter (fun e => b ∈ e),
+          B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e) = 1 := by
+      apply Finset.prod_eq_one
+      intro e he
+      rw [Finset.mem_filter, Finset.mem_erase] at he
+      obtain ⟨⟨he_ne, _⟩, h_touches⟩ := he
+      rw [h_b_iso e he_ne h_touches, pow_zero]
+    rw [h_touching, one_mul]
+    refine Finset.prod_congr (Finset.ext fun e => ?_) (fun _ _ => rfl)
+    simp only [Finset.mem_filter, Finset.mem_erase, Finset.mem_univ, true_and, and_true]
+    refine ⟨fun ⟨_, h⟩ => h, fun h => ⟨fun h_eq => ?_, h⟩⟩
+    rw [h_eq] at h
+    exact h (Sym2.mem_mk_right a b)
+  -- Cardinality: n ≥ 1, |{k // ¬ p k}| = n - 1.
+  have hn_ge_1 : 1 ≤ n := Nat.one_le_iff_ne_zero.mpr (fun heq => by
+    rw [heq] at u_p; exact u_p.elim0)
+  have h_card_p : Fintype.card (Subtype p) = 1 := by
+    rw [Fintype.card_of_bijective subtypeEquiv.bijective]; simp
+  have h_card_compl : Fintype.card {k // ¬ p k} = n - 1 := by
+    have h_total : Fintype.card (Subtype p) + Fintype.card {k // ¬ p k} =
+                   Fintype.card (Fin n) := by
+      rw [← Fintype.card_sum]; exact Fintype.card_congr (Equiv.sumCompl p)
+    rw [Fintype.card_fin] at h_total
+    omega
+  let complEquiv : {k // ¬ p k} ≃ Fin (n - 1) := Fintype.equivFinOfCardEq h_card_compl
+  let g_rest : Fin (n - 1) → Fin n := fun r => (complEquiv.symm r).val
+  have g_rest_injective : Function.Injective g_rest := by
+    intro r₁ r₂ h_eq
+    have : (complEquiv.symm r₁ : {k // ¬ p k}) = complEquiv.symm r₂ := Subtype.ext h_eq
+    exact complEquiv.symm.injective this
+  let restEmbed : Fin (n - 1 + K) → Fin (n + K) := @restEmbedAux n K (n - 1) g_rest
+  let F_rest : SimpleGraph (Fin (n - 1 + K)) :=
+    { Adj := fun a b => a ≠ b ∧ M.mult s(restEmbed a, restEmbed b) = 1
+      symm := fun a b ⟨hne, hmult⟩ => ⟨hne.symm, by rwa [Sym2.eq_swap]⟩
+      loopless := fun a ⟨hne, _⟩ => hne rfl }
+  haveI : DecidableRel F_rest.Adj := Classical.decRel _
+  have h_simple_F_rest := h_simple (n - 1) F_rest
+  have restEmbed_injective : Function.Injective restEmbed :=
+    restEmbedAux_injective g_rest_injective
+  -- h_rest_eval: F_rest evaluation at η = ρ-sum at fixed α.
+  have h_rest_eval : ∀ (α : Fin 1 → Fin T) (η : Fin K → Fin T),
+      (∑ σ_rest : Fin (n - 1) → Fin T,
+        (let τ_rest : Fin (n - 1 + K) → Fin T := fun v =>
+          if h : (v : ℕ) < K then η ⟨v, h⟩
+          else σ_rest ⟨v - K, by have := v.isLt; omega⟩
+        (∏ v : Fin (n - 1), W (σ_rest v)) *
+        ∏ e ∈ F_rest.edgeFinset,
+          B (τ_rest (Quot.out e).1) (τ_rest (Quot.out e).2))) =
+      (∑ ρ : {k : Fin n // ¬ p k} → Fin T,
+        (let σ : Fin n → Fin T := splitSigma.symm (α, ρ)
+         let τ : Fin (n + K) → Fin T := fun v =>
+          if h : (v : ℕ) < K then η ⟨v, h⟩
+          else σ ⟨v - K, by have := v.isLt; omega⟩
+        (∏ k : {k : Fin n // ¬ p k}, W (ρ k)) *
+        ∏ e ∈ (Finset.univ.filter (fun e : Sym2 (Fin (n + K)) => b ∉ e) :
+                Finset (Sym2 (Fin (n + K)))),
+          B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e)) := by
+    intro α η
+    let arrowE : ({k : Fin n // ¬ p k} → Fin T) ≃ (Fin (n - 1) → Fin T) :=
+      Equiv.arrowCongr complEquiv (Equiv.refl (Fin T))
+    rw [← arrowE.sum_comp]
+    refine Finset.sum_congr rfl fun ρ _ => ?_
+    have hW_rest : (∏ r : Fin (n - 1), W ((arrowE ρ) r)) =
+                   ∏ k : {k : Fin n // ¬ p k}, W (ρ k) :=
+      complEquiv.symm.prod_comp (fun k => W (ρ k))
+    -- Sym2 injectivity.
+    have hSym2inj : Function.Injective (fun e : Sym2 (Fin (n - 1 + K)) =>
+        Sym2.map restEmbed e) := Sym2.map.injective restEmbed_injective
+    -- Membership equivalence.
+    have hmem : ∀ e : Sym2 (Fin (n - 1 + K)),
+        e ∈ F_rest.edgeFinset ↔
+        (Sym2.lift ⟨fun a b : Fin (n - 1 + K) => a ≠ b, fun _ _ => propext ne_comm⟩ e ∧
+         M.mult (Sym2.map restEmbed e) = 1) := by
+      intro e
+      induction e with
+      | h a b =>
+        show s(a, b) ∈ F_rest.edgeFinset ↔ (a ≠ b ∧ M.mult (Sym2.map restEmbed s(a, b)) = 1)
+        rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
+        show (a ≠ b ∧ M.mult s(restEmbed a, restEmbed b) = 1) ↔
+             (a ≠ b ∧ M.mult (Sym2.map restEmbed s(a, b)) = 1)
+        rw [Sym2.map_pair_eq]
+    -- restEmbed never hits b (image avoids u_p position).
+    have h_restEmbed_ne_b : ∀ v : Fin (n - 1 + K), restEmbed v ≠ b := by
+      intro v h_eq
+      by_cases h_lab : v.val < K
+      · have hv : (restEmbed v).val = v.val := restEmbedAux_val_lab g_rest v h_lab
+        have : v.val = b.val := by rw [← hv, h_eq]
+        omega
+      · push_neg at h_lab
+        have hv : (restEmbed v).val =
+            (g_rest ⟨v.val - K, by have := v.isLt; omega⟩).val + K :=
+          restEmbedAux_val_rest g_rest v (not_lt.mpr h_lab)
+        have h_eq_val : (restEmbed v).val = b.val := by rw [h_eq]
+        have h_b_lift_val : b.val = u_p.val + K := by
+          have := congr_arg Fin.val hb_lift; simpa using this
+        have h_g_val : (g_rest ⟨v.val - K, by have := v.isLt; omega⟩).val = u_p.val := by omega
+        have h_complEquiv_prop := (complEquiv.symm
+            (⟨v.val - K, by have := v.isLt; omega⟩ : Fin (n - 1))).property
+        apply h_complEquiv_prop
+        apply Fin.ext
+        exact h_g_val
+    -- Surjectivity onto mult-1 complement (non-b) edges.
+    have h_surj : ∀ e : Sym2 (Fin (n + K)),
+        e ∈ (Finset.univ.filter (fun e => b ∉ e) :
+              Finset (Sym2 (Fin (n + K)))) →
+        M.mult e = 1 →
+        ∃ e' : Sym2 (Fin (n - 1 + K)),
+          e' ∈ F_rest.edgeFinset ∧ Sym2.map restEmbed e' = e := by
+      intro e he hmult
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at he
+      induction e with
+      | h x y =>
+        rw [Sym2.mem_iff, not_or] at he
+        have hx_ne_b : x ≠ b := fun h => he.1 h.symm
+        have hy_ne_b : y ≠ b := fun h => he.2 h.symm
+        have hxy_ne : x ≠ y := by
+          intro h_eq; rw [h_eq] at hmult; have := M.multNoLoop y; omega
+        have endpoint_preimage : ∀ z : Fin (n + K), z ≠ b →
+            ∃ w : Fin (n - 1 + K), restEmbed w = z := by
+          intro z hzb
+          by_cases hz_lab : z.val < K
+          · refine ⟨⟨z.val, by have := hn_ge_1; omega⟩, ?_⟩
+            apply Fin.ext
+            exact restEmbedAux_val_lab g_rest ⟨z.val, by have := hn_ge_1; omega⟩ hz_lab
+          · push_neg at hz_lab
+            let z_un : Fin n := ⟨z.val - K, by have := z.isLt; omega⟩
+            have hz_un_ne_u_p : z_un ≠ u_p := by
+              intro h_eq
+              apply hzb
+              apply Fin.ext
+              have h_z_K : z_un.val = z.val - K := rfl
+              have h_u_eq : u_p.val = b.val - K := rfl
+              have hval : z_un.val = u_p.val := by rw [h_eq]
+              show z.val = b.val
+              omega
+            have hz_un_not_p : ¬ p z_un := hz_un_ne_u_p
+            let z_subt : {k : Fin n // ¬ p k} := ⟨z_un, hz_un_not_p⟩
+            let z_fin : Fin (n - 1) := complEquiv z_subt
+            refine ⟨⟨z_fin.val + K, by have := z_fin.isLt; omega⟩, ?_⟩
+            apply Fin.ext
+            have hy_not_lab : ¬ (z_fin.val + K < K) := by omega
+            rw [restEmbedAux_val_rest g_rest _ hy_not_lab]
+            have h_arg_simp : (⟨z_fin.val + K - K,
+                by have := z_fin.isLt; omega⟩ : Fin (n - 1)) = z_fin := by
+              apply Fin.ext; show z_fin.val + K - K = z_fin.val; omega
+            rw [h_arg_simp]
+            show (complEquiv.symm z_fin).val.val + K = z.val
+            rw [show z_fin = complEquiv z_subt from rfl, Equiv.symm_apply_apply]
+            show z_un.val + K = z.val
+            have : z_un.val = z.val - K := rfl
+            omega
+        obtain ⟨x', hx'⟩ := endpoint_preimage x hx_ne_b
+        obtain ⟨y', hy'⟩ := endpoint_preimage y hy_ne_b
+        refine ⟨s(x', y'), ?_, ?_⟩
+        · rw [hmem]
+          refine ⟨?_, ?_⟩
+          · show x' ≠ y'
+            intro h_eq
+            exact hxy_ne (hx'.symm.trans ((congrArg restEmbed h_eq).trans hy'))
+          · rw [Sym2.map_pair_eq, hx', hy']; exact hmult
+        · rw [Sym2.map_pair_eq, hx', hy']
+    -- Assemble: W * B-rest equality.
+    dsimp only
+    rw [hW_rest]
+    congr 1
+    set τ_rest : Fin (n - 1 + K) → Fin T := fun v =>
+      if h : (v : ℕ) < K then η ⟨v, h⟩
+      else (arrowE ρ) ⟨v - K, by have := v.isLt; omega⟩ with hτ_rest_def
+    set τ_orig : Fin (n + K) → Fin T := fun v =>
+      if h : (v : ℕ) < K then η ⟨v, h⟩
+      else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩ with hτ_orig_def
+    have hτ_compat : ∀ v : Fin (n - 1 + K), τ_orig (restEmbed v) = τ_rest v := by
+      intro v
+      by_cases h_lab : v.val < K
+      · have h_re_val : (restEmbed v).val = v.val := restEmbedAux_val_lab g_rest v h_lab
+        have h_re_lab : (restEmbed v).val < K := by rw [h_re_val]; exact h_lab
+        show (if h : (restEmbed v).val < K then η ⟨(restEmbed v).val, h⟩
+              else (splitSigma.symm (α, ρ))
+                ⟨(restEmbed v).val - K, by have := (restEmbed v).isLt; omega⟩) =
+             (if h : v.val < K then η ⟨v.val, h⟩
+              else (arrowE ρ) ⟨v.val - K, by have := v.isLt; omega⟩)
+        rw [dif_pos h_re_lab, dif_pos h_lab]
+        congr 1
+        exact Fin.ext h_re_val
+      · push_neg at h_lab
+        have h_v_not_lab : ¬ v.val < K := not_lt.mpr h_lab
+        let r : Fin (n - 1) := ⟨v.val - K, by have := v.isLt; omega⟩
+        let k : {x : Fin n // ¬ p x} := complEquiv.symm r
+        have h_re_val : (restEmbed v).val = k.val.val + K :=
+          restEmbedAux_val_rest g_rest v h_v_not_lab
+        have h_re_not_lab : ¬ (restEmbed v).val < K := by
+          intro h_lt; have := h_re_val; omega
+        show (if h : (restEmbed v).val < K then η ⟨(restEmbed v).val, h⟩
+              else (splitSigma.symm (α, ρ))
+                ⟨(restEmbed v).val - K, by have := (restEmbed v).isLt; omega⟩) =
+             (if h : v.val < K then η ⟨v.val, h⟩
+              else (arrowE ρ) ⟨v.val - K, by have := v.isLt; omega⟩)
+        rw [dif_neg h_re_not_lab, dif_neg h_v_not_lab]
+        have hk_fin :
+            (⟨(restEmbed v).val - K, by have := (restEmbed v).isLt; omega⟩ : Fin n) = k.val := by
+          apply Fin.ext
+          have : (restEmbed v).val - K = k.val.val := by have := h_re_val; omega
+          exact this
+        have h_step :
+            (splitSigma.symm (α, ρ))
+              ⟨(restEmbed v).val - K, by have := (restEmbed v).isLt; omega⟩ =
+            (splitSigma.symm (α, ρ)) k.val := by rw [hk_fin]
+        rw [h_step, h_at_rest α ρ k.val k.property]
+        show ρ ⟨k.val, k.property⟩ = (arrowE ρ) r
+        have hk_subt : (⟨k.val, k.property⟩ : {x : Fin n // ¬ p x}) = k := Subtype.ext rfl
+        rw [hk_subt]
+        rfl
+    have h_value : ∀ e ∈ F_rest.edgeFinset,
+        B (τ_rest (Quot.out e).1) (τ_rest (Quot.out e).2) =
+        B (τ_orig (Quot.out (Sym2.map restEmbed e)).1)
+          (τ_orig (Quot.out (Sym2.map restEmbed e)).2) := by
+      intro e _
+      induction e with
+      | h x y =>
+        rw [B_quot_out_eq hB τ_rest x y]
+        rw [Sym2.map_pair_eq]
+        rw [B_quot_out_eq hB τ_orig (restEmbed x) (restEmbed y)]
+        rw [hτ_compat x, hτ_compat y]
+    have h_rhs_filter :
+        (∏ e ∈ (Finset.univ.filter (fun e : Sym2 (Fin (n + K)) => b ∉ e) :
+                Finset (Sym2 (Fin (n + K)))),
+          B (τ_orig (Quot.out e).1) (τ_orig (Quot.out e).2) ^ M.mult e) =
+        (∏ e ∈ ((Finset.univ.filter (fun e : Sym2 (Fin (n + K)) => b ∉ e)).filter
+                (fun e => M.mult e = 1) : Finset (Sym2 (Fin (n + K)))),
+          B (τ_orig (Quot.out e).1) (τ_orig (Quot.out e).2)) := by
+      rw [← Finset.prod_filter_mul_prod_filter_not
+            (Finset.univ.filter (fun e : Sym2 (Fin (n + K)) => b ∉ e))
+            (fun e => M.mult e = 1)
+            (fun e => B (τ_orig (Quot.out e).1) (τ_orig (Quot.out e).2) ^ M.mult e)]
+      have h_zero_part :
+          (∏ e ∈ (Finset.univ.filter (fun e : Sym2 (Fin (n + K)) => b ∉ e)).filter
+                  (fun e => ¬ M.mult e = 1),
+            B (τ_orig (Quot.out e).1) (τ_orig (Quot.out e).2) ^ M.mult e) = 1 := by
+        apply Finset.prod_eq_one
+        intro e he
+        rw [Finset.mem_filter, Finset.mem_filter] at he
+        obtain ⟨⟨_, h_compl⟩, h_ne_1⟩ := he
+        have h_ne_doubled : e ≠ s(a, b) := by
+          intro heq
+          rw [heq] at h_compl
+          exact h_compl (Sym2.mem_mk_right a b)
+        have h_le_1 : M.mult e ≤ 1 := h_others_le_one e h_ne_doubled
+        have h_zero : M.mult e = 0 := by omega
+        rw [h_zero, pow_zero]
+      rw [h_zero_part, mul_one]
+      refine Finset.prod_congr rfl fun e he => ?_
+      rw [Finset.mem_filter] at he
+      rw [he.2, pow_one]
+    have h_lhs_reindex :
+        (∏ e ∈ F_rest.edgeFinset,
+          B (τ_rest (Quot.out e).1) (τ_rest (Quot.out e).2)) =
+        (∏ e ∈ ((Finset.univ.filter (fun e : Sym2 (Fin (n + K)) => b ∉ e)).filter
+                (fun e => M.mult e = 1) : Finset (Sym2 (Fin (n + K)))),
+          B (τ_orig (Quot.out e).1) (τ_orig (Quot.out e).2)) := by
+      refine Finset.prod_nbij (fun e => Sym2.map restEmbed e) ?mem ?inj ?surj ?value
+      case mem =>
+        intro e he
+        rw [Finset.mem_filter, Finset.mem_filter]
+        refine ⟨⟨Finset.mem_univ _, ?_⟩, ?_⟩
+        · show b ∉ Sym2.map restEmbed e
+          induction e with
+          | h x y =>
+            rw [Sym2.map_pair_eq]
+            rw [Sym2.mem_iff]
+            rintro (heq | heq)
+            · exact h_restEmbed_ne_b x heq.symm
+            · exact h_restEmbed_ne_b y heq.symm
+        · show M.mult (Sym2.map restEmbed e) = 1
+          exact ((hmem e).mp he).2
+      case inj => exact fun _ _ _ _ h_eq => hSym2inj h_eq
+      case surj =>
+        intro e he
+        simp only [Finset.coe_filter, Finset.mem_filter,
+                   Finset.mem_univ, true_and, Set.mem_setOf_eq] at he
+        obtain ⟨he_compl, he_mult⟩ := he
+        obtain ⟨e', he'_mem, he'_eq⟩ := h_surj e
+          (Finset.mem_filter.mpr ⟨Finset.mem_univ _, he_compl⟩) he_mult
+        exact ⟨e', he'_mem, he'_eq⟩
+      case value => exact h_value
+    rw [h_lhs_reindex, h_rhs_filter]
+  -- Step 8: scalar congruence using h_sq_moment.
+  let F_rest_eval : (Fin K → Fin T) → ℝ := fun η =>
+    ∑ σ_rest : Fin (n - 1) → Fin T,
+      (let τ_rest : Fin (n - 1 + K) → Fin T := fun v =>
+        if h : (v : ℕ) < K then η ⟨v, h⟩
+        else σ_rest ⟨v - K, by have := v.isLt; omega⟩
+      (∏ v : Fin (n - 1), W (σ_rest v)) *
+      ∏ e ∈ F_rest.edgeFinset,
+        B (τ_rest (Quot.out e).1) (τ_rest (Quot.out e).2))
+  -- scalar depends on η; equals ∑ t, W t * B (η aK) t ^ 2.
+  let scalar : (Fin K → Fin T) → ℝ := fun η =>
+    ∑ t : Fin T, W t * B (η aK) t ^ 2
+  have h_norm : ∀ η : Fin K → Fin T,
+      multiLabeledEvalK K n M B W η = scalar η * F_rest_eval η := by
+    intro η
+    unfold multiLabeledEvalK
+    rw [← splitSigma.symm.sum_comp]
+    rw [Fintype.sum_prod_type]
+    -- Per-(α, ρ) body via hW_factor + hB_factor.
+    rw [show (∑ α : Fin 1 → Fin T, ∑ ρ : {k : Fin n // ¬ p k} → Fin T,
+              (let τ : Fin (n + K) → Fin T := fun v =>
+                if h : (v : ℕ) < K then η ⟨v, h⟩
+                else (splitSigma.symm (α, ρ)) ⟨v - K, by have := v.isLt; omega⟩
+              (∏ v : Fin n, W ((splitSigma.symm (α, ρ)) v)) *
+              ∏ e : Sym2 (Fin (n + K)),
+                B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e)) =
+            ∑ α : Fin 1 → Fin T, ∑ ρ : {k : Fin n // ¬ p k} → Fin T,
+              (W (α 0) * B (η aK) (α 0) ^ 2) *
+              ((∏ k : {k : Fin n // ¬ p k}, W (ρ k)) *
+               (∏ e ∈ (Finset.univ.filter
+                  (fun e : Sym2 (Fin (n + K)) => b ∉ e) :
+                  Finset (Sym2 (Fin (n + K)))),
+                 B ((fun v : Fin (n + K) =>
+                      if h : (v : ℕ) < K then η ⟨v, h⟩
+                      else (splitSigma.symm (α, ρ))
+                        ⟨v - K, by have := v.isLt; omega⟩)
+                    (Quot.out e).1)
+                   ((fun v : Fin (n + K) =>
+                      if h : (v : ℕ) < K then η ⟨v, h⟩
+                      else (splitSigma.symm (α, ρ))
+                        ⟨v - K, by have := v.isLt; omega⟩)
+                    (Quot.out e).2) ^ M.mult e)) from by
+      refine Finset.sum_congr rfl fun α _ => Finset.sum_congr rfl fun ρ _ => ?_
+      dsimp only
+      rw [hW_factor α ρ, hB_factor α ρ η]
+      ring]
+    -- Pull scalar(η) factor out.
+    simp_rw [← Finset.mul_sum]
+    simp_rw [← h_rest_eval _ η]
+    rw [← Finset.sum_mul]
+    -- Goal: (∑ α, W (α 0) * B (η aK) (α 0) ^ 2) * F_rest_eval η = scalar η * F_rest_eval η.
+    congr 1
+    -- scalar η = ∑ t, W t * B (η aK) t ^ 2 = ∑ α : Fin 1 → Fin T, W (α 0) * B (η aK) (α 0) ^ 2.
+    show (∑ α : Fin 1 → Fin T, W (α 0) * B (η aK) (α 0) ^ 2) = scalar η
+    show (∑ α : Fin 1 → Fin T, W (α 0) * B (η aK) (α 0) ^ 2) =
+         ∑ t : Fin T, W t * B (η aK) t ^ 2
+    exact (Fintype.sum_equiv (Equiv.funUnique (Fin 1) (Fin T))
+      (fun α => W (α 0) * B (η aK) (α 0) ^ 2)
+      (fun t => W t * B (η aK) t ^ 2)
+      (fun _ => rfl))
+  -- Final assembly: scalar(ξ) = scalar(ξ') via h_sq_moment at aK;
+  -- F_rest_eval ξ = F_rest_eval ξ' via h_simple_F_rest.
+  have h_scalar : scalar ξ = scalar ξ' := h_sq_moment aK
+  have h_compat : F_rest_eval ξ = F_rest_eval ξ' := h_simple_F_rest
+  rw [h_norm ξ, h_norm ξ', h_scalar, h_compat]
 
 /-- **Label-unlabeled non-isolated reduction**: same orientation as above
 but with other edges touching `b`. Reduces to the isolated case via peeling
@@ -3082,7 +3540,9 @@ private theorem multigraphEval_unlabeled_label_isolated_descends
             if h : (v : ℕ) < K then ξ' ⟨v, h⟩
             else σ ⟨v - K, by have := v.isLt; omega⟩
           (∏ v : Fin n', W (σ v)) *
-          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)))
+    (h_sq_moment : ∀ (c : Fin K),
+        ∑ t : Fin T, W t * B (ξ c) t ^ 2 = ∑ t : Fin T, W t * B (ξ' c) t ^ 2) :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
   -- Symmetric to label-unlabeled isolated via Sym2.eq_swap.
   -- Swap a and b: the doubled edge s(a, b) = s(b, a), and we apply
@@ -3095,6 +3555,7 @@ private theorem multigraphEval_unlabeled_label_isolated_descends
   · intro e he hae
     exact h_a_iso e (by rw [h_swap]; exact he) hae
   · exact h_simple
+  · exact h_sq_moment
 
 /-- **Unlabeled-label non-isolated reduction**: symmetric to
 label-unlabeled non-isolated via Sym2.eq_swap. -/
@@ -3249,7 +3710,9 @@ private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
             if h : (v : ℕ) < K then ξ' ⟨v, h⟩
             else σ ⟨v - K, by have := v.isLt; omega⟩
           (∏ v : Fin n', W (σ v)) *
-          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)))
+    (h_sq_moment : ∀ (c : Fin K),
+        ∑ t : Fin T, W t * B (ξ c) t ^ 2 = ∑ t : Fin T, W t * B (ξ' c) t ^ 2) :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
   classical
   -- Case analysis on the orientation of `e₀`.
@@ -3269,7 +3732,7 @@ private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
         by_cases h_b_iso : ∀ e, e ≠ s(a, b) → b ∈ e → M.mult e = 0
         · exact multigraphEval_label_unlabeled_isolated_descends
             B hB W hW htwin M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one
-            h_b_iso h_simple
+            h_b_iso h_simple h_sq_moment
         · exact multigraphEval_label_unlabeled_nonisolated_descends
             B hB W hW htwin M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one
             h_b_iso h_simple
@@ -3279,7 +3742,7 @@ private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
         by_cases h_a_iso : ∀ e, e ≠ s(a, b) → a ∈ e → M.mult e = 0
         · exact multigraphEval_unlabeled_label_isolated_descends
             B hB W hW htwin M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one
-            h_a_iso h_simple
+            h_a_iso h_simple h_sq_moment
         · exact multigraphEval_unlabeled_label_nonisolated_descends
             B hB W hW htwin M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one
             h_a_iso h_simple
