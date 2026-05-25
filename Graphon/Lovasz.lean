@@ -3160,9 +3160,28 @@ private theorem multigraphEval_unlabeled_label_nonisolated_descends
   · exact h_simple
 
 /-- **UU non-isolated reduction**: doubled edge between two unlabeled vertices
-with at least one OTHER edge touching `a` or `b`. Reduces to the proved
-isolated UU theorem via peeling the offending edges. Dependency: the proved
-`multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends`. -/
+with at least one OTHER edge touching `a` or `b`.
+
+**Note**: simple "peel reduction" to UU isolated does NOT work cleanly because
+the extra edge has at least one unlabeled endpoint (a or b), so the
+B-factor depends on σ and cannot be pulled out of the σ-sum.
+
+Honest proof structure: requires its own ~800 LOC parallel to UU isolated.
+σ-sum factorization captures the (σ_a, σ_b)-coupled prefactor
+
+  ∑_{s, t} W(s)·W(t)·B(s,t)² · (∏_{incident e} B(s/t, τ_e_other_endpoint))
+
+times an F_rest_eval ξ for the remaining (non-touching) edges.
+
+**Sub-case structure**:
+  - If no incident edge has a label endpoint, the prefactor is ξ-independent
+    (sum over σ_other interpretation) and the proof closes via h_simple.
+  - If some incident edge has a label endpoint, the prefactor involves ξ
+    via the label coordinate. Reduces to label_unlabeled_square_moment_descends
+    (the K=1 square moment generalization).
+
+Dependency: substantial new work; may ultimately depend on
+`label_unlabeled_square_moment_descends` for label-touching sub-cases. -/
 private theorem multigraphEval_unlabeled_unlabeled_nonisolated_descends
     {T K n : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (M : MultiLabeledGraph K n)
