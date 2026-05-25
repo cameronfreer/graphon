@@ -2312,6 +2312,7 @@ products (per Lovász §3.3).
 isolates the K=1 square moment as the genuine Lovász §3 residue. -/
 private theorem multigraphEval_unlabeled_excess_descends {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < W i) (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (M : MultiLabeledGraph K n)
     (_h_unlabeled_excess :
       ∃ e : Sym2 (Fin (n + K)), ¬ isLLEdge e ∧ 2 ≤ M.mult e)
@@ -2365,7 +2366,9 @@ in ~100-200 LOC, BUT requires:
 Route 1 (connection matrix) preserves the current minimal hypotheses
 but needs ~300-500 LOC. Route 2 needs ~100-200 LOC + API cascade. -/
 private theorem label_unlabeled_square_moment_descends {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T}
     (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
         ∑ σ : Fin n' → Fin T,
@@ -2382,6 +2385,13 @@ private theorem label_unlabeled_square_moment_descends {T K : ℕ}
           ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)))
     (a : Fin K) :
     ∑ t : Fin T, W t * B (ξ a) t ^ 2 = ∑ t : Fin T, W t * B (ξ' a) t ^ 2 := by
+  -- Route 2 proof outline:
+  -- 1. Define sqMoment i := ∑ t, W t * B i t ^ 2.
+  -- 2. Show sqMoment is constant on (B, W)-vertex orbits.
+  -- 3. Apply InRootedProfileSpan.of_const_on_orbit to put sqMoment in rooted span.
+  -- 4. Build K-to-K=1 restriction: tupleEquivSimple ξ ξ' at K → equivalence at K=1
+  --    for ξ a vs ξ' a (via simple-graph embedding).
+  -- 5. Use rooted-span descent to conclude sqMoment (ξ a) = sqMoment (ξ' a).
   sorry
 
 /-- **Isolated unlabeled-unlabeled doubled-edge subcase**. M has one
@@ -3043,7 +3053,9 @@ scalar factor IS the K=1 square moment. Dependency: the FINAL paper-root
 `label_unlabeled_square_moment_descends`. ~600 LOC parallel to UU isolated. -/
 private theorem multigraphEval_label_unlabeled_isolated_descends
     {T K n : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ) (M : MultiLabeledGraph K n)
+    (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (M : MultiLabeledGraph K n)
     (a b : Fin (n + K))
     (_ha : a.val < K) (_hb : K ≤ b.val) (_hab : a ≠ b)
     (_h_doubled : M.mult s(a, b) = 2)
@@ -3077,7 +3089,9 @@ those other edges. BLOCKED BY: label_unlabeled_square_moment_descends +
 non-LL peel infrastructure. -/
 private theorem multigraphEval_label_unlabeled_nonisolated_descends
     {T K n : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ) (M : MultiLabeledGraph K n)
+    (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (M : MultiLabeledGraph K n)
     (a b : Fin (n + K))
     (_ha : a.val < K) (_hb : K ≤ b.val) (_hab : a ≠ b)
     (_h_doubled : M.mult s(a, b) = 2)
@@ -3104,7 +3118,9 @@ private theorem multigraphEval_label_unlabeled_nonisolated_descends
 isolated via Sym2.eq_swap. Same dependency: `label_unlabeled_square_moment_descends`. -/
 private theorem multigraphEval_unlabeled_label_isolated_descends
     {T K n : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ) (M : MultiLabeledGraph K n)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (M : MultiLabeledGraph K n)
     (a b : Fin (n + K))
     (ha : K ≤ a.val) (hb : b.val < K) (hab : a ≠ b)
     (h_doubled : M.mult s(a, b) = 2)
@@ -3129,7 +3145,7 @@ private theorem multigraphEval_unlabeled_label_isolated_descends
   -- Swap a and b: the doubled edge s(a, b) = s(b, a), and we apply
   -- multigraphEval_label_unlabeled_isolated_descends with (b, a) instead of (a, b).
   have h_swap : s(a, b) = (s(b, a) : Sym2 (Fin (n + K))) := Sym2.eq_swap
-  apply multigraphEval_label_unlabeled_isolated_descends B hB W M b a hb ha hab.symm
+  apply multigraphEval_label_unlabeled_isolated_descends B hB W hW htwin M b a hb ha hab.symm
   · rw [← h_swap]; exact h_doubled
   · intro e he
     exact h_others_le_one e (by rw [h_swap]; exact he)
@@ -3141,7 +3157,9 @@ private theorem multigraphEval_unlabeled_label_isolated_descends
 label-unlabeled non-isolated via Sym2.eq_swap. -/
 private theorem multigraphEval_unlabeled_label_nonisolated_descends
     {T K n : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ) (M : MultiLabeledGraph K n)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (M : MultiLabeledGraph K n)
     (a b : Fin (n + K))
     (ha : K ≤ a.val) (hb : b.val < K) (hab : a ≠ b)
     (h_doubled : M.mult s(a, b) = 2)
@@ -3163,7 +3181,7 @@ private theorem multigraphEval_unlabeled_label_nonisolated_descends
           ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
   have h_swap : s(a, b) = (s(b, a) : Sym2 (Fin (n + K))) := Sym2.eq_swap
-  apply multigraphEval_label_unlabeled_nonisolated_descends B hB W M b a hb ha hab.symm
+  apply multigraphEval_label_unlabeled_nonisolated_descends B hB W hW htwin M b a hb ha hab.symm
   · rw [← h_swap]; exact h_doubled
   · intro e he
     exact h_others_le_one e (by rw [h_swap]; exact he)
@@ -3269,6 +3287,7 @@ is not the bottleneck. The label-unlabeled isolated case (2) — the K=1
 square moment — IS the bottleneck. -/
 private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (M : MultiLabeledGraph K n)
     (e₀ : Sym2 (Fin (n + K)))
     (he₀_unlabeled : ¬ isLLEdge e₀)
@@ -3306,17 +3325,21 @@ private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
         push_neg at hb_lab
         by_cases h_b_iso : ∀ e, e ≠ s(a, b) → b ∈ e → M.mult e = 0
         · exact multigraphEval_label_unlabeled_isolated_descends
-            B hB W M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one h_b_iso h_simple
+            B hB W hW htwin M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one
+            h_b_iso h_simple
         · exact multigraphEval_label_unlabeled_nonisolated_descends
-            B hB W M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one h_b_iso h_simple
+            B hB W hW htwin M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one
+            h_b_iso h_simple
     · push_neg at ha_lab
       by_cases hb_lab : b.val < K
       · -- `a` unlabeled, `b` label.
         by_cases h_a_iso : ∀ e, e ≠ s(a, b) → a ∈ e → M.mult e = 0
         · exact multigraphEval_unlabeled_label_isolated_descends
-            B hB W M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one h_a_iso h_simple
+            B hB W hW htwin M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one
+            h_a_iso h_simple
         · exact multigraphEval_unlabeled_label_nonisolated_descends
-            B hB W M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one h_a_iso h_simple
+            B hB W hW htwin M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one
+            h_a_iso h_simple
       · -- Both unlabeled.
         push_neg at hb_lab
         by_cases h_iso : ∀ e, e ≠ s(a, b) → (a ∈ e ∨ b ∈ e) → M.mult e = 0
@@ -3361,6 +3384,7 @@ Step 1 (`of_const_on_tupleEquivSimple`, Lagrange fullness) is PROVED.
 The only remaining sorry is inside `multigraphEval_unlabeled_excess_descends`. -/
 theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (M : MultiLabeledGraph K n) :
     InSimpleProfileClosure B W K (fun ξ => multiLabeledEvalK K n M B W ξ) := by
   apply InSimpleProfileClosure.of_const_on_tupleEquivSimple
@@ -3450,7 +3474,7 @@ theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
           -- The local `isLL` and the global `isLLEdge` are definitionally equal.
           intro h_isLL
           exact he_notLL h_isLL
-        exact multigraphEval_unlabeled_excess_descends B hB W M h_unlabeled_excess
+        exact multigraphEval_unlabeled_excess_descends B hB W hW htwin M h_unlabeled_excess
           (fun n' F _ => h_equiv n' F)
 
 /-- **The multigraph bridge — SECONDARY paper root** (general,
@@ -3498,6 +3522,7 @@ Treat as foundational citation for downstream consumers until a
 dedicated paper-root formalization project is undertaken. -/
 theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (M : MultiLabeledGraph K n)
     {ξ ξ' : Fin K → Fin T}
     (h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K)))
@@ -3574,7 +3599,7 @@ theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
       -- `multigraphEval_in_simpleProfileClosure` (#86, declared above in §3.7).
       -- The closure inductive's `descends` reduces this to the `h_simple`
       -- hypothesis directly.
-      exact (multigraphEval_in_simpleProfileClosure B hB W M).descends h_simple
+      exact (multigraphEval_in_simpleProfileClosure B hB W hW htwin M).descends h_simple
 
 /-! ### §3.8 — Equivalence predicates and Lovász Lemma 2.5
 
@@ -4323,6 +4348,7 @@ alone — it needs either the bridge theorem (currently sorry in
 machinery. -/
 private theorem product_trace_identity_simple {T k : ℕ}
     (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i) (_W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < _W i) (_htwin : ∀ i j, i ≠ j → _B i ≠ _B j)
     {ξ ξ' : Fin k → Fin T} (_h : tupleEquivSimple _B _W ξ ξ')
     (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1))))) :
     ∑ t : Fin T, _W t *
@@ -4358,7 +4384,7 @@ private theorem product_trace_identity_simple {T k : ℕ}
     rw [multiLabeledEvalK_sum_last_label M _B _hB _W ξ,
         multiLabeledEvalK_sum_last_label M _B _hB _W ξ']
     -- Now apply the bridge `multiLabeledEvalK_tupleEquiv_invariant` to `M.trace`.
-    exact multiLabeledEvalK_tupleEquiv_invariant _B _hB _W M.trace _h
+    exact multiLabeledEvalK_tupleEquiv_invariant _B _hB _W _hW _htwin M.trace _h
   -- **Step 2**: Construct the combined multigraph by induction on `L`.
   clear _h
   induction L with
@@ -4407,6 +4433,7 @@ by `ξ'`.
 theorem coeffRestrictSimple_equiv {T k : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (μ : Fin (k + 1) → Fin T) {ξ ξ' : Fin k → Fin T}
     (h : tupleEquivSimple B W ξ ξ') :
     coeffRestrictSimple B W μ ξ = coeffRestrictSimple B W μ ξ' := by
@@ -4506,7 +4533,7 @@ theorem coeffRestrictSimple_equiv {T k : ℕ}
             (Classical.decRel _) (Fin.snoc ξ'' t))).prod := by
         intros; simp only [f_fun, eval_lift, Quotient.lift_mk]
       simp_rw [hbridge ξ, hbridge ξ']
-      linarith [product_trace_identity_simple B hB W h L]
+      linarith [product_trace_identity_simple B hB W hW htwin h L]
   -- Conclude `∑ t, W t * g (snoc ξ t) = ∑ t, W t * g (snoc ξ' t)`.
   have hsum_zero : ∑ q, d_fun q * g_lift q = 0 :=
     Finset.sum_eq_zero fun q _ => by rw [hd_zero q, zero_mul]
@@ -4543,7 +4570,7 @@ such that `μ` and `ν` are simple-equivalent at level `k+1`.
 constancy step — the IH-free Lovász §4 core). -/
 theorem tupleEquivSimple_extend {T k : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
-    (hB : ∀ i j, B i j = B j i)
+    (hB : ∀ i j, B i j = B j i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin k → Fin T}
     (h : tupleEquivSimple B W ξ ξ')
     (μ : Fin (k + 1) → Fin T) (hμ : restrictTuple μ = ξ) :
@@ -4556,7 +4583,7 @@ theorem tupleEquivSimple_extend {T k : ℕ}
   -- Step 2: rewrite restrictTuple μ as ξ.
   rw [hμ] at h_pos_restrict
   -- Step 3: class constancy transfers positivity ξ → ξ'.
-  have h_eq := coeffRestrictSimple_equiv B W hB μ h
+  have h_eq := coeffRestrictSimple_equiv B W hB hW htwin μ h
   have h_pos_ξ' : 0 < coeffRestrictSimple B W μ ξ' := h_eq ▸ h_pos_restrict
   -- Step 4: extract an extension witness a.
   obtain ⟨a, ha⟩ := exists_extension_of_coeffRestrictSimple_pos B W μ ξ' h_pos_ξ'

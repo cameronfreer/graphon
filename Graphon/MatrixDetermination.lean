@@ -7227,6 +7227,7 @@ overhead. Future sessions: stage as a separate `Lovasz.lean` module
 since the multigraph algebra is independent infrastructure. -/
 private theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (M : MultiLabeledGraph K n)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
@@ -7239,7 +7240,7 @@ private theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
     { mult := M.mult, multNoLoop := M.multNoLoop }
   have hLovasz : Graphon.Lovasz.multiLabeledEvalK K n M' B W ξ =
                  Graphon.Lovasz.multiLabeledEvalK K n M' B W ξ' :=
-    Graphon.Lovasz.multiLabeledEvalK_tupleEquiv_invariant B hB W M'
+    Graphon.Lovasz.multiLabeledEvalK_tupleEquiv_invariant B hB W hW htwin M'
       (fun n' F _ => by
         have heq := h n' F
         unfold labeledEvalK at heq
@@ -7262,7 +7263,8 @@ between label `a` and the unlabeled vertex K. The evaluation
 unfolds to `∑ t, W(t) * B(ξ a, t)^2` directly. -/
 private theorem tupleEquiv_single_coord_square_moment_independent
     {T K : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ')
     (a : Fin K) :
     ∑ t : Fin T, W t * B (ξ a) t ^ 2 =
@@ -7288,7 +7290,7 @@ private theorem tupleEquiv_single_coord_square_moment_independent
         rcases Sym2.eq_iff.mp heq with ⟨h1, h2⟩ | ⟨h1, h2⟩
         · exact haF_ne_uF (h1.symm.trans h2)
         · exact haF_ne_uF (h2.symm.trans h1) }
-  have hbridge := multiLabeledEvalK_tupleEquiv_invariant B hB W M h
+  have hbridge := multiLabeledEvalK_tupleEquiv_invariant B hB W hW htwin M h
   -- Reshape: define τ_ζ_σ as the "extension" function, then evaluate.
   have hreshape : ∀ ζ : Fin K → Fin T,
       multiLabeledEvalK K 1 M B W ζ = ∑ t : Fin T, W t * B (ζ a) t ^ 2 := by
@@ -7337,6 +7339,7 @@ private theorem tupleEquiv_single_coord_square_moment_independent
 private theorem DecLabeledGraph.trace_parallel_lu0_descends {T K n : ℕ}
     (D : DecLabeledGraph (K + 1) n) (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (_h_diag : ∀ x : Fin (K + 1), D.llMult s(x, x) = 0)
     (_h_parallel : ∃ a : Fin K, D.trace.lu0Mult a ≥ 2)
     [DecidableRel D.trace.graph.Adj]
@@ -7441,7 +7444,7 @@ private theorem DecLabeledGraph.trace_parallel_lu0_descends {T K n : ℕ}
               else if s(x, x) ∈ D.trace.graph.edgeFinset then 1 else (0 : ℕ)) = 0
         rw [dif_neg h_not_cross, if_neg h_not_graph] }
   -- The bridge: `multiLabeledEvalK K (n+1) M_trace B W ξ = ... ξ'`.
-  have hbridge := multiLabeledEvalK_tupleEquiv_invariant B hB W M_trace h
+  have hbridge := multiLabeledEvalK_tupleEquiv_invariant B hB W hW htwin M_trace h
   -- **Reshape**: `multiLabeledEvalK K (n+1) M_trace B W ζ` equals the σ-sum body.
   have hreshape : ∀ ζ : Fin K → Fin T,
       multiLabeledEvalK K (n + 1) M_trace B W ζ =
@@ -7599,6 +7602,7 @@ generalization; this trace-origin theorem is the active consumer. -/
 private theorem DecLabeledGraph.trace_eval_tupleEquiv_invariant {T K n : ℕ}
     (D : DecLabeledGraph (K + 1) n) (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (h_diag : ∀ x : Fin (K + 1), D.llMult s(x, x) = 0)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     D.trace.eval B W ξ = D.trace.eval B W ξ' := by
@@ -7881,7 +7885,7 @@ private theorem DecLabeledGraph.trace_eval_tupleEquiv_invariant {T K n : ℕ}
         push_neg at hle
         obtain ⟨a, ha⟩ := hle
         exact DecLabeledGraph.trace_parallel_lu0_descends
-          D B hB W h_diag ⟨a, ha⟩ h
+          D B hB W hW htwin h_diag ⟨a, ha⟩ h
 
 /-! ### Step A: `ofSimple` — wrap a simple graph as a decorated graph -/
 
@@ -9263,6 +9267,7 @@ positivity hypothesis `hW : ∀ i, 0 < W i`.
    §3 frontier.)** -/
 private theorem weightedInnerProduct_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (L₁ L₂ : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     ∑ t : Fin T, W t * connCol B W L₁ ξ t * connCol B W L₂ ξ t =
@@ -9287,7 +9292,7 @@ private theorem weightedInnerProduct_descends {T K : ℕ}
             DecLabeledGraph.trace_eval D B hB W (h_diag (Fin.last K)) ζ
   rw [reshape ξ, reshape ξ']
   -- Route through the trace-origin theorem (consumer interface).
-  exact DecLabeledGraph.trace_eval_tupleEquiv_invariant D B hB W h_diag h
+  exact DecLabeledGraph.trace_eval_tupleEquiv_invariant D B hB W hW htwin h_diag h
 
 /-- **Singleton recovery** — specialize `weightedInnerProduct_descends`
 to `L₁ = [⟨n, F⟩]`, `L₂ = []`. After `connCol_nil` and
@@ -9316,6 +9321,7 @@ descends through the level-`K` `tupleEquiv` quotient. After unfolding
 the weighted inner product of two connection-matrix columns. -/
 private theorem Ak_trace_stable_generators {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (L₁ L₂ : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ =
@@ -9328,10 +9334,11 @@ private theorem Ak_trace_stable_generators {T K : ℕ}
     refine Finset.sum_congr rfl fun t _ => ?_
     ring
   rw [reshape ξ, reshape ξ']
-  exact weightedInnerProduct_descends B hB W L₁ L₂ h
+  exact weightedInnerProduct_descends B hB W hW htwin L₁ L₂ h
 
 private theorem Ak_trace_stable {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (f g : AkFun T (K + 1) B W)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     tr_k B W (fun q => f q * g q) ξ = tr_k B W (fun q => f q * g q) ξ' := by
@@ -9401,7 +9408,7 @@ private theorem Ak_trace_stable {T K : ℕ}
       rw [hsplit ξ, hsplit ξ', ihG]
       -- Pure generator-pair (scaled) term: apply primitive.
       rw [tr_k_smul, tr_k_smul,
-          Ak_trace_stable_generators B hB W L₁ pG.2 h]
+          Ak_trace_stable_generators B hB W hW htwin L₁ pG.2 h]
   -- Outer induction on csF, using inner at each generator-head step.
   suffices hkey : ∀ (csF csG : List (ℝ × List (Σ (n : ℕ),
         SimpleGraph (Fin (n + (K + 1)))))),
@@ -9458,11 +9465,12 @@ See `Ak_trace_stable` (above) for the actual sorry, and the Lovász
 connection-matrix framing of the remaining content. -/
 private theorem tr_k_binary_product_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (L₁ L₂ : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ =
     tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ' :=
-  Ak_trace_stable_generators B hB W L₁ L₂ h
+  Ak_trace_stable_generators B hB W hW htwin L₁ L₂ h
 
 /-- The canonical frontier. PROVED as:
   - `L = []`: trivial (both sides equal `∑ t, W t`).
@@ -9474,6 +9482,7 @@ The "multi-element sorry" has been pushed into `tr_k_binary_product_descends`,
 which is the actual semantic root per the pass-3 analysis. -/
 private theorem tr_k_generator_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1)))))
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     tr_k B W (simpleGraphEvalOn B W L) ξ =
@@ -9525,7 +9534,7 @@ private theorem tr_k_generator_descends {T K : ℕ}
       refine Finset.sum_congr rfl fun t _ => ?_
       rw [h_split]
     rw [h_ξ, h_ξ']
-    exact tr_k_binary_product_descends B hB W [p] (q :: rest) h
+    exact tr_k_binary_product_descends B hB W hW htwin [p] (q :: rest) h
 
 /-- **`tr_k_descends_to_A_k`** — the FULL trace-descent theorem, now
 PROVED as a wrapper over the generator theorem via
@@ -9535,6 +9544,7 @@ Per user directive: the mathematical content lives entirely in
 `tr_k_generator_descends`. This theorem is a mechanical reduction. -/
 private theorem tr_k_descends_to_A_k {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (f : TupleClass T (K + 1) B W → ℝ)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     tr_k B W f ξ = tr_k B W f ξ' := by
@@ -9585,7 +9595,7 @@ private theorem tr_k_descends_to_A_k {T K : ℕ}
     -- Head term: apply generator theorem with scalar pull-out.
     have h_gen : tr_k B W (fun q => p.1 * simpleGraphEvalOn B W p.2 q) ξ =
                  tr_k B W (fun q => p.1 * simpleGraphEvalOn B W p.2 q) ξ' := by
-      rw [tr_k_smul, tr_k_smul, tr_k_generator_descends B hB W p.2 h]
+      rw [tr_k_smul, tr_k_smul, tr_k_generator_descends B hB W hW htwin p.2 h]
     rw [h_gen]
 
 /-! ##### Trace measure on `(K+1)`-tuple classes — canonical frontier
@@ -9679,6 +9689,7 @@ class-invariant.
 level K (already wired through `DecLabeledGraphTr.eval_tupleEquiv_invariant`). -/
 private theorem traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ')
     (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (K + 1))))) :
     ∑ q : TupleClass T (K + 1) B W, traceMeasure B W ξ q * simpleGraphEvalOn B W L q =
@@ -9689,7 +9700,7 @@ private theorem traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv {T K : ℕ}
   classical
   rw [traceMeasure_pushforward, traceMeasure_pushforward]
   -- Each side is now `tr_k B W (simpleGraphEvalOn B W L) ξ/ξ'`.
-  exact tr_k_generator_descends B hB W L h
+  exact tr_k_generator_descends B hB W hW htwin L h
 
 /-- **Trace-measure class-invariance** — PROVED via the two-piece
 A_k package (generator theorem + quotient fullness).
@@ -9705,6 +9716,7 @@ goes through `traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv` →
 "cycle" manifesting as three names for one theorem. -/
 private theorem traceMeasure_eq_of_tupleEquiv {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     traceMeasure B W ξ = traceMeasure B W ξ' := by
   classical
@@ -9755,7 +9767,7 @@ private theorem traceMeasure_eq_of_tupleEquiv {T K : ℕ}
       have h_factor_gen :
           ∑ q, traceMeasure B W ξ q * (p.1 * simpleGraphEvalOn B W p.2 q) =
           ∑ q, traceMeasure B W ξ' q * (p.1 * simpleGraphEvalOn B W p.2 q) := by
-        have hgen := traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv B hB W h p.2
+        have hgen := traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv B hB W hW htwin h p.2
         have hfactor : ∀ ξ₀ : Fin K → Fin T,
             ∑ q, traceMeasure B W ξ₀ q * (p.1 * simpleGraphEvalOn B W p.2 q) =
             p.1 * ∑ q, traceMeasure B W ξ₀ q * simpleGraphEvalOn B W p.2 q := by
@@ -9955,7 +9967,8 @@ together with the pushforward identity
 proof is written via `traceMeasure_eq_of_tupleEquiv` → (through the
 cycle) — same content, different name. -/
 private theorem starMultigraphEval_tupleEquiv_invariant_direct {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (m : Fin K → ℕ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) (m : Fin K → ℕ)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     starMultigraphEval B W ξ m = starMultigraphEval B W ξ' m := by
   classical
@@ -9975,7 +9988,7 @@ private theorem starMultigraphEval_tupleEquiv_invariant_direct {T K : ℕ}
     unfold starMultigraphEval
     refine Finset.sum_congr rfl fun t _ => ?_
     rw [starKernelClass_mk_snoc B hB W m ξ₀ t]
-  rw [hpush ξ, hpush ξ', traceMeasure_eq_of_tupleEquiv B hB W h]
+  rw [hpush ξ, hpush ξ', traceMeasure_eq_of_tupleEquiv B hB W hW htwin h]
 
 /-! ##### K = 1 diagnostic: trace-measure recasting
 
@@ -10035,11 +10048,12 @@ the general frontier (see docstring of the parent section). K=1 is NOT
 genuinely easier. Leaving as a sorry'd stub so the structure is
 explicit for future sessions. -/
 private theorem starMultigraphEval_tupleEquiv_invariant_direct_K1 {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (r : ℕ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) (r : ℕ)
     {ξ ξ' : Fin 1 → Fin T} (h : tupleEquiv B W ξ ξ') :
     ∑ t : Fin T, W t * B (ξ 0) t ^ r = ∑ t : Fin T, W t * B (ξ' 0) t ^ r := by
   -- Direct reduction to the general frontier via multiplicity vector `m = r • δ_0`.
-  have hstar := starMultigraphEval_tupleEquiv_invariant_direct B hB W
+  have hstar := starMultigraphEval_tupleEquiv_invariant_direct B hB W hW htwin
     (fun _ : Fin 1 => r) h
   unfold starMultigraphEval at hstar
   simp only [Fin.prod_univ_one] at hstar
@@ -10053,7 +10067,8 @@ direct invariance frontier via quotient descent + `simpleGraphEvalOn_spans`.
 `simpleGraphEvalOn_spans` (Step 4, closed). Kept for the downstream
 `tupleEquiv_power_sum_invariance` wiring. -/
 private theorem starMultigraphEval_in_simpleGraphSpan {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (m : Fin K → ℕ) :
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) (m : Fin K → ℕ) :
     ∃ (coeffs : List (ℝ × List (Σ (n : ℕ), SimpleGraph (Fin (n + K))))),
       ∀ ξ : Fin K → Fin T, starMultigraphEval B W ξ m =
         (coeffs.map (fun p => p.1 *
@@ -10064,7 +10079,8 @@ private theorem starMultigraphEval_in_simpleGraphSpan {T K : ℕ}
   -- direct invariance frontier.
   let g : TupleClass T K B W → ℝ :=
     Quotient.lift (fun ξ => starMultigraphEval B W ξ m)
-      (fun ξ ξ' hξξ' => starMultigraphEval_tupleEquiv_invariant_direct B hB W m hξξ')
+      (fun ξ ξ' hξξ' =>
+        starMultigraphEval_tupleEquiv_invariant_direct B hB W hW htwin m hξξ')
   -- Apply Step 4 (quotient-level fullness) to get coefficients.
   obtain ⟨coeffs, hcoeffs⟩ := simpleGraphEvalOn_spans B W g
   refine ⟨coeffs, fun ξ => ?_⟩
@@ -10078,11 +10094,12 @@ private theorem starMultigraphEval_in_simpleGraphSpan {T K : ℕ}
 wiring. Composes `starMultigraphEval_in_simpleGraphSpan` with per-term
 tupleEquiv invariance (trivial since each term is `labeledEvalK` at `ξ`). -/
 private theorem starMultigraphEval_tupleEquiv_invariant {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (m : Fin K → ℕ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) (m : Fin K → ℕ)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ') :
     starMultigraphEval B W ξ m = starMultigraphEval B W ξ' m :=
   -- Go direct; the span → invariance route is a roundabout alternative.
-  starMultigraphEval_tupleEquiv_invariant_direct B hB W m h
+  starMultigraphEval_tupleEquiv_invariant_direct B hB W hW htwin m h
 
 /-- **First new target** (smallest non-simple seed case). For
 `tupleEquiv B W ξ ξ'` at level `K` and any label `a : Fin K`, the
@@ -10179,8 +10196,8 @@ membership). All four require substantial new formal content; no
 bounded tactical closure is available from the current file. -/
 private theorem tupleEquiv_single_coord_square_moment {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
-    (_htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ')
     (a : Fin K) :
     ∑ t : Fin T, W t * B (ξ a) t ^ 2 =
@@ -10197,7 +10214,7 @@ private theorem tupleEquiv_single_coord_square_moment {T K : ℕ}
     rw [Finset.prod_eq_single a
       (fun b _ hb => by simp [m, hb]) (fun hmem => absurd (Finset.mem_univ _) hmem)]
     simp [m]
-  have hstar := starMultigraphEval_tupleEquiv_invariant B hB W m h
+  have hstar := starMultigraphEval_tupleEquiv_invariant B hB W hW htwin m h
   unfold starMultigraphEval at hstar
   simp_rw [hprod ξ, hprod ξ'] at hstar
   exact hstar
@@ -10222,8 +10239,8 @@ copy" argument that moves between `r` and `r-1` power. Details TBD
 in the follow-up session. -/
 private theorem tupleEquiv_single_coord_plus_background {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
-    (_htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ')
     (a₀ : Fin K) (r : ℕ) (S : Finset (Fin K)) (hS : a₀ ∉ S) :
     ∑ t : Fin T, W t * B (ξ a₀) t ^ r * ∏ b ∈ S, B (ξ b) t =
@@ -10256,7 +10273,7 @@ private theorem tupleEquiv_single_coord_plus_background {T K : ℕ}
     rw [one_mul]
     refine Finset.prod_congr rfl fun b hb => ?_
     rw [show m b = 1 from by simp [m, ne_of_mem_of_not_mem hb hS, hb], pow_one]
-  have hstar := starMultigraphEval_tupleEquiv_invariant B hB W m h
+  have hstar := starMultigraphEval_tupleEquiv_invariant B hB W hW htwin m h
   unfold starMultigraphEval at hstar
   simp_rw [hprod ξ, hprod ξ'] at hstar
   -- Goal: ∑ t, W t * B(ξ a₀, t)^r * ∏_S B(ξ b, t) = same for ξ'.
@@ -10296,13 +10313,13 @@ that gadget-style reductions cannot reach.
     the closure. -/
 private theorem tupleEquiv_power_sum_invariance {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
-    (_htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquiv B W ξ ξ')
     (m : Fin K → ℕ) :
     ∑ t : Fin T, W t * ∏ a : Fin K, B (ξ a) t ^ m a =
     ∑ t : Fin T, W t * ∏ a : Fin K, B (ξ' a) t ^ m a := by
-  exact starMultigraphEval_tupleEquiv_invariant B hB W m h
+  exact starMultigraphEval_tupleEquiv_invariant B hB W hW htwin m h
 
 /-- **Level-1 generalization stub** (`tupleEquiv_polynomial_moment_invariance`).
 Lifts the power-sum identity across a simple-graph "backbone" on `n`
@@ -10388,7 +10405,8 @@ semantic cycle identified in prior analysis. The new path routes
 through the canonical root `tr_k_generator_descends`, eliminating the
 cycle. -/
 private theorem product_trace_identity {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) {k : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) {k : ℕ}
     {ξ ξ' : Fin k → Fin T} (h : tupleEquiv B W ξ ξ')
     (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + (k + 1))))) :
     ∑ t : Fin T, W t *
@@ -10404,7 +10422,7 @@ private theorem product_trace_identity {T : ℕ}
   -- `∑ t, W t · simpleGraphEvalOn B W L ⟦Fin.snoc ξ t⟧`, and
   -- `simpleGraphEvalOn B W L ⟦φ⟧` = `(L.map labeledEvalK at φ).prod`
   -- by `Quotient.lift_mk`.
-  exact tr_k_generator_descends B hB W L h
+  exact tr_k_generator_descends B hB W hW htwin L h
 
 set_option maxHeartbeats 4000000 in
 /-- **Trace invariance of `coeffRestrict`** (Claim 4.2 core, IH-free):
@@ -10435,7 +10453,7 @@ level k) is replaced entirely by `functional_span_zero` +
 localized to `product_trace_identity`. -/
 private theorem coeffRestrict_equiv {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
-    (hB : ∀ i j, B i j = B j i) {k : ℕ}
+    (hB : ∀ i j, B i j = B j i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) {k : ℕ}
     (μ : Fin (k + 1) → Fin T) {ξ ξ' : Fin k → Fin T}
     (h : tupleEquiv B W ξ ξ') :
     coeffRestrict B W μ ξ = coeffRestrict B W μ ξ' := by
@@ -10665,7 +10683,7 @@ private theorem coeffRestrict_equiv {T : ℕ}
             (Classical.decRel _) B W (Fin.snoc ξ'' t))).prod := by
         intros; simp only [f_fun, eval_lift, Quotient.lift_mk]
       simp_rw [hbridge ξ, hbridge ξ']
-      linarith [product_trace_identity B hB W h L]
+      linarith [product_trace_identity B hB W hW htwin h L]
   -- Conclude `∑ t, W t * g (snoc ξ t) = ∑ t, W t * g (snoc ξ' t)` from `d_fun = 0`.
   have hsum_zero : ∑ q, d_fun q * g_lift q = 0 :=
     Finset.sum_eq_zero fun q _ => by rw [hd_zero q, zero_mul]
@@ -10688,7 +10706,7 @@ and `exists_extension_of_coeffRestrict_pos`. IH-free modulo
 `coeffRestrict_equiv`); no Lemma-2.4 input needed. -/
 private theorem tupleEquiv_extend {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
-    (hB : ∀ i j, B i j = B j i)
+    (hB : ∀ i j, B i j = B j i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {k : ℕ}
     {φ ψ : Fin k → Fin T} (h : tupleEquiv B W φ ψ)
     (μ : Fin (k + 1) → Fin T) (hμ : restrictTuple μ = φ) :
@@ -10698,7 +10716,7 @@ private theorem tupleEquiv_extend {T : ℕ}
     coeffRestrict_pos_at_restrict B W hW μ
   -- By trace invariance (ξ = restrictTuple μ ≡ ψ via hμ ▸ h), coefficient at ψ is positive.
   have hpos_ψ : 0 < coeffRestrict B W μ ψ := by
-    rwa [coeffRestrict_equiv B W hW hB μ (hμ ▸ h)] at hpos
+    rwa [coeffRestrict_equiv B W hW hB htwin μ (hμ ▸ h)] at hpos
   -- Extract a witness.
   exact exists_extension_of_coeffRestrict_pos B W hW μ ψ hpos_ψ
 
