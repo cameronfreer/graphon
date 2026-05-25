@@ -2333,66 +2333,9 @@ private theorem multigraphEval_unlabeled_excess_descends {T K n : ℕ}
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
   sorry
 
-/-- **FINAL PAPER-ROOT (minimal hard residue)** — K=1 square moment
-identity. Under `tupleEquivSimple ξ ξ'`,
-  `∑_t W(t) · B(ξ_a, t)² = ∑_t W(t) · B(ξ'_a, t)²`
-for any label coordinate `a : Fin K`.
-
-This is the genuine Lovász §3 bottleneck. The square moment is
-auto-invariant (Aut(B, W) permutes `t` while preserving W and B²) but
-is **NOT** a polynomial in single-edge simple-graph evaluations:
-no simple graph evaluates to `B(ξ_a, t)²`, and the polynomial closure
-of single-edge evals contains only products like `B(x, t) · B(y, t)`
-(which differ from `B(x, t)²` unless `x = y`).
-
-Lovász Lemma 2.5 says every auto-invariant function lies in the
-multigraph eval span, but reducing this to simple-graph evals requires
-the connection-matrix / idempotent decomposition (Lovász §3 proper).
-~300-500 LOC of new spectral/rank infrastructure.
-
-**Route 2 viability** (2026-05-25 analysis): the K=1 rank theorem
-`InRootedProfileSpan.of_const_on_orbit` is PROVED and does NOT depend
-on #86 (no cycle). Route 2 (via finite quotient/Lagrange) is feasible
-in ~100-200 LOC, BUT requires:
-
-  - Adding `hW : ∀ i, 0 < W i` and `htwin : ∀ i j, i ≠ j → B i ≠ B j`
-    to this theorem's signature (currently absent).
-  - Cascading these hypotheses up through:
-    label-U isolated → one_doubled_unlabeled_edge_descends → #86.
-  - Building a K-to-K=1 restriction lemma:
-    `tupleEquivSimple ξ ξ' at K → square moment at coord a (K=1)`.
-
-**Status**: NAMED FINAL PAPER-ROOT (2026-05-19). Sorry'd.
-Route 1 (connection matrix) preserves the current minimal hypotheses
-but needs ~300-500 LOC. Route 2 needs ~100-200 LOC + API cascade. -/
-private theorem label_unlabeled_square_moment_descends {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (_hW : ∀ i, 0 < W i)
-    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {ξ ξ' : Fin K → Fin T}
-    (_h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
-        ∑ σ : Fin n' → Fin T,
-          (let τ : Fin (n' + K) → Fin T := fun v =>
-            if h : (v : ℕ) < K then ξ ⟨v, h⟩
-            else σ ⟨v - K, by have := v.isLt; omega⟩
-          (∏ v : Fin n', W (σ v)) *
-          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
-        ∑ σ : Fin n' → Fin T,
-          (let τ : Fin (n' + K) → Fin T := fun v =>
-            if h : (v : ℕ) < K then ξ' ⟨v, h⟩
-            else σ ⟨v - K, by have := v.isLt; omega⟩
-          (∏ v : Fin n', W (σ v)) *
-          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)))
-    (a : Fin K) :
-    ∑ t : Fin T, W t * B (ξ a) t ^ 2 = ∑ t : Fin T, W t * B (ξ' a) t ^ 2 := by
-  -- Route 2 proof outline:
-  -- 1. Define sqMoment i := ∑ t, W t * B i t ^ 2.
-  -- 2. Show sqMoment is constant on (B, W)-vertex orbits.
-  -- 3. Apply InRootedProfileSpan.of_const_on_orbit to put sqMoment in rooted span.
-  -- 4. Build K-to-K=1 restriction: tupleEquivSimple ξ ξ' at K → equivalence at K=1
-  --    for ξ a vs ξ' a (via simple-graph embedding).
-  -- 5. Use rooted-span descent to conclude sqMoment (ξ a) = sqMoment (ξ' a).
-  sorry
+-- **FINAL PAPER-ROOT** `label_unlabeled_square_moment_descends` lives
+-- AFTER the K=1 rank theorem (`InRootedProfileSpan.of_const_on_orbit`)
+-- since its Route 2 proof depends on rooted-profile span machinery.
 
 /-- **Isolated unlabeled-unlabeled doubled-edge subcase**. M has one
 doubled edge `(i, j)` with both `i, j` unlabeled (val ≥ K), and no
@@ -6946,6 +6889,352 @@ theorem InRootedProfileSpan.of_const_on_orbit {T : ℕ}
   exact InRootedProfileSpan.finset_sum Finset.univ
     (fun i v => (f i / (orbitSize i : ℝ)) * rootedOrbitIndicator B W i v)
     (fun i _ => (ind_span i).smul (f i / (orbitSize i : ℝ)))
+
+/-! ### §3.10 — `label_unlabeled_square_moment_descends` via Route 2
+
+The K=1 square moment identity is the final paper-root of the
+unlabeled-excess branch of #86 (the multigraph bridge). Its proof
+combines:
+
+  1. **Orbit-invariance** of `sqMoment i := ∑ t, W t · B i t ^ 2`.
+     Direct from `IsWeightedAutomorphism` via `Equiv.sum_comp`.
+  2. **Rooted-profile span** representation via
+     `InRootedProfileSpan.of_const_on_orbit` (the K=1 rank theorem).
+  3. **K → K=1 reduction**: given `tupleEquivSimple ξ ξ'` at K-level
+     and `a : Fin K`, derive `rootedProfile B W (ξ a) F =
+     rootedProfile B W (ξ' a) F` for every simple `F : SimpleGraph
+     (Fin (n+1))`. Built via a `Fin (n+1) ↪ Fin (n+K)` embedding that
+     routes the K=1 label to coordinate `a` and stations the unlabeled
+     vertices at positions `K..K+n-1`.
+
+Together: orbit-invariance + rooted-profile span + K→K=1 reduction
+collapse the square moment at `ξ a` and `ξ' a` to a finite linear
+combination of rooted profiles, each of which is preserved by
+`tupleEquivSimple`. -/
+
+/-- **K → K=1 embedding**. Sends position 0 (the single label of
+`Fin (n+1)`) to label position `a` in `Fin (n+K)`, and `Fin.succ i`
+(unlabeled position `i` in the K=1 graph) to position `K + i.val` in
+`Fin (n+K)` (an unlabeled position there too).
+
+Injectivity: the image splits into label region `{a.val}` (val < K)
+and unlabeled region `{K, K+1, …}` (val ≥ K). Within each region the
+map is the identity on values, so injective. -/
+private def labelOneEmb {n K : ℕ} (a : Fin K) : Fin (n + 1) ↪ Fin (n + K) :=
+  { toFun := fun v =>
+      if hv : (v : ℕ) = 0 then ⟨a.val, by have := a.isLt; omega⟩
+      else ⟨K + ((v : ℕ) - 1), by have := v.isLt; omega⟩
+    inj' := by
+      intro x y hxy
+      by_cases hx : (x : ℕ) = 0
+      · by_cases hy : (y : ℕ) = 0
+        · exact Fin.ext (hx.trans hy.symm)
+        · exfalso
+          have hxy_val : (a.val : ℕ) = K + ((y : ℕ) - 1) := by
+            have h_lhs : (if hv : (x : ℕ) = 0 then
+                (⟨a.val, by have := a.isLt; omega⟩ : Fin (n + K))
+                else ⟨K + ((x : ℕ) - 1), by have := x.isLt; omega⟩).val = a.val := by
+              rw [dif_pos hx]
+            have h_rhs : (if hv : (y : ℕ) = 0 then
+                (⟨a.val, by have := a.isLt; omega⟩ : Fin (n + K))
+                else ⟨K + ((y : ℕ) - 1), by have := y.isLt; omega⟩).val =
+                K + ((y : ℕ) - 1) := by
+              rw [dif_neg hy]
+            have := congr_arg Fin.val hxy
+            rw [h_lhs, h_rhs] at this
+            exact this
+          have := a.isLt; omega
+      · by_cases hy : (y : ℕ) = 0
+        · exfalso
+          have hxy_val : K + ((x : ℕ) - 1) = (a.val : ℕ) := by
+            have h_lhs : (if hv : (x : ℕ) = 0 then
+                (⟨a.val, by have := a.isLt; omega⟩ : Fin (n + K))
+                else ⟨K + ((x : ℕ) - 1), by have := x.isLt; omega⟩).val =
+                K + ((x : ℕ) - 1) := by
+              rw [dif_neg hx]
+            have h_rhs : (if hv : (y : ℕ) = 0 then
+                (⟨a.val, by have := a.isLt; omega⟩ : Fin (n + K))
+                else ⟨K + ((y : ℕ) - 1), by have := y.isLt; omega⟩).val = a.val := by
+              rw [dif_pos hy]
+            have := congr_arg Fin.val hxy
+            rw [h_lhs, h_rhs] at this
+            exact this
+          have := a.isLt; omega
+        · have hxy_val : K + ((x : ℕ) - 1) = K + ((y : ℕ) - 1) := by
+            have h_lhs : (if hv : (x : ℕ) = 0 then
+                (⟨a.val, by have := a.isLt; omega⟩ : Fin (n + K))
+                else ⟨K + ((x : ℕ) - 1), by have := x.isLt; omega⟩).val =
+                K + ((x : ℕ) - 1) := by
+              rw [dif_neg hx]
+            have h_rhs : (if hv : (y : ℕ) = 0 then
+                (⟨a.val, by have := a.isLt; omega⟩ : Fin (n + K))
+                else ⟨K + ((y : ℕ) - 1), by have := y.isLt; omega⟩).val =
+                K + ((y : ℕ) - 1) := by
+              rw [dif_neg hy]
+            have := congr_arg Fin.val hxy
+            rw [h_lhs, h_rhs] at this
+            exact this
+          have hx_pos : 0 < (x : ℕ) := Nat.pos_of_ne_zero hx
+          have hy_pos : 0 < (y : ℕ) := Nat.pos_of_ne_zero hy
+          apply Fin.ext; omega }
+
+/-- `labelOneEmb` value at position 0: the label is routed to `a`. -/
+private lemma labelOneEmb_zero {n K : ℕ} (a : Fin K) :
+    (labelOneEmb (n := n) a) ⟨0, Nat.succ_pos _⟩ =
+      ⟨a.val, by have := a.isLt; omega⟩ := by
+  show (if hv : ((⟨0, Nat.succ_pos _⟩ : Fin (n + 1)) : ℕ) = 0 then
+      (⟨a.val, by have := a.isLt; omega⟩ : Fin (n + K))
+      else ⟨K + (((⟨0, Nat.succ_pos _⟩ : Fin (n + 1)) : ℕ) - 1),
+        by have := (⟨0, Nat.succ_pos _⟩ : Fin (n + 1)).isLt; omega⟩) =
+    ⟨a.val, by have := a.isLt; omega⟩
+  rw [dif_pos rfl]
+
+/-- `labelOneEmb` value at `Fin.succ i`: lands at unlabeled `K + i.val`. -/
+private lemma labelOneEmb_succ {n K : ℕ} (a : Fin K) (i : Fin n) :
+    (labelOneEmb a) i.succ = ⟨K + i.val, by have := i.isLt; omega⟩ := by
+  have hsucc_ne_zero : (i.succ : ℕ) ≠ 0 := Nat.succ_ne_zero _
+  show (if hv : (i.succ : ℕ) = 0 then
+      (⟨a.val, by have := a.isLt; omega⟩ : Fin (n + K))
+      else ⟨K + ((i.succ : ℕ) - 1), by have := i.succ.isLt; omega⟩) =
+    ⟨K + i.val, by have := i.isLt; omega⟩
+  rw [dif_neg hsucc_ne_zero]
+  apply Fin.ext
+  show K + ((i.succ : ℕ) - 1) = K + i.val
+  have hsucc_val : (i.succ : ℕ) = i.val + 1 := Fin.val_succ i
+  omega
+
+/-- **K → K=1 reduction lemma**. Under `tupleEquivSimple B W ξ ξ'`,
+for every simple graph `F` on `Fin (n+1)` and label coordinate
+`a : Fin K`, the K=1 rooted profile at `ξ a` agrees with that at
+`ξ' a`. This is the bridge enabling Route 2 closure of the square
+moment: every term of the rooted-profile span representation is
+preserved by the K-level simple equivalence, evaluated at coordinate
+`a`. -/
+private theorem rootedProfileEquiv_of_tupleEquivSimple {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    {ξ ξ' : Fin K → Fin T}
+    (h : tupleEquivSimple B W ξ ξ') (a : Fin K) :
+    rootedProfileEquiv B W (ξ a) (ξ' a) := by
+  classical
+  intro n F hdec
+  -- Build embedding and lifted graph.
+  let emb : Fin (n + 1) ↪ Fin (n + K) := labelOneEmb a
+  let G : SimpleGraph (Fin (n + K)) := SimpleGraph.map emb F
+  haveI hGdec : DecidableRel G.Adj := Classical.decRel _
+  -- Helper: edge-product term is independent of the Sym2 representative.
+  have h_edge_rep : ∀ {m : ℕ} (ν : Fin m → Fin T) (a b : Fin m),
+      B (ν (Quot.out (s(a, b) : Sym2 (Fin m))).1)
+        (ν (Quot.out (s(a, b) : Sym2 (Fin m))).2) = B (ν a) (ν b) := by
+    intro m ν a b
+    have h_out_eq : Sym2.mk (Quot.out (s(a, b) : Sym2 (Fin m))) = s(a, b) :=
+      Quot.out_eq _
+    rcases Sym2.mk_eq_mk_iff.mp h_out_eq with heq | heq
+    · rw [heq]
+    · rw [heq]; exact hB _ _
+  -- Key identity: for any `ζ : Fin K → Fin T`,
+  -- simpleEvalAt B W G ζ (= K-level eval of G at ζ) equals
+  -- rootedProfile B W (ζ a) F (= K=1 eval of F at ζ a).
+  suffices key : ∀ ζ : Fin K → Fin T,
+      (∑ σ : Fin n → Fin T,
+        (let τ : Fin (n + K) → Fin T := fun v =>
+          if hh : (v : ℕ) < K then ζ ⟨v, hh⟩
+          else σ ⟨v - K, by have := v.isLt; omega⟩
+        (∏ v : Fin n, W (σ v)) *
+        ∏ e ∈ G.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) =
+      rootedProfile B W (ζ a) F by
+    -- Apply tupleEquivSimple at (n, G) to get equality at ξ vs ξ'.
+    have hG := h n G
+    rw [← key ξ, ← key ξ']
+    exact hG
+  intro ζ
+  -- For each σ : Fin n → Fin T, show the σ-summand on the LHS equals
+  -- the σ-summand of `rootedProfile B W (ζ a) F` (unfolded).
+  unfold rootedProfile simpleEvalAt
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  -- The W-product factor is the same on both sides. Reduce to edge-product equality.
+  refine congrArg (fun x => (∏ v : Fin n, W (σ v)) * x) ?_
+  -- Edge product reindex via Finset.prod_bij with i := emb.sym2Map.
+  symm
+  refine Finset.prod_bij (fun e _ => emb.sym2Map e) ?_ ?_ ?_ ?_
+  · -- 1. Forward: edges of F map to edges of G via emb.sym2Map.
+    intro e he
+    change emb.sym2Map e ∈ (SimpleGraph.map emb F).edgeFinset
+    rw [SimpleGraph.mem_edgeFinset] at he ⊢
+    induction e using Sym2.ind with
+    | _ x y =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at *
+      rw [SimpleGraph.mem_edgeSet] at he ⊢
+      exact ⟨x, y, he, rfl, rfl⟩
+  · -- 2. Injective on F.edgeFinset.
+    intro e1 _ e2 _ hij
+    exact emb.sym2Map.injective hij
+  · -- 3. Surjective onto G.edgeFinset.
+    intro e he
+    change e ∈ (SimpleGraph.map emb F).edgeFinset at he
+    rw [SimpleGraph.mem_edgeFinset] at he
+    induction e using Sym2.ind with
+    | _ u v =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      obtain ⟨x, y, hxy, hxu, hyv⟩ := he
+      refine ⟨s(x, y), ?_, ?_⟩
+      · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact hxy
+      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+        rw [hxu, hyv]
+  · -- 4. Term-by-term: B (τ_F (out e).1) (τ_F (out e).2)
+    --    = B (τ_G (out (emb.sym2Map e)).1) (τ_G (out (emb.sym2Map e)).2).
+    intro e _
+    -- Bind τ_F (K=1) and τ_G (K-level).
+    set τF : Fin (n + 1) → Fin T := fun v =>
+      if h : (v : ℕ) < 1 then (fun _ : Fin 1 => ζ a) ⟨v, h⟩
+      else σ ⟨(v : Fin (n + 1)).val - 1, by have := v.isLt; omega⟩ with hτF_def
+    set τG : Fin (n + K) → Fin T := fun v =>
+      if hh : (v : ℕ) < K then ζ ⟨v, hh⟩
+      else σ ⟨v - K, by have := v.isLt; omega⟩ with hτG_def
+    -- Key pointwise identity: τG ∘ emb = τF.
+    have hτ : ∀ v : Fin (n + 1), τG (emb v) = τF v := by
+      intro v
+      by_cases hv : (v : ℕ) = 0
+      · -- Position 0: emb v = ⟨a.val, _⟩, τG = ζ a, τF = ζ a.
+        have hv_eq : v = ⟨0, Nat.succ_pos _⟩ := Fin.ext hv
+        have hτG_at : τG (emb v) = ζ a := by
+          rw [hv_eq, labelOneEmb_zero]
+          show (if hh : ((⟨a.val, by have := a.isLt; omega⟩ : Fin (n + K)) : ℕ) < K
+              then ζ ⟨(⟨a.val, by have := a.isLt; omega⟩ : Fin (n + K)), hh⟩
+              else σ ⟨((⟨a.val, by have := a.isLt; omega⟩ : Fin (n + K)) : ℕ) - K,
+                by have := (⟨a.val, by have := a.isLt; omega⟩ : Fin (n + K)).isLt; omega⟩) =
+            ζ a
+          have : ((⟨a.val, by have := a.isLt; omega⟩ : Fin (n + K)) : ℕ) < K := a.isLt
+          rw [dif_pos this]
+        have hτF_at : τF v = ζ a := by
+          rw [hv_eq]
+          show (if h : ((⟨0, Nat.succ_pos _⟩ : Fin (n + 1)) : ℕ) < 1
+              then (fun _ : Fin 1 => ζ a) ⟨(⟨0, Nat.succ_pos _⟩ : Fin (n + 1)), h⟩
+              else σ ⟨((⟨0, Nat.succ_pos _⟩ : Fin (n + 1)) : ℕ) - 1,
+                by have := (⟨0, Nat.succ_pos _⟩ : Fin (n + 1)).isLt; omega⟩) =
+            ζ a
+          rw [dif_pos (by show (0 : ℕ) < 1; omega)]
+        rw [hτG_at, hτF_at]
+      · -- Position v ≥ 1: write v = Fin.succ i with i = ⟨v.val - 1, _⟩.
+        have hv_pos : 0 < (v : ℕ) := Nat.pos_of_ne_zero hv
+        have hv_lt : (v : ℕ) - 1 < n := by have := v.isLt; omega
+        let i : Fin n := ⟨v.val - 1, hv_lt⟩
+        have hv_eq : v = i.succ := by
+          apply Fin.ext
+          show (v : ℕ) = i.val + 1
+          show (v : ℕ) = (v.val - 1) + 1
+          omega
+        have hτG_at : τG (emb v) = σ i := by
+          rw [hv_eq, labelOneEmb_succ]
+          show (if hh : ((⟨K + i.val,
+              by have := i.isLt; omega⟩ : Fin (n + K)) : ℕ) < K
+              then ζ ⟨(⟨K + i.val,
+                by have := i.isLt; omega⟩ : Fin (n + K)), hh⟩
+              else σ ⟨((⟨K + i.val,
+                by have := i.isLt; omega⟩ : Fin (n + K)) : ℕ) - K,
+                by have := (⟨K + i.val,
+                  by have := i.isLt; omega⟩ : Fin (n + K)).isLt; omega⟩) =
+            σ i
+          have h_not_lt : ¬ ((⟨K + i.val,
+              by have := i.isLt; omega⟩ : Fin (n + K)) : ℕ) < K := by
+            show ¬ K + i.val < K
+            omega
+          rw [dif_neg h_not_lt]
+          congr 1
+          apply Fin.ext
+          show K + i.val - K = i.val
+          omega
+        have hτF_at : τF v = σ i := by
+          rw [hv_eq]
+          show (if h : ((i.succ : Fin (n + 1)) : ℕ) < 1
+              then (fun _ : Fin 1 => ζ a) ⟨(i.succ : Fin (n + 1)), h⟩
+              else σ ⟨((i.succ : Fin (n + 1)) : ℕ) - 1,
+                by have := i.succ.isLt; omega⟩) = σ i
+          have h_not_lt : ¬ ((i.succ : Fin (n + 1)) : ℕ) < 1 := by
+            have hsucc_val : (i.succ : ℕ) = i.val + 1 := Fin.val_succ i
+            omega
+          rw [dif_neg h_not_lt]
+          congr 1
+        rw [hτG_at, hτF_at]
+    -- Use h_edge_rep to bypass Quot.out orientation.
+    induction e using Sym2.ind with
+    | _ x y =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      rw [h_edge_rep τF x y, h_edge_rep τG (emb x) (emb y)]
+      rw [hτ x, hτ y]
+
+/-- **FINAL PAPER-ROOT** — K=1 square moment identity, PROVED via
+Route 2 (rooted-profile span + orbit invariance + K→K=1 reduction).
+
+This is the genuine Lovász §3 bottleneck. Closes the
+unlabeled-excess branch of #86 (multigraph bridge). -/
+private theorem label_unlabeled_square_moment_descends {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T}
+    (h_simple : ∀ (n' : ℕ) (F : SimpleGraph (Fin (n' + K))) [DecidableRel F.Adj],
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+        ∑ σ : Fin n' → Fin T,
+          (let τ : Fin (n' + K) → Fin T := fun v =>
+            if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+            else σ ⟨v - K, by have := v.isLt; omega⟩
+          (∏ v : Fin n', W (σ v)) *
+          ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)))
+    (a : Fin K) :
+    ∑ t : Fin T, W t * B (ξ a) t ^ 2 = ∑ t : Fin T, W t * B (ξ' a) t ^ 2 := by
+  classical
+  -- Step 1: package h_simple as tupleEquivSimple.
+  have h_equiv : tupleEquivSimple B W ξ ξ' := h_simple
+  -- Step 2: K→K=1 reduction.
+  have h_rooted : rootedProfileEquiv B W (ξ a) (ξ' a) :=
+    rootedProfileEquiv_of_tupleEquivSimple B hB W h_equiv a
+  -- Step 3: define sqMoment and prove orbit-invariance.
+  let sqMoment : Fin T → ℝ := fun i => ∑ t : Fin T, W t * B i t ^ 2
+  have h_orbit_inv : ∀ i j, vertexOrbitRel B W i j → sqMoment i = sqMoment j := by
+    rintro i j ⟨σ, ⟨hW_σ, hB_σ⟩, hσij⟩
+    show (∑ t : Fin T, W t * B i t ^ 2) = (∑ t : Fin T, W t * B j t ^ 2)
+    -- Reindex RHS via σ: ∑ t, W t * B j t^2 = ∑ t, W (σ t) * B j (σ t)^2.
+    have hreidx : (∑ t : Fin T, W t * B j t ^ 2) =
+        ∑ t : Fin T, W (σ t) * B j (σ t) ^ 2 := by
+      apply (Equiv.sum_comp σ (fun t => W t * B j t ^ 2)).symm
+    rw [hreidx]
+    refine Finset.sum_congr rfl fun t _ => ?_
+    -- W (σ t) = W t.
+    rw [hW_σ t]
+    -- B j (σ t) = B (σ i) (σ t) = B i t.
+    rw [← hσij, hB_σ i t]
+  -- Step 4: sqMoment is in rooted-profile span.
+  have h_span : InRootedProfileSpan B W sqMoment :=
+    InRootedProfileSpan.of_const_on_orbit B hB W hW htwin sqMoment h_orbit_inv
+  -- Step 5: unfold span representation and reduce term-by-term.
+  obtain ⟨N, g, c, hsum⟩ := h_span
+  -- hsum : sqMoment = fun v => ∑ k, c k * rootedProfileFun B W (g k).2.1 v
+  have h_at_ξa : sqMoment (ξ a) = ∑ k : Fin N, c k *
+      @rootedProfileFun T (g k).1 B W (g k).2.1 (g k).2.2 (ξ a) := by
+    have := congr_fun hsum (ξ a); exact this
+  have h_at_ξ'a : sqMoment (ξ' a) = ∑ k : Fin N, c k *
+      @rootedProfileFun T (g k).1 B W (g k).2.1 (g k).2.2 (ξ' a) := by
+    have := congr_fun hsum (ξ' a); exact this
+  show sqMoment (ξ a) = sqMoment (ξ' a)
+  rw [h_at_ξa, h_at_ξ'a]
+  refine Finset.sum_congr rfl fun k _ => ?_
+  refine congrArg (fun x => c k * x) ?_
+  -- rootedProfileFun B W F v = rootedProfile B W v F (by def).
+  -- h_rooted at (g k).1, (g k).2.1 uses Classical.propDecidable;
+  -- we use the bundled (g k).2.2 instance. The two instances agree
+  -- definitionally since `rootedProfile` is a Finset.sum (no decision needed).
+  show @rootedProfileFun T (g k).1 B W (g k).2.1 (g k).2.2 (ξ a) =
+       @rootedProfileFun T (g k).1 B W (g k).2.1 (g k).2.2 (ξ' a)
+  have hrp : @rootedProfile T (g k).1 B W (ξ a) (g k).2.1 (g k).2.2 =
+             @rootedProfile T (g k).1 B W (ξ' a) (g k).2.1 (g k).2.2 := by
+    have := h_rooted (g k).1 (g k).2.1
+    convert this using 2
+  exact hrp
 
 /-! ### K=1 rank theorem consequences (orbit indicators, Lemma 2.4) -/
 
