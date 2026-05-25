@@ -2349,7 +2349,21 @@ multigraph eval span, but reducing this to simple-graph evals requires
 the connection-matrix / idempotent decomposition (Lovász §3 proper).
 ~300-500 LOC of new spectral/rank infrastructure.
 
-**Status**: NAMED FINAL PAPER-ROOT (2026-05-19). Sorry'd. -/
+**Route 2 viability** (2026-05-25 analysis): the K=1 rank theorem
+`InRootedProfileSpan.of_const_on_orbit` is PROVED and does NOT depend
+on #86 (no cycle). Route 2 (via finite quotient/Lagrange) is feasible
+in ~100-200 LOC, BUT requires:
+
+  - Adding `hW : ∀ i, 0 < W i` and `htwin : ∀ i j, i ≠ j → B i ≠ B j`
+    to this theorem's signature (currently absent).
+  - Cascading these hypotheses up through:
+    label-U isolated → one_doubled_unlabeled_edge_descends → #86.
+  - Building a K-to-K=1 restriction lemma:
+    `tupleEquivSimple ξ ξ' at K → square moment at coord a (K=1)`.
+
+**Status**: NAMED FINAL PAPER-ROOT (2026-05-19). Sorry'd.
+Route 1 (connection matrix) preserves the current minimal hypotheses
+but needs ~300-500 LOC. Route 2 needs ~100-200 LOC + API cascade. -/
 private theorem label_unlabeled_square_moment_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     {ξ ξ' : Fin K → Fin T}
