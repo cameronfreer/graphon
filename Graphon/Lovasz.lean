@@ -7287,47 +7287,36 @@ theorem tupleEquivSimple_implies_orbit {T K : ℕ}
       · -- **Both α and φ non-surjective** — THE single critical sorry
         -- for #62 (multigraph bridge) post-2026-05-26 refactor.
         --
-        -- Closing this branch unblocks the entire `multiLabeledEvalK_eq_of_orbit`
-        -- → bridge → MD wrapper chain. All other dispatcher-chain sorries
-        -- (UU/label-U nonisolated, etc.) are now ORPHANED off the critical
-        -- path (the bridge routes via h_orbit + change-of-variables).
+        -- **Triangular cycle** (after session 3 analysis):
+        --   Lemma 2.4 (K=1 non-surj) ↔ k1_orbit_sep_aux ↔ of_const_on_orbit
+        -- All three are mutually equivalent and form a triangular
+        -- self-reference. Currently all are "proved" but one (Lemma 2.4
+        -- non-surj) carries the actual sorry.
         --
-        -- **Cyclic obstruction**: the "obvious" extension-theorem route
-        -- (use Claim 4.2 to extend φ ψ to deficit-reduced tuples) is
-        -- CIRCULAR:
-        --   - Lemma 2.4 needs Claim 4.2 (extension)
-        --   - Claim 4.2 → product_trace_identity_simple → bridge
-        --   - bridge → Lemma 2.4 (via multiLabeledEvalK_eq_of_orbit)
-        --   - CYCLE.
+        -- **Option A FAILED** (separator-free of_const_on_orbit):
+        --   Refactoring of_const_on_orbit to quotient by
+        --   rooted-profile-equivalence classes (where hsep is built-in
+        --   via the definition of ~_RP) is structurally feasible. But the
+        --   resulting theorem only gives `RPclass-invariant ⊆ span`.
+        --   Upgrading RP-class-invariance to ORBIT-invariance requires
+        --   ~_RP ⟹ ~_orbit (i.e., Lemma 2.4 K=1), which is exactly the
+        --   cycle. The downstream square moment proof needs ORBIT-
+        --   invariance (sqMoment isn't naively RP-class-invariant since
+        --   B(i,t)² isn't a simple-graph factor), so the weaker theorem
+        --   doesn't suffice.
         --
-        -- An ALTERNATIVE route via Claim 4.2 at smaller deficit might
-        -- work if Claim 4.2 only invokes Lemma 2.4 at SMALLER measure.
-        -- Currently Claim 4.2's bridge route doesn't have a clean smaller-
-        -- measure handle.
+        -- **Option B (recommended next session)**: Translate Lovász §3
+        -- column-space / dimension argument (Lemma 2.5). This proves
+        -- rank N(1, G) = #orbits directly via algebra/quantum graphs,
+        -- bypassing the cycle. ~300-500 LOC of new infrastructure.
         --
-        -- **Other cyclic dep**: Claim 4.4 (tupleEquivSimple_surjective_case)
-        -- internally invokes IH at level T-1 with arbitrary deficit (via
-        -- restrictTuple χ for bijection χ). Under deficit-primary lex
-        -- `(d, size)`, this IH at `(1, T-1)` is lex-GREATER than the outer
-        -- call at `(0, k+1)` (Φ surjective ⟹ d=0). Size-primary lex
-        -- fixes Claim 4.4 but breaks the extension step. Resolving requires
-        -- refactoring Claim 4.4 to route through extension rather than
-        -- restriction (a substantial internal refactor of Claim 4.3/4.4).
-        --
-        -- **Direct K=1 alternative**: at K=1 specifically (which is what
-        -- `k1_orbit_sep_aux` needs), tupleEquivSimple ξ ξ' ⟹ B(ξ 0) = B(ξ' 0)
-        -- as rows (by some single-edge + functional_span_zero argument)
-        -- ⟹ by twin-free ξ 0 = ξ' 0 ⟹ orbit-related (σ = id). However,
-        -- extracting B(ξ 0) = B(ξ' 0) from simple-graph evaluations alone
-        -- requires more than degree-1 moments; powers via star-multigraph
-        -- depend on the bridge again. This direct K=1 route is also
-        -- non-trivial.
-        --
-        -- Path forward: either (a) WF induction refactor on (deficit, size)
-        -- AFTER restructuring Claim 4.4 to avoid the deficit-1 IH, or
-        -- (b) translate Lovász's actual paper proof via Lemma 2.5
-        -- (column-space / dimension argument), which is independent of
-        -- the bridge.
+        -- **What's downstream of THIS sorry**:
+        --   - of_const_on_orbit (transitive via k1_orbit_sep_aux)
+        --   - label_unlabeled_square_moment_descends (uses of_const_on_orbit)
+        --   - multigraphEval_label_unlabeled_isolated_descends (uses square moment)
+        --   - multiLabeledEvalK_eq_of_orbit (uses Lemma 2.4)
+        --   - MD bridge wrapper (uses multiLabeledEvalK_eq_of_orbit)
+        --   - All of #62 / #86 / etc.
         sorry
 /-- **K=1 Stone-Weierstrass / Lagrange interpolation closure**
 (named algebraic residue, deferred). **This is the K=1 rank theorem proper.**
