@@ -2280,6 +2280,95 @@ private lemma multigraphEval_LL_excess_descends_aux {T K n : ℕ}
         exact heq
       rw [h_single_edge, h_IH]
 
+/-! ### §3.6.4 — The bridge via h_orbit (Lovász Lemma 2.4)
+
+**KEY INSIGHT** (2026-05-26): given `h_orbit` (Lovász Lemma 2.4
+packaged: `tupleEquivSimple ξ ξ' ⟹ ∃ σ aut with ξ' = σ ∘ ξ`),
+the entire `multiLabeledEvalK ξ = multiLabeledEvalK ξ'` equality
+holds by pure change-of-variables for ANY multigraph M.
+
+This sidesteps the entire dispatcher chain (UU isolated, label-U
+isolated/nonisolated, UU nonisolated, etc.) — the ~2000 LOC of
+case analysis collapses to ~30 LOC of change-of-variables.
+
+Trade-off: requires `h_orbit` (Lemma 2.4), which itself has an
+architectural sorry at the "both non-surj" branch. But the existing
+dispatcher chain ALSO depends on this same sorry (via the K=1 rank
+theorem's reliance on `k1_orbit_sep_aux` → Lemma 2.4 at K=1). So net
+no new sorries.
+
+Caveats addressed:
+  - W-product invariance: ∏ W(σ σ_var v) = ∏ W(σ_var v) by W-aut.
+  - B-product invariance: per edge e, B(τ_e via ξ' at σ σ_var) =
+    B(τ_e via ξ at σ_var) by B-aut + ξ' = σ ξ.
+  - Sum reindex: `Equiv.arrowCongr (Equiv.refl _) σ` shifts σ_var. -/
+
+/-- **Multigraph evaluation invariance under orbit relation**. Direct
+change-of-variables proof; closes the entire bridge for ANY
+multigraph. -/
+theorem multiLabeledEvalK_eq_of_orbit {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (M : MultiLabeledGraph K n)
+    {ξ ξ' : Fin K → Fin T}
+    (h_orbit : ∃ σ : Equiv.Perm (Fin T),
+      (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
+      (∀ i, ξ' i = σ (ξ i))) :
+    multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
+  obtain ⟨σ, hW_σ, hB_σ, hσξ⟩ := h_orbit
+  unfold multiLabeledEvalK
+  -- Reindex the RHS σ_var-sum via σ ∘ σ_var.
+  let perm : (Fin n → Fin T) ≃ (Fin n → Fin T) :=
+    Equiv.arrowCongr (Equiv.refl _) σ
+  rw [show (∑ σ_var : Fin n → Fin T,
+      (let τ : Fin (n + K) → Fin T := fun v =>
+        if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+        else σ_var ⟨v - K, by have := v.isLt; omega⟩
+      (∏ v : Fin n, W (σ_var v)) *
+      ∏ e : Sym2 (Fin (n + K)),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e)) =
+      (∑ σ_var : Fin n → Fin T,
+      (let τ : Fin (n + K) → Fin T := fun v =>
+        if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+        else (perm σ_var) ⟨v - K, by have := v.isLt; omega⟩
+      (∏ v : Fin n, W ((perm σ_var) v)) *
+      ∏ e : Sym2 (Fin (n + K)),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e)) from
+    (perm.sum_comp _).symm]
+  refine Finset.sum_congr rfl fun σ_var _ => ?_
+  -- Bind τ values for both sides.
+  set τ_lhs : Fin (n + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then ξ ⟨v, h⟩
+    else σ_var ⟨v - K, by have := v.isLt; omega⟩ with hτ_lhs
+  set τ_rhs : Fin (n + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then ξ' ⟨v, h⟩
+    else (perm σ_var) ⟨v - K, by have := v.isLt; omega⟩ with hτ_rhs
+  -- Key: τ_rhs v = σ (τ_lhs v) for all v.
+  have hτ_σ : ∀ v : Fin (n + K), τ_rhs v = σ (τ_lhs v) := by
+    intro v
+    by_cases hv : (v : ℕ) < K
+    · show (if hh : (v : ℕ) < K then ξ' ⟨v, hh⟩ else _) =
+           σ ((if hh : (v : ℕ) < K then ξ ⟨v, hh⟩ else _))
+      rw [dif_pos hv, dif_pos hv]
+      exact hσξ ⟨v, hv⟩
+    · show (if hh : (v : ℕ) < K then ξ' ⟨v, hh⟩
+            else (perm σ_var) ⟨v - K, by have := v.isLt; omega⟩) =
+           σ ((if hh : (v : ℕ) < K then ξ ⟨v, hh⟩
+            else σ_var ⟨v - K, by have := v.isLt; omega⟩))
+      rw [dif_neg hv, dif_neg hv]
+      rfl
+  -- W-product: W ((perm σ_var) v) = W (σ (σ_var v)) = W (σ_var v).
+  have hW_eq : (∏ v : Fin n, W ((perm σ_var) v)) = ∏ v : Fin n, W (σ_var v) := by
+    refine Finset.prod_congr rfl fun v _ => ?_
+    show W (σ (σ_var v)) = W (σ_var v)
+    exact hW_σ (σ_var v)
+  rw [hW_eq]
+  -- Per-edge B factor: B(τ_rhs ...) = B(σ τ_lhs ..., σ τ_lhs ...) = B(τ_lhs ..., τ_lhs ...) by aut.
+  refine congrArg (fun x => (∏ v : Fin n, W (σ_var v)) * x) ?_
+  refine Finset.prod_congr rfl fun e _ => ?_
+  congr 1
+  rw [hτ_σ (Quot.out e).1, hτ_σ (Quot.out e).2]
+  exact (hB_σ _ _).symm
+
 /-! ### §3.6.5 — Mixed-moment theorem for label-extras
 
 The label-extras mixed moment: given `tupleEquivSimple ξ ξ'` and an

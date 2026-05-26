@@ -7238,16 +7238,18 @@ private theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
   -- hypothesis form via `unfold labeledEvalK`.
   let M' : Graphon.Lovasz.MultiLabeledGraph K n :=
     { mult := M.mult, multNoLoop := M.multNoLoop }
-  have hLovasz : Graphon.Lovasz.multiLabeledEvalK K n M' B W ξ =
-                 Graphon.Lovasz.multiLabeledEvalK K n M' B W ξ' :=
-    Graphon.Lovasz.multiLabeledEvalK_tupleEquiv_invariant B hB W hW htwin M'
-      (fun {ξ₀ ξ₀'} hh c =>
-        Graphon.Lovasz.label_unlabeled_square_moment_descends B hB W hW htwin hh c)
-      (fun n' F _ => by
-        have heq := h n' F
-        unfold labeledEvalK at heq
-        exact heq)
-  exact hLovasz
+  -- Route via h_orbit (Lovász Lemma 2.4 + change-of-variables), bypassing
+  -- the entire dispatcher chain. Lemma 2.4 has one architectural sorry,
+  -- but the dispatcher chain transitively depends on the same sorry, so
+  -- this is a net simplification (~30 LOC vs ~2000 LOC).
+  have h_simple_lovasz : Graphon.Lovasz.tupleEquivSimple B W ξ ξ' := by
+    intro n' F _
+    have heq := h n' F
+    unfold labeledEvalK at heq
+    exact heq
+  obtain ⟨σ, hW_σ, hB_σ, hσξ⟩ :=
+    Graphon.Lovasz.tupleEquivSimple_implies_orbit B hB W hW htwin h_simple_lovasz
+  exact Graphon.Lovasz.multiLabeledEvalK_eq_of_orbit B hB W M' ⟨σ, hW_σ, hB_σ, hσξ⟩
 
 /-- **CANONICAL MINIMAL ALGEBRAIC RESIDUE** of the Lovász §3 multigraph
 content. Independent K=1 single-coord square moment.
