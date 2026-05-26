@@ -2280,6 +2280,62 @@ private lemma multigraphEval_LL_excess_descends_aux {T K n : ℕ}
         exact heq
       rw [h_single_edge, h_IH]
 
+/-! ### §3.6.5 — Mixed-moment theorem for label-extras
+
+The label-extras mixed moment: given `tupleEquivSimple ξ ξ'` and an
+ambient `h_orbit` (Lovász Lemma 2.4: simple-equivalence ⟹ orbit),
+the `ξ`-parameterized polynomial moment
+
+  ∑ t, W t · B (ξ a) t ^ 2 · ∏ b, B t (ξ b) ^ r b
+
+agrees at `ξ` vs `ξ'`. This is the substantive content of the
+**nonisolated** label-U case (the doubled edge contributes the square
+factor; label-extras incident to the unlabeled endpoint contribute the
+background product).
+
+**Proof technique**: pure change-of-variables. Given `h_orbit` (which
+provides σ : Perm with ξ' = σ ∘ ξ, W and B σ-invariant), substitute
+t ↦ σ⁻¹ t in the RHS sum. The σ-aut of B gives `B (σ x) (σ y) = B x y`,
+which transforms each B-factor cleanly. No K=1 rank theorem needed
+(unlike the pure square moment, where ξ doesn't appear as a parameter
+of the B-product). -/
+
+/-- **Mixed-moment theorem for label-extras**. Under `h_orbit`
+(Lovász Lemma 2.4 packaged), the `ξ`-parameterized moment
+
+  ∑ t, W t · B (ξ a) t ^ 2 · ∏ b, B t (ξ b) ^ r b
+
+is constant on `tupleEquivSimple`-classes. Closes the LABEL-extras
+branch of the nonisolated subcases via reduction to change-of-variables.
+For UNLABELED-extras (incident edges to the doubled endpoint with the
+other endpoint also unlabeled), a separate argument is needed; this
+mixed moment alone does not close those subcases. -/
+theorem label_unlabeled_square_with_background_descends {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    {ξ ξ' : Fin K → Fin T}
+    (h_orbit : ∃ σ : Equiv.Perm (Fin T),
+      (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
+      (∀ i, ξ' i = σ (ξ i)))
+    (a : Fin K) (r : Fin K → ℕ) :
+    ∑ t : Fin T, W t * B (ξ a) t ^ 2 * ∏ b : Fin K, B t (ξ b) ^ r b =
+    ∑ t : Fin T, W t * B (ξ' a) t ^ 2 * ∏ b : Fin K, B t (ξ' b) ^ r b := by
+  obtain ⟨σ, hW_σ, hB_σ, hσξ⟩ := h_orbit
+  -- Reindex the RHS via σ: ∑ t f(t) = ∑ t f(σ t).
+  have hreidx : (∑ t : Fin T, W t * B (ξ' a) t ^ 2 * ∏ b : Fin K, B t (ξ' b) ^ r b) =
+      ∑ t : Fin T, W (σ t) * B (ξ' a) (σ t) ^ 2 * ∏ b : Fin K, B (σ t) (ξ' b) ^ r b := by
+    apply (Equiv.sum_comp σ
+      (fun t => W t * B (ξ' a) t ^ 2 * ∏ b : Fin K, B t (ξ' b) ^ r b)).symm
+  rw [hreidx]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  -- W (σ t) = W t.
+  rw [hW_σ t]
+  -- B (ξ' a) (σ t) = B (σ (ξ a)) (σ t) = B (ξ a) t.
+  rw [hσξ a, hB_σ (ξ a) t]
+  -- ∏ b, B (σ t) (ξ' b) ^ r b = ∏ b, B (σ t) (σ (ξ b)) ^ r b = ∏ b, B t (ξ b) ^ r b.
+  congr 1
+  refine Finset.prod_congr rfl fun b _ => ?_
+  rw [hσξ b, hB_σ t (ξ b)]
+
 /-- **CANONICAL PAPER-ROOT** — unlabeled-excess descent (the final Lovász §3
 core). After polynomial decomposition handles all label-label multiplicities
 (via `multigraphEval_LL_excess_descends_aux`), the remaining residue is
