@@ -4990,6 +4990,8 @@ private theorem product_trace_identity_simple {T k : ℕ}
     rw [multiLabeledEvalK_sum_last_label M _B _hB _W ξ,
         multiLabeledEvalK_sum_last_label M _B _hB _W ξ']
     -- Now apply the bridge `multiLabeledEvalK_tupleEquiv_invariant` to `M.trace`.
+    -- (Could also route via h_orbit + change-of-variables once
+    --  tupleEquivSimple_implies_orbit is moved earlier in the file.)
     exact multiLabeledEvalK_tupleEquiv_invariant _B _hB _W _hW _htwin M.trace _h_sq_moment _h
   -- **Step 2**: Construct the combined multigraph by induction on `L`.
   clear _h
