@@ -7284,11 +7284,50 @@ theorem tupleEquivSimple_implies_orbit {T K : ℕ}
             tupleEquivSimple B W φ' ψ' → tupleOrbitRel B W φ' ψ' :=
           fun {φ' ψ'} h' => IH_strong (T - 1) hT1_lt φ' ψ' h'
         exact tupleEquivSimple_surjective_case B W hW hB htwin IH_T1 φ ψ hφ_surj hpsi
-      · -- Both α and φ non-surjective: architectural sorry mirroring
-        -- MatrixDetermination.lean:10938-11010. Closing this requires either
-        -- the extension theorem (#62) or a well-founded induction refactor
-        -- on (deficit, size). This is the new canonical sorry root, replacing
-        -- the previous routing through connection_matrix_rank_theorem and #70.
+      · -- **Both α and φ non-surjective** — THE single critical sorry
+        -- for #62 (multigraph bridge) post-2026-05-26 refactor.
+        --
+        -- Closing this branch unblocks the entire `multiLabeledEvalK_eq_of_orbit`
+        -- → bridge → MD wrapper chain. All other dispatcher-chain sorries
+        -- (UU/label-U nonisolated, etc.) are now ORPHANED off the critical
+        -- path (the bridge routes via h_orbit + change-of-variables).
+        --
+        -- **Cyclic obstruction**: the "obvious" extension-theorem route
+        -- (use Claim 4.2 to extend φ ψ to deficit-reduced tuples) is
+        -- CIRCULAR:
+        --   - Lemma 2.4 needs Claim 4.2 (extension)
+        --   - Claim 4.2 → product_trace_identity_simple → bridge
+        --   - bridge → Lemma 2.4 (via multiLabeledEvalK_eq_of_orbit)
+        --   - CYCLE.
+        --
+        -- An ALTERNATIVE route via Claim 4.2 at smaller deficit might
+        -- work if Claim 4.2 only invokes Lemma 2.4 at SMALLER measure.
+        -- Currently Claim 4.2's bridge route doesn't have a clean smaller-
+        -- measure handle.
+        --
+        -- **Other cyclic dep**: Claim 4.4 (tupleEquivSimple_surjective_case)
+        -- internally invokes IH at level T-1 with arbitrary deficit (via
+        -- restrictTuple χ for bijection χ). Under deficit-primary lex
+        -- `(d, size)`, this IH at `(1, T-1)` is lex-GREATER than the outer
+        -- call at `(0, k+1)` (Φ surjective ⟹ d=0). Size-primary lex
+        -- fixes Claim 4.4 but breaks the extension step. Resolving requires
+        -- refactoring Claim 4.4 to route through extension rather than
+        -- restriction (a substantial internal refactor of Claim 4.3/4.4).
+        --
+        -- **Direct K=1 alternative**: at K=1 specifically (which is what
+        -- `k1_orbit_sep_aux` needs), tupleEquivSimple ξ ξ' ⟹ B(ξ 0) = B(ξ' 0)
+        -- as rows (by some single-edge + functional_span_zero argument)
+        -- ⟹ by twin-free ξ 0 = ξ' 0 ⟹ orbit-related (σ = id). However,
+        -- extracting B(ξ 0) = B(ξ' 0) from simple-graph evaluations alone
+        -- requires more than degree-1 moments; powers via star-multigraph
+        -- depend on the bridge again. This direct K=1 route is also
+        -- non-trivial.
+        --
+        -- Path forward: either (a) WF induction refactor on (deficit, size)
+        -- AFTER restructuring Claim 4.4 to avoid the deficit-1 IH, or
+        -- (b) translate Lovász's actual paper proof via Lemma 2.5
+        -- (column-space / dimension argument), which is independent of
+        -- the bridge.
         sorry
 /-- **K=1 Stone-Weierstrass / Lagrange interpolation closure**
 (named algebraic residue, deferred). **This is the K=1 rank theorem proper.**
