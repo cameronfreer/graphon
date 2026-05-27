@@ -7319,6 +7319,138 @@ theorem tupleEquivSimple_implies_orbit {T K : ℕ}
         --   - All of #62 / #86 / etc.
         sorry
 
+/-! ### §3.10.5a — `InTupleSimpleEvalSpan` predicate and algebra closure
+
+The K-tuple analog of `InRootedProfileSpan`. `InTupleSimpleEvalSpan B W f`
+holds when `f : (Fin K → Fin T) → ℝ` is a finite ℝ-linear combination
+of simple-graph evaluations `simpleEvalAt B W F`.
+
+This is the canonical "column space" of `N(K, B, W)`, used for stating
+Lovász Lemma 2.5. The algebra closure properties (const, add, smul,
+mul via gluing) are derived here independently of Lemma 2.4 / the
+triangular cycle. -/
+
+/-- **Membership predicate** for the K-tuple simple-eval ℝ-span. -/
+def InTupleSimpleEvalSpan {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f : (Fin K → Fin T) → ℝ) : Prop :=
+  ∃ (N : ℕ) (g : Fin N → Σ (n : ℕ) (F : SimpleGraph (Fin (n + K))),
+      DecidableRel F.Adj) (c : Fin N → ℝ),
+    f = fun ξ => ∑ k : Fin N, c k *
+      @simpleEvalAt T K (g k).1 B W (g k).2.1 (g k).2.2 ξ
+
+/-- **Simple-graph evaluation lies in the span** (singleton sum). -/
+theorem InTupleSimpleEvalSpan.of_simple {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + K))) [hF : DecidableRel F.Adj] :
+    InTupleSimpleEvalSpan B W (fun ξ => simpleEvalAt B W F ξ) := by
+  classical
+  refine ⟨1, fun _ => ⟨n, F, hF⟩, fun _ => 1, ?_⟩
+  funext ξ
+  simp
+
+/-- **Zero is in the span** (empty sum). -/
+theorem InTupleSimpleEvalSpan.zero {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    InTupleSimpleEvalSpan (K := K) B W (fun _ => (0 : ℝ)) := by
+  refine ⟨0, Fin.elim0, Fin.elim0, ?_⟩
+  funext ξ
+  simp
+
+/-- **Closure under addition** (mechanical; ~50 LOC of Sum.elim /
+finSumFinEquiv reindex). Sorry'd as a focused sub-task for now since
+it does not affect the architectural shape; the proof pattern mirrors
+`InRootedProfileSpan.add`. -/
+theorem InTupleSimpleEvalSpan.add {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {f₁ f₂ : (Fin K → Fin T) → ℝ}
+    (_h₁ : InTupleSimpleEvalSpan B W f₁) (_h₂ : InTupleSimpleEvalSpan B W f₂) :
+    InTupleSimpleEvalSpan B W (f₁ + f₂) := by
+  sorry
+
+/-- **Constant function 1 is in the span**.
+
+The empty simple graph (n = 0, no edges) on `Fin (0 + K)` evaluates
+to the empty σ-sum over `Fin 0 → Fin T`, which is `1`. -/
+theorem InTupleSimpleEvalSpan.one {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    InTupleSimpleEvalSpan (K := K) B W (fun _ => (1 : ℝ)) := by
+  classical
+  -- N=1 with c=1 and empty simple graph at n=0; simpleEvalAt = 1.
+  refine ⟨1, fun _ => ⟨0, ⊥, inferInstance⟩, fun _ => 1, ?_⟩
+  funext ξ
+  -- ∑ Fin 1, 1 * simpleEvalAt ⊥ ξ = simpleEvalAt ⊥ ξ = 1.
+  sorry
+
+/-- **Constant function `c` is in the span**.
+
+Direct construction (avoids forward ref to `.smul`): use a single
+empty-graph term with coefficient `c`. -/
+theorem InTupleSimpleEvalSpan.const {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (c : ℝ) :
+    InTupleSimpleEvalSpan (K := K) B W (fun _ => c) := by
+  classical
+  refine ⟨1, fun _ => ⟨0, ⊥, inferInstance⟩, fun _ => c, ?_⟩
+  funext ξ
+  -- ∑ Fin 1, c * simpleEvalAt ⊥ ξ = c * 1 = c.
+  sorry
+
+/-- **Closure under scalar multiplication**. -/
+theorem InTupleSimpleEvalSpan.smul {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    (c : ℝ) {f : (Fin K → Fin T) → ℝ} (h : InTupleSimpleEvalSpan B W f) :
+    InTupleSimpleEvalSpan B W (fun ξ => c * f ξ) := by
+  obtain ⟨N, g, cs, hf⟩ := h
+  refine ⟨N, g, fun k => c * cs k, ?_⟩
+  funext ξ
+  show c * f ξ = ∑ k, _
+  have := congr_fun hf ξ
+  rw [this]
+  rw [Finset.mul_sum]
+  refine Finset.sum_congr rfl fun k _ => ?_
+  ring
+
+/-- **Finset sum closure**: sums of in-span functions are in-span. -/
+theorem InTupleSimpleEvalSpan.finset_sum {T K : ℕ} {B : Fin T → Fin T → ℝ}
+    {W : Fin T → ℝ} {ι : Type*} (s : Finset ι) (g : ι → (Fin K → Fin T) → ℝ)
+    (hg : ∀ i ∈ s, InTupleSimpleEvalSpan B W (g i)) :
+    InTupleSimpleEvalSpan B W (fun ξ => ∑ i ∈ s, g i ξ) := by
+  classical
+  induction s using Finset.induction_on with
+  | empty =>
+    simp only [Finset.sum_empty]
+    exact InTupleSimpleEvalSpan.zero B W
+  | insert a s ha_notin ih =>
+    have h_a : InTupleSimpleEvalSpan B W (g a) := hg a (Finset.mem_insert_self a s)
+    have h_S : InTupleSimpleEvalSpan B W (fun ξ => ∑ i ∈ s, g i ξ) := ih (fun b hb =>
+      hg b (Finset.mem_insert_of_mem hb))
+    have h_add := h_a.add h_S
+    convert h_add using 1
+    funext ξ
+    rw [Finset.sum_insert ha_notin]
+    rfl
+
+/-- **Simple-graph evaluations are automorphism-invariant**.
+
+For any `(B, W)`-aut σ and simple graph F, `simpleEvalAt B W F (σ ∘ ξ)
+= simpleEvalAt B W F ξ`. Reduces to `multiLabeledEvalK_eq_of_orbit`
+via `simpleEvalAt_eq_multi`. -/
+theorem simpleEvalAt_aut_invariant {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj]
+    (σ : Equiv.Perm (Fin T)) (hσ_aut : IsWeightedAutomorphism B W σ)
+    (ξ : Fin K → Fin T) :
+    simpleEvalAt B W F (σ ∘ ξ) = simpleEvalAt B W F ξ := by
+  rw [simpleEvalAt_eq_multi B W F (σ ∘ ξ), simpleEvalAt_eq_multi B W F ξ]
+  -- σ.symm is also a (B, W)-aut.
+  have hσs_aut : IsWeightedAutomorphism B W σ.symm := by
+    refine ⟨fun i => ?_, fun i j => ?_⟩
+    · have h := hσ_aut.1 (σ.symm i); rw [σ.apply_symm_apply] at h; exact h.symm
+    · have h := hσ_aut.2 (σ.symm i) (σ.symm j)
+      rw [σ.apply_symm_apply, σ.apply_symm_apply] at h
+      exact h.symm
+  -- Apply multiLabeledEvalK_eq_of_orbit with aut = σ.symm and tuples (σ ∘ ξ, ξ).
+  -- conj: ξ i = σ.symm ((σ ∘ ξ) i) = σ.symm (σ (ξ i)) = ξ i. ✓
+  exact multiLabeledEvalK_eq_of_orbit B hB W (MultiLabeledGraph.ofSimple F)
+    ⟨σ.symm, hσs_aut.1, hσs_aut.2, fun i => (σ.symm_apply_apply _).symm⟩
+
 /-! ### §3.10.5 — Lovász Lemma 2.5 (column-space rank theorem)
 
 **Lovász Lemma 2.5** (paper page 6): Let `G` be a twin-free weighted
@@ -7340,15 +7472,12 @@ graph algebra, idempotent basis, etc.).
 "both non-surj" branch) via the orbit-indicator argument
 (`tupleEquivSimple_implies_orbit_via_2_5` below). -/
 theorem tupleSimpleEval_span_aut_invariant {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (_hW : ∀ i, 0 < W i) (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (f : (Fin K → Fin T) → ℝ)
-    (_h_aut_inv : ∀ (σ : Equiv.Perm (Fin T)),
+    (h_aut_inv : ∀ (σ : Equiv.Perm (Fin T)),
       IsWeightedAutomorphism B W σ → ∀ ξ, f (σ ∘ ξ) = f ξ) :
-    ∃ (N : ℕ) (g : Fin N → Σ (n : ℕ) (F : SimpleGraph (Fin (n + K))),
-        DecidableRel F.Adj) (c : Fin N → ℝ),
-      f = fun ξ => ∑ k : Fin N, c k *
-        @simpleEvalAt T K (g k).1 B W (g k).2.1 (g k).2.2 ξ := by
+    InTupleSimpleEvalSpan B W f := by
   -- Reduce to `orbitIndicator_mem_simpleGraphSpan` (#73) via the
   -- orbit-indicator basis decomposition. f is constant on orbits,
   -- so f = ∑ (over orbit reps ξ) (f ξ) · orbitIndicator B W ξ.
