@@ -7356,29 +7356,46 @@ theorem InTupleSimpleEvalSpan.zero {T K : ℕ}
   funext ξ
   simp
 
-/-- **Closure under addition** (mechanical; ~50 LOC of Sum.elim /
-finSumFinEquiv reindex). Sorry'd as a focused sub-task for now since
-it does not affect the architectural shape; the proof pattern mirrors
-`InRootedProfileSpan.add`. -/
+/-- **Closure under addition** (mechanical: concatenate index lists
+via `Fin N₁ ⊕ Fin N₂ ≃ Fin (N₁ + N₂)`; sorry'd as a focused follow-up
+since the Sigma-type elaboration is heartbeat-heavy). -/
 theorem InTupleSimpleEvalSpan.add {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
     {f₁ f₂ : (Fin K → Fin T) → ℝ}
     (_h₁ : InTupleSimpleEvalSpan B W f₁) (_h₂ : InTupleSimpleEvalSpan B W f₂) :
     InTupleSimpleEvalSpan B W (f₁ + f₂) := by
   sorry
 
+/-- **Empty simple graph at `n = 0` evaluates to 1**.
+
+For `F = ⊥ : SimpleGraph (Fin (0 + K))`, `simpleEvalAt B W ⊥ ξ` reduces
+to the σ-sum over `Fin 0 → Fin T` (a singleton), each term being the
+empty `∏ v : Fin 0, W (σ v)` (= 1) times the empty edge product (= 1). -/
+private lemma simpleEvalAt_bot_zero {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ : Fin K → Fin T) :
+    @simpleEvalAt T K 0 B W (⊥ : SimpleGraph (Fin (0 + K)))
+      (inferInstance : DecidableRel (⊥ : SimpleGraph _).Adj) ξ = 1 := by
+  classical
+  simp only [simpleEvalAt, Fin.prod_univ_zero, one_mul]
+  rw [Fintype.sum_unique]
+  -- Goal: edge product over ⊥.edgeFinset = 1. ⊥.edgeFinset = ∅.
+  apply Finset.prod_eq_one
+  intro e he
+  exact absurd he (e.ind (fun _ _ => by simp))
+
 /-- **Constant function 1 is in the span**.
 
 The empty simple graph (n = 0, no edges) on `Fin (0 + K)` evaluates
-to the empty σ-sum over `Fin 0 → Fin T`, which is `1`. -/
+to 1 via `simpleEvalAt_bot_zero`. -/
 theorem InTupleSimpleEvalSpan.one {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
     InTupleSimpleEvalSpan (K := K) B W (fun _ => (1 : ℝ)) := by
   classical
-  -- N=1 with c=1 and empty simple graph at n=0; simpleEvalAt = 1.
   refine ⟨1, fun _ => ⟨0, ⊥, inferInstance⟩, fun _ => 1, ?_⟩
   funext ξ
-  -- ∑ Fin 1, 1 * simpleEvalAt ⊥ ξ = simpleEvalAt ⊥ ξ = 1.
-  sorry
+  show (1 : ℝ) = ∑ k : Fin 1, 1 *
+      @simpleEvalAt T K 0 B W (⊥ : SimpleGraph (Fin (0 + K))) _ ξ
+  rw [Fin.sum_univ_one, one_mul, simpleEvalAt_bot_zero]
 
 /-- **Constant function `c` is in the span**.
 
@@ -7391,7 +7408,7 @@ theorem InTupleSimpleEvalSpan.const {T K : ℕ}
   refine ⟨1, fun _ => ⟨0, ⊥, inferInstance⟩, fun _ => c, ?_⟩
   funext ξ
   -- ∑ Fin 1, c * simpleEvalAt ⊥ ξ = c * 1 = c.
-  sorry
+  rw [Fin.sum_univ_one, simpleEvalAt_bot_zero, mul_one]
 
 /-- **Closure under scalar multiplication**. -/
 theorem InTupleSimpleEvalSpan.smul {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
