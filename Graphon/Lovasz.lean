@@ -7498,16 +7498,41 @@ In our notation: `f : (Fin K → Fin T) → ℝ` is in the span of
 `{simpleEvalAt B W F : F : SimpleGraph (Fin (n + K))}` iff `f` is
 `(B, W)`-automorphism-invariant on tuples.
 
-**Status**: stated as a sorry'd theorem. Closes the triangular cycle
-(Lemma 2.4 ↔ k1_orbit_sep_aux ↔ of_const_on_orbit) because Lovász's
-proof in §3 goes through the algebra `𝒜_k` and dimension counting —
-independent of the bridge / tupleEquivSimple machinery. Translating
-Lovász §3 algebra requires ~300-500 LOC of new infrastructure (quantum
-graph algebra, idempotent basis, etc.).
+**Status**: orbit-basis decomposition step PROVED. Substance reduces
+to `tupleOrbitIndicator_mem_simpleEvalSpan` (the orbit indicators are
+in the simple-eval span — Lovász §3 idempotent construction).
 
 **Downstream consequence**: closes Lemma 2.4 in full (including the
 "both non-surj" branch) via the orbit-indicator argument
 (`tupleEquivSimple_implies_orbit_via_2_5` below). -/
+
+/-- **Aut-invariance ⟺ constant on orbits**: an aut-invariant function
+on `Fin K → Fin T` takes the same value on orbit-related tuples. -/
+private lemma const_on_orbit_of_aut_invariant {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f : (Fin K → Fin T) → ℝ)
+    (h_aut_inv : ∀ (σ : Equiv.Perm (Fin T)),
+      IsWeightedAutomorphism B W σ → ∀ ξ, f (σ ∘ ξ) = f ξ)
+    {ξ ξ' : Fin K → Fin T} (h : tupleOrbitRel B W ξ ξ') :
+    f ξ = f ξ' := by
+  obtain ⟨σ, hσ_aut, hσ_eq⟩ := h
+  -- ξ' i = σ (ξ i) means ξ' = σ ∘ ξ.
+  have hξ'_eq : ξ' = σ ∘ ξ := by funext i; exact hσ_eq i
+  rw [hξ'_eq, h_aut_inv σ hσ_aut ξ]
+
+/-- **The named paper-root**: orbit indicators are in the simple-eval
+span. Lovász §3 idempotent construction. Sorry'd here.
+
+This is the SUBSTANTIVE Lovász §3 content. Once closed, Lemma 2.5
+(`tupleSimpleEval_span_aut_invariant`) follows by orbit-basis
+decomposition (proved below). -/
+theorem tupleOrbitIndicator_mem_simpleEvalSpan {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < W i) (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ : Fin K → Fin T) :
+    InTupleSimpleEvalSpan B W (orbitIndicator B W ξ) := by
+  sorry
+
 theorem tupleSimpleEval_span_aut_invariant {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -7515,15 +7540,63 @@ theorem tupleSimpleEval_span_aut_invariant {T K : ℕ}
     (h_aut_inv : ∀ (σ : Equiv.Perm (Fin T)),
       IsWeightedAutomorphism B W σ → ∀ ξ, f (σ ∘ ξ) = f ξ) :
     InTupleSimpleEvalSpan B W f := by
-  -- Reduce to `orbitIndicator_mem_simpleGraphSpan` (#73) via the
-  -- orbit-indicator basis decomposition. f is constant on orbits,
-  -- so f = ∑ (over orbit reps ξ) (f ξ) · orbitIndicator B W ξ.
-  -- Each orbitIndicator is in simple-graph span, hence so is f.
-  --
-  -- This consolidates the Lemma 2.5 sorry into the equivalent
-  -- (and equally substantive) #73 sorry. Both are paper-root
-  -- Lovász §3 content; either closure closes the bridge.
-  sorry
+  classical
+  -- Setoid by orbit relation; finite quotient.
+  let S : Setoid (Fin K → Fin T) :=
+    ⟨tupleOrbitRel B W,
+      tupleOrbitRel_refl B W,
+      fun h => tupleOrbitRel_symm B W h,
+      fun h₁ h₂ => tupleOrbitRel_trans B W h₁ h₂⟩
+  haveI : Fintype (Quotient S) := Quotient.fintype S
+  -- Decomposition: f = ∑ q : Quotient S, f (q.out) · orbitIndicator B W q.out.
+  -- (where q.out is the canonical representative of q).
+  have h_decomp : f = fun ξ =>
+      ∑ q : Quotient S, f (Quotient.out q) * orbitIndicator B W (Quotient.out q) ξ := by
+    funext ξ
+    -- ξ belongs to exactly one quotient class [ξ]. The orbit indicator
+    -- of any rep of [ξ] is 1 at ξ; all other class indicators are 0.
+    let q₀ : Quotient S := Quotient.mk S ξ
+    have hq₀_out : tupleOrbitRel B W (Quotient.out q₀) ξ := by
+      have := Quotient.mk_out (s := S) ξ
+      -- Quotient.out (Quotient.mk S ξ) is in same class as ξ.
+      exact this
+    -- The sum collapses to the q₀ term.
+    rw [show
+        (∑ q : Quotient S,
+          f (Quotient.out q) * orbitIndicator B W (Quotient.out q) ξ) =
+        f (Quotient.out q₀) * orbitIndicator B W (Quotient.out q₀) ξ +
+        ∑ q ∈ Finset.univ.erase q₀,
+          f (Quotient.out q) * orbitIndicator B W (Quotient.out q) ξ from
+      (Finset.add_sum_erase _ _ (Finset.mem_univ q₀)).symm]
+    -- Other classes' indicators vanish at ξ.
+    have h_other_zero : ∀ q ∈ Finset.univ.erase q₀,
+        f (Quotient.out q) * orbitIndicator B W (Quotient.out q) ξ = 0 := by
+      intro q hq
+      rw [Finset.mem_erase] at hq
+      have h_q_ne : q ≠ q₀ := hq.1
+      -- q ≠ q₀ ⟹ Quotient.out q is NOT in orbit of ξ.
+      have h_not_orbit : ¬ tupleOrbitRel B W (Quotient.out q) ξ := by
+        intro h_orbit
+        apply h_q_ne
+        -- Quotient.out q and ξ are in same class ⟹ q = q₀.
+        rw [← Quotient.out_eq q, ← Quotient.out_eq q₀]
+        exact Quotient.sound (Setoid.trans h_orbit (Setoid.symm hq₀_out))
+      rw [orbitIndicator_of_not_orbit B W h_not_orbit, mul_zero]
+    rw [Finset.sum_eq_zero h_other_zero, add_zero]
+    -- f (Quotient.out q₀) = f ξ (since orbit-related), and indicator at ξ = 1.
+    have h_f_eq : f (Quotient.out q₀) = f ξ :=
+      const_on_orbit_of_aut_invariant B W f h_aut_inv hq₀_out
+    have h_ind_one : orbitIndicator B W (Quotient.out q₀) ξ = 1 := by
+      unfold orbitIndicator
+      rw [if_pos hq₀_out]
+    rw [h_f_eq, h_ind_one, mul_one]
+  -- Apply finset_sum + smul: each term (f rep · indicator rep) is in span.
+  rw [h_decomp]
+  apply InTupleSimpleEvalSpan.finset_sum
+  intro q _
+  -- f (Quotient.out q) * orbitIndicator B W (Quotient.out q) is in span.
+  exact InTupleSimpleEvalSpan.smul (f (Quotient.out q))
+    (tupleOrbitIndicator_mem_simpleEvalSpan B hB W hW htwin (Quotient.out q))
 
 /-- **Lemma 2.4 via Lemma 2.5** (the column-space derivation).
 
