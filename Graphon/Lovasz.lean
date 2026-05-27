@@ -7356,14 +7356,34 @@ theorem InTupleSimpleEvalSpan.zero {T K : ℕ}
   funext ξ
   simp
 
-/-- **Closure under addition** (mechanical: concatenate index lists
-via `Fin N₁ ⊕ Fin N₂ ≃ Fin (N₁ + N₂)`; sorry'd as a focused follow-up
-since the Sigma-type elaboration is heartbeat-heavy). -/
+/-- **Closure under addition**. Mirrors `InRootedProfileSpan.add` (K=1):
+re-index via Sum to sidestep `Fin.addCases` motive issues. -/
 theorem InTupleSimpleEvalSpan.add {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
     {f₁ f₂ : (Fin K → Fin T) → ℝ}
-    (_h₁ : InTupleSimpleEvalSpan B W f₁) (_h₂ : InTupleSimpleEvalSpan B W f₂) :
+    (h₁ : InTupleSimpleEvalSpan B W f₁) (h₂ : InTupleSimpleEvalSpan B W f₂) :
     InTupleSimpleEvalSpan B W (f₁ + f₂) := by
-  sorry
+  obtain ⟨N₁, g₁, c₁, hf₁⟩ := h₁
+  obtain ⟨N₂, g₂, c₂, hf₂⟩ := h₂
+  let g : Fin N₁ ⊕ Fin N₂ →
+      Σ (n : ℕ) (F : SimpleGraph (Fin (n + K))), DecidableRel F.Adj :=
+    Sum.elim g₁ g₂
+  let c : Fin N₁ ⊕ Fin N₂ → ℝ := Sum.elim c₁ c₂
+  refine ⟨N₁ + N₂,
+    fun k => g (finSumFinEquiv.symm k),
+    fun k => c (finSumFinEquiv.symm k), ?_⟩
+  funext ξ
+  have e₁ := congr_fun hf₁ ξ
+  have e₂ := congr_fun hf₂ ξ
+  simp only [Pi.add_apply, e₁, e₂]
+  rw [show (∑ k : Fin (N₁ + N₂), c (finSumFinEquiv.symm k) *
+        @simpleEvalAt T K (g (finSumFinEquiv.symm k)).1 B W
+          (g (finSumFinEquiv.symm k)).2.1 (g (finSumFinEquiv.symm k)).2.2 ξ)
+      = ∑ s : Fin N₁ ⊕ Fin N₂, c s *
+          @simpleEvalAt T K (g s).1 B W (g s).2.1 (g s).2.2 ξ from ?_]
+  · rw [Fintype.sum_sum_type]
+    rfl
+  · exact Equiv.sum_comp finSumFinEquiv.symm
+      (fun s => c s * @simpleEvalAt T K (g s).1 B W (g s).2.1 (g s).2.2 ξ)
 
 /-- **Empty simple graph at `n = 0` evaluates to 1**.
 
