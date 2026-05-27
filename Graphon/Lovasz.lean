@@ -7464,6 +7464,24 @@ theorem InTupleSimpleEvalSpan.finset_sum {T K : ℕ} {B : Fin T → Fin T → �
     rw [Finset.sum_insert ha_notin]
     rfl
 
+/-- **Closure under pointwise multiplication** (sorry'd; K-level analog
+of `InRootedProfileSpan.mul`).
+
+Needed for the Lovász §3 idempotent construction (Lagrange interpolation
+products `∏_{O'} (F_{O,O'} - const) / (const)` require pointwise
+multiplication closure).
+
+The K=1 analog `InRootedProfileSpan.mul` is PROVED via
+`simpleEvalAt_rootedProduct` (the K=1 product-graph construction).
+The K-tuple analog needs a corresponding `simpleEvalAt_tupleProduct`
+lemma: simpleEvalAt of a graph product equals product of simpleEvalAts.
+This is a substantial piece (~200 LOC mirroring the K=1 work). -/
+theorem InTupleSimpleEvalSpan.mul {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {f₁ f₂ : (Fin K → Fin T) → ℝ}
+    (_h₁ : InTupleSimpleEvalSpan B W f₁) (_h₂ : InTupleSimpleEvalSpan B W f₂) :
+    InTupleSimpleEvalSpan B W (fun ξ => f₁ ξ * f₂ ξ) := by
+  sorry
+
 /-- **Simple-graph evaluations are automorphism-invariant**.
 
 For any `(B, W)`-aut σ and simple graph F, `simpleEvalAt B W F (σ ∘ ξ)
@@ -7520,12 +7538,66 @@ private lemma const_on_orbit_of_aut_invariant {T K : ℕ}
   have hξ'_eq : ξ' = σ ∘ ξ := by funext i; exact hσ_eq i
   rw [hξ'_eq, h_aut_inv σ hσ_aut ξ]
 
+/-- **Orbit indicators are aut-invariant** (easy direction).
+
+For any (B, W)-aut τ, `orbitIndicator B W ξ (τ ∘ η) = orbitIndicator
+B W ξ η` because the orbit of ξ is closed under aut composition:
+ξ ~_orbit (τ ∘ η) iff ξ ~_orbit η (transitivity via τ ∈ aut). -/
+theorem orbitIndicator_aut_invariant {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (ξ : Fin K → Fin T)
+    (τ : Equiv.Perm (Fin T)) (hτ_aut : IsWeightedAutomorphism B W τ) :
+    ∀ η, orbitIndicator B W ξ (τ ∘ η) = orbitIndicator B W ξ η := by
+  intro η
+  unfold orbitIndicator
+  -- ξ ~_orbit (τ ∘ η) ↔ ξ ~_orbit η.
+  congr 1
+  refine propext ⟨fun ⟨σ, hσ_aut, hσ_eq⟩ => ?_, fun ⟨σ, hσ_aut, hσ_eq⟩ => ?_⟩
+  · -- (τ ∘ η) i = σ (ξ i) ⟹ η i = (τ⁻¹ ∘ σ) (ξ i).
+    refine ⟨σ.trans τ.symm, ?_, ?_⟩
+    · -- σ.trans τ.symm is aut.
+      have hτs : IsWeightedAutomorphism B W τ.symm := by
+        refine ⟨fun i => ?_, fun i j => ?_⟩
+        · have h := hτ_aut.1 (τ.symm i)
+          rw [τ.apply_symm_apply] at h; exact h.symm
+        · have h := hτ_aut.2 (τ.symm i) (τ.symm j)
+          rw [τ.apply_symm_apply, τ.apply_symm_apply] at h; exact h.symm
+      refine ⟨fun i => ?_, fun i j => ?_⟩
+      · show W (τ.symm (σ i)) = W i
+        rw [hτs.1, hσ_aut.1]
+      · show B (τ.symm (σ i)) (τ.symm (σ j)) = B i j
+        rw [hτs.2, hσ_aut.2]
+    · intro k
+      -- hσ_eq k : τ (η k) = σ (ξ k). Want: η k = τ.symm (σ (ξ k)).
+      have hk : τ (η k) = σ (ξ k) := hσ_eq k
+      show η k = τ.symm (σ (ξ k))
+      rw [← hk, τ.symm_apply_apply]
+  · -- η i = σ (ξ i) ⟹ (τ ∘ η) i = (τ ∘ σ) (ξ i).
+    refine ⟨σ.trans τ, ?_, ?_⟩
+    · refine ⟨fun i => ?_, fun i j => ?_⟩
+      · show W (τ (σ i)) = W i
+        rw [hτ_aut.1, hσ_aut.1]
+      · show B (τ (σ i)) (τ (σ j)) = B i j
+        rw [hτ_aut.2, hσ_aut.2]
+    · intro k
+      show τ (η k) = τ (σ (ξ k))
+      rw [hσ_eq k]
+
 /-- **The named paper-root**: orbit indicators are in the simple-eval
 span. Lovász §3 idempotent construction. Sorry'd here.
 
-This is the SUBSTANTIVE Lovász §3 content. Once closed, Lemma 2.5
-(`tupleSimpleEval_span_aut_invariant`) follows by orbit-basis
-decomposition (proved below). -/
+This is the SUBSTANTIVE Lovász §3 content. Closing requires:
+  1. Orbit-separation: for each pair of distinct orbits, exhibit a
+     separating simple graph. (Lovász §3 dimension/rank argument —
+     NOT via direct Lemma 2.4, which would reintroduce the cycle.)
+  2. Lagrange interpolation: for each orbit O, construct
+     `p_O := ∏_{O' ≠ O} (F_{O,O'} - F_{O,O'}(O')) / (F_{O,O'}(O) - F_{O,O'}(O'))`.
+  3. Show `p_O = orbitIndicator B W ξ` for ξ ∈ O via case analysis.
+  4. Use span closure (.add, .smul, .const) to lift p_O into the span;
+     `.mul` is also needed (currently not proved for InTupleSimpleEvalSpan).
+
+The mul closure (#73's main residual algebraic content) plus
+orbit-separation are the genuine substance. ~300-500 LOC for the
+complete proof. -/
 theorem tupleOrbitIndicator_mem_simpleEvalSpan {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i) (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
