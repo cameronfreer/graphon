@@ -7238,18 +7238,21 @@ private theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
   -- hypothesis form via `unfold labeledEvalK`.
   let M' : Graphon.Lovasz.MultiLabeledGraph K n :=
     { mult := M.mult, multNoLoop := M.multNoLoop }
-  -- Route via h_orbit (Lovász Lemma 2.4 + change-of-variables), bypassing
-  -- the entire dispatcher chain. Lemma 2.4 has one architectural sorry,
-  -- but the dispatcher chain transitively depends on the same sorry, so
-  -- this is a net simplification (~30 LOC vs ~2000 LOC).
+  -- Route via h_orbit (Lovász Lemma 2.4 via Lemma 2.5 + change-of-variables).
+  -- Uses `tupleEquivSimple_implies_orbit_via_2_5` (cycle-free; depends only
+  -- on Lemma 2.5's sorry) rather than `tupleEquivSimple_implies_orbit`
+  -- (depends on the triangular cycle Lemma 2.4 ↔ k1_orbit_sep_aux ↔
+  -- of_const_on_orbit).
   have h_simple_lovasz : Graphon.Lovasz.tupleEquivSimple B W ξ ξ' := by
     intro n' F _
     have heq := h n' F
     unfold labeledEvalK at heq
     exact heq
-  obtain ⟨σ, hW_σ, hB_σ, hσξ⟩ :=
-    Graphon.Lovasz.tupleEquivSimple_implies_orbit B hB W hW htwin h_simple_lovasz
-  exact Graphon.Lovasz.multiLabeledEvalK_eq_of_orbit B hB W M' ⟨σ, hW_σ, hB_σ, hσξ⟩
+  obtain ⟨σ, hσ_aut, hσξ⟩ :=
+    Graphon.Lovasz.tupleEquivSimple_implies_orbit_via_2_5
+      B hB W hW htwin h_simple_lovasz
+  exact Graphon.Lovasz.multiLabeledEvalK_eq_of_orbit B hB W M'
+    ⟨σ, hσ_aut.1, hσ_aut.2, hσξ⟩
 
 /-- **CANONICAL MINIMAL ALGEBRAIC RESIDUE** of the Lovász §3 multigraph
 content. Independent K=1 single-coord square moment.

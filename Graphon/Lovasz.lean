@@ -7318,6 +7318,136 @@ theorem tupleEquivSimple_implies_orbit {T K : ℕ}
         --   - MD bridge wrapper (uses multiLabeledEvalK_eq_of_orbit)
         --   - All of #62 / #86 / etc.
         sorry
+
+/-! ### §3.10.5 — Lovász Lemma 2.5 (column-space rank theorem)
+
+**Lovász Lemma 2.5** (paper page 6): Let `G` be a twin-free weighted
+graph. The column space of `N(k, G)` consists of precisely those
+functions `f : V(G)^k → ℝ` invariant under automorphisms of `G`.
+
+In our notation: `f : (Fin K → Fin T) → ℝ` is in the span of
+`{simpleEvalAt B W F : F : SimpleGraph (Fin (n + K))}` iff `f` is
+`(B, W)`-automorphism-invariant on tuples.
+
+**Status**: stated as a sorry'd theorem. Closes the triangular cycle
+(Lemma 2.4 ↔ k1_orbit_sep_aux ↔ of_const_on_orbit) because Lovász's
+proof in §3 goes through the algebra `𝒜_k` and dimension counting —
+independent of the bridge / tupleEquivSimple machinery. Translating
+Lovász §3 algebra requires ~300-500 LOC of new infrastructure (quantum
+graph algebra, idempotent basis, etc.).
+
+**Downstream consequence**: closes Lemma 2.4 in full (including the
+"both non-surj" branch) via the orbit-indicator argument
+(`tupleEquivSimple_implies_orbit_via_2_5` below). -/
+theorem tupleSimpleEval_span_aut_invariant {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < W i) (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (f : (Fin K → Fin T) → ℝ)
+    (_h_aut_inv : ∀ (σ : Equiv.Perm (Fin T)),
+      IsWeightedAutomorphism B W σ → ∀ ξ, f (σ ∘ ξ) = f ξ) :
+    ∃ (N : ℕ) (g : Fin N → Σ (n : ℕ) (F : SimpleGraph (Fin (n + K))),
+        DecidableRel F.Adj) (c : Fin N → ℝ),
+      f = fun ξ => ∑ k : Fin N, c k *
+        @simpleEvalAt T K (g k).1 B W (g k).2.1 (g k).2.2 ξ := by
+  sorry
+
+/-- **Lemma 2.4 via Lemma 2.5** (the column-space derivation).
+
+Given `tupleEquivSimple ξ ξ'` (rows of N agree at ξ, ξ'), if ξ and ξ'
+were NOT orbit-related, the orbit indicator of [ξ] would distinguish
+them. But the orbit indicator is aut-invariant, hence in column span
+(by Lemma 2.5), hence its values at ξ and ξ' agree (by row equality).
+Contradiction. -/
+theorem tupleEquivSimple_implies_orbit_via_2_5 {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T}
+    (h : tupleEquivSimple B W ξ ξ') :
+    tupleOrbitRel B W ξ ξ' := by
+  classical
+  by_contra h_not_orbit
+  -- The orbit indicator of ξ: f(η) := if ∃ σ aut, η = σ ∘ ξ then 1 else 0.
+  let f : (Fin K → Fin T) → ℝ := fun η =>
+    if tupleOrbitRel B W ξ η then (1 : ℝ) else 0
+  -- f is (B, W)-aut-invariant: τ ∘ η orbit-related to ξ iff η is.
+  have h_aut_inv : ∀ (τ : Equiv.Perm (Fin T)),
+      IsWeightedAutomorphism B W τ → ∀ η, f (τ ∘ η) = f η := by
+    intro τ hτ_aut η
+    -- τ.symm is also aut.
+    have hτs_aut : IsWeightedAutomorphism B W τ.symm := by
+      refine ⟨fun i => ?_, fun i j => ?_⟩
+      · have h := hτ_aut.1 (τ.symm i)
+        rw [τ.apply_symm_apply] at h
+        exact h.symm
+      · have h := hτ_aut.2 (τ.symm i) (τ.symm j)
+        rw [τ.apply_symm_apply, τ.apply_symm_apply] at h
+        exact h.symm
+    show (if tupleOrbitRel B W ξ (τ ∘ η) then (1 : ℝ) else 0) =
+         (if tupleOrbitRel B W ξ η then (1 : ℝ) else 0)
+    congr 1
+    refine propext ⟨fun ⟨σ, hσ_aut, hσ_eq⟩ => ?_, fun ⟨σ, hσ_aut, hσ_eq⟩ => ?_⟩
+    · -- τ ∘ η = σ ∘ ξ ⟹ η = (τ⁻¹ ∘ σ) ∘ ξ.
+      refine ⟨σ.trans τ.symm, ?_, ?_⟩
+      · refine ⟨fun i => ?_, fun i j => ?_⟩
+        · show W (τ.symm (σ i)) = W i
+          rw [hτs_aut.1, hσ_aut.1]
+        · show B (τ.symm (σ i)) (τ.symm (σ j)) = B i j
+          rw [hτs_aut.2, hσ_aut.2]
+      · intro k
+        -- hσ_eq k : (τ ∘ η) k = σ (ξ k), i.e., τ (η k) = σ (ξ k)
+        -- Want: η k = τ.symm (σ (ξ k)) = τ.symm (τ (η k)) = η k. ✓
+        have hk : τ (η k) = σ (ξ k) := hσ_eq k
+        show η k = τ.symm (σ (ξ k))
+        rw [← hk, τ.symm_apply_apply]
+    · -- η = σ ∘ ξ ⟹ τ ∘ η = (τ ∘ σ) ∘ ξ.
+      refine ⟨σ.trans τ, ?_, ?_⟩
+      · refine ⟨fun i => ?_, fun i j => ?_⟩
+        · show W (τ (σ i)) = W i
+          rw [hτ_aut.1, hσ_aut.1]
+        · show B (τ (σ i)) (τ (σ j)) = B i j
+          rw [hτ_aut.2, hσ_aut.2]
+      · intro k
+        show τ (η k) = τ (σ (ξ k))
+        rw [hσ_eq k]
+  -- By Lemma 2.5: f is in the column span.
+  obtain ⟨N, g, c, hcoeffs⟩ :=
+    tupleSimpleEval_span_aut_invariant B hB W hW htwin f h_aut_inv
+  -- f ξ = 1 (refl orbit) and f ξ' = 0 (assumed not orbit-related).
+  have hf_ξ : f ξ = 1 := by
+    show (if tupleOrbitRel B W ξ ξ then (1 : ℝ) else 0) = 1
+    rw [if_pos]
+    exact ⟨Equiv.refl _, ⟨fun _ => rfl, fun _ _ => rfl⟩, fun _ => rfl⟩
+  have hf_ξ' : f ξ' = 0 := by
+    show (if tupleOrbitRel B W ξ ξ' then (1 : ℝ) else 0) = 0
+    rw [if_neg h_not_orbit]
+  -- By column equality (from h : tupleEquivSimple): f ξ = f ξ'.
+  have hcols_eq : f ξ = f ξ' := by
+    have h_ξ : f ξ = ∑ k : Fin N, c k *
+        @simpleEvalAt T K (g k).1 B W (g k).2.1 (g k).2.2 ξ := by
+      have := congr_fun hcoeffs ξ; exact this
+    have h_ξ' : f ξ' = ∑ k : Fin N, c k *
+        @simpleEvalAt T K (g k).1 B W (g k).2.1 (g k).2.2 ξ' := by
+      have := congr_fun hcoeffs ξ'; exact this
+    rw [h_ξ, h_ξ']
+    refine Finset.sum_congr rfl fun k _ => ?_
+    refine congrArg _ ?_
+    -- simpleEvalAt (g k).2.1 B W ξ = same at ξ' via h.
+    -- The instances match definitionally since edgeFinset depends only
+    -- propositionally on DecidableRel.
+    have hhh := h (g k).1 (g k).2.1
+    show @simpleEvalAt T K (g k).1 B W (g k).2.1 (g k).2.2 ξ =
+         @simpleEvalAt T K (g k).1 B W (g k).2.1 (g k).2.2 ξ'
+    -- Use the fact that simpleEvalAt is independent of DecidableRel instance.
+    have key : ∀ (d : DecidableRel (g k).2.1.Adj),
+        @simpleEvalAt T K (g k).1 B W (g k).2.1 d ξ =
+        @simpleEvalAt T K (g k).1 B W (g k).2.1 d ξ' := by
+      intro d
+      letI : DecidableRel (g k).2.1.Adj := d
+      exact h (g k).1 (g k).2.1
+    exact key _
+  rw [hf_ξ, hf_ξ'] at hcols_eq
+  exact absurd hcols_eq (by norm_num)
+
 /-- **K=1 Stone-Weierstrass / Lagrange interpolation closure**
 (named algebraic residue, deferred). **This is the K=1 rank theorem proper.**
 
