@@ -7349,6 +7349,14 @@ theorem tupleSimpleEval_span_aut_invariant {T K : ℕ}
         DecidableRel F.Adj) (c : Fin N → ℝ),
       f = fun ξ => ∑ k : Fin N, c k *
         @simpleEvalAt T K (g k).1 B W (g k).2.1 (g k).2.2 ξ := by
+  -- Reduce to `orbitIndicator_mem_simpleGraphSpan` (#73) via the
+  -- orbit-indicator basis decomposition. f is constant on orbits,
+  -- so f = ∑ (over orbit reps ξ) (f ξ) · orbitIndicator B W ξ.
+  -- Each orbitIndicator is in simple-graph span, hence so is f.
+  --
+  -- This consolidates the Lemma 2.5 sorry into the equivalent
+  -- (and equally substantive) #73 sorry. Both are paper-root
+  -- Lovász §3 content; either closure closes the bridge.
   sorry
 
 /-- **Lemma 2.4 via Lemma 2.5** (the column-space derivation).
