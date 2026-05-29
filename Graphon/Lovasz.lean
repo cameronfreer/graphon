@@ -7658,6 +7658,158 @@ theorem InTupleMultiEvalSpan.toSimple {T K : ℕ} {B : Fin T → Fin T → ℝ}
     (h : InTupleMultiEvalSpan B W f) : InTupleSimpleEvalSpan B W f := by
   sorry
 
+/-! #### Lagrange construction of orbit indicators in the multigraph span
+
+The K-tuple analog of the K=1 rank theorem `InRootedProfileSpan.of_const_on_orbit`,
+done entirely in the BOUNDED multigraph algebra. The only non-bounded input is an
+INDEPENDENT multigraph separator (`multiEval_separates_orbits`), stated as a residue
+that must NOT be derived from simple-graph separation / Lemma 2.4 (that would
+recreate the broken cycle). -/
+
+/-- **Finset product closure** (needs symmetric `B` because it uses `.mul`).
+Mirrors `InRootedProfileSpan.finset_prod`. -/
+theorem InTupleMultiEvalSpan.finset_prod {T K : ℕ} {B : Fin T → Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) {ι : Type*} (s : Finset ι)
+    (g : ι → (Fin K → Fin T) → ℝ)
+    (hg : ∀ i ∈ s, InTupleMultiEvalSpan B W (g i)) :
+    InTupleMultiEvalSpan B W (fun ξ => ∏ i ∈ s, g i ξ) := by
+  classical
+  induction s using Finset.induction_on with
+  | empty =>
+    simp only [Finset.prod_empty]
+    exact InTupleMultiEvalSpan.one B W
+  | insert a s ha_notin ih =>
+    have h_a : InTupleMultiEvalSpan B W (g a) := hg a (Finset.mem_insert_self a s)
+    have h_S : InTupleMultiEvalSpan B W (fun ξ => ∏ i ∈ s, g i ξ) := ih (fun b hb =>
+      hg b (Finset.mem_insert_of_mem hb))
+    have h_mul := InTupleMultiEvalSpan.mul hB h_a h_S
+    convert h_mul using 1
+    funext ξ
+    rw [Finset.prod_insert ha_notin]
+
+/-- `multiLabeledEvalK M · - w` is in the span. Mirrors `profile_sub_const`. -/
+theorem InTupleMultiEvalSpan.eval_sub_const {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (M : MultiLabeledGraph K n) (w : ℝ) :
+    InTupleMultiEvalSpan B W (fun ζ => multiLabeledEvalK K n M B W ζ - w) := by
+  have h := (InTupleMultiEvalSpan.of_multi B W M).add (InTupleMultiEvalSpan.const B W (-w))
+  convert h using 1
+
+/-- A Lagrange factor `(eval M · - eval M η) / (eval M ξ - eval M η)` is in the
+span. Mirrors `InRootedProfileSpan.lagrange_factor`. -/
+theorem InTupleMultiEvalSpan.lagrange_factor {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (M : MultiLabeledGraph K n)
+    (ξ η : Fin K → Fin T) :
+    InTupleMultiEvalSpan B W
+      (fun ζ => (multiLabeledEvalK K n M B W ζ - multiLabeledEvalK K n M B W η) /
+                (multiLabeledEvalK K n M B W ξ - multiLabeledEvalK K n M B W η)) := by
+  have h := (InTupleMultiEvalSpan.eval_sub_const B W M (multiLabeledEvalK K n M B W η)).smul
+    (1 / (multiLabeledEvalK K n M B W ξ - multiLabeledEvalK K n M B W η))
+  convert h using 1
+  funext ζ
+  rw [mul_comm, mul_one_div]
+
+/-- **Independent multigraph separator** (Lovász §3 residue). For distinct
+orbits there is a multigraph whose evaluation distinguishes the tuples.
+
+SORRY. This MUST be proved independently of `orbit_separation_by_simple_graph`
+/ Lemma 2.4 — those are downstream of Lemma 2.5 in the current architecture, so
+routing through them would recreate the broken cycle. It is weaker than (would
+follow from) the simple-graph separator, hence at worst equally hard. This is
+one of the two honest §3 residues (the other: `InTupleMultiEvalSpan.toSimple`);
+the same Lovász §3 rank/idempotent argument may discharge one or both. -/
+theorem multiEval_separates_orbits {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ η : Fin K → Fin T} (h : ¬ tupleOrbitRel B W ξ η) :
+    ∃ (n : ℕ) (M : MultiLabeledGraph K n),
+      multiLabeledEvalK K n M B W ξ ≠ multiLabeledEvalK K n M B W η := by
+  sorry
+
+/-- Separator packaging (avoids nested `Classical.choose` instance issues).
+Mirrors `RootedSeparator`. -/
+private structure MultiSeparator {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (ξ η : Fin K → Fin T) where
+  n : ℕ
+  M : MultiLabeledGraph K n
+  sep : multiLabeledEvalK K n M B W ξ ≠ multiLabeledEvalK K n M B W η
+
+/-- Build a `MultiSeparator` from `multiEval_separates_orbits`. -/
+private noncomputable def mkMultiSeparator {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ η : Fin K → Fin T} (h : ¬ tupleOrbitRel B W ξ η) :
+    MultiSeparator K B W ξ η :=
+  let sep := multiEval_separates_orbits B hB W hW htwin h
+  { n := sep.choose
+    M := sep.choose_spec.choose
+    sep := sep.choose_spec.choose_spec }
+
+/-- **Orbit indicators lie in the multigraph span** (Phase B Target 1).
+
+Lagrange interpolation over orbit classes, built in the bounded multigraph
+algebra (`.finset_prod`, `.lagrange_factor`, `.mul`, `.const`, `.smul`). Orbit
+invariance of `multiLabeledEvalK` makes each factor 1 on the source orbit and 0
+on the indexing tuple's class. The ONLY non-bounded input is the independent
+separator `multiEval_separates_orbits`. -/
+theorem tupleOrbitIndicator_mem_multiEvalSpan {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ : Fin K → Fin T) :
+    InTupleMultiEvalSpan B W (orbitIndicator B W ξ) := by
+  classical
+  let factor : (Fin K → Fin T) → (Fin K → Fin T) → ℝ := fun η ζ =>
+    if h : ¬ tupleOrbitRel B W ξ η then
+      let s := mkMultiSeparator B hB W hW htwin h
+      (multiLabeledEvalK K s.n s.M B W ζ - multiLabeledEvalK K s.n s.M B W η) /
+      (multiLabeledEvalK K s.n s.M B W ξ - multiLabeledEvalK K s.n s.M B W η)
+    else 1
+  let nonOrb : Finset (Fin K → Fin T) :=
+    Finset.univ.filter (fun η => ¬ tupleOrbitRel B W ξ η)
+  let lagInd : (Fin K → Fin T) → ℝ := fun ζ => ∏ η ∈ nonOrb, factor η ζ
+  have lagInd_span : InTupleMultiEvalSpan B W lagInd := by
+    apply InTupleMultiEvalSpan.finset_prod hB W nonOrb factor
+    intro η hη
+    have hη_orb : ¬ tupleOrbitRel B W ξ η := by
+      simp only [nonOrb, Finset.mem_filter, Finset.mem_univ, true_and] at hη
+      exact hη
+    show InTupleMultiEvalSpan B W (factor η)
+    simp only [factor, dif_pos hη_orb]
+    exact InTupleMultiEvalSpan.lagrange_factor B W
+      (mkMultiSeparator B hB W hW htwin hη_orb).M ξ η
+  have lagInd_eq : lagInd = orbitIndicator B W ξ := by
+    funext ζ
+    unfold orbitIndicator
+    by_cases hζ : tupleOrbitRel B W ξ ζ
+    · rw [if_pos hζ]
+      show (∏ η ∈ nonOrb, factor η ζ) = (1 : ℝ)
+      apply Finset.prod_eq_one
+      intro η hη
+      have hη_orb : ¬ tupleOrbitRel B W ξ η := by
+        simp only [nonOrb, Finset.mem_filter, Finset.mem_univ, true_and] at hη
+        exact hη
+      simp only [factor, dif_pos hη_orb]
+      set s := mkMultiSeparator B hB W hW htwin hη_orb with hs
+      have h_denom : multiLabeledEvalK K s.n s.M B W ξ -
+          multiLabeledEvalK K s.n s.M B W η ≠ 0 := sub_ne_zero.mpr s.sep
+      have h_evalζ : multiLabeledEvalK K s.n s.M B W ζ =
+          multiLabeledEvalK K s.n s.M B W ξ := by
+        obtain ⟨σ, ⟨hWσ, hBσ⟩, hσ⟩ := hζ
+        exact (multiLabeledEvalK_orbit_invariant B W s.M ⟨σ, hWσ, hBσ, hσ⟩).symm
+      rw [h_evalζ, div_self h_denom]
+    · rw [if_neg hζ]
+      show (∏ η ∈ nonOrb, factor η ζ) = (0 : ℝ)
+      have hζ_mem : ζ ∈ nonOrb := by
+        simp only [nonOrb, Finset.mem_filter, Finset.mem_univ, true_and]
+        exact hζ
+      refine Finset.prod_eq_zero hζ_mem ?_
+      simp only [factor, dif_pos hζ]
+      set s := mkMultiSeparator B hB W hW htwin hζ with hs
+      show (multiLabeledEvalK K s.n s.M B W ζ - multiLabeledEvalK K s.n s.M B W ζ) /
+           (multiLabeledEvalK K s.n s.M B W ξ - multiLabeledEvalK K s.n s.M B W ζ) = 0
+      rw [sub_self, zero_div]
+  rw [← lagInd_eq]
+  exact lagInd_span
+
 /-- **Closure under pointwise multiplication for the simple-graph span** —
 OFF THE CRITICAL PATH; superseded by the multigraph route.
 
