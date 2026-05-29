@@ -7936,28 +7936,22 @@ theorem orbitIndicator_aut_invariant {T K : ℕ}
       show τ (η k) = τ (σ (ξ k))
       rw [hσ_eq k]
 
-/-- **The named paper-root**: orbit indicators are in the simple-eval
-span. Lovász §3 idempotent construction. Sorry'd here.
+/-- **Orbit indicators are in the simple-eval span** — now a thin wrapper
+(sorry-free), no longer the paper-root.
 
-This is the SUBSTANTIVE Lovász §3 content. Closing requires:
-  1. Orbit-separation: for each pair of distinct orbits, exhibit a
-     separating simple graph. (Lovász §3 dimension/rank argument —
-     NOT via direct Lemma 2.4, which would reintroduce the cycle.)
-  2. Lagrange interpolation: for each orbit O, construct
-     `p_O := ∏_{O' ≠ O} (F_{O,O'} - F_{O,O'}(O')) / (F_{O,O'}(O) - F_{O,O'}(O'))`.
-  3. Show `p_O = orbitIndicator B W ξ` for ξ ∈ O via case analysis.
-  4. Use span closure (.add, .smul, .const) to lift p_O into the span;
-     `.mul` is also needed (currently not proved for InTupleSimpleEvalSpan).
-
-The mul closure (#73's main residual algebraic content) plus
-orbit-separation are the genuine substance. ~300-500 LOC for the
-complete proof. -/
+Derived through the multigraph route: orbit indicators lie in the multigraph
+span (`tupleOrbitIndicator_mem_multiEvalSpan`), and the multigraph span collapses
+to the simple-eval span (`InTupleMultiEvalSpan.toSimple`). The genuine Lovász §3
+content thus lives entirely in the two honest, non-cyclic residues
+`multiEval_separates_orbits` (orbit separation) and `InTupleMultiEvalSpan.toSimple`
+(Hadamard-square collapse) — neither routes through Lemma 2.4. -/
 theorem tupleOrbitIndicator_mem_simpleEvalSpan {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (_hW : ∀ i, 0 < W i) (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     (ξ : Fin K → Fin T) :
-    InTupleSimpleEvalSpan B W (orbitIndicator B W ξ) := by
-  sorry
+    InTupleSimpleEvalSpan B W (orbitIndicator B W ξ) :=
+  InTupleMultiEvalSpan.toSimple hB hW htwin
+    (tupleOrbitIndicator_mem_multiEvalSpan B hB W hW htwin ξ)
 
 theorem tupleSimpleEval_span_aut_invariant {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
