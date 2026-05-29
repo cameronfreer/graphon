@@ -7464,18 +7464,220 @@ theorem InTupleSimpleEvalSpan.finset_sum {T K : ℕ} {B : Fin T → Fin T → �
     rw [Finset.sum_insert ha_notin]
     rfl
 
-/-- **Closure under pointwise multiplication** (sorry'd; K-level analog
-of `InRootedProfileSpan.mul`).
+/-! ### §3.10.5a-multi — `InTupleMultiEvalSpan`: the multigraph-eval span
 
-Needed for the Lovász §3 idempotent construction (Lagrange interpolation
-products `∏_{O'} (F_{O,O'} - const) / (const)` require pointwise
-multiplication closure).
+The multigraph analog of `InTupleSimpleEvalSpan`. Products of evaluations live
+naturally here (disjoint glue = multiplication in Lovász's algebra `𝒢_k`), so
+`.mul` is a bounded consequence of the PROVED `multiLabeledEvalK_glue` — no
+`simpleEvalAt_tupleProduct` is possible, because for `K ≥ 2` two simple graphs
+sharing a label–label edge would force a Hadamard square `B(ξ_a,ξ_b)²` that no
+simple graph can represent (`ofSimple` caps multiplicity at 1 while `glue`
+adds). The genuinely hard direction — collapsing this span back to the
+simple-graph span — is isolated as `InTupleMultiEvalSpan.toSimple` (Lovász §3 /
+Lemma 2.5 content). -/
 
-The K=1 analog `InRootedProfileSpan.mul` is PROVED via
-`simpleEvalAt_rootedProduct` (the K=1 product-graph construction).
-The K-tuple analog needs a corresponding `simpleEvalAt_tupleProduct`
-lemma: simpleEvalAt of a graph product equals product of simpleEvalAts.
-This is a substantial piece (~200 LOC mirroring the K=1 work). -/
+/-- **Membership predicate** for the K-tuple multigraph-eval ℝ-span. -/
+def InTupleMultiEvalSpan {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f : (Fin K → Fin T) → ℝ) : Prop :=
+  ∃ (N : ℕ) (g : Fin N → Σ (n : ℕ), MultiLabeledGraph K n) (c : Fin N → ℝ),
+    f = fun ξ => ∑ k : Fin N, c k * multiLabeledEvalK K (g k).1 (g k).2 B W ξ
+
+/-- **Empty multigraph at `n = 0` evaluates to 1**. The σ-sum over
+`Fin 0 → Fin T` is a singleton with empty `W`-product. -/
+private lemma multiLabeledEvalK_empty_zero {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (ξ : Fin K → Fin T) :
+    multiLabeledEvalK K 0 (MultiLabeledGraph.empty K 0) B W ξ = 1 := by
+  rw [multiLabeledEvalK_empty, Fintype.sum_unique, Fin.prod_univ_zero]
+
+/-- **Multigraph evaluation lies in the span** (singleton sum). -/
+theorem InTupleMultiEvalSpan.of_multi {T K n : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (M : MultiLabeledGraph K n) :
+    InTupleMultiEvalSpan B W (fun ξ => multiLabeledEvalK K n M B W ξ) := by
+  refine ⟨1, fun _ => ⟨n, M⟩, fun _ => 1, ?_⟩
+  funext ξ
+  simp
+
+/-- **Zero is in the span** (empty sum). -/
+theorem InTupleMultiEvalSpan.zero {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    InTupleMultiEvalSpan (K := K) B W (fun _ => (0 : ℝ)) := by
+  refine ⟨0, Fin.elim0, Fin.elim0, ?_⟩
+  funext ξ
+  simp
+
+/-- **Closure under addition**. Mirrors `InTupleSimpleEvalSpan.add`:
+re-index via `Sum` to sidestep `Fin.addCases` motive issues. -/
+theorem InTupleMultiEvalSpan.add {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {f₁ f₂ : (Fin K → Fin T) → ℝ}
+    (h₁ : InTupleMultiEvalSpan B W f₁) (h₂ : InTupleMultiEvalSpan B W f₂) :
+    InTupleMultiEvalSpan B W (f₁ + f₂) := by
+  obtain ⟨N₁, g₁, c₁, hf₁⟩ := h₁
+  obtain ⟨N₂, g₂, c₂, hf₂⟩ := h₂
+  let g : Fin N₁ ⊕ Fin N₂ → Σ (n : ℕ), MultiLabeledGraph K n := Sum.elim g₁ g₂
+  let c : Fin N₁ ⊕ Fin N₂ → ℝ := Sum.elim c₁ c₂
+  refine ⟨N₁ + N₂,
+    fun k => g (finSumFinEquiv.symm k),
+    fun k => c (finSumFinEquiv.symm k), ?_⟩
+  funext ξ
+  have e₁ := congr_fun hf₁ ξ
+  have e₂ := congr_fun hf₂ ξ
+  simp only [Pi.add_apply, e₁, e₂]
+  rw [show (∑ k : Fin (N₁ + N₂), c (finSumFinEquiv.symm k) *
+        multiLabeledEvalK K (g (finSumFinEquiv.symm k)).1
+          (g (finSumFinEquiv.symm k)).2 B W ξ)
+      = ∑ s : Fin N₁ ⊕ Fin N₂, c s *
+          multiLabeledEvalK K (g s).1 (g s).2 B W ξ from ?_]
+  · rw [Fintype.sum_sum_type]
+    rfl
+  · exact Equiv.sum_comp finSumFinEquiv.symm
+      (fun s => c s * multiLabeledEvalK K (g s).1 (g s).2 B W ξ)
+
+/-- **Constant function 1 is in the span** (empty multigraph at `n = 0`). -/
+theorem InTupleMultiEvalSpan.one {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    InTupleMultiEvalSpan (K := K) B W (fun _ => (1 : ℝ)) := by
+  refine ⟨1, fun _ => ⟨0, MultiLabeledGraph.empty K 0⟩, fun _ => 1, ?_⟩
+  funext ξ
+  show (1 : ℝ) = ∑ k : Fin 1, 1 *
+      multiLabeledEvalK K 0 (MultiLabeledGraph.empty K 0) B W ξ
+  rw [Fin.sum_univ_one, one_mul, multiLabeledEvalK_empty_zero]
+
+/-- **Constant function `c` is in the span**. -/
+theorem InTupleMultiEvalSpan.const {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (c : ℝ) :
+    InTupleMultiEvalSpan (K := K) B W (fun _ => c) := by
+  refine ⟨1, fun _ => ⟨0, MultiLabeledGraph.empty K 0⟩, fun _ => c, ?_⟩
+  funext ξ
+  rw [Fin.sum_univ_one, multiLabeledEvalK_empty_zero, mul_one]
+
+/-- **Closure under scalar multiplication**. -/
+theorem InTupleMultiEvalSpan.smul {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    (c : ℝ) {f : (Fin K → Fin T) → ℝ} (h : InTupleMultiEvalSpan B W f) :
+    InTupleMultiEvalSpan B W (fun ξ => c * f ξ) := by
+  obtain ⟨N, g, cs, hf⟩ := h
+  refine ⟨N, g, fun k => c * cs k, ?_⟩
+  funext ξ
+  show c * f ξ = ∑ k, _
+  have := congr_fun hf ξ
+  rw [this, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun k _ => ?_
+  ring
+
+/-- **Finset sum closure**: sums of in-span functions are in-span. -/
+theorem InTupleMultiEvalSpan.finset_sum {T K : ℕ} {B : Fin T → Fin T → ℝ}
+    {W : Fin T → ℝ} {ι : Type*} (s : Finset ι) (g : ι → (Fin K → Fin T) → ℝ)
+    (hg : ∀ i ∈ s, InTupleMultiEvalSpan B W (g i)) :
+    InTupleMultiEvalSpan B W (fun ξ => ∑ i ∈ s, g i ξ) := by
+  classical
+  induction s using Finset.induction_on with
+  | empty =>
+    simp only [Finset.sum_empty]
+    exact InTupleMultiEvalSpan.zero B W
+  | insert a s ha_notin ih =>
+    have h_a : InTupleMultiEvalSpan B W (g a) := hg a (Finset.mem_insert_self a s)
+    have h_S : InTupleMultiEvalSpan B W (fun ξ => ∑ i ∈ s, g i ξ) := ih (fun b hb =>
+      hg b (Finset.mem_insert_of_mem hb))
+    have h_add := h_a.add h_S
+    convert h_add using 1
+    funext ξ
+    rw [Finset.sum_insert ha_notin]
+    rfl
+
+/-- **Closure under pointwise multiplication** — the bounded payoff of the
+multigraph route. Mirrors `InRootedProfileSpan.mul`, but products factor
+through the disjoint glue `MultiLabeledGraph.glue` and the PROVED
+`multiLabeledEvalK_glue` (no `ofSimple`/`tupleProduct` detour, no decidability
+alignment). Requires symmetric `B` for `multiLabeledEvalK_glue`. -/
+theorem InTupleMultiEvalSpan.mul {T K : ℕ} {B : Fin T → Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) {W : Fin T → ℝ}
+    {f₁ f₂ : (Fin K → Fin T) → ℝ}
+    (h₁ : InTupleMultiEvalSpan B W f₁) (h₂ : InTupleMultiEvalSpan B W f₂) :
+    InTupleMultiEvalSpan B W (fun ξ => f₁ ξ * f₂ ξ) := by
+  obtain ⟨N₁, g₁, c₁, hf₁⟩ := h₁
+  obtain ⟨N₂, g₂, c₂, hf₂⟩ := h₂
+  refine ⟨N₁ * N₂,
+    fun k =>
+      let p := finProdFinEquiv.symm k
+      ⟨(g₁ p.1).1 + (g₂ p.2).1, (g₁ p.1).2.glue (g₂ p.2).2⟩,
+    fun k =>
+      let p := finProdFinEquiv.symm k
+      c₁ p.1 * c₂ p.2, ?_⟩
+  funext ξ
+  have e₁ := congr_fun hf₁ ξ
+  have e₂ := congr_fun hf₂ ξ
+  show f₁ ξ * f₂ ξ = _
+  rw [e₁, e₂, Finset.sum_mul_sum]
+  rw [show (∑ k : Fin (N₁ * N₂),
+        (c₁ (finProdFinEquiv.symm k).1 * c₂ (finProdFinEquiv.symm k).2) *
+          multiLabeledEvalK K
+            ((g₁ (finProdFinEquiv.symm k).1).1 + (g₂ (finProdFinEquiv.symm k).2).1)
+            ((g₁ (finProdFinEquiv.symm k).1).2.glue (g₂ (finProdFinEquiv.symm k).2).2)
+            B W ξ)
+      = ∑ p : Fin N₁ × Fin N₂,
+          (c₁ p.1 * c₂ p.2) *
+          multiLabeledEvalK K ((g₁ p.1).1 + (g₂ p.2).1)
+            ((g₁ p.1).2.glue (g₂ p.2).2) B W ξ from
+      Equiv.sum_comp finProdFinEquiv.symm (fun p =>
+        (c₁ p.1 * c₂ p.2) *
+        multiLabeledEvalK K ((g₁ p.1).1 + (g₂ p.2).1)
+          ((g₁ p.1).2.glue (g₂ p.2).2) B W ξ)]
+  rw [← Finset.sum_product']
+  refine Finset.sum_congr rfl (fun p _ => ?_)
+  obtain ⟨k₁, k₂⟩ := p
+  dsimp only
+  rw [multiLabeledEvalK_glue B hB W (g₁ k₁).2 (g₂ k₂).2 ξ]
+  ring
+
+/-- **Simple-eval span injects into the multigraph-eval span** (the easy
+bridge direction). Each `simpleEvalAt B W F` equals
+`multiLabeledEvalK (ofSimple F)` via `simpleEvalAt_eq_multi`. -/
+theorem InTupleSimpleEvalSpan.toMulti {T K : ℕ} {B : Fin T → Fin T → ℝ}
+    {W : Fin T → ℝ} {f : (Fin K → Fin T) → ℝ}
+    (h : InTupleSimpleEvalSpan B W f) : InTupleMultiEvalSpan B W f := by
+  obtain ⟨N, g, c, hf⟩ := h
+  refine ⟨N, fun k => ⟨(g k).1,
+    @MultiLabeledGraph.ofSimple K (g k).1 (g k).2.1 (g k).2.2⟩, c, ?_⟩
+  funext ξ
+  rw [hf]
+  refine Finset.sum_congr rfl (fun k _ => ?_)
+  rw [simpleEvalAt_eq_multi]
+
+/-- **Multigraph algebra collapses to the simple-graph algebra** (Lovász §3 /
+Lemma 2.5 content). Under twin-free `B` and positive `W`, every
+multigraph-eval span element is also a simple-eval span element. This is the
+genuine hard direction: the Hadamard-square obstruction (label–label
+multiplicity ≥ 2) lives exactly here, so it cannot reduce to the bounded glue
+algebra. SORRY — one of the two honest §3 residues (the other being
+`tupleOrbitIndicator_mem_multiEvalSpan`); one or both may be discharged by the
+same Lovász §3 rank/idempotent argument. The hypotheses are required (without
+twin-free/positivity the collapse is false) and match
+`tupleOrbitIndicator_mem_simpleEvalSpan`, so the bridge composes downstream. -/
+theorem InTupleMultiEvalSpan.toSimple {T K : ℕ} {B : Fin T → Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) {W : Fin T → ℝ} (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) {f : (Fin K → Fin T) → ℝ}
+    (h : InTupleMultiEvalSpan B W f) : InTupleSimpleEvalSpan B W f := by
+  sorry
+
+/-- **Closure under pointwise multiplication for the simple-graph span** —
+OFF THE CRITICAL PATH; superseded by the multigraph route.
+
+This is NOT a bounded "mirror K=1" lemma. The K=1 analog
+`InRootedProfileSpan.mul` works only because `K = 1` has a single root vertex,
+hence no label–label edges; for `K ≥ 2` two simple graphs sharing a label–label
+edge `{i,j}` force a Hadamard square `B(ξ_i,ξ_j)²` (since `ofSimple` caps
+multiplicity at 1 but `glue` adds), which no simple graph can produce. So
+`ofSimple_tupleProduct_eq_glue` / `simpleEvalAt_tupleProduct` are FALSE for
+`K ≥ 2`, and (without twin-free/positivity) unconditional simple `.mul` is
+itself false; with those hypotheses it is true only as a corollary of full
+Lemma 2.5. See `Lovasz.lean` §3.10.5a-multi and the note near
+`orbitIndicator_mem_simpleGraphSpan`.
+
+The honest route lives in the multigraph algebra: products are bounded there
+(`InTupleMultiEvalSpan.mul` via `multiLabeledEvalK_glue`), and the genuine
+difficulty is isolated as `InTupleMultiEvalSpan.toSimple`. Once `.toSimple` (and
+`hB/hW/htwin`) are available this is provable as
+`(h₁.toMulti.mul hB h₂.toMulti).toSimple hB hW htwin`; that statement change is
+deferred. Left as `sorry` (no current code consumers). -/
 theorem InTupleSimpleEvalSpan.mul {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
     {f₁ f₂ : (Fin K → Fin T) → ℝ}
     (_h₁ : InTupleSimpleEvalSpan B W f₁) (_h₂ : InTupleSimpleEvalSpan B W f₂) :
