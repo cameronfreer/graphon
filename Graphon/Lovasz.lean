@@ -7810,16 +7810,26 @@ theorem tupleOrbitIndicator_mem_multiEvalSpan {T K : ℕ}
   rw [← lagInd_eq]
   exact lagInd_span
 
-/-! #### P1 scaffolding — enriched evaluators for the inclusion–exclusion route
+/-! #### P1 scaffolding — enriched evaluators (EXPLORATORY / OFF CRITICAL PATH)
 
-Toward `multiEval_separates_orbits` via Lovász hom→injective inclusion–exclusion.
-SCAFFOLDING ONLY (no endpoint automorphism extraction yet). Key obstruction
-(see `~/.claude/plans/multiEval-separates-orbits-scoping.md`): with non-uniform
-vertex weight `W`, the Möbius reduction `inj = ∑_P μ(P)·T_P` has partition-
-constrained terms `T_P` that carry **vertex-weight powers `W^{|block|}`** and
-**self-loops** `B(c,c)^k` — outside the plain `multiLabeledEvalK` family. So we
-introduce an enriched evaluator that supports both, plus the injective-restricted
-evaluator, and the foundational inclusion–exclusion split. -/
+⚠ **Not a reduction.** This was built toward `multiEval_separates_orbits` via a
+Lovász hom→injective inclusion–exclusion, on the worry that the enriched
+`W^{|block|}` / diagonal moments were *not* controlled by plain `multiLabeledEvalK`
+hom counts. A numerical viability gate (`scripts/w2_moment_control_gate.py`)
+**refuted that worry**: the simplest enriched moment `∑_t W_t² B(i,t)` is always in
+the plain-eval span `V` (`V` is closed under products via `multiLabeledEvalK_glue`,
+which generate the `W`-powers). Decisively, since that moment is orbit-invariant and
+`V` is a unital subalgebra, `w2 ∈ V ⟺ dim V = #orbits ⟺` separation — so controlling
+the enriched moments is *equivalent* to proving `multiEval_separates_orbits` itself.
+**There is no inclusion–exclusion shortcut**; this enriched machinery does not reduce
+the work and is retained only as exploratory infrastructure (it has no critical-path
+consumers). The genuine remaining content is the global weighted-hom-determines-
+isomorphism / connection-rank theorem. See
+`~/.claude/plans/multiEval-separates-orbits-scoping.md` (GATE RESULT section).
+
+SCAFFOLDING (no endpoint automorphism extraction). The enriched evaluator
+`wexpMultiLabeledEvalKLoop` supports per-vertex `W`-exponents + self-loops; the
+injective-restricted `injMultiLabeledEvalK` and the split lemma are the IE base. -/
 
 /-- The per-`σ` summand of `multiLabeledEvalK`, factored out so the injective and
 non-injective restrictions share one body. -/
@@ -7893,18 +7903,20 @@ theorem multiLabeledEvalK_eq_inj_add_nonInj {T K n : ℕ} (M : MultiLabeledGraph
   exact (Finset.sum_filter_add_sum_filter_not Finset.univ
     (fun σ : Fin n → Fin T => Function.Injective σ) (multiLabeledTerm K n M B W φ)).symm
 
-/-! **Status note (do not delete).** The next combinatorics step is the full
-Möbius reduction `injMultiLabeledEvalK = ∑_P μ(⊥,P) · (constrained sum at P)`,
-where each constrained sum reindexes to a `wexpMultiLabeledEvalKLoop` over the
-quotient (block-size exponents + self-loops). CRUCIAL OPEN POINT, deliberately
-NOT asserted as a theorem here: `tupleEquivMultiInj_of_tupleEquivMulti`
-(`tupleEquivMulti ⟹ tupleEquivMultiInj`) is very likely **FALSE / strictly
-stronger** — the enriched `W`-power and diagonal-`B(c,c)` moments are not
-controlled term-by-term by plain `multiLabeledEvalK` hom counts. So the enriched
-equivalence must be reached by a *separate* (global, e.g. weighted-hom-determines-
-isomorphism) argument, not a term-by-term reduction from `tupleEquivMulti`. This
-scaffolding does not touch the critical-path residues
-(`multiEval_separates_orbits`, `InTupleMultiEvalSpan.toSimple`). -/
+/-! **Status note (do not delete) — resolved by the W² gate.** The natural next
+step would be the full Möbius reduction
+`injMultiLabeledEvalK = ∑_P μ(⊥,P) · (constrained sum at P)`, each constrained
+sum reindexing to a `wexpMultiLabeledEvalKLoop` over the quotient (block-size
+exponents + self-loops). But this route is **not a reduction**: the viability gate
+`scripts/w2_moment_control_gate.py` showed the enriched moments (e.g.
+`∑_t W_t² B(i,t)`) ARE controlled by plain `multiLabeledEvalK` hom counts — they
+lie in the product-closed span `V` — and since they are orbit-invariant and `V` is
+a unital subalgebra, controlling them is *equivalent* to `dim V = #orbits`, i.e. to
+`multiEval_separates_orbits` itself. So `tupleEquivMulti ⟹ tupleEquivMultiInj`
+holds but is no easier than the goal. The genuine remaining content is the global
+weighted-hom-determines-isomorphism / connection-rank theorem. This scaffolding has
+no critical-path consumers (the residues stay `multiEval_separates_orbits` and
+`InTupleMultiEvalSpan.toSimple`). -/
 
 /-- **Closure under pointwise multiplication for the simple-graph span** —
 OFF THE CRITICAL PATH; superseded by the multigraph route.
