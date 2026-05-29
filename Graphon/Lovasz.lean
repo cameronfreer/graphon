@@ -7810,6 +7810,102 @@ theorem tupleOrbitIndicator_mem_multiEvalSpan {T K : ℕ}
   rw [← lagInd_eq]
   exact lagInd_span
 
+/-! #### P1 scaffolding — enriched evaluators for the inclusion–exclusion route
+
+Toward `multiEval_separates_orbits` via Lovász hom→injective inclusion–exclusion.
+SCAFFOLDING ONLY (no endpoint automorphism extraction yet). Key obstruction
+(see `~/.claude/plans/multiEval-separates-orbits-scoping.md`): with non-uniform
+vertex weight `W`, the Möbius reduction `inj = ∑_P μ(P)·T_P` has partition-
+constrained terms `T_P` that carry **vertex-weight powers `W^{|block|}`** and
+**self-loops** `B(c,c)^k` — outside the plain `multiLabeledEvalK` family. So we
+introduce an enriched evaluator that supports both, plus the injective-restricted
+evaluator, and the foundational inclusion–exclusion split. -/
+
+/-- The per-`σ` summand of `multiLabeledEvalK`, factored out so the injective and
+non-injective restrictions share one body. -/
+noncomputable def multiLabeledTerm {T : ℕ} (K n : ℕ) (M : MultiLabeledGraph K n)
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T)
+    (σ : Fin n → Fin T) : ℝ :=
+  let τ : Fin (n + K) → Fin T := fun v =>
+    if h : (v : ℕ) < K then φ ⟨v, h⟩
+    else σ ⟨v - K, by have := v.isLt; omega⟩
+  (∏ v : Fin n, W (σ v)) *
+  ∏ e : Sym2 (Fin (n + K)), B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e
+
+/-- `multiLabeledEvalK` as the `Finset.univ` sum of `multiLabeledTerm`. -/
+theorem multiLabeledEvalK_eq_sum_term {T K n : ℕ} (M : MultiLabeledGraph K n)
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    multiLabeledEvalK K n M B W φ = ∑ σ : Fin n → Fin T, multiLabeledTerm K n M B W φ σ :=
+  rfl
+
+/-- **Injective-restricted multigraph evaluation**: sum the `multiLabeledTerm`
+only over injective unlabeled assignments `σ`. The first enriched object for the
+inclusion–exclusion route (injective `σ` uses each color once, so no `W`-powers
+arise *in its own definition*). -/
+noncomputable def injMultiLabeledEvalK {T : ℕ} (K n : ℕ) (M : MultiLabeledGraph K n)
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) : ℝ := by
+  classical
+  exact ∑ σ ∈ Finset.univ.filter (fun σ : Fin n → Fin T => Function.Injective σ),
+    multiLabeledTerm K n M B W φ σ
+
+/-- **Enriched (vertex-weighted, self-looped) evaluator**. Generalizes
+`multiLabeledEvalKLoop` with a per-unlabeled-vertex weight exponent `wexp`
+(so a vertex contributes `W(σ v) ^ wexp v`) and runs over a `MultiLabeledGraphLoop`
+(self-loops `B(c,c)^k` allowed). This is the family the Möbius partition-constrained
+terms `T_P` live in: a size-`s` merged block carries `wexp = s` and intra-block
+edges become self-loops. -/
+noncomputable def wexpMultiLabeledEvalKLoop {T : ℕ} (K n : ℕ)
+    (M : MultiLabeledGraphLoop K n) (wexp : Fin n → ℕ)
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) : ℝ :=
+  ∑ σ : Fin n → Fin T,
+    let τ : Fin (n + K) → Fin T := fun v =>
+      if h : (v : ℕ) < K then φ ⟨v, h⟩
+      else σ ⟨v - K, by have := v.isLt; omega⟩
+    (∏ v : Fin n, W (σ v) ^ wexp v) *
+    ∏ e : Sym2 (Fin (n + K)), B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M.mult e
+
+/-- Sanity: the enriched evaluator with all exponents `1` recovers
+`multiLabeledEvalKLoop`. -/
+theorem wexpMultiLabeledEvalKLoop_one {T K n : ℕ} (M : MultiLabeledGraphLoop K n)
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    wexpMultiLabeledEvalKLoop K n M (fun _ => 1) B W φ = multiLabeledEvalKLoop K n M B W φ := by
+  unfold wexpMultiLabeledEvalKLoop multiLabeledEvalKLoop
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  simp only [pow_one]
+
+/-- **Enriched equivalence**: equality of all injective-restricted evaluations.
+The controlled relation the inclusion–exclusion endpoint would consume. -/
+def tupleEquivMultiInj {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ ξ' : Fin K → Fin T) : Prop :=
+  ∀ (n : ℕ) (M : MultiLabeledGraph K n),
+    injMultiLabeledEvalK K n M B W ξ = injMultiLabeledEvalK K n M B W ξ'
+
+/-- **Inclusion–exclusion foothold**: a hom count splits as its injective part
+plus its non-injective part. The base of the Möbius reduction. -/
+theorem multiLabeledEvalK_eq_inj_add_nonInj {T K n : ℕ} (M : MultiLabeledGraph K n)
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    multiLabeledEvalK K n M B W φ =
+      injMultiLabeledEvalK K n M B W φ +
+      ∑ σ ∈ Finset.univ.filter (fun σ : Fin n → Fin T => ¬ Function.Injective σ),
+        multiLabeledTerm K n M B W φ σ := by
+  classical
+  rw [multiLabeledEvalK_eq_sum_term, injMultiLabeledEvalK]
+  exact (Finset.sum_filter_add_sum_filter_not Finset.univ
+    (fun σ : Fin n → Fin T => Function.Injective σ) (multiLabeledTerm K n M B W φ)).symm
+
+/-! **Status note (do not delete).** The next combinatorics step is the full
+Möbius reduction `injMultiLabeledEvalK = ∑_P μ(⊥,P) · (constrained sum at P)`,
+where each constrained sum reindexes to a `wexpMultiLabeledEvalKLoop` over the
+quotient (block-size exponents + self-loops). CRUCIAL OPEN POINT, deliberately
+NOT asserted as a theorem here: `tupleEquivMultiInj_of_tupleEquivMulti`
+(`tupleEquivMulti ⟹ tupleEquivMultiInj`) is very likely **FALSE / strictly
+stronger** — the enriched `W`-power and diagonal-`B(c,c)` moments are not
+controlled term-by-term by plain `multiLabeledEvalK` hom counts. So the enriched
+equivalence must be reached by a *separate* (global, e.g. weighted-hom-determines-
+isomorphism) argument, not a term-by-term reduction from `tupleEquivMulti`. This
+scaffolding does not touch the critical-path residues
+(`multiEval_separates_orbits`, `InTupleMultiEvalSpan.toSimple`). -/
+
 /-- **Closure under pointwise multiplication for the simple-graph span** —
 OFF THE CRITICAL PATH; superseded by the multigraph route.
 
