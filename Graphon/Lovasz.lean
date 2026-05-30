@@ -7642,6 +7642,20 @@ theorem InTupleSimpleEvalSpan.toMulti {T K : ℕ} {B : Fin T → Fin T → ℝ}
   refine Finset.sum_congr rfl (fun k _ => ?_)
   rw [simpleEvalAt_eq_multi]
 
+/-- **Multigraph-span elements are automorphism-invariant** — the easy "≤"
+direction of the rank theorem (`dim V ≤ #orbits`): every span element is constant
+on `(B, W)`-orbits. Lifts `multiLabeledEvalK_aut_invariant` termwise over the span;
+needs no symmetry/positivity of `B`/`W`. First foothold toward the global
+`multiEval_separates_orbits` (the reverse `#orbits ≤ dim V` is the hard residue). -/
+theorem InTupleMultiEvalSpan.aut_invariant {T K : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) {f : (Fin K → Fin T) → ℝ} (h : InTupleMultiEvalSpan B W f)
+    (σ : Equiv.Perm (Fin T)) (hσ : IsWeightedAutomorphism B W σ) (ξ : Fin K → Fin T) :
+    f (σ ∘ ξ) = f ξ := by
+  obtain ⟨N, g, c, hf⟩ := h
+  rw [congr_fun hf (σ ∘ ξ), congr_fun hf ξ]
+  refine Finset.sum_congr rfl fun k _ => ?_
+  rw [multiLabeledEvalK_aut_invariant B W (g k).2 σ hσ.1 hσ.2 ξ]
+
 /-- **Multigraph algebra collapses to the simple-graph algebra** (Lovász §3 /
 Lemma 2.5 content). Under twin-free `B` and positive `W`, every
 multigraph-eval span element is also a simple-eval span element. This is the
