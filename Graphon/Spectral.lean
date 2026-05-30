@@ -18,6 +18,8 @@ This file's PUBLIC API target is one named theorem:
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Data.Real.Basic
+import Mathlib.LinearAlgebra.Dimension.Constructions
+import Mathlib.LinearAlgebra.Dimension.StrongRankCondition
 import Graphon.Lovasz
 
 namespace Graphon.Spectral
@@ -236,5 +238,74 @@ theorem same_diag_powers_imp_vertex_orbit {T : ℕ}
     ∃ σ : Equiv.Perm (Fin T),
       (∀ k, W (σ k) = W k) ∧ (∀ k l, B (σ k) (σ l) = B k l) ∧ σ i = j := by
   sorry
+
+/-! ### Rank-language form of the easy direction: `dim V ≤ #orbits`
+
+Foothold for the global `multiEval_separates_orbits` theorem, kept here (not in
+`Lovasz.lean`) so the linear-algebra imports do not pollute that file. The
+multigraph-eval span, as a submodule of `(Fin K → Fin T) → ℝ`, has dimension at
+most the number of `(B, W)`-orbits of `K`-tuples — because it sits inside the
+aut-invariant subspace, which injects into functions on the orbit quotient. The
+reverse `#orbits ≤ dim V` (separation) is the hard residue. -/
+
+/-- The multigraph-eval span as a submodule of `(Fin K → Fin T) → ℝ`. -/
+noncomputable def multiSpanSubmodule {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) : Submodule ℝ ((Fin K → Fin T) → ℝ) :=
+  Submodule.span ℝ (Set.range (fun p : Σ n, MultiLabeledGraph K n =>
+    (fun ξ => multiLabeledEvalK K p.1 p.2 B W ξ)))
+
+/-- The aut-invariant functions, as a submodule. -/
+def autInvariantSubmodule {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) : Submodule ℝ ((Fin K → Fin T) → ℝ) where
+  carrier := {f | ∀ σ : Equiv.Perm (Fin T), IsWeightedAutomorphism B W σ →
+    ∀ ξ, f (σ ∘ ξ) = f ξ}
+  zero_mem' := fun _ _ _ => rfl
+  add_mem' := fun {a b} ha hb σ hσ ξ => by
+    simp only [Pi.add_apply]; rw [ha σ hσ ξ, hb σ hσ ξ]
+  smul_mem' := fun c a ha σ hσ ξ => by
+    simp only [Pi.smul_apply, smul_eq_mul]; rw [ha σ hσ ξ]
+
+/-- The span lies in the aut-invariant subspace (submodule form of
+`InTupleMultiEvalSpan.aut_invariant`; proved from the generators directly). -/
+theorem multiSpan_le_autInvariant {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) : multiSpanSubmodule K B W ≤ autInvariantSubmodule K B W := by
+  unfold multiSpanSubmodule
+  refine Submodule.span_le.2 ?_
+  rintro f ⟨p, rfl⟩ σ hσ ξ
+  exact multiLabeledEvalK_aut_invariant B W p.2 σ hσ.1 hσ.2 ξ
+
+/-- **Easy rank inequality `dim V ≤ #orbits`** (foothold for the global theorem):
+the multigraph-eval span has dimension at most the number of `(B, W)`-orbits of
+`K`-tuples. -/
+theorem finrank_multiSpan_le_card_orbitClass {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) :
+    Module.finrank ℝ (multiSpanSubmodule K B W) ≤ Nat.card (OrbitClass T K B W) := by
+  -- `Nat.card` in the statement needs no `Fintype` instance; supply one inside the proof.
+  classical
+  haveI : Fintype (OrbitClass T K B W) := Quotient.fintype (tupleOrbitSetoid B W K)
+  -- Linear injection  V_multi ↪ (OrbitClass → ℝ),  f ↦ (q ↦ f (out q)).
+  let L : multiSpanSubmodule K B W →ₗ[ℝ] (OrbitClass T K B W → ℝ) :=
+    { toFun := fun f q => f.1 (Quotient.out q)
+      map_add' := fun f g => rfl
+      map_smul' := fun c f => rfl }
+  have hLinj : Function.Injective L := by
+    intro f g hfg
+    apply Subtype.ext
+    funext ξ
+    have hconst : ∀ (p : (Fin K → Fin T) → ℝ), p ∈ autInvariantSubmodule K B W →
+        p ξ = p (Quotient.out (Quotient.mk (tupleOrbitSetoid B W K) ξ)) := by
+      intro p hp
+      obtain ⟨σ, hσ_aut, hσ_eq⟩ := Quotient.mk_out (s := tupleOrbitSetoid B W K) ξ
+      have hcomp : (σ ∘ Quotient.out (Quotient.mk (tupleOrbitSetoid B W K) ξ)) = ξ := by
+        funext i; exact (hσ_eq i).symm
+      calc p ξ
+          = p (σ ∘ Quotient.out (Quotient.mk (tupleOrbitSetoid B W K) ξ)) := by rw [hcomp]
+        _ = p (Quotient.out (Quotient.mk (tupleOrbitSetoid B W K) ξ)) := hp σ hσ_aut _
+    have hf := hconst f.1 (multiSpan_le_autInvariant K B W f.2)
+    have hg := hconst g.1 (multiSpan_le_autInvariant K B W g.2)
+    rw [hf, hg]
+    exact congr_fun hfg (Quotient.mk (tupleOrbitSetoid B W K) ξ)
+  rw [Nat.card_eq_fintype_card, ← Module.finrank_pi (ι := OrbitClass T K B W) ℝ]
+  exact LinearMap.finrank_le_finrank_of_injective hLinj
 
 end Graphon.Spectral
