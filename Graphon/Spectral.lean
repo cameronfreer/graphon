@@ -381,20 +381,73 @@ lemma orbitInner_self_eq_zero_iff {T : ℕ} (K : ℕ) (B : Fin T → Fin T → �
     · exact mul_self_eq_zero.1 hf
   · intro h; subst h; simp [orbitInner]
 
-/-- **Reverse rank inequality `#orbits ≤ dim V`** — the hard paper-root
-(`connectionMatrix_fullRank`). SORRY — the ONLY new residue.
+/-! #### Descended-eval algebra on orbit classes (the explicit layer before full rank) -/
 
-The orbit connection/Gram matrix of multigraph-eval functions (w.r.t. the positive-definite
-`orbitInner`) is nonsingular: `W > 0` gives a positive-definite inner product and twin-free `B`
-prevents distinct orbits from collapsing, so the descended evals span all of
-`OrbitClass → ℝ`. With `finrank_multiSpan_le_card_orbitClass` this yields `dim V = #orbits`,
-hence `multiEval_separates_orbits`. (Route A; do not revisit the enriched/injective route
-unless this stalls.) -/
+/-- **Descended multigraph evaluation** on orbit classes: `multiLabeledEvalK M` is
+orbit-invariant (`multiLabeledEvalK_orbit_invariant`), so it factors through `OrbitClass`. -/
+noncomputable def multiEvalOnOrbit {T : ℕ} (K n : ℕ) (M : MultiLabeledGraph K n)
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) : OrbitClass T K B W → ℝ :=
+  Quotient.lift (s := tupleOrbitSetoid B W K) (fun ξ => multiLabeledEvalK K n M B W ξ)
+    (fun ξ ξ' h => by
+      obtain ⟨σ, ⟨hWσ, hBσ⟩, hξ⟩ := h
+      exact multiLabeledEvalK_orbit_invariant B W M ⟨σ, hWσ, hBσ, hξ⟩)
+
+@[simp] lemma multiEvalOnOrbit_mk {T : ℕ} (K n : ℕ) (M : MultiLabeledGraph K n)
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (ξ : Fin K → Fin T) :
+    multiEvalOnOrbit K n M B W (Quotient.mk (tupleOrbitSetoid B W K) ξ) =
+      multiLabeledEvalK K n M B W ξ := rfl
+
+/-- **Glue ↦ product** for descended evals (via `multiLabeledEvalK_glue`): the descended
+evals form a commutative algebra on `OrbitClass → ℝ`. -/
+theorem multiEvalOnOrbit_glue {T K n₁ n₂ : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (M₁ : MultiLabeledGraph K n₁) (M₂ : MultiLabeledGraph K n₂) (q : OrbitClass T K B W) :
+    multiEvalOnOrbit K (n₁ + n₂) (M₁.glue M₂) B W q =
+      multiEvalOnOrbit K n₁ M₁ B W q * multiEvalOnOrbit K n₂ M₂ B W q := by
+  induction q using Quotient.ind with
+  | _ ξ => exact multiLabeledEvalK_glue B hB W M₁ M₂ ξ
+
+/-- The span of the descended evals inside `OrbitClass → ℝ`. -/
+noncomputable def multiOrbitSpan {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) : Submodule ℝ (OrbitClass T K B W → ℝ) :=
+  Submodule.span ℝ (Set.range (fun p : Σ n, MultiLabeledGraph K n =>
+    multiEvalOnOrbit K p.1 p.2 B W))
+
+/-- **The descended evals span all orbit-class functions** — the cleanest form of the hard
+paper-root (equivalent to `card_orbitClass_le_finrank_multiSpan`, but constructive). SORRY —
+the sole residue. `W > 0` and twin-free `B` enter here (positive-definite `orbitInner`, so the
+connection/Gram matrix is nonsingular ⇒ no nonzero functional vanishes on every eval ⇒ the
+evals span). (Route A; do not revisit the enriched/injective route unless this stalls.) -/
+theorem multiOrbitSpan_eq_top {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) : multiOrbitSpan K B W = ⊤ := by
+  sorry
+
+/-- **Reverse rank inequality `#orbits ≤ dim V`**, derived from `multiOrbitSpan_eq_top`:
+the pullback `Φ : (OrbitClass → ℝ) ↪ ((Fin K → Fin T) → ℝ)` along `⟦·⟧` is injective and (since
+`multiOrbitSpan = ⊤`) lands inside `multiSpanSubmodule`, so `#orbits = finrank (OrbitClass → ℝ)
+≤ finrank (multiSpanSubmodule)`. -/
 theorem card_orbitClass_le_finrank_multiSpan {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
     (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
     Nat.card (OrbitClass T K B W) ≤ Module.finrank ℝ (multiSpanSubmodule K B W) := by
-  sorry
+  set Φ : (OrbitClass T K B W → ℝ) →ₗ[ℝ] ((Fin K → Fin T) → ℝ) :=
+    LinearMap.funLeft ℝ ℝ (Quotient.mk (tupleOrbitSetoid B W K)) with hΦ
+  have hmaple : Submodule.map Φ (multiOrbitSpan K B W) ≤ multiSpanSubmodule K B W := by
+    rw [multiOrbitSpan, Submodule.map_span, Submodule.span_le]
+    rintro _ ⟨_, ⟨p, rfl⟩, rfl⟩
+    refine Submodule.subset_span ⟨p, ?_⟩
+    funext ξ
+    simp only [hΦ, LinearMap.funLeft_apply, multiEvalOnOrbit_mk]
+  have hmaps : ∀ h : OrbitClass T K B W → ℝ, Φ h ∈ multiSpanSubmodule K B W := fun h =>
+    hmaple ⟨h, by rw [multiOrbitSpan_eq_top K B W hB hW htwin]; exact Submodule.mem_top, rfl⟩
+  let Ψ : (OrbitClass T K B W → ℝ) →ₗ[ℝ] multiSpanSubmodule K B W :=
+    LinearMap.codRestrict (multiSpanSubmodule K B W) Φ hmaps
+  have hΨinj : Function.Injective Ψ := fun h h' hee =>
+    LinearMap.funLeft_injective_of_surjective ℝ ℝ _ Quotient.mk_surjective
+      (congrArg Subtype.val hee)
+  rw [Nat.card_eq_fintype_card, ← Module.finrank_pi (ι := OrbitClass T K B W) ℝ]
+  exact LinearMap.finrank_le_finrank_of_injective hΨinj
 
 /-- **Rank theorem `dim V = #orbits`** (modulo the full-rank residue): the multigraph-eval
 span is exactly the orbit-invariant functions. -/
