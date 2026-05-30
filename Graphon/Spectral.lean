@@ -20,6 +20,7 @@ import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Data.Real.Basic
 import Mathlib.LinearAlgebra.Dimension.Constructions
 import Mathlib.LinearAlgebra.Dimension.StrongRankCondition
+import Mathlib.LinearAlgebra.Dual.Lemmas
 import Graphon.Lovasz
 
 namespace Graphon.Spectral
@@ -381,6 +382,26 @@ lemma orbitInner_self_eq_zero_iff {T : ℕ} (K : ℕ) (B : Fin T → Fin T → �
     · exact mul_self_eq_zero.1 hf
   · intro h; subst h; simp [orbitInner]
 
+/-- `orbitInner` packaged as a bilinear form (for the dual/rank argument). -/
+noncomputable def orbitInnerBil {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    (OrbitClass T K B W → ℝ) →ₗ[ℝ] (OrbitClass T K B W → ℝ) →ₗ[ℝ] ℝ :=
+  LinearMap.mk₂ ℝ (orbitInner K B W)
+    (fun h₁ h₂ g => by
+      simp only [orbitInner, ← Finset.sum_add_distrib]
+      refine Finset.sum_congr rfl fun q _ => ?_; simp only [Pi.add_apply]; ring)
+    (fun c h g => by
+      simp only [orbitInner, Finset.smul_sum]
+      refine Finset.sum_congr rfl fun q _ => ?_; simp only [Pi.smul_apply, smul_eq_mul]; ring)
+    (fun h g₁ g₂ => by
+      simp only [orbitInner, ← Finset.sum_add_distrib]
+      refine Finset.sum_congr rfl fun q _ => ?_; simp only [Pi.add_apply]; ring)
+    (fun c h g => by
+      simp only [orbitInner, Finset.smul_sum]
+      refine Finset.sum_congr rfl fun q _ => ?_; simp only [Pi.smul_apply, smul_eq_mul]; ring)
+
+@[simp] lemma orbitInnerBil_apply {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (h g : OrbitClass T K B W → ℝ) : orbitInnerBil K B W h g = orbitInner K B W h g := rfl
+
 /-! #### Descended-eval algebra on orbit classes (the explicit layer before full rank) -/
 
 /-- **Descended multigraph evaluation** on orbit classes: `multiLabeledEvalK M` is
@@ -413,15 +434,39 @@ noncomputable def multiOrbitSpan {T : ℕ} (K : ℕ) (B : Fin T → Fin T → �
   Submodule.span ℝ (Set.range (fun p : Σ n, MultiLabeledGraph K n =>
     multiEvalOnOrbit K p.1 p.2 B W))
 
-/-- **The descended evals span all orbit-class functions** — the cleanest form of the hard
-paper-root (equivalent to `card_orbitClass_le_finrank_multiSpan`, but constructive). SORRY —
-the sole residue. `W > 0` and twin-free `B` enter here (positive-definite `orbitInner`, so the
-connection/Gram matrix is nonsingular ⇒ no nonzero functional vanishes on every eval ⇒ the
-evals span). (Route A; do not revisit the enriched/injective route unless this stalls.) -/
+/-- **The hard paper-root, analytic form** (SORRY — the sole residue): no nonzero orbit-class
+function is `orbitInner`-orthogonal to every descended multigraph evaluation. Equivalently, for
+any `h ≠ 0` there is a "test multigraph" `M` with `orbitInner h (multiEvalOnOrbit M) ≠ 0`. This
+is where `W > 0` (positive-definite `orbitInner`) and twin-free `B` enter. (Route A; do not
+revisit the enriched/injective route unless this stalls.) -/
+theorem multiOrbitSpan_orthogonal_eq_bot {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (h : OrbitClass T K B W → ℝ)
+    (horth : ∀ (n : ℕ) (M : MultiLabeledGraph K n),
+      orbitInner K B W h (multiEvalOnOrbit K n M B W) = 0) : h = 0 := by
+  sorry
+
+/-- **The descended evals span all orbit-class functions** (`multiOrbitSpan = ⊤`), derived from
+the orthogonality residue: the map `h ↦ (orbitInner h ·)|_{multiOrbitSpan}` into the dual is
+injective, so `#orbits = finrank (OrbitClass → ℝ) ≤ finrank (Dual ↥multiOrbitSpan) =
+finrank ↥multiOrbitSpan`, forcing `⊤`. -/
 theorem multiOrbitSpan_eq_top {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j) : multiOrbitSpan K B W = ⊤ := by
-  sorry
+  set S := multiOrbitSpan K B W with hS
+  let R' : (OrbitClass T K B W → ℝ) →ₗ[ℝ] Module.Dual ℝ S :=
+    (LinearMap.lcomp ℝ ℝ S.subtype).comp (orbitInnerBil K B W)
+  have hinj : Function.Injective R' := by
+    rw [← LinearMap.ker_eq_bot, LinearMap.ker_eq_bot']
+    intro h hh
+    refine multiOrbitSpan_orthogonal_eq_bot K B W hB hW htwin h (fun n M => ?_)
+    have hmem : multiEvalOnOrbit K n M B W ∈ S := by
+      rw [hS, multiOrbitSpan]; exact Submodule.subset_span ⟨⟨n, M⟩, rfl⟩
+    have hz := LinearMap.congr_fun hh ⟨multiEvalOnOrbit K n M B W, hmem⟩
+    simpa [R', LinearMap.lcomp] using hz
+  have h1 := LinearMap.finrank_le_finrank_of_injective hinj
+  rw [Subspace.dual_finrank_eq] at h1
+  exact Submodule.eq_top_of_finrank_eq (le_antisymm (Submodule.finrank_le _) h1)
 
 /-- **Reverse rank inequality `#orbits ≤ dim V`**, derived from `multiOrbitSpan_eq_top`:
 the pullback `Φ : (OrbitClass → ℝ) ↪ ((Fin K → Fin T) → ℝ)` along `⟦·⟧` is injective and (since
