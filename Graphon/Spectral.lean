@@ -308,4 +308,101 @@ theorem finrank_multiSpan_le_card_orbitClass {T : ℕ} (K : ℕ) (B : Fin T → 
   rw [Nat.card_eq_fintype_card, ← Module.finrank_pi (ι := OrbitClass T K B W) ℝ]
   exact LinearMap.finrank_le_finrank_of_injective hLinj
 
+/-! ### Route A scaffolding: the reverse rank inequality `#orbits ≤ dim V`
+
+The hard direction (separation), via the Lovász connection-matrix / Gram argument. We work on
+the **orbit quotient** (`OrbitClass`), set up a positive-weighted inner product (`orbitInner`,
+with per-class weight `orbitWeight` = the class total of tuple weights, hence strictly positive
+under `W > 0`), and state the full-rank residue as the single paper-root, deriving the rank
+equality. The genuine content — the orbit connection/Gram matrix is nonsingular — is
+`card_orbitClass_le_finrank_multiSpan`. -/
+
+/-- `DecidableEq` / `Fintype` for `OrbitClass`: the orbit relation involves real-number
+equalities (noncomputable), so we supply these classically. Provided explicitly with the
+`OrbitClass` head because auto-synthesis does not unfold the def. -/
+noncomputable instance instDecidableEqOrbitQuot {T K : ℕ} {B : Fin T → Fin T → ℝ}
+    {W : Fin T → ℝ} : DecidableEq (Quotient (tupleOrbitSetoid B W K)) := Classical.decEq _
+
+noncomputable instance instFintypeOrbitClass {T K : ℕ} {B : Fin T → Fin T → ℝ}
+    {W : Fin T → ℝ} : Fintype (OrbitClass T K B W) :=
+  letI : DecidableRel (tupleOrbitSetoid B W K).r := fun _ _ => Classical.propDecidable _
+  Quotient.fintype (tupleOrbitSetoid B W K)
+
+/-- **Per-orbit weight**: the total tuple weight of an orbit class,
+`orbitWeight q = ∑_{ξ ∈ q} ∏_a W (ξ a)`. The class total (not a representative value) keeps
+positivity transparent. -/
+noncomputable def orbitWeight {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (q : OrbitClass T K B W) : ℝ :=
+  ∑ ξ ∈ Finset.univ.filter (fun ξ : Fin K → Fin T =>
+    Quotient.mk (tupleOrbitSetoid B W K) ξ = q), ∏ a, W (ξ a)
+
+/-- **First formal target**: orbit weights are strictly positive (each fiber is nonempty —
+contains `q.out` — and every tuple weight `∏ W` is positive). -/
+lemma orbitWeight_pos {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) {W : Fin T → ℝ}
+    (hW : ∀ i, 0 < W i) (q : OrbitClass T K B W) : 0 < orbitWeight K B W q := by
+  unfold orbitWeight
+  refine Finset.sum_pos (fun ξ _ => Finset.prod_pos fun i _ => hW (ξ i)) ?_
+  exact ⟨Quotient.out q, Finset.mem_filter.mpr ⟨Finset.mem_univ _, Quotient.out_eq q⟩⟩
+
+/-- **Weighted inner product on orbit-class functions**:
+`⟪f, g⟫ = ∑_q orbitWeight q · f q · g q`. Positive-definite since each `orbitWeight q > 0`. -/
+noncomputable def orbitInner {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f g : OrbitClass T K B W → ℝ) : ℝ :=
+  ∑ q, orbitWeight K B W q * f q * g q
+
+/-- `orbitInner` is symmetric. -/
+lemma orbitInner_comm {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f g : OrbitClass T K B W → ℝ) : orbitInner K B W f g = orbitInner K B W g f := by
+  unfold orbitInner; refine Finset.sum_congr rfl fun q _ => ?_; ring
+
+/-- `⟪f, f⟫ ≥ 0`. -/
+lemma orbitInner_self_nonneg {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) {W : Fin T → ℝ}
+    (hW : ∀ i, 0 < W i) (f : OrbitClass T K B W → ℝ) : 0 ≤ orbitInner K B W f f := by
+  unfold orbitInner
+  refine Finset.sum_nonneg fun q _ => ?_
+  rw [mul_assoc]
+  exact mul_nonneg (orbitWeight_pos K B hW q).le (mul_self_nonneg _)
+
+/-- **Positive-definiteness** of `orbitInner` (uses `orbitWeight_pos`). -/
+lemma orbitInner_self_eq_zero_iff {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) {W : Fin T → ℝ}
+    (hW : ∀ i, 0 < W i) (f : OrbitClass T K B W → ℝ) :
+    orbitInner K B W f f = 0 ↔ f = 0 := by
+  constructor
+  · intro h
+    funext q
+    have hterm : ∀ p ∈ (Finset.univ : Finset (OrbitClass T K B W)),
+        0 ≤ orbitWeight K B W p * f p * f p := by
+      intro p _
+      rw [mul_assoc]; exact mul_nonneg (orbitWeight_pos K B hW p).le (mul_self_nonneg _)
+    have hz := (Finset.sum_eq_zero_iff_of_nonneg hterm).1 h q (Finset.mem_univ q)
+    rw [mul_assoc] at hz
+    rcases mul_eq_zero.1 hz with hp | hf
+    · exact absurd hp (ne_of_gt (orbitWeight_pos K B hW q))
+    · exact mul_self_eq_zero.1 hf
+  · intro h; subst h; simp [orbitInner]
+
+/-- **Reverse rank inequality `#orbits ≤ dim V`** — the hard paper-root
+(`connectionMatrix_fullRank`). SORRY — the ONLY new residue.
+
+The orbit connection/Gram matrix of multigraph-eval functions (w.r.t. the positive-definite
+`orbitInner`) is nonsingular: `W > 0` gives a positive-definite inner product and twin-free `B`
+prevents distinct orbits from collapsing, so the descended evals span all of
+`OrbitClass → ℝ`. With `finrank_multiSpan_le_card_orbitClass` this yields `dim V = #orbits`,
+hence `multiEval_separates_orbits`. (Route A; do not revisit the enriched/injective route
+unless this stalls.) -/
+theorem card_orbitClass_le_finrank_multiSpan {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    Nat.card (OrbitClass T K B W) ≤ Module.finrank ℝ (multiSpanSubmodule K B W) := by
+  sorry
+
+/-- **Rank theorem `dim V = #orbits`** (modulo the full-rank residue): the multigraph-eval
+span is exactly the orbit-invariant functions. -/
+theorem finrank_multiSpan_eq_card_orbitClass {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    Module.finrank ℝ (multiSpanSubmodule K B W) = Nat.card (OrbitClass T K B W) :=
+  le_antisymm (finrank_multiSpan_le_card_orbitClass K B W)
+    (card_orbitClass_le_finrank_multiSpan K B W hB hW htwin)
+
 end Graphon.Spectral
