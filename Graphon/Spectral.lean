@@ -795,4 +795,57 @@ theorem refineMoment_eq_decoratedProbe {T m : ℕ} (a : ℕ) (Mχ : MultiLabeled
       multiLabeledEvalK 1 (m + 1) (decoratedProbe a Mχ) B W (fun _ => i) :=
   (multiLabeledEvalK_decoratedProbe a Mχ B hB W i).symm
 
+/-! ### Weighted color refinement — definitions and monotonicity
+
+The fixed-point side of the weighted-WL tower. A coloring of `Fin T` is modelled
+as an equivalence relation `r` (same color ⇔ related). One refinement step
+(`refineRel`) splits each class by the `(W·𝟙_class)`-weighted neighbor-profile
+measure — exactly `refineMeasure` against class-indicator features. This section
+establishes the operator and that it only *splits* classes (monotonicity) and
+preserves the equivalence-relation structure. Termination and the
+automorphism-orbit endpoint are deferred. -/
+
+section Refinement
+
+variable {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+
+/-- The `ℝ`-valued feature indicator of the `r`-class of a vertex `k`
+(`1` on the class, `0` off it). -/
+def classIndicator (r : Fin T → Fin T → Prop) [DecidableRel r] (k : Fin T) : Fin T → ℝ :=
+  fun t => if r k t then 1 else 0
+
+/-- `refineMeasure` against a class indicator is the `W`-mass of the class's
+vertices at edge-weight `v`: `∑_{t ∈ class k, B i t = v} W t`. Confirms the
+refinement step below is the intended weighted color-refinement condition. -/
+theorem refineMeasure_classIndicator (r : Fin T → Fin T → Prop) [DecidableRel r]
+    (k i : Fin T) (v : ℝ) :
+    refineMeasure B W (classIndicator r k) i v
+      = ∑ t ∈ Finset.univ.filter (fun t => B i t = v ∧ r k t), W t := by
+  simp only [refineMeasure, classIndicator, mul_ite, mul_one, mul_zero]
+  rw [← Finset.sum_filter, Finset.filter_filter]
+
+/-- **One weighted-WL refinement step** on a coloring `r`. Two vertices get the
+same next color iff they have the same current color (`r i j`) and, for every
+current class (indexed by a representative `k`) and every edge-weight `v`, the
+class's `W`-mass at weight `v` from `i` matches that from `j`. The class-wise
+condition is exactly `refineMeasure` against the class indicator. -/
+def refineRel (r : Fin T → Fin T → Prop) [DecidableRel r] (i j : Fin T) : Prop :=
+  r i j ∧ ∀ (k : Fin T) (v : ℝ),
+    refineMeasure B W (classIndicator r k) i v = refineMeasure B W (classIndicator r k) j v
+
+/-- **Monotonicity / splitting**: one refinement step only splits classes — the
+next coloring refines the current one (`refineRel ⊆ r`), never merging classes. -/
+theorem refineRel_le (r : Fin T → Fin T → Prop) [DecidableRel r] {i j : Fin T}
+    (h : refineRel B W r i j) : r i j := h.1
+
+/-- The refined coloring is again an equivalence relation, so refinement can be
+iterated. -/
+theorem refineRel_equivalence (r : Fin T → Fin T → Prop) [DecidableRel r]
+    (hr : Equivalence r) : Equivalence (refineRel B W r) where
+  refl i := ⟨hr.refl i, fun _ _ => rfl⟩
+  symm h := ⟨hr.symm h.1, fun k v => (h.2 k v).symm⟩
+  trans h₁ h₂ := ⟨hr.trans h₁.1 h₂.1, fun k v => (h₁.2 k v).trans (h₂.2 k v)⟩
+
+end Refinement
+
 end Graphon.Spectral
