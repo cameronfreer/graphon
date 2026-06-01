@@ -682,4 +682,41 @@ theorem weighted_powersum_determines_measure {ι : Type*} [Fintype ι] [Decidabl
     rw [hPa (y i) hyiS]; split_ifs <;> simp
   rw [← hx, ← hy]; exact hpoly Pa
 
+/-- The **`W`-weighted neighbor moment** of a vertex `i` in a weighted graph
+`(B, W)`: the `a`-th power-sum `∑ₜ W t · B i t ^ a` of its `B`-row under the
+weight `W`. This is the level-1 weighted-WL observable; it is realized inside the
+multigraph algebra by the *star probe* (a root joined to a single unlabeled leaf
+by `a` parallel edges), whose `multiLabeledEvalK` at the singleton tuple `i ↦ i`
+is exactly this sum. -/
+noncomputable def neighborMoment {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (i : Fin T) (a : ℕ) : ℝ := ∑ t, W t * B i t ^ a
+
+/-- The **`W`-weighted neighbor-profile measure** of a vertex `i`: for each value
+`v : ℝ`, the total `W`-mass `∑_{t : B i t = v} W t` of neighbors `t` whose edge
+weight to `i` equals `v`. This is the level-1 color in weighted color-refinement
+(the `W`-weighted multiset `νᵢ := ∑ₜ W t · δ_{B i t}`, recorded as a function of
+the value). -/
+noncomputable def neighborProfileMeasure {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (i : Fin T) (v : ℝ) : ℝ :=
+  ∑ t ∈ Finset.univ.filter (fun t => B i t = v), W t
+
+/-- **Refinement step 1: equal weighted neighbor moments ⟹ equal weighted
+neighbor-profile measures.** If two vertices `i, j` of a weighted graph share
+*all* their `W`-weighted neighbor moments, then their `W`-weighted
+neighbor-profile measures agree value-by-value.
+
+This is the first rung of the weighted Weisfeiler–Leman tower: the single-vertex
+multigraph observables (`neighborMoment`, read off the star probes) determine
+each vertex's level-1 color (`neighborProfileMeasure`). It is a direct
+specialization of `weighted_powersum_determines_measure` to the rows `B i`,
+`B j` as value functions — the Lagrange/Vandermonde brick lifted into the graph
+setting. (Necessary but, alone, *not* sufficient for orbit separation: 1-WL is
+strictly weaker than `multiEvalOnOrbit_separates`; higher rungs feed lower-level
+colors back through the multigraph algebra.) -/
+theorem neighborProfileMeasure_eq_of_neighborMoment_eq {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (i j : Fin T)
+    (hmom : ∀ a : ℕ, neighborMoment B W i a = neighborMoment B W j a) (v : ℝ) :
+    neighborProfileMeasure B W i v = neighborProfileMeasure B W j v :=
+  weighted_powersum_determines_measure (B i) (B j) W hmom v
+
 end Graphon.Spectral
