@@ -16,6 +16,7 @@ This file's PUBLIC API target is one named theorem:
 `vertex_orbit_of_closed_walks_eq` (Lovász §3 K=1 spectral closing).
 -/
 import Mathlib.Algebra.BigOperators.Fin
+import Mathlib.Algebra.BigOperators.Field
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Data.Real.Basic
 import Mathlib.LinearAlgebra.Dimension.Constructions
@@ -1080,6 +1081,51 @@ theorem stable_classMoment_eq (s : Setoid (Fin T)) {i j : Fin T}
     tauto
   rw [hconv (B i), hconv (B j)]
   exact stable_classMeasure_eq B W s hij k v
+
+/-- **Transportation lemma.** Two finite nonnegative weightings with equal total
+weight admit a nonnegative coupling with the prescribed marginals — the *product
+coupling* `c a b = wa a · wb b / Z`. (Equal totals give a fractional matching,
+NOT a weight-preserving bijection: weights `{1,3}` and `{2,2}` both total `4` but
+have no bijection. This is the right, weaker, assertion.) -/
+theorem exists_coupling {α β : Type*} [Fintype α] [Fintype β]
+    (wa : α → ℝ) (wb : β → ℝ) (hwa : ∀ a, 0 ≤ wa a) (hwb : ∀ b, 0 ≤ wb b)
+    (htot : ∑ a, wa a = ∑ b, wb b) :
+    ∃ c : α → β → ℝ, (∀ a b, 0 ≤ c a b) ∧
+      (∀ a, ∑ b, c a b = wa a) ∧ (∀ b, ∑ a, c a b = wb b) := by
+  by_cases hZ : ∑ a, wa a = 0
+  · refine ⟨fun _ _ => 0, fun _ _ => le_refl 0, fun a => ?_, fun b => ?_⟩
+    · rw [Finset.sum_const_zero]
+      exact ((Finset.sum_eq_zero_iff_of_nonneg fun a _ => hwa a).mp hZ a (Finset.mem_univ a)).symm
+    · rw [Finset.sum_const_zero]
+      exact ((Finset.sum_eq_zero_iff_of_nonneg fun b _ => hwb b).mp (htot ▸ hZ) b
+        (Finset.mem_univ b)).symm
+  · have hZpos : 0 < ∑ a, wa a :=
+      lt_of_le_of_ne (Finset.sum_nonneg fun a _ => hwa a) (Ne.symm hZ)
+    refine ⟨fun a b => wa a * wb b / (∑ a', wa a'), fun a b => ?_, fun a => ?_, fun b => ?_⟩
+    · exact div_nonneg (mul_nonneg (hwa a) (hwb b)) (le_of_lt hZpos)
+    · rw [← Finset.sum_div, ← Finset.mul_sum, ← htot, mul_div_assoc, div_self hZpos.ne', mul_one]
+    · rw [← Finset.sum_div, ← Finset.sum_mul, mul_div_right_comm, div_self hZpos.ne', one_mul]
+
+/-- **Per-fiber coupling at a stable partition.** For stable-equivalent `i, j`,
+every class `k`, and every value `v`, the two `(class, value)` fibers (members `t`
+of class `k` with `B i t = v`, resp. `B j t = v`) have equal total `W`-weight
+(`stable_classMeasure_eq`), hence a nonnegative coupling matching the `W`-weight
+of `i`'s fiber against `j`'s. The local building block of a fractional
+automorphism (which the deferred reconstruction assembles across all fibers). -/
+theorem exists_fiber_coupling (s : Setoid (Fin T)) (hW : ∀ t, 0 ≤ W t) {i j : Fin T}
+    (hij : (stableSetoid B W s).r i j) (k : Fin T) (v : ℝ) :
+    ∃ c : Fin T → Fin T → ℝ, (∀ a b, 0 ≤ c a b) ∧
+      (∀ a, ∑ b, c a b = if B i a = v ∧ (stableSetoid B W s).r k a then W a else 0) ∧
+      (∀ b, ∑ a, c a b = if B j b = v ∧ (stableSetoid B W s).r k b then W b else 0) := by
+  apply exists_coupling
+  · intro a; split_ifs with h
+    · exact hW a
+    · exact le_refl 0
+  · intro b; split_ifs with h
+    · exact hW b
+    · exact le_refl 0
+  · rw [← Finset.sum_filter, ← Finset.sum_filter]
+    exact stable_classMeasure_eq B W s hij k v
 
 /-- **Reverse inclusion: stable class ⟹ orbit** (deferred hard direction). Under
 symmetric twin-free `B` and positive `W`, every stable refinement class is a
