@@ -606,6 +606,52 @@ private theorem B_pow_quot_out_eq {α : Type*} {T : ℕ} {B : Fin T → Fin T �
     B (f (Quot.out s(a, b)).1) (f (Quot.out s(a, b)).2) ^ m = B (f a) (f b) ^ m := by
   rw [B_quot_out_eq hB]
 
+/-- **Star probe** (Lovász level-1 single-vertex multigraph): the `1`-labeled
+multigraph on `Fin (1 + 1)` whose unique edge is the root–leaf pair `s(0, 1)`,
+carried with multiplicity `a`. Evaluating it reads the `a`-th `W`-weighted
+neighbor moment of a vertex; see `multiLabeledEvalK_starProbe`. -/
+def starProbe (a : ℕ) : MultiLabeledGraph 1 1 where
+  mult e := if e = s(0, 1) then a else 0
+  multNoLoop x := by
+    refine if_neg (fun h => ?_)
+    rw [Sym2.eq_iff] at h
+    rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> exact absurd (h1.symm.trans h2) (by decide)
+
+@[simp] theorem starProbe_mult {a : ℕ} (e : Sym2 (Fin (1 + 1))) :
+    (starProbe a).mult e = if e = s(0, 1) then a else 0 := rfl
+
+/-- **Star-probe evaluation reads the weighted neighbor moment.** For symmetric
+`B`, evaluating the multiplicity-`a` star probe at the singleton tuple `· ↦ i`
+gives the `a`-th `W`-weighted power-sum of the `i`-row of `B`, `∑ₜ W t · B i t ^ a`.
+This grounds the abstract level-1 observable `neighborMoment` (in
+`Graphon/Spectral.lean`) inside the multigraph orbit-separation algebra: the
+single-vertex multigraph evaluations ARE the weighted neighbor moments. -/
+theorem multiLabeledEvalK_starProbe {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i : Fin T) (a : ℕ) :
+    multiLabeledEvalK 1 1 (starProbe a) B W (fun _ => i) = ∑ t, W t * B i t ^ a := by
+  classical
+  have key : ∀ τ : Fin (1 + 1) → Fin T,
+      (∏ e : Sym2 (Fin (1 + 1)),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ (starProbe a).mult e)
+        = B (τ 0) (τ 1) ^ a := by
+    intro τ
+    rw [Finset.prod_eq_single (a := (s(0, 1) : Sym2 (Fin (1 + 1))))
+        (fun e _ hne => by simp only [starProbe_mult, if_neg hne, pow_zero])
+        (fun h => absurd (Finset.mem_univ _) h)]
+    show B (τ (Quot.out s(0, 1)).1) (τ (Quot.out s(0, 1)).2) ^ (starProbe a).mult s(0, 1)
+        = B (τ 0) (τ 1) ^ a
+    rw [starProbe_mult, if_pos rfl]
+    exact B_pow_quot_out_eq hB τ 0 1 a
+  unfold multiLabeledEvalK
+  trans (∑ σ : Fin 1 → Fin T, W (σ 0) * B i (σ 0) ^ a)
+  · refine Finset.sum_congr rfl fun σ _ => ?_
+    extract_lets τ
+    have hτ0 : τ 0 = i := rfl
+    have hτ1 : τ 1 = σ 0 := rfl
+    rw [key τ, Fin.prod_univ_one, hτ0, hτ1]
+  · refine Fintype.sum_equiv (Equiv.funUnique (Fin 1) (Fin T)) _ _ (fun σ => ?_)
+    simp [Equiv.funUnique, Fin.default_eq_zero]
+
 /-- Identity-on-labels embedding `Fin (n₁ + K) ↪ Fin ((n₁ + n₂) + K)`. -/
 def glueEmb₁ (K n₁ n₂ : ℕ) : Fin (n₁ + K) ↪ Fin ((n₁ + n₂) + K) :=
   ⟨fun v => ⟨v.val, by have := v.isLt; omega⟩,

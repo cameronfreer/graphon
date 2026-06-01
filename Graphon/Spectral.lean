@@ -719,4 +719,20 @@ theorem neighborProfileMeasure_eq_of_neighborMoment_eq {T : ℕ}
     neighborProfileMeasure B W i v = neighborProfileMeasure B W j v :=
   weighted_powersum_determines_measure (B i) (B j) W hmom v
 
+/-- **Observable grounding: `neighborMoment` IS a multigraph evaluation.** For
+symmetric `B`, the `a`-th `W`-weighted neighbor moment of a vertex `i` equals the
+`multiLabeledEvalK` of the multiplicity-`a` star probe (`starProbe`, from
+`Graphon/Lovasz.lean`) at the singleton tuple `· ↦ i`.
+
+This is the bridge that turns the level-1 WL refinement into a statement about
+the actual orbit-separation algebra: whenever two vertices agree under
+`multiLabeledEvalK` for *all* multigraphs — in particular all star probes — they
+share every `neighborMoment`, hence (via
+`neighborProfileMeasure_eq_of_neighborMoment_eq`) every level-1 color. So the
+hypothesis of refinement step 1 is *supplied* by `multiEvalOnOrbit` agreement. -/
+theorem multiLabeledEvalK_starProbe_eq_neighborMoment {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i : Fin T) (a : ℕ) :
+    multiLabeledEvalK 1 1 (starProbe a) B W (fun _ => i) = neighborMoment B W i a :=
+  multiLabeledEvalK_starProbe B hB W i a
+
 end Graphon.Spectral
