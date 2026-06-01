@@ -735,4 +735,47 @@ theorem multiLabeledEvalK_starProbe_eq_neighborMoment {T : ℕ} (B : Fin T → F
     multiLabeledEvalK 1 1 (starProbe a) B W (fun _ => i) = neighborMoment B W i a :=
   multiLabeledEvalK_starProbe B hB W i a
 
+/-- The **refined neighbor moment** of a vertex `i` against a previously
+constructed color/feature `χ : Fin T → ℝ`: the `a`-th `(W·χ)`-weighted power-sum
+`∑ₜ W t · B i t ^ a · χ t` of its `B`-row. Generalizes `neighborMoment`
+(`χ ≡ 1`); realized by a *decorated* star probe whose leaf is constrained by the
+lower-level multigraph computing `χ` (the graph realization is a separate step). -/
+noncomputable def refineMoment {T : ℕ} (B : Fin T → Fin T → ℝ) (W χ : Fin T → ℝ)
+    (i : Fin T) (a : ℕ) : ℝ := ∑ t, W t * B i t ^ a * χ t
+
+/-- The **refined neighbor-profile measure** of a vertex `i` against feature `χ`:
+for each value `v`, the `(W·χ)`-mass `∑_{t : B i t = v} W t · χ t` of neighbors
+with edge weight `v`. The level-`(k+1)` color in weighted color-refinement when
+`χ` is a level-`k` color (or an indicator of a level-`k` color class).
+Generalizes `neighborProfileMeasure` (`χ ≡ 1`). -/
+noncomputable def refineMeasure {T : ℕ} (B : Fin T → Fin T → ℝ) (W χ : Fin T → ℝ)
+    (i : Fin T) (v : ℝ) : ℝ :=
+  ∑ t ∈ Finset.univ.filter (fun t => B i t = v), W t * χ t
+
+/-- **Refinement step (general): equal refined moments ⟹ equal refined profile
+measures.** Against any fixed feature `χ`, if two vertices share all their
+`(W·χ)`-weighted neighbor moments, then their `(W·χ)`-weighted neighbor-profile
+measures agree value-by-value.
+
+This is the inductive rung of the weighted Weisfeiler–Leman tower: feeding a
+lower-level color `χ` back as a leaf weight is exactly *reweighting* the
+Vandermonde/Lagrange brick from `W` to `W·χ`, so the proof is a direct
+specialization of `weighted_powersum_determines_measure` (no new analysis). With
+`χ ≡ 1` it recovers `neighborProfileMeasure_eq_of_neighborMoment_eq`; with `χ` an
+indicator `t ↦ if color t = c then 1 else 0` it refines each color class `c`. The
+moment hypothesis is *supplied* by multigraph-evaluation agreement once the
+decorated star probe realizing `refineMoment` is built (separate graph step). -/
+theorem refineMeasure_eq_of_refineMoment_eq {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W χ : Fin T → ℝ) (i j : Fin T)
+    (hmom : ∀ a : ℕ, refineMoment B W χ i a = refineMoment B W χ j a) (v : ℝ) :
+    refineMeasure B W χ i v = refineMeasure B W χ j v := by
+  unfold refineMeasure
+  refine weighted_powersum_determines_measure (B i) (B j) (fun t => W t * χ t) (fun a => ?_) v
+  show (∑ t, W t * χ t * B i t ^ a) = ∑ t, W t * χ t * B j t ^ a
+  rw [show (∑ t, W t * χ t * B i t ^ a) = ∑ t, W t * B i t ^ a * χ t from
+        Finset.sum_congr rfl fun t _ => by ring,
+      show (∑ t, W t * χ t * B j t ^ a) = ∑ t, W t * B j t ^ a * χ t from
+        Finset.sum_congr rfl fun t _ => by ring]
+  exact hmom a
+
 end Graphon.Spectral
