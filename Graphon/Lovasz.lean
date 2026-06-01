@@ -1313,6 +1313,228 @@ theorem multiLabeledEvalK_promote_unfold {T K n : ℕ}
   rw [multiLabeledEvalK_sum_last_label M.promote B hB W ξ]
   rw [MultiLabeledGraph.trace_promote]
 
+/-! ### §3.5b — Decorated star probe (refinement-step graph realization)
+
+Building blocks for realizing the weighted-WL refinement operator `refineMoment`
+(in `Graphon/Spectral.lean`) as a multigraph evaluation: an `edgeProbe` (the
+root–leaf edge as a 2-labeled graph) and a `reroot1` operation (view a 1-labeled
+multigraph `Mχ` as 2-labeled by inserting a fresh isolated label `0`, moving its
+old root to label `1` via `Fin.succ`). Gluing them and tracing the leaf label
+gives the decorated probe whose evaluation is `∑ₜ W t · B i t ^ a · (Mχ-eval at t)`. -/
+
+/-- The coloring `τ` used inside `multiLabeledEvalK`: labels (`v < K`) map via the
+tuple `φ`, unlabeled vertices via the σ-assignment. Named so that evaluations can
+be reindexed (the anonymous `let` in `multiLabeledEvalK` blocks higher-order
+unification). -/
+def multiTau {T : ℕ} (K n : ℕ) (φ : Fin K → Fin T) (σ : Fin n → Fin T) :
+    Fin (n + K) → Fin T :=
+  fun v => if h : (v : ℕ) < K then φ ⟨v, h⟩ else σ ⟨v - K, by have := v.isLt; omega⟩
+
+/-- `multiLabeledEvalK` with its inner `let` exposed as the named `multiTau`. -/
+theorem multiLabeledEvalK_eq_tau {T K n : ℕ} (M : MultiLabeledGraph K n)
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    multiLabeledEvalK K n M B W φ =
+      ∑ σ : Fin n → Fin T, (∏ v : Fin n, W (σ v)) *
+        ∏ e : Sym2 (Fin (n + K)),
+          B (multiTau K n φ σ (Quot.out e).1) (multiTau K n φ σ (Quot.out e).2) ^ M.mult e :=
+  rfl
+
+/-- **Edge probe** (`2`-labeled, no unlabeled vertices): the single edge
+`s(0, 1)` between the two labels, multiplicity `a`. -/
+def edgeProbe (a : ℕ) : MultiLabeledGraph 2 0 where
+  mult e := if e = s(0, 1) then a else 0
+  multNoLoop x := by
+    refine if_neg (fun h => ?_)
+    rw [Sym2.eq_iff] at h
+    rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> exact absurd (h1.symm.trans h2) (by decide)
+
+@[simp] theorem edgeProbe_mult {a : ℕ} (e : Sym2 (Fin (0 + 2))) :
+    (edgeProbe a).mult e = if e = s(0, 1) then a else 0 := rfl
+
+/-- **Edge-probe evaluation**: reads `B (φ 0) (φ 1) ^ a`. -/
+theorem multiLabeledEvalK_edgeProbe {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (φ : Fin 2 → Fin T) (a : ℕ) :
+    multiLabeledEvalK 2 0 (edgeProbe a) B W φ = B (φ 0) (φ 1) ^ a := by
+  classical
+  have key : ∀ τ : Fin (0 + 2) → Fin T,
+      (∏ e : Sym2 (Fin (0 + 2)),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ (edgeProbe a).mult e) = B (τ 0) (τ 1) ^ a := by
+    intro τ
+    rw [Finset.prod_eq_single (a := (s(0, 1) : Sym2 (Fin (0 + 2))))
+        (fun e _ hne => by simp only [edgeProbe_mult, if_neg hne, pow_zero])
+        (fun h => absurd (Finset.mem_univ _) h)]
+    show B (τ (Quot.out s(0, 1)).1) (τ (Quot.out s(0, 1)).2) ^ (edgeProbe a).mult s(0, 1)
+        = B (τ 0) (τ 1) ^ a
+    rw [edgeProbe_mult, if_pos rfl]
+    exact B_pow_quot_out_eq hB τ 0 1 a
+  unfold multiLabeledEvalK
+  rw [Fintype.sum_unique]
+  extract_lets τ
+  have hτ0 : τ 0 = φ 0 := rfl
+  have hτ1 : τ 1 = φ 1 := rfl
+  rw [key τ, Fin.prod_univ_zero, hτ0, hτ1, one_mul]
+
+/-- Partial inverse of `Fin.succ` on `Fin (m + 2)`: index `0` ↦ `none`,
+`k+1` ↦ `some k`. Used to define `reroot1`'s multiplicity. -/
+def rerootCast {m : ℕ} (v : Fin (m + 2)) : Option (Fin (m + 1)) :=
+  if v.val = 0 then none else some ⟨v.val - 1, by have := v.isLt; omega⟩
+
+@[simp] theorem rerootCast_succ {m : ℕ} (w : Fin (m + 1)) :
+    rerootCast (w.succ) = some w := by
+  unfold rerootCast
+  rw [if_neg (by rw [Fin.val_succ]; omega)]
+  simp only [Option.some.injEq]
+  apply Fin.ext
+  simp [Fin.val_succ]
+
+theorem rerootCast_eq_some {m : ℕ} {v : Fin (m + 2)} {u : Fin (m + 1)}
+    (h : rerootCast v = some u) : v = u.succ := by
+  unfold rerootCast at h
+  by_cases hv : v.val = 0
+  · rw [if_pos hv] at h; exact absurd h (by simp)
+  · rw [if_neg hv] at h
+    injection h with h'
+    apply Fin.ext
+    have huv : v.val - 1 = u.val := congr_arg Fin.val h'
+    rw [Fin.val_succ]
+    omega
+
+/-- `Fin.succ` as an embedding `Fin (m + 1) ↪ Fin (m + 2)`. -/
+def succEmb (m : ℕ) : Fin (m + 1) ↪ Fin (m + 2) := ⟨Fin.succ, Fin.succ_injective _⟩
+
+@[simp] theorem succEmb_apply {m : ℕ} (w : Fin (m + 1)) : succEmb m w = w.succ := rfl
+
+/-- **Reroot**: view a `1`-labeled multigraph as `2`-labeled by inserting a fresh
+isolated label `0` and shifting every vertex up by one (`Fin.succ`), so the old
+root (label `0`) becomes label `1`. The new label `0` carries no edges. -/
+def reroot1 {m : ℕ} (Mχ : MultiLabeledGraph 1 m) : MultiLabeledGraph 2 m where
+  mult := Sym2.lift ⟨fun u v =>
+    match rerootCast u, rerootCast v with
+    | some u', some v' => Mχ.mult s(u', v')
+    | _, _ => 0,
+    by
+      intro a b
+      rcases ha : rerootCast a with _ | u' <;> rcases hb : rerootCast b with _ | v' <;>
+        simp only [ha, hb] <;> first | rfl | rw [Sym2.eq_swap]⟩
+  multNoLoop x := by
+    show (match rerootCast x, rerootCast x with
+          | some u', some v' => Mχ.mult s(u', v') | _, _ => 0) = 0
+    rcases hx : rerootCast x with _ | u'
+    · rfl
+    · exact Mχ.multNoLoop u'
+
+@[simp] theorem reroot1_mult_map_succ {m : ℕ} (Mχ : MultiLabeledGraph 1 m)
+    (e' : Sym2 (Fin (m + 1))) :
+    (reroot1 Mχ).mult (Sym2.map (succEmb m) e') = Mχ.mult e' := by
+  refine Sym2.ind (fun a b => ?_) e'
+  rw [Sym2.map_pair_eq]
+  show (match rerootCast (succEmb m a), rerootCast (succEmb m b) with
+        | some u', some v' => Mχ.mult s(u', v') | _, _ => 0) = Mχ.mult s(a, b)
+  rw [succEmb_apply, succEmb_apply, rerootCast_succ, rerootCast_succ]
+
+/-- **Reroot Sym2-product reindex.** For symmetric `B` and colorings `τ₂, τ₁`
+aligned by `τ₂ (w.succ) = τ₁ w`, the `B`-power product of `reroot1 Mχ` over
+`Fin (m + 2)` equals that of `Mχ` over `Fin (m + 1)`. -/
+private theorem reroot1_prod_reindex {T m : ℕ} (Mχ : MultiLabeledGraph 1 m)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (τ₂ : Fin (m + 2) → Fin T) (τ₁ : Fin (m + 1) → Fin T)
+    (halign : ∀ w : Fin (m + 1), τ₂ w.succ = τ₁ w) :
+    (∏ e : Sym2 (Fin (m + 2)), B (τ₂ (Quot.out e).1) (τ₂ (Quot.out e).2) ^ (reroot1 Mχ).mult e)
+      = ∏ e' : Sym2 (Fin (m + 1)), B (τ₁ (Quot.out e').1) (τ₁ (Quot.out e').2) ^ Mχ.mult e' := by
+  classical
+  have hfac : (∏ e : Sym2 (Fin (m + 2)),
+        B (τ₂ (Quot.out e).1) (τ₂ (Quot.out e).2) ^ (reroot1 Mχ).mult e)
+      = ∏ e' : Sym2 (Fin (m + 1)),
+          B (τ₂ (Quot.out (Sym2.map (succEmb m) e')).1) (τ₂ (Quot.out (Sym2.map (succEmb m) e')).2)
+            ^ (reroot1 Mχ).mult (Sym2.map (succEmb m) e') := by
+    have h1 := Finset.prod_map (Finset.univ : Finset (Sym2 (Fin (m + 1)))) (succEmb m).sym2Map
+      (fun e => B (τ₂ (Quot.out e).1) (τ₂ (Quot.out e).2) ^ (reroot1 Mχ).mult e)
+    simp only [Function.Embedding.sym2Map_apply] at h1
+    rw [← h1]
+    refine (Finset.prod_subset (Finset.subset_univ _) (fun e _ he => ?_)).symm
+    suffices hz : (reroot1 Mχ).mult e = 0 by rw [hz, pow_zero]
+    revert he
+    refine Sym2.ind (fun a b he => ?_) e
+    show (match rerootCast a, rerootCast b with
+          | some u', some v' => Mχ.mult s(u', v') | _, _ => 0) = 0
+    rcases hca : rerootCast a with _ | u' <;> rcases hcb : rerootCast b with _ | v' <;>
+      simp only [hca, hcb]
+    exfalso
+    apply he
+    rw [Finset.mem_map]
+    refine ⟨s(u', v'), Finset.mem_univ _, ?_⟩
+    rw [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, succEmb_apply, succEmb_apply,
+      ← rerootCast_eq_some hca, ← rerootCast_eq_some hcb]
+  rw [hfac]
+  refine Finset.prod_congr rfl fun e' _ => ?_
+  rw [reroot1_mult_map_succ]
+  congr 1
+  refine Sym2.ind (fun a b => ?_) e'
+  rw [Sym2.map_pair_eq, succEmb_apply, succEmb_apply,
+    B_quot_out_eq hB τ₂ a.succ b.succ, B_quot_out_eq hB τ₁ a b, halign a, halign b]
+
+/-- **Reroot evaluation**: `reroot1 Mχ` evaluated at `φ` reads `Mχ` at the
+singleton tuple given by `φ`'s second label (the new root); the isolated first
+label `φ 0` does not appear. -/
+theorem multiLabeledEvalK_reroot1 {T m : ℕ} (Mχ : MultiLabeledGraph 1 m)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (φ : Fin 2 → Fin T) :
+    multiLabeledEvalK 2 m (reroot1 Mχ) B W φ =
+      multiLabeledEvalK 1 m Mχ B W (fun _ => φ 1) := by
+  classical
+  rw [multiLabeledEvalK_eq_tau, multiLabeledEvalK_eq_tau]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  congr 1
+  apply reroot1_prod_reindex Mχ B hB
+  intro w
+  unfold multiTau
+  by_cases hw : (w : ℕ) = 0
+  · have e1 : ((w.succ : Fin (m + 2)) : ℕ) < 2 := by rw [Fin.val_succ]; omega
+    have e2 : ((w : Fin (m + 1)) : ℕ) < 1 := by omega
+    rw [dif_pos e1, dif_pos e2]
+    have hidx : (⟨(w.succ : Fin (m + 2)).val, e1⟩ : Fin 2) = 1 := by
+      apply Fin.ext; rw [Fin.val_succ]; omega
+    rw [hidx]
+  · have e1 : ¬ ((w.succ : Fin (m + 2)) : ℕ) < 2 := by rw [Fin.val_succ]; omega
+    have e2 : ¬ ((w : Fin (m + 1)) : ℕ) < 1 := by omega
+    rw [dif_neg e1, dif_neg e2]
+    apply congr_arg σ
+    apply Fin.ext
+    show (w.succ : Fin (m + 2)).val - 2 = (w : Fin (m + 1)).val - 1
+    rw [Fin.val_succ]
+    omega
+
+/-- **Decorated star probe**: glue the rerooted `Mχ` (its old root now the leaf
+label `1`) to the root–leaf `edgeProbe a` (labels `0`–`1`), then trace the leaf
+label `1` into a new unlabeled vertex. A `1`-labeled multigraph (root `0`)
+realizing the weighted-WL refinement step. -/
+def decoratedProbe {m : ℕ} (a : ℕ) (Mχ : MultiLabeledGraph 1 m) :
+    MultiLabeledGraph 1 (m + 1) :=
+  ((reroot1 Mχ).glue (edgeProbe a)).trace
+
+/-- **Decorated-probe evaluation realizes the refinement operator.** For
+symmetric `B`, evaluating `decoratedProbe a Mχ` at `· ↦ i` gives
+`∑ₜ W t · B i t ^ a · (Mχ-eval at t)` — the refined neighbor moment with feature
+`χ t = multiLabeledEvalK 1 m Mχ B W (· ↦ t)`. -/
+theorem multiLabeledEvalK_decoratedProbe {T m : ℕ} (a : ℕ) (Mχ : MultiLabeledGraph 1 m)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i : Fin T) :
+    multiLabeledEvalK 1 (m + 1) (decoratedProbe a Mχ) B W (fun _ => i) =
+      ∑ t, W t * B i t ^ a * multiLabeledEvalK 1 m Mχ B W (fun _ => t) := by
+  unfold decoratedProbe
+  rw [← multiLabeledEvalK_sum_last_label ((reroot1 Mχ).glue (edgeProbe a)) B hB W (fun _ => i)]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  rw [multiLabeledEvalK_glue B hB W (reroot1 Mχ) (edgeProbe a) (Fin.snoc (fun _ => i) t),
+      multiLabeledEvalK_reroot1 Mχ B hB W (Fin.snoc (fun _ => i) t),
+      multiLabeledEvalK_edgeProbe B hB W (Fin.snoc (fun _ => i) t) a]
+  have h0 : (Fin.snoc (fun _ => i) t : Fin (1 + 1) → Fin T) 0 = i := by
+    have h : (0 : Fin (1 + 1)) = Fin.castSucc 0 := rfl
+    rw [h, Fin.snoc_castSucc]
+  have h1 : (Fin.snoc (fun _ => i) t : Fin (1 + 1) → Fin T) 1 = t := by
+    have h : (1 : Fin (1 + 1)) = Fin.last 1 := rfl
+    rw [h, Fin.snoc_last]
+  rw [h0, h1]
+  ring
+
 /-! ### §3.5 — Automorphism-invariance of multigraph evaluation
 
 A bounded preliminary: any `(B, W)`-automorphism `σ : Fin T ≃ Fin T`

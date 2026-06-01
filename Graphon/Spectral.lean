@@ -778,4 +778,21 @@ theorem refineMeasure_eq_of_refineMoment_eq {T : ℕ}
         Finset.sum_congr rfl fun t _ => by ring]
   exact hmom a
 
+/-- **Rung 2 graph realization: the refined moment is a multigraph evaluation.**
+When the feature `χ` is itself a rooted multigraph evaluation
+`χ t = multiLabeledEvalK 1 m Mχ B W (· ↦ t)`, the refined neighbor moment
+`refineMoment B W χ i a` equals the `multiLabeledEvalK` of the *decorated star
+probe* `decoratedProbe a Mχ` (from `Graphon/Lovasz.lean`) at `· ↦ i` — a star
+probe with its single leaf pinned by `Mχ`.
+
+This is the weighted-WL tower's **induction step**: if a level-`k` color lies in
+the multigraph span, so does the level-`(k+1)` refined moment. Combined with
+`refineMeasure_eq_of_refineMoment_eq`, multigraph-evaluation agreement on the
+decorated probes forces agreement of the next-level colors. -/
+theorem refineMoment_eq_decoratedProbe {T m : ℕ} (a : ℕ) (Mχ : MultiLabeledGraph 1 m)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i : Fin T) :
+    refineMoment B W (fun t => multiLabeledEvalK 1 m Mχ B W (fun _ => t)) i a =
+      multiLabeledEvalK 1 (m + 1) (decoratedProbe a Mχ) B W (fun _ => i) :=
+  (multiLabeledEvalK_decoratedProbe a Mχ B hB W i).symm
+
 end Graphon.Spectral
