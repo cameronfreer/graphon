@@ -846,6 +846,98 @@ theorem refineRel_equivalence (r : Fin T → Fin T → Prop) [DecidableRel r]
   symm h := ⟨hr.symm h.1, fun k v => (h.2 k v).symm⟩
   trans h₁ h₂ := ⟨hr.trans h₁.1 h₂.1, fun k v => (h₁.2 k v).trans (h₂.2 k v)⟩
 
+open scoped Classical
+
+/-- Bundle one refinement step as a map on `Setoid`s (carrying the equivalence
+proof, so the step can be iterated). -/
+noncomputable def refineSetoid (s : Setoid (Fin T)) : Setoid (Fin T) :=
+  ⟨refineRel B W s.r, refineRel_equivalence B W s.r s.iseqv⟩
+
+/-- Iterating the refinement step `n` times from a starting coloring `s`. -/
+noncomputable def refineSetoidIter (s : Setoid (Fin T)) : ℕ → Setoid (Fin T)
+  | 0 => s
+  | n + 1 => refineSetoid B W (refineSetoidIter s n)
+
+/-- One refinement step only splits classes. -/
+theorem refineSetoid_le (s : Setoid (Fin T)) {i j : Fin T}
+    (h : (refineSetoid B W s).r i j) : s.r i j := refineRel_le B W s.r h
+
+/-- **Monotone splitting** along the iteration: iterate `n+1` refines iterate `n`. -/
+theorem refineSetoidIter_succ_le (s : Setoid (Fin T)) (n : ℕ) {i j : Fin T}
+    (h : (refineSetoidIter B W s (n + 1)).r i j) : (refineSetoidIter B W s n).r i j :=
+  refineSetoid_le B W (refineSetoidIter B W s n) h
+
+/-- The number of color classes of a coloring. -/
+noncomputable def classCount (s : Setoid (Fin T)) : ℕ := Nat.card (Quotient s)
+
+/-- Coarsening map from the refined quotient to the original quotient (finer →
+coarser); well-defined because refinement only splits. -/
+noncomputable def coarsenMap (s : Setoid (Fin T)) :
+    Quotient (refineSetoid B W s) → Quotient s :=
+  Quotient.map' id (fun _ _ h => refineSetoid_le B W s h)
+
+theorem coarsenMap_mk (s : Setoid (Fin T)) (a : Fin T) :
+    coarsenMap B W s (Quotient.mk'' a) = Quotient.mk'' a :=
+  Quotient.map'_mk'' _ _ a
+
+theorem surjective_coarsenMap (s : Setoid (Fin T)) :
+    Function.Surjective (coarsenMap B W s) :=
+  fun q => Quotient.inductionOn q fun a => ⟨Quotient.mk'' a, coarsenMap_mk B W s a⟩
+
+/-- **Class count is monotone nondecreasing** under one refinement step. -/
+theorem classCount_le_refineSetoid (s : Setoid (Fin T)) :
+    classCount s ≤ classCount (refineSetoid B W s) :=
+  Nat.card_le_card_of_surjective _ (surjective_coarsenMap B W s)
+
+/-- Class count is bounded by `T`. -/
+theorem classCount_le_card (s : Setoid (Fin T)) : classCount s ≤ T := by
+  have h : Nat.card (Quotient s) ≤ Nat.card (Fin T) :=
+    Nat.card_le_card_of_surjective _ Quotient.mk''_surjective
+  rwa [Nat.card_fin] at h
+
+/-- If one refinement step does not increase the class count, the coloring is a
+fixed point: equal counts together with only-splitting force equality. -/
+theorem refineSetoid_eq_of_classCount_eq (s : Setoid (Fin T))
+    (h : classCount (refineSetoid B W s) = classCount s) : refineSetoid B W s = s := by
+  have hbij : Function.Bijective (coarsenMap B W s) :=
+    (surjective_coarsenMap B W s).bijective_of_nat_card_le (le_of_eq h)
+  refine Setoid.ext fun a b => ⟨fun hab => refineSetoid_le B W s hab, fun hab => ?_⟩
+  have hq : coarsenMap B W s (Quotient.mk'' a) = coarsenMap B W s (Quotient.mk'' b) := by
+    rw [coarsenMap_mk, coarsenMap_mk]; exact Quotient.sound' hab
+  exact Quotient.exact' (hbij.injective hq)
+
+/-- **Termination of weighted color refinement.** Along the iteration the class
+count is monotone nondecreasing and bounded by `T`, so it stabilizes by step `T`;
+at that step the coloring is a fixed point of refinement. -/
+theorem exists_refineSetoidIter_fixed (s : Setoid (Fin T)) :
+    ∃ n ≤ T, refineSetoidIter B W s (n + 1) = refineSetoidIter B W s n := by
+  have hmono : ∀ n, classCount (refineSetoidIter B W s n)
+      ≤ classCount (refineSetoidIter B W s (n + 1)) :=
+    fun n => classCount_le_refineSetoid B W _
+  have hbound : ∀ n, classCount (refineSetoidIter B W s n) ≤ T :=
+    fun n => classCount_le_card _
+  have hstab : ∃ n ≤ T,
+      classCount (refineSetoidIter B W s (n + 1)) = classCount (refineSetoidIter B W s n) := by
+    by_contra hc
+    push_neg at hc
+    have hstrict : ∀ n ≤ T,
+        classCount (refineSetoidIter B W s n) < classCount (refineSetoidIter B W s (n + 1)) :=
+      fun n hn => lt_of_le_of_ne (hmono n) fun he => hc n hn he.symm
+    have hge : ∀ k, k ≤ T + 1 → k ≤ classCount (refineSetoidIter B W s k) := by
+      intro k
+      induction k with
+      | zero => intro _; exact Nat.zero_le _
+      | succ j ih =>
+        intro hk
+        have h1 := hstrict j (by omega)
+        have h2 := ih (by omega)
+        omega
+    have h1 := hge (T + 1) (le_refl _)
+    have h2 := hbound (T + 1)
+    omega
+  obtain ⟨n, hnT, hfn⟩ := hstab
+  exact ⟨n, hnT, refineSetoid_eq_of_classCount_eq B W (refineSetoidIter B W s n) hfn⟩
+
 end Refinement
 
 end Graphon.Spectral
