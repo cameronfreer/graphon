@@ -1228,6 +1228,90 @@ theorem couplingMatrix_col (s : Setoid (Fin T)) (hW : ∀ t, 0 < W t) {i j : Fin
     · rintro ⟨h1, h2⟩; exact ⟨h1, (stableSetoid B W s).iseqv.symm h2⟩
   rw [← Finset.sum_div, ← Finset.sum_mul, hsum_a, mul_div_right_comm, div_self hE.ne', one_mul]
 
+/-! #### Class-averaging fractional automorphism
+
+The `couplingMatrix` above is tailored to the `i/j` rows and does not commute with
+`B`. The *class-averaging* matrix `avgMatrix a b = [stable a b] · W b / classWeight a`
+is the canonical `W`-weighted projection onto stable-class-constant functions; its
+`B`-commutation follows from equitability (`stable_classMoment_eq`). Here we prove
+its marginals/positivity; the commutation is the next step.
+
+CAVEAT on the commutation form: for weighted graphs the *plain* matrix identity
+`∑_c X a c · B c b = ∑_c B a c · X c b` is FALSE (it would force `W a = W b` across
+classes). The identity that holds is the `W`-weighted one
+`W b · ∑_c X a c · B c b = ∑_c W c · B a c · X c b`
+(equivalently, `avgMatrix` commutes with the `W`-weighted operator `c ↦ B · c · W`),
+which is what the reconstruction actually needs. -/
+
+/-- Total `W`-weight of a vertex's stable class. -/
+noncomputable def classWeight (s : Setoid (Fin T)) (a : Fin T) : ℝ :=
+  ∑ t ∈ Finset.univ.filter (fun t => (stableSetoid B W s).r a t), W t
+
+theorem classWeight_pos (s : Setoid (Fin T)) (hW : ∀ t, 0 < W t) (a : Fin T) :
+    0 < classWeight B W s a := by
+  rw [classWeight]
+  refine lt_of_lt_of_le (hW a) (Finset.single_le_sum (fun t _ => (hW t).le) ?_)
+  exact Finset.mem_filter.mpr ⟨Finset.mem_univ a, (stableSetoid B W s).iseqv.refl a⟩
+
+theorem classWeight_eq_of_rel (s : Setoid (Fin T)) {a b : Fin T}
+    (h : (stableSetoid B W s).r a b) : classWeight B W s a = classWeight B W s b := by
+  rw [classWeight, classWeight]
+  apply Finset.sum_congr _ (fun _ _ => rfl)
+  ext t
+  simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+  exact ⟨fun hat => (stableSetoid B W s).iseqv.trans ((stableSetoid B W s).iseqv.symm h) hat,
+    fun hbt => (stableSetoid B W s).iseqv.trans h hbt⟩
+
+/-- **Class-averaging fractional automorphism** for the stable partition: the
+`W`-weighted average over stable classes. Row-stochastic, `W`-stationary, and
+(in the `W`-weighted sense) `B`-commuting. -/
+noncomputable def avgMatrix (s : Setoid (Fin T)) (a b : Fin T) : ℝ :=
+  if (stableSetoid B W s).r a b then W b / classWeight B W s a else 0
+
+/-- **(1) Nonnegativity.** -/
+theorem avgMatrix_nonneg (s : Setoid (Fin T)) (hW : ∀ t, 0 < W t) (a b : Fin T) :
+    0 ≤ avgMatrix B W s a b := by
+  rw [avgMatrix]
+  split_ifs with h
+  · exact div_nonneg (hW b).le (classWeight_pos B W s hW a).le
+  · exact le_refl 0
+
+/-- **(2) Row-stochastic.** -/
+theorem avgMatrix_row (s : Setoid (Fin T)) (hW : ∀ t, 0 < W t) (a : Fin T) :
+    ∑ b, avgMatrix B W s a b = 1 := by
+  simp only [avgMatrix]
+  rw [← Finset.sum_filter, ← Finset.sum_div,
+    show (∑ b ∈ Finset.univ.filter (fun b => (stableSetoid B W s).r a b), W b)
+      = classWeight B W s a from rfl]
+  exact div_self (classWeight_pos B W s hW a).ne'
+
+/-- **(3) `W`-stationary / column balance**: `∑ₐ W a · X a b = W b`. -/
+theorem avgMatrix_col_balance (s : Setoid (Fin T)) (hW : ∀ t, 0 < W t) (b : Fin T) :
+    ∑ a, W a * avgMatrix B W s a b = W b := by
+  have hcw := classWeight_pos B W s hW b
+  have hsum : (∑ a ∈ Finset.univ.filter (fun a => (stableSetoid B W s).r a b), W a)
+      = classWeight B W s b := by
+    rw [classWeight]
+    apply Finset.sum_congr _ (fun _ _ => rfl)
+    ext t
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+    exact ⟨fun h => (stableSetoid B W s).iseqv.symm h, fun h => (stableSetoid B W s).iseqv.symm h⟩
+  have heq : ∀ a ∈ Finset.univ.filter (fun a => (stableSetoid B W s).r a b),
+      W a * (W b / classWeight B W s a) = W a * W b / classWeight B W s b := by
+    intro a ha
+    rw [Finset.mem_filter] at ha
+    rw [classWeight_eq_of_rel B W s ha.2, ← mul_div_assoc]
+  simp only [avgMatrix, mul_ite, mul_zero]
+  rw [← Finset.sum_filter, Finset.sum_congr rfl heq, ← Finset.sum_div, ← Finset.sum_mul, hsum,
+    mul_div_right_comm, div_self hcw.ne', one_mul]
+
+/-- **(5) Positivity on the diagonal block**: stable-equivalent vertices get
+positive coupling. -/
+theorem avgMatrix_pos (s : Setoid (Fin T)) (hW : ∀ t, 0 < W t) {i j : Fin T}
+    (h : (stableSetoid B W s).r i j) : 0 < avgMatrix B W s i j := by
+  rw [avgMatrix, if_pos h]
+  exact div_pos (hW j) (classWeight_pos B W s hW i)
+
 /-- **Reverse inclusion: stable class ⟹ orbit** (deferred hard direction). Under
 symmetric twin-free `B` and positive `W`, every stable refinement class is a
 single weighted-automorphism orbit. This is the coherent-configuration /
