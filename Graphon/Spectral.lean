@@ -999,6 +999,51 @@ theorem vertexOrbitRel_imp_stable {i j : Fin T} (h : vertexOrbitRel B W i j) :
     (stableSetoid B W ⊤).r i j :=
   vertexOrbitRel_imp_refineSetoidIter B W h _
 
+/-! #### Stable ⟹ equitable (first step of the hard direction)
+
+At a refinement fixed point the defining condition of `refineRel` already holds
+on each class, so same-class vertices share *all* their weighted
+edge-distribution data. This is the equitable-partition / coherent-configuration
+property — the algebraic input for the (deferred) reconstruction theorem. -/
+
+/-- `stableSetoid B W s` is a fixed point of one refinement step (the iteration
+stops increasing the class count by step `T`). -/
+theorem stableSetoid_fixed (s : Setoid (Fin T)) :
+    refineSetoid B W (stableSetoid B W s) = stableSetoid B W s :=
+  (exists_refineSetoidIter_fixed B W s).choose_spec.2
+
+/-- **Stable ⟹ equitable** (fixed-point form): at a refinement fixed point `s`,
+two vertices in the same class have identical weighted edge-distributions to
+every class — the edge-distribution data is class-independent. Immediate from
+`refineRel` holding on the class at a fixed point. -/
+theorem stable_imp_equitable (s : Setoid (Fin T)) (hfix : refineSetoid B W s = s)
+    {i j : Fin T} (hij : s.r i j) (k : Fin T) (v : ℝ) :
+    refineMeasure B W (classIndicator s.r k) i v
+      = refineMeasure B W (classIndicator s.r k) j v := by
+  have h : refineRel B W s.r i j := by
+    have hh : (refineSetoid B W s).r i j := by rw [hfix]; exact hij
+    exact hh
+  exact h.2 k v
+
+/-- **The stable coloring is equitable**: same-class vertices of `stableSetoid B W s`
+share all their weighted edge-distribution data. -/
+theorem stable_equitable (s : Setoid (Fin T)) {i j : Fin T}
+    (hij : (stableSetoid B W s).r i j) (k : Fin T) (v : ℝ) :
+    refineMeasure B W (classIndicator (stableSetoid B W s).r k) i v
+      = refineMeasure B W (classIndicator (stableSetoid B W s).r k) j v :=
+  stable_imp_equitable B W (stableSetoid B W s) (stableSetoid_fixed B W s) hij k v
+
+/-- **Reverse inclusion: stable class ⟹ orbit** (deferred hard direction). Under
+symmetric twin-free `B` and positive `W`, every stable refinement class is a
+single weighted-automorphism orbit. This is the coherent-configuration /
+weighted-WL reconstruction theorem — the genuine remaining content toward
+`multiEvalOnOrbit_separates`. The equitable-partition input is supplied by
+`stable_equitable`; the automorphism construction from equitability is deferred. -/
+theorem stable_imp_vertexOrbitRel (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) {i j : Fin T}
+    (h : (stableSetoid B W ⊤).r i j) : vertexOrbitRel B W i j := by
+  sorry
+
 end Refinement
 
 end Graphon.Spectral
