@@ -1127,6 +1127,107 @@ theorem exists_fiber_coupling (s : Setoid (Fin T)) (hW : ∀ t, 0 ≤ W t) {i j 
   · rw [← Finset.sum_filter, ← Finset.sum_filter]
     exact stable_classMeasure_eq B W s hij k v
 
+/-- Total `W`-weight of the `i`-fiber of `k`'s stable class at value `v`
+(`∑_{t ∈ class k, B i t = v} W t`); the local normalizer of the assembled
+coupling. -/
+noncomputable def iFiberWeight (s : Setoid (Fin T)) (i k : Fin T) (v : ℝ) : ℝ :=
+  ∑ t ∈ Finset.univ.filter (fun t => B i t = v ∧ (stableSetoid B W s).r k t), W t
+
+/-- **Assembled coupling matrix** for a stable-equivalent pair `(i, j)`: glue the
+per-class/value product couplings into one matrix. `X a b` couples `a` (viewed via
+the `i`-row) with `b` (viewed via the `j`-row) when they share a stable class and
+`B i a = B j b`, with mass `W a · W b` normalized by `a`'s `i`-fiber weight. -/
+noncomputable def couplingMatrix (s : Setoid (Fin T)) (i j a b : Fin T) : ℝ :=
+  if B i a = B j b ∧ (stableSetoid B W s).r a b
+  then W a * W b / iFiberWeight B W s i a (B i a) else 0
+
+/-- A vertex lies in its own `i`-fiber, so that fiber has positive weight. -/
+theorem iFiberWeight_self_pos (s : Setoid (Fin T)) (hW : ∀ t, 0 < W t) (i a : Fin T) :
+    0 < iFiberWeight B W s i a (B i a) := by
+  rw [iFiberWeight]
+  refine lt_of_lt_of_le (hW a) (Finset.single_le_sum (fun t _ => (hW t).le) ?_)
+  exact Finset.mem_filter.mpr ⟨Finset.mem_univ a, rfl, (stableSetoid B W s).iseqv.refl a⟩
+
+/-- **(1) Nonnegativity** of the assembled coupling. -/
+theorem couplingMatrix_nonneg (s : Setoid (Fin T)) (hW : ∀ t, 0 < W t) (i j a b : Fin T) :
+    0 ≤ couplingMatrix B W s i j a b := by
+  rw [couplingMatrix]
+  split_ifs with hcond
+  · exact div_nonneg (mul_nonneg (hW a).le (hW b).le)
+      (by rw [iFiberWeight]; exact Finset.sum_nonneg fun t _ => (hW t).le)
+  · exact le_refl 0
+
+/-- **(4) Support**: a nonzero entry forces the two vertices into the same stable
+class with equal relevant row-values. -/
+theorem couplingMatrix_support (s : Setoid (Fin T)) (i j a b : Fin T)
+    (h : couplingMatrix B W s i j a b ≠ 0) :
+    (stableSetoid B W s).r a b ∧ B i a = B j b := by
+  rw [couplingMatrix] at h
+  by_cases hcond : B i a = B j b ∧ (stableSetoid B W s).r a b
+  · exact ⟨hcond.2, hcond.1⟩
+  · rw [if_neg hcond] at h; exact absurd rfl h
+
+/-- **(2) Row marginals**: each row of the assembled coupling sums to `W a`. -/
+theorem couplingMatrix_row (s : Setoid (Fin T)) (hW : ∀ t, 0 < W t) {i j : Fin T}
+    (hij : (stableSetoid B W s).r i j) (a : Fin T) :
+    ∑ b, couplingMatrix B W s i j a b = W a := by
+  have hD : 0 < iFiberWeight B W s i a (B i a) := iFiberWeight_self_pos B W s hW i a
+  simp only [couplingMatrix]
+  rw [← Finset.sum_filter]
+  have hsum : (∑ b ∈ Finset.univ.filter
+        (fun b => B i a = B j b ∧ (stableSetoid B W s).r a b), W b)
+      = iFiberWeight B W s i a (B i a) := by
+    rw [iFiberWeight, stable_classMeasure_eq B W s hij a (B i a)]
+    apply Finset.sum_congr _ (fun _ _ => rfl)
+    ext t
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+    constructor
+    · rintro ⟨h1, h2⟩; exact ⟨h1.symm, h2⟩
+    · rintro ⟨h1, h2⟩; exact ⟨h1.symm, h2⟩
+  rw [← Finset.sum_div, ← Finset.mul_sum, hsum, mul_div_assoc, div_self hD.ne', mul_one]
+
+/-- **(3) Column marginals**: each column of the assembled coupling sums to `W b`. -/
+theorem couplingMatrix_col (s : Setoid (Fin T)) (hW : ∀ t, 0 < W t) {i j : Fin T}
+    (hij : (stableSetoid B W s).r i j) (b : Fin T) :
+    ∑ a, couplingMatrix B W s i j a b = W b := by
+  have hE : 0 < iFiberWeight B W s i b (B j b) := by
+    rw [iFiberWeight, stable_classMeasure_eq B W s hij b (B j b)]
+    refine lt_of_lt_of_le (hW b) (Finset.single_le_sum (fun t _ => (hW t).le) ?_)
+    exact Finset.mem_filter.mpr ⟨Finset.mem_univ b, rfl, (stableSetoid B W s).iseqv.refl b⟩
+  have hfib : ∀ a, B i a = B j b → (stableSetoid B W s).r a b →
+      iFiberWeight B W s i a (B i a) = iFiberWeight B W s i b (B j b) := by
+    intro a hab hRab
+    rw [iFiberWeight, iFiberWeight]
+    apply Finset.sum_congr _ (fun _ _ => rfl)
+    ext t
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+    constructor
+    · rintro ⟨h1, h2⟩
+      exact ⟨hab ▸ h1, (stableSetoid B W s).iseqv.trans ((stableSetoid B W s).iseqv.symm hRab) h2⟩
+    · rintro ⟨h1, h2⟩
+      exact ⟨h1.trans hab.symm, (stableSetoid B W s).iseqv.trans hRab h2⟩
+  simp only [couplingMatrix]
+  rw [← Finset.sum_filter]
+  have heq : ∀ a ∈ Finset.univ.filter
+        (fun a => B i a = B j b ∧ (stableSetoid B W s).r a b),
+      W a * W b / iFiberWeight B W s i a (B i a)
+        = W a * W b / iFiberWeight B W s i b (B j b) := by
+    intro a ha
+    rw [Finset.mem_filter] at ha
+    rw [hfib a ha.2.1 ha.2.2]
+  rw [Finset.sum_congr rfl heq]
+  have hsum_a : (∑ a ∈ Finset.univ.filter
+        (fun a => B i a = B j b ∧ (stableSetoid B W s).r a b), W a)
+      = iFiberWeight B W s i b (B j b) := by
+    rw [iFiberWeight]
+    apply Finset.sum_congr _ (fun _ _ => rfl)
+    ext t
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+    constructor
+    · rintro ⟨h1, h2⟩; exact ⟨h1, (stableSetoid B W s).iseqv.symm h2⟩
+    · rintro ⟨h1, h2⟩; exact ⟨h1, (stableSetoid B W s).iseqv.symm h2⟩
+  rw [← Finset.sum_div, ← Finset.sum_mul, hsum_a, mul_div_right_comm, div_self hE.ne', one_mul]
+
 /-- **Reverse inclusion: stable class ⟹ orbit** (deferred hard direction). Under
 symmetric twin-free `B` and positive `W`, every stable refinement class is a
 single weighted-automorphism orbit. This is the coherent-configuration /
