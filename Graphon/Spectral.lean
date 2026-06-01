@@ -21,6 +21,7 @@ import Mathlib.Data.Real.Basic
 import Mathlib.LinearAlgebra.Dimension.Constructions
 import Mathlib.LinearAlgebra.Dimension.StrongRankCondition
 import Mathlib.LinearAlgebra.Dual.Lemmas
+import Mathlib.LinearAlgebra.Lagrange
 import Graphon.Lovasz
 
 namespace Graphon.Spectral
@@ -614,5 +615,71 @@ theorem finrank_multiSpan_eq_card_orbitClass {T : ℕ} (K : ℕ) (B : Fin T → 
     Module.finrank ℝ (multiSpanSubmodule K B W) = Nat.card (OrbitClass T K B W) :=
   le_antisymm (finrank_multiSpan_le_card_orbitClass K B W)
     (card_orbitClass_le_finrank_multiSpan K B W hB hW htwin)
+
+/-! ### Level-1 foundation for the weighted-WL build
+
+`weighted_powersum_determines_measure`: a finite signed measure on `ℝ` (here, `W`-weighted values
+of a function on a finite index) is determined by its power-sum moments. This is the K=1 level-1
+refinement step (the single-vertex multigraph moments read each vertex's weighted row measure), and
+a reusable brick for the eventual `multiEvalOnOrbit_separates` (weighted Weisfeiler–Leman) proof. -/
+
+/-- **Weighted power sums determine the weighted value measure.** If `∑_t W t · (x t)^k =
+∑_t W t · (y t)^k` for all `k`, then for every value `a` the `W`-weighted preimage masses agree:
+`∑_{t : x t = a} W t = ∑_{t : y t = a} W t`. (No positivity of `W` is needed for this form; the
+proof is a Lagrange interpolation that turns moment equality into preimage-mass equality.) -/
+theorem weighted_powersum_determines_measure {ι : Type*} [Fintype ι] [DecidableEq ι]
+    (x y : ι → ℝ) (W : ι → ℝ)
+    (hmom : ∀ k : ℕ, ∑ i, W i * x i ^ k = ∑ i, W i * y i ^ k) (a : ℝ) :
+    (∑ i ∈ Finset.univ.filter (fun i => x i = a), W i) =
+      ∑ i ∈ Finset.univ.filter (fun i => y i = a), W i := by
+  classical
+  -- Moment equality extends to `∑ W·Q(·)` for every polynomial `Q`.
+  have hpoly : ∀ Q : Polynomial ℝ,
+      (∑ i, W i * Q.eval (x i)) = ∑ i, W i * Q.eval (y i) := by
+    intro Q
+    have key : ∀ z : ι → ℝ, (∑ i, W i * Q.eval (z i)) =
+        ∑ k ∈ Finset.range (Q.natDegree + 1), Q.coeff k * ∑ i, W i * z i ^ k := by
+      intro z
+      simp_rw [Polynomial.eval_eq_sum_range, Finset.mul_sum]
+      rw [Finset.sum_comm]
+      refine Finset.sum_congr rfl fun k _ => ?_
+      exact Finset.sum_congr rfl fun i _ => by ring
+    rw [key x, key y]
+    exact Finset.sum_congr rfl fun k _ => by rw [hmom k]
+  -- The Lagrange indicator polynomial for value `a` over the set of occurring values.
+  set S : Finset ℝ := Finset.univ.image x ∪ Finset.univ.image y with hSdef
+  set Pa : Polynomial ℝ :=
+    ∏ b ∈ S.erase a, Polynomial.C (a - b)⁻¹ * (Polynomial.X - Polynomial.C b) with hPaDef
+  have hPa : ∀ c ∈ S, Pa.eval c = if c = a then 1 else 0 := by
+    intro c hc
+    by_cases hca : c = a
+    · subst hca
+      rw [if_pos rfl, hPaDef]
+      simp only [Polynomial.eval_prod, Polynomial.eval_mul, Polynomial.eval_C,
+        Polynomial.eval_sub, Polynomial.eval_X]
+      refine Finset.prod_eq_one fun b hb => ?_
+      have hcb : c - b ≠ 0 := sub_ne_zero.mpr (Ne.symm (Finset.ne_of_mem_erase hb))
+      exact inv_mul_cancel₀ hcb
+    · rw [if_neg hca, hPaDef]
+      have hce : c ∈ S.erase a := Finset.mem_erase.mpr ⟨hca, hc⟩
+      simp only [Polynomial.eval_prod]
+      refine Finset.prod_eq_zero hce ?_
+      simp only [Polynomial.eval_mul, Polynomial.eval_sub, Polynomial.eval_X, Polynomial.eval_C,
+        sub_self, mul_zero]
+  have hx : (∑ i, W i * Pa.eval (x i)) =
+      ∑ i ∈ Finset.univ.filter (fun i => x i = a), W i := by
+    rw [Finset.sum_filter]
+    refine Finset.sum_congr rfl fun i _ => ?_
+    have hxiS : x i ∈ S :=
+      Finset.mem_union.mpr (Or.inl (Finset.mem_image_of_mem x (Finset.mem_univ i)))
+    rw [hPa (x i) hxiS]; split_ifs <;> simp
+  have hy : (∑ i, W i * Pa.eval (y i)) =
+      ∑ i ∈ Finset.univ.filter (fun i => y i = a), W i := by
+    rw [Finset.sum_filter]
+    refine Finset.sum_congr rfl fun i _ => ?_
+    have hyiS : y i ∈ S :=
+      Finset.mem_union.mpr (Or.inr (Finset.mem_image_of_mem y (Finset.mem_univ i)))
+    rw [hPa (y i) hyiS]; split_ifs <;> simp
+  rw [← hx, ← hy]; exact hpoly Pa
 
 end Graphon.Spectral
