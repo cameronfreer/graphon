@@ -938,6 +938,67 @@ theorem exists_refineSetoidIter_fixed (s : Setoid (Fin T)) :
   obtain ⟨n, hnT, hfn⟩ := hstab
   exact ⟨n, hnT, refineSetoid_eq_of_classCount_eq B W (refineSetoidIter B W s n) hfn⟩
 
+/-! #### Automorphism invariance: orbits ⊆ refinement classes (easy direction)
+
+A weighted automorphism `σ` preserves the refined measure of any class it
+saturates (`∀ i, r i (σ i)`), because reindexing the defining sum by `σ` fixes
+`B`, `W`, and the class indicator. Iterating from the trivial coloring `⊤` (which
+every automorphism saturates), each refinement iterate stays σ-saturated, so the
+orbit of `i` lies in every refinement class of `i`. -/
+
+/-- **Refined measure is automorphism-invariant** on a σ-saturated coloring:
+reindex the defining sum by `σ`, using `B`/`W`-invariance and that `σ s` shares
+the `r`-class of `s`. -/
+theorem refineMeasure_classIndicator_aut (r : Fin T → Fin T → Prop)
+    (hr : Equivalence r) (σ : Equiv.Perm (Fin T))
+    (hσW : ∀ i, W (σ i) = W i) (hσB : ∀ i j, B (σ i) (σ j) = B i j)
+    (hsat : ∀ i, r i (σ i)) (k i : Fin T) (v : ℝ) :
+    refineMeasure B W (classIndicator r k) (σ i) v
+      = refineMeasure B W (classIndicator r k) i v := by
+  unfold refineMeasure
+  rw [Finset.sum_filter, Finset.sum_filter,
+    ← Equiv.sum_comp σ (fun t => if B (σ i) t = v then W t * classIndicator r k t else 0)]
+  refine Finset.sum_congr rfl fun s _ => ?_
+  have hci : classIndicator r k (σ s) = classIndicator r k s := by
+    unfold classIndicator
+    by_cases h : r k s
+    · rw [if_pos h, if_pos (hr.trans h (hsat s))]
+    · rw [if_neg h, if_neg fun hc => h (hr.trans hc (hr.symm (hsat s)))]
+  rw [hσB i s, hσW s, hci]
+
+/-- Every refinement iterate from the trivial coloring `⊤` is saturated by any
+weighted automorphism: `i` and `σ i` always share a class. -/
+theorem refineSetoidIter_top_saturated (σ : Equiv.Perm (Fin T))
+    (hσW : ∀ i, W (σ i) = W i) (hσB : ∀ i j, B (σ i) (σ j) = B i j) :
+    ∀ (n : ℕ) (i : Fin T), (refineSetoidIter B W ⊤ n).r i (σ i) := by
+  intro n
+  induction n with
+  | zero => intro i; trivial
+  | succ m ih =>
+    intro i
+    exact ⟨ih i, fun k v =>
+      (refineMeasure_classIndicator_aut B W (refineSetoidIter B W ⊤ m).r
+        (refineSetoidIter B W ⊤ m).iseqv σ hσW hσB ih k i v).symm⟩
+
+/-- **Orbits ⊆ refinement classes** (easy containment): the weighted-automorphism
+orbit of a vertex lies in every refinement class from the trivial coloring. -/
+theorem vertexOrbitRel_imp_refineSetoidIter {i j : Fin T}
+    (h : vertexOrbitRel B W i j) (n : ℕ) : (refineSetoidIter B W ⊤ n).r i j := by
+  obtain ⟨σ, ⟨hσW, hσB⟩, hσij⟩ := h
+  rw [← hσij]
+  exact refineSetoidIter_top_saturated B W σ hσW hσB n i
+
+/-- The stable coloring: refinement iterated to its fixed point (reached by `T`). -/
+noncomputable def stableSetoid (s : Setoid (Fin T)) : Setoid (Fin T) :=
+  refineSetoidIter B W s (exists_refineSetoidIter_fixed B W s).choose
+
+/-- **Orbit ⟹ stable-class** (easy direction of `stable = orbit`): weighted
+automorphism orbits are contained in the stable refinement classes. The reverse
+inclusion (stable class ⟹ orbit) is the coherent-configuration theorem, deferred. -/
+theorem vertexOrbitRel_imp_stable {i j : Fin T} (h : vertexOrbitRel B W i j) :
+    (stableSetoid B W ⊤).r i j :=
+  vertexOrbitRel_imp_refineSetoidIter B W h _
+
 end Refinement
 
 end Graphon.Spectral
