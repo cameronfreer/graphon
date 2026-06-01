@@ -1033,6 +1033,54 @@ theorem stable_equitable (s : Setoid (Fin T)) {i j : Fin T}
       = refineMeasure B W (classIndicator (stableSetoid B W s).r k) j v :=
   stable_imp_equitable B W (stableSetoid B W s) (stableSetoid_fixed B W s) hij k v
 
+/-- **Classwise measure equality** (step 1 of the reconstruction). For
+stable-equivalent `i, j` and each stable class (represented by `k`), the
+`W`-weighted value-measure of the `B`-row over that class agrees: for every value
+`v`, the `W`-mass of class members `t` with `B i t = v` equals that with
+`B j t = v`. Unfolds `stable_equitable` via `refineMeasure_classIndicator`; this
+is the equal-value-multiset input for building a row-preserving bijection. -/
+theorem stable_classMeasure_eq (s : Setoid (Fin T)) {i j : Fin T}
+    (hij : (stableSetoid B W s).r i j) (k : Fin T) (v : ℝ) :
+    (∑ t ∈ Finset.univ.filter (fun t => B i t = v ∧ (stableSetoid B W s).r k t), W t)
+      = ∑ t ∈ Finset.univ.filter (fun t => B j t = v ∧ (stableSetoid B W s).r k t), W t := by
+  rw [← refineMeasure_classIndicator, ← refineMeasure_classIndicator]
+  exact stable_equitable B W s hij k v
+
+/-- **Classwise moment / row equality.** The classwise measure equality lifts to
+all power-sum moments of the `B`-row over a stable class: for stable-equivalent
+`i, j`, every class `k`, and every `a`,
+`∑_{t ∈ class k} W t · B i t ^ a = ∑_{t ∈ class k} W t · B j t ^ a`. The case
+`a = 1` is the weighted row-sum to each class. Derived from `stable_classMeasure_eq`
+by fiberwise decomposition over the (finite) set of occurring `B`-values. -/
+theorem stable_classMoment_eq (s : Setoid (Fin T)) {i j : Fin T}
+    (hij : (stableSetoid B W s).r i j) (k : Fin T) (a : ℕ) :
+    (∑ t ∈ Finset.univ.filter (fun t => (stableSetoid B W s).r k t), W t * B i t ^ a)
+      = ∑ t ∈ Finset.univ.filter (fun t => (stableSetoid B W s).r k t), W t * B j t ^ a := by
+  set R := (stableSetoid B W s).r with hR
+  set C : Finset (Fin T) := Finset.univ.filter (fun t => R k t) with hC
+  set S : Finset ℝ := C.image (B i) ∪ C.image (B j) with hS
+  have decomp : ∀ g : Fin T → ℝ, (∀ t ∈ C, g t ∈ S) →
+      (∑ t ∈ C, W t * g t ^ a) = ∑ v ∈ S, v ^ a * ∑ t ∈ C.filter (fun t => g t = v), W t := by
+    intro g hg
+    rw [← Finset.sum_fiberwise_of_maps_to hg (fun t => W t * g t ^ a)]
+    refine Finset.sum_congr rfl fun v _ => ?_
+    rw [Finset.mul_sum]
+    refine Finset.sum_congr rfl fun t ht => ?_
+    rw [Finset.mem_filter] at ht
+    rw [ht.2]; ring
+  rw [decomp (B i) (fun t ht => Finset.mem_union.mpr (Or.inl (Finset.mem_image_of_mem _ ht))),
+    decomp (B j) (fun t ht => Finset.mem_union.mpr (Or.inr (Finset.mem_image_of_mem _ ht)))]
+  refine Finset.sum_congr rfl fun v _ => ?_
+  congr 1
+  have hconv : ∀ w : Fin T → ℝ, C.filter (fun t => w t = v)
+      = Finset.univ.filter (fun t => w t = v ∧ R k t) := by
+    intro w
+    ext t
+    simp only [hC, Finset.mem_filter, Finset.mem_univ, true_and]
+    tauto
+  rw [hconv (B i), hconv (B j)]
+  exact stable_classMeasure_eq B W s hij k v
+
 /-- **Reverse inclusion: stable class ⟹ orbit** (deferred hard direction). Under
 symmetric twin-free `B` and positive `W`, every stable refinement class is a
 single weighted-automorphism orbit. This is the coherent-configuration /
