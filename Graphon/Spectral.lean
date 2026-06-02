@@ -465,11 +465,35 @@ lemma multiOrbitSpan_mul_le {T K : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ 
   funext q
   exact multiEvalOnOrbit_glue B hB W p.2 p'.2 q
 
-/-- **Point separation** (the cleaner residue, the genuine Lovász §3 detector theorem):
-distinct orbit classes are distinguished by some descended multigraph evaluation. SORRY. Must
-be proved via the richer multigraph monomials (closed-walk / moment observables), NOT through
-`orbit_separation_by_simple_graph`. With the descended-eval algebra (`.mul`, `1`) this gives
-the orbit indicators by Lagrange interpolation, hence `multiOrbitSpan = ⊤`. -/
+/-- **Rooted weighted-multigraph hom-counts determine the orbit** — the genuine
+remaining content of the Lovász §3 reconstruction theorem, and the SOLE honest
+paper-root of the #62/#73 line.
+
+Statement (separation / contrapositive form): under symmetric `B`, positive `W`,
+and twin-free `B`, two *distinct* `Aut(B,W)`-orbit classes are distinguished by
+some rooted multigraph evaluation. Equivalently
+(`multigraph_hom_counts_determine_orbit`): if `multiLabeledEvalK K n M B W` agrees
+on two tuples for *every* rooted multigraph `M`, the tuples are `Aut(B,W)`-orbit
+related. This is the classical Lovász weighted-graph statement "homomorphism
+counts from all (rooted) multigraphs determine a vertex/tuple up to automorphism
+orbit", specialized to the connection-matrix/orbit-quotient setting.
+
+It is the SOLE residue: given it, the descended-eval algebra (`multiOrbitSpan` is
+a unital subalgebra via `multiEvalOnOrbit_one`/`multiOrbitSpan_mul_le`) yields the
+orbit indicators by Lagrange interpolation, so `multiOrbitSpan = ⊤`, closing
+Lemma 2.5 / #62 / #73.
+
+Two non-routes (both falsified, do not attempt):
+* NOT through `orbit_separation_by_simple_graph` — that is downstream of this
+  theorem (cyclic; see the Phase-B cycle warning in `Lovasz.lean`).
+* NOT through the 1-WL / color-refinement tower of `refineRel`/`stableSetoid` —
+  that computes the 1-WL partition, which is *strictly coarser than orbits*
+  (Frucht-graph counterexample; see `wl-tower-1wl-not-orbit` and the KNOWN-FALSE
+  `stable_imp_vertexOrbitRel`). Fractional automorphisms ≠ automorphisms.
+
+The proof needs the *full* rooted-multigraph hierarchy (closed-walk / moment
+observables of all orders), i.e. the genuine Lovász homomorphism-counting
+theorem, not any finite/local refinement. SORRY (paper-root). -/
 theorem multiEvalOnOrbit_separates {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {q₁ q₂ : OrbitClass T K B W} (hne : q₁ ≠ q₂) :
