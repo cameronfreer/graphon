@@ -433,6 +433,24 @@ theorem multiEvalOnOrbit_glue {T K n₁ n₂ : ℕ} (B : Fin T → Fin T → ℝ
   induction q using Quotient.ind with
   | _ ξ => exact multiLabeledEvalK_glue B hB W M₁ M₂ ξ
 
+/-- **Gram = glue** identity (FLS connection-matrix Gram entry). The orbit inner
+product of two descended evals collapses to a *single* descended evaluation of the
+glued multigraph against `1`:
+`⟨ev M₁, ev M₂⟩ = ⟨1, ev (M₁.glue M₂)⟩`. Immediate from `multiEvalOnOrbit_glue`
+(glue ↦ pointwise product) and the definition of `orbitInner`. This is the first
+slice of the FLS PSD-rank proof of `connectionMatrix_full_rank`: it identifies the
+Gram matrix of the eval vectors with the single-row data `q ↦ ⟨1, ev M q⟩`. -/
+theorem orbitInner_eval_eval {T K n₁ n₂ : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (M₁ : MultiLabeledGraph K n₁) (M₂ : MultiLabeledGraph K n₂) :
+    orbitInner K B W (multiEvalOnOrbit K n₁ M₁ B W) (multiEvalOnOrbit K n₂ M₂ B W)
+      = orbitInner K B W 1 (multiEvalOnOrbit K (n₁ + n₂) (M₁.glue M₂) B W) := by
+  unfold orbitInner
+  refine Finset.sum_congr rfl fun q _ => ?_
+  rw [multiEvalOnOrbit_glue B hB W M₁ M₂ q]
+  simp only [Pi.one_apply]
+  ring
+
 /-- The span of the descended evals inside `OrbitClass → ℝ`. -/
 noncomputable def multiOrbitSpan {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
     (W : Fin T → ℝ) : Submodule ℝ (OrbitClass T K B W → ℝ) :=
