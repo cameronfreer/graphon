@@ -465,41 +465,64 @@ lemma multiOrbitSpan_mul_le {T K : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ 
   funext q
   exact multiEvalOnOrbit_glue B hB W p.2 p'.2 q
 
-/-- **Rooted weighted-multigraph hom-counts determine the orbit** — the genuine
-remaining content of the Lovász §3 reconstruction theorem, and the SOLE honest
-paper-root of the #62/#73 line.
+/-- **Connection-matrix full rank** — THE single paper-root for the Lovász §3 /
+#62 / #73 line, in Lovász/FLS rank language: the descended orbit-class evaluation
+vectors span every orbit-class function, `multiOrbitSpan K B W = ⊤`.
 
-Statement (separation / contrapositive form): under symmetric `B`, positive `W`,
-and twin-free `B`, two *distinct* `Aut(B,W)`-orbit classes are distinguished by
-some rooted multigraph evaluation. Equivalently
-(`multigraph_hom_counts_determine_orbit`): if `multiLabeledEvalK K n M B W` agrees
-on two tuples for *every* rooted multigraph `M`, the tuples are `Aut(B,W)`-orbit
-related. This is the classical Lovász weighted-graph statement "homomorphism
-counts from all (rooted) multigraphs determine a vertex/tuple up to automorphism
-orbit", specialized to the connection-matrix/orbit-quotient setting.
+Equivalently (via `multiOrbitSpan_eq_top_iff_separates`) rooted weighted-multigraph
+hom-counts separate `Aut(B,W)`-orbit classes — that is `multiEvalOnOrbit_separates`,
+now a one-line corollary below. This is the classical Lovász / FLS connection-matrix
+full-rank (PSD-rank) theorem under symmetric `B`, positive `W`, twin-free `B`; the
+easy inequality `finrank ≤ #orbits` is `finrank_multiSpan_le_card_orbitClass`, and
+this is the hard direction `≥` (full rank).
 
-It is the SOLE residue: given it, the descended-eval algebra (`multiOrbitSpan` is
-a unital subalgebra via `multiEvalOnOrbit_one`/`multiOrbitSpan_mul_le`) yields the
-orbit indicators by Lagrange interpolation, so `multiOrbitSpan = ⊤`, closing
-Lemma 2.5 / #62 / #73.
+Falsified non-routes (do not attempt): simple-graph separation
+(`orbit_separation_by_simple_graph`, downstream/cyclic) and the 1-WL
+`refineRel`/`stableSetoid` tower (1-WL ⊊ orbits; Frucht counterexample;
+`wl-tower-1wl-not-orbit`; fractional automorphisms ≠ automorphisms). To be proved
+via the full rooted-multigraph hierarchy (FLS PSD-rank), not local refinement.
+SORRY (paper-root). -/
+theorem connectionMatrix_full_rank {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    multiOrbitSpan K B W = ⊤ := by
+  sorry
 
-Two non-routes (both falsified, do not attempt):
-* NOT through `orbit_separation_by_simple_graph` — that is downstream of this
-  theorem (cyclic; see the Phase-B cycle warning in `Lovasz.lean`).
-* NOT through the 1-WL / color-refinement tower of `refineRel`/`stableSetoid` —
-  that computes the 1-WL partition, which is *strictly coarser than orbits*
-  (Frucht-graph counterexample; see `wl-tower-1wl-not-orbit` and the KNOWN-FALSE
-  `stable_imp_vertexOrbitRel`). Fractional automorphisms ≠ automorphisms.
+/-- **Full span ⟹ point separation** (easy direction): if the descended evals span
+every orbit-class function (`multiOrbitSpan = ⊤`) then they separate orbit classes.
+If all evals agreed at `q₁ ≠ q₂`, the whole span — including the `q₁`-indicator —
+would too, but the indicator separates them. -/
+theorem sep_of_multiOrbitSpan_eq_top {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (htop : multiOrbitSpan K B W = ⊤) {q₁ q₂ : OrbitClass T K B W} (hne : q₁ ≠ q₂) :
+    ∃ (n : ℕ) (M : MultiLabeledGraph K n),
+      multiEvalOnOrbit K n M B W q₁ ≠ multiEvalOnOrbit K n M B W q₂ := by
+  classical
+  by_contra hcon
+  push_neg at hcon
+  have hle : multiOrbitSpan K B W ≤
+      LinearMap.ker ((LinearMap.proj q₁ : (OrbitClass T K B W → ℝ) →ₗ[ℝ] ℝ) - LinearMap.proj q₂) := by
+    rw [multiOrbitSpan, Submodule.span_le]
+    rintro _ ⟨⟨n, M⟩, rfl⟩
+    rw [SetLike.mem_coe, LinearMap.mem_ker, LinearMap.sub_apply, LinearMap.proj_apply,
+      LinearMap.proj_apply, sub_eq_zero]
+    exact hcon n M
+  have hδ : (fun q' => if q' = q₁ then (1 : ℝ) else 0)
+      ∈ LinearMap.ker ((LinearMap.proj q₁ : (OrbitClass T K B W → ℝ) →ₗ[ℝ] ℝ)
+        - LinearMap.proj q₂) := by
+    apply hle; rw [htop]; exact Submodule.mem_top
+  rw [LinearMap.mem_ker, LinearMap.sub_apply, LinearMap.proj_apply, LinearMap.proj_apply,
+    if_pos rfl, if_neg (Ne.symm hne), sub_zero] at hδ
+  exact one_ne_zero hδ
 
-The proof needs the *full* rooted-multigraph hierarchy (closed-walk / moment
-observables of all orders), i.e. the genuine Lovász homomorphism-counting
-theorem, not any finite/local refinement. SORRY (paper-root). -/
+/-- **Rooted weighted-multigraph hom-counts separate orbit classes** (Lovász §3
+detector theorem) — now a one-line corollary of the paper-root
+`connectionMatrix_full_rank` via the easy direction. Distinct `Aut(B,W)`-orbit
+classes are distinguished by some rooted multigraph evaluation. -/
 theorem multiEvalOnOrbit_separates {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {q₁ q₂ : OrbitClass T K B W} (hne : q₁ ≠ q₂) :
     ∃ (n : ℕ) (M : MultiLabeledGraph K n),
-      multiEvalOnOrbit K n M B W q₁ ≠ multiEvalOnOrbit K n M B W q₂ := by
-  sorry
+      multiEvalOnOrbit K n M B W q₁ ≠ multiEvalOnOrbit K n M B W q₂ :=
+  sep_of_multiOrbitSpan_eq_top K B W (connectionMatrix_full_rank K B W hB hW htwin) hne
 
 /-- **Finset product closure** of `multiOrbitSpan` (via `mul` + `1`). -/
 lemma multiOrbitSpan_prod_mem {T K : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
@@ -665,31 +688,6 @@ theorem multiOrbitSpan_eq_top_of_sep {T : ℕ} (K : ℕ) (B : Fin T → Fin T �
   rw [hg]
   exact Submodule.sum_mem _ (fun q _ =>
     Submodule.smul_mem _ _ (orbitClassIndicator_mem_of_sep B hB W hsep q))
-
-/-- **Full span ⟹ point separation** (easy direction): if the descended evals span
-every orbit-class function (`multiOrbitSpan = ⊤`) then they separate orbit classes.
-If all evals agreed at `q₁ ≠ q₂`, the whole span — including the `q₁`-indicator —
-would too, but the indicator separates them. -/
-theorem sep_of_multiOrbitSpan_eq_top {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (htop : multiOrbitSpan K B W = ⊤) {q₁ q₂ : OrbitClass T K B W} (hne : q₁ ≠ q₂) :
-    ∃ (n : ℕ) (M : MultiLabeledGraph K n),
-      multiEvalOnOrbit K n M B W q₁ ≠ multiEvalOnOrbit K n M B W q₂ := by
-  classical
-  by_contra hcon
-  push_neg at hcon
-  have hle : multiOrbitSpan K B W ≤
-      LinearMap.ker ((LinearMap.proj q₁ : (OrbitClass T K B W → ℝ) →ₗ[ℝ] ℝ) - LinearMap.proj q₂) := by
-    rw [multiOrbitSpan, Submodule.span_le]
-    rintro _ ⟨⟨n, M⟩, rfl⟩
-    rw [SetLike.mem_coe, LinearMap.mem_ker, LinearMap.sub_apply, LinearMap.proj_apply,
-      LinearMap.proj_apply, sub_eq_zero]
-    exact hcon n M
-  have hδ : (fun q' => if q' = q₁ then (1 : ℝ) else 0)
-      ∈ LinearMap.ker ((LinearMap.proj q₁ : (OrbitClass T K B W → ℝ) →ₗ[ℝ] ℝ) - LinearMap.proj q₂) := by
-    apply hle; rw [htop]; exact Submodule.mem_top
-  rw [LinearMap.mem_ker, LinearMap.sub_apply, LinearMap.proj_apply, LinearMap.proj_apply,
-    if_pos rfl, if_neg (Ne.symm hne), sub_zero] at hδ
-  exact one_ne_zero hδ
 
 /-- **Point separation ⟺ full span** — the `connectionMatrix_full_rank` reframing.
 The Lovász §3 point-separation theorem (`multiEvalOnOrbit_separates`) is equivalent to
