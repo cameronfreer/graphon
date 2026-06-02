@@ -1312,6 +1312,94 @@ theorem avgMatrix_pos (s : Setoid (Fin T)) (hW : ∀ t, 0 < W t) {i j : Fin T}
   rw [avgMatrix, if_pos h]
   exact div_pos (hW j) (classWeight_pos B W s hW i)
 
+/-- **(4) `W`-weighted `B`-commutation** of the class-averaging fractional
+automorphism: `avgMatrix` commutes with the `W`-weighted adjacency operator
+(kernel `B a c · W c`),
+`W b · ∑_c X a c · B c b = ∑_c W c · B a c · X c b`.
+The key algebraic property; follows from equitability (`stable_classMoment_eq` at
+moment `1`) and symmetry of `B`. (The *plain* matrix identity `XB = BX` is false
+for unequal vertex weights — see the section caveat.) -/
+theorem avgMatrix_commutes (s : Setoid (Fin T)) (hB : ∀ i j, B i j = B j i)
+    (hW : ∀ t, 0 < W t) (a b : Fin T) :
+    W b * ∑ c, avgMatrix B W s a c * B c b
+      = ∑ c, W c * B a c * avgMatrix B W s c b := by
+  have hcwa := classWeight_pos B W s hW a
+  have hcwb := classWeight_pos B W s hW b
+  have hfsymm : ∀ x : Fin T, Finset.univ.filter (fun c => (stableSetoid B W s).r c x)
+      = Finset.univ.filter (fun c => (stableSetoid B W s).r x c) := by
+    intro x; ext c
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and]
+    exact ⟨fun h => (stableSetoid B W s).iseqv.symm h, fun h => (stableSetoid B W s).iseqv.symm h⟩
+  -- LHS sum  =  X / classWeight a   (X = weighted B-sum from b into a's class)
+  have hLeq : (∑ c, avgMatrix B W s a c * B c b)
+      = (∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r a c), W c * B c b)
+          / classWeight B W s a := by
+    simp only [avgMatrix, ite_mul, zero_mul]
+    rw [← Finset.sum_filter, Finset.sum_div]
+    apply Finset.sum_congr rfl
+    intro c _
+    rw [div_mul_eq_mul_div]
+  -- RHS sum  =  Y · W b / classWeight b   (Y = weighted B-sum from a into b's class)
+  have hReq : (∑ c, W c * B a c * avgMatrix B W s c b)
+      = (∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r b c), W c * B a c)
+          * W b / classWeight B W s b := by
+    simp only [avgMatrix, mul_ite, mul_zero]
+    rw [← Finset.sum_filter]
+    have hcwrepl : ∀ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r c b),
+        W c * B a c * (W b / classWeight B W s c)
+          = W c * B a c * (W b / classWeight B W s b) := by
+      intro c hc
+      rw [Finset.mem_filter] at hc
+      rw [classWeight_eq_of_rel B W s hc.2]
+    rw [Finset.sum_congr rfl hcwrepl, hfsymm b, ← Finset.sum_mul, ← mul_div_assoc]
+  -- Cross-multiplied equitable identity (the crux).
+  have hstar : classWeight B W s b
+        * (∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r a c), W c * B c b)
+      = classWeight B W s a
+        * (∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r b c), W c * B a c) := by
+    have hLHS : classWeight B W s b
+          * (∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r a c), W c * B c b)
+        = ∑ d ∈ Finset.univ.filter (fun d => (stableSetoid B W s).r b d),
+            ∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r a c), W d * W c * B d c := by
+      rw [classWeight, Finset.sum_mul]
+      apply Finset.sum_congr rfl
+      intro d hd
+      rw [Finset.mem_filter] at hd
+      have hX : (∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r a c), W c * B c b)
+          = ∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r a c), W c * B d c := by
+        rw [show (∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r a c), W c * B c b)
+            = ∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r a c), W c * B b c from
+            Finset.sum_congr rfl (fun c _ => by rw [hB c b])]
+        have hm := stable_classMoment_eq B W s hd.2 a 1
+        simp only [pow_one] at hm
+        exact hm
+      rw [hX, Finset.mul_sum]
+      apply Finset.sum_congr rfl
+      intro c _
+      ring
+    have hRHS : classWeight B W s a
+          * (∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r b c), W c * B a c)
+        = ∑ d ∈ Finset.univ.filter (fun d => (stableSetoid B W s).r a d),
+            ∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r b c), W d * W c * B d c := by
+      rw [classWeight, Finset.sum_mul]
+      apply Finset.sum_congr rfl
+      intro d hd
+      rw [Finset.mem_filter] at hd
+      have hY : (∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r b c), W c * B a c)
+          = ∑ c ∈ Finset.univ.filter (fun c => (stableSetoid B W s).r b c), W c * B d c := by
+        have hm := stable_classMoment_eq B W s hd.2 b 1
+        simp only [pow_one] at hm
+        exact hm
+      rw [hY, Finset.mul_sum]
+      apply Finset.sum_congr rfl
+      intro c _
+      ring
+    rw [hLHS, hRHS, Finset.sum_comm]
+    refine Finset.sum_congr rfl (fun d _ => Finset.sum_congr rfl (fun c _ => ?_))
+    rw [mul_comm (W c) (W d), hB c d]
+  rw [hLeq, hReq, ← mul_div_assoc, div_eq_div_iff hcwa.ne' hcwb.ne']
+  linear_combination W b * hstar
+
 /-- **Reverse inclusion: stable class ⟹ orbit** (deferred hard direction). Under
 symmetric twin-free `B` and positive `W`, every stable refinement class is a
 single weighted-automorphism orbit. This is the coherent-configuration /
