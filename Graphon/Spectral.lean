@@ -514,6 +514,63 @@ lemma multiOrbitSpan_prod_mem {T K : ℕ} (B : Fin T → Fin T → ℝ) (hB : �
     exact multiOrbitSpan_mul_le B hB W (Submodule.mul_mem_mul
       (hf a (Finset.mem_insert_self a s)) (ih (fun i hi => hf i (Finset.mem_insert_of_mem hi))))
 
+/-- **Orbit-class indicators lie in `multiOrbitSpan`, hypothesis form** — Lagrange
+interpolation over orbit classes from a *separation hypothesis* `hsep` (rather than
+the `multiEvalOnOrbit_separates` paper-root), using the descended `.mul`/`1`. This is
+the hard direction of `multiOrbitSpan_eq_top_iff_separates`. -/
+lemma orbitClassIndicator_mem_of_sep {T K : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hsep : ∀ (q₁ q₂ : OrbitClass T K B W), q₁ ≠ q₂ →
+      ∃ (n : ℕ) (M : MultiLabeledGraph K n),
+        multiEvalOnOrbit K n M B W q₁ ≠ multiEvalOnOrbit K n M B W q₂)
+    (q : OrbitClass T K B W) :
+    (fun q' : OrbitClass T K B W => if q' = q then (1 : ℝ) else 0) ∈ multiOrbitSpan K B W := by
+  classical
+  let ev : OrbitClass T K B W → (OrbitClass T K B W → ℝ) := fun η =>
+    if h : q ≠ η then
+      multiEvalOnOrbit K (hsep q η h).choose (hsep q η h).choose_spec.choose B W
+    else 0
+  let factor : OrbitClass T K B W → (OrbitClass T K B W → ℝ) := fun η ζ =>
+    (ev η ζ - ev η η) / (ev η q - ev η η)
+  let nonEq : Finset (OrbitClass T K B W) := Finset.univ.filter (fun η => η ≠ q)
+  have hdenom : ∀ η ∈ nonEq, ev η q - ev η η ≠ 0 := by
+    intro η hη
+    have hqη : q ≠ η := by
+      simp only [nonEq, Finset.mem_filter, Finset.mem_univ, true_and] at hη; exact Ne.symm hη
+    have hsepprop := (hsep q η hqη).choose_spec.choose_spec
+    simp only [ev, dif_pos hqη]
+    exact sub_ne_zero.mpr hsepprop
+  have hfac : ∀ η ∈ nonEq, factor η ∈ multiOrbitSpan K B W := by
+    intro η hη
+    have hqη : q ≠ η := by
+      simp only [nonEq, Finset.mem_filter, Finset.mem_univ, true_and] at hη; exact Ne.symm hη
+    have hev_mem : ev η ∈ multiOrbitSpan K B W := by
+      simp only [ev, dif_pos hqη]
+      exact Submodule.subset_span ⟨⟨_, _⟩, rfl⟩
+    have hrw : factor η =
+        (1 / (ev η q - ev η η)) • (ev η - (ev η η) • (1 : OrbitClass T K B W → ℝ)) := by
+      funext ζ
+      simp only [factor, Pi.smul_apply, Pi.sub_apply, Pi.one_apply, smul_eq_mul]
+      ring
+    rw [hrw]
+    exact Submodule.smul_mem _ _ (Submodule.sub_mem _ hev_mem
+      (Submodule.smul_mem _ _ (one_mem_multiOrbitSpan K B W)))
+  have hprod := multiOrbitSpan_prod_mem B hB W nonEq factor hfac
+  have heq : (∏ η ∈ nonEq, factor η) = (fun q' => if q' = q then (1 : ℝ) else 0) := by
+    funext ζ
+    rw [Finset.prod_apply]
+    by_cases hζ : ζ = q
+    · subst hζ
+      rw [if_pos rfl]
+      refine Finset.prod_eq_one (fun η hη => ?_)
+      simp only [factor]; exact div_self (hdenom η hη)
+    · rw [if_neg hζ]
+      have hζmem : ζ ∈ nonEq := by
+        simp only [nonEq, Finset.mem_filter, Finset.mem_univ, true_and]; exact hζ
+      refine Finset.prod_eq_zero hζmem ?_
+      simp only [factor, sub_self, zero_div]
+  rw [heq] at hprod; exact hprod
+
 /-- **Orbit-class indicators lie in `multiOrbitSpan`** — Lagrange interpolation over orbit
 classes, using `multiEvalOnOrbit_separates` for the separators and the descended `.mul`/`1`. -/
 lemma orbitClassIndicator_mem {T K : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
@@ -586,6 +643,69 @@ theorem multiOrbitSpan_eq_top {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) 
   rw [hg]
   exact Submodule.sum_mem _ (fun q _ =>
     Submodule.smul_mem _ _ (orbitClassIndicator_mem B hB W hW htwin q))
+
+/-- **Full span from a separation hypothesis** (hard direction of the equivalence):
+if the descended evals separate orbit classes (`hsep`) then they span everything. -/
+theorem multiOrbitSpan_eq_top_of_sep {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i)
+    (hsep : ∀ (q₁ q₂ : OrbitClass T K B W), q₁ ≠ q₂ →
+      ∃ (n : ℕ) (M : MultiLabeledGraph K n),
+        multiEvalOnOrbit K n M B W q₁ ≠ multiEvalOnOrbit K n M B W q₂) :
+    multiOrbitSpan K B W = ⊤ := by
+  classical
+  rw [Submodule.eq_top_iff']
+  intro g
+  have hg : g = ∑ q : OrbitClass T K B W,
+      g q • (fun q' => if q' = q then (1 : ℝ) else 0) := by
+    funext q'
+    rw [Finset.sum_apply]
+    simp only [Pi.smul_apply, smul_eq_mul, mul_ite, mul_one, mul_zero]
+    rw [Finset.sum_ite_eq Finset.univ q' g]
+    simp
+  rw [hg]
+  exact Submodule.sum_mem _ (fun q _ =>
+    Submodule.smul_mem _ _ (orbitClassIndicator_mem_of_sep B hB W hsep q))
+
+/-- **Full span ⟹ point separation** (easy direction): if the descended evals span
+every orbit-class function (`multiOrbitSpan = ⊤`) then they separate orbit classes.
+If all evals agreed at `q₁ ≠ q₂`, the whole span — including the `q₁`-indicator —
+would too, but the indicator separates them. -/
+theorem sep_of_multiOrbitSpan_eq_top {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (htop : multiOrbitSpan K B W = ⊤) {q₁ q₂ : OrbitClass T K B W} (hne : q₁ ≠ q₂) :
+    ∃ (n : ℕ) (M : MultiLabeledGraph K n),
+      multiEvalOnOrbit K n M B W q₁ ≠ multiEvalOnOrbit K n M B W q₂ := by
+  classical
+  by_contra hcon
+  push_neg at hcon
+  have hle : multiOrbitSpan K B W ≤
+      LinearMap.ker ((LinearMap.proj q₁ : (OrbitClass T K B W → ℝ) →ₗ[ℝ] ℝ) - LinearMap.proj q₂) := by
+    rw [multiOrbitSpan, Submodule.span_le]
+    rintro _ ⟨⟨n, M⟩, rfl⟩
+    rw [SetLike.mem_coe, LinearMap.mem_ker, LinearMap.sub_apply, LinearMap.proj_apply,
+      LinearMap.proj_apply, sub_eq_zero]
+    exact hcon n M
+  have hδ : (fun q' => if q' = q₁ then (1 : ℝ) else 0)
+      ∈ LinearMap.ker ((LinearMap.proj q₁ : (OrbitClass T K B W → ℝ) →ₗ[ℝ] ℝ) - LinearMap.proj q₂) := by
+    apply hle; rw [htop]; exact Submodule.mem_top
+  rw [LinearMap.mem_ker, LinearMap.sub_apply, LinearMap.proj_apply, LinearMap.proj_apply,
+    if_pos rfl, if_neg (Ne.symm hne), sub_zero] at hδ
+  exact one_ne_zero hδ
+
+/-- **Point separation ⟺ full span** — the `connectionMatrix_full_rank` reframing.
+The Lovász §3 point-separation theorem (`multiEvalOnOrbit_separates`) is equivalent to
+`multiOrbitSpan = ⊤` (the descended orbit-class evals are a spanning / full-rank
+family). Hard direction `⟸`: Lagrange interpolation (`multiOrbitSpan_eq_top_of_sep`);
+easy direction `⟹`: `sep_of_multiOrbitSpan_eq_top`. So the genuine paper-root may be
+stated equivalently as the connection-matrix full-rank statement `multiOrbitSpan = ⊤`,
+in Lovász/FLS language, rather than as separation. -/
+theorem multiOrbitSpan_eq_top_iff_separates {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) :
+    multiOrbitSpan K B W = ⊤ ↔
+      ∀ (q₁ q₂ : OrbitClass T K B W), q₁ ≠ q₂ →
+        ∃ (n : ℕ) (M : MultiLabeledGraph K n),
+          multiEvalOnOrbit K n M B W q₁ ≠ multiEvalOnOrbit K n M B W q₂ :=
+  ⟨fun htop _ _ hne => sep_of_multiOrbitSpan_eq_top K B W htop hne,
+   fun hsep => multiOrbitSpan_eq_top_of_sep K B W hB hsep⟩
 
 /-- **Orthogonality form** (now derived from `multiOrbitSpan_eq_top`): a function orthogonal to
 every descended eval is `0`. Since the evals span everything and `orbitInner` is
