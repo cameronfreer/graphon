@@ -8350,6 +8350,56 @@ theorem tupleEquivMulti_restrict {T K : ℕ}
   rw [← multiLabeledEvalK_addIsoLabel M B hB W ξ, ← multiLabeledEvalK_addIsoLabel M B hB W ξ']
   exact h n M.addIsoLabel
 
+/-- **Off-diagonal `B`-preservation** (Lovász Claim 4.3, eq. 7). From `tupleEquivMulti id χ`, a single
+label–label edge reads `B (χ a) (χ b) = B a b` for `a ≠ b`. (Loopless ⟹ off-diagonal only; the
+diagonal `B (χ a) (χ a) = B a a` is not a single-edge observable.) -/
+theorem tupleEquivMulti_id_preserves_B {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    {χ : Fin T → Fin T} (h : tupleEquivMulti B W (fun i => i) χ) :
+    ∀ a b : Fin T, a ≠ b → B (χ a) (χ b) = B a b := by
+  have hsimple : tupleEquivSimple B W (fun i => i) χ := tupleEquivSimple_of_tupleEquivMulti B W h
+  intro a b hab
+  classical
+  let u : Fin (0 + T) := ⟨a.val, by have := a.isLt; omega⟩
+  let v_p : Fin (0 + T) := ⟨b.val, by have := b.isLt; omega⟩
+  have huv_ne : u ≠ v_p := fun he => hab (Fin.ext ((Fin.mk.injEq _ _ _ _).mp he))
+  let F : SimpleGraph (Fin (0 + T)) :=
+    { Adj := fun x y => (x = u ∧ y = v_p) ∨ (x = v_p ∧ y = u)
+      symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩) (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+      loopless := fun _ h => by
+        rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
+        · exact huv_ne (h1.symm.trans h2)
+        · exact huv_ne (h2.symm.trans h1) }
+  haveI : DecidableRel F.Adj := fun x y =>
+    if h₁ : x = u ∧ y = v_p then .isTrue (.inl h₁)
+    else if h₂ : x = v_p ∧ y = u then .isTrue (.inr h₂)
+    else .isFalse (fun h => h.elim (fun a => h₁ a) (fun a => h₂ a))
+  have hedge : F.edgeFinset = {s(u, v_p)} := by
+    apply Finset.eq_singleton_iff_unique_mem.mpr
+    refine ⟨by rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩, ?_⟩
+    intro e he; rw [SimpleGraph.mem_edgeFinset] at he
+    exact Sym2.ind (fun x y (hadj : F.Adj x y) => by
+      rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
+      · rw [h1, h2]
+      · rw [h1, h2, Sym2.eq_swap]) e he
+  have key := hsimple 0 F
+  simp only [Fintype.sum_unique, Finset.univ_eq_empty, Finset.prod_empty, one_mul, hedge,
+    Finset.prod_singleton] at key
+  set p := Quot.out (s(u, v_p) : Sym2 (Fin (0 + T)))
+  have key' : (p.1 = u ∧ p.2 = v_p) ∨ (p.1 = v_p ∧ p.2 = u) := by
+    have := Sym2.eq_iff.mp (Quot.out_eq (s(u, v_p) : Sym2 (Fin (0 + T)))); tauto
+  have hu_lt : u.val < T := a.isLt
+  have hv_lt : v_p.val < T := b.isLt
+  have hu_eq : (⟨u.val, hu_lt⟩ : Fin T) = a := Fin.ext rfl
+  have hv_eq : (⟨v_p.val, hv_lt⟩ : Fin T) = b := Fin.ext rfl
+  rcases key' with ⟨hpu, hpv⟩ | ⟨hpu, hpv⟩
+  · simp only [hpu, hpv, dif_pos hu_lt, dif_pos hv_lt, hu_eq, hv_eq, id_eq] at key
+    exact key.symm
+  · simp only [hpu, hpv, dif_pos hv_lt, dif_pos hu_lt, hu_eq, hv_eq, id_eq] at key
+    calc B (χ a) (χ b) = B (χ b) (χ a) := hB _ _
+      _ = B b a := key.symm
+      _ = B a b := hB _ _
+
 /-- **Independent multigraph separator** (Lovász §3 residue). For distinct
 orbits there is a multigraph whose evaluation distinguishes the tuples.
 
