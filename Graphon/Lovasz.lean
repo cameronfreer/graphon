@@ -8452,6 +8452,95 @@ theorem tupleEquivMulti_id_bijective {T : ℕ}
       _ = B b l := hfull b l
   exact (Finite.injective_iff_bijective).mp hinj
 
+/-! ### Relabel-invariance for `tupleEquivMulti` (label permutations) -/
+
+/-- Lift a label permutation `ρ : Perm (Fin K)` to a permutation of the vertex space `Fin (n+K)`,
+acting by `ρ` on the labels (indices `< K`) and fixing the unlabeled vertices. -/
+def liftLabelPerm {K n : ℕ} (ρ : Equiv.Perm (Fin K)) : Equiv.Perm (Fin (n + K)) where
+  toFun v := if h : v.val < K then ⟨(ρ ⟨v.val, h⟩).val, by have := (ρ ⟨v.val, h⟩).isLt; omega⟩ else v
+  invFun v :=
+    if h : v.val < K then ⟨(ρ.symm ⟨v.val, h⟩).val, by have := (ρ.symm ⟨v.val, h⟩).isLt; omega⟩ else v
+  left_inv v := by
+    by_cases h : v.val < K
+    · have h2 : (ρ ⟨v.val, h⟩).val < K := (ρ ⟨v.val, h⟩).isLt
+      simp only [dif_pos h, dif_pos h2]
+      apply Fin.ext; simp only [Fin.eta, Equiv.symm_apply_apply]
+    · simp only [dif_neg h]
+  right_inv v := by
+    by_cases h : v.val < K
+    · have h2 : (ρ.symm ⟨v.val, h⟩).val < K := (ρ.symm ⟨v.val, h⟩).isLt
+      simp only [dif_pos h, dif_pos h2]
+      apply Fin.ext; simp only [Fin.eta, Equiv.apply_symm_apply]
+    · simp only [dif_neg h]
+
+theorem liftLabelPerm_apply_of_lt {K n : ℕ} (ρ : Equiv.Perm (Fin K)) (v : Fin (n + K))
+    (h : v.val < K) :
+    liftLabelPerm ρ v = ⟨(ρ ⟨v.val, h⟩).val, by have := (ρ ⟨v.val, h⟩).isLt; omega⟩ := by
+  simp only [liftLabelPerm, Equiv.coe_fn_mk, dif_pos h]
+
+theorem liftLabelPerm_apply_of_ge {K n : ℕ} (ρ : Equiv.Perm (Fin K)) (v : Fin (n + K))
+    (h : ¬ v.val < K) : liftLabelPerm ρ v = v := by
+  simp only [liftLabelPerm, Equiv.coe_fn_mk, dif_neg h]
+
+/-- `multiTau` intertwines `liftLabelPerm` with label-precomposition: tracing the relabeled vertex
+under `ζ` equals tracing under `ζ ∘ ρ`. -/
+theorem multiTau_liftLabelPerm {T K n : ℕ} (ρ : Equiv.Perm (Fin K)) (ζ : Fin K → Fin T)
+    (σ : Fin n → Fin T) (v : Fin (n + K)) :
+    multiTau K n ζ σ (liftLabelPerm ρ v) = multiTau K n (ζ ∘ ρ) σ v := by
+  by_cases h : v.val < K
+  · have h2 : (ρ ⟨v.val, h⟩).val < K := (ρ ⟨v.val, h⟩).isLt
+    rw [liftLabelPerm_apply_of_lt ρ v h]
+    show multiTau K n ζ σ ⟨(ρ ⟨v.val, h⟩).val, _⟩ = multiTau K n (ζ ∘ ρ) σ v
+    unfold multiTau
+    rw [dif_pos h2, dif_pos h]
+    show ζ ⟨(ρ ⟨v.val, h⟩).val, h2⟩ = (ζ ∘ ρ) ⟨v.val, h⟩
+    simp only [Function.comp_apply, Fin.eta]
+  · rw [liftLabelPerm_apply_of_ge ρ v h]
+    simp only [multiTau, dif_neg h]
+
+/-- **Relabel** a multigraph's labels by `ρ` (via `liftLabelPerm ρ⁻¹` on the vertex space). -/
+def MultiLabeledGraph.relabel {K n : ℕ} (ρ : Equiv.Perm (Fin K)) (M : MultiLabeledGraph K n) :
+    MultiLabeledGraph K n where
+  mult e := M.mult (Sym2.map (liftLabelPerm ρ).symm e)
+  multNoLoop x := by rw [Sym2.map_pair_eq]; exact M.multNoLoop _
+
+theorem multiLabeledEvalK_relabel {T K n : ℕ} (ρ : Equiv.Perm (Fin K))
+    (M : MultiLabeledGraph K n) (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (ζ : Fin K → Fin T) :
+    multiLabeledEvalK K n M B W (ζ ∘ ρ) = multiLabeledEvalK K n (M.relabel ρ) B W ζ := by
+  rw [multiLabeledEvalK_eq_tau, multiLabeledEvalK_eq_tau]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  congr 1
+  have hsymm : (liftLabelPerm ρ).symm ∘ (liftLabelPerm ρ) = (id : Fin (n + K) → Fin (n + K)) :=
+    funext fun x => (liftLabelPerm ρ).symm_apply_apply x
+  have hsymm' : (liftLabelPerm ρ) ∘ (liftLabelPerm ρ).symm = (id : Fin (n + K) → Fin (n + K)) :=
+    funext fun x => (liftLabelPerm ρ).apply_symm_apply x
+  have hbij : Function.Bijective
+      (Sym2.map (liftLabelPerm ρ) : Sym2 (Fin (n + K)) → Sym2 (Fin (n + K))) := by
+    refine ⟨fun x y hxy => ?_, fun y => ⟨Sym2.map (liftLabelPerm ρ).symm y, ?_⟩⟩
+    · have := congrArg (Sym2.map (liftLabelPerm ρ).symm) hxy
+      rwa [Sym2.map_map, Sym2.map_map, hsymm, Sym2.map_id, id_eq, id_eq] at this
+    · rw [Sym2.map_map, hsymm', Sym2.map_id, id_eq]
+  refine Fintype.prod_bijective
+    (Sym2.map (liftLabelPerm ρ) : Sym2 (Fin (n + K)) → Sym2 (Fin (n + K))) hbij _ _ ?_
+  refine Sym2.ind (fun a b => ?_)
+  have hmult : (M.relabel ρ).mult (Sym2.map (liftLabelPerm ρ) s(a, b)) = M.mult s(a, b) := by
+    show M.mult (Sym2.map (liftLabelPerm ρ).symm (Sym2.map (liftLabelPerm ρ) s(a, b))) = M.mult s(a, b)
+    rw [Sym2.map_map, hsymm, Sym2.map_id, id_eq]
+  rw [hmult, Sym2.map_pair_eq,
+    B_quot_out_eq hB (multiTau K n (ζ ∘ ρ) σ) a b,
+    B_quot_out_eq hB (multiTau K n ζ σ) (liftLabelPerm ρ a) (liftLabelPerm ρ b),
+    multiTau_liftLabelPerm ρ ζ σ a, multiTau_liftLabelPerm ρ ζ σ b]
+
+/-- **Relabel-invariance**: `tupleEquivMulti` is closed under precomposing both tuples with a label
+permutation `ρ`. (Used to move any coordinate to the last position for the trace weight argument.) -/
+theorem tupleEquivMulti_relabel {T K : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) {ξ ξ' : Fin K → Fin T} (h : tupleEquivMulti B W ξ ξ') (ρ : Equiv.Perm (Fin K)) :
+    tupleEquivMulti B W (ξ ∘ ρ) (ξ' ∘ ρ) := by
+  intro n M
+  rw [multiLabeledEvalK_relabel ρ M B hB W ξ, multiLabeledEvalK_relabel ρ M B hB W ξ']
+  exact h n (M.relabel ρ)
+
 /-- **Independent multigraph separator** (Lovász §3 residue). For distinct
 orbits there is a multigraph whose evaluation distinguishes the tuples.
 
