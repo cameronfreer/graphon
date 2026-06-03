@@ -8201,6 +8201,155 @@ theorem tupleEquivMulti_extend_one {T k : ℕ}
   show (Fin.snoc ξ' t : Fin (k + 1) → Fin T) i.castSucc = ξ' i
   exact Fin.snoc_castSucc (α := fun _ => Fin T) t ξ' i
 
+/-! ### Claim 4.1 (restriction) for `tupleEquivMulti` — via "add isolated label" (`F ⊗ E₁`) -/
+
+/-- Embed `Fin (n+K) ↪ Fin (n+(K+1))` skipping index `K` (labels `<K` fixed, unlabeled `≥K`
+shifted up one), making index `K` a fresh isolated label. -/
+def insLabelEmb (K n : ℕ) : Fin (n + K) ↪ Fin (n + (K + 1)) where
+  toFun v := ⟨if v.val < K then v.val else v.val + 1, by have := v.isLt; split <;> omega⟩
+  inj' a b hab := by
+    apply Fin.ext
+    have h : (if a.val < K then a.val else a.val + 1)
+           = (if b.val < K then b.val else b.val + 1) := congrArg Fin.val hab
+    split_ifs at h <;> omega
+
+/-- Partial inverse of `insLabelEmb`: `none` exactly at the new label `⟨K⟩`. -/
+def unInsLabel (K n : ℕ) (w : Fin (n + (K + 1))) : Option (Fin (n + K)) :=
+  if h : w.val < K then some ⟨w.val, by omega⟩
+  else if h2 : w.val = K then none
+  else some ⟨w.val - 1, by have := w.isLt; omega⟩
+
+theorem unInsLabel_insLabelEmb (K n : ℕ) (v : Fin (n + K)) :
+    unInsLabel K n (insLabelEmb K n v) = some v := by
+  by_cases h : v.val < K
+  · have hw : (insLabelEmb K n v).val = v.val := by
+      show (if v.val < K then v.val else v.val + 1) = v.val; rw [if_pos h]
+    unfold unInsLabel
+    rw [dif_pos (by rw [hw]; exact h)]
+    congr 1; apply Fin.ext; exact hw
+  · have hw : (insLabelEmb K n v).val = v.val + 1 := by
+      show (if v.val < K then v.val else v.val + 1) = v.val + 1; rw [if_neg h]
+    unfold unInsLabel
+    rw [dif_neg (by rw [hw]; omega), dif_neg (by rw [hw]; omega)]
+    congr 1; apply Fin.ext; show (insLabelEmb K n v).val - 1 = v.val; rw [hw]; omega
+
+theorem insLabelEmb_eq_of_unInsLabel (K n : ℕ) {w : Fin (n + (K + 1))} {u : Fin (n + K)}
+    (h : unInsLabel K n w = some u) : w = insLabelEmb K n u := by
+  apply Fin.ext
+  show w.val = (insLabelEmb K n u).val
+  rw [show (insLabelEmb K n u).val = if u.val < K then u.val else u.val + 1 from rfl]
+  unfold unInsLabel at h
+  split_ifs at h with h1 h2
+  · have hu : u.val = w.val := (congrArg Fin.val (Option.some.inj h)).symm
+    rw [if_pos (by omega)]; omega
+  · have hu : u.val = w.val - 1 := (congrArg Fin.val (Option.some.inj h)).symm
+    rw [if_neg (by omega)]; omega
+
+/-- **Add an isolated `(K+1)`-th label** (the `F ⊗ E₁` operation): reindex `M`'s vertices via
+`insLabelEmb` (skipping index `K`), so label `K` is isolated. Evaluation drops the last label. -/
+def MultiLabeledGraph.addIsoLabel {K n : ℕ} (M : MultiLabeledGraph K n) :
+    MultiLabeledGraph (K + 1) n where
+  mult := Sym2.lift ⟨fun u v =>
+    match unInsLabel K n u, unInsLabel K n v with
+    | some u', some v' => M.mult s(u', v')
+    | _, _ => 0,
+    by
+      intro a b
+      rcases ha : unInsLabel K n a with _ | u' <;> rcases hb : unInsLabel K n b with _ | v' <;>
+        simp only [ha, hb] <;>
+        (try rw [show s(u', v') = s(v', u') from Sym2.eq_swap])⟩
+  multNoLoop x := by
+    show (match unInsLabel K n x, unInsLabel K n x with
+          | some u', some v' => M.mult s(u', v') | _, _ => 0) = 0
+    rcases hx : unInsLabel K n x with _ | u' <;> simp only [hx]
+    exact M.multNoLoop u'
+
+theorem addIsoLabel_mult_map_emb {K n : ℕ} (M : MultiLabeledGraph K n)
+    (e' : Sym2 (Fin (n + K))) :
+    (M.addIsoLabel).mult (Sym2.map (insLabelEmb K n) e') = M.mult e' := by
+  refine Sym2.ind (fun a b => ?_) e'
+  show (match unInsLabel K n (insLabelEmb K n a), unInsLabel K n (insLabelEmb K n b) with
+        | some u', some v' => M.mult s(u', v') | _, _ => 0) = M.mult s(a, b)
+  rw [unInsLabel_insLabelEmb, unInsLabel_insLabelEmb]
+
+private theorem addIsoLabel_prod_reindex {T K n : ℕ} (M : MultiLabeledGraph K n)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (τ₂ : Fin (n + (K + 1)) → Fin T) (τ₁ : Fin (n + K) → Fin T)
+    (halign : ∀ v : Fin (n + K), τ₂ (insLabelEmb K n v) = τ₁ v) :
+    (∏ e : Sym2 (Fin (n + (K + 1))),
+        B (τ₂ (Quot.out e).1) (τ₂ (Quot.out e).2) ^ (M.addIsoLabel).mult e)
+      = ∏ e' : Sym2 (Fin (n + K)), B (τ₁ (Quot.out e').1) (τ₁ (Quot.out e').2) ^ M.mult e' := by
+  classical
+  have hfac : (∏ e : Sym2 (Fin (n + (K + 1))),
+        B (τ₂ (Quot.out e).1) (τ₂ (Quot.out e).2) ^ (M.addIsoLabel).mult e)
+      = ∏ e' : Sym2 (Fin (n + K)),
+          B (τ₂ (Quot.out (Sym2.map (insLabelEmb K n) e')).1)
+            (τ₂ (Quot.out (Sym2.map (insLabelEmb K n) e')).2)
+            ^ (M.addIsoLabel).mult (Sym2.map (insLabelEmb K n) e') := by
+    have h1 := Finset.prod_map (Finset.univ : Finset (Sym2 (Fin (n + K)))) (insLabelEmb K n).sym2Map
+      (fun e => B (τ₂ (Quot.out e).1) (τ₂ (Quot.out e).2) ^ (M.addIsoLabel).mult e)
+    simp only [Function.Embedding.sym2Map_apply] at h1
+    rw [← h1]
+    refine (Finset.prod_subset (Finset.subset_univ _) (fun e _ he => ?_)).symm
+    suffices hz : (M.addIsoLabel).mult e = 0 by rw [hz, pow_zero]
+    revert he
+    refine Sym2.ind (fun a b he => ?_) e
+    show (match unInsLabel K n a, unInsLabel K n b with
+          | some u', some v' => M.mult s(u', v') | _, _ => 0) = 0
+    rcases hca : unInsLabel K n a with _ | u' <;> rcases hcb : unInsLabel K n b with _ | v' <;>
+      simp only [hca, hcb]
+    exfalso
+    apply he
+    rw [Finset.mem_map]
+    refine ⟨s(u', v'), Finset.mem_univ _, ?_⟩
+    rw [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq,
+      ← insLabelEmb_eq_of_unInsLabel K n hca, ← insLabelEmb_eq_of_unInsLabel K n hcb]
+  rw [hfac]
+  refine Finset.prod_congr rfl fun e' _ => ?_
+  rw [addIsoLabel_mult_map_emb]
+  congr 1
+  refine Sym2.ind (fun a b => ?_) e'
+  rw [Sym2.map_pair_eq,
+    B_quot_out_eq hB τ₂ (insLabelEmb K n a) (insLabelEmb K n b), B_quot_out_eq hB τ₁ a b,
+    halign a, halign b]
+
+/-- **Add-isolated-label evaluation** drops the last label: `eval (K+1) (addIsoLabel M) ζ
+= eval K M (ζ ∘ castSucc)`. The `F ⊗ E₁` identity (the new label contributes nothing). -/
+theorem multiLabeledEvalK_addIsoLabel {T K n : ℕ} (M : MultiLabeledGraph K n)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (ζ : Fin (K + 1) → Fin T) :
+    multiLabeledEvalK (K + 1) n M.addIsoLabel B W ζ =
+      multiLabeledEvalK K n M B W (ζ ∘ Fin.castSucc) := by
+  rw [multiLabeledEvalK_eq_tau, multiLabeledEvalK_eq_tau]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  congr 1
+  apply addIsoLabel_prod_reindex M B hB
+  intro v
+  show multiTau (K + 1) n ζ σ (insLabelEmb K n v) = multiTau K n (ζ ∘ Fin.castSucc) σ v
+  unfold multiTau
+  by_cases h : v.val < K
+  · have hw : (insLabelEmb K n v).val = v.val := by
+      show (if v.val < K then v.val else v.val + 1) = v.val; rw [if_pos h]
+    rw [dif_pos (show (insLabelEmb K n v).val < K + 1 by rw [hw]; omega), dif_pos h]
+    show ζ ⟨(insLabelEmb K n v).val, _⟩ = (ζ ∘ Fin.castSucc) ⟨v.val, h⟩
+    simp only [Function.comp_apply]
+    congr 1; apply Fin.ext; rw [hw]; rfl
+  · have hw : (insLabelEmb K n v).val = v.val + 1 := by
+      show (if v.val < K then v.val else v.val + 1) = v.val + 1; rw [if_neg h]
+    rw [dif_neg (show ¬ (insLabelEmb K n v).val < K + 1 by rw [hw]; omega), dif_neg h]
+    show σ ⟨(insLabelEmb K n v).val - (K + 1), _⟩ = σ ⟨v.val - K, _⟩
+    congr 1; apply Fin.ext; show (insLabelEmb K n v).val - (K + 1) = v.val - K; rw [hw]; omega
+
+/-- **Lovász Claim 4.1 (restriction)** for `tupleEquivMulti`: dropping the last label preserves
+equivalence. Direct multigraph proof via `addIsoLabel` (`F ⊗ E₁`), NOT through simple equivalence. -/
+theorem tupleEquivMulti_restrict {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    {ξ ξ' : Fin (K + 1) → Fin T} (h : tupleEquivMulti B W ξ ξ') :
+    tupleEquivMulti B W (ξ ∘ Fin.castSucc) (ξ' ∘ Fin.castSucc) := by
+  intro n M
+  rw [← multiLabeledEvalK_addIsoLabel M B hB W ξ, ← multiLabeledEvalK_addIsoLabel M B hB W ξ']
+  exact h n M.addIsoLabel
+
 /-- **Independent multigraph separator** (Lovász §3 residue). For distinct
 orbits there is a multigraph whose evaluation distinguishes the tuples.
 
