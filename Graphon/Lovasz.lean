@@ -8138,6 +8138,69 @@ theorem InTupleMultiEvalSpan.traceLast {T K : ℕ} {B : Fin T → Fin T → ℝ}
   rw [Finset.sum_comm]
   exact Finset.sum_congr rfl (fun k _ => key k)
 
+/-- `tupleEquivMulti` is reflexive. -/
+theorem tupleEquivMulti_refl {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ : Fin K → Fin T) : tupleEquivMulti B W ξ ξ := fun _ _ => rfl
+
+/-- `tupleEquivMulti` is symmetric. -/
+theorem tupleEquivMulti_symm {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquivMulti B W ξ ξ') : tupleEquivMulti B W ξ' ξ :=
+  fun n M => (h n M).symm
+
+/-- **Lovász Claim 4.2 (extension), one step** — cycle-free multigraph version.
+If `ξ ξ'` are `tupleEquivMulti` and `μ` extends `ξ` (drops to `ξ`), there is `ν` extending `ξ'`
+with `μ ~ ν`. Proof: the traced class indicator of `μ` is positive at `ξ` (the `t = μ (last)` term,
+via `W (μ last) > 0`), hence positive at `ξ'` (span-descending), so some extension of `ξ'` lies in
+`μ`'s class. NO square-moment hypothesis — that is the cycle-break vs the simple-graph Claim 4.2. -/
+theorem tupleEquivMulti_extend_one {T k : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i)
+    {ξ ξ' : Fin k → Fin T} (h : tupleEquivMulti B W ξ ξ')
+    (μ : Fin (k + 1) → Fin T) (hμ : restrictTuple μ = ξ) :
+    ∃ ν : Fin (k + 1) → Fin T, restrictTuple ν = ξ' ∧ tupleEquivMulti B W μ ν := by
+  classical
+  have hIμ_span : InTupleMultiEvalSpan B W (tupleEquivMultiIndicator B W μ) :=
+    tupleEquivMultiClassIndicator_mem_multiSpan B hB W μ
+  have hTr_span : InTupleMultiEvalSpan B W
+      (traceLastTupleFun W (tupleEquivMultiIndicator B W μ)) := hIμ_span.traceLast hB
+  -- `Fin.snoc ξ (μ (last)) = μ`.
+  have hsnoc : Fin.snoc ξ (μ (Fin.last k)) = μ := by
+    rw [← hμ]
+    ext i; by_cases hi : (i : ℕ) < k
+    · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl, Fin.snoc_castSucc]; rfl
+    · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega), Fin.snoc_last]
+  have hIμμ : tupleEquivMultiIndicator B W μ μ = 1 := by
+    unfold tupleEquivMultiIndicator
+    rw [if_pos (tupleEquivMulti_refl B W μ)]
+  -- Positivity at `ξ`.
+  have hpos_ξ : 0 < traceLastTupleFun W (tupleEquivMultiIndicator B W μ) ξ := by
+    unfold traceLastTupleFun
+    apply Finset.sum_pos'
+    · intro t _
+      exact mul_nonneg (le_of_lt (hW t)) (tupleEquivMultiIndicator_nonneg B W μ (Fin.snoc ξ t))
+    · refine ⟨μ (Fin.last k), Finset.mem_univ _, ?_⟩
+      rw [hsnoc, hIμμ, mul_one]; exact hW (μ (Fin.last k))
+  -- Transfer to `ξ'` by span-descending.
+  have hpos_ξ' : 0 < traceLastTupleFun W (tupleEquivMultiIndicator B W μ) ξ' := by
+    rw [← hTr_span.descends h]; exact hpos_ξ
+  -- A positive trace sum forces some `Fin.snoc ξ' t` into `μ`'s class.
+  have hex : ∃ t : Fin T, tupleEquivMulti B W (Fin.snoc ξ' t) μ := by
+    by_contra hcon
+    push_neg at hcon
+    have hzero : traceLastTupleFun W (tupleEquivMultiIndicator B W μ) ξ' = 0 := by
+      unfold traceLastTupleFun
+      apply Finset.sum_eq_zero
+      intro t _
+      have ht0 : tupleEquivMultiIndicator B W μ (Fin.snoc ξ' t) = 0 := by
+        unfold tupleEquivMultiIndicator; rw [if_neg (hcon t)]
+      rw [ht0, mul_zero]
+    rw [hzero] at hpos_ξ'; exact lt_irrefl 0 hpos_ξ'
+  obtain ⟨t, ht⟩ := hex
+  refine ⟨Fin.snoc ξ' t, ?_, tupleEquivMulti_symm ht⟩
+  funext i
+  show (Fin.snoc ξ' t : Fin (k + 1) → Fin T) i.castSucc = ξ' i
+  exact Fin.snoc_castSucc (α := fun _ => Fin T) t ξ' i
+
 /-- **Independent multigraph separator** (Lovász §3 residue). For distinct
 orbits there is a multigraph whose evaluation distinguishes the tuples.
 
