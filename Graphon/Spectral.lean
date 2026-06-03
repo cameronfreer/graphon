@@ -483,27 +483,72 @@ lemma multiOrbitSpan_mul_le {T K : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ 
   funext q
   exact multiEvalOnOrbit_glue B hB W p.2 p'.2 q
 
-/-- **Connection-matrix full rank** — THE single paper-root for the Lovász §3 /
-#62 / #73 line, in Lovász/FLS rank language: the descended orbit-class evaluation
-vectors span every orbit-class function, `multiOrbitSpan K B W = ⊤`.
+/-- **FLS orthogonality / moment vanishing** — THE single internal paper-root for
+the Lovász §3 / #62 / #73 line, in the analytic moment form: no nonzero orbit-class
+function is `orbitInner`-orthogonal to *every* descended multigraph evaluation.
+Equivalent to `connectionMatrix_full_rank` (full rank) via
+`connectionMatrix_full_rank_of_orthogonal`. This is the genuine FLS PSD-rank target
+— a moment positivity/nondegeneracy condition on the eval vectors, easier to attack
+than `multiOrbitSpan = ⊤` directly.
 
-Equivalently (via `multiOrbitSpan_eq_top_iff_separates`) rooted weighted-multigraph
-hom-counts separate `Aut(B,W)`-orbit classes — that is `multiEvalOnOrbit_separates`,
-now a one-line corollary below. This is the classical Lovász / FLS connection-matrix
-full-rank (PSD-rank) theorem under symmetric `B`, positive `W`, twin-free `B`; the
-easy inequality `finrank ≤ #orbits` is `finrank_multiSpan_le_card_orbitClass`, and
-this is the hard direction `≥` (full rank).
+Falsified non-routes (do not attempt): simple-graph separation (downstream/cyclic)
+and the 1-WL `refineRel`/`stableSetoid` tower (1-WL ⊊ orbits; Frucht; fractional
+automorphisms ≠ automorphisms). To be proved via the full rooted-multigraph
+hierarchy. SORRY (paper-root). -/
+theorem fls_orthogonal_zero {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (h : OrbitClass T K B W → ℝ)
+    (horth : ∀ (n : ℕ) (M : MultiLabeledGraph K n),
+      orbitInner K B W h (multiEvalOnOrbit K n M B W) = 0) : h = 0 := by
+  sorry
 
-Falsified non-routes (do not attempt): simple-graph separation
-(`orbit_separation_by_simple_graph`, downstream/cyclic) and the 1-WL
-`refineRel`/`stableSetoid` tower (1-WL ⊊ orbits; Frucht counterexample;
-`wl-tower-1wl-not-orbit`; fractional automorphisms ≠ automorphisms). To be proved
-via the full rooted-multigraph hierarchy (FLS PSD-rank), not local refinement.
-SORRY (paper-root). -/
+/-- **Orthogonality ⟹ full rank** (the bounded wrapper, PROVED). If no nonzero
+orbit-class function is orthogonal to all descended evals, the evals span
+everything. Via the dual-pairing map `Ψ : h ↦ ⟨h, ·⟩|_{multiOrbitSpan}`: its kernel
+is the orthogonal complement (`= 0` by hypothesis), so `Ψ` is injective, giving
+`#orbits = finrank (OrbitClass → ℝ) ≤ finrank (Dual multiOrbitSpan) = finrank
+multiOrbitSpan`; with the easy reverse `≤` this forces `multiOrbitSpan = ⊤`. -/
+theorem connectionMatrix_full_rank_of_orthogonal {T K : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ)
+    (horth0 : ∀ h : OrbitClass T K B W → ℝ,
+      (∀ (n : ℕ) (M : MultiLabeledGraph K n),
+        orbitInner K B W h (multiEvalOnOrbit K n M B W) = 0) → h = 0) :
+    multiOrbitSpan K B W = ⊤ := by
+  classical
+  set Ψ : (OrbitClass T K B W → ℝ) →ₗ[ℝ] Module.Dual ℝ (multiOrbitSpan K B W) :=
+    (multiOrbitSpan K B W).subtype.dualMap ∘ₗ orbitInnerBil K B W with hΨ
+  have hΨinj : Function.Injective Ψ := by
+    rw [← LinearMap.ker_eq_bot, LinearMap.ker_eq_bot']
+    intro h hh
+    refine horth0 h fun n M => ?_
+    have hc := LinearMap.congr_fun hh
+      (⟨multiEvalOnOrbit K n M B W, Submodule.subset_span ⟨⟨n, M⟩, rfl⟩⟩ :
+        multiOrbitSpan K B W)
+    simpa only [hΨ, LinearMap.comp_apply, LinearMap.dualMap_apply, Submodule.subtype_apply,
+      orbitInnerBil_apply, LinearMap.zero_apply] using hc
+  have hle1 : Nat.card (OrbitClass T K B W) ≤ Module.finrank ℝ (multiOrbitSpan K B W) := by
+    have h1 : Module.finrank ℝ (OrbitClass T K B W → ℝ)
+        ≤ Module.finrank ℝ (Module.Dual ℝ (multiOrbitSpan K B W)) :=
+      LinearMap.finrank_le_finrank_of_injective hΨinj
+    rw [Subspace.dual_finrank_eq] at h1
+    rw [Nat.card_eq_fintype_card, ← Module.finrank_pi (ι := OrbitClass T K B W) ℝ]
+    exact h1
+  have hle2 : Module.finrank ℝ (multiOrbitSpan K B W) ≤ Nat.card (OrbitClass T K B W) := by
+    rw [Nat.card_eq_fintype_card, ← Module.finrank_pi (ι := OrbitClass T K B W) ℝ]
+    exact Submodule.finrank_le _
+  refine Submodule.eq_top_of_finrank_eq ?_
+  rw [Module.finrank_pi (ι := OrbitClass T K B W) ℝ, ← Nat.card_eq_fintype_card]
+  exact le_antisymm hle2 hle1
+
+/-- **Connection-matrix full rank** — `multiOrbitSpan K B W = ⊤`, in Lovász/FLS
+rank language; now a corollary of the single internal paper-root
+`fls_orthogonal_zero` via `connectionMatrix_full_rank_of_orthogonal`. Equivalent
+(via `multiOrbitSpan_eq_top_iff_separates`) to `multiEvalOnOrbit_separates`. -/
 theorem connectionMatrix_full_rank {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
-    multiOrbitSpan K B W = ⊤ := by
-  sorry
+    multiOrbitSpan K B W = ⊤ :=
+  connectionMatrix_full_rank_of_orthogonal B W
+    (fun h horth => fls_orthogonal_zero K B W hB hW htwin h horth)
 
 /-- **Full span ⟹ point separation** (easy direction): if the descended evals span
 every orbit-class function (`multiOrbitSpan = ⊤`) then they separate orbit classes.
@@ -723,24 +768,15 @@ theorem multiOrbitSpan_eq_top_iff_separates {T : ℕ} (K : ℕ) (B : Fin T → F
   ⟨fun htop _ _ hne => sep_of_multiOrbitSpan_eq_top K B W htop hne,
    fun hsep => multiOrbitSpan_eq_top_of_sep K B W hB hsep⟩
 
-/-- **Orthogonality form** (now derived from `multiOrbitSpan_eq_top`): a function orthogonal to
-every descended eval is `0`. Since the evals span everything and `orbitInner` is
-positive-definite, `h ⊥ all ⇒ orbitInner h h = 0 ⇒ h = 0`. -/
+/-- **Orthogonality form** — now literally the paper-root `fls_orthogonal_zero`
+(kept as a named alias for downstream callers); a function orthogonal to every
+descended eval is `0`. -/
 theorem multiOrbitSpan_orthogonal_eq_bot {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
     (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j) (h : OrbitClass T K B W → ℝ)
     (horth : ∀ (n : ℕ) (M : MultiLabeledGraph K n),
-      orbitInner K B W h (multiEvalOnOrbit K n M B W) = 0) : h = 0 := by
-  have hker : multiOrbitSpan K B W ≤ LinearMap.ker (orbitInnerBil K B W h) := by
-    rw [multiOrbitSpan, Submodule.span_le]
-    rintro _ ⟨p, rfl⟩
-    simp only [SetLike.mem_coe, LinearMap.mem_ker, orbitInnerBil_apply]
-    exact horth p.1 p.2
-  have hh : orbitInner K B W h h = 0 := by
-    have hmem : h ∈ LinearMap.ker (orbitInnerBil K B W h) := by
-      apply hker; rw [multiOrbitSpan_eq_top K B W hB hW htwin]; exact Submodule.mem_top
-    rwa [LinearMap.mem_ker, orbitInnerBil_apply] at hmem
-  exact (orbitInner_self_eq_zero_iff K B hW h).mp hh
+      orbitInner K B W h (multiEvalOnOrbit K n M B W) = 0) : h = 0 :=
+  fls_orthogonal_zero K B W hB hW htwin h horth
 
 /-- **Reverse rank inequality `#orbits ≤ dim V`**, derived from `multiOrbitSpan_eq_top`:
 the pullback `Φ : (OrbitClass → ℝ) ↪ ((Fin K → Fin T) → ℝ)` along `⟦·⟧` is injective and (since
