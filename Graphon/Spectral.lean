@@ -582,6 +582,67 @@ theorem connectionMatrix_full_rank {T : ℕ} (K : ℕ) (B : Fin T → Fin T → 
   connectionMatrix_full_rank_of_orthogonal B W
     (fun h horth => fls_orthogonal_zero K B W hB hW htwin h horth)
 
+/-- The signed measure `μ` on orbit classes has all rooted-multigraph moments zero. -/
+def allMomentsZero {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (μ : OrbitClass T K B W → ℝ) : Prop :=
+  ∀ (n : ℕ) (M : MultiLabeledGraph K n), (∑ q, μ q * multiEvalOnOrbit K n M B W q) = 0
+
+/-- **All moments vanish ⟺ `μ` is (plain-pairing) orthogonal to `multiOrbitSpan`.**
+Equates the moment condition with orthogonality to the descended-eval span (the
+generators are the evals; closed under the span operations). -/
+theorem allMomentsZero_iff_orthogonal {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (μ : OrbitClass T K B W → ℝ) :
+    allMomentsZero K B W μ ↔ ∀ s ∈ multiOrbitSpan K B W, (∑ q, μ q * s q) = 0 := by
+  constructor
+  · intro hall s hs
+    induction hs using Submodule.span_induction with
+    | mem x hx => obtain ⟨⟨n, M⟩, rfl⟩ := hx; exact hall n M
+    | zero => simp
+    | add x y _ _ ihx ihy =>
+      simp only [Pi.add_apply, mul_add, Finset.sum_add_distrib, ihx, ihy, add_zero]
+    | smul a x _ ih =>
+      simp only [Pi.smul_apply, smul_eq_mul]
+      rw [show (∑ q, μ q * (a * x q)) = a * ∑ q, μ q * x q from by
+            rw [Finset.mul_sum]; exact Finset.sum_congr rfl fun q _ => by ring, ih, mul_zero]
+  · intro horth n M
+    exact horth _ (Submodule.subset_span ⟨⟨n, M⟩, rfl⟩)
+
+/-- **The moment problem ⟺ full rank** — pins `signed_orbit_measure_has_nonzero_moment`
+to the already-built span formalism: the multigraph-moment map on signed orbit-class
+measures is nondegenerate iff the descended evals span everything
+(`multiOrbitSpan = ⊤`). Forward via `connectionMatrix_full_rank_of_orthogonal`
+(reweighting `μ = orbitWeight · h`); backward via the indicator `δ_{q₀} ∈ ⊤`. So the
+moment-problem root, full rank, and point separation are all interchangeable. -/
+theorem moment_nondegenerate_iff_multiOrbitSpan_eq_top {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i) :
+    (∀ μ : OrbitClass T K B W → ℝ, μ ≠ 0 →
+      ∃ (n : ℕ) (M : MultiLabeledGraph K n), (∑ q, μ q * multiEvalOnOrbit K n M B W q) ≠ 0)
+    ↔ multiOrbitSpan K B W = ⊤ := by
+  constructor
+  · intro hnd
+    apply connectionMatrix_full_rank_of_orthogonal B W
+    intro h horth
+    by_contra hh
+    have hμ : (fun q => orbitWeight K B W q * h q) ≠ 0 := by
+      intro hμ0
+      apply hh
+      funext q
+      exact (mul_eq_zero.mp (congrFun hμ0 q)).resolve_left (orbitWeight_pos K B hW q).ne'
+    obtain ⟨n, M, hM⟩ := hnd _ hμ
+    apply hM
+    show orbitInner K B W h (multiEvalOnOrbit K n M B W) = 0
+    exact horth n M
+  · intro htop μ hμ
+    by_contra hcon
+    push_neg at hcon
+    apply hμ
+    have horth := (allMomentsZero_iff_orthogonal K B W μ).mp hcon
+    funext q₀
+    have hval := horth (fun q => if q = q₀ then (1 : ℝ) else 0)
+      (by rw [htop]; exact Submodule.mem_top)
+    simpa only [mul_ite, mul_one, mul_zero, Finset.sum_ite_eq', Finset.mem_univ, if_true,
+      Pi.zero_apply] using hval
+
 /-- **Full span ⟹ point separation** (easy direction): if the descended evals span
 every orbit-class function (`multiOrbitSpan = ⊤`) then they separate orbit classes.
 If all evals agreed at `q₁ ≠ q₂`, the whole span — including the `q₁`-indicator —
