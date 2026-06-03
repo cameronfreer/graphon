@@ -8400,6 +8400,58 @@ theorem tupleEquivMulti_id_preserves_B {T : ℕ}
       _ = B b a := key.symm
       _ = B a b := hB _ _
 
+/-- **Diagonal observability residue** (Route A, the single named hard input for #62/#73).
+
+The remaining honest content of Lovász §3 for the loopless multigraph framework: rooted *multigraph*
+hom-counts determine the **diagonal** `B (ξ c) (ξ c)`. This is the genuine diagonal-observability
+input and is **NOT implied by closed walks / single-vertex moments alone** (loopless evals see the
+diagonal only in aggregate, via the weighted multiset `{B(ξc,t)}_t`; isolating `B(ξc,ξc)` pointwise
+needs `W`-preservation + bijectivity, which in turn need the diagonal — the reconstruction circle).
+
+It is therefore **distinct from the false closed-walk conjecture** and must NOT be conflated with it.
+Everything else in the multigraph Lemma 2.4 chain (Lemma 4.1, Claims 4.2–4.4, weight preservation,
+assembly) and the Spectral cascade are proved honestly conditional on this one statement. General `K`
+is exactly the per-coordinate `K=1` content (reducible via a label embedding). -/
+theorem tupleEquivMulti_preserves_diagonal {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquivMulti B W ξ ξ') :
+    ∀ c : Fin K, B (ξ c) (ξ c) = B (ξ' c) (ξ' c) := by
+  sorry
+
+/-- **Full `B`-preservation** for the bijective case = off-diagonal (proved) + diagonal (residue). -/
+theorem tupleEquivMulti_id_preserves_B_full {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {χ : Fin T → Fin T} (h : tupleEquivMulti B W (fun i => i) χ) :
+    ∀ i j, B (χ i) (χ j) = B i j := by
+  intro i j
+  by_cases hij : i = j
+  · subst hij
+    exact (tupleEquivMulti_preserves_diagonal B hB W hW htwin h i).symm
+  · exact tupleEquivMulti_id_preserves_B B hB W h i j hij
+
+/-- **Lovász Lemma 4.1 (bijectivity)** for `tupleEquivMulti`. A `B`-preserving endofunction of a
+twin-free graph is bijective. With FULL `B`-preservation in hand (off-diagonal + diagonal residue),
+this is immediate: if `χ a = χ b` then `B a l = B (χ a)(χ l) = B (χ b)(χ l) = B b l` for every `l`,
+so rows `a` and `b` coincide — contradicting twin-free unless `a = b`. Injective + finite ⟹ bijective.
+(No idempotent-power argument needed; the diagonal residue subsumes it.) -/
+theorem tupleEquivMulti_id_bijective {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {χ : Fin T → Fin T} (h : tupleEquivMulti B W (fun i => i) χ) :
+    Function.Bijective χ := by
+  have hfull := tupleEquivMulti_id_preserves_B_full B hB W hW htwin h
+  have hinj : Function.Injective χ := by
+    intro a b hab
+    by_contra hne
+    apply htwin a b hne
+    funext l
+    calc B a l = B (χ a) (χ l) := (hfull a l).symm
+      _ = B (χ b) (χ l) := by rw [hab]
+      _ = B b l := hfull b l
+  exact (Finite.injective_iff_bijective).mp hinj
+
 /-- **Independent multigraph separator** (Lovász §3 residue). For distinct
 orbits there is a multigraph whose evaluation distinguishes the tuples.
 
