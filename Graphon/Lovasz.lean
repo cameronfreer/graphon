@@ -7990,6 +7990,154 @@ theorem InTupleMultiEvalSpan.lagrange_factor {T K n : ℕ}
   funext ζ
   rw [mul_comm, mul_one_div]
 
+/-! ### §3.10.5a-multi — `tupleEquivMulti` class indicators + trace (Lovász Lemma 2.4 spine)
+
+The cycle-free spine of Lovász Claim 4.2: every `tupleEquivMulti`-class indicator lies in
+`InTupleMultiEvalSpan` (Lagrange over the finite tuple space, with separators supplied *by the
+definition* of `tupleEquivMulti` — non-cyclic, unlike orbit separation). Combined with the trace
+operator (`InTupleMultiEvalSpan.traceLast`, below) this yields the extension lemma without the
+square-moment hypothesis that makes the simple-graph Claim 4.2 cyclic. -/
+
+/-- **Span elements are constant on `tupleEquivMulti` classes** (span-descending). Every element of
+`InTupleMultiEvalSpan` is a finite ℝ-combination of `multiLabeledEvalK`, each constant on
+`tupleEquivMulti` classes by definition; hence so is the combination. -/
+theorem InTupleMultiEvalSpan.descends {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {f : (Fin K → Fin T) → ℝ} (hf : InTupleMultiEvalSpan B W f)
+    {ξ ξ' : Fin K → Fin T} (hξ : tupleEquivMulti B W ξ ξ') :
+    f ξ = f ξ' := by
+  obtain ⟨N, g, c, rfl⟩ := hf
+  refine Finset.sum_congr rfl (fun k _ => ?_)
+  rw [hξ (g k).1 (g k).2]
+
+/-- From non-equivalence, extract a separating multigraph. **Definitional** (`¬ tupleEquivMulti`
+literally negates "all evals agree"), hence non-cyclic — does NOT invoke `multiEval_separates_orbits`. -/
+theorem exists_sep_of_not_tupleEquivMulti {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {η μ : Fin K → Fin T} (h : ¬ tupleEquivMulti B W η μ) :
+    ∃ (n : ℕ) (M : MultiLabeledGraph K n),
+      multiLabeledEvalK K n M B W η ≠ multiLabeledEvalK K n M B W μ := by
+  unfold tupleEquivMulti at h
+  push_neg at h
+  exact h
+
+/-- **`tupleEquivMulti`-class indicator** of `μ`: `1` on `μ`'s equivalence class, `0` elsewhere. -/
+noncomputable def tupleEquivMultiIndicator {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (μ : Fin K → Fin T) : (Fin K → Fin T) → ℝ :=
+  fun η =>
+    haveI : Decidable (tupleEquivMulti B W η μ) := Classical.dec _
+    if tupleEquivMulti B W η μ then 1 else 0
+
+/-- The class indicator is nonnegative (it is `0/1`-valued). Needed for Phase-5 trace positivity. -/
+theorem tupleEquivMultiIndicator_nonneg {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (μ η : Fin K → Fin T) : 0 ≤ tupleEquivMultiIndicator B W μ η := by
+  unfold tupleEquivMultiIndicator
+  split <;> norm_num
+
+/-- Separator packaging (avoids nested `Classical.choose` instance issues). Mirrors
+`MultiSeparator`, but built from the definitional `exists_sep_of_not_tupleEquivMulti`. -/
+private structure MultiClassSep {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (η μ : Fin K → Fin T) where
+  n : ℕ
+  M : MultiLabeledGraph K n
+  sep : multiLabeledEvalK K n M B W η ≠ multiLabeledEvalK K n M B W μ
+
+/-- Build a `MultiClassSep` from definitional non-equivalence. -/
+private noncomputable def mkMultiClassSep {T K : ℕ}
+    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ} {η μ : Fin K → Fin T}
+    (h : ¬ tupleEquivMulti B W η μ) : MultiClassSep K B W η μ :=
+  let e := exists_sep_of_not_tupleEquivMulti h
+  { n := e.choose
+    M := e.choose_spec.choose
+    sep := e.choose_spec.choose_spec }
+
+/-- **`tupleEquivMulti`-class indicators lie in the multigraph span** (Lovász "∑_{η∈Ψ} η ∈ A″").
+Lagrange interpolation over the finite tuple space `Fin K → Fin T`, with each separating multigraph
+coming from the *definition* of `tupleEquivMulti` (`exists_sep_of_not_tupleEquivMulti`). NON-CYCLIC:
+unlike `tupleOrbitIndicator_mem_multiEvalSpan`, it never invokes `multiEval_separates_orbits`. -/
+theorem tupleEquivMultiClassIndicator_mem_multiSpan {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (μ : Fin K → Fin T) :
+    InTupleMultiEvalSpan B W (tupleEquivMultiIndicator B W μ) := by
+  classical
+  let factor : (Fin K → Fin T) → (Fin K → Fin T) → ℝ := fun η ζ =>
+    if h : ¬ tupleEquivMulti B W η μ then
+      let s := mkMultiClassSep h
+      (multiLabeledEvalK K s.n s.M B W ζ - multiLabeledEvalK K s.n s.M B W η) /
+      (multiLabeledEvalK K s.n s.M B W μ - multiLabeledEvalK K s.n s.M B W η)
+    else 1
+  let nonClass : Finset (Fin K → Fin T) :=
+    Finset.univ.filter (fun η => ¬ tupleEquivMulti B W η μ)
+  let lagInd : (Fin K → Fin T) → ℝ := fun ζ => ∏ η ∈ nonClass, factor η ζ
+  have lagInd_span : InTupleMultiEvalSpan B W lagInd := by
+    apply InTupleMultiEvalSpan.finset_prod hB W nonClass factor
+    intro η hη
+    have hη_ne : ¬ tupleEquivMulti B W η μ := by
+      simp only [nonClass, Finset.mem_filter, Finset.mem_univ, true_and] at hη
+      exact hη
+    show InTupleMultiEvalSpan B W (factor η)
+    simp only [factor, dif_pos hη_ne]
+    exact InTupleMultiEvalSpan.lagrange_factor B W (mkMultiClassSep hη_ne).M μ η
+  have lagInd_eq : lagInd = tupleEquivMultiIndicator B W μ := by
+    funext ζ
+    unfold tupleEquivMultiIndicator
+    by_cases hζ : tupleEquivMulti B W ζ μ
+    · rw [if_pos hζ]
+      show (∏ η ∈ nonClass, factor η ζ) = (1 : ℝ)
+      apply Finset.prod_eq_one
+      intro η hη
+      have hη_ne : ¬ tupleEquivMulti B W η μ := by
+        simp only [nonClass, Finset.mem_filter, Finset.mem_univ, true_and] at hη
+        exact hη
+      simp only [factor, dif_pos hη_ne]
+      set s := mkMultiClassSep hη_ne with hs
+      have h_denom : multiLabeledEvalK K s.n s.M B W μ -
+          multiLabeledEvalK K s.n s.M B W η ≠ 0 := sub_ne_zero.mpr (Ne.symm s.sep)
+      have h_evalζ : multiLabeledEvalK K s.n s.M B W ζ =
+          multiLabeledEvalK K s.n s.M B W μ := hζ s.n s.M
+      rw [h_evalζ, div_self h_denom]
+    · rw [if_neg hζ]
+      show (∏ η ∈ nonClass, factor η ζ) = (0 : ℝ)
+      have hζ_mem : ζ ∈ nonClass := by
+        simp only [nonClass, Finset.mem_filter, Finset.mem_univ, true_and]
+        exact hζ
+      refine Finset.prod_eq_zero hζ_mem ?_
+      simp only [factor, dif_pos hζ]
+      set s := mkMultiClassSep hζ with hs
+      show (multiLabeledEvalK K s.n s.M B W ζ - multiLabeledEvalK K s.n s.M B W ζ) /
+           (multiLabeledEvalK K s.n s.M B W μ - multiLabeledEvalK K s.n s.M B W ζ) = 0
+      rw [sub_self, zero_div]
+  rw [← lagInd_eq]
+  exact lagInd_span
+
+/-- **Trace operator on functions**: sum out the last label with `W`-weight. The function-level
+analog of `MultiLabeledGraph.trace` / Lovász's `tr`. -/
+noncomputable def traceLastTupleFun {T K : ℕ} (W : Fin T → ℝ)
+    (f : (Fin (K + 1) → Fin T) → ℝ) : (Fin K → Fin T) → ℝ :=
+  fun ξ => ∑ t : Fin T, W t * f (Fin.snoc ξ t)
+
+/-- **`InTupleMultiEvalSpan` is closed under `traceLast`** (Lovász eq. (6): `tr(𝒜″_{k+1}) ⊆ 𝒜″_k`).
+Pushes the trace through the finite combination via `multiLabeledEvalK_sum_last_label`. -/
+theorem InTupleMultiEvalSpan.traceLast {T K : ℕ} {B : Fin T → Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) {W : Fin T → ℝ}
+    {f : (Fin (K + 1) → Fin T) → ℝ} (hf : InTupleMultiEvalSpan B W f) :
+    InTupleMultiEvalSpan B W (traceLastTupleFun W f) := by
+  obtain ⟨N, g, c, rfl⟩ := hf
+  refine ⟨N, fun k => ⟨(g k).1 + 1, (g k).2.trace⟩, c, ?_⟩
+  funext ξ
+  have key : ∀ k : Fin N,
+      (∑ t : Fin T, W t * (c k * multiLabeledEvalK (K + 1) (g k).1 (g k).2 B W (Fin.snoc ξ t)))
+        = c k * multiLabeledEvalK K ((g k).1 + 1) (g k).2.trace B W ξ := by
+    intro k
+    rw [← multiLabeledEvalK_sum_last_label (g k).2 B hB W ξ, Finset.mul_sum]
+    exact Finset.sum_congr rfl (fun t _ => by ring)
+  show (∑ t : Fin T, W t *
+          ∑ k : Fin N, c k * multiLabeledEvalK (K + 1) (g k).1 (g k).2 B W (Fin.snoc ξ t))
+      = ∑ k : Fin N, c k * multiLabeledEvalK K ((g k).1 + 1) (g k).2.trace B W ξ
+  simp only [Finset.mul_sum]
+  rw [Finset.sum_comm]
+  exact Finset.sum_congr rfl (fun k _ => key k)
+
 /-- **Independent multigraph separator** (Lovász §3 residue). For distinct
 orbits there is a multigraph whose evaluation distinguishes the tuples.
 
