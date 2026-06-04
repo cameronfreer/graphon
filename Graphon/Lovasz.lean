@@ -8612,6 +8612,42 @@ theorem tupleEquivMulti_traceLast_collapse {S : ℕ}
     rw [hI0, mul_zero]
   · intro hcontra; exact absurd (Finset.mem_univ _) hcontra
 
+/-- **Last-coordinate `W` preservation** (Lovász Claim 4.3 weight step). For equivalent bijective
+tuples, the trace of `ξ`'s class indicator is class-constant (span-descending) and collapses to the
+last-coordinate weight on each side, giving `W (ξ' last) = W (ξ last)`. -/
+theorem tupleEquivMulti_bijective_preserves_W_last {S : ℕ}
+    (B : Fin (S + 1) → Fin (S + 1) → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin (S + 1) → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin (S + 1) → Fin (S + 1)} (h : tupleEquivMulti B W ξ ξ')
+    (hξ : Function.Bijective ξ) (hξ' : Function.Bijective ξ') :
+    W (ξ' (Fin.last S)) = W (ξ (Fin.last S)) := by
+  have hTr : InTupleMultiEvalSpan B W (traceLastTupleFun W (tupleEquivMultiIndicator B W ξ)) :=
+    (tupleEquivMultiClassIndicator_mem_multiSpan B hB W ξ).traceLast hB
+  have e1 := tupleEquivMulti_traceLast_collapse B hB W hW htwin hξ hξ (tupleEquivMulti_refl B W ξ)
+  have e2 := tupleEquivMulti_traceLast_collapse B hB W hW htwin hξ hξ' (tupleEquivMulti_symm h)
+  have hdesc := hTr.descends (tupleEquivMulti_restrict B hB W h)
+  rw [e1, e2] at hdesc
+  exact hdesc.symm
+
+/-- **`W` preservation for the bijective case** (all coordinates): for any coordinate `i`, relabel to
+move `i` to the last position and apply `tupleEquivMulti_bijective_preserves_W_last`. -/
+theorem tupleEquivMulti_id_preserves_W {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {χ : Fin T → Fin T} (h : tupleEquivMulti B W (fun i => i) χ) (hχ : Function.Bijective χ) :
+    ∀ i, W (χ i) = W i := by
+  intro i
+  rcases T with _ | S
+  · exact i.elim0
+  · let ρ : Equiv.Perm (Fin (S + 1)) := Equiv.swap i (Fin.last S)
+    have hρlast : ρ (Fin.last S) = i := Equiv.swap_apply_right i (Fin.last S)
+    have hWlast := tupleEquivMulti_bijective_preserves_W_last B hB W hW htwin
+      (tupleEquivMulti_relabel B hB W h ρ) ρ.bijective (hχ.comp ρ.bijective)
+    have hl1 : (χ ∘ ⇑ρ) (Fin.last S) = χ i := by simp only [Function.comp_apply, hρlast]
+    have hl2 : ((fun j => j) ∘ ⇑ρ) (Fin.last S) = i := by simp only [Function.comp_apply, hρlast]
+    rw [hl1, hl2] at hWlast
+    exact hWlast
+
 /-- **Independent multigraph separator** (Lovász §3 residue). For distinct
 orbits there is a multigraph whose evaluation distinguishes the tuples.
 
