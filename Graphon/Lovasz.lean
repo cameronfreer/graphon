@@ -8541,6 +8541,77 @@ theorem tupleEquivMulti_relabel {T K : ℕ} (B : Fin T → Fin T → ℝ) (hB : 
   rw [multiLabeledEvalK_relabel ρ M B hB W ξ, multiLabeledEvalK_relabel ρ M B hB W ξ']
   exact h n (M.relabel ρ)
 
+/-! ### Commit B.2 — weight preservation via trace-collapse -/
+
+/-- **Snoc injectivity** (isolated): if `ζ` is bijective and `Fin.snoc (ζ ∘ castSucc) t` is bijective,
+then `t = ζ (last)` (the only value completing the restriction to a bijection). -/
+theorem snoc_restrict_eq_of_bijective {S : ℕ} {ζ : Fin (S + 1) → Fin (S + 1)} {t : Fin (S + 1)}
+    (hζ : Function.Bijective ζ)
+    (hsnoc : Function.Bijective (Fin.snoc (ζ ∘ Fin.castSucc) t)) :
+    t = ζ (Fin.last S) := by
+  obtain ⟨j, hj⟩ := hζ.surjective t
+  by_cases hjl : j = Fin.last S
+  · rw [← hjl]; exact hj.symm
+  · exfalso
+    have hjv : (j : ℕ) < S := by
+      have h1 := j.isLt; have h2 : j.val ≠ S := fun e => hjl (Fin.ext e); omega
+    have hcs : Fin.castSucc ⟨j.val, hjv⟩ = j := Fin.ext rfl
+    have key : (Fin.castSucc ⟨j.val, hjv⟩ : Fin (S + 1)) = Fin.last S := by
+      apply hsnoc.injective
+      rw [Fin.snoc_castSucc, Fin.snoc_last]
+      show ζ (Fin.castSucc ⟨j.val, hjv⟩) = t
+      rw [hcs]; exact hj
+    exact absurd key (Fin.castSucc_lt_last ⟨j.val, hjv⟩).ne
+
+/-- **Equivalence transfers bijectivity**: if `η ~ ξ` and `ξ` is bijective, so is `η`. Proof: relabel
+both sides by `ξ⁻¹` so the RHS becomes `id`, then apply `tupleEquivMulti_id_bijective`. -/
+theorem tupleEquivMulti_bijective_of_equiv {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {η ξ : Fin T → Fin T} (h : tupleEquivMulti B W η ξ) (hξ : Function.Bijective ξ) :
+    Function.Bijective η := by
+  let e := Equiv.ofBijective ξ hξ
+  have hrel : tupleEquivMulti B W (η ∘ e.symm) (fun i => i) := by
+    have hr := tupleEquivMulti_relabel B hB W h e.symm
+    have hid : (ξ ∘ e.symm : Fin T → Fin T) = (fun i => i) := by
+      funext x; exact e.apply_symm_apply x
+    rwa [hid] at hr
+  have hbij1 : Function.Bijective (η ∘ e.symm) :=
+    tupleEquivMulti_id_bijective B hB W hW htwin (tupleEquivMulti_symm hrel)
+  have hcomp : η = (η ∘ e.symm) ∘ e := by
+    funext x; show η x = η (e.symm (e x)); rw [e.symm_apply_apply]
+  rw [hcomp]; exact hbij1.comp e.bijective
+
+/-- **Trace-collapse**: for a bijective tuple `ζ` in `ξ`'s class, the traced class indicator at the
+restriction reads exactly `W (ζ last)`. Only `t = ζ (last)` keeps `snoc (ζ ∘ castSucc) t` bijective —
+hence in `ξ`'s class (every member is bijective, `tupleEquivMulti_bijective_of_equiv`). -/
+theorem tupleEquivMulti_traceLast_collapse {S : ℕ}
+    (B : Fin (S + 1) → Fin (S + 1) → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin (S + 1) → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ζ : Fin (S + 1) → Fin (S + 1)} (hξ : Function.Bijective ξ)
+    (hζbij : Function.Bijective ζ) (hζξ : tupleEquivMulti B W ζ ξ) :
+    traceLastTupleFun W (tupleEquivMultiIndicator B W ξ) (ζ ∘ Fin.castSucc) = W (ζ (Fin.last S)) := by
+  classical
+  unfold traceLastTupleFun
+  rw [Finset.sum_eq_single (ζ (Fin.last S))]
+  · have hsnoc : Fin.snoc (ζ ∘ Fin.castSucc) (ζ (Fin.last S)) = ζ := by
+      ext i; by_cases hi : (i : ℕ) < S
+      · rw [show i = (⟨i, hi⟩ : Fin S).castSucc from Fin.ext rfl, Fin.snoc_castSucc]; rfl
+      · rw [show i = Fin.last S from Fin.ext (show (i : ℕ) = S by omega), Fin.snoc_last]
+    rw [hsnoc]
+    have hIξζ : tupleEquivMultiIndicator B W ξ ζ = 1 := by
+      unfold tupleEquivMultiIndicator; rw [if_pos hζξ]
+    rw [hIξζ, mul_one]
+  · intro t _ htne
+    have hne : ¬ tupleEquivMulti B W (Fin.snoc (ζ ∘ Fin.castSucc) t) ξ := by
+      intro hcontra
+      have hbij_snoc := tupleEquivMulti_bijective_of_equiv B hB W hW htwin hcontra hξ
+      exact htne (snoc_restrict_eq_of_bijective hζbij hbij_snoc)
+    have hI0 : tupleEquivMultiIndicator B W ξ (Fin.snoc (ζ ∘ Fin.castSucc) t) = 0 := by
+      unfold tupleEquivMultiIndicator; rw [if_neg hne]
+    rw [hI0, mul_zero]
+  · intro hcontra; exact absurd (Finset.mem_univ _) hcontra
+
 /-- **Independent multigraph separator** (Lovász §3 residue). For distinct
 orbits there is a multigraph whose evaluation distinguishes the tuples.
 
