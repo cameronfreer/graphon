@@ -677,8 +677,14 @@ theorem multiEvalOnOrbit_separates {T : ℕ} (K : ℕ) (B : Fin T → Fin T → 
     (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {q₁ q₂ : OrbitClass T K B W} (hne : q₁ ≠ q₂) :
     ∃ (n : ℕ) (M : MultiLabeledGraph K n),
-      multiEvalOnOrbit K n M B W q₁ ≠ multiEvalOnOrbit K n M B W q₂ :=
-  sep_of_multiOrbitSpan_eq_top K B W (connectionMatrix_full_rank K B W hB hW htwin) hne
+      multiEvalOnOrbit K n M B W q₁ ≠ multiEvalOnOrbit K n M B W q₂ := by
+  -- Honest proof via the (now-proved) tuple-level Lovász separator `multiEval_separates_orbits`,
+  -- independent of the `signed_orbit_measure_has_nonzero_moment` root.
+  obtain ⟨ξ₁, hξ₁⟩ := Quotient.exists_rep q₁
+  obtain ⟨ξ₂, hξ₂⟩ := Quotient.exists_rep q₂
+  have hnr : ¬ tupleOrbitRel B W ξ₁ ξ₂ := fun hr => hne (by rw [← hξ₁, ← hξ₂]; exact Quotient.sound hr)
+  obtain ⟨n, M, hM⟩ := multiEval_separates_orbits B hB W hW htwin hnr
+  exact ⟨n, M, by rw [← hξ₁, ← hξ₂]; simpa using hM⟩
 
 /-- **Finset product closure** of `multiOrbitSpan` (via `mul` + `1`). -/
 lemma multiOrbitSpan_prod_mem {T K : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
