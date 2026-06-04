@@ -8850,6 +8850,70 @@ theorem tupleEquivMulti_restrict_along {T k l : ℕ} (B : Fin T → Fin T → �
   rw [← multiLabeledEvalK_restrictAlong e M B hB W ξ, ← multiLabeledEvalK_restrictAlong e M B hB W ξ']
   exact h n (M.restrictAlongGraph e)
 
+/-- **Lovász Claim 4.4 (surjective case)**: a surjective tuple equivalent to `ξ'` is orbit-related.
+Choose a section `s` of `ξ`; `restrict_along s` gives `id ~ ξ' ∘ s`, so the bijective case yields an
+automorphism `σ` with `ξ'(s r) = σ r`. For arbitrary `j` with `ξ j = r`, the replacement injection
+`ej` (which sends `r ↦ j` and `t ↦ s t` otherwise) has `ξ ∘ ej = id`, so `ξ' ∘ ej` is bijective; this
+forces `ξ' j = σ r = σ (ξ j)`. -/
+theorem tupleEquivMulti_surjective_case {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T} (hξ_surj : Function.Surjective ξ) (h : tupleEquivMulti B W ξ ξ') :
+    tupleOrbitRel B W ξ ξ' := by
+  classical
+  obtain ⟨s, hsec⟩ := hξ_surj.hasRightInverse
+  have hs_inj : Function.Injective s := fun a b hab => by rw [← hsec a, ← hsec b, hab]
+  let sEmb : Fin T ↪ Fin K := ⟨s, hs_inj⟩
+  have h_id : tupleEquivMulti B W (ξ ∘ sEmb) (ξ' ∘ sEmb) :=
+    tupleEquivMulti_restrict_along B hB W sEmb h
+  have hξs_id : (ξ ∘ sEmb : Fin T → Fin T) = (fun r => r) := funext fun r => hsec r
+  rw [hξs_id] at h_id
+  obtain ⟨σ, hσaut, hσ⟩ := tupleEquivMulti_bijective_case B hB W hW htwin h_id
+  refine ⟨σ, hσaut, fun j => ?_⟩
+  by_cases hjsr : j = s (ξ j)
+  · exact (congrArg ξ' hjsr).trans (hσ (ξ j))
+  · let ej : Fin T → Fin K := fun t => if t = ξ j then j else s t
+    have hej_inj : Function.Injective ej := by
+      intro a b hab
+      simp only [ej] at hab
+      by_cases ha : a = ξ j <;> by_cases hb : b = ξ j
+      · rw [ha, hb]
+      · rw [if_pos ha, if_neg hb] at hab
+        exact absurd (show b = ξ j by rw [← hsec b, ← hab]) hb
+      · rw [if_neg ha, if_pos hb] at hab
+        exact absurd (show a = ξ j by rw [← hsec a, hab]) ha
+      · rw [if_neg ha, if_neg hb] at hab; exact hs_inj hab
+    let ejEmb : Fin T ↪ Fin K := ⟨ej, hej_inj⟩
+    have hξej : (ξ ∘ ejEmb : Fin T → Fin T) = (fun t => t) := by
+      funext t
+      show ξ (ej t) = t
+      by_cases ht : t = ξ j
+      · have hejt : ej t = j := if_pos ht
+        rw [hejt]; exact ht.symm
+      · have hejt : ej t = s t := if_neg ht
+        rw [hejt]; exact hsec t
+    have h_id2 : tupleEquivMulti B W (ξ ∘ ejEmb) (ξ' ∘ ejEmb) :=
+      tupleEquivMulti_restrict_along B hB W ejEmb h
+    rw [hξej] at h_id2
+    have hbij2 : Function.Bijective (ξ' ∘ ejEmb) :=
+      tupleEquivMulti_id_bijective B hB W hW htwin h_id2
+    obtain ⟨t, ht⟩ := σ.surjective (ξ' j)
+    have htej : t = ξ j := by
+      by_contra htne
+      apply htne
+      apply hbij2.injective
+      show (ξ' ∘ ejEmb) t = (ξ' ∘ ejEmb) (ξ j)
+      have hL : (ξ' ∘ ejEmb) t = ξ' j := by
+        show ξ' (ej t) = ξ' j
+        have hejt : ej t = s t := if_neg htne
+        rw [hejt, show ξ' (s t) = (ξ' ∘ sEmb) t from rfl, hσ t, ht]
+      have hR : (ξ' ∘ ejEmb) (ξ j) = ξ' j := by
+        show ξ' (ej (ξ j)) = ξ' j
+        have hejr : ej (ξ j) = j := if_pos rfl
+        rw [hejr]
+      rw [hL, hR]
+    rw [← htej]; exact ht.symm
+
 /-- **Independent multigraph separator** (Lovász §3 residue). For distinct
 orbits there is a multigraph whose evaluation distinguishes the tuples.
 
