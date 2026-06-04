@@ -8986,7 +8986,9 @@ theorem multiEval_separates_orbits {T K : ℕ}
     {ξ η : Fin K → Fin T} (h : ¬ tupleOrbitRel B W ξ η) :
     ∃ (n : ℕ) (M : MultiLabeledGraph K n),
       multiLabeledEvalK K n M B W ξ ≠ multiLabeledEvalK K n M B W η := by
-  sorry
+  by_contra hcon
+  push_neg at hcon
+  exact h (tupleEquivMulti_implies_orbit B hB W hW htwin hcon)
 
 /-- Separator packaging (avoids nested `Classical.choose` instance issues).
 Mirrors `RootedSeparator`. -/
