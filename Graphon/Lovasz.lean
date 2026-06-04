@@ -8662,6 +8662,194 @@ theorem tupleEquivMulti_bijective_case {T : ℕ}
   · exact fun i j => tupleEquivMulti_id_preserves_B_full B hB W hW htwin h i j
   · exact fun i => rfl
 
+/-! ### Claim 4.1 (restriction along an injection) — generalizes `addIsoLabel` -/
+
+/-- Embed `Fin (n+k) ↪ Fin (n+l)` along a label injection `e : Fin k ↪ Fin l`: labels `i < k` map to
+label `e i`; unlabeled vertices shift from `[k, k+n)` to `[l, l+n)`. -/
+def restrictAlongEmb {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) : Fin (n + k) ↪ Fin (n + l) where
+  toFun v := ⟨if h : v.val < k then (e ⟨v.val, h⟩).val else l + (v.val - k), by
+    split
+    · rename_i h; have := (e ⟨v.val, h⟩).isLt; omega
+    · have := v.isLt; omega⟩
+  inj' a b hab := by
+    have hv : (if h : a.val < k then (e ⟨a.val, h⟩).val else l + (a.val - k))
+            = (if h : b.val < k then (e ⟨b.val, h⟩).val else l + (b.val - k)) := congrArg Fin.val hab
+    by_cases ha : a.val < k <;> by_cases hb : b.val < k
+    · rw [dif_pos ha, dif_pos hb] at hv
+      have h2 : (⟨a.val, ha⟩ : Fin k) = ⟨b.val, hb⟩ := e.injective (Fin.val_injective hv)
+      have hval2 : a.val = b.val := by simpa using congrArg Fin.val h2
+      exact Fin.ext hval2
+    · rw [dif_pos ha, dif_neg hb] at hv; exfalso; have := (e ⟨a.val, ha⟩).isLt; omega
+    · rw [dif_neg ha, dif_pos hb] at hv; exfalso; have := (e ⟨b.val, hb⟩).isLt; omega
+    · rw [dif_neg ha, dif_neg hb] at hv; exact Fin.ext (by omega)
+
+/-- Partial inverse of `restrictAlongEmb`: `none` on labels outside `range e` (the isolated labels). -/
+noncomputable def unembAlong {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) (w : Fin (n + l)) :
+    Option (Fin (n + k)) := by
+  classical
+  exact
+    if hw : w.val < l then
+      if h : ∃ i : Fin k, (e i).val = w.val then some ⟨h.choose.val, by have := h.choose.isLt; omega⟩
+      else none
+    else some ⟨k + (w.val - l), by have := w.isLt; omega⟩
+
+theorem restrictAlongEmb_val_lt {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) (v : Fin (n + k))
+    (hv : v.val < k) : (restrictAlongEmb e n v).val = (e ⟨v.val, hv⟩).val := by
+  show (if h : v.val < k then (e ⟨v.val, h⟩).val else l + (v.val - k)) = (e ⟨v.val, hv⟩).val
+  rw [dif_pos hv]
+
+theorem restrictAlongEmb_val_ge {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) (v : Fin (n + k))
+    (hv : ¬ v.val < k) : (restrictAlongEmb e n v).val = l + (v.val - k) := by
+  show (if h : v.val < k then (e ⟨v.val, h⟩).val else l + (v.val - k)) = l + (v.val - k)
+  rw [dif_neg hv]
+
+theorem unembAlong_restrictAlongEmb {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) (v : Fin (n + k)) :
+    unembAlong e n (restrictAlongEmb e n v) = some v := by
+  classical
+  by_cases hv : v.val < k
+  · have hval := restrictAlongEmb_val_lt e n v hv
+    have hlt : (restrictAlongEmb e n v).val < l := by rw [hval]; exact (e ⟨v.val, hv⟩).isLt
+    unfold unembAlong
+    rw [dif_pos hlt]
+    have hex : ∃ i : Fin k, (e i).val = (restrictAlongEmb e n v).val := ⟨⟨v.val, hv⟩, hval.symm⟩
+    rw [dif_pos hex]
+    have hch : hex.choose = ⟨v.val, hv⟩ :=
+      e.injective (Fin.ext (by rw [hex.choose_spec, hval]))
+    rw [Option.some.injEq]; apply Fin.ext; show hex.choose.val = v.val
+    exact congrArg Fin.val hch
+  · have hval := restrictAlongEmb_val_ge e n v hv
+    have hge : ¬ (restrictAlongEmb e n v).val < l := by rw [hval]; omega
+    unfold unembAlong
+    rw [dif_neg hge]
+    congr 1; apply Fin.ext
+    show k + ((restrictAlongEmb e n v).val - l) = v.val
+    rw [hval]; omega
+
+theorem restrictAlongEmb_eq_of_unembAlong {k l n : ℕ} (e : Fin k ↪ Fin l) {w : Fin (n + l)}
+    {u : Fin (n + k)} (h : unembAlong e n w = some u) : w = restrictAlongEmb e n u := by
+  classical
+  apply Fin.ext
+  unfold unembAlong at h
+  by_cases hw : w.val < l
+  · rw [dif_pos hw] at h
+    by_cases hex : ∃ i : Fin k, (e i).val = w.val
+    · rw [dif_pos hex] at h
+      have huv : u.val = hex.choose.val := (congrArg Fin.val (Option.some.inj h)).symm
+      have hu_lt : u.val < k := by rw [huv]; exact hex.choose.isLt
+      rw [restrictAlongEmb_val_lt e n u hu_lt]
+      have heq : e ⟨u.val, hu_lt⟩ = e hex.choose := by congr 1; exact Fin.ext huv
+      rw [heq, hex.choose_spec]
+    · rw [dif_neg hex] at h; exact absurd h (by simp)
+  · rw [dif_neg hw] at h
+    have huv : u.val = k + (w.val - l) := (congrArg Fin.val (Option.some.inj h)).symm
+    have hu_ge : ¬ u.val < k := by rw [huv]; omega
+    rw [restrictAlongEmb_val_ge e n u hu_ge, huv]; omega
+
+/-- **Push a multigraph along a label injection**: embed `M`'s `k` labels into the `l`-label space via
+`e`, with labels outside `range e` isolated. -/
+noncomputable def MultiLabeledGraph.restrictAlongGraph {k l n : ℕ} (e : Fin k ↪ Fin l)
+    (M : MultiLabeledGraph k n) : MultiLabeledGraph l n where
+  mult := Sym2.lift ⟨fun u v =>
+    match unembAlong e n u, unembAlong e n v with
+    | some u', some v' => M.mult s(u', v')
+    | _, _ => 0,
+    by
+      intro a b
+      rcases ha : unembAlong e n a with _ | u' <;> rcases hb : unembAlong e n b with _ | v' <;>
+        simp only [ha, hb] <;> (try rw [show s(u', v') = s(v', u') from Sym2.eq_swap])⟩
+  multNoLoop x := by
+    show (match unembAlong e n x, unembAlong e n x with
+          | some u', some v' => M.mult s(u', v') | _, _ => 0) = 0
+    rcases hx : unembAlong e n x with _ | u' <;> simp only [hx]
+    exact M.multNoLoop u'
+
+theorem restrictAlongGraph_mult_map_emb {k l n : ℕ} (e : Fin k ↪ Fin l)
+    (M : MultiLabeledGraph k n) (d : Sym2 (Fin (n + k))) :
+    (M.restrictAlongGraph e).mult (Sym2.map (restrictAlongEmb e n) d) = M.mult d := by
+  refine Sym2.ind (fun a b => ?_) d
+  show (match unembAlong e n (restrictAlongEmb e n a), unembAlong e n (restrictAlongEmb e n b) with
+        | some u', some v' => M.mult s(u', v') | _, _ => 0) = M.mult s(a, b)
+  rw [unembAlong_restrictAlongEmb, unembAlong_restrictAlongEmb]
+
+theorem multiTau_restrictAlongEmb {T k l n : ℕ} (e : Fin k ↪ Fin l) (ζ : Fin l → Fin T)
+    (σ : Fin n → Fin T) (v : Fin (n + k)) :
+    multiTau l n ζ σ (restrictAlongEmb e n v) = multiTau k n (ζ ∘ e) σ v := by
+  by_cases hv : v.val < k
+  · have hval := restrictAlongEmb_val_lt e n v hv
+    have hlt : (restrictAlongEmb e n v).val < l := by rw [hval]; exact (e ⟨v.val, hv⟩).isLt
+    unfold multiTau
+    rw [dif_pos hlt, dif_pos hv]
+    show ζ ⟨(restrictAlongEmb e n v).val, hlt⟩ = (ζ ∘ e) ⟨v.val, hv⟩
+    simp only [Function.comp_apply]
+    congr 1; apply Fin.ext; rw [hval]
+  · have hval := restrictAlongEmb_val_ge e n v hv
+    have hge : ¬ (restrictAlongEmb e n v).val < l := by rw [hval]; omega
+    unfold multiTau
+    rw [dif_neg hge, dif_neg hv]
+    congr 1; apply Fin.ext
+    show (restrictAlongEmb e n v).val - l = v.val - k
+    rw [hval]; omega
+
+private theorem restrictAlongGraph_prod_reindex {T k l n : ℕ} (e : Fin k ↪ Fin l)
+    (M : MultiLabeledGraph k n) (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (τ₂ : Fin (n + l) → Fin T) (τ₁ : Fin (n + k) → Fin T)
+    (halign : ∀ v : Fin (n + k), τ₂ (restrictAlongEmb e n v) = τ₁ v) :
+    (∏ d : Sym2 (Fin (n + l)),
+        B (τ₂ (Quot.out d).1) (τ₂ (Quot.out d).2) ^ (M.restrictAlongGraph e).mult d)
+      = ∏ d' : Sym2 (Fin (n + k)), B (τ₁ (Quot.out d').1) (τ₁ (Quot.out d').2) ^ M.mult d' := by
+  classical
+  have hfac : (∏ d : Sym2 (Fin (n + l)),
+        B (τ₂ (Quot.out d).1) (τ₂ (Quot.out d).2) ^ (M.restrictAlongGraph e).mult d)
+      = ∏ d' : Sym2 (Fin (n + k)),
+          B (τ₂ (Quot.out (Sym2.map (restrictAlongEmb e n) d')).1)
+            (τ₂ (Quot.out (Sym2.map (restrictAlongEmb e n) d')).2)
+            ^ (M.restrictAlongGraph e).mult (Sym2.map (restrictAlongEmb e n) d') := by
+    have h1 := Finset.prod_map (Finset.univ : Finset (Sym2 (Fin (n + k))))
+      (restrictAlongEmb e n).sym2Map
+      (fun d => B (τ₂ (Quot.out d).1) (τ₂ (Quot.out d).2) ^ (M.restrictAlongGraph e).mult d)
+    simp only [Function.Embedding.sym2Map_apply] at h1
+    rw [← h1]
+    refine (Finset.prod_subset (Finset.subset_univ _) (fun d _ hd => ?_)).symm
+    suffices hz : (M.restrictAlongGraph e).mult d = 0 by rw [hz, pow_zero]
+    revert hd
+    refine Sym2.ind (fun a b hd => ?_) d
+    show (match unembAlong e n a, unembAlong e n b with
+          | some u', some v' => M.mult s(u', v') | _, _ => 0) = 0
+    rcases hca : unembAlong e n a with _ | u' <;> rcases hcb : unembAlong e n b with _ | v' <;>
+      simp only [hca, hcb]
+    exfalso; apply hd
+    rw [Finset.mem_map]
+    refine ⟨s(u', v'), Finset.mem_univ _, ?_⟩
+    rw [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq,
+      ← restrictAlongEmb_eq_of_unembAlong e hca, ← restrictAlongEmb_eq_of_unembAlong e hcb]
+  rw [hfac]
+  refine Finset.prod_congr rfl fun d' _ => ?_
+  rw [restrictAlongGraph_mult_map_emb]
+  congr 1
+  refine Sym2.ind (fun a b => ?_) d'
+  rw [Sym2.map_pair_eq,
+    B_quot_out_eq hB τ₂ (restrictAlongEmb e n a) (restrictAlongEmb e n b),
+    B_quot_out_eq hB τ₁ a b, halign a, halign b]
+
+theorem multiLabeledEvalK_restrictAlong {T k l n : ℕ} (e : Fin k ↪ Fin l)
+    (M : MultiLabeledGraph k n) (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (ζ : Fin l → Fin T) :
+    multiLabeledEvalK l n (M.restrictAlongGraph e) B W ζ = multiLabeledEvalK k n M B W (ζ ∘ e) := by
+  rw [multiLabeledEvalK_eq_tau, multiLabeledEvalK_eq_tau]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  congr 1
+  exact restrictAlongGraph_prod_reindex e M B hB (multiTau l n ζ σ) (multiTau k n (ζ ∘ e) σ)
+    (fun v => multiTau_restrictAlongEmb e ζ σ v)
+
+/-- **Lovász Claim 4.1 (restriction along an injection)** for `tupleEquivMulti`: precomposing both
+tuples with a label injection `e` preserves equivalence. Direct multigraph proof via `restrictAlongGraph`. -/
+theorem tupleEquivMulti_restrict_along {T k l : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (e : Fin k ↪ Fin l) {ξ ξ' : Fin l → Fin T} (h : tupleEquivMulti B W ξ ξ') :
+    tupleEquivMulti B W (ξ ∘ e) (ξ' ∘ e) := by
+  intro n M
+  rw [← multiLabeledEvalK_restrictAlong e M B hB W ξ, ← multiLabeledEvalK_restrictAlong e M B hB W ξ']
+  exact h n (M.restrictAlongGraph e)
+
 /-- **Independent multigraph separator** (Lovász §3 residue). For distinct
 orbits there is a multigraph whose evaluation distinguishes the tuples.
 
