@@ -8914,6 +8914,63 @@ theorem tupleEquivMulti_surjective_case {T K : ℕ}
       rw [hL, hR]
     rw [← htej]; exact ht.symm
 
+/-- **Lovász Lemma 2.4** (multigraph form): equal rooted *multigraph* hom-counts imply same
+`Aut(B,W)`-orbit. Induct on the number of missed vertices `|univ \ range ξ|`: if `ξ` is surjective,
+apply Claim 4.4; otherwise append a missing vertex `v` (Claim 4.2 lifts `ξ'` to `ν`), recurse on the
+strictly-larger range, and restrict the resulting automorphism back to the original coordinates. -/
+theorem tupleEquivMulti_implies_orbit {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquivMulti B W ξ ξ') :
+    tupleOrbitRel B W ξ ξ' := by
+  classical
+  suffices H : ∀ (m K : ℕ) (ξ ξ' : Fin K → Fin T),
+      (Finset.univ \ Finset.image ξ Finset.univ).card = m →
+      tupleEquivMulti B W ξ ξ' → tupleOrbitRel B W ξ ξ' from H _ K ξ ξ' rfl h
+  intro m
+  induction m using Nat.strong_induction_on with
+  | _ m IH =>
+    intro K ξ ξ' hm hξξ'
+    by_cases hsurj : Function.Surjective ξ
+    · exact tupleEquivMulti_surjective_case B hB W hW htwin hsurj hξξ'
+    · have hv_ex : ∃ v, v ∉ Finset.image ξ Finset.univ := by
+        by_contra hno
+        push_neg at hno
+        exact hsurj fun v => by
+          obtain ⟨a, _, ha⟩ := Finset.mem_image.mp (hno v); exact ⟨a, ha⟩
+      obtain ⟨v, hv⟩ := hv_ex
+      have hμ_restrict : restrictTuple (Fin.snoc ξ v) = ξ := by
+        funext i; exact Fin.snoc_castSucc (α := fun _ => Fin T) v ξ i
+      obtain ⟨ν, hν_restrict, hμν⟩ :=
+        tupleEquivMulti_extend_one B hB W hW hξξ' (Fin.snoc ξ v) hμ_restrict
+      have himg : Finset.image (Fin.snoc ξ v) Finset.univ
+                = insert v (Finset.image ξ Finset.univ) := by
+        apply Finset.ext; intro x
+        simp only [Finset.mem_image, Finset.mem_univ, true_and, Finset.mem_insert]
+        constructor
+        · rintro ⟨i, hi⟩
+          induction i using Fin.lastCases with
+          | last => exact Or.inl (by rw [← hi, Fin.snoc_last])
+          | cast j => exact Or.inr ⟨j, by rw [← hi, Fin.snoc_castSucc]⟩
+        · rintro (rfl | ⟨j, rfl⟩)
+          · exact ⟨Fin.last K, by rw [Fin.snoc_last]⟩
+          · exact ⟨j.castSucc, by rw [Fin.snoc_castSucc]⟩
+      have hvmem : v ∈ Finset.univ \ Finset.image ξ Finset.univ :=
+        Finset.mem_sdiff.mpr ⟨Finset.mem_univ v, hv⟩
+      have hcard : (Finset.univ \ Finset.image (Fin.snoc ξ v) Finset.univ).card = m - 1 := by
+        rw [himg]
+        rw [Finset.sdiff_insert, Finset.card_erase_of_mem hvmem, hm]
+      have hlt : m - 1 < m := by
+        have hpos : 0 < m := by rw [← hm, Finset.card_pos]; exact ⟨v, hvmem⟩
+        omega
+      obtain ⟨σ, hσaut, hσ⟩ := IH (m - 1) hlt (K + 1) (Fin.snoc ξ v) ν hcard hμν
+      refine ⟨σ, hσaut, fun i => ?_⟩
+      have h2 : ν i.castSucc = ξ' i := by
+        have := congrFun hν_restrict i; simpa [restrictTuple] using this
+      have h3 := congrFun hμ_restrict i
+      simp only [restrictTuple] at h3
+      rw [← h2, hσ i.castSucc, h3]
+
 /-- **Independent multigraph separator** (Lovász §3 residue). For distinct
 orbits there is a multigraph whose evaluation distinguishes the tuples.
 
@@ -10879,29 +10936,10 @@ theorem diagonal_observable_of_tupleEquivSimple {T K : ℕ}
   exact h_K1
 
 
-/-- **Lovász Lemma 2.5, reverse direction** (multi-equivalence ⟹ orbit),
-*twin-free hypothesis*.
-
-If `B` is twin-free (rows of `B` distinct: `i ≠ j → B i ≠ B j`) and
-`ξ ξ'` agree on every multigraph evaluation, then they lie in the same
-`(B, W)`-automorphism orbit.
-
-**Proof strategy** (chain): multi-equivalence ⟹ simple-equivalence
-(`tupleEquivSimple_of_tupleEquivMulti`, trivial direction) ⟹ orbit
-(`tupleEquivSimple_implies_orbit`, the canonical sorry).
-
-Closed modulo the canonical sorry on `tupleEquivSimple_implies_orbit`. -/
-theorem tupleEquivMulti_implies_orbit {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {ξ ξ' : Fin K → Fin T}
-    (h : tupleEquivMulti B W ξ ξ') :
-    ∃ σ : Equiv.Perm (Fin T),
-      (∀ i, W (σ i) = W i) ∧ (∀ i j, B (σ i) (σ j) = B i j) ∧
-      (∀ i, ξ' i = σ (ξ i)) :=
-  tupleEquivSimple_implies_orbit B hB W hW htwin
-    (tupleEquivSimple_of_tupleEquivMulti B W h)
+-- **Lovász Lemma 2.5, reverse direction** (multi-equivalence ⟹ orbit) is now
+-- `tupleEquivMulti_implies_orbit` (defined earlier via the honest multigraph Lemma 2.4 chain —
+-- Claims 4.1–4.4 — conditional only on the diagonal residue `tupleEquivMulti_preserves_diagonal`,
+-- NOT the simple-graph `tupleEquivSimple_implies_orbit` sorry). The old simple-routed stub is removed.
 
 /-! ### §4 — The bridge theorem (canonical sorry)
 
