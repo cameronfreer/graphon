@@ -483,57 +483,6 @@ lemma multiOrbitSpan_mul_le {T K : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ 
   funext q
   exact multiEvalOnOrbit_glue B hB W p.2 p'.2 q
 
-/-- **Signed-measure moment problem** — THE single internal paper-root, in the
-cleanest finite form: a *nonzero* signed measure `μ` on the orbit classes has a
-nonzero rooted-multigraph moment `∑_q μ q · multiEvalOnOrbit M q` for some `M`.
-
-Equivalent to `fls_orthogonal_zero` (orthogonality) via the positive reweighting
-`μ q = orbitWeight q · h q` (`orbitWeight > 0`), hence to `connectionMatrix_full_rank`.
-This is the genuine FLS PSD-rank target: nondegeneracy of the multigraph-moment map
-on signed orbit-class measures, under symmetric `B`, positive `W`, twin-free `B`.
-
-Falsified non-routes (do not attempt): simple-graph separation (downstream/cyclic)
-and the 1-WL `refineRel`/`stableSetoid` tower (1-WL ⊊ orbits; Frucht; fractional
-automorphisms ≠ automorphisms). To be proved via the full rooted-multigraph
-hierarchy. SORRY (paper-root). -/
-theorem signed_orbit_measure_has_nonzero_moment {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
-    (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (μ : OrbitClass T K B W → ℝ) (hμ : μ ≠ 0) :
-    ∃ (n : ℕ) (M : MultiLabeledGraph K n),
-      (∑ q, μ q * multiEvalOnOrbit K n M B W q) ≠ 0 := by
-  sorry
-
-/-- **FLS orthogonality vanishing** — now a wrapper over the moment-problem root
-`signed_orbit_measure_has_nonzero_moment` via the positive reweighting
-`μ q = orbitWeight q · h q`. A function orthogonal to every descended eval is `0`. -/
-theorem fls_orthogonal_zero {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (h : OrbitClass T K B W → ℝ)
-    (horth : ∀ (n : ℕ) (M : MultiLabeledGraph K n),
-      orbitInner K B W h (multiEvalOnOrbit K n M B W) = 0) : h = 0 := by
-  by_contra hne
-  have hμ : (fun q => orbitWeight K B W q * h q) ≠ 0 := by
-    intro hμ0
-    refine hne (funext fun q => ?_)
-    have hq : orbitWeight K B W q * h q = 0 := congrFun hμ0 q
-    exact (mul_eq_zero.mp hq).resolve_left (orbitWeight_pos K B hW q).ne'
-  obtain ⟨n, M, hM⟩ := signed_orbit_measure_has_nonzero_moment K B W hB hW htwin _ hμ
-  apply hM
-  show orbitInner K B W h (multiEvalOnOrbit K n M B W) = 0
-  exact horth n M
-
-/-- **Positive Gram self-test** (contrapositive of `fls_orthogonal_zero`, the
-construction target): a nonzero orbit-class function has a nonzero `orbitInner`
-against some descended multigraph evaluation. -/
-theorem exists_positive_gram_test {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (h : OrbitClass T K B W → ℝ) (hne : h ≠ 0) :
-    ∃ (n : ℕ) (M : MultiLabeledGraph K n),
-      orbitInner K B W h (multiEvalOnOrbit K n M B W) ≠ 0 := by
-  by_contra hcon
-  push_neg at hcon
-  exact hne (fls_orthogonal_zero K B W hB hW htwin h hcon)
-
 /-- **Orthogonality ⟹ full rank** (the bounded wrapper, PROVED). If no nonzero
 orbit-class function is orthogonal to all descended evals, the evals span
 everything. Via the dual-pairing map `Ψ : h ↦ ⟨h, ·⟩|_{multiOrbitSpan}`: its kernel
@@ -571,16 +520,6 @@ theorem connectionMatrix_full_rank_of_orthogonal {T K : ℕ} (B : Fin T → Fin 
   refine Submodule.eq_top_of_finrank_eq ?_
   rw [Module.finrank_pi (ι := OrbitClass T K B W) ℝ, ← Nat.card_eq_fintype_card]
   exact le_antisymm hle2 hle1
-
-/-- **Connection-matrix full rank** — `multiOrbitSpan K B W = ⊤`, in Lovász/FLS
-rank language; now a corollary of the single internal paper-root
-`fls_orthogonal_zero` via `connectionMatrix_full_rank_of_orthogonal`. Equivalent
-(via `multiOrbitSpan_eq_top_iff_separates`) to `multiEvalOnOrbit_separates`. -/
-theorem connectionMatrix_full_rank {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
-    multiOrbitSpan K B W = ⊤ :=
-  connectionMatrix_full_rank_of_orthogonal B W
-    (fun h horth => fls_orthogonal_zero K B W hB hW htwin h horth)
 
 /-- The signed measure `μ` on orbit classes has all rooted-multigraph moments zero. -/
 def allMomentsZero {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
@@ -828,6 +767,58 @@ theorem multiOrbitSpan_eq_top {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) 
   rw [hg]
   exact Submodule.sum_mem _ (fun q _ =>
     Submodule.smul_mem _ _ (orbitClassIndicator_mem B hB W hW htwin q))
+
+/-- **Connection-matrix full rank** — `multiOrbitSpan K B W = ⊤`, in Lovász/FLS
+rank language; now literally `multiOrbitSpan_eq_top` (proved from the Lovász §3
+point-separation theorem `multiEvalOnOrbit_separates` via Lagrange interpolation). -/
+theorem connectionMatrix_full_rank {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    multiOrbitSpan K B W = ⊤ :=
+  multiOrbitSpan_eq_top K B W hB hW htwin
+
+/-- **Signed-measure moment problem** — a *nonzero* signed measure `μ` on the orbit
+classes has a nonzero rooted-multigraph moment `∑_q μ q · multiEvalOnOrbit M q` for
+some `M`. Now PROVED (no longer the paper-root sorry): a corollary of
+`multiOrbitSpan_eq_top` (the descended evals span everything, via the Lovász §3
+point-separation theorem) through the moment ⟺ full-rank equivalence
+`moment_nondegenerate_iff_multiOrbitSpan_eq_top`. -/
+theorem signed_orbit_measure_has_nonzero_moment {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (μ : OrbitClass T K B W → ℝ) (hμ : μ ≠ 0) :
+    ∃ (n : ℕ) (M : MultiLabeledGraph K n),
+      (∑ q, μ q * multiEvalOnOrbit K n M B W q) ≠ 0 :=
+  (moment_nondegenerate_iff_multiOrbitSpan_eq_top K B W hW).mpr
+    (multiOrbitSpan_eq_top K B W hB hW htwin) μ hμ
+
+/-- **FLS orthogonality vanishing** — a function orthogonal to every descended eval
+is `0`; a wrapper over `signed_orbit_measure_has_nonzero_moment` via the positive
+reweighting `μ q = orbitWeight q · h q`. -/
+theorem fls_orthogonal_zero {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (h : OrbitClass T K B W → ℝ)
+    (horth : ∀ (n : ℕ) (M : MultiLabeledGraph K n),
+      orbitInner K B W h (multiEvalOnOrbit K n M B W) = 0) : h = 0 := by
+  by_contra hne
+  have hμ : (fun q => orbitWeight K B W q * h q) ≠ 0 := by
+    intro hμ0
+    refine hne (funext fun q => ?_)
+    have hq : orbitWeight K B W q * h q = 0 := congrFun hμ0 q
+    exact (mul_eq_zero.mp hq).resolve_left (orbitWeight_pos K B hW q).ne'
+  obtain ⟨n, M, hM⟩ := signed_orbit_measure_has_nonzero_moment K B W hB hW htwin _ hμ
+  apply hM
+  show orbitInner K B W h (multiEvalOnOrbit K n M B W) = 0
+  exact horth n M
+
+/-- **Positive Gram self-test** (contrapositive of `fls_orthogonal_zero`): a nonzero
+orbit-class function has a nonzero `orbitInner` against some descended evaluation. -/
+theorem exists_positive_gram_test {T : ℕ} (K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (h : OrbitClass T K B W → ℝ) (hne : h ≠ 0) :
+    ∃ (n : ℕ) (M : MultiLabeledGraph K n),
+      orbitInner K B W h (multiEvalOnOrbit K n M B W) ≠ 0 := by
+  by_contra hcon
+  push_neg at hcon
+  exact hne (fls_orthogonal_zero K B W hB hW htwin h hcon)
 
 /-- **Full span from a separation hypothesis** (hard direction of the equivalence):
 if the descended evals separate orbit classes (`hsep`) then they span everything. -/
