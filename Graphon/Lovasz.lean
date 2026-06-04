@@ -8648,6 +8648,20 @@ theorem tupleEquivMulti_id_preserves_W {T : ℕ}
     rw [hl1, hl2] at hWlast
     exact hWlast
 
+/-- **Lovász Claim 4.3 (bijective case)**: `tupleEquivMulti id χ ⟹ tupleOrbitRel id χ`. With full
+`B`-preservation (off-diag + diagonal residue) and `W`-preservation in hand, `χ` is a weighted
+automorphism, so it witnesses the orbit relation. -/
+theorem tupleEquivMulti_bijective_case {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {χ : Fin T → Fin T} (h : tupleEquivMulti B W (fun i => i) χ) :
+    tupleOrbitRel B W (fun i => i) χ := by
+  have hχ : Function.Bijective χ := tupleEquivMulti_id_bijective B hB W hW htwin h
+  refine ⟨Equiv.ofBijective χ hχ, ⟨?_, ?_⟩, ?_⟩
+  · exact fun i => tupleEquivMulti_id_preserves_W B hB W hW htwin h hχ i
+  · exact fun i j => tupleEquivMulti_id_preserves_B_full B hB W hW htwin h i j
+  · exact fun i => rfl
+
 /-- **Independent multigraph separator** (Lovász §3 residue). For distinct
 orbits there is a multigraph whose evaluation distinguishes the tuples.
 
