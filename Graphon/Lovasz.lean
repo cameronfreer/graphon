@@ -8650,6 +8650,50 @@ theorem weighted_powersum_determines_measure {ι : Type*} [Fintype ι] [Decidabl
     rw [hPa (y i) hyiS]; split_ifs <;> simp
   rw [← hx, ← hy]; exact hpoly Pa
 
+/-- **Signed power sums vanish ⟹ every fibre mass vanishes.** If a signed weight `g` on a finite
+index has `∑_i g i · (z i)^k = 0` for all `k`, then for every value `a` the `g`-mass of the fibre
+`{i : z i = a}` is `0`. (One-function signed analogue of `weighted_powersum_determines_measure`,
+same Lagrange-interpolation proof.) -/
+theorem weighted_powersum_zero_imp_fiber_zero {ι : Type*} [Fintype ι] [DecidableEq ι]
+    (z g : ι → ℝ) (hz : ∀ k : ℕ, ∑ i, g i * z i ^ k = 0) (a : ℝ) :
+    ∑ i ∈ Finset.univ.filter (fun i => z i = a), g i = 0 := by
+  classical
+  have hpoly : ∀ Q : Polynomial ℝ, (∑ i, g i * Q.eval (z i)) = 0 := by
+    intro Q
+    have key : (∑ i, g i * Q.eval (z i)) =
+        ∑ k ∈ Finset.range (Q.natDegree + 1), Q.coeff k * ∑ i, g i * z i ^ k := by
+      simp_rw [Polynomial.eval_eq_sum_range, Finset.mul_sum]
+      rw [Finset.sum_comm]
+      refine Finset.sum_congr rfl fun k _ => ?_
+      exact Finset.sum_congr rfl fun i _ => by ring
+    rw [key]
+    exact Finset.sum_eq_zero fun k _ => by rw [hz k, mul_zero]
+  set S : Finset ℝ := Finset.univ.image z with hSdef
+  set Pa : Polynomial ℝ :=
+    ∏ b ∈ S.erase a, Polynomial.C (a - b)⁻¹ * (Polynomial.X - Polynomial.C b) with hPaDef
+  have hPa : ∀ c ∈ S, Pa.eval c = if c = a then 1 else 0 := by
+    intro c hc
+    by_cases hca : c = a
+    · subst hca
+      rw [if_pos rfl, hPaDef]
+      simp only [Polynomial.eval_prod, Polynomial.eval_mul, Polynomial.eval_C,
+        Polynomial.eval_sub, Polynomial.eval_X]
+      refine Finset.prod_eq_one fun b hb => ?_
+      have hcb : c - b ≠ 0 := sub_ne_zero.mpr (Ne.symm (Finset.ne_of_mem_erase hb))
+      exact inv_mul_cancel₀ hcb
+    · rw [if_neg hca, hPaDef]
+      have hce : c ∈ S.erase a := Finset.mem_erase.mpr ⟨hca, hc⟩
+      simp only [Polynomial.eval_prod]
+      refine Finset.prod_eq_zero hce ?_
+      simp only [Polynomial.eval_mul, Polynomial.eval_sub, Polynomial.eval_X, Polynomial.eval_C,
+        sub_self, mul_zero]
+  have hg : (∑ i, g i * Pa.eval (z i)) = ∑ i ∈ Finset.univ.filter (fun i => z i = a), g i := by
+    rw [Finset.sum_filter]
+    refine Finset.sum_congr rfl fun i _ => ?_
+    have hziS : z i ∈ S := Finset.mem_image_of_mem z (Finset.mem_univ i)
+    rw [hPa (z i) hziS]; split_ifs <;> simp
+  rw [← hg]; exact hpoly Pa
+
 /-- **Level-1 star-moment extraction.** Multigraph equivalence of the singleton tuples `· ↦ i`,
 `· ↦ j` makes all `W`-weighted neighbor power-sums of rows `i`, `j` agree (read off the star probes
 `starProbe a` via `multiLabeledEvalK_starProbe`). -/
@@ -8673,47 +8717,150 @@ theorem tupleEquivMulti_k1_rowMeasure_eq {T : ℕ}
       ∑ t ∈ Finset.univ.filter (fun t => B j t = v), W t :=
   weighted_powersum_determines_measure (B i) (B j) W (tupleEquivMulti_k1_powersum_eq B hB W h) v
 
-/-- **Diagonal observability residue, `K = 1` core.** The whole content of
-`tupleEquivMulti_preserves_diagonal` lives here: if the singleton tuples `· ↦ i` and `· ↦ j` are
-multigraph-equivalent then their diagonal entries agree, `B i i = B j j`. The general statement
-reduces to this per coordinate via `tupleEquivMulti_restrict_along` along a singleton label
-embedding `Fin 1 ↪ Fin K`.
+/-- **Two-leaf probe** (`2`-labeled, one unlabeled leaf): label `0` joined to the single leaf by `a`
+edges and label `1` joined to it by `b` edges (no label–label edge). Evaluating it reads the joint
+moment `∑ₜ W t · B (φ 0) t ^ a · B (φ 1) t ^ b`. -/
+def twoLeafProbe (a b : ℕ) : MultiLabeledGraph 2 1 where
+  mult e := if e = s(0, 2) then a else if e = s(1, 2) then b else 0
+  multNoLoop x := by
+    have h1 : s(x, x) ≠ (s(0, 2) : Sym2 (Fin (1 + 2))) := fun h => by
+      rw [Sym2.eq_iff] at h
+      rcases h with ⟨ha, hb⟩ | ⟨ha, hb⟩ <;> exact absurd (ha.symm.trans hb) (by decide)
+    have h2 : s(x, x) ≠ (s(1, 2) : Sym2 (Fin (1 + 2))) := fun h => by
+      rw [Sym2.eq_iff] at h
+      rcases h with ⟨ha, hb⟩ | ⟨ha, hb⟩ <;> exact absurd (ha.symm.trans hb) (by decide)
+    simp only [if_neg h1, if_neg h2]
 
-Level-1 star moments imply equality of weighted row-value measures
-(`tupleEquivMulti_k1_rowMeasure_eq`), but this does **not** force diagonal equality, even in
-twin-free graphs (see the counterexample in the proof body). The remaining content is the
-duplicated-root / vertex-pinning part of Lovász §3. -/
+@[simp] theorem twoLeafProbe_mult {a b : ℕ} (e : Sym2 (Fin (1 + 2))) :
+    (twoLeafProbe a b).mult e = if e = s(0, 2) then a else if e = s(1, 2) then b else 0 := rfl
+
+/-- **Two-leaf-probe evaluation**: reads the joint moment `∑ₜ W t · B (φ 0) t ^ a · B (φ 1) t ^ b`. -/
+theorem multiLabeledEvalK_twoLeafProbe {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (φ : Fin 2 → Fin T) (a b : ℕ) :
+    multiLabeledEvalK 2 1 (twoLeafProbe a b) B W φ
+      = ∑ t, W t * (B (φ 0) t ^ a * B (φ 1) t ^ b) := by
+  classical
+  have hne : (s(0, 2) : Sym2 (Fin (1 + 2))) ≠ s(1, 2) := by decide
+  have key : ∀ τ : Fin (1 + 2) → Fin T,
+      (∏ e : Sym2 (Fin (1 + 2)),
+        B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ (twoLeafProbe a b).mult e)
+      = B (τ 0) (τ 2) ^ a * B (τ 1) (τ 2) ^ b := by
+    intro τ
+    rw [← Finset.prod_subset (Finset.subset_univ ({s(0, 2), s(1, 2)} : Finset (Sym2 (Fin (1 + 2)))))
+        (fun e _ he => by
+          simp only [Finset.mem_insert, Finset.mem_singleton, not_or] at he
+          rw [twoLeafProbe_mult, if_neg he.1, if_neg he.2, pow_zero])]
+    rw [Finset.prod_pair hne, twoLeafProbe_mult, twoLeafProbe_mult, if_pos rfl,
+      if_neg (Ne.symm hne), if_pos rfl, B_pow_quot_out_eq hB τ 0 2 a, B_pow_quot_out_eq hB τ 1 2 b]
+  unfold multiLabeledEvalK
+  trans (∑ σ : Fin 1 → Fin T, W (σ 0) * (B (φ 0) (σ 0) ^ a * B (φ 1) (σ 0) ^ b))
+  · refine Finset.sum_congr rfl fun σ _ => ?_
+    extract_lets τ
+    have hτ0 : τ 0 = φ 0 := rfl
+    have hτ1 : τ 1 = φ 1 := rfl
+    have hτ2 : τ 2 = σ 0 := rfl
+    rw [key τ, Fin.prod_univ_one, hτ0, hτ1, hτ2]
+  · refine Fintype.sum_equiv (Equiv.funUnique (Fin 1) (Fin T)) _ _ (fun σ => ?_)
+    simp [Equiv.funUnique, Fin.default_eq_zero]
+
+/-- **Diagonal observability residue, `K = 1` core — PROVED.** If the singleton tuples `· ↦ i` and
+`· ↦ j` are multigraph-equivalent then their diagonal entries agree, `B i i = B j j`. The general
+`tupleEquivMulti_preserves_diagonal` reduces here per coordinate via `tupleEquivMulti_restrict_along`.
+
+Proof (loopless, no rank theory): `extend_one` gives a full `K = 2` equivalence `(i,i) ≈ (j, b₁)`.
+The single label–label edge (`edgeProbe`) reads `B i i = B j b₁`. The two-leaf probe
+(`twoLeafProbe a b`, both labels joined to one unlabeled leaf), together with the level-1 power-sum
+equality `i ≈ j`, gives `∑ₜ W t · (B j t)ᵃ · (B b₁ t)ᵇ = ∑ₜ W t · (B j t)ᵃ · (B j t)ᵇ` for all
+`a, b`; two Lagrange fibre arguments (`weighted_powersum_zero_imp_fiber_zero`,
+`weighted_powersum_determines_measure`) force the rows equal, `B b₁ = B j`, so twin-freeness gives
+`b₁ = j`, hence `B i i = B j j`. -/
 theorem tupleEquivMulti_preserves_diagonal_of_k1 {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {i j : Fin T} (h : tupleEquivMulti B W (fun _ : Fin 1 => i) (fun _ : Fin 1 => j)) :
     B i i = B j j := by
-  -- STATUS (the precise residue scoping; see Commits A–C):
-  --
-  -- LEVEL 1 (proved, available): `tupleEquivMulti_k1_powersum_eq` gives all weighted neighbour
-  -- power-sums of rows `i`, `j` agree, hence (`tupleEquivMulti_k1_rowMeasure_eq`,
-  -- `weighted_powersum_determines_measure`) the weighted row-value measures agree:
-  --   ∀ v, ∑_{t : B i t = v} W t = ∑_{t : B j t = v} W t.
-  -- This is NOT sufficient on its own. COUNTEREXAMPLE (level-1 + twin-free ⊬ diagonal):
-  --   T=3, W ≡ 1, B = ![![0,5,1],![5,1,0],![1,0,2]] (symmetric, all rows distinct ⇒ twin-free);
-  --   rows 0,1 = (0,5,1),(5,1,0) have equal value-multiset {0,1,5} so μ₀ = μ₁, yet B 0 0 = 0 ≠
-  --   1 = B 1 1. (Not a counterexample to THIS theorem — full `tupleEquivMulti` is strictly
-  --   stronger than μ-equality and would distinguish 0,1 — only to any level-1-only argument.)
-  --
-  -- LEVEL 2 (partial, the genuine content): the diagonal `B a a` is read by a single edge between
-  -- two DISTINCT labels both mapping to `a` (loopless). Iterating `tupleEquivMulti_extend_one`
-  -- with the constant left tuple builds a tower (a,…,a) ≈ (b=b₀, b₁, …, b_k) [b ≈ b_q ≈ a all in
-  -- the ≈-class]; the label-(p,q) single-edge observable forces B(b_p)(b_q) = B a a for all p≠q,
-  -- and B b b_q = B a a for all q ≥ 1. Taking k = T, pigeonhole on b₀,…,b_T ∈ Fin T forces a
-  -- coincidence b_p = b_q ⇒ B(b_p)(b_p) = B a a: i.e. the diagonal VALUE `B a a` is realised as a
-  -- diagonal SOMEWHERE in the ≈-class. (And: if `b` itself recurs in the tower, B b b = B a a.)
-  --
-  -- REMAINING GAP (the named residue): pin that coincidence to the SPECIFIC vertex `b` — equivalently
-  -- show the diagonal is constant on each `tupleEquivMulti`-class, i.e. the duplicated-root K=2
-  -- equivalence (i,i) ≈ (j,j) (whose only hard observable is the diagonal edge itself). This is the
-  -- irreducible connection-matrix-rank core (Lovász §3); it is NOT reachable from the level-1/2
-  -- manipulations above. Do NOT reopen the rank/moment stack — attack only this.
-  sorry
+  classical
+  -- Extend `(·↦i) ≈ (·↦j)` to a `K = 2` equivalence `(i,i) ≈ ν` with `ν 0 = j`; write `b₁ := ν 1`.
+  obtain ⟨ν, hν_restrict, hν_equiv⟩ :=
+    tupleEquivMulti_extend_one B hB W hW h (fun _ : Fin 2 => i) rfl
+  have hν0 : ν 0 = j := by
+    have := congrFun hν_restrict 0
+    simpa [restrictTuple] using this
+  -- (★) single label–label edge: `B i i = B j (ν 1)`.
+  have hstar : B i i = B j (ν 1) := by
+    have he := hν_equiv 0 (edgeProbe 1)
+    rw [multiLabeledEvalK_edgeProbe B hB W _ 1, multiLabeledEvalK_edgeProbe B hB W _ 1] at he
+    simpa [hν0] using he
+  -- (**) two-leaf joint moments + level-1 `i ≈ j` ⟹ for all `a, b`:
+  --   `∑ₜ W t (B j t)ᵃ (B (ν 1) t)ᵇ = ∑ₜ W t (B j t)ᵃ (B j t)ᵇ`.
+  have hjoint : ∀ a b : ℕ,
+      (∑ t, W t * (B j t ^ a * B (ν 1) t ^ b)) = ∑ t, W t * (B j t ^ a * B j t ^ b) := by
+    intro a b
+    have he := hν_equiv 1 (twoLeafProbe a b)
+    rw [multiLabeledEvalK_twoLeafProbe B hB W _ a b,
+        multiLabeledEvalK_twoLeafProbe B hB W _ a b] at he
+    simp only [hν0] at he
+    have hpow := tupleEquivMulti_k1_powersum_eq B hB W h (a + b)
+    calc (∑ t, W t * (B j t ^ a * B (ν 1) t ^ b))
+        = ∑ t, W t * (B i t ^ a * B i t ^ b) := by rw [← he]
+      _ = ∑ t, W t * B i t ^ (a + b) := Finset.sum_congr rfl fun t _ => by rw [pow_add]
+      _ = ∑ t, W t * B j t ^ (a + b) := hpow
+      _ = ∑ t, W t * (B j t ^ a * B j t ^ b) := Finset.sum_congr rfl fun t _ => by rw [pow_add]
+  -- Rows agree: `B (ν 1) = B j`.
+  have hrows : ∀ t₀ : Fin T, B (ν 1) t₀ = B j t₀ := by
+    intro t₀
+    set v : ℝ := B j t₀ with hv
+    set W' : Fin T → ℝ := fun t => if B j t = v then W t else 0 with hW'
+    have hW'nn : ∀ t, 0 ≤ W' t := fun t => by
+      simp only [hW']; split_ifs; exacts [(hW t).le, le_refl 0]
+    -- per-fibre moment equality `∀ b, ∑ W' (B (ν 1))ᵇ = ∑ W' vᵇ`.
+    have hmom : ∀ b : ℕ, (∑ t, W' t * B (ν 1) t ^ b) = ∑ t, W' t * v ^ b := by
+      intro b
+      have efilter : ∀ f : Fin T → ℝ, (∑ t, W' t * f t)
+          = ∑ t ∈ Finset.univ.filter (fun t => B j t = v), W t * f t := by
+        intro f
+        rw [Finset.sum_filter]
+        refine Finset.sum_congr rfl fun t _ => ?_
+        simp only [hW']; split_ifs <;> simp
+      have hzero := weighted_powersum_zero_imp_fiber_zero (B j)
+        (fun t => W t * (B (ν 1) t ^ b - B j t ^ b))
+        (fun a => by
+          have hj := hjoint a b
+          have hreorg : (∑ t, W t * (B (ν 1) t ^ b - B j t ^ b) * B j t ^ a)
+              = (∑ t, W t * (B j t ^ a * B (ν 1) t ^ b))
+                - ∑ t, W t * (B j t ^ a * B j t ^ b) := by
+            rw [← Finset.sum_sub_distrib]; exact Finset.sum_congr rfl fun t _ => by ring
+          rw [hreorg, hj, sub_self]) v
+      -- `hzero : ∑_{t∈U_v} W t (B (ν 1) t^b - B j t^b) = 0`.
+      have hfib : (∑ t ∈ Finset.univ.filter (fun t => B j t = v), W t * B (ν 1) t ^ b)
+          = ∑ t ∈ Finset.univ.filter (fun t => B j t = v), W t * v ^ b := by
+        have hbjv : (∑ t ∈ Finset.univ.filter (fun t => B j t = v), W t * B j t ^ b)
+            = ∑ t ∈ Finset.univ.filter (fun t => B j t = v), W t * v ^ b :=
+          Finset.sum_congr rfl fun t ht => by rw [(Finset.mem_filter.mp ht).2]
+        have hsub : (∑ t ∈ Finset.univ.filter (fun t => B j t = v), W t * B (ν 1) t ^ b)
+            - ∑ t ∈ Finset.univ.filter (fun t => B j t = v), W t * B j t ^ b = 0 := by
+          rw [← Finset.sum_sub_distrib, ← hzero]; exact Finset.sum_congr rfl fun t _ => by ring
+        linarith [hsub, hbjv]
+      rw [efilter (fun t => B (ν 1) t ^ b), efilter (fun t => v ^ b)]; exact hfib
+    -- determination on the fibre weight forces `B (ν 1) t₀ = v`.
+    have hdet := weighted_powersum_determines_measure (B (ν 1)) (fun _ => v) W' hmom (B (ν 1) t₀)
+    by_contra hcontra
+    have hvne : v ≠ B (ν 1) t₀ := fun he => hcontra he.symm
+    have hRHS : (∑ t ∈ Finset.univ.filter (fun _ => v = B (ν 1) t₀), W' t) = 0 := by
+      rw [Finset.filter_false_of_mem (fun t _ => hvne), Finset.sum_empty]
+    have ht₀mem : t₀ ∈ Finset.univ.filter (fun t => B (ν 1) t = B (ν 1) t₀) := by
+      simp [Finset.mem_filter]
+    have hW't₀ : W' t₀ = W t₀ := by simp only [hW']; rw [if_pos hv.symm]
+    have hle : W' t₀ ≤ ∑ t ∈ Finset.univ.filter (fun t => B (ν 1) t = B (ν 1) t₀), W' t :=
+      Finset.single_le_sum (fun t _ => hW'nn t) ht₀mem
+    rw [hdet, hRHS] at hle
+    rw [hW't₀] at hle
+    exact absurd hle (not_le.mpr (hW t₀))
+  -- twin-free: `B (ν 1) = B j ⟹ ν 1 = j`; then (★) gives `B i i = B j j`.
+  have hbj : ν 1 = j := by
+    by_contra hne
+    exact htwin (ν 1) j hne (funext hrows)
+  rw [hstar, hbj]
 
 /-- **Diagonal observability residue** (Route A, the single named hard input for #62/#73).
 
