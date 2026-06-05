@@ -6,6 +6,7 @@ Authors: Cameron Freer
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
+import Mathlib.Algebra.Polynomial.Eval.Degree
 import Mathlib.Combinatorics.SimpleGraph.Finite
 import Mathlib.Data.Fintype.BigOperators
 import Mathlib.Data.Real.Basic
@@ -5816,9 +5817,9 @@ theorem tupleEquivSimple_id_bijective {T : ℕ}
         have hv_eq : (⟨v_p.val, (by have := b.isLt; omega : v_p.val < S + 1)⟩ :
             Fin (S + 1)) = b := Fin.ext rfl
         have hu_lt : (u : Fin (0 + (S + 1))).val < S + 1 := by
-          have := a.isLt; simp [u]
+          have := a.isLt; simp [u] <;> omega
         have hv_lt : (v_p : Fin (0 + (S + 1))).val < S + 1 := by
-          have := b.isLt; simp [v_p]
+          have := b.isLt; simp [v_p] <;> omega
         rcases key' with ⟨hpu, hpv⟩ | ⟨hpu, hpv⟩
         · simp only [hpu, hpv, dif_pos hu_lt, dif_pos hv_lt, hu_eq, hv_eq, id_eq] at key
           exact key
@@ -6167,7 +6168,7 @@ theorem tupleEquivSimple_ext_eq_of_surj {T k : ℕ}
   rcases key' with ⟨hpu, hpv⟩ | ⟨hpu, hpv⟩
   · -- p = (u, v): direct read.
     simp only [hpu, hpv, dif_pos (show (u : Fin (0 + (k + 1))).val < k + 1
-      by have := j.isLt; simp [u]; omega),
+      by have := j.isLt; simp [u] <;> omega),
       dif_pos (show (v : Fin (0 + (k + 1))).val < k + 1 by simp [v]),
       hu_cs, hv_la, Fin.snoc_castSucc, Fin.snoc_last] at key
     exact key
@@ -6175,7 +6176,7 @@ theorem tupleEquivSimple_ext_eq_of_surj {T k : ℕ}
     simp only [hpu, hpv, dif_pos (show (v : Fin (0 + (k + 1))).val < k + 1
       by simp [v]),
       dif_pos (show (u : Fin (0 + (k + 1))).val < k + 1
-      by have := j.isLt; simp [u]; omega),
+      by have := j.isLt; simp [u] <;> omega),
       hu_cs, hv_la, Fin.snoc_castSucc, Fin.snoc_last] at key
     -- key : B a (α j) = B b (α j); want B (α j) a = B (α j) b.
     calc B (α j) a = B a (α j) := hB _ _
@@ -8400,6 +8401,320 @@ theorem tupleEquivMulti_id_preserves_B {T : ℕ}
       _ = B b a := key.symm
       _ = B a b := hB _ _
 
+/-! ### Claim 4.1 (restriction along an injection) — generalizes `addIsoLabel` -/
+
+/-- Embed `Fin (n+k) ↪ Fin (n+l)` along a label injection `e : Fin k ↪ Fin l`: labels `i < k` map to
+label `e i`; unlabeled vertices shift from `[k, k+n)` to `[l, l+n)`. -/
+def restrictAlongEmb {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) : Fin (n + k) ↪ Fin (n + l) where
+  toFun v := ⟨if h : v.val < k then (e ⟨v.val, h⟩).val else l + (v.val - k), by
+    split
+    · rename_i h; have := (e ⟨v.val, h⟩).isLt; omega
+    · have := v.isLt; omega⟩
+  inj' a b hab := by
+    have hv : (if h : a.val < k then (e ⟨a.val, h⟩).val else l + (a.val - k))
+            = (if h : b.val < k then (e ⟨b.val, h⟩).val else l + (b.val - k)) := congrArg Fin.val hab
+    by_cases ha : a.val < k <;> by_cases hb : b.val < k
+    · rw [dif_pos ha, dif_pos hb] at hv
+      have h2 : (⟨a.val, ha⟩ : Fin k) = ⟨b.val, hb⟩ := e.injective (Fin.val_injective hv)
+      have hval2 : a.val = b.val := by simpa using congrArg Fin.val h2
+      exact Fin.ext hval2
+    · rw [dif_pos ha, dif_neg hb] at hv; exfalso; have := (e ⟨a.val, ha⟩).isLt; omega
+    · rw [dif_neg ha, dif_pos hb] at hv; exfalso; have := (e ⟨b.val, hb⟩).isLt; omega
+    · rw [dif_neg ha, dif_neg hb] at hv; exact Fin.ext (by omega)
+
+/-- Partial inverse of `restrictAlongEmb`: `none` on labels outside `range e` (the isolated labels). -/
+noncomputable def unembAlong {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) (w : Fin (n + l)) :
+    Option (Fin (n + k)) := by
+  classical
+  exact
+    if hw : w.val < l then
+      if h : ∃ i : Fin k, (e i).val = w.val then some ⟨h.choose.val, by have := h.choose.isLt; omega⟩
+      else none
+    else some ⟨k + (w.val - l), by have := w.isLt; omega⟩
+
+theorem restrictAlongEmb_val_lt {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) (v : Fin (n + k))
+    (hv : v.val < k) : (restrictAlongEmb e n v).val = (e ⟨v.val, hv⟩).val := by
+  show (if h : v.val < k then (e ⟨v.val, h⟩).val else l + (v.val - k)) = (e ⟨v.val, hv⟩).val
+  rw [dif_pos hv]
+
+theorem restrictAlongEmb_val_ge {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) (v : Fin (n + k))
+    (hv : ¬ v.val < k) : (restrictAlongEmb e n v).val = l + (v.val - k) := by
+  show (if h : v.val < k then (e ⟨v.val, h⟩).val else l + (v.val - k)) = l + (v.val - k)
+  rw [dif_neg hv]
+
+theorem unembAlong_restrictAlongEmb {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) (v : Fin (n + k)) :
+    unembAlong e n (restrictAlongEmb e n v) = some v := by
+  classical
+  by_cases hv : v.val < k
+  · have hval := restrictAlongEmb_val_lt e n v hv
+    have hlt : (restrictAlongEmb e n v).val < l := by rw [hval]; exact (e ⟨v.val, hv⟩).isLt
+    unfold unembAlong
+    rw [dif_pos hlt]
+    have hex : ∃ i : Fin k, (e i).val = (restrictAlongEmb e n v).val := ⟨⟨v.val, hv⟩, hval.symm⟩
+    rw [dif_pos hex]
+    have hch : hex.choose = ⟨v.val, hv⟩ :=
+      e.injective (Fin.ext (by rw [hex.choose_spec, hval]))
+    rw [Option.some.injEq]; apply Fin.ext; show hex.choose.val = v.val
+    exact congrArg Fin.val hch
+  · have hval := restrictAlongEmb_val_ge e n v hv
+    have hge : ¬ (restrictAlongEmb e n v).val < l := by rw [hval]; omega
+    unfold unembAlong
+    rw [dif_neg hge]
+    congr 1; apply Fin.ext
+    show k + ((restrictAlongEmb e n v).val - l) = v.val
+    rw [hval]; omega
+
+theorem restrictAlongEmb_eq_of_unembAlong {k l n : ℕ} (e : Fin k ↪ Fin l) {w : Fin (n + l)}
+    {u : Fin (n + k)} (h : unembAlong e n w = some u) : w = restrictAlongEmb e n u := by
+  classical
+  apply Fin.ext
+  unfold unembAlong at h
+  by_cases hw : w.val < l
+  · rw [dif_pos hw] at h
+    by_cases hex : ∃ i : Fin k, (e i).val = w.val
+    · rw [dif_pos hex] at h
+      have huv : u.val = hex.choose.val := (congrArg Fin.val (Option.some.inj h)).symm
+      have hu_lt : u.val < k := by rw [huv]; exact hex.choose.isLt
+      rw [restrictAlongEmb_val_lt e n u hu_lt]
+      have heq : e ⟨u.val, hu_lt⟩ = e hex.choose := by congr 1; exact Fin.ext huv
+      rw [heq, hex.choose_spec]
+    · rw [dif_neg hex] at h; exact absurd h (by simp)
+  · rw [dif_neg hw] at h
+    have huv : u.val = k + (w.val - l) := (congrArg Fin.val (Option.some.inj h)).symm
+    have hu_ge : ¬ u.val < k := by rw [huv]; omega
+    rw [restrictAlongEmb_val_ge e n u hu_ge, huv]; omega
+
+/-- **Push a multigraph along a label injection**: embed `M`'s `k` labels into the `l`-label space via
+`e`, with labels outside `range e` isolated. -/
+noncomputable def MultiLabeledGraph.restrictAlongGraph {k l n : ℕ} (e : Fin k ↪ Fin l)
+    (M : MultiLabeledGraph k n) : MultiLabeledGraph l n where
+  mult := Sym2.lift ⟨fun u v =>
+    match unembAlong e n u, unembAlong e n v with
+    | some u', some v' => M.mult s(u', v')
+    | _, _ => 0,
+    by
+      intro a b
+      rcases ha : unembAlong e n a with _ | u' <;> rcases hb : unembAlong e n b with _ | v' <;>
+        simp only [ha, hb] <;> (try rw [show s(u', v') = s(v', u') from Sym2.eq_swap])⟩
+  multNoLoop x := by
+    show (match unembAlong e n x, unembAlong e n x with
+          | some u', some v' => M.mult s(u', v') | _, _ => 0) = 0
+    rcases hx : unembAlong e n x with _ | u' <;> simp only [hx]
+    exact M.multNoLoop u'
+
+theorem restrictAlongGraph_mult_map_emb {k l n : ℕ} (e : Fin k ↪ Fin l)
+    (M : MultiLabeledGraph k n) (d : Sym2 (Fin (n + k))) :
+    (M.restrictAlongGraph e).mult (Sym2.map (restrictAlongEmb e n) d) = M.mult d := by
+  refine Sym2.ind (fun a b => ?_) d
+  show (match unembAlong e n (restrictAlongEmb e n a), unembAlong e n (restrictAlongEmb e n b) with
+        | some u', some v' => M.mult s(u', v') | _, _ => 0) = M.mult s(a, b)
+  rw [unembAlong_restrictAlongEmb, unembAlong_restrictAlongEmb]
+
+theorem multiTau_restrictAlongEmb {T k l n : ℕ} (e : Fin k ↪ Fin l) (ζ : Fin l → Fin T)
+    (σ : Fin n → Fin T) (v : Fin (n + k)) :
+    multiTau l n ζ σ (restrictAlongEmb e n v) = multiTau k n (ζ ∘ e) σ v := by
+  by_cases hv : v.val < k
+  · have hval := restrictAlongEmb_val_lt e n v hv
+    have hlt : (restrictAlongEmb e n v).val < l := by rw [hval]; exact (e ⟨v.val, hv⟩).isLt
+    unfold multiTau
+    rw [dif_pos hlt, dif_pos hv]
+    show ζ ⟨(restrictAlongEmb e n v).val, hlt⟩ = (ζ ∘ e) ⟨v.val, hv⟩
+    simp only [Function.comp_apply]
+    congr 1; apply Fin.ext; rw [hval]
+  · have hval := restrictAlongEmb_val_ge e n v hv
+    have hge : ¬ (restrictAlongEmb e n v).val < l := by rw [hval]; omega
+    unfold multiTau
+    rw [dif_neg hge, dif_neg hv]
+    congr 1; apply Fin.ext
+    show (restrictAlongEmb e n v).val - l = v.val - k
+    rw [hval]; omega
+
+private theorem restrictAlongGraph_prod_reindex {T k l n : ℕ} (e : Fin k ↪ Fin l)
+    (M : MultiLabeledGraph k n) (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (τ₂ : Fin (n + l) → Fin T) (τ₁ : Fin (n + k) → Fin T)
+    (halign : ∀ v : Fin (n + k), τ₂ (restrictAlongEmb e n v) = τ₁ v) :
+    (∏ d : Sym2 (Fin (n + l)),
+        B (τ₂ (Quot.out d).1) (τ₂ (Quot.out d).2) ^ (M.restrictAlongGraph e).mult d)
+      = ∏ d' : Sym2 (Fin (n + k)), B (τ₁ (Quot.out d').1) (τ₁ (Quot.out d').2) ^ M.mult d' := by
+  classical
+  have hfac : (∏ d : Sym2 (Fin (n + l)),
+        B (τ₂ (Quot.out d).1) (τ₂ (Quot.out d).2) ^ (M.restrictAlongGraph e).mult d)
+      = ∏ d' : Sym2 (Fin (n + k)),
+          B (τ₂ (Quot.out (Sym2.map (restrictAlongEmb e n) d')).1)
+            (τ₂ (Quot.out (Sym2.map (restrictAlongEmb e n) d')).2)
+            ^ (M.restrictAlongGraph e).mult (Sym2.map (restrictAlongEmb e n) d') := by
+    have h1 := Finset.prod_map (Finset.univ : Finset (Sym2 (Fin (n + k))))
+      (restrictAlongEmb e n).sym2Map
+      (fun d => B (τ₂ (Quot.out d).1) (τ₂ (Quot.out d).2) ^ (M.restrictAlongGraph e).mult d)
+    simp only [Function.Embedding.sym2Map_apply] at h1
+    rw [← h1]
+    refine (Finset.prod_subset (Finset.subset_univ _) (fun d _ hd => ?_)).symm
+    suffices hz : (M.restrictAlongGraph e).mult d = 0 by rw [hz, pow_zero]
+    revert hd
+    refine Sym2.ind (fun a b hd => ?_) d
+    show (match unembAlong e n a, unembAlong e n b with
+          | some u', some v' => M.mult s(u', v') | _, _ => 0) = 0
+    rcases hca : unembAlong e n a with _ | u' <;> rcases hcb : unembAlong e n b with _ | v' <;>
+      simp only [hca, hcb]
+    exfalso; apply hd
+    rw [Finset.mem_map]
+    refine ⟨s(u', v'), Finset.mem_univ _, ?_⟩
+    rw [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq,
+      ← restrictAlongEmb_eq_of_unembAlong e hca, ← restrictAlongEmb_eq_of_unembAlong e hcb]
+  rw [hfac]
+  refine Finset.prod_congr rfl fun d' _ => ?_
+  rw [restrictAlongGraph_mult_map_emb]
+  congr 1
+  refine Sym2.ind (fun a b => ?_) d'
+  rw [Sym2.map_pair_eq,
+    B_quot_out_eq hB τ₂ (restrictAlongEmb e n a) (restrictAlongEmb e n b),
+    B_quot_out_eq hB τ₁ a b, halign a, halign b]
+
+theorem multiLabeledEvalK_restrictAlong {T k l n : ℕ} (e : Fin k ↪ Fin l)
+    (M : MultiLabeledGraph k n) (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (ζ : Fin l → Fin T) :
+    multiLabeledEvalK l n (M.restrictAlongGraph e) B W ζ = multiLabeledEvalK k n M B W (ζ ∘ e) := by
+  rw [multiLabeledEvalK_eq_tau, multiLabeledEvalK_eq_tau]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  congr 1
+  exact restrictAlongGraph_prod_reindex e M B hB (multiTau l n ζ σ) (multiTau k n (ζ ∘ e) σ)
+    (fun v => multiTau_restrictAlongEmb e ζ σ v)
+
+/-- **Lovász Claim 4.1 (restriction along an injection)** for `tupleEquivMulti`: precomposing both
+tuples with a label injection `e` preserves equivalence. Direct multigraph proof via `restrictAlongGraph`. -/
+theorem tupleEquivMulti_restrict_along {T k l : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (e : Fin k ↪ Fin l) {ξ ξ' : Fin l → Fin T} (h : tupleEquivMulti B W ξ ξ') :
+    tupleEquivMulti B W (ξ ∘ e) (ξ' ∘ e) := by
+  intro n M
+  rw [← multiLabeledEvalK_restrictAlong e M B hB W ξ, ← multiLabeledEvalK_restrictAlong e M B hB W ξ']
+  exact h n (M.restrictAlongGraph e)
+
+/-- **Weighted power sums determine the weighted value measure.** If `∑_t W t · (x t)^k =
+∑_t W t · (y t)^k` for all `k`, then for every value `a` the `W`-weighted preimage masses agree:
+`∑_{t : x t = a} W t = ∑_{t : y t = a} W t`. (No positivity of `W` is needed for this form; the
+proof is a Lagrange interpolation that turns moment equality into preimage-mass equality.) Moved
+here from `Graphon/Spectral.lean` so the diagonal residue (below) can use it; the Spectral
+neighbor-profile lemmas still reference it via `open Graphon.Lovasz`. -/
+theorem weighted_powersum_determines_measure {ι : Type*} [Fintype ι] [DecidableEq ι]
+    (x y : ι → ℝ) (W : ι → ℝ)
+    (hmom : ∀ k : ℕ, ∑ i, W i * x i ^ k = ∑ i, W i * y i ^ k) (a : ℝ) :
+    (∑ i ∈ Finset.univ.filter (fun i => x i = a), W i) =
+      ∑ i ∈ Finset.univ.filter (fun i => y i = a), W i := by
+  classical
+  -- Moment equality extends to `∑ W·Q(·)` for every polynomial `Q`.
+  have hpoly : ∀ Q : Polynomial ℝ,
+      (∑ i, W i * Q.eval (x i)) = ∑ i, W i * Q.eval (y i) := by
+    intro Q
+    have key : ∀ z : ι → ℝ, (∑ i, W i * Q.eval (z i)) =
+        ∑ k ∈ Finset.range (Q.natDegree + 1), Q.coeff k * ∑ i, W i * z i ^ k := by
+      intro z
+      simp_rw [Polynomial.eval_eq_sum_range, Finset.mul_sum]
+      rw [Finset.sum_comm]
+      refine Finset.sum_congr rfl fun k _ => ?_
+      exact Finset.sum_congr rfl fun i _ => by ring
+    rw [key x, key y]
+    exact Finset.sum_congr rfl fun k _ => by rw [hmom k]
+  -- The Lagrange indicator polynomial for value `a` over the set of occurring values.
+  set S : Finset ℝ := Finset.univ.image x ∪ Finset.univ.image y with hSdef
+  set Pa : Polynomial ℝ :=
+    ∏ b ∈ S.erase a, Polynomial.C (a - b)⁻¹ * (Polynomial.X - Polynomial.C b) with hPaDef
+  have hPa : ∀ c ∈ S, Pa.eval c = if c = a then 1 else 0 := by
+    intro c hc
+    by_cases hca : c = a
+    · subst hca
+      rw [if_pos rfl, hPaDef]
+      simp only [Polynomial.eval_prod, Polynomial.eval_mul, Polynomial.eval_C,
+        Polynomial.eval_sub, Polynomial.eval_X]
+      refine Finset.prod_eq_one fun b hb => ?_
+      have hcb : c - b ≠ 0 := sub_ne_zero.mpr (Ne.symm (Finset.ne_of_mem_erase hb))
+      exact inv_mul_cancel₀ hcb
+    · rw [if_neg hca, hPaDef]
+      have hce : c ∈ S.erase a := Finset.mem_erase.mpr ⟨hca, hc⟩
+      simp only [Polynomial.eval_prod]
+      refine Finset.prod_eq_zero hce ?_
+      simp only [Polynomial.eval_mul, Polynomial.eval_sub, Polynomial.eval_X, Polynomial.eval_C,
+        sub_self, mul_zero]
+  have hx : (∑ i, W i * Pa.eval (x i)) =
+      ∑ i ∈ Finset.univ.filter (fun i => x i = a), W i := by
+    rw [Finset.sum_filter]
+    refine Finset.sum_congr rfl fun i _ => ?_
+    have hxiS : x i ∈ S :=
+      Finset.mem_union.mpr (Or.inl (Finset.mem_image_of_mem x (Finset.mem_univ i)))
+    rw [hPa (x i) hxiS]; split_ifs <;> simp
+  have hy : (∑ i, W i * Pa.eval (y i)) =
+      ∑ i ∈ Finset.univ.filter (fun i => y i = a), W i := by
+    rw [Finset.sum_filter]
+    refine Finset.sum_congr rfl fun i _ => ?_
+    have hyiS : y i ∈ S :=
+      Finset.mem_union.mpr (Or.inr (Finset.mem_image_of_mem y (Finset.mem_univ i)))
+    rw [hPa (y i) hyiS]; split_ifs <;> simp
+  rw [← hx, ← hy]; exact hpoly Pa
+
+/-- **Level-1 star-moment extraction.** Multigraph equivalence of the singleton tuples `· ↦ i`,
+`· ↦ j` makes all `W`-weighted neighbor power-sums of rows `i`, `j` agree (read off the star probes
+`starProbe a` via `multiLabeledEvalK_starProbe`). -/
+theorem tupleEquivMulti_k1_powersum_eq {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    {i j : Fin T} (h : tupleEquivMulti B W (fun _ : Fin 1 => i) (fun _ : Fin 1 => j))
+    (a : ℕ) : ∑ t, W t * B i t ^ a = ∑ t, W t * B j t ^ a := by
+  have hev := h 1 (starProbe a)
+  rwa [multiLabeledEvalK_starProbe B hB W i a, multiLabeledEvalK_starProbe B hB W j a] at hev
+
+/-- **Level-1 row-value-measure equality.** Consequently the `W`-weighted value measures of rows `i`
+and `j` agree: for every value `v`, the total `W`-mass of `{t : B i t = v}` equals that of
+`{t : B j t = v}` (via `weighted_powersum_determines_measure`). NOTE: this level-1 information is
+**not** sufficient on its own to recover the diagonal `B i i` — see the discussion at
+`tupleEquivMulti_preserves_diagonal_of_k1`. It is the first rung only. -/
+theorem tupleEquivMulti_k1_rowMeasure_eq {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    {i j : Fin T} (h : tupleEquivMulti B W (fun _ : Fin 1 => i) (fun _ : Fin 1 => j))
+    (v : ℝ) :
+    (∑ t ∈ Finset.univ.filter (fun t => B i t = v), W t) =
+      ∑ t ∈ Finset.univ.filter (fun t => B j t = v), W t :=
+  weighted_powersum_determines_measure (B i) (B j) W (tupleEquivMulti_k1_powersum_eq B hB W h) v
+
+/-- **Diagonal observability residue, `K = 1` core.** The whole content of
+`tupleEquivMulti_preserves_diagonal` lives here: if the singleton tuples `· ↦ i` and `· ↦ j` are
+multigraph-equivalent then their diagonal entries agree, `B i i = B j j`. The general statement
+reduces to this per coordinate via `tupleEquivMulti_restrict_along` along a singleton label
+embedding `Fin 1 ↪ Fin K`.
+
+Level-1 star moments imply equality of weighted row-value measures
+(`tupleEquivMulti_k1_rowMeasure_eq`), but this does **not** force diagonal equality, even in
+twin-free graphs (see the counterexample in the proof body). The remaining content is the
+duplicated-root / vertex-pinning part of Lovász §3. -/
+theorem tupleEquivMulti_preserves_diagonal_of_k1 {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {i j : Fin T} (h : tupleEquivMulti B W (fun _ : Fin 1 => i) (fun _ : Fin 1 => j)) :
+    B i i = B j j := by
+  -- STATUS (the precise residue scoping; see Commits A–C):
+  --
+  -- LEVEL 1 (proved, available): `tupleEquivMulti_k1_powersum_eq` gives all weighted neighbour
+  -- power-sums of rows `i`, `j` agree, hence (`tupleEquivMulti_k1_rowMeasure_eq`,
+  -- `weighted_powersum_determines_measure`) the weighted row-value measures agree:
+  --   ∀ v, ∑_{t : B i t = v} W t = ∑_{t : B j t = v} W t.
+  -- This is NOT sufficient on its own. COUNTEREXAMPLE (level-1 + twin-free ⊬ diagonal):
+  --   T=3, W ≡ 1, B = ![![0,5,1],![5,1,0],![1,0,2]] (symmetric, all rows distinct ⇒ twin-free);
+  --   rows 0,1 = (0,5,1),(5,1,0) have equal value-multiset {0,1,5} so μ₀ = μ₁, yet B 0 0 = 0 ≠
+  --   1 = B 1 1. (Not a counterexample to THIS theorem — full `tupleEquivMulti` is strictly
+  --   stronger than μ-equality and would distinguish 0,1 — only to any level-1-only argument.)
+  --
+  -- LEVEL 2 (partial, the genuine content): the diagonal `B a a` is read by a single edge between
+  -- two DISTINCT labels both mapping to `a` (loopless). Iterating `tupleEquivMulti_extend_one`
+  -- with the constant left tuple builds a tower (a,…,a) ≈ (b=b₀, b₁, …, b_k) [b ≈ b_q ≈ a all in
+  -- the ≈-class]; the label-(p,q) single-edge observable forces B(b_p)(b_q) = B a a for all p≠q,
+  -- and B b b_q = B a a for all q ≥ 1. Taking k = T, pigeonhole on b₀,…,b_T ∈ Fin T forces a
+  -- coincidence b_p = b_q ⇒ B(b_p)(b_p) = B a a: i.e. the diagonal VALUE `B a a` is realised as a
+  -- diagonal SOMEWHERE in the ≈-class. (And: if `b` itself recurs in the tower, B b b = B a a.)
+  --
+  -- REMAINING GAP (the named residue): pin that coincidence to the SPECIFIC vertex `b` — equivalently
+  -- show the diagonal is constant on each `tupleEquivMulti`-class, i.e. the duplicated-root K=2
+  -- equivalence (i,i) ≈ (j,j) (whose only hard observable is the diagonal edge itself). This is the
+  -- irreducible connection-matrix-rank core (Lovász §3); it is NOT reachable from the level-1/2
+  -- manipulations above. Do NOT reopen the rank/moment stack — attack only this.
+  sorry
+
 /-- **Diagonal observability residue** (Route A, the single named hard input for #62/#73).
 
 The remaining honest content of Lovász §3 for the loopless multigraph framework: rooted *multigraph*
@@ -8417,7 +8732,9 @@ theorem tupleEquivMulti_preserves_diagonal {T K : ℕ}
     (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin K → Fin T} (h : tupleEquivMulti B W ξ ξ') :
     ∀ c : Fin K, B (ξ c) (ξ c) = B (ξ' c) (ξ' c) := by
-  sorry
+  intro c
+  exact tupleEquivMulti_preserves_diagonal_of_k1 B hB W hW htwin
+    (tupleEquivMulti_restrict_along B hB W ⟨fun _ => c, fun a b _ => Subsingleton.elim a b⟩ h)
 
 /-- **Full `B`-preservation** for the bijective case = off-diagonal (proved) + diagonal (residue). -/
 theorem tupleEquivMulti_id_preserves_B_full {T : ℕ}
@@ -8661,194 +8978,6 @@ theorem tupleEquivMulti_bijective_case {T : ℕ}
   · exact fun i => tupleEquivMulti_id_preserves_W B hB W hW htwin h hχ i
   · exact fun i j => tupleEquivMulti_id_preserves_B_full B hB W hW htwin h i j
   · exact fun i => rfl
-
-/-! ### Claim 4.1 (restriction along an injection) — generalizes `addIsoLabel` -/
-
-/-- Embed `Fin (n+k) ↪ Fin (n+l)` along a label injection `e : Fin k ↪ Fin l`: labels `i < k` map to
-label `e i`; unlabeled vertices shift from `[k, k+n)` to `[l, l+n)`. -/
-def restrictAlongEmb {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) : Fin (n + k) ↪ Fin (n + l) where
-  toFun v := ⟨if h : v.val < k then (e ⟨v.val, h⟩).val else l + (v.val - k), by
-    split
-    · rename_i h; have := (e ⟨v.val, h⟩).isLt; omega
-    · have := v.isLt; omega⟩
-  inj' a b hab := by
-    have hv : (if h : a.val < k then (e ⟨a.val, h⟩).val else l + (a.val - k))
-            = (if h : b.val < k then (e ⟨b.val, h⟩).val else l + (b.val - k)) := congrArg Fin.val hab
-    by_cases ha : a.val < k <;> by_cases hb : b.val < k
-    · rw [dif_pos ha, dif_pos hb] at hv
-      have h2 : (⟨a.val, ha⟩ : Fin k) = ⟨b.val, hb⟩ := e.injective (Fin.val_injective hv)
-      have hval2 : a.val = b.val := by simpa using congrArg Fin.val h2
-      exact Fin.ext hval2
-    · rw [dif_pos ha, dif_neg hb] at hv; exfalso; have := (e ⟨a.val, ha⟩).isLt; omega
-    · rw [dif_neg ha, dif_pos hb] at hv; exfalso; have := (e ⟨b.val, hb⟩).isLt; omega
-    · rw [dif_neg ha, dif_neg hb] at hv; exact Fin.ext (by omega)
-
-/-- Partial inverse of `restrictAlongEmb`: `none` on labels outside `range e` (the isolated labels). -/
-noncomputable def unembAlong {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) (w : Fin (n + l)) :
-    Option (Fin (n + k)) := by
-  classical
-  exact
-    if hw : w.val < l then
-      if h : ∃ i : Fin k, (e i).val = w.val then some ⟨h.choose.val, by have := h.choose.isLt; omega⟩
-      else none
-    else some ⟨k + (w.val - l), by have := w.isLt; omega⟩
-
-theorem restrictAlongEmb_val_lt {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) (v : Fin (n + k))
-    (hv : v.val < k) : (restrictAlongEmb e n v).val = (e ⟨v.val, hv⟩).val := by
-  show (if h : v.val < k then (e ⟨v.val, h⟩).val else l + (v.val - k)) = (e ⟨v.val, hv⟩).val
-  rw [dif_pos hv]
-
-theorem restrictAlongEmb_val_ge {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) (v : Fin (n + k))
-    (hv : ¬ v.val < k) : (restrictAlongEmb e n v).val = l + (v.val - k) := by
-  show (if h : v.val < k then (e ⟨v.val, h⟩).val else l + (v.val - k)) = l + (v.val - k)
-  rw [dif_neg hv]
-
-theorem unembAlong_restrictAlongEmb {k l : ℕ} (e : Fin k ↪ Fin l) (n : ℕ) (v : Fin (n + k)) :
-    unembAlong e n (restrictAlongEmb e n v) = some v := by
-  classical
-  by_cases hv : v.val < k
-  · have hval := restrictAlongEmb_val_lt e n v hv
-    have hlt : (restrictAlongEmb e n v).val < l := by rw [hval]; exact (e ⟨v.val, hv⟩).isLt
-    unfold unembAlong
-    rw [dif_pos hlt]
-    have hex : ∃ i : Fin k, (e i).val = (restrictAlongEmb e n v).val := ⟨⟨v.val, hv⟩, hval.symm⟩
-    rw [dif_pos hex]
-    have hch : hex.choose = ⟨v.val, hv⟩ :=
-      e.injective (Fin.ext (by rw [hex.choose_spec, hval]))
-    rw [Option.some.injEq]; apply Fin.ext; show hex.choose.val = v.val
-    exact congrArg Fin.val hch
-  · have hval := restrictAlongEmb_val_ge e n v hv
-    have hge : ¬ (restrictAlongEmb e n v).val < l := by rw [hval]; omega
-    unfold unembAlong
-    rw [dif_neg hge]
-    congr 1; apply Fin.ext
-    show k + ((restrictAlongEmb e n v).val - l) = v.val
-    rw [hval]; omega
-
-theorem restrictAlongEmb_eq_of_unembAlong {k l n : ℕ} (e : Fin k ↪ Fin l) {w : Fin (n + l)}
-    {u : Fin (n + k)} (h : unembAlong e n w = some u) : w = restrictAlongEmb e n u := by
-  classical
-  apply Fin.ext
-  unfold unembAlong at h
-  by_cases hw : w.val < l
-  · rw [dif_pos hw] at h
-    by_cases hex : ∃ i : Fin k, (e i).val = w.val
-    · rw [dif_pos hex] at h
-      have huv : u.val = hex.choose.val := (congrArg Fin.val (Option.some.inj h)).symm
-      have hu_lt : u.val < k := by rw [huv]; exact hex.choose.isLt
-      rw [restrictAlongEmb_val_lt e n u hu_lt]
-      have heq : e ⟨u.val, hu_lt⟩ = e hex.choose := by congr 1; exact Fin.ext huv
-      rw [heq, hex.choose_spec]
-    · rw [dif_neg hex] at h; exact absurd h (by simp)
-  · rw [dif_neg hw] at h
-    have huv : u.val = k + (w.val - l) := (congrArg Fin.val (Option.some.inj h)).symm
-    have hu_ge : ¬ u.val < k := by rw [huv]; omega
-    rw [restrictAlongEmb_val_ge e n u hu_ge, huv]; omega
-
-/-- **Push a multigraph along a label injection**: embed `M`'s `k` labels into the `l`-label space via
-`e`, with labels outside `range e` isolated. -/
-noncomputable def MultiLabeledGraph.restrictAlongGraph {k l n : ℕ} (e : Fin k ↪ Fin l)
-    (M : MultiLabeledGraph k n) : MultiLabeledGraph l n where
-  mult := Sym2.lift ⟨fun u v =>
-    match unembAlong e n u, unembAlong e n v with
-    | some u', some v' => M.mult s(u', v')
-    | _, _ => 0,
-    by
-      intro a b
-      rcases ha : unembAlong e n a with _ | u' <;> rcases hb : unembAlong e n b with _ | v' <;>
-        simp only [ha, hb] <;> (try rw [show s(u', v') = s(v', u') from Sym2.eq_swap])⟩
-  multNoLoop x := by
-    show (match unembAlong e n x, unembAlong e n x with
-          | some u', some v' => M.mult s(u', v') | _, _ => 0) = 0
-    rcases hx : unembAlong e n x with _ | u' <;> simp only [hx]
-    exact M.multNoLoop u'
-
-theorem restrictAlongGraph_mult_map_emb {k l n : ℕ} (e : Fin k ↪ Fin l)
-    (M : MultiLabeledGraph k n) (d : Sym2 (Fin (n + k))) :
-    (M.restrictAlongGraph e).mult (Sym2.map (restrictAlongEmb e n) d) = M.mult d := by
-  refine Sym2.ind (fun a b => ?_) d
-  show (match unembAlong e n (restrictAlongEmb e n a), unembAlong e n (restrictAlongEmb e n b) with
-        | some u', some v' => M.mult s(u', v') | _, _ => 0) = M.mult s(a, b)
-  rw [unembAlong_restrictAlongEmb, unembAlong_restrictAlongEmb]
-
-theorem multiTau_restrictAlongEmb {T k l n : ℕ} (e : Fin k ↪ Fin l) (ζ : Fin l → Fin T)
-    (σ : Fin n → Fin T) (v : Fin (n + k)) :
-    multiTau l n ζ σ (restrictAlongEmb e n v) = multiTau k n (ζ ∘ e) σ v := by
-  by_cases hv : v.val < k
-  · have hval := restrictAlongEmb_val_lt e n v hv
-    have hlt : (restrictAlongEmb e n v).val < l := by rw [hval]; exact (e ⟨v.val, hv⟩).isLt
-    unfold multiTau
-    rw [dif_pos hlt, dif_pos hv]
-    show ζ ⟨(restrictAlongEmb e n v).val, hlt⟩ = (ζ ∘ e) ⟨v.val, hv⟩
-    simp only [Function.comp_apply]
-    congr 1; apply Fin.ext; rw [hval]
-  · have hval := restrictAlongEmb_val_ge e n v hv
-    have hge : ¬ (restrictAlongEmb e n v).val < l := by rw [hval]; omega
-    unfold multiTau
-    rw [dif_neg hge, dif_neg hv]
-    congr 1; apply Fin.ext
-    show (restrictAlongEmb e n v).val - l = v.val - k
-    rw [hval]; omega
-
-private theorem restrictAlongGraph_prod_reindex {T k l n : ℕ} (e : Fin k ↪ Fin l)
-    (M : MultiLabeledGraph k n) (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
-    (τ₂ : Fin (n + l) → Fin T) (τ₁ : Fin (n + k) → Fin T)
-    (halign : ∀ v : Fin (n + k), τ₂ (restrictAlongEmb e n v) = τ₁ v) :
-    (∏ d : Sym2 (Fin (n + l)),
-        B (τ₂ (Quot.out d).1) (τ₂ (Quot.out d).2) ^ (M.restrictAlongGraph e).mult d)
-      = ∏ d' : Sym2 (Fin (n + k)), B (τ₁ (Quot.out d').1) (τ₁ (Quot.out d').2) ^ M.mult d' := by
-  classical
-  have hfac : (∏ d : Sym2 (Fin (n + l)),
-        B (τ₂ (Quot.out d).1) (τ₂ (Quot.out d).2) ^ (M.restrictAlongGraph e).mult d)
-      = ∏ d' : Sym2 (Fin (n + k)),
-          B (τ₂ (Quot.out (Sym2.map (restrictAlongEmb e n) d')).1)
-            (τ₂ (Quot.out (Sym2.map (restrictAlongEmb e n) d')).2)
-            ^ (M.restrictAlongGraph e).mult (Sym2.map (restrictAlongEmb e n) d') := by
-    have h1 := Finset.prod_map (Finset.univ : Finset (Sym2 (Fin (n + k))))
-      (restrictAlongEmb e n).sym2Map
-      (fun d => B (τ₂ (Quot.out d).1) (τ₂ (Quot.out d).2) ^ (M.restrictAlongGraph e).mult d)
-    simp only [Function.Embedding.sym2Map_apply] at h1
-    rw [← h1]
-    refine (Finset.prod_subset (Finset.subset_univ _) (fun d _ hd => ?_)).symm
-    suffices hz : (M.restrictAlongGraph e).mult d = 0 by rw [hz, pow_zero]
-    revert hd
-    refine Sym2.ind (fun a b hd => ?_) d
-    show (match unembAlong e n a, unembAlong e n b with
-          | some u', some v' => M.mult s(u', v') | _, _ => 0) = 0
-    rcases hca : unembAlong e n a with _ | u' <;> rcases hcb : unembAlong e n b with _ | v' <;>
-      simp only [hca, hcb]
-    exfalso; apply hd
-    rw [Finset.mem_map]
-    refine ⟨s(u', v'), Finset.mem_univ _, ?_⟩
-    rw [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq,
-      ← restrictAlongEmb_eq_of_unembAlong e hca, ← restrictAlongEmb_eq_of_unembAlong e hcb]
-  rw [hfac]
-  refine Finset.prod_congr rfl fun d' _ => ?_
-  rw [restrictAlongGraph_mult_map_emb]
-  congr 1
-  refine Sym2.ind (fun a b => ?_) d'
-  rw [Sym2.map_pair_eq,
-    B_quot_out_eq hB τ₂ (restrictAlongEmb e n a) (restrictAlongEmb e n b),
-    B_quot_out_eq hB τ₁ a b, halign a, halign b]
-
-theorem multiLabeledEvalK_restrictAlong {T k l n : ℕ} (e : Fin k ↪ Fin l)
-    (M : MultiLabeledGraph k n) (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (ζ : Fin l → Fin T) :
-    multiLabeledEvalK l n (M.restrictAlongGraph e) B W ζ = multiLabeledEvalK k n M B W (ζ ∘ e) := by
-  rw [multiLabeledEvalK_eq_tau, multiLabeledEvalK_eq_tau]
-  refine Finset.sum_congr rfl fun σ _ => ?_
-  congr 1
-  exact restrictAlongGraph_prod_reindex e M B hB (multiTau l n ζ σ) (multiTau k n (ζ ∘ e) σ)
-    (fun v => multiTau_restrictAlongEmb e ζ σ v)
-
-/-- **Lovász Claim 4.1 (restriction along an injection)** for `tupleEquivMulti`: precomposing both
-tuples with a label injection `e` preserves equivalence. Direct multigraph proof via `restrictAlongGraph`. -/
-theorem tupleEquivMulti_restrict_along {T k l : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ) (e : Fin k ↪ Fin l) {ξ ξ' : Fin l → Fin T} (h : tupleEquivMulti B W ξ ξ') :
-    tupleEquivMulti B W (ξ ∘ e) (ξ' ∘ e) := by
-  intro n M
-  rw [← multiLabeledEvalK_restrictAlong e M B hB W ξ, ← multiLabeledEvalK_restrictAlong e M B hB W ξ']
-  exact h n (M.restrictAlongGraph e)
 
 /-- **Lovász Claim 4.4 (surjective case)**: a surjective tuple equivalent to `ξ'` is orbit-related.
 Choose a section `s` of `ξ`; `restrict_along s` gives `id ~ ξ' ∘ s`, so the bijective case yields an

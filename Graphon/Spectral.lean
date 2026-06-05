@@ -910,64 +910,8 @@ of a function on a finite index) is determined by its power-sum moments. This is
 refinement step (the single-vertex multigraph moments read each vertex's weighted row measure), and
 a reusable brick for the eventual `multiEvalOnOrbit_separates` (weighted Weisfeiler–Leman) proof. -/
 
-/-- **Weighted power sums determine the weighted value measure.** If `∑_t W t · (x t)^k =
-∑_t W t · (y t)^k` for all `k`, then for every value `a` the `W`-weighted preimage masses agree:
-`∑_{t : x t = a} W t = ∑_{t : y t = a} W t`. (No positivity of `W` is needed for this form; the
-proof is a Lagrange interpolation that turns moment equality into preimage-mass equality.) -/
-theorem weighted_powersum_determines_measure {ι : Type*} [Fintype ι] [DecidableEq ι]
-    (x y : ι → ℝ) (W : ι → ℝ)
-    (hmom : ∀ k : ℕ, ∑ i, W i * x i ^ k = ∑ i, W i * y i ^ k) (a : ℝ) :
-    (∑ i ∈ Finset.univ.filter (fun i => x i = a), W i) =
-      ∑ i ∈ Finset.univ.filter (fun i => y i = a), W i := by
-  classical
-  -- Moment equality extends to `∑ W·Q(·)` for every polynomial `Q`.
-  have hpoly : ∀ Q : Polynomial ℝ,
-      (∑ i, W i * Q.eval (x i)) = ∑ i, W i * Q.eval (y i) := by
-    intro Q
-    have key : ∀ z : ι → ℝ, (∑ i, W i * Q.eval (z i)) =
-        ∑ k ∈ Finset.range (Q.natDegree + 1), Q.coeff k * ∑ i, W i * z i ^ k := by
-      intro z
-      simp_rw [Polynomial.eval_eq_sum_range, Finset.mul_sum]
-      rw [Finset.sum_comm]
-      refine Finset.sum_congr rfl fun k _ => ?_
-      exact Finset.sum_congr rfl fun i _ => by ring
-    rw [key x, key y]
-    exact Finset.sum_congr rfl fun k _ => by rw [hmom k]
-  -- The Lagrange indicator polynomial for value `a` over the set of occurring values.
-  set S : Finset ℝ := Finset.univ.image x ∪ Finset.univ.image y with hSdef
-  set Pa : Polynomial ℝ :=
-    ∏ b ∈ S.erase a, Polynomial.C (a - b)⁻¹ * (Polynomial.X - Polynomial.C b) with hPaDef
-  have hPa : ∀ c ∈ S, Pa.eval c = if c = a then 1 else 0 := by
-    intro c hc
-    by_cases hca : c = a
-    · subst hca
-      rw [if_pos rfl, hPaDef]
-      simp only [Polynomial.eval_prod, Polynomial.eval_mul, Polynomial.eval_C,
-        Polynomial.eval_sub, Polynomial.eval_X]
-      refine Finset.prod_eq_one fun b hb => ?_
-      have hcb : c - b ≠ 0 := sub_ne_zero.mpr (Ne.symm (Finset.ne_of_mem_erase hb))
-      exact inv_mul_cancel₀ hcb
-    · rw [if_neg hca, hPaDef]
-      have hce : c ∈ S.erase a := Finset.mem_erase.mpr ⟨hca, hc⟩
-      simp only [Polynomial.eval_prod]
-      refine Finset.prod_eq_zero hce ?_
-      simp only [Polynomial.eval_mul, Polynomial.eval_sub, Polynomial.eval_X, Polynomial.eval_C,
-        sub_self, mul_zero]
-  have hx : (∑ i, W i * Pa.eval (x i)) =
-      ∑ i ∈ Finset.univ.filter (fun i => x i = a), W i := by
-    rw [Finset.sum_filter]
-    refine Finset.sum_congr rfl fun i _ => ?_
-    have hxiS : x i ∈ S :=
-      Finset.mem_union.mpr (Or.inl (Finset.mem_image_of_mem x (Finset.mem_univ i)))
-    rw [hPa (x i) hxiS]; split_ifs <;> simp
-  have hy : (∑ i, W i * Pa.eval (y i)) =
-      ∑ i ∈ Finset.univ.filter (fun i => y i = a), W i := by
-    rw [Finset.sum_filter]
-    refine Finset.sum_congr rfl fun i _ => ?_
-    have hyiS : y i ∈ S :=
-      Finset.mem_union.mpr (Or.inr (Finset.mem_image_of_mem y (Finset.mem_univ i)))
-    rw [hPa (y i) hyiS]; split_ifs <;> simp
-  rw [← hx, ← hy]; exact hpoly Pa
+-- `weighted_powersum_determines_measure` was moved to `Graphon/Lovasz.lean` (so the diagonal
+-- residue can use it); it is still in scope here via `open Graphon.Lovasz`.
 
 /-- The **`W`-weighted neighbor moment** of a vertex `i` in a weighted graph
 `(B, W)`: the `a`-th power-sum `∑ₜ W t · B i t ^ a` of its `B`-row under the
