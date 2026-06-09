@@ -44,13 +44,22 @@ Replace orbit-separators (which need the cycle) by **definitional** separators:
    (`InRootedProfileSpan.of_const_on_orbit_noncircular`, PROVED modulo the hard theorem),
    and the whole #70 cascade closes.
 
-4. **Minimal test case** (SORRY): `sqMoment_descends_of_rootedProfileEquiv` —
-   `rootedProfileEquiv i j → ∑ t, W t * B i t ^ 2 = ∑ t, W t * B j t ^ 2`.
-   The `W¹`-weighted square moment is the sharpest known observable NOT visibly in the
-   simple span (it needs a double edge `i–t`; simple profiles only produce
-   `Wᵏ`-weighted (k ≥ 2) coincidences). If square-moment descent is provable
-   non-circularly, the full rank theorem is likely tractable; if not, it cleanly
-   isolates the true paper-root.
+4. **Minimal test case** (SORRY, classwise form): `classwise_sqMoment_descends` —
+   `rootedProfileEquiv i j → ∑ t, W t * B i t ^ 2 * g t = (same at j)` for
+   atom-invariant `g` (plain `sqMoment_descends_of_rootedProfileEquiv` is the
+   `g = 1` instance, derived). The `W¹`-weighted square moment is the sharpest known
+   observable NOT visibly in the simple span (it needs a double edge `i–t`; simple
+   profiles only produce `Wᵏ`-weighted (k ≥ 2) coincidences). If square-moment
+   descent is provable non-circularly, the full rank theorem is likely tractable;
+   if not, it cleanly isolates the true paper-root.
+
+5. **Decorated tree observables** (PROVED, §6): the span is closed under the
+   weighted adjacency step `weightedAdj` (pendant attachment), so all tree
+   observables with atom-invariant decorations descend; in particular classwise
+   FIRST moments descend (`first_moment_descends_of_rootedProfileEquiv`) — the
+   atom partition is an equitable partition of `(B, W)`. A uniform span expression
+   of the square moment is impossible by `W`-grading (see §6 docstring), so the
+   open content is genuinely per-instance: within-atom distributions beyond means.
 
 ## Known-BAD routes (do not retry; see project memory `lovasz-70-orbit-separation-simple`)
 
@@ -66,7 +75,8 @@ Replace orbit-separators (which need the cycle) by **definitional** separators:
 ## Sorry inventory of this file (2)
 
 - `vertexOrbitRel_of_rootedProfileEquiv` — THE #70 paper-root (atoms = orbits).
-- `sqMoment_descends_of_rootedProfileEquiv` — minimal obstruction / test case.
+- `classwise_sqMoment_descends` — minimal obstruction / test case (classwise form;
+  the plain `sqMoment_descends_of_rootedProfileEquiv` is derived from it at `g = 1`).
 -/
 
 namespace Graphon.Lovasz
@@ -391,7 +401,238 @@ theorem InRootedProfileSpan.of_const_on_rpe {T : ℕ}
     (fun i v => (f i / (classSize i : ℝ)) * rpeIndicator B W i v)
     (fun i _ => (rpeIndicator_mem_span B hB W i).smul (f i / (classSize i : ℝ)))
 
-/-! ### §6 — THE hard theorem: algebra atoms = orbits (#70 paper-root) -/
+/-! ### §6 — Span closure under the weighted adjacency step (decorated trees)
+
+The pendant-attachment construction: given a rooted graph `G`, attach a new
+root by a single edge to `G`'s old root. Its rooted profile realizes the
+weighted adjacency operator `weightedAdj B W f i = ∑ t, W t * B i t * f t`
+applied to `G`'s profile. Consequently the rooted-profile span is closed
+under `weightedAdj` (`InRootedProfileSpan.weightedAdj`).
+
+Together with `mul`/`const`/`of_const_on_rpe`, this generates **every
+decorated-tree observable**: stars are products of first moments, paths are
+iterated `weightedAdj`, and arbitrary trees with atom-invariant decorations
+at every vertex follow by induction (decorations enter via `of_const_on_rpe`,
+multiplied in before each `weightedAdj` step). In particular the classwise
+first moments `∑ t, W t * B v t * 1_C(t)` (atom `C`) are atom-invariant
+functions of the root (`first_moment_descends_of_rootedProfileEquiv`).
+
+**Why no direct expression of the square moment exists** (attack step 2,
+negative): under the scaling `W ↦ λW`, the profile of a rooted graph with
+`m` unlabeled vertices scales as `λ^m`, while `∑ t, W t * B v t ^ 2` scales
+as `λ¹`. A `(B, W)`-uniform span representation could therefore use only
+graphs with exactly one unlabeled vertex — `K₂` and `K₁` — whose profiles
+are `m₁(v) = ∑ t, W t * B v t` and `1`; generic `B` refutes
+`sqMoment = a·m₁ + b`. So square-moment descent cannot be a uniform algebra
+identity; it must use the per-instance atom structure (or new mathematics).
+The constructions below are ported from the `rootAttach` block of
+`MatrixDetermination.lean` (private there), adapted from `rootedEval` to
+`rootedProfile`/`simpleEvalAt`. -/
+
+/-- Attach a new root vertex (vertex 0) to the old root (vertex 1) by an edge.
+Old vertices of `G` are shifted up by 1 in the new graph. -/
+private def rootAttach (n : ℕ) (G : SimpleGraph (Fin (n + 1))) :
+    SimpleGraph (Fin (n + 2)) where
+  Adj u v :=
+    (u.val = 0 ∧ v.val = 1) ∨ (u.val = 1 ∧ v.val = 0) ∨
+    (1 ≤ u.val ∧ 1 ≤ v.val ∧
+      G.Adj ⟨u.val - 1, by omega⟩ ⟨v.val - 1, by omega⟩)
+  symm := by
+    intro u v h
+    rcases h with ⟨hu, hv⟩ | ⟨hu, hv⟩ | ⟨hu, hv, hadj⟩
+    · right; left; exact ⟨hv, hu⟩
+    · left; exact ⟨hv, hu⟩
+    · right; right; exact ⟨hv, hu, G.symm hadj⟩
+  loopless := by
+    intro v h
+    rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨_, _, hadj⟩
+    · omega
+    · omega
+    · exact G.loopless _ hadj
+
+private instance rootAttachDecRel (n : ℕ) (G : SimpleGraph (Fin (n + 1)))
+    [DecidableRel G.Adj] : DecidableRel (rootAttach n G).Adj :=
+  fun u v =>
+    inferInstanceAs (Decidable
+      ((u.val = 0 ∧ v.val = 1) ∨ (u.val = 1 ∧ v.val = 0) ∨
+       (1 ≤ u.val ∧ 1 ≤ v.val ∧
+        G.Adj ⟨u.val - 1, by omega⟩ ⟨v.val - 1, by omega⟩)))
+
+/-- The edge finset of `rootAttach n G` is the bridge edge plus shifted `G`-edges. -/
+private theorem rootAttach_edgeFinset (n : ℕ) (G : SimpleGraph (Fin (n + 1)))
+    [DecidableRel G.Adj] :
+    (rootAttach n G).edgeFinset =
+      insert s((0 : Fin (n + 2)), ⟨1, by omega⟩)
+        (G.edgeFinset.map (Fin.succEmb (n + 1)).sym2Map) := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, Finset.mem_insert, Finset.mem_map,
+    Function.Embedding.sym2Map_apply]
+  constructor
+  · intro he
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      change ((a.val = 0 ∧ b.val = 1) ∨ (a.val = 1 ∧ b.val = 0) ∨
+        (1 ≤ a.val ∧ 1 ≤ b.val ∧
+          G.Adj ⟨a.val - 1, by omega⟩ ⟨b.val - 1, by omega⟩)) at he
+      rcases he with ⟨ha, hb⟩ | ⟨ha, hb⟩ | ⟨ha, hb, hadj⟩
+      · left; exact Sym2.eq_iff.mpr (Or.inl ⟨Fin.ext ha, Fin.ext hb⟩)
+      · left; exact Sym2.eq_iff.mpr (Or.inr ⟨Fin.ext ha, Fin.ext hb⟩)
+      · right
+        refine ⟨s(⟨a.val - 1, by omega⟩, ⟨b.val - 1, by omega⟩), hadj, ?_⟩
+        simp only [Sym2.map_pair_eq, Fin.coe_succEmb]
+        exact Sym2.eq_iff.mpr
+          (Or.inl ⟨Fin.ext (by simp; omega), Fin.ext (by simp; omega)⟩)
+  · intro he
+    rcases he with rfl | ⟨e', he', rfl⟩
+    · -- Bridge edge: s(0, ⟨1,_⟩) is in rootAttach
+      rw [SimpleGraph.mem_edgeSet]
+      exact Or.inl ⟨rfl, rfl⟩
+    · -- Shifted G-edge
+      induction e' using Sym2.ind with
+      | _ a b =>
+        rw [SimpleGraph.mem_edgeSet] at he'
+        simp only [Sym2.map_pair_eq, Fin.coe_succEmb, SimpleGraph.mem_edgeSet]
+        exact Or.inr (Or.inr ⟨by simp, by simp, by convert he' using 2⟩)
+
+/-- The bridge edge is not a shifted `G`-edge. -/
+private theorem rootAttach_bridge_not_mem_shifted (n : ℕ)
+    (G : SimpleGraph (Fin (n + 1))) [DecidableRel G.Adj] :
+    s((0 : Fin (n + 2)), ⟨1, by omega⟩) ∉
+      G.edgeFinset.map (Fin.succEmb (n + 1)).sym2Map := by
+  intro hmem
+  rw [Finset.mem_map] at hmem
+  obtain ⟨e, _, he⟩ := hmem
+  induction e using Sym2.ind with
+  | _ a b =>
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, Fin.coe_succEmb] at he
+    rw [Sym2.eq_iff] at he
+    rcases he with ⟨h1, _⟩ | ⟨_, h1⟩ <;>
+      exact absurd (congr_arg Fin.val h1) (by simp [Fin.val_succ])
+
+/-- The edge product over `rootAttach n G` equals the bridge term times the shifted
+`G`-edge product (requires symmetric matrix). -/
+private theorem rootAttach_prod_eq {k : ℕ} (n : ℕ) (G : SimpleGraph (Fin (n + 1)))
+    [DecidableRel G.Adj] (c : Fin k → Fin k → ℝ) (hc : ∀ i j, c i j = c j i)
+    (τ : Fin (n + 2) → Fin k) :
+    ∏ e ∈ (rootAttach n G).edgeFinset,
+      c (τ (Quot.out e).1) (τ (Quot.out e).2) =
+    c (τ 0) (τ (Fin.succ (0 : Fin (n + 1)))) *
+    ∏ e ∈ G.edgeFinset,
+      c (τ (Fin.succ (Quot.out e).1)) (τ (Fin.succ (Quot.out e).2)) := by
+  have h1eq : (⟨1, by omega⟩ : Fin (n + 2)) = Fin.succ (0 : Fin (n + 1)) :=
+    Fin.ext (by simp)
+  rw [rootAttach_edgeFinset,
+    Finset.prod_insert (rootAttach_bridge_not_mem_shifted n G),
+    Finset.prod_map G.edgeFinset (Fin.succEmb (n + 1)).sym2Map]
+  congr 1
+  · -- Bridge edge: resolve Quot.out
+    have hout := Quot.out_eq s((0 : Fin (n + 2)), ⟨1, by omega⟩)
+    rw [Sym2.mk_eq_mk_iff] at hout
+    rcases hout with h | h
+    · rw [congr_arg Prod.fst h, congr_arg Prod.snd h, h1eq]
+    · have h1 := congr_arg Prod.fst h; have h2 := congr_arg Prod.snd h
+      simp only [Prod.swap] at h1 h2
+      rw [h1, h2, h1eq, hc]
+  · congr 1; ext e
+    -- Shifted edge: resolve Quot.out of mapped edge (use symmetry of c)
+    induction e using Sym2.ind with
+    | _ a b =>
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, Fin.coe_succEmb]
+      have hout := Quot.out_eq s(Fin.succ a, Fin.succ b)
+      rw [Sym2.mk_eq_mk_iff] at hout
+      have hout' := Quot.out_eq s(a, b)
+      rw [Sym2.mk_eq_mk_iff] at hout'
+      rcases hout with h | h <;> rcases hout' with h' | h'
+      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
+            congr_arg Prod.fst h', congr_arg Prod.snd h']
+      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
+        simp only [Prod.swap] at h'
+        rw [congr_arg Prod.fst h', congr_arg Prod.snd h', hc]
+      · simp only [Prod.swap] at h
+        rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
+            congr_arg Prod.fst h', congr_arg Prod.snd h', hc]
+      · simp only [Prod.swap] at h h'
+        rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
+            congr_arg Prod.fst h', congr_arg Prod.snd h']
+
+/-- `rootedProfile` in `Fin.cons` form (bridging `simpleEvalAt`'s dif-based
+coordinate assignment to the cons-based one). -/
+private theorem rootedProfile_eq_cons {T n : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (i : Fin T) (F : SimpleGraph (Fin (n + 1)))
+    [DecidableRel F.Adj] :
+    rootedProfile B W i F =
+      ∑ σ : Fin n → Fin T, (∏ u : Fin n, W (σ u)) *
+        ∏ e ∈ F.edgeFinset,
+          B (Fin.cons (α := fun _ => Fin T) i σ (Quot.out e).1)
+            (Fin.cons (α := fun _ => Fin T) i σ (Quot.out e).2) := by
+  unfold rootedProfile simpleEvalAt
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  have hτ : ∀ u : Fin (n + 1),
+      (if h : (u : ℕ) < 1 then (fun _ : Fin 1 => i) ⟨u.val, h⟩
+       else σ ⟨u.val - 1, by have := u.isLt; omega⟩) =
+        Fin.cons (α := fun _ => Fin T) i σ u := by
+    intro u
+    rcases Fin.eq_zero_or_eq_succ u with rfl | ⟨x, rfl⟩
+    · rw [dif_pos (by norm_num)]
+      simp
+    · rw [dif_neg (by simp), Fin.cons_succ]
+      congr 1
+  simp only [hτ]
+
+/-- **Pendant attachment realizes the weighted adjacency operator** on rooted
+profiles: `rootedProfile(rootAttach G)(v) = ∑ t, W t · B v t · rootedProfile(G)(t)`. -/
+private theorem rootedProfile_rootAttach {T n : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (G : SimpleGraph (Fin (n + 1))) [DecidableRel G.Adj] (v : Fin T) :
+    rootedProfile B W v (rootAttach n G) =
+      ∑ t : Fin T, W t * B v t * rootedProfile B W t G := by
+  rw [rootedProfile_eq_cons, sum_fin_succ_eq_sum_cons]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  rw [rootedProfile_eq_cons, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun σ' _ => ?_
+  have h_edges := rootAttach_prod_eq n G B hB (Fin.cons v (Fin.cons t σ'))
+  simp only [Fin.cons_zero, Fin.cons_succ] at h_edges
+  rw [h_edges, Fin.prod_univ_succ]
+  simp only [Fin.cons_zero, Fin.cons_succ]
+  ring
+
+/-- **The rooted-profile span is closed under the weighted adjacency step**:
+if `g` is in the span, so is `weightedAdj B W g = fun v => ∑ t, W t * B v t * g t`.
+Witnessed by pendant attachment on each generator. Non-circular (only `hB`). -/
+theorem InRootedProfileSpan.weightedAdj {T : ℕ} {B : Fin T → Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) {W : Fin T → ℝ} {g : Fin T → ℝ}
+    (hg : InRootedProfileSpan B W g) :
+    InRootedProfileSpan B W (weightedAdj B W g) := by
+  classical
+  obtain ⟨N, fam, c, hgeq⟩ := hg
+  refine ⟨N, fun k => ⟨(fam k).1 + 1, rootAttach (fam k).1 (fam k).2.1,
+    @rootAttachDecRel _ _ (fam k).2.2⟩, c, ?_⟩
+  funext v
+  simp only [Graphon.Lovasz.weightedAdj, hgeq, rootedProfileFun, Finset.mul_sum]
+  rw [Finset.sum_comm]
+  refine Finset.sum_congr rfl fun k _ => ?_
+  letI : DecidableRel (fam k).2.1.Adj := (fam k).2.2
+  rw [rootedProfile_rootAttach B hB W (fam k).2.1 v, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  ring
+
+/-- **Classwise first moments descend** (attack steps 1+3, PROVED).
+
+If `i, j` are rooted-profile equivalent and `g` is any atom-invariant
+decoration (e.g. the atom indicator `1_C`), the `g`-decorated first moments
+agree. With `g = 1_C` this says `∑_{t ∈ C} W t * B i t = ∑_{t ∈ C} W t * B j t`
+for every algebra atom `C`: the atom partition is an **equitable partition**
+of the weighted graph `(B, W)`, and the atom-quotient matrix
+`B̄(D, C) := ∑_{t ∈ C} W t * B(s, t)` (any `s ∈ D`) is well defined. -/
+theorem first_moment_descends_of_rootedProfileEquiv {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j)
+    {g : Fin T → ℝ} (hg : ∀ a b, rootedProfileEquiv B W a b → g a = g b) :
+    ∑ t : Fin T, W t * B i t * g t = ∑ t : Fin T, W t * B j t * g t :=
+  ((InRootedProfileSpan.of_const_on_rpe B hB W g hg).weightedAdj hB).const_on_rpe h
+
+/-! ### §7 — THE hard theorem: algebra atoms = orbits (#70 paper-root) -/
 
 /-- **The K=1 simple-graph rank theorem** (#70 paper-root, SORRY).
 
@@ -448,7 +689,17 @@ theorem InRootedProfileSpan.of_const_on_orbit_noncircular {T : ℕ}
   InRootedProfileSpan.of_const_on_rpe B hB W f (fun i j hij =>
     hf i j (vertexOrbitRel_of_rootedProfileEquiv B hB W hW htwin hij))
 
-/-! ### §7 — The minimal obstruction: square-moment descent -/
+/-! ### §8 — The minimal obstruction: square-moment descent
+
+§6 proved that **first** moments with atom-invariant decorations descend.
+The square moment `∑ t, W t * B i t ^ 2` decomposes over atoms as
+`∑_C ∑_{t ∈ C} W t * B i t ^ 2`, so the sharpest currently-underivable
+family (attack step 4) is the **classwise square moments**: within each
+atom `C`, the distribution of `B(i, ·)|_C` beyond its (known) mean.
+Cycle-type observables (triangles etc. through the root, decorated) give
+bilinear couplings `∑_{t,s} W t W s B(i,t) B(t,s) B(s,i) 1_C(t) 1_D(s)` —
+quadratic in the row but never the diagonal `t = s` term in isolation;
+formalizing those requires a two-point attachment construction (deferred). -/
 
 /-- The `W`-weighted square moment of row `i`: `∑ t, W t * B i t ^ 2`.
 This is `starProbe 2` (a MULTIGRAPH observable — it needs a double edge `i–t`);
@@ -472,27 +723,48 @@ theorem sqMoment_const_on_orbit {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin
   refine Finset.sum_congr rfl fun t _ => ?_
   rw [hW_σ t, ← hσij, hB_σ i t]
 
-/-- **Minimal test case for the rank theorem** (SORRY) — square-moment descent.
+/-- **Classwise square-moment descent** (SORRY) — the sharpened minimal
+obstruction (attack step 4).
 
-If `i` and `j` have equal rooted simple-graph profiles, their `W¹`-weighted
-square moments agree. This is the FIRST concrete obstruction beyond the simple
-algebra: `B i t ^ 2` with a single `W t` weight is not a simple-graph factor
-(it would need a double edge), so `const_on_rpe` does not apply directly.
+If `i, j` are rooted-profile equivalent and `g` is atom-invariant, the
+`g`-decorated square moments agree. With `g = 1_C` this is the within-atom
+square moment `∑_{t ∈ C} W t * B i t ^ 2`. The classwise FIRST moments are
+PROVED (`first_moment_descends_of_rootedProfileEquiv`); the square needs the
+within-atom distribution of `B(i, ·)` beyond its mean, which no decorated
+tree observable sees, and which cycle observables see only off-diagonally.
 
 - Provable non-circularly ⟹ the full rank theorem
   `vertexOrbitRel_of_rootedProfileEquiv` is likely tractable by the same
   mechanism lifted to all multigraph observables.
 - NOT provable non-circularly ⟹ this statement IS the clean paper-root.
 
-It follows trivially from the rank theorem (`sqMoment_descends_of_rank_theorem`
-below), so any independent proof here is strictly upstream progress. -/
+No harder than #70: it follows from the rank theorem
+(`classwise_sqMoment_of_rank_theorem` below). -/
+theorem classwise_sqMoment_descends {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j)
+    {g : Fin T → ℝ} (hg : ∀ a b, rootedProfileEquiv B W a b → g a = g b) :
+    ∑ t : Fin T, W t * B i t ^ 2 * g t = ∑ t : Fin T, W t * B j t ^ 2 * g t := by
+  sorry
+
+/-- **Minimal test case for the rank theorem** — square-moment descent, the
+`g = 1` instance of `classwise_sqMoment_descends`.
+
+If `i` and `j` have equal rooted simple-graph profiles, their `W¹`-weighted
+square moments agree. This is the FIRST concrete obstruction beyond the simple
+algebra: `B i t ^ 2` with a single `W t` weight is not a simple-graph factor
+(it would need a double edge), so `const_on_rpe` does not apply directly. -/
 theorem sqMoment_descends_of_rootedProfileEquiv {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {i j : Fin T} (h : rootedProfileEquiv B W i j) :
     sqMoment B W i = sqMoment B W j := by
-  sorry
+  have h1 := classwise_sqMoment_descends B hB W hW htwin h
+    (g := fun _ => (1 : ℝ)) (fun _ _ _ => rfl)
+  simpa [sqMoment] using h1
 
 /-- The reduction direction, made formal: the rank theorem implies square-moment
 descent. (So the test case is no harder than #70; the conjecture is that it is
@@ -504,5 +776,26 @@ theorem sqMoment_descends_of_rank_theorem {T : ℕ}
     {i j : Fin T} (h : rootedProfileEquiv B W i j) :
     sqMoment B W i = sqMoment B W j :=
   sqMoment_const_on_orbit B W (hrank h)
+
+/-- The classwise reduction direction: the rank theorem implies classwise
+square-moment descent (reindex by the automorphism; the decoration is
+atom-invariant, hence invariant along orbits). So the sharpened test case is
+also no harder than #70. Sorry-free (rank theorem as explicit hypothesis). -/
+theorem classwise_sqMoment_of_rank_theorem {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (hrank : ∀ {a b : Fin T}, rootedProfileEquiv B W a b → vertexOrbitRel B W a b)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j)
+    {g : Fin T → ℝ} (hg : ∀ a b, rootedProfileEquiv B W a b → g a = g b) :
+    ∑ t : Fin T, W t * B i t ^ 2 * g t = ∑ t : Fin T, W t * B j t ^ 2 * g t := by
+  obtain ⟨σ, ⟨hW_σ, hB_σ⟩, hσij⟩ := hrank h
+  have hreidx : (∑ t : Fin T, W t * B j t ^ 2 * g t) =
+      ∑ t : Fin T, W (σ t) * B j (σ t) ^ 2 * g (σ t) :=
+    (Equiv.sum_comp σ (fun t => W t * B j t ^ 2 * g t)).symm
+  rw [hreidx]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  rw [hW_σ t, ← hσij, hB_σ i t]
+  have hgt : g t = g (σ t) :=
+    hg t (σ t) (rootedProfileEquiv_of_vertexOrbitRel B W ⟨σ, ⟨hW_σ, hB_σ⟩, rfl⟩)
+  rw [hgt]
 
 end Graphon.Lovasz
