@@ -834,6 +834,91 @@ theorem rowSum_eq_weightedAdj {T : ℕ} (B : Fin T → Fin T → ℝ)
     Finset.sum_congr rfl fun t _ => by ring]
   rw [Finset.sum_add_distrib, key i x, key j x, hB x i, hB x j]
 
+/-- Symmetry of the weighted inner product. -/
+theorem wInner_comm {T : ℕ} (W : Fin T → ℝ) (f g : Fin T → ℝ) :
+    wInner W f g = wInner W g f := by
+  unfold wInner
+  exact Finset.sum_congr rfl fun t _ => by ring
+
+/-- `weightedAdj` is additive. -/
+theorem weightedAdj_add {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f g : Fin T → ℝ) :
+    weightedAdj B W (fun t => f t + g t) =
+      fun t => weightedAdj B W f t + weightedAdj B W g t := by
+  funext x
+  unfold weightedAdj
+  rw [← Finset.sum_add_distrib]
+  exact Finset.sum_congr rfl fun t _ => by ring
+
+/-- Iterates of `weightedAdj` are additive. -/
+theorem weightedAdjIter_add {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    ∀ (q : ℕ) (f g : Fin T → ℝ),
+      weightedAdjIter B W q (fun t => f t + g t) =
+        fun t => weightedAdjIter B W q f t + weightedAdjIter B W q g t := by
+  intro q
+  induction q with
+  | zero => intro f g; rfl
+  | succ q ih =>
+    intro f g
+    show weightedAdj B W (weightedAdjIter B W q (fun t => f t + g t)) = _
+    rw [ih f g, weightedAdj_add]
+    rfl
+
+/-- **Polarization for self-adjoint iterates**: with `K = M^[q]`,
+`⟨f - g, K (f + g)⟩_W = ⟨f, K f⟩_W - ⟨g, K g⟩_W` — the cross terms cancel by
+(iterated) self-adjointness. -/
+theorem wInner_sub_iter_add {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (q : ℕ) (f g : Fin T → ℝ) :
+    wInner W (fun t => f t - g t)
+        (weightedAdjIter B W q (fun t => f t + g t)) =
+      wInner W f (weightedAdjIter B W q f) -
+        wInner W g (weightedAdjIter B W q g) := by
+  rw [weightedAdjIter_add B W q f g]
+  have expand : ∀ t, W t * (f t - g t) *
+        (weightedAdjIter B W q f t + weightedAdjIter B W q g t) =
+      (W t * f t * weightedAdjIter B W q f t +
+        W t * f t * weightedAdjIter B W q g t) -
+      (W t * g t * weightedAdjIter B W q f t +
+        W t * g t * weightedAdjIter B W q g t) := fun t => by ring
+  unfold wInner
+  simp only [expand]
+  rw [Finset.sum_sub_distrib, Finset.sum_add_distrib, Finset.sum_add_distrib]
+  have hcross : (∑ t : Fin T, W t * f t * weightedAdjIter B W q g t) =
+      ∑ t : Fin T, W t * g t * weightedAdjIter B W q f t := by
+    have h1 := wInner_weightedAdjIter_comm B hB W q g f
+    have h2 := wInner_comm W (weightedAdjIter B W q g) f
+    -- h1 : ⟨K g, f⟩ = ⟨g, K f⟩;  h2 : ⟨K g, f⟩ = ⟨f, K g⟩
+    have := h2.symm.trans h1
+    exact this
+  rw [hcross]
+  ring
+
+/-- **Closed-walk profile as a weighted inner product**:
+`CW(v, q+2) = ⟨B v ·, M^[q] (B v ·)⟩_W`. -/
+theorem closedWalkProfile_eq_wInner {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (v : Fin T) (q : ℕ) :
+    closedWalkProfile B W v (q + 2) =
+      wInner W (fun t => B v t) (weightedAdjIter B W q (fun t => B v t)) := by
+  have hg : (fun x => B x v) = fun t => B v t := funext fun t => hB t v
+  show weightedAdjIter B W (q + 1) (fun x => B x v) v = _
+  rw [hg]
+  show weightedAdj B W (weightedAdjIter B W q (fun t => B v t)) v = _
+  unfold weightedAdj wInner
+  rfl
+
+/-- **Cycle difference identity, recursive/algebraic form** (Step 1 of the
+cycle–Krylov proof): closed-walk profile differences are exactly
+`⟨ε, M^[q] u⟩_W`. The graph side — `rootedProfile` of `rootedCycleGraph`
+equals `closedWalkProfile` — is the separate plumbing slice (the existing
+focused sorry `rootedProfile_rootedCycleGraph_eq_closedWalkProfile` in
+`Lovasz.lean`). -/
+theorem closedWalkProfile_sub_eq_wInner {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) (q : ℕ) :
+    closedWalkProfile B W i (q + 2) - closedWalkProfile B W j (q + 2) =
+      wInner W (rowDiff B i j) (weightedAdjIter B W q (rowSum B i j)) := by
+  rw [closedWalkProfile_eq_wInner B hB W i q, closedWalkProfile_eq_wInner B hB W j q]
+  exact (wInner_sub_iter_add B hB W q (fun t => B i t) (fun t => B j t)).symm
+
 /-- **Classwise square-moment descent** (SORRY — reduced to the singular-`M`
 stratum, 2026-06-09).
 
