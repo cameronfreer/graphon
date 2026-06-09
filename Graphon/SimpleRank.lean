@@ -732,6 +732,108 @@ theorem sqMoment_const_on_orbit {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin
   refine Finset.sum_congr rfl fun t _ => ?_
   rw [hW_σ t, ← hσij, hB_σ i t]
 
+/-! #### Cycle–Krylov slice 1 — weighted inner product, self-adjointness, gap identity
+
+Formalization of the algebraic core of the cycle–Krylov–kernel proof
+(`docs/sqmoment-cycle-krylov.md`). The operator `M` is the existing
+`weightedAdj B W` (`Lovasz.lean`); iterates are `weightedAdjIter B W q`.
+Slice 2 (separate): the rooted-cycle profile identity
+`cycleDiff q = wInner W (rowDiff B i j) (weightedAdjIter B W q (rowSum B i j))`
+and the span/range argument closing the gap. -/
+
+/-- **Weighted inner product** `⟨f, g⟩_W = ∑ t, W t * f t * g t`. The form
+with respect to which `weightedAdj B W` is self-adjoint (for symmetric `B`). -/
+noncomputable def wInner {T : ℕ} (W : Fin T → ℝ) (f g : Fin T → ℝ) : ℝ :=
+  ∑ t : Fin T, W t * f t * g t
+
+/-- Row difference `ε = B i - B j` of the cycle–Krylov argument. -/
+noncomputable def rowDiff {T : ℕ} (B : Fin T → Fin T → ℝ) (i j : Fin T) :
+    Fin T → ℝ :=
+  fun t => B i t - B j t
+
+/-- Row sum `u = B i + B j` of the cycle–Krylov argument. -/
+noncomputable def rowSum {T : ℕ} (B : Fin T → Fin T → ℝ) (i j : Fin T) :
+    Fin T → ℝ :=
+  fun t => B i t + B j t
+
+/-- **Self-adjointness of the weighted adjacency operator** with respect to
+`wInner W`: `⟨M f, g⟩_W = ⟨f, M g⟩_W`, using symmetry of `B`. -/
+theorem wInner_weightedAdj_comm {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (f g : Fin T → ℝ) :
+    wInner W (weightedAdj B W f) g = wInner W f (weightedAdj B W g) := by
+  unfold wInner weightedAdj
+  simp only [Finset.mul_sum, Finset.sum_mul]
+  rw [Finset.sum_comm]
+  refine Finset.sum_congr rfl fun x _ => Finset.sum_congr rfl fun y _ => ?_
+  rw [hB y x]
+  ring
+
+/-- Iterates of `weightedAdj` commute with one application (used to iterate
+self-adjointness). -/
+theorem weightedAdjIter_weightedAdj_comm {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (q : ℕ) (f : Fin T → ℝ) :
+    weightedAdjIter B W q (weightedAdj B W f) =
+      weightedAdj B W (weightedAdjIter B W q f) := by
+  induction q with
+  | zero => rfl
+  | succ q ih =>
+    show weightedAdj B W (weightedAdjIter B W q (weightedAdj B W f)) = _
+    rw [ih]
+    rfl
+
+/-- **Iterated self-adjointness**: `⟨M^[q] f, g⟩_W = ⟨f, M^[q] g⟩_W`. -/
+theorem wInner_weightedAdjIter_comm {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) :
+    ∀ (q : ℕ) (f g : Fin T → ℝ),
+      wInner W (weightedAdjIter B W q f) g = wInner W f (weightedAdjIter B W q g) := by
+  intro q
+  induction q with
+  | zero => intro f g; rfl
+  | succ q ih =>
+    intro f g
+    show wInner W (weightedAdj B W (weightedAdjIter B W q f)) g =
+         wInner W f (weightedAdj B W (weightedAdjIter B W q g))
+    rw [wInner_weightedAdj_comm B hB, ih f (weightedAdj B W g),
+      weightedAdjIter_weightedAdj_comm]
+
+/-- **The gap identity** (Step 4 input of the cycle–Krylov proof):
+`sqMoment i - sqMoment j = ⟨ε, u⟩_W`. -/
+theorem sqMoment_sub_eq_wInner {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (i j : Fin T) :
+    sqMoment B W i - sqMoment B W j = wInner W (rowDiff B i j) (rowSum B i j) := by
+  unfold sqMoment wInner rowDiff rowSum
+  rw [← Finset.sum_sub_distrib]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  ring
+
+/-- **`u ∈ Im M`** (Step 2 of the cycle–Krylov proof): the row sum is the
+image under `weightedAdj` of the `W`-rescaled pair indicator. Uses `hW` and
+symmetry of `B`. -/
+theorem rowSum_eq_weightedAdj {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    (i j : Fin T) :
+    rowSum B i j = weightedAdj B W
+      (fun t => (if t = i then 1 else 0) / W t + (if t = j then 1 else 0) / W t) := by
+  classical
+  have key : ∀ a x : Fin T,
+      (∑ t : Fin T, W t * B x t * ((if t = a then (1 : ℝ) else 0) / W t)) = B x a := by
+    intro a x
+    rw [Finset.sum_eq_single a]
+    · rw [if_pos rfl, mul_one_div, mul_comm (W a) (B x a), mul_div_assoc,
+        div_self (hW a).ne', mul_one]
+    · intro t _ ht
+      rw [if_neg ht, zero_div, mul_zero]
+    · intro h
+      exact absurd (Finset.mem_univ a) h
+  funext x
+  unfold rowSum weightedAdj
+  rw [show (∑ t : Fin T, W t * B x t *
+        ((if t = i then (1 : ℝ) else 0) / W t + (if t = j then 1 else 0) / W t)) =
+      ∑ t : Fin T, (W t * B x t * ((if t = i then (1 : ℝ) else 0) / W t) +
+        W t * B x t * ((if t = j then 1 else 0) / W t)) from
+    Finset.sum_congr rfl fun t _ => by ring]
+  rw [Finset.sum_add_distrib, key i x, key j x, hB x i, hB x j]
+
 /-- **Classwise square-moment descent** (SORRY — reduced to the singular-`M`
 stratum, 2026-06-09).
 
