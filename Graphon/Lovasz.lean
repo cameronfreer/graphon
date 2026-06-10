@@ -1987,10 +1987,10 @@ Build per-tuple Lagrange indicators via products of `inlineSimpleEval_lagrange_f
 Express any `tupleEquivSimple`-invariant function as a linear combination of
 indicators using `finset_sum` and `smul`.
 
-**Status**: ~200 LOC of Lagrange port from the K=1 `of_const_on_orbit`
-proof. Currently sorry'd as Step 1 target. Closing this collapses #86's
-remaining content to "multigraph evaluations are tupleEquivSimple-
-invariant" (Step 2, the substantive Lovász §3 descent). -/
+**Status (2026-06-10): FULLY PROVED, axiom-clean** (an earlier revision of
+this docstring incorrectly said "currently sorry'd"). #86's remaining
+content is "multigraph evaluations are tupleEquivSimple-invariant"
+(Step 2, the substantive Lovász §3 descent). -/
 theorem InSimpleProfileClosure.of_const_on_tupleEquivSimple {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (f : (Fin K → Fin T) → ℝ)
@@ -11020,11 +11020,10 @@ which evaluates to ∑ W(v) B(i,v) (weighted degree), not the
 closed-walk-of-length-2 profile ∑ W(v) B(i,v)² (which is inherently
 a multigraph evaluation, requiring edge multiplicity 2).
 
-**Status**: focused infrastructure sorry. Needed to wire
-`closed_walk_profiles_separate_vertex_orbits` into
-`rooted_profiles_separate_vertex_orbits`. ~30-80 lines of Fin
-arithmetic + `Quot.out` reasoning (down from 100-200 thanks to
-the cycleSucc helper set). -/
+**Status (2026-06-10): FULLY PROVED, axiom-clean** (an earlier revision of
+this docstring incorrectly said "focused infrastructure sorry"). This bridge
+is the graph-plumbing half of the cycle–Krylov proof of
+`sqMoment_descends_of_rootedProfileEquiv` (`Graphon/CycleKrylov.lean`). -/
 theorem rootedProfile_rootedCycleGraph_eq_closedWalkProfile {T m : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (i : Fin T) :
