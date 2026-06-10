@@ -44,10 +44,10 @@ Replace orbit-separators (which need the cycle) by **definitional** separators:
    (`InRootedProfileSpan.of_const_on_orbit_noncircular`, PROVED modulo the hard theorem),
    and the whole #70 cascade closes.
 
-4. **Minimal test case — MATHEMATICALLY RESOLVED (2026-06-09), formalization
-   pending**: plain square-moment descent is PROVED on paper by the
-   **cycle–Krylov–kernel argument** (see the docstring of
-   `sqMoment_descends_of_rootedProfileEquiv` and
+4. **Minimal test case — FULLY PROVED (2026-06-10, sorry-free)**: plain
+   square-moment descent `sqMoment_descends_of_rootedProfileEquiv` is
+   formalized in `Graphon/CycleKrylov.lean` via the
+   **cycle–Krylov–kernel argument** (see also
    `scripts/validate_sqmoment_cycle_krylov.py`): with `ε = B i - B j`,
    `u = B i + B j`, `M = B ∘ D_W`, rooted (q+2)-cycle differences are exactly
    `⟨ε, M^q u⟩_W`; rpe kills them for `q ≥ 1`; `u = M (D_W⁻¹ (e i + e j)) ∈ Im M`
@@ -948,41 +948,15 @@ theorem classwise_sqMoment_descends {T : ℕ}
     ∑ t : Fin T, W t * B i t ^ 2 * g t = ∑ t : Fin T, W t * B j t ^ 2 * g t := by
   sorry
 
-/-- **Minimal test case for the rank theorem** — square-moment descent.
-**MATHEMATICALLY RESOLVED (2026-06-09), formalization pending.**
-
-**The cycle–Krylov–kernel proof** (numerically validated to machine precision,
-`scripts/validate_sqmoment_cycle_krylov.py`): let `ε := B i - B j`,
-`u := B i + B j` (row vectors), `M := f ↦ fun t => ∑ s, W s * B t s * f s`
-(self-adjoint w.r.t. `⟨f, g⟩_W = ∑ t, W t * f t * g t` by `hB`), and
-`gap := sqMoment B W i - sqMoment B W j = ⟨ε, u⟩_W`. Then:
-1. **Cycle difference identity**: for the rooted (q+2)-cycle `C_q`,
-   `rootedProfile i C_q - rootedProfile j C_q = ⟨ε, M^q u⟩_W` exactly
-   (expand `ρᵢρᵢ - ρⱼρⱼ = ε·ρᵢ + ρⱼ·ε` over the two root edges). So
-   rpe ⟹ `⟨ε, M^q u⟩_W = 0` for `q = 1, …, T`.
-2. `u = M (fun t => (e i + e j) t / W t) ∈ Im M` (uses `hW`).
-3. Self-adjointness ⟹ `Im M ⊥ ker M` ⟹ `u ∈ span {M^q u : 1 ≤ q ≤ T}`
-   (Vandermonde over distinct nonzero eigenvalues).
-4. `gap = ⟨ε, u⟩_W = ∑ c_q ⟨ε, M^q u⟩_W = 0`. No twin-freeness needed.
-
-This was the designated "first obstruction beyond the simple algebra"
-(`B i t ^ 2` needs a double edge); the proof shows rooted simple CYCLES pin it
-through the spectral structure of `M`. Formalization plan: rooted-cycle
-profile identity (`rootedCycleGraph` exists in `Lovasz.lean`; its evaluation
-lemma `rootedProfile_rootedCycleGraph_eq_closedWalkProfile` is the existing
-focused sorry there) + finite-dimensional spectral argument
-(`Matrix.IsHermitian.spectral_theorem`, cf. `Graphon/Spectral.lean`).
-Currently still derived from the (stronger, partially open)
-`classwise_sqMoment_descends`; the direct formalization will replace this. -/
-theorem sqMoment_descends_of_rootedProfileEquiv {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {i j : Fin T} (h : rootedProfileEquiv B W i j) :
-    sqMoment B W i = sqMoment B W j := by
-  have h1 := classwise_sqMoment_descends B hB W hW htwin h
-    (g := fun _ => (1 : ℝ)) (fun _ _ _ => rfl)
-  simpa [sqMoment] using h1
+/-! **Minimal test case for the rank theorem** — square-moment descent:
+**FULLY PROVED** (sorry-free, no twin-freeness) as
+`sqMoment_descends_of_rootedProfileEquiv` in `Graphon/CycleKrylov.lean`, by
+the cycle–Krylov–kernel argument (`docs/sqmoment-cycle-krylov.md`): the
+algebraic slices in this file (`sqMoment_sub_eq_wInner`,
+`rowSum_eq_weightedAdj`, `closedWalkProfile_sub_eq_wInner`) + the abstract
+Krylov-kernel lemma + the rooted-cycle bridge in `Lovasz.lean`. It lives there
+(not here) because the spectral slice imports inner-product-space machinery
+that must stay out of the `Lovasz.lean` import chain. -/
 
 /-- The reduction direction, made formal: the rank theorem implies square-moment
 descent. (So the test case is no harder than #70; the conjecture is that it is

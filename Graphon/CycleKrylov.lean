@@ -299,6 +299,35 @@ theorem sqMoment_eq_of_closedWalkProfile_eq
   have hzero : sqMoment B W i - sqMoment B W j = 0 := hgap.trans h0
   linarith
 
+/-! ### The assembled theorem: square-moment descent -/
+
+/-- **Square-moment descent** (#70 minimal test case) — **PROVED**.
+
+If `i` and `j` are rooted-profile equivalent (twin-freeness NOT needed), their
+`W`-weighted square moments agree. This was the designated first obstruction
+beyond the simple rooted algebra: `∑ t, W t * B i t ^ 2` is inherently a
+multigraph observable (double edge `i–t`), yet rooted simple CYCLES pin it.
+
+Assembly of the cycle–Krylov–kernel proof (`docs/sqmoment-cycle-krylov.md`):
+rpe applied to `rootedCycleGraph (m+1)` + the bridge
+`rootedProfile_rootedCycleGraph_eq_closedWalkProfile` (proved in `Lovasz.lean`;
+its "focused sorry" docstring is STALE) give equal closed-walk profiles at all
+lengths ≥ 3, and `sqMoment_eq_of_closedWalkProfile_eq` (the spectral slice)
+concludes.
+
+Supersedes the version formerly in `SimpleRank.lean` that was derived from the
+(still open, strictly stronger) `classwise_sqMoment_descends`; this proof is
+sorry-free and drops the `htwin` hypothesis. -/
+theorem sqMoment_descends_of_rootedProfileEquiv {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j) :
+    sqMoment B W i = sqMoment B W j := by
+  refine sqMoment_eq_of_closedWalkProfile_eq B hB W hW i j fun m => ?_
+  rw [← rootedProfile_rootedCycleGraph_eq_closedWalkProfile B hB W i,
+    ← rootedProfile_rootedCycleGraph_eq_closedWalkProfile B hB W j]
+  exact h (m + 2) (rootedCycleGraph (m + 1))
+
 end Weighted
 
 end Graphon.Lovasz
