@@ -909,6 +909,135 @@ theorem k23Arms_prod_eq {T : ℕ} (a b c : ℕ) (B : Fin T → Fin T → ℝ)
     simp only [k23Edge]
     exact out_pair_eq B hB τ _ _
 
+/-! #### One-arm chain collapse -/
+
+/-- The `(q+1)`-edge arm kernel from `x` to `y` (`q` internal vertices),
+defined recursively — the normal form the internal sums collapse to. -/
+noncomputable def armSum {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    ℕ → Fin T → Fin T → ℝ
+  | 0, x, y => B x y
+  | q + 1, x, y => ∑ t : Fin T, W t * B x t * armSum B W q t y
+
+/-- Path-position function for a free-standing arm: `0 ↦ x`, `1..q ↦ σ`,
+`q+1 ↦ y` (the `Fin T`-valued mirror of `armSeq`). -/
+def chainPath {T : ℕ} (q : ℕ) (x y : Fin T) (σ : Fin q → Fin T) (s : ℕ) :
+    Fin T :=
+  if h0 : s = 0 then x
+  else if h : s ≤ q then σ ⟨s - 1, by omega⟩ else y
+
+/-- One step of `chainPath` reindexing: position `r + 1` of the
+`(q+1)`-internal chain `x ⋯ y` with head `t` is position `r` of the
+`q`-internal chain `t ⋯ y`. -/
+private theorem chainPath_cons_succ {T : ℕ} (q : ℕ) (x y t : Fin T)
+    (σ' : Fin q → Fin T) {r : ℕ} (hr : r ≤ q + 1) :
+    chainPath (q + 1) x y (Fin.cons t σ') (r + 1) = chainPath q t y σ' r := by
+  unfold chainPath
+  rcases Nat.eq_zero_or_pos r with rfl | hpos
+  · rw [dif_neg (by omega), dif_pos (by omega : 0 + 1 ≤ q + 1), dif_pos rfl]
+    show Fin.cons (α := fun _ => Fin T) t σ' ⟨0 + 1 - 1, by omega⟩ = t
+    rw [show (⟨0 + 1 - 1, by omega⟩ : Fin (q + 1)) = 0 from Fin.ext rfl,
+      Fin.cons_zero]
+  · by_cases hq : r ≤ q
+    · rw [dif_neg (by omega), dif_pos (by omega : r + 1 ≤ q + 1),
+        dif_neg (by omega), dif_pos hq]
+      show Fin.cons (α := fun _ => Fin T) t σ' ⟨r + 1 - 1, by omega⟩ =
+        σ' ⟨r - 1, by omega⟩
+      rw [show (⟨r + 1 - 1, by omega⟩ : Fin (q + 1)) =
+          Fin.succ ⟨r - 1, by omega⟩ from
+        Fin.ext (by simp only [Fin.val_succ]; omega), Fin.cons_succ]
+    · rw [dif_neg (by omega), dif_neg (by omega), dif_neg (by omega), dif_neg hq]
+
+/-- **One-arm collapse**: summing the internal vertices of an arm chain
+gives the recursive kernel `armSum`. -/
+theorem armChain_sum_eq_armSum {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) :
+    ∀ (q : ℕ) (x y : Fin T),
+      (∑ σ : Fin q → Fin T, (∏ k : Fin q, W (σ k)) *
+        ∏ s : Fin (q + 1),
+          B (chainPath q x y σ s) (chainPath q x y σ ((s : ℕ) + 1))) =
+      armSum B W q x y := by
+  intro q
+  induction q with
+  | zero =>
+    intro x y
+    rw [Fintype.sum_unique, Fin.prod_univ_zero, one_mul, Fin.prod_univ_one]
+    show B (chainPath 0 x y default 0) (chainPath 0 x y default (0 + 1)) =
+      armSum B W 0 x y
+    unfold chainPath
+    rw [dif_pos rfl, dif_neg (by omega : ¬(0 + 1 = 0)), dif_neg (by omega)]
+    rfl
+  | succ q ih =>
+    intro x y
+    rw [sum_fin_succ_eq_sum_cons]
+    show _ = ∑ t : Fin T, W t * B x t * armSum B W q t y
+    refine Finset.sum_congr rfl fun t _ => ?_
+    rw [← ih t y, Finset.mul_sum]
+    refine Finset.sum_congr rfl fun σ' _ => ?_
+    -- weights: peel the head
+    rw [Fin.prod_univ_succ]
+    simp only [Fin.cons_zero, Fin.cons_succ]
+    -- chain: peel the first edge
+    rw [Fin.prod_univ_succ]
+    have h0 : chainPath (q + 1) x y (Fin.cons t σ') ((0 : Fin (q + 2)) : ℕ) = x := by
+      show chainPath (q + 1) x y (Fin.cons t σ') 0 = x
+      unfold chainPath
+      rw [dif_pos rfl]
+    have h1 : chainPath (q + 1) x y (Fin.cons t σ')
+        (((0 : Fin (q + 2)) : ℕ) + 1) = t := by
+      show chainPath (q + 1) x y (Fin.cons t σ') (0 + 1) = t
+      rw [chainPath_cons_succ q x y t σ' (by omega)]
+      unfold chainPath
+      rw [dif_pos rfl]
+    have hsucc : ∀ s : Fin (q + 1),
+        B (chainPath (q + 1) x y (Fin.cons t σ') ((s.succ : Fin (q + 2)) : ℕ))
+          (chainPath (q + 1) x y (Fin.cons t σ') (((s.succ : Fin (q + 2)) : ℕ) + 1)) =
+        B (chainPath q t y σ' ((s : ℕ)))
+          (chainPath q t y σ' ((s : ℕ) + 1)) := by
+      intro s
+      have hv : ((s.succ : Fin (q + 2)) : ℕ) = (s : ℕ) + 1 := rfl
+      rw [hv, chainPath_cons_succ q x y t σ' (by have := s.isLt; omega),
+        chainPath_cons_succ q x y t σ' (by have := s.isLt; omega)]
+    rw [h0, h1]
+    rw [Finset.prod_congr rfl fun s _ => hsucc s]
+    ring
+
+/-- **One-arm collapse, weighted form** (the consumer shape): summing the
+anchor against the root edge and the arm kernel yields `weightedAdjIter`
+at the hub. -/
+theorem sum_weight_mul_armSum {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) :
+    ∀ (q : ℕ) (f : Fin T → ℝ) (y : Fin T),
+      (∑ x : Fin T, W x * f x * armSum B W q x y) =
+        weightedAdjIter B W (q + 1) f y := by
+  intro q
+  induction q with
+  | zero =>
+    intro f y
+    show (∑ x : Fin T, W x * f x * B x y) = weightedAdj B W f y
+    unfold weightedAdj
+    refine Finset.sum_congr rfl fun x _ => ?_
+    rw [hB y x]
+    ring
+  | succ q ih =>
+    intro f y
+    show (∑ x : Fin T, W x * f x * ∑ t : Fin T, W t * B x t * armSum B W q t y) = _
+    have key : ∀ t : Fin T,
+        (∑ x : Fin T, W x * f x * (W t * B x t * armSum B W q t y)) =
+          W t * weightedAdj B W f t * armSum B W q t y := by
+      intro t
+      unfold weightedAdj
+      rw [Finset.mul_sum, Finset.sum_mul]
+      refine Finset.sum_congr rfl fun x _ => ?_
+      rw [hB t x]
+      ring
+    have hswap : (∑ x : Fin T, W x * f x * ∑ t : Fin T, W t * B x t * armSum B W q t y) =
+        ∑ t : Fin T, W t * weightedAdj B W f t * armSum B W q t y := by
+      simp only [Finset.mul_sum]
+      rw [Finset.sum_comm]
+      exact Finset.sum_congr rfl fun t _ => key t
+    rw [hswap, ih (weightedAdj B W f) y, weightedAdjIter_weightedAdj_comm]
+    rfl
+
 /-- **Raw evaluation of the K₂,₃-arms profile** (SORRY — the brittle
 `Fin`/edge-product slice, isolated here per plan): the rooted profile
 factorizes through the hub as a `wTriple` of `weightedAdjIter`s of the
