@@ -674,6 +674,123 @@ theorem sqMoment_descends_of_rootedProfileEquiv {T : ℕ}
     ← rootedProfile_rootedCycleGraph_eq_closedWalkProfile B hB W j]
   exact h (m + 2) (rootedCycleGraph (m + 1))
 
+/-! #### The K₂,₃-with-arms graph family (the cube's graph bridge)
+
+Vertex layout on `Fin (4 + a + b + c + 1)`: `0` the root, `1, 2, 3` the
+anchors (root-adjacent), `4` the hub, then three internal blocks of sizes
+`a, b, c` (so the arm from anchor `l + 1` to the hub has length
+`armLen + 1 ≥ 1` — positive arm lengths by construction, matching the
+`(a+1, b+1, c+1)` indices of `polarizedCubeObs`). -/
+
+/-- Internal count of arm `l ∈ {0,1,2}`. -/
+def armLen (a b c l : ℕ) : ℕ :=
+  if l = 0 then a else if l = 1 then b else c
+
+/-- Start of the internal block of arm `l ∈ {0,1,2}` (as a raw value). -/
+def armStart (a b l : ℕ) : ℕ :=
+  if l = 0 then 5 else if l = 1 then 5 + a else 5 + a + b
+
+/-- The `s`-th vertex value along arm `l`: `s = 0` is the anchor `l + 1`,
+steps `1 .. armLen` are the internals, `s = armLen + 1` is the hub `4`. -/
+def armSeq (a b c : ℕ) (l s : ℕ) : ℕ :=
+  if s = 0 then l + 1
+  else if s ≤ armLen a b c l then armStart a b l + s - 1
+  else 4
+
+/-- **The rooted K₂,₃-with-arms graph**: root `0` adjacent to anchors
+`1, 2, 3`; arm `l` a path of length `armLen + 1` from anchor `l + 1` to the
+hub `4`. -/
+def k23Arms (a b c : ℕ) : SimpleGraph (Fin (4 + a + b + c + 1)) where
+  Adj u v :=
+    ((u : ℕ) = 0 ∧ ((v : ℕ) = 1 ∨ (v : ℕ) = 2 ∨ (v : ℕ) = 3)) ∨
+    ((v : ℕ) = 0 ∧ ((u : ℕ) = 1 ∨ (u : ℕ) = 2 ∨ (u : ℕ) = 3)) ∨
+    (∃ l < 3, ∃ s ≤ armLen a b c l,
+      ((u : ℕ) = armSeq a b c l s ∧ (v : ℕ) = armSeq a b c l (s + 1)) ∨
+      ((v : ℕ) = armSeq a b c l s ∧ (u : ℕ) = armSeq a b c l (s + 1)))
+  symm := by
+    intro u v h
+    rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨l, hl, s, hs, h⟩
+    · exact Or.inr (Or.inl ⟨h1, h2⟩)
+    · exact Or.inl ⟨h1, h2⟩
+    · exact Or.inr (Or.inr ⟨l, hl, s, hs, h.symm⟩)
+  loopless := by
+    intro u h
+    rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨l, hl, s, hs, h⟩
+    · omega
+    · omega
+    · have hne : armSeq a b c l s ≠ armSeq a b c l (s + 1) := by
+        simp only [armSeq, armLen, armStart] at hs ⊢
+        split_ifs at hs ⊢ <;> first | contradiction | omega
+      rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> exact hne (h1.symm.trans h2)
+
+instance (a b c : ℕ) : DecidableRel (k23Arms a b c).Adj := fun u v => by
+  unfold k23Arms
+  exact inferInstance
+
+/-- **Raw evaluation of the K₂,₃-arms profile** (SORRY — the brittle
+`Fin`/edge-product slice, isolated here per plan): the rooted profile
+factorizes through the hub as a `wTriple` of `weightedAdjIter`s of the
+root's row. Mathematically: summing each arm's internals gives the walk
+kernel `K_{armLen+1}(anchor, hub)`; summing each anchor against its root
+edge gives `(M^{armLen+1} (B v ·))(hub)`; the hub sum is `wTriple`.
+Machine-precision validated in `scripts/validate_cube_k23_arms.py`. -/
+theorem k23Arms_eval {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (v : Fin T) (a b c : ℕ) :
+    rootedProfile B W v (k23Arms a b c) =
+      wTriple W (weightedAdjIter B W (a + 1) (fun t => B v t))
+        (weightedAdjIter B W (b + 1) (fun t => B v t))
+        (weightedAdjIter B W (c + 1) (fun t => B v t)) := by
+  sorry
+
+/-- `weightedAdj` is subtractive (mirror of `weightedAdj_add`). -/
+theorem weightedAdj_sub {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f g : Fin T → ℝ) :
+    weightedAdj B W (fun t => f t - g t) =
+      fun t => weightedAdj B W f t - weightedAdj B W g t := by
+  funext x
+  unfold weightedAdj
+  rw [← Finset.sum_sub_distrib]
+  exact Finset.sum_congr rfl fun t _ => by ring
+
+/-- Iterates of `weightedAdj` are subtractive. -/
+theorem weightedAdjIter_sub {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    ∀ (q : ℕ) (f g : Fin T → ℝ),
+      weightedAdjIter B W q (fun t => f t - g t) =
+        fun t => weightedAdjIter B W q f t - weightedAdjIter B W q g t := by
+  intro q
+  induction q with
+  | zero => intro f g; rfl
+  | succ q ih =>
+    intro f g
+    show weightedAdj B W (weightedAdjIter B W q (fun t => f t - g t)) = _
+    rw [ih f g, weightedAdj_sub]
+    rfl
+
+/-- **The cube's graph bridge** (proved modulo `k23Arms_eval`):
+`4 ·` the K₂,₃-arms profile difference is exactly the polarized cube
+observable at arm lengths `(a+1, b+1, c+1)`. -/
+theorem rootedProfile_k23Arms_sub_eq_polarizedCubeObs {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (i j : Fin T) (a b c : ℕ) :
+    4 * (rootedProfile B W i (k23Arms a b c) -
+        rootedProfile B W j (k23Arms a b c)) =
+      polarizedCubeObs B W i j (a + 1) (b + 1) (c + 1) := by
+  rw [k23Arms_eval B hB W i a b c, k23Arms_eval B hB W j a b c]
+  have hd : ∀ q : ℕ, weightedAdjIter B W q (rowDiff B i j) =
+      fun t => weightedAdjIter B W q (fun s => B i s) t -
+        weightedAdjIter B W q (fun s => B j s) t :=
+    fun q => weightedAdjIter_sub B W q (fun s => B i s) (fun s => B j s)
+  have hs : ∀ q : ℕ, weightedAdjIter B W q (rowSum B i j) =
+      fun t => weightedAdjIter B W q (fun s => B i s) t +
+        weightedAdjIter B W q (fun s => B j s) t :=
+    fun q => weightedAdjIter_add B W q (fun s => B i s) (fun s => B j s)
+  unfold polarizedCubeObs wTriple
+  simp only [hd, hs]
+  rw [← Finset.sum_sub_distrib, Finset.mul_sum, ← Finset.sum_add_distrib,
+    ← Finset.sum_add_distrib, ← Finset.sum_add_distrib]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  ring
+
 /-! ### The Hadamard-power lift (next target)
 
 With the square moment closed, the route to the full rank theorem
@@ -735,7 +852,9 @@ theorem cubeMoment_descends_of_rootedProfileEquiv {T : ℕ}
     (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
     {i j : Fin T} (h : rootedProfileEquiv B W i j) :
     ∑ t : Fin T, W t * B i t ^ 3 = ∑ t : Fin T, W t * B j t ^ 3 := by
-  sorry
+  refine cubeGap_eq_zero_of_polarized_obs B hB W hW i j fun a b c => ?_
+  rw [← rootedProfile_k23Arms_sub_eq_polarizedCubeObs B hB W i j a b c,
+    h (4 + a + b + c) (k23Arms a b c), sub_self, mul_zero]
 
 /-- **Weighted power sums descend** (k ≤ 3 reduced: k ≤ 2 PROVED, k = 3 via
 `cubeMoment_descends_of_rootedProfileEquiv`; k ≥ 4 SORRY — the general
