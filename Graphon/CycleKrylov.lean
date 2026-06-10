@@ -347,8 +347,45 @@ multigraph). The k = 2 proof recovered the forbidden diagonal 2-tensor via
 level up. Note `B^{∘(k-1)}` itself is NOT in the observable kernel algebra
 (even off the root), so the lift is a genuine extension, not a substitution. -/
 
-/-- **Weighted power sums descend** (k ≤ 2 PROVED; k ≥ 3 SORRY — the
-Hadamard-power lift, the sharpened open target after the square moment fell).
+/-- **Cube-moment descent** (SORRY — the first genuinely new tensor/Krylov
+case; the focused k = 3 target, to be proved before generalizing to k ≥ 4).
+
+**Reduction** (mirroring k = 2): with `ε = rowDiff`, `u = rowSum`,
+`B i t ^ 3 - B j t ^ 3 = ε t * (B i t ^ 2 + B i t * B j t + B j t ^ 2)`
+and `4 · gap₃ = 3⟨ε, u∘u⟩_W + ⟨ε, ε∘ε⟩_W`. Both `ε, u ∈ Im M`
+(`ε = M (D_W⁻¹(e i - e j))`, mirroring `rowSum_eq_weightedAdj`), so in the
+`W`-orthonormal eigenbasis `ψ_λ` of `M` (generic simple spectrum; write
+`f λ = ⟨ψ_λ, ε⟩_W`, `g λ = ⟨ψ_λ, u⟩_W`, `F λ μ = ⟨ψ_λ∘ψ_μ, ε⟩_W`,
+`G λ μ = ⟨ψ_λ∘ψ_μ, u⟩_W`, `C λ μ ν = ⟨ψ_λ∘ψ_μ, ψ_ν⟩_W`):
+
+  `4·gap₃ = Σ_{λ,μ ≠ 0} (3 g_λ g_μ + f_λ f_μ) · F λ μ`.
+
+**Observable constraint families** (each rpe-killed, by the multilinear
+polarization of the root-edge telescope; Vandermonde-extracted per nonzero
+spectral tuple):
+- theta graphs (two parallel `t–s` paths, root-adjacent `t, s`):
+  `F λ μ · G λ μ = 0`;
+- wedges (paths `t–s`, `t–x` from a root-adjacent hub `t`; legs `s, x`
+  root-adjacent): `(g_λ g_μ + f_λ f_μ) F λ μ + (f_λ g_μ + g_λ f_μ) G λ μ = 0`;
+- theta-bundles inside cycles: `f λ * g μ * C λ α β * C μ α β = 0`;
+- triangle-wedges: `F·G·G + G·F·G + G·G·F + F·F·F = 0` over triples.
+
+The generic branch (`F ≡ 0` on nonzero pairs) gives `gap₃ = 0` at once; the
+residual branch is pairs with `G λ μ = 0`, `f_λ f_μ = -g_λ g_μ ≠ 0`, and
+`F λ μ ≠ 0`, which the families above do not yet exclude — closing it (more
+constraint mining, or a polarized double-Krylov argument over `M ⊗ M`
+diagonal-restricted) is the open content. Numerical falsification of the cube
+gap runs on the same LM cutting-plane harness as k = 2. -/
+theorem cubeMoment_descends_of_rootedProfileEquiv {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j) :
+    ∑ t : Fin T, W t * B i t ^ 3 = ∑ t : Fin T, W t * B j t ^ 3 := by
+  sorry
+
+/-- **Weighted power sums descend** (k ≤ 3 reduced: k ≤ 2 PROVED, k = 3 via
+`cubeMoment_descends_of_rootedProfileEquiv`; k ≥ 4 SORRY — the general
+Hadamard-power lift, to be attacked after the cube validates the method).
 
 Once proved for all `k`, `weighted_powersum_determines_measure` upgrades this
 to equality of `W`-weighted row-value measures, the key step toward the rank
@@ -368,7 +405,8 @@ theorem powerSum_descends_of_rootedProfileEquiv {T : ℕ}
   | 2 =>
     have h2 := sqMoment_descends_of_rootedProfileEquiv B hB W hW h
     simpa [sqMoment] using h2
-  | (k + 3) =>
+  | 3 => exact cubeMoment_descends_of_rootedProfileEquiv B hB W hW h
+  | (k + 4) =>
     sorry
 
 /-- **Row-value measures descend** (proved modulo the `k ≥ 3` power sums):
