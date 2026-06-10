@@ -211,6 +211,71 @@ theorem pair_mem_common_pos_power_span
   · have := congrArg Prod.snd hc'
     simpa [Prod.snd_sum] using this
 
+/-! #### The k-fold direct-sum (family common-coefficient) lemma -/
+
+/-- The block-diagonal operator `⨁_{i : Fin m} A` on `PiLp 2 (fun _ : Fin m => E)`
+(the `Fin m`-fold generalization of `prodMapL2`). -/
+noncomputable def piMapL2 (m : ℕ) (A : E →ₗ[ℝ] E) :
+    PiLp 2 (fun _ : Fin m => E) →ₗ[ℝ] PiLp 2 (fun _ : Fin m => E) :=
+  (WithLp.linearEquiv 2 ℝ (∀ _ : Fin m, E)).symm.toLinearMap ∘ₗ
+    (LinearMap.pi fun i => A ∘ₗ LinearMap.proj i) ∘ₗ
+    (WithLp.linearEquiv 2 ℝ (∀ _ : Fin m, E)).toLinearMap
+
+omit [FiniteDimensional ℝ E] in
+theorem piMapL2_apply (m : ℕ) (A : E →ₗ[ℝ] E) (x : PiLp 2 (fun _ : Fin m => E)) :
+    piMapL2 m A x = WithLp.toLp 2 (fun i => A (WithLp.ofLp x i)) := rfl
+
+omit [FiniteDimensional ℝ E] in
+/-- `piMapL2 m A` inherits self-adjointness from `A`. -/
+theorem piMapL2_selfAdjoint (m : ℕ) (A : E →ₗ[ℝ] E)
+    (hA : ∀ x y : E, ⟪A x, y⟫ = ⟪x, A y⟫) (x y : PiLp 2 (fun _ : Fin m => E)) :
+    ⟪piMapL2 m A x, y⟫ = ⟪x, piMapL2 m A y⟫ := by
+  simp only [piMapL2_apply, PiLp.inner_apply]
+  exact Finset.sum_congr rfl fun i _ => hA _ _
+
+omit [FiniteDimensional ℝ E] in
+/-- Powers of `piMapL2 m A` act componentwise as powers of `A`. -/
+theorem piMapL2_pow_toLp (m : ℕ) (A : E →ₗ[ℝ] E) (q : ℕ) (w : Fin m → E) :
+    ((piMapL2 m A) ^ q) (WithLp.toLp 2 w) = WithLp.toLp 2 (fun i => (A ^ q) (w i)) := by
+  induction q with
+  | zero => simp only [pow_zero, Module.End.one_apply]
+  | succ q ih =>
+    rw [pow_succ' (piMapL2 m A) q, Module.End.mul_apply, ih, piMapL2_apply]
+    refine congrArg (WithLp.toLp 2) (funext fun i => ?_)
+    show A ((A ^ q) (w i)) = (A ^ (q + 1)) (w i)
+    rw [pow_succ' A q, Module.End.mul_apply]
+
+/-- **Common Krylov coefficients for a finite family** (the k-fold direct-sum
+trick): if every member of a family `w : Fin m → E` lies in the range of a
+self-adjoint `A`, there are COMMON coefficients expressing each member as a
+combination of its own positive `A`-powers. Generalizes
+`pair_mem_common_pos_power_span`; obtained from the block operator on
+`PiLp 2 (fun _ : Fin m => E)` by projecting each coordinate. -/
+theorem common_krylov_coefficients_fin (m : ℕ)
+    (A : E →ₗ[ℝ] E) (hA : ∀ x y : E, ⟪A x, y⟫ = ⟪x, A y⟫)
+    {w : Fin m → E} (hw : ∀ i, w i ∈ LinearMap.range A) :
+    ∃ (s : Finset ℕ) (c : ℕ → ℝ),
+      ∀ i, (∑ q ∈ s, c q • (A ^ (q + 1)) (w i)) = w i := by
+  classical
+  choose z hz using fun i => LinearMap.mem_range.mp (hw i)
+  have hrange : WithLp.toLp 2 w ∈ LinearMap.range (piMapL2 m A) := by
+    refine LinearMap.mem_range.mpr ⟨WithLp.toLp 2 z, ?_⟩
+    rw [piMapL2_apply]
+    exact congrArg (WithLp.toLp 2) (funext hz)
+  have hmem := mem_span_pos_powers_of_mem_range (piMapL2 m A)
+    (piMapL2_selfAdjoint m A hA) hrange
+  rw [Finsupp.mem_span_range_iff_exists_finsupp] at hmem
+  obtain ⟨c, hc⟩ := hmem
+  rw [Finsupp.sum] at hc
+  simp only [piMapL2_pow_toLp] at hc
+  have hc' : ∀ i, (∑ q ∈ c.support, c q • (A ^ (q + 1)) (w i)) = w i := by
+    intro i
+    have h := congrArg (WithLp.linearEquiv 2 ℝ (∀ _ : Fin m, E)) hc
+    rw [map_sum] at h
+    have h2 := congrArg (fun v : ∀ _ : Fin m, E => v i) h
+    simpa [WithLp.coe_linearEquiv, Finset.sum_apply] using h2
+  exact ⟨c.support, fun q => c q, hc'⟩
+
 end Abstract
 
 /-! ### Transport of the `W`-weighted form to Euclidean space -/
@@ -591,6 +656,197 @@ theorem cubeGap_eq_zero_of_polarized_obs (B : Fin T → Fin T → ℝ)
   have hc₁₃ := wTriple_comm₁₃ W (rowDiff B i j) (rowSum B i j) (rowSum B i j)
   rw [← hc₁₂, ← hc₁₃] at htotal
   nlinarith [hgap, htotal]
+
+/-! #### k-linear polarization — the graph-free power-moment core (k ≥ 4 lift) -/
+
+/-- The weighted `k`-linear form `T_k(f) = ∑ t, W t * ∏ l, f l t`
+(the `Fin k`-slot generalization of `wTriple`). -/
+noncomputable def wMulti (k : ℕ) (W : Fin T → ℝ) (f : Fin k → Fin T → ℝ) : ℝ :=
+  ∑ t : Fin T, W t * ∏ l : Fin k, f l t
+
+/-- **Multilinear expansion with common coefficients** (k-ary analog of
+`wTriple_triple_expansion`, in one shot via `Finset.prod_univ_sum`): a k-linear
+form whose every slot has a shared-coefficient finite expansion equals the sum
+over coefficient tuples of weighted evaluations. -/
+theorem wMulti_expansion {ι : Type*} [DecidableEq ι] (k : ℕ) (W : Fin T → ℝ)
+    (s : Finset ι) (c : ι → ℝ) (F : Fin k → ι → Fin T → ℝ)
+    (f : Fin k → Fin T → ℝ) (hf : ∀ l, (∑ a ∈ s, c a • F l a) = f l) :
+    wMulti k W f =
+      ∑ φ ∈ Fintype.piFinset (fun _ : Fin k => s),
+        (∏ l : Fin k, c (φ l)) * wMulti k W (fun l => F l (φ l)) := by
+  unfold wMulti
+  have hpt : ∀ t : Fin T, (∏ l : Fin k, f l t) =
+      ∑ φ ∈ Fintype.piFinset (fun _ : Fin k => s),
+        ∏ l : Fin k, c (φ l) * F l (φ l) t := by
+    intro t
+    have hslot : ∀ l : Fin k, f l t = ∑ a ∈ s, c a * F l a t := by
+      intro l
+      rw [← hf l, Finset.sum_apply]
+      exact Finset.sum_congr rfl fun a _ => rfl
+    calc (∏ l : Fin k, f l t) = ∏ l : Fin k, ∑ a ∈ s, c a * F l a t :=
+          Finset.prod_congr rfl fun l _ => hslot l
+      _ = _ := Finset.prod_univ_sum _ _
+  simp only [hpt, Finset.mul_sum]
+  rw [Finset.sum_comm]
+  refine Finset.sum_congr rfl fun φ _ => ?_
+  refine Finset.sum_congr rfl fun t _ => ?_
+  rw [Finset.prod_mul_distrib]
+  ring
+
+/-- **Pointwise k-th power polarization**: `2^k (x^k − y^k)` is `2 ·` the sum
+over ODD subsets `S ⊆ Fin k` of the slot products with `x − y` on `S` and
+`x + y` off `S` (binomial expansion of `(u+ε)^k − (u−ε)^k`; even subsets
+cancel, odd double). -/
+private theorem pow_sub_pow_expand (k : ℕ) (x y : ℝ) :
+    2 ^ k * (x ^ k - y ^ k) =
+      2 * ∑ S ∈ Finset.univ.powerset.filter (fun S : Finset (Fin k) => Odd S.card),
+        ∏ l : Fin k, (if l ∈ S then x - y else x + y) := by
+  classical
+  have h1 : (2 : ℝ) ^ k * x ^ k =
+      ∑ S ∈ (Finset.univ : Finset (Fin k)).powerset,
+        (∏ _l ∈ S, (x - y)) * ∏ _l ∈ Finset.univ \ S, (x + y) := by
+    rw [← Finset.prod_add, Finset.prod_const, Finset.card_univ, Fintype.card_fin,
+      show (x - y) + (x + y) = 2 * x by ring, mul_pow]
+  have h2 : (2 : ℝ) ^ k * y ^ k =
+      ∑ S ∈ (Finset.univ : Finset (Fin k)).powerset,
+        (∏ _l ∈ S, -(x - y)) * ∏ _l ∈ Finset.univ \ S, (x + y) := by
+    rw [← Finset.prod_add, Finset.prod_const, Finset.card_univ, Fintype.card_fin,
+      show -(x - y) + (x + y) = 2 * y by ring, mul_pow]
+  rw [mul_sub, h1, h2, ← Finset.sum_sub_distrib,
+    ← Finset.sum_filter_add_sum_filter_not
+      ((Finset.univ : Finset (Fin k)).powerset) (fun S => Odd S.card)]
+  have heven : (∑ S ∈ ((Finset.univ : Finset (Fin k)).powerset).filter
+      (fun S => ¬Odd S.card),
+        ((∏ _l ∈ S, (x - y)) * (∏ _l ∈ Finset.univ \ S, (x + y)) -
+          (∏ _l ∈ S, -(x - y)) * ∏ _l ∈ Finset.univ \ S, (x + y))) = 0 :=
+    Finset.sum_eq_zero fun S hS => by
+      have he : Even S.card :=
+        Nat.not_odd_iff_even.mp (Finset.mem_filter.mp hS).2
+      rw [Finset.prod_const, Finset.prod_const, Finset.prod_const, he.neg_pow,
+        sub_self]
+  rw [heven, add_zero, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun S hS => ?_
+  have ho : Odd S.card := (Finset.mem_filter.mp hS).2
+  have hsplit : (∏ l : Fin k, (if l ∈ S then x - y else x + y)) =
+      (x - y) ^ S.card * (x + y) ^ (Finset.univ \ S).card := by
+    rw [Finset.prod_ite, Finset.prod_const, Finset.prod_const,
+      Finset.filter_mem_eq_inter, Finset.univ_inter, ← Finset.sdiff_eq_filter]
+  rw [hsplit, Finset.prod_const, Finset.prod_const, Finset.prod_const, ho.neg_pow]
+  ring
+
+/-- **k-th power-gap polarization** (sum form): the weighted power-moment gap
+polarizes into the odd-subset `wMulti` evaluations of `(ε, u)`-slot
+assignments. -/
+theorem pow_gap_polarization (k : ℕ) (W : Fin T → ℝ) (f g : Fin T → ℝ) :
+    2 ^ k * ((∑ t : Fin T, W t * f t ^ k) - ∑ t : Fin T, W t * g t ^ k) =
+      2 * ∑ S ∈ Finset.univ.powerset.filter (fun S : Finset (Fin k) => Odd S.card),
+        wMulti k W (fun l => if l ∈ S then (fun t => f t - g t)
+          else fun t => f t + g t) := by
+  classical
+  unfold wMulti
+  rw [← Finset.sum_sub_distrib, Finset.mul_sum]
+  have hswap : (2 : ℝ) * ∑ S ∈ Finset.univ.powerset.filter
+        (fun S : Finset (Fin k) => Odd S.card),
+      ∑ t : Fin T, W t * ∏ l : Fin k,
+        (if l ∈ S then (fun t => f t - g t) else fun t => f t + g t) t =
+      ∑ t : Fin T, ∑ S ∈ Finset.univ.powerset.filter
+        (fun S : Finset (Fin k) => Odd S.card),
+      2 * (W t * ∏ l : Fin k,
+        (if l ∈ S then (fun t => f t - g t) else fun t => f t + g t) t) := by
+    rw [Finset.mul_sum, Finset.sum_comm]
+    refine Finset.sum_congr rfl fun S _ => ?_
+    rw [Finset.mul_sum]
+  rw [hswap]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  have hpt := pow_sub_pow_expand k (f t) (g t)
+  have hbridge : ∀ S : Finset (Fin k),
+      (∏ l : Fin k, (if l ∈ S then (fun t => f t - g t) else fun t => f t + g t) t) =
+        ∏ l : Fin k, (if l ∈ S then f t - g t else f t + g t) :=
+    fun S => Finset.prod_congr rfl fun l _ =>
+      apply_ite (fun h : Fin T → ℝ => h t) (l ∈ S) _ _
+  simp only [hbridge]
+  calc 2 ^ k * (W t * f t ^ k - W t * g t ^ k)
+      = W t * (2 ^ k * (f t ^ k - g t ^ k)) := by ring
+    _ = W t * (2 * ∑ S ∈ Finset.univ.powerset.filter
+          (fun S : Finset (Fin k) => Odd S.card),
+        ∏ l : Fin k, (if l ∈ S then f t - g t else f t + g t)) := by rw [hpt]
+    _ = _ := by
+        rw [Finset.mul_sum, Finset.mul_sum]
+        exact Finset.sum_congr rfl fun S _ => by ring
+
+/-- **The polarized k-th power observable**: the odd-subset polarization of
+the rooted K₂,ₖ-arms profile difference at arm-length vector `φ` (the k-ary
+generalization of `polarizedCubeObs`; the graph slice will identify
+`2^(k-1) ·` the K₂,ₖ-arms profile difference with this). -/
+noncomputable def polarizedPowObs (k : ℕ) (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (i j : Fin T) (φ : Fin k → ℕ) : ℝ :=
+  ∑ S ∈ Finset.univ.powerset.filter (fun S : Finset (Fin k) => Odd S.card),
+    wMulti k W (fun l => weightedAdjIter B W (φ l)
+      (if l ∈ S then rowDiff B i j else rowSum B i j))
+
+/-- **The graph-free k-th power core**: if every polarized k-th power
+observable at positive arm lengths vanishes, the k-th power-moment gap is
+zero. With the (future) graph slice identifying `polarizedPowObs` with
+`2^(k-1) ·` the rooted K₂,ₖ-arms profile difference, this reduces
+`powerSum_descends_of_rootedProfileEquiv` (k ≥ 4) to pure graph plumbing. -/
+theorem powGap_eq_zero_of_polarized_obs (k : ℕ) (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    (i j : Fin T)
+    (hobs : ∀ φ : Fin k → ℕ,
+      polarizedPowObs k B W i j (fun l => φ l + 1) = 0) :
+    ∑ t : Fin T, W t * B i t ^ k = ∑ t : Fin T, W t * B j t ^ k := by
+  classical
+  obtain ⟨s, c, hε, hu⟩ := weightedAdj_pair_common_coeffs B hB W hW
+    ⟨_, (rowDiff_eq_weightedAdj B hB W hW i j).symm⟩
+    ⟨_, (rowSum_eq_weightedAdj B hB W hW i j).symm⟩
+  -- each odd-subset wMulti expands through the COMMON coefficients
+  have hexp : ∀ S : Finset (Fin k),
+      wMulti k W (fun l => if l ∈ S then rowDiff B i j else rowSum B i j) =
+        ∑ φ ∈ Fintype.piFinset (fun _ : Fin k => s),
+          (∏ l : Fin k, c (φ l)) *
+            wMulti k W (fun l => weightedAdjIter B W (φ l + 1)
+              (if l ∈ S then rowDiff B i j else rowSum B i j)) := by
+    intro S
+    refine wMulti_expansion k W s c
+      (fun l a => weightedAdjIter B W (a + 1)
+        (if l ∈ S then rowDiff B i j else rowSum B i j)) _ fun l => ?_
+    by_cases hl : l ∈ S
+    · simp only [if_pos hl]; exact hε
+    · simp only [if_neg hl]; exact hu
+  -- the total polarization vanishes
+  have htotal : (∑ S ∈ Finset.univ.powerset.filter
+      (fun S : Finset (Fin k) => Odd S.card),
+      wMulti k W (fun l => if l ∈ S then rowDiff B i j else rowSum B i j)) = 0 := by
+    calc (∑ S ∈ Finset.univ.powerset.filter
+        (fun S : Finset (Fin k) => Odd S.card),
+        wMulti k W (fun l => if l ∈ S then rowDiff B i j else rowSum B i j))
+        = ∑ S ∈ Finset.univ.powerset.filter
+            (fun S : Finset (Fin k) => Odd S.card),
+          ∑ φ ∈ Fintype.piFinset (fun _ : Fin k => s),
+            (∏ l : Fin k, c (φ l)) *
+              wMulti k W (fun l => weightedAdjIter B W (φ l + 1)
+                (if l ∈ S then rowDiff B i j else rowSum B i j)) :=
+          Finset.sum_congr rfl fun S _ => hexp S
+      _ = ∑ φ ∈ Fintype.piFinset (fun _ : Fin k => s),
+          (∏ l : Fin k, c (φ l)) *
+            polarizedPowObs k B W i j (fun l => φ l + 1) := by
+          rw [Finset.sum_comm]
+          refine Finset.sum_congr rfl fun φ _ => ?_
+          unfold polarizedPowObs
+          rw [Finset.mul_sum]
+      _ = 0 := Finset.sum_eq_zero fun φ _ => by
+          rw [hobs (fun l => φ l), mul_zero]
+  -- conclude via the polarization identity
+  have hgap := pow_gap_polarization k W (fun t => B i t) (fun t => B j t)
+  have hd : (fun t => B i t - B j t) = rowDiff B i j := rfl
+  have hs : (fun t => B i t + B j t) = rowSum B i j := rfl
+  simp only [hd, hs] at hgap
+  rw [htotal, mul_zero] at hgap
+  have h2k : ((2 : ℝ) ^ k) ≠ 0 := pow_ne_zero k two_ne_zero
+  have hzero := mul_eq_zero.mp hgap
+  rcases hzero with h | h
+  · exact absurd h h2k
+  · linarith
 
 /-- **The weighted Krylov-kernel lemma** (target shape of the spectral slice):
 if `u` is in the range of `weightedAdj B W` and `eps` is `wInner`-orthogonal to
