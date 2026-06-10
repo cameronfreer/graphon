@@ -1038,6 +1038,130 @@ theorem sum_weight_mul_armSum {T : ℕ} (B : Fin T → Fin T → ℝ)
     rw [hswap, ih (weightedAdj B W f) y, weightedAdjIter_weightedAdj_comm]
     rfl
 
+/-! #### Block-structured assignments (the global split) -/
+
+/-- Concatenation of two assignment blocks (dif-based, so the value lemmas
+are definitional — no `castAdd`/`natAdd` juggling downstream). -/
+def appendFn {T m n : ℕ} (σ₁ : Fin m → Fin T) (σ₂ : Fin n → Fin T) :
+    Fin (m + n) → Fin T :=
+  fun i => if h : (i : ℕ) < m then σ₁ ⟨i, h⟩
+    else σ₂ ⟨(i : ℕ) - m, by have := i.isLt; omega⟩
+
+theorem appendFn_low {T m n : ℕ} (σ₁ : Fin m → Fin T) (σ₂ : Fin n → Fin T)
+    {i : Fin (m + n)} (h : (i : ℕ) < m) :
+    appendFn σ₁ σ₂ i = σ₁ ⟨i, h⟩ := dif_pos h
+
+theorem appendFn_high {T m n : ℕ} (σ₁ : Fin m → Fin T) (σ₂ : Fin n → Fin T)
+    {i : Fin (m + n)} (h : ¬(i : ℕ) < m) :
+    appendFn σ₁ σ₂ i = σ₂ ⟨(i : ℕ) - m, by have := i.isLt; omega⟩ := dif_neg h
+
+/-- The block-splitting equivalence for assignment spaces. -/
+def appendEquiv (T m n : ℕ) :
+    ((Fin m → Fin T) × (Fin n → Fin T)) ≃ (Fin (m + n) → Fin T) where
+  toFun p := appendFn p.1 p.2
+  invFun σ := (fun i => σ ⟨i, by have := i.isLt; omega⟩,
+    fun j => σ ⟨m + (j : ℕ), by have := j.isLt; omega⟩)
+  left_inv p := by
+    obtain ⟨σ₁, σ₂⟩ := p
+    rw [Prod.mk.injEq]
+    refine ⟨funext fun i => ?_, funext fun j => ?_⟩ <;> dsimp only
+    · rw [appendFn_low _ _ (show ((⟨(i : ℕ), _⟩ : Fin (m + n)) : ℕ) < m from i.isLt)]
+    · rw [appendFn_high _ _ (show ¬((⟨m + (j : ℕ), _⟩ : Fin (m + n)) : ℕ) < m by
+        show ¬m + (j : ℕ) < m; omega)]
+      exact congrArg σ₂ (Fin.ext (show m + (j : ℕ) - m = (j : ℕ) by omega))
+  right_inv σ := by
+    funext i
+    dsimp only
+    by_cases h : (i : ℕ) < m
+    · rw [appendFn_low _ _ h]
+    · rw [appendFn_high _ _ h]
+      exact congrArg σ (Fin.ext (show m + ((i : ℕ) - m) = (i : ℕ) by omega))
+
+/-- **Sum splitting** along a block decomposition of the assignment space. -/
+theorem sum_fin_split {T : ℕ} {β : Type*} [AddCommMonoid β] (m n : ℕ)
+    (f : (Fin (m + n) → Fin T) → β) :
+    (∑ σ : Fin (m + n) → Fin T, f σ) =
+      ∑ σ₁ : Fin m → Fin T, ∑ σ₂ : Fin n → Fin T, f (appendFn σ₁ σ₂) := by
+  rw [← Equiv.sum_comp (appendEquiv T m n) f, Fintype.sum_prod_type]
+  rfl
+
+/-- **Weight-product splitting** along a block decomposition. -/
+theorem prod_appendFn {T m n : ℕ} (g : Fin T → ℝ)
+    (σ₁ : Fin m → Fin T) (σ₂ : Fin n → Fin T) :
+    (∏ u : Fin (m + n), g (appendFn σ₁ σ₂ u)) =
+      (∏ u : Fin m, g (σ₁ u)) * ∏ u : Fin n, g (σ₂ u) := by
+  rw [Fin.prod_univ_add]
+  congr 1
+  · refine Finset.prod_congr rfl fun u _ => ?_
+    rw [appendFn_low _ _ (by rw [Fin.val_castAdd]; exact u.isLt)]
+    exact congrArg g (congrArg σ₁ (Fin.ext (by rw [Fin.val_castAdd])))
+  · refine Finset.prod_congr rfl fun u _ => ?_
+    rw [appendFn_high _ _ (by rw [Fin.val_natAdd]; omega)]
+    refine congrArg g (congrArg σ₂ (Fin.ext ?_))
+    show ((Fin.natAdd m u : Fin (m + n)) : ℕ) - m = (u : ℕ)
+    rw [Fin.val_natAdd]
+    omega
+
+/-- The structured K₂,₃-arms assignment: anchors, hub, and the three
+internal arm blocks, assembled into a flat assignment. -/
+def k23Assign {T : ℕ} (a b c : ℕ) (x : Fin 3 → Fin T) (h₁ : Fin 1 → Fin T)
+    (σa : Fin a → Fin T) (σb : Fin b → Fin T) (σc : Fin c → Fin T) :
+    Fin (4 + a + b + c) → Fin T :=
+  appendFn (appendFn (appendFn (appendFn x h₁) σa) σb) σc
+
+/-- Reconstruction: anchor values. -/
+theorem k23Assign_anchor {T : ℕ} (a b c : ℕ) (x : Fin 3 → Fin T)
+    (h₁ : Fin 1 → Fin T) (σa : Fin a → Fin T) (σb : Fin b → Fin T)
+    (σc : Fin c → Fin T) {j : ℕ} (hj : j < 3) :
+    k23Assign a b c x h₁ σa σb σc ⟨j, by omega⟩ = x ⟨j, hj⟩ := by
+  unfold k23Assign
+  rw [appendFn_low _ _ (show j < 4 + a + b by omega),
+    appendFn_low _ _ (show j < 4 + a by omega),
+    appendFn_low _ _ (show j < 4 by omega),
+    appendFn_low _ _ (show j < 3 from hj)]
+
+/-- Reconstruction: the hub value. -/
+theorem k23Assign_hub {T : ℕ} (a b c : ℕ) (x : Fin 3 → Fin T)
+    (h₁ : Fin 1 → Fin T) (σa : Fin a → Fin T) (σb : Fin b → Fin T)
+    (σc : Fin c → Fin T) :
+    k23Assign a b c x h₁ σa σb σc ⟨3, by omega⟩ = h₁ 0 := by
+  unfold k23Assign
+  rw [appendFn_low _ _ (show 3 < 4 + a + b by omega),
+    appendFn_low _ _ (show 3 < 4 + a by omega),
+    appendFn_low _ _ (show 3 < 4 by omega),
+    appendFn_high _ _ (show ¬3 < 3 by omega)]
+  exact congrArg h₁ (Fin.ext rfl)
+
+/-- Reconstruction: arm-0 internal values. -/
+theorem k23Assign_arm0 {T : ℕ} (a b c : ℕ) (x : Fin 3 → Fin T)
+    (h₁ : Fin 1 → Fin T) (σa : Fin a → Fin T) (σb : Fin b → Fin T)
+    (σc : Fin c → Fin T) {k : ℕ} (hk : k < a) :
+    k23Assign a b c x h₁ σa σb σc ⟨4 + k, by omega⟩ = σa ⟨k, hk⟩ := by
+  unfold k23Assign
+  rw [appendFn_low _ _ (show 4 + k < 4 + a + b by omega),
+    appendFn_low _ _ (show 4 + k < 4 + a by omega),
+    appendFn_high _ _ (show ¬4 + k < 4 by omega)]
+  exact congrArg σa (Fin.ext (show 4 + k - 4 = k by omega))
+
+/-- Reconstruction: arm-1 internal values. -/
+theorem k23Assign_arm1 {T : ℕ} (a b c : ℕ) (x : Fin 3 → Fin T)
+    (h₁ : Fin 1 → Fin T) (σa : Fin a → Fin T) (σb : Fin b → Fin T)
+    (σc : Fin c → Fin T) {k : ℕ} (hk : k < b) :
+    k23Assign a b c x h₁ σa σb σc ⟨4 + a + k, by omega⟩ = σb ⟨k, hk⟩ := by
+  unfold k23Assign
+  rw [appendFn_low _ _ (show 4 + a + k < 4 + a + b by omega),
+    appendFn_high _ _ (show ¬4 + a + k < 4 + a by omega)]
+  exact congrArg σb (Fin.ext (show 4 + a + k - (4 + a) = k by omega))
+
+/-- Reconstruction: arm-2 internal values. -/
+theorem k23Assign_arm2 {T : ℕ} (a b c : ℕ) (x : Fin 3 → Fin T)
+    (h₁ : Fin 1 → Fin T) (σa : Fin a → Fin T) (σb : Fin b → Fin T)
+    (σc : Fin c → Fin T) {k : ℕ} (hk : k < c) :
+    k23Assign a b c x h₁ σa σb σc ⟨4 + a + b + k, by omega⟩ = σc ⟨k, hk⟩ := by
+  unfold k23Assign
+  rw [appendFn_high _ _ (show ¬4 + a + b + k < 4 + a + b by omega)]
+  exact congrArg σc (Fin.ext (show 4 + a + b + k - (4 + a + b) = k by omega))
+
 /-- **Raw evaluation of the K₂,₃-arms profile** (SORRY — the brittle
 `Fin`/edge-product slice, isolated here per plan): the rooted profile
 factorizes through the hub as a `wTriple` of `weightedAdjIter`s of the
