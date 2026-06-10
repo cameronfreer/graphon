@@ -404,6 +404,194 @@ theorem weightedAdj_pair_common_coeffs
   · exact sqrtScale_injective W hW (by rw [← pull f]; exact h1)
   · exact sqrtScale_injective W hW (by rw [← pull g]; exact h2)
 
+/-! #### Trilinear polarization — the graph-free cube core -/
+
+/-- The weighted trilinear form `T₃(f, g, h) = ∑ t, W t * f t * g t * h t`. -/
+noncomputable def wTriple (W f g h : Fin T → ℝ) : ℝ :=
+  ∑ t : Fin T, W t * f t * g t * h t
+
+theorem wTriple_comm₁₂ (W f g h : Fin T → ℝ) :
+    wTriple W f g h = wTriple W g f h :=
+  Finset.sum_congr rfl fun _ _ => by ring
+
+theorem wTriple_comm₁₃ (W f g h : Fin T → ℝ) :
+    wTriple W f g h = wTriple W h g f :=
+  Finset.sum_congr rfl fun _ _ => by ring
+
+theorem wTriple_sum₁ {ι : Type*} (W : Fin T → ℝ) (s : Finset ι)
+    (F : ι → Fin T → ℝ) (g h : Fin T → ℝ) :
+    wTriple W (∑ a ∈ s, F a) g h = ∑ a ∈ s, wTriple W (F a) g h := by
+  unfold wTriple
+  have hpt : ∀ t, W t * (∑ a ∈ s, F a) t * g t * h t =
+      ∑ a ∈ s, W t * F a t * g t * h t := by
+    intro t
+    rw [Finset.sum_apply, Finset.mul_sum, Finset.sum_mul, Finset.sum_mul]
+  simp only [hpt]
+  rw [Finset.sum_comm]
+
+theorem wTriple_smul₁ (W : Fin T → ℝ) (r : ℝ) (f g h : Fin T → ℝ) :
+    wTriple W (r • f) g h = r * wTriple W f g h := by
+  unfold wTriple
+  rw [Finset.mul_sum]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  show W t * (r * f t) * g t * h t = r * (W t * f t * g t * h t)
+  ring
+
+theorem wTriple_sum₂ {ι : Type*} (W : Fin T → ℝ) (s : Finset ι)
+    (f : Fin T → ℝ) (G : ι → Fin T → ℝ) (h : Fin T → ℝ) :
+    wTriple W f (∑ b ∈ s, G b) h = ∑ b ∈ s, wTriple W f (G b) h := by
+  rw [wTriple_comm₁₂, wTriple_sum₁]
+  exact Finset.sum_congr rfl fun b _ => wTriple_comm₁₂ W (G b) f h
+
+theorem wTriple_smul₂ (W : Fin T → ℝ) (r : ℝ) (f g h : Fin T → ℝ) :
+    wTriple W f (r • g) h = r * wTriple W f g h := by
+  rw [wTriple_comm₁₂, wTriple_smul₁, wTriple_comm₁₂]
+
+theorem wTriple_sum₃ {ι : Type*} (W : Fin T → ℝ) (s : Finset ι)
+    (f g : Fin T → ℝ) (H : ι → Fin T → ℝ) :
+    wTriple W f g (∑ d ∈ s, H d) = ∑ d ∈ s, wTriple W f g (H d) := by
+  rw [wTriple_comm₁₃, wTriple_sum₁]
+  exact Finset.sum_congr rfl fun d _ => wTriple_comm₁₃ W (H d) g f
+
+theorem wTriple_smul₃ (W : Fin T → ℝ) (r : ℝ) (f g h : Fin T → ℝ) :
+    wTriple W f g (r • h) = r * wTriple W f g h := by
+  rw [wTriple_comm₁₃, wTriple_smul₁, wTriple_comm₁₃]
+
+/-- **Pointwise cube factorization**:
+`4·gap₃ = 3·T₃(ε, u, u) + T₃(ε, ε, ε)` (from
+`4(x³ - y³) = 3(x-y)(x+y)² + (x-y)³`). -/
+theorem cube_gap_polarization (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (i j : Fin T) :
+    4 * ((∑ t : Fin T, W t * B i t ^ 3) - ∑ t : Fin T, W t * B j t ^ 3) =
+      3 * wTriple W (rowDiff B i j) (rowSum B i j) (rowSum B i j) +
+        wTriple W (rowDiff B i j) (rowDiff B i j) (rowDiff B i j) := by
+  unfold wTriple rowDiff rowSum
+  rw [← Finset.sum_sub_distrib, Finset.mul_sum, Finset.mul_sum,
+    ← Finset.sum_add_distrib]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  ring
+
+/-- `ε = rowDiff` is also in the range of `weightedAdj` (mirror of
+`rowSum_eq_weightedAdj`). -/
+theorem rowDiff_eq_weightedAdj (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    (i j : Fin T) :
+    rowDiff B i j = weightedAdj B W
+      (fun t => (if t = i then 1 else 0) / W t - (if t = j then 1 else 0) / W t) := by
+  classical
+  have key : ∀ a x : Fin T,
+      (∑ t : Fin T, W t * B x t * ((if t = a then (1 : ℝ) else 0) / W t)) = B x a := by
+    intro a x
+    rw [Finset.sum_eq_single a]
+    · rw [if_pos rfl, mul_one_div, mul_comm (W a) (B x a), mul_div_assoc,
+        div_self (hW a).ne', mul_one]
+    · intro t _ ht
+      rw [if_neg ht, zero_div, mul_zero]
+    · intro h
+      exact absurd (Finset.mem_univ a) h
+  funext x
+  unfold rowDiff weightedAdj
+  rw [show (∑ t : Fin T, W t * B x t *
+        ((if t = i then (1 : ℝ) else 0) / W t - (if t = j then 1 else 0) / W t)) =
+      ∑ t : Fin T, (W t * B x t * ((if t = i then (1 : ℝ) else 0) / W t) -
+        W t * B x t * ((if t = j then 1 else 0) / W t)) from
+    Finset.sum_congr rfl fun t _ => by ring]
+  rw [Finset.sum_sub_distrib, key i x, key j x, hB x i, hB x j]
+
+/-- **The polarized cube observable** (algebraic form): the trilinear
+polarization of the rooted K₂,₃-with-arms profile difference at arm lengths
+`(a, b, c)` — one `ε`-placement per root edge, plus the all-`ε` term. The graph
+slice will identify `4 ·` (the K₂,₃-arms profile difference) with this. -/
+noncomputable def polarizedCubeObs (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (i j : Fin T) (a b c : ℕ) : ℝ :=
+  wTriple W (weightedAdjIter B W a (rowDiff B i j))
+      (weightedAdjIter B W b (rowSum B i j))
+      (weightedAdjIter B W c (rowSum B i j)) +
+    wTriple W (weightedAdjIter B W a (rowSum B i j))
+      (weightedAdjIter B W b (rowDiff B i j))
+      (weightedAdjIter B W c (rowSum B i j)) +
+    wTriple W (weightedAdjIter B W a (rowSum B i j))
+      (weightedAdjIter B W b (rowSum B i j))
+      (weightedAdjIter B W c (rowDiff B i j)) +
+    wTriple W (weightedAdjIter B W a (rowDiff B i j))
+      (weightedAdjIter B W b (rowDiff B i j))
+      (weightedAdjIter B W c (rowDiff B i j))
+
+/-- **Triple expansion with common coefficients**: a trilinear form evaluated
+at three vectors, each given by a (shared-coefficient) finite expansion,
+equals the triple sum of coefficient-weighted evaluations. -/
+private theorem wTriple_triple_expansion {ι : Type*} (W : Fin T → ℝ)
+    (s : Finset ι) (c : ι → ℝ) (F G H : ι → Fin T → ℝ) (f g h : Fin T → ℝ)
+    (hf : (∑ a ∈ s, c a • F a) = f) (hg : (∑ b ∈ s, c b • G b) = g)
+    (hh : (∑ d ∈ s, c d • H d) = h) :
+    wTriple W f g h = ∑ a ∈ s, ∑ b ∈ s, ∑ d ∈ s,
+      c a * c b * c d * wTriple W (F a) (G b) (H d) := by
+  rw [← hf, wTriple_sum₁]
+  refine Finset.sum_congr rfl fun a _ => ?_
+  rw [wTriple_smul₁, ← hg, wTriple_sum₂, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun b _ => ?_
+  rw [wTriple_smul₂, ← hh, wTriple_sum₃, Finset.mul_sum, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun d _ => ?_
+  rw [wTriple_smul₃]
+  ring
+
+/-- **The graph-free cube core**: if every polarized cube observable (at
+positive arm lengths) vanishes, the cube gap is zero. With the (separate)
+graph slice identifying `polarizedCubeObs` with `4 ·` the rooted K₂,₃-arms
+profile difference, this reduces `cubeMoment_descends_of_rootedProfileEquiv`
+to pure graph plumbing. -/
+theorem cubeGap_eq_zero_of_polarized_obs (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    (i j : Fin T)
+    (hobs : ∀ a b c : ℕ, polarizedCubeObs B W i j (a + 1) (b + 1) (c + 1) = 0) :
+    ∑ t : Fin T, W t * B i t ^ 3 = ∑ t : Fin T, W t * B j t ^ 3 := by
+  obtain ⟨s, c, hε, hu⟩ := weightedAdj_pair_common_coeffs B hB W hW
+    ⟨_, (rowDiff_eq_weightedAdj B hB W hW i j).symm⟩
+    ⟨_, (rowSum_eq_weightedAdj B hB W hW i j).symm⟩
+  -- the four expansions of the trilinear pieces through the COMMON coefficients
+  have e1 := wTriple_triple_expansion W s c _ _ _ _ _ _ hε hu hu
+  have e2 := wTriple_triple_expansion W s c _ _ _ _ _ _ hu hε hu
+  have e3 := wTriple_triple_expansion W s c _ _ _ _ _ _ hu hu hε
+  have e4 := wTriple_triple_expansion W s c _ _ _ _ _ _ hε hε hε
+  -- the total coefficient-weighted observable sum vanishes
+  have htotal : (∑ a ∈ s, ∑ b ∈ s, ∑ d ∈ s,
+      c a * c b * c d * polarizedCubeObs B W i j (a + 1) (b + 1) (d + 1)) = 0 :=
+    Finset.sum_eq_zero fun a _ => Finset.sum_eq_zero fun b _ =>
+      Finset.sum_eq_zero fun d _ => by rw [hobs a b d, mul_zero]
+  -- split each observable into its four trilinear pieces and regroup
+  have hsummand : ∀ a b d : ℕ,
+      c a * c b * c d * polarizedCubeObs B W i j (a + 1) (b + 1) (d + 1) =
+        c a * c b * c d * wTriple W (weightedAdjIter B W (a + 1) (rowDiff B i j))
+          (weightedAdjIter B W (b + 1) (rowSum B i j))
+          (weightedAdjIter B W (d + 1) (rowSum B i j)) +
+        c a * c b * c d * wTriple W (weightedAdjIter B W (a + 1) (rowSum B i j))
+          (weightedAdjIter B W (b + 1) (rowDiff B i j))
+          (weightedAdjIter B W (d + 1) (rowSum B i j)) +
+        c a * c b * c d * wTriple W (weightedAdjIter B W (a + 1) (rowSum B i j))
+          (weightedAdjIter B W (b + 1) (rowSum B i j))
+          (weightedAdjIter B W (d + 1) (rowDiff B i j)) +
+        c a * c b * c d * wTriple W (weightedAdjIter B W (a + 1) (rowDiff B i j))
+          (weightedAdjIter B W (b + 1) (rowDiff B i j))
+          (weightedAdjIter B W (d + 1) (rowDiff B i j)) := by
+    intro a b d
+    unfold polarizedCubeObs
+    ring
+  have hsplit : (∑ a ∈ s, ∑ b ∈ s, ∑ d ∈ s,
+      c a * c b * c d * polarizedCubeObs B W i j (a + 1) (b + 1) (d + 1)) =
+      wTriple W (rowDiff B i j) (rowSum B i j) (rowSum B i j) +
+      wTriple W (rowSum B i j) (rowDiff B i j) (rowSum B i j) +
+      wTriple W (rowSum B i j) (rowSum B i j) (rowDiff B i j) +
+      wTriple W (rowDiff B i j) (rowDiff B i j) (rowDiff B i j) := by
+    simp only [hsummand, Finset.sum_add_distrib]
+    rw [← e1, ← e2, ← e3, ← e4]
+  rw [hsplit] at htotal
+  -- conclude: 4·gap = 3 T(ε,u,u) + T(ε,ε,ε) = the vanishing total
+  have hgap := cube_gap_polarization B W i j
+  have hc₁₂ := wTriple_comm₁₂ W (rowDiff B i j) (rowSum B i j) (rowSum B i j)
+  have hc₁₃ := wTriple_comm₁₃ W (rowDiff B i j) (rowSum B i j) (rowSum B i j)
+  rw [← hc₁₂, ← hc₁₃] at htotal
+  nlinarith [hgap, htotal]
+
 /-- **The weighted Krylov-kernel lemma** (target shape of the spectral slice):
 if `u` is in the range of `weightedAdj B W` and `eps` is `wInner`-orthogonal to
 all positive `weightedAdjIter`-iterates of `u`, then `eps ⊥ u`. -/
