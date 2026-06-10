@@ -727,6 +727,188 @@ instance (a b c : ℕ) : DecidableRel (k23Arms a b c).Adj := fun u v => by
   unfold k23Arms
   exact inferInstance
 
+/-- Arm vertices stay in range. -/
+theorem armSeq_lt (a b c : ℕ) {l s : ℕ} (hl : l < 3)
+    (hs : s ≤ armLen a b c l + 1) :
+    armSeq a b c l s < 4 + a + b + c + 1 := by
+  simp only [armSeq, armLen, armStart] at hs ⊢
+  split_ifs at hs ⊢ <;> omega
+
+/-- Arm vertices are never the root. -/
+theorem armSeq_pos (a b c : ℕ) {l s : ℕ} (hl : l < 3) :
+    0 < armSeq a b c l s := by
+  simp only [armSeq, armLen, armStart]
+  split_ifs <;> omega
+
+/-- The edge index type of `k23Arms`: three root edges plus, per arm,
+`armLen + 1` chain edges. -/
+abbrev K23EdgeIdx (a b c : ℕ) : Type :=
+  Fin 3 ⊕ ((l : Fin 3) × Fin (armLen a b c l + 1))
+
+/-- The edge family of `k23Arms`, indexed by `K23EdgeIdx`. -/
+def k23Edge (a b c : ℕ) : K23EdgeIdx a b c → Sym2 (Fin (4 + a + b + c + 1))
+  | .inl l => s((0 : Fin (4 + a + b + c + 1)),
+      ⟨(l : ℕ) + 1, by have := l.isLt; omega⟩)
+  | .inr ⟨l, s⟩ =>
+      s(⟨armSeq a b c l s,
+          armSeq_lt a b c l.isLt (by have := s.isLt; omega)⟩,
+        ⟨armSeq a b c l ((s : ℕ) + 1),
+          armSeq_lt a b c l.isLt (by have := s.isLt; omega)⟩)
+
+/-- Every indexed edge is an edge of `k23Arms`. -/
+theorem k23Edge_mem (a b c : ℕ) (idx : K23EdgeIdx a b c) :
+    k23Edge a b c idx ∈ (k23Arms a b c).edgeSet := by
+  match idx with
+  | .inl l =>
+    simp only [k23Edge]
+    rw [SimpleGraph.mem_edgeSet]
+    refine Or.inl ⟨rfl, ?_⟩
+    show (l : ℕ) + 1 = 1 ∨ (l : ℕ) + 1 = 2 ∨ (l : ℕ) + 1 = 3
+    have := l.isLt
+    omega
+  | .inr ⟨l, s⟩ =>
+    simp only [k23Edge]
+    rw [SimpleGraph.mem_edgeSet]
+    exact Or.inr (Or.inr ⟨(l : ℕ), l.isLt, (s : ℕ),
+      (by have := s.isLt; omega), Or.inl ⟨rfl, rfl⟩⟩)
+
+/-- **Edge classification** for `k23Arms` (reusable form): the edge finset is
+the image of the indexed family — three root-anchor edges plus the three
+anchor-to-hub arm chains, and nothing else. -/
+theorem k23Arms_edgeFinset (a b c : ℕ) :
+    (k23Arms a b c).edgeFinset =
+      Finset.image (k23Edge a b c) Finset.univ := by
+  classical
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, Finset.mem_image, Finset.mem_univ,
+    true_and]
+  constructor
+  · intro he
+    induction e using Sym2.ind with
+    | _ u w =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      rcases he with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨l, hl, s, hs, hcase⟩
+      · refine ⟨.inl ⟨(w : ℕ) - 1, by omega⟩, ?_⟩
+        simp only [k23Edge]
+        rw [Sym2.eq_iff]
+        exact Or.inl ⟨Fin.ext h1.symm, Fin.ext (by show (w : ℕ) - 1 + 1 = _; omega)⟩
+      · refine ⟨.inl ⟨(u : ℕ) - 1, by omega⟩, ?_⟩
+        simp only [k23Edge]
+        rw [Sym2.eq_iff]
+        exact Or.inr ⟨Fin.ext h1.symm, Fin.ext (by show (u : ℕ) - 1 + 1 = _; omega)⟩
+      · refine ⟨.inr ⟨⟨l, hl⟩, ⟨s, by show s < armLen a b c l + 1; omega⟩⟩, ?_⟩
+        simp only [k23Edge]
+        rw [Sym2.eq_iff]
+        rcases hcase with ⟨hu, hw⟩ | ⟨hw, hu⟩
+        · exact Or.inl ⟨Fin.ext hu.symm, Fin.ext hw.symm⟩
+        · exact Or.inr ⟨Fin.ext hw.symm, Fin.ext hu.symm⟩
+  · rintro ⟨idx, rfl⟩
+    exact k23Edge_mem a b c idx
+
+set_option maxHeartbeats 1600000 in
+/-- Two arm-chain edges with equal endpoint sets come from the same arm and
+step (raw-`ℕ` arithmetic core of edge injectivity). -/
+private theorem armSeq_pair_inj (a b c : ℕ) {l s l' s' : ℕ}
+    (hl : l < 3) (hl' : l' < 3)
+    (hs : s ≤ armLen a b c l) (hs' : s' ≤ armLen a b c l')
+    (h : (armSeq a b c l s = armSeq a b c l' s' ∧
+            armSeq a b c l (s + 1) = armSeq a b c l' (s' + 1)) ∨
+         (armSeq a b c l s = armSeq a b c l' (s' + 1) ∧
+            armSeq a b c l (s + 1) = armSeq a b c l' s')) :
+    l = l' ∧ s = s' := by
+  rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+    (interval_cases l <;> interval_cases l' <;>
+      (simp only [armSeq, armLen, armStart] at h1 h2 hs hs'
+       split_ifs at h1 h2 hs hs' <;> first | contradiction | omega))
+
+/-- The indexed edge family is injective (no duplicate edges). -/
+theorem k23Edge_injective (a b c : ℕ) :
+    Function.Injective (k23Edge a b c) := by
+  intro x y hxy
+  match x, y with
+  | .inl l, .inl l' =>
+    simp only [k23Edge] at hxy
+    rw [Sym2.eq_iff] at hxy
+    rcases hxy with ⟨-, h2⟩ | ⟨h1, -⟩
+    · have hval : (l : ℕ) + 1 = (l' : ℕ) + 1 := congrArg Fin.val h2
+      exact congrArg Sum.inl (Fin.ext (by omega))
+    · have hval : (0 : ℕ) = (l' : ℕ) + 1 := congrArg Fin.val h1
+      exact absurd hval (by omega)
+  | .inl l, .inr ⟨l', s'⟩ =>
+    exfalso
+    simp only [k23Edge] at hxy
+    rw [Sym2.eq_iff] at hxy
+    have hp := armSeq_pos a b c (l := (l' : ℕ)) (s := (s' : ℕ)) l'.isLt
+    have hp' := armSeq_pos a b c (l := (l' : ℕ)) (s := (s' : ℕ) + 1) l'.isLt
+    rcases hxy with ⟨h1, -⟩ | ⟨h1, -⟩
+    · have hval : (0 : ℕ) = armSeq a b c l' s' := congrArg Fin.val h1
+      omega
+    · have hval : (0 : ℕ) = armSeq a b c l' ((s' : ℕ) + 1) := congrArg Fin.val h1
+      omega
+  | .inr ⟨l', s'⟩, .inl l =>
+    exfalso
+    simp only [k23Edge] at hxy
+    rw [Sym2.eq_iff] at hxy
+    have hp := armSeq_pos a b c (l := (l' : ℕ)) (s := (s' : ℕ)) l'.isLt
+    have hp' := armSeq_pos a b c (l := (l' : ℕ)) (s := (s' : ℕ) + 1) l'.isLt
+    rcases hxy with ⟨h1, -⟩ | ⟨-, h2⟩
+    · have hval : armSeq a b c l' s' = (0 : ℕ) := congrArg Fin.val h1
+      omega
+    · have hval : armSeq a b c l' ((s' : ℕ) + 1) = (0 : ℕ) := congrArg Fin.val h2
+      omega
+  | .inr ⟨l, s⟩, .inr ⟨l', s'⟩ =>
+    simp only [k23Edge] at hxy
+    rw [Sym2.eq_iff] at hxy
+    have hls : (l : ℕ) = (l' : ℕ) ∧ (s : ℕ) = (s' : ℕ) := by
+      refine armSeq_pair_inj a b c l.isLt l'.isLt
+        (by have := s.isLt; omega) (by have := s'.isLt; omega) ?_
+      rcases hxy with ⟨h1, h2⟩ | ⟨h1, h2⟩
+      · exact Or.inl ⟨congrArg Fin.val h1, congrArg Fin.val h2⟩
+      · exact Or.inr ⟨congrArg Fin.val h1, congrArg Fin.val h2⟩
+    obtain ⟨hl, hs⟩ := hls
+    have hl2 : l = l' := Fin.ext hl
+    subst hl2
+    have hs2 : s = s' := Fin.ext hs
+    subst hs2
+    rfl
+
+/-- Resolve `Quot.out` on a literal `Sym2` pair under a symmetric matrix
+(reusable helper for edge products). -/
+private theorem out_pair_eq {T' n : ℕ} (Bm : Fin T' → Fin T' → ℝ)
+    (hB : ∀ i j, Bm i j = Bm j i) (τ : Fin n → Fin T') (x y : Fin n) :
+    Bm (τ (Quot.out s(x, y)).1) (τ (Quot.out s(x, y)).2) = Bm (τ x) (τ y) := by
+  have hout := Quot.out_eq s(x, y)
+  rw [Sym2.mk_eq_mk_iff] at hout
+  rcases hout with h | h
+  · rw [congrArg Prod.fst h, congrArg Prod.snd h]
+  · simp only [Prod.swap] at h
+    rw [congrArg Prod.fst h, congrArg Prod.snd h, hB]
+
+/-- **Edge-product factorization** for `k23Arms`: the edge product splits into
+the three root-edge factors times the three independent arm-chain products. -/
+theorem k23Arms_prod_eq {T : ℕ} (a b c : ℕ) (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (τ : Fin (4 + a + b + c + 1) → Fin T) :
+    (∏ e ∈ (k23Arms a b c).edgeFinset,
+        B (τ (Quot.out e).1) (τ (Quot.out e).2)) =
+      (∏ l : Fin 3, B (τ 0) (τ ⟨(l : ℕ) + 1, by have := l.isLt; omega⟩)) *
+        ∏ l : Fin 3, ∏ s : Fin (armLen a b c l + 1),
+          B (τ ⟨armSeq a b c l s,
+              armSeq_lt a b c l.isLt (by have := s.isLt; omega)⟩)
+            (τ ⟨armSeq a b c l ((s : ℕ) + 1),
+              armSeq_lt a b c l.isLt (by have := s.isLt; omega)⟩) := by
+  classical
+  rw [k23Arms_edgeFinset,
+    Finset.prod_image (fun x _ y _ h => k23Edge_injective a b c h),
+    Fintype.prod_sum_type]
+  congr 1
+  · refine Finset.prod_congr rfl fun l _ => ?_
+    simp only [k23Edge]
+    exact out_pair_eq B hB τ _ _
+  · rw [← Finset.univ_sigma_univ, Finset.prod_sigma]
+    refine Finset.prod_congr rfl fun l _ => Finset.prod_congr rfl fun s _ => ?_
+    simp only [k23Edge]
+    exact out_pair_eq B hB τ _ _
+
 /-- **Raw evaluation of the K₂,₃-arms profile** (SORRY — the brittle
 `Fin`/edge-product slice, isolated here per plan): the rooted profile
 factorizes through the hub as a `wTriple` of `weightedAdjIter`s of the
