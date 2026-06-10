@@ -19,6 +19,7 @@ import Graphon.Compactness
 import Graphon.Sampling
 import Graphon.Lovasz
 import Graphon.SimpleRank
+import Graphon.CycleKrylov
 import Graphon.MatrixDetermination
 import Graphon.InverseCounting
 import Graphon.Convergence
@@ -43,6 +44,7 @@ in Lean 4 using Mathlib.
 * `Graphon.Compactness` — Total boundedness, completeness
 * `Graphon.Lovasz` — Connection-matrix algebra scaffolding (Lovász §3)
 * `Graphon.SimpleRank` — K=1 simple-graph rank theorem, algebra-atom framing (#70)
+* `Graphon.CycleKrylov` — spectral slice of the cycle–Krylov square-moment proof (#70)
 * `Graphon.MatrixDetermination` — Algebraic determination of step graphons
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
