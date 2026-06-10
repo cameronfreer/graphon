@@ -347,35 +347,43 @@ multigraph). The k = 2 proof recovered the forbidden diagonal 2-tensor via
 level up. Note `B^{∘(k-1)}` itself is NOT in the observable kernel algebra
 (even off the root), so the lift is a genuine extension, not a substitution. -/
 
-/-- **Cube-moment descent** (SORRY — the first genuinely new tensor/Krylov
-case; the focused k = 3 target, to be proved before generalizing to k ≥ 4).
+/-- **Cube-moment descent** — **MATHEMATICALLY RESOLVED (2026-06-10),
+formalization pending** (SORRY until the K₂,₃-arms plumbing lands).
 
-**Reduction** (mirroring k = 2): with `ε = rowDiff`, `u = rowSum`,
-`B i t ^ 3 - B j t ^ 3 = ε t * (B i t ^ 2 + B i t * B j t + B j t ^ 2)`
-and `4 · gap₃ = 3⟨ε, u∘u⟩_W + ⟨ε, ε∘ε⟩_W`. Both `ε, u ∈ Im M`
-(`ε = M (D_W⁻¹(e i - e j))`, mirroring `rowSum_eq_weightedAdj`), so in the
-`W`-orthonormal eigenbasis `ψ_λ` of `M` (generic simple spectrum; write
-`f λ = ⟨ψ_λ, ε⟩_W`, `g λ = ⟨ψ_λ, u⟩_W`, `F λ μ = ⟨ψ_λ∘ψ_μ, ε⟩_W`,
-`G λ μ = ⟨ψ_λ∘ψ_μ, u⟩_W`, `C λ μ ν = ⟨ψ_λ∘ψ_μ, ψ_ν⟩_W`):
+**The K₂,₃-ARMS proof** (machine-precision validated,
+`scripts/validate_cube_k23_arms.py`; mechanism UNIFORM in k — at k = 2 the
+K₂,₂-with-arms graph IS the rooted cycle, recovering the proved case):
+1. **Arms identity**: for the rooted K₂,₃-with-arms graph (root adjacent to
+   anchors `t₁,t₂,t₃`; internal hub `y`; arm `l` a path of length `a_l ≥ 1`
+   from `t_l` to `y` — a SIMPLE graph), the profile difference is exactly
+   `(1/4)·Σ_{|S| odd} T₃(M^{a_l}ε [l∈S], M^{a_l}u [l∉S])` where
+   `T₃(f,g,h) = ∑ t, W t * f t * g t * h t` (trilinear polarization of the
+   three root edges; arms act as `M`-powers). rpe kills these for all arms.
+2. **Common expansion (direct-sum trick)**: `(ε, u) ∈ Im (M ⊕ M)`,
+   self-adjoint, so the k = 2 projection lemma applied to `E ⊕ E` yields
+   COMMON coefficients `c_q` with `ε = Σ_{q≥1} c_q M^q ε` AND
+   `u = Σ_{q≥1} c_q M^q u` simultaneously.
+3. **Reconstruction**: `gap₃ = (1/4)·Σ_{|S| odd} T₃(ε[S], u[S^c])
+   = Σ_{a⃗≥1} c_{a₁}c_{a₂}c_{a₃} · ObsDiff(a⃗) = 0`. ∎
+Only `hB`, `hW` needed.
 
-  `4·gap₃ = Σ_{λ,μ ≠ 0} (3 g_λ g_μ + f_λ f_μ) · F λ μ`.
+**How it was found**: the LM falsification run (k=2 harness, cube gap pinned)
+went infeasible at T=4 already at the base m≤3 family; at T=5 it was exactly
+feasible at m≤3 and the top m=4 separators were the four rooted K₂,₃'s —
+identifying the family, after which the identity is three lines.
 
-**Observable constraint families** (each rpe-killed, by the multilinear
-polarization of the root-edge telescope; Vandermonde-extracted per nonzero
-spectral tuple):
-- theta graphs (two parallel `t–s` paths, root-adjacent `t, s`):
-  `F λ μ · G λ μ = 0`;
-- wedges (paths `t–s`, `t–x` from a root-adjacent hub `t`; legs `s, x`
-  root-adjacent): `(g_λ g_μ + f_λ f_μ) F λ μ + (f_λ g_μ + g_λ f_μ) G λ μ = 0`;
-- theta-bundles inside cycles: `f λ * g μ * C λ α β * C μ α β = 0`;
-- triangle-wedges: `F·G·G + G·F·G + G·G·F + F·F·F = 0` over triples.
+**Superseded analysis** (kept as history; the earlier residual-branch frontier
+is BYPASSED by the right family): in eigenbasis coordinates the theta/wedge/
+triangle-wedge families force `F ≡ 0` generically but left open the branch
+`G = 0 ∧ f_λf_μ = -g_λg_μ ≠ 0 ∧ F ≠ 0`; the K₂,₃-arms constraints close the
+gap without case analysis.
 
-The generic branch (`F ≡ 0` on nonzero pairs) gives `gap₃ = 0` at once; the
-residual branch is pairs with `G λ μ = 0`, `f_λ f_μ = -g_λ g_μ ≠ 0`, and
-`F λ μ ≠ 0`, which the families above do not yet exclude — closing it (more
-constraint mining, or a polarized double-Krylov argument over `M ⊗ M`
-diagonal-restricted) is the open content. Numerical falsification of the cube
-gap runs on the same LM cutting-plane harness as k = 2. -/
+**Formalization plan** (next session): trilinear polarization lemma
+(generalizing `wInner_sub_iter_add`), the direct-sum common-coefficient lemma
+(from `inner_eq_zero_of_orthogonal_pos_powers`'s projection core applied to
+`E ⊕ E` — extract the span-membership statement), and the K₂,₃-arms graph
+family + evaluation bridge (generalizing `rootedCycleGraph` +
+`rootedProfile_rootedCycleGraph_eq_closedWalkProfile`). -/
 theorem cubeMoment_descends_of_rootedProfileEquiv {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
