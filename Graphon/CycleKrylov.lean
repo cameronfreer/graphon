@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Mathlib.Analysis.InnerProductSpace.PiL2
+import Mathlib.Analysis.InnerProductSpace.ProdL2
 import Mathlib.Analysis.InnerProductSpace.Projection.Basic
 import Mathlib.Data.Real.Sqrt
 import Graphon.SimpleRank
@@ -48,17 +49,15 @@ section Abstract
 
 variable {E : Type*} [NormedAddCommGroup E] [InnerProductSpace ℝ E] [FiniteDimensional ℝ E]
 
-/-- **Krylov-kernel lemma**: in a finite-dimensional real inner product space,
-if `A` is self-adjoint, `u` lies in the range of `A`, and `e` is orthogonal to
-`A^q u` for every `q ≥ 1`, then `e` is orthogonal to `u` itself.
-
-The "missing zeroth power" is recovered because `u ∈ range A` forces the
-`ker A`-component of `u` to vanish. -/
-theorem inner_eq_zero_of_orthogonal_pos_powers
+/-- **Krylov span membership for range elements** — the projection core of the
+spectral slice, extracted as a standalone lemma: if `A` is self-adjoint and
+`u ∈ range A`, then `u` lies in the span of its own positive `A`-powers.
+(The "missing zeroth power" is recovered because `u ∈ range A` forces the
+`ker A`-component of `u` to vanish.) -/
+theorem mem_span_pos_powers_of_mem_range
     (A : E →ₗ[ℝ] E) (hA : ∀ x y : E, ⟪A x, y⟫ = ⟪x, A y⟫)
-    {u : E} (hu : u ∈ LinearMap.range A)
-    {e : E} (he : ∀ q : ℕ, ⟪e, (A ^ (q + 1)) u⟫ = 0) :
-    ⟪e, u⟫ = 0 := by
+    {u : E} (hu : u ∈ LinearMap.range A) :
+    u ∈ Submodule.span ℝ (Set.range fun q : ℕ => (A ^ (q + 1)) u) := by
   classical
   obtain ⟨z, rfl⟩ := LinearMap.mem_range.mp hu
   set K : Submodule ℝ E :=
@@ -112,17 +111,25 @@ theorem inner_eq_zero_of_orthogonal_pos_powers
         _ = ⟪w, A z⟫ - ⟪w, p⟫ := inner_sub_right _ _ _
         _ = 0 := by rw [hwu, hw_inner p hp_mem, sub_zero]
     exact inner_self_eq_zero.mp h0
-  have hu_mem : A z ∈ K := by
-    have hAzp : A z = p := by
-      rw [hwdef] at hw0
-      exact sub_eq_zero.mp hw0
-    rw [hAzp]
-    exact hp_mem
-  -- e is orthogonal to every generator, hence to all of K, hence to u.
-  have he_orth : ∀ v ∈ K, ⟪e, v⟫ = 0 := by
-    intro v hv
-    rw [hKdef] at hv
-    induction hv using Submodule.span_induction with
+  have hAzp : A z = p := by
+    rw [hwdef] at hw0
+    exact sub_eq_zero.mp hw0
+  rw [hAzp]
+  exact hp_mem
+
+/-- **Krylov-kernel lemma**: in a finite-dimensional real inner product space,
+if `A` is self-adjoint, `u` lies in the range of `A`, and `e` is orthogonal to
+`A^q u` for every `q ≥ 1`, then `e` is orthogonal to `u` itself. -/
+theorem inner_eq_zero_of_orthogonal_pos_powers
+    (A : E →ₗ[ℝ] E) (hA : ∀ x y : E, ⟪A x, y⟫ = ⟪x, A y⟫)
+    {u : E} (hu : u ∈ LinearMap.range A)
+    {e : E} (he : ∀ q : ℕ, ⟪e, (A ^ (q + 1)) u⟫ = 0) :
+    ⟪e, u⟫ = 0 := by
+  have hu_mem := mem_span_pos_powers_of_mem_range A hA hu
+  have he_orth : ∀ w ∈ Submodule.span ℝ (Set.range fun q : ℕ => (A ^ (q + 1)) u),
+      ⟪e, w⟫ = 0 := by
+    intro w hw
+    induction hw using Submodule.span_induction with
     | mem y hy =>
       obtain ⟨q, rfl⟩ := hy
       exact he q
@@ -130,6 +137,79 @@ theorem inner_eq_zero_of_orthogonal_pos_powers
     | add y y' _ _ hy hy' => rw [inner_add_right, hy, hy', add_zero]
     | smul c y _ hy => rw [inner_smul_right, hy, mul_zero]
   exact he_orth _ hu_mem
+
+/-! #### The direct-sum (common-coefficient) lemma -/
+
+/-- The block-diagonal operator `A ⊕ A` on `WithLp 2 (E × E)`. -/
+noncomputable def prodMapL2 (A : E →ₗ[ℝ] E) :
+    WithLp 2 (E × E) →ₗ[ℝ] WithLp 2 (E × E) :=
+  (WithLp.linearEquiv 2 ℝ (E × E)).symm.toLinearMap ∘ₗ
+    (A.prodMap A) ∘ₗ (WithLp.linearEquiv 2 ℝ (E × E)).toLinearMap
+
+omit [FiniteDimensional ℝ E] in
+theorem prodMapL2_apply (A : E →ₗ[ℝ] E) (x : WithLp 2 (E × E)) :
+    prodMapL2 A x =
+      WithLp.toLp 2 (A (WithLp.ofLp x).1, A (WithLp.ofLp x).2) := rfl
+
+omit [FiniteDimensional ℝ E] in
+/-- `prodMapL2 A` inherits self-adjointness from `A` (for the `L²` product
+inner product). -/
+theorem prodMapL2_selfAdjoint (A : E →ₗ[ℝ] E)
+    (hA : ∀ x y : E, ⟪A x, y⟫ = ⟪x, A y⟫) (x y : WithLp 2 (E × E)) :
+    ⟪prodMapL2 A x, y⟫ = ⟪x, prodMapL2 A y⟫ := by
+  simp only [prodMapL2_apply, WithLp.prod_inner_apply]
+  rw [hA (WithLp.ofLp x).1 (WithLp.ofLp y).1, hA (WithLp.ofLp x).2 (WithLp.ofLp y).2]
+
+omit [FiniteDimensional ℝ E] in
+/-- Powers of `prodMapL2 A` act componentwise as powers of `A`. -/
+theorem prodMapL2_pow_toLp (A : E →ₗ[ℝ] E) (q : ℕ) (a b : E) :
+    ((prodMapL2 A) ^ q) (WithLp.toLp 2 (a, b)) =
+      WithLp.toLp 2 ((A ^ q) a, (A ^ q) b) := by
+  induction q with
+  | zero => simp only [pow_zero, Module.End.one_apply]
+  | succ q ih =>
+    rw [pow_succ' (prodMapL2 A) q, Module.End.mul_apply, ih, prodMapL2_apply]
+    simp only [pow_succ' A q, Module.End.mul_apply]
+
+/-- **Common Krylov coefficients for a pair** (the direct-sum trick): if `u`
+and `v` both lie in the range of a self-adjoint `A`, then there are COMMON
+coefficients expressing each of them as a combination of its own positive
+`A`-powers. Obtained by applying `mem_span_pos_powers_of_mem_range` to the
+block operator on `WithLp 2 (E × E)` and projecting the two coordinates.
+
+Note a triple (or longer) version with REPEATED vectors needs nothing more:
+the slots of a multilinear form repeat `u` or `v`, and this pair of common
+expansions feeds every slot. -/
+theorem pair_mem_common_pos_power_span
+    (A : E →ₗ[ℝ] E) (hA : ∀ x y : E, ⟪A x, y⟫ = ⟪x, A y⟫)
+    {u v : E} (hu : u ∈ LinearMap.range A) (hv : v ∈ LinearMap.range A) :
+    ∃ (s : Finset ℕ) (c : ℕ → ℝ),
+      (∑ q ∈ s, c q • (A ^ (q + 1)) u) = u ∧
+      (∑ q ∈ s, c q • (A ^ (q + 1)) v) = v := by
+  classical
+  obtain ⟨zu, hzu⟩ := LinearMap.mem_range.mp hu
+  obtain ⟨zv, hzv⟩ := LinearMap.mem_range.mp hv
+  have hrange : WithLp.toLp 2 (u, v) ∈ LinearMap.range (prodMapL2 A) := by
+    refine LinearMap.mem_range.mpr ⟨WithLp.toLp 2 (zu, zv), ?_⟩
+    rw [prodMapL2_apply]
+    show WithLp.toLp 2 (A zu, A zv) = _
+    rw [hzu, hzv]
+  have hmem := mem_span_pos_powers_of_mem_range (prodMapL2 A)
+    (prodMapL2_selfAdjoint A hA) hrange
+  rw [Finsupp.mem_span_range_iff_exists_finsupp] at hmem
+  obtain ⟨c, hc⟩ := hmem
+  rw [Finsupp.sum] at hc
+  simp only [prodMapL2_pow_toLp] at hc
+  have hc' : (∑ q ∈ c.support,
+      ((c q • (A ^ (q + 1)) u, c q • (A ^ (q + 1)) v) : E × E)) = (u, v) := by
+    have h := congrArg (WithLp.linearEquiv 2 ℝ (E × E)) hc
+    rw [map_sum] at h
+    simpa [WithLp.coe_linearEquiv, Prod.smul_mk] using h
+  refine ⟨c.support, fun q => c q, ?_, ?_⟩
+  · have := congrArg Prod.fst hc'
+    simpa [Prod.fst_sum] using this
+  · have := congrArg Prod.snd hc'
+    simpa [Prod.snd_sum] using this
 
 end Abstract
 
@@ -245,6 +325,84 @@ theorem conjAdj_pow_sqrtScale (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     intro f
     rw [pow_succ', Module.End.mul_apply, ih f, conjAdj_sqrtScale B W hW]
     rfl
+
+/-- `sqrtScale` is injective for positive weights. -/
+theorem sqrtScale_injective (W : Fin T → ℝ) (hW : ∀ t, 0 < W t) :
+    Function.Injective (sqrtScale W) := by
+  intro f g hfg
+  funext t
+  have h : Real.sqrt (W t) * f t = Real.sqrt (W t) * g t :=
+    congrArg (fun x : EuclideanSpace ℝ (Fin T) => WithLp.ofLp x t) hfg
+  exact mul_left_cancel₀ (Real.sqrt_ne_zero'.mpr (hW t)) h
+
+/-- `sqrtScale` commutes with scalar multiples. -/
+theorem sqrtScale_smul (W : Fin T → ℝ) (c : ℝ) (f : Fin T → ℝ) :
+    sqrtScale W (c • f) = c • sqrtScale W f := by
+  unfold sqrtScale
+  rw [← WithLp.toLp_smul]
+  congr 1
+  funext t
+  show Real.sqrt (W t) * (c * f t) = c * (Real.sqrt (W t) * f t)
+  ring
+
+/-- `sqrtScale` commutes with finite sums. -/
+theorem sqrtScale_sum (W : Fin T → ℝ) {ι : Type*} (s : Finset ι)
+    (F : ι → Fin T → ℝ) :
+    sqrtScale W (∑ q ∈ s, F q) = ∑ q ∈ s, sqrtScale W (F q) := by
+  classical
+  induction s using Finset.induction_on with
+  | empty =>
+    simp only [Finset.sum_empty]
+    unfold sqrtScale
+    rw [show (fun t => Real.sqrt (W t) * (0 : Fin T → ℝ) t) = (0 : Fin T → ℝ) from
+      funext fun t => by simp]
+    rfl
+  | insert a s ha ih =>
+    rw [Finset.sum_insert ha, Finset.sum_insert ha, ← ih]
+    unfold sqrtScale
+    rw [← WithLp.toLp_add]
+    congr 1
+    funext t
+    show Real.sqrt (W t) * (F a t + (∑ q ∈ s, F q) t) = _
+    have : (∑ q ∈ s, F q) t = ∑ q ∈ s, F q t := by
+      rw [Finset.sum_apply]
+    rw [this]
+    show _ = Real.sqrt (W t) * F a t + Real.sqrt (W t) * (∑ q ∈ s, F q) t
+    rw [this]
+    ring
+
+/-- **Common Krylov coefficients in the weighted setting**: if `f` and `g`
+both lie in the range of `weightedAdj B W`, there are COMMON coefficients
+expressing each as a combination of its own positive `weightedAdjIter`-powers.
+This is the algebraic core of the K₂,₃-arms cube proof (and of the k ≥ 4
+lift): every slot of the multilinear polarization can be expanded with the
+SAME coefficient family. -/
+theorem weightedAdj_pair_common_coeffs
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    {f g : Fin T → ℝ}
+    (hf : ∃ z, weightedAdj B W z = f) (hg : ∃ z, weightedAdj B W z = g) :
+    ∃ (s : Finset ℕ) (c : ℕ → ℝ),
+      (∑ q ∈ s, c q • weightedAdjIter B W (q + 1) f) = f ∧
+      (∑ q ∈ s, c q • weightedAdjIter B W (q + 1) g) = g := by
+  obtain ⟨zf, hzf⟩ := hf
+  obtain ⟨zg, hzg⟩ := hg
+  have hf' : sqrtScale W f ∈ LinearMap.range (conjAdj B W) :=
+    LinearMap.mem_range.mpr ⟨sqrtScale W zf, by rw [conjAdj_sqrtScale B W hW, hzf]⟩
+  have hg' : sqrtScale W g ∈ LinearMap.range (conjAdj B W) :=
+    LinearMap.mem_range.mpr ⟨sqrtScale W zg, by rw [conjAdj_sqrtScale B W hW, hzg]⟩
+  obtain ⟨s, c, h1, h2⟩ := pair_mem_common_pos_power_span (conjAdj B W)
+    (conjAdj_selfAdjoint B hB W) hf' hg'
+  have pull : ∀ h : Fin T → ℝ,
+      (∑ q ∈ s, c q • ((conjAdj B W) ^ (q + 1)) (sqrtScale W h)) =
+        sqrtScale W (∑ q ∈ s, c q • weightedAdjIter B W (q + 1) h) := by
+    intro h
+    rw [sqrtScale_sum]
+    refine Finset.sum_congr rfl fun q _ => ?_
+    rw [conjAdj_pow_sqrtScale B W hW (q + 1) h, sqrtScale_smul]
+  refine ⟨s, c, ?_, ?_⟩
+  · exact sqrtScale_injective W hW (by rw [← pull f]; exact h1)
+  · exact sqrtScale_injective W hW (by rw [← pull g]; exact h2)
 
 /-- **The weighted Krylov-kernel lemma** (target shape of the spectral slice):
 if `u` is in the range of `weightedAdj B W` and `eps` is `wInner`-orthogonal to
