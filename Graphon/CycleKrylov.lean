@@ -1175,7 +1175,238 @@ theorem k23Arms_eval {T : ℕ} (B : Fin T → Fin T → ℝ)
       wTriple W (weightedAdjIter B W (a + 1) (fun t => B v t))
         (weightedAdjIter B W (b + 1) (fun t => B v t))
         (weightedAdjIter B W (c + 1) (fun t => B v t)) := by
-  sorry
+  classical
+  unfold rootedProfile simpleEvalAt
+  rw [sum_fin_split (4 + a + b) c, sum_fin_split (4 + a) b, sum_fin_split 4 a,
+    sum_fin_split 3 1]
+  -- Step A: per-tuple body normalization (weights split, edges factored,
+  -- values reconstructed into chainPath form).
+  have hbody : ∀ (x : Fin 3 → Fin T) (h₁ : Fin 1 → Fin T) (σa : Fin a → Fin T)
+      (σb : Fin b → Fin T) (σc : Fin c → Fin T),
+      ((∏ u, W (appendFn (appendFn (appendFn (appendFn x h₁) σa) σb) σc u)) *
+        ∏ e ∈ (k23Arms a b c).edgeFinset,
+          B ((fun p : Fin (4 + a + b + c + 1) => if h : (p : ℕ) < 1 then v
+              else appendFn (appendFn (appendFn (appendFn x h₁) σa) σb) σc
+                ⟨(p : ℕ) - 1, by have := p.isLt; omega⟩) (Quot.out e).1)
+            ((fun p : Fin (4 + a + b + c + 1) => if h : (p : ℕ) < 1 then v
+              else appendFn (appendFn (appendFn (appendFn x h₁) σa) σb) σc
+                ⟨(p : ℕ) - 1, by have := p.isLt; omega⟩) (Quot.out e).2)) =
+      (W (x 0) * B v (x 0)) * ((W (x 1) * B v (x 1)) * ((W (x 2) * B v (x 2)) *
+        (W (h₁ 0) *
+          (((∏ u : Fin a, W (σa u)) * ∏ s : Fin (a + 1),
+              B (chainPath a (x 0) (h₁ 0) σa s)
+                (chainPath a (x 0) (h₁ 0) σa ((s : ℕ) + 1))) *
+            (((∏ u : Fin b, W (σb u)) * ∏ s : Fin (b + 1),
+              B (chainPath b (x 1) (h₁ 0) σb s)
+                (chainPath b (x 1) (h₁ 0) σb ((s : ℕ) + 1))) *
+              ((∏ u : Fin c, W (σc u)) * ∏ s : Fin (c + 1),
+                B (chainPath c (x 2) (h₁ 0) σc s)
+                  (chainPath c (x 2) (h₁ 0) σc ((s : ℕ) + 1)))))))) := by
+    intro x h₁ σa σb σc
+    rw [k23Arms_prod_eq a b c B hB
+      (fun p : Fin (4 + a + b + c + 1) => if h : (p : ℕ) < 1 then v
+        else appendFn (appendFn (appendFn (appendFn x h₁) σa) σb) σc
+          ⟨(p : ℕ) - 1, by have := p.isLt; omega⟩)]
+    rw [prod_appendFn, prod_appendFn, prod_appendFn, prod_appendFn,
+      Fin.prod_univ_one]
+    -- value lemmas: the root, the anchors, and the three arms
+    have hrootv : (if h : ((0 : Fin (4 + a + b + c + 1)) : ℕ) < 1 then v
+        else appendFn (appendFn (appendFn (appendFn x h₁) σa) σb) σc
+          ⟨((0 : Fin (4 + a + b + c + 1)) : ℕ) - 1, by omega⟩) = v :=
+      dif_pos Nat.zero_lt_one
+    have hanchor : ∀ l : Fin 3, ∀ hlt : (l : ℕ) + 1 < 4 + a + b + c + 1,
+        (if h : ((⟨(l : ℕ) + 1, hlt⟩ : Fin (4 + a + b + c + 1)) : ℕ) < 1 then v
+          else appendFn (appendFn (appendFn (appendFn x h₁) σa) σb) σc
+            ⟨((⟨(l : ℕ) + 1, hlt⟩ : Fin (4 + a + b + c + 1)) : ℕ) - 1, by omega⟩) =
+        x l := by
+      intro l hlt
+      rw [dif_neg (show ¬(l : ℕ) + 1 < 1 by omega)]
+      exact k23Assign_anchor a b c x h₁ σa σb σc l.isLt
+    have harm0 : ∀ (r : ℕ) (hr : r ≤ a + 1)
+        (hlt : armSeq a b c 0 r < 4 + a + b + c + 1),
+        (if h : armSeq a b c 0 r < 1 then v
+          else appendFn (appendFn (appendFn (appendFn x h₁) σa) σb) σc
+            ⟨armSeq a b c 0 r - 1, by omega⟩) =
+        chainPath a (x 0) (h₁ 0) σa r := by
+      intro r hr hlt
+      rw [dif_neg (show ¬armSeq a b c 0 r < 1 by
+        have := armSeq_pos a b c (l := 0) (s := r) (by omega); omega)]
+      by_cases h0 : r = 0
+      · subst h0
+        rw [show chainPath a (x 0) (h₁ 0) σa 0 = x 0 from dif_pos rfl]
+        exact k23Assign_anchor a b c x h₁ σa σb σc (show (0 : ℕ) < 3 by omega)
+      · by_cases hq : r ≤ a
+        · have hv : armSeq a b c 0 r = 4 + r := by
+            simp only [armSeq, armLen, armStart]
+            split_ifs
+            omega
+          rw [show (⟨armSeq a b c 0 r - 1, by omega⟩ : Fin (4 + a + b + c)) =
+              ⟨4 + (r - 1), by omega⟩ from
+            Fin.ext (show armSeq a b c 0 r - 1 = 4 + (r - 1) by omega)]
+          rw [show chainPath a (x 0) (h₁ 0) σa r = σa ⟨r - 1, by omega⟩ from by
+            unfold chainPath; rw [dif_neg h0, dif_pos hq]]
+          exact k23Assign_arm0 a b c x h₁ σa σb σc (show r - 1 < a by omega)
+        · have hv : armSeq a b c 0 r = 4 := by
+            simp only [armSeq, armLen, armStart]
+            split_ifs
+            omega
+          rw [show (⟨armSeq a b c 0 r - 1, by omega⟩ : Fin (4 + a + b + c)) =
+              ⟨3, by omega⟩ from
+            Fin.ext (show armSeq a b c 0 r - 1 = 3 by omega)]
+          rw [show chainPath a (x 0) (h₁ 0) σa r = h₁ 0 from by
+            unfold chainPath; rw [dif_neg h0, dif_neg hq]]
+          exact k23Assign_hub a b c x h₁ σa σb σc
+    have harm1 : ∀ (r : ℕ) (hr : r ≤ b + 1)
+        (hlt : armSeq a b c 1 r < 4 + a + b + c + 1),
+        (if h : armSeq a b c 1 r < 1 then v
+          else appendFn (appendFn (appendFn (appendFn x h₁) σa) σb) σc
+            ⟨armSeq a b c 1 r - 1, by omega⟩) =
+        chainPath b (x 1) (h₁ 0) σb r := by
+      intro r hr hlt
+      rw [dif_neg (show ¬armSeq a b c 1 r < 1 by
+        have := armSeq_pos a b c (l := 1) (s := r) (by omega); omega)]
+      by_cases h0 : r = 0
+      · subst h0
+        rw [show chainPath b (x 1) (h₁ 0) σb 0 = x 1 from dif_pos rfl]
+        exact k23Assign_anchor a b c x h₁ σa σb σc (show (1 : ℕ) < 3 by omega)
+      · by_cases hq : r ≤ b
+        · have hv : armSeq a b c 1 r = 4 + a + r := by
+            simp only [armSeq, armLen, armStart]
+            split_ifs <;> first | contradiction | omega
+          rw [show (⟨armSeq a b c 1 r - 1, by omega⟩ : Fin (4 + a + b + c)) =
+              ⟨4 + a + (r - 1), by omega⟩ from
+            Fin.ext (show armSeq a b c 1 r - 1 = 4 + a + (r - 1) by omega)]
+          rw [show chainPath b (x 1) (h₁ 0) σb r = σb ⟨r - 1, by omega⟩ from by
+            unfold chainPath; rw [dif_neg h0, dif_pos hq]]
+          exact k23Assign_arm1 a b c x h₁ σa σb σc (show r - 1 < b by omega)
+        · have hv : armSeq a b c 1 r = 4 := by
+            simp only [armSeq, armLen, armStart]
+            split_ifs <;> first | contradiction | omega
+          rw [show (⟨armSeq a b c 1 r - 1, by omega⟩ : Fin (4 + a + b + c)) =
+              ⟨3, by omega⟩ from
+            Fin.ext (show armSeq a b c 1 r - 1 = 3 by omega)]
+          rw [show chainPath b (x 1) (h₁ 0) σb r = h₁ 0 from by
+            unfold chainPath; rw [dif_neg h0, dif_neg hq]]
+          exact k23Assign_hub a b c x h₁ σa σb σc
+    have harm2 : ∀ (r : ℕ) (hr : r ≤ c + 1)
+        (hlt : armSeq a b c 2 r < 4 + a + b + c + 1),
+        (if h : armSeq a b c 2 r < 1 then v
+          else appendFn (appendFn (appendFn (appendFn x h₁) σa) σb) σc
+            ⟨armSeq a b c 2 r - 1, by omega⟩) =
+        chainPath c (x 2) (h₁ 0) σc r := by
+      intro r hr hlt
+      rw [dif_neg (show ¬armSeq a b c 2 r < 1 by
+        have := armSeq_pos a b c (l := 2) (s := r) (by omega); omega)]
+      by_cases h0 : r = 0
+      · subst h0
+        rw [show chainPath c (x 2) (h₁ 0) σc 0 = x 2 from dif_pos rfl]
+        exact k23Assign_anchor a b c x h₁ σa σb σc (show (2 : ℕ) < 3 by omega)
+      · by_cases hq : r ≤ c
+        · have hv : armSeq a b c 2 r = 4 + a + b + r := by
+            simp only [armSeq, armLen, armStart]
+            split_ifs <;> first | contradiction | omega
+          rw [show (⟨armSeq a b c 2 r - 1, by omega⟩ : Fin (4 + a + b + c)) =
+              ⟨4 + a + b + (r - 1), by omega⟩ from
+            Fin.ext (show armSeq a b c 2 r - 1 = 4 + a + b + (r - 1) by omega)]
+          rw [show chainPath c (x 2) (h₁ 0) σc r = σc ⟨r - 1, by omega⟩ from by
+            unfold chainPath; rw [dif_neg h0, dif_pos hq]]
+          exact k23Assign_arm2 a b c x h₁ σa σb σc (show r - 1 < c by omega)
+        · have hv : armSeq a b c 2 r = 4 := by
+            simp only [armSeq, armLen, armStart]
+            split_ifs <;> first | contradiction | omega
+          rw [show (⟨armSeq a b c 2 r - 1, by omega⟩ : Fin (4 + a + b + c)) =
+              ⟨3, by omega⟩ from
+            Fin.ext (show armSeq a b c 2 r - 1 = 3 by omega)]
+          rw [show chainPath c (x 2) (h₁ 0) σc r = h₁ 0 from by
+            unfold chainPath; rw [dif_neg h0, dif_neg hq]]
+          exact k23Assign_hub a b c x h₁ σa σb σc
+    trans (((((∏ u : Fin 3, W (x u)) * W (h₁ 0) * ∏ u : Fin a, W (σa u)) *
+        ∏ u : Fin b, W (σb u)) * ∏ u : Fin c, W (σc u)) *
+      ((B v (x 0) * B v (x 1) * B v (x 2)) *
+        ((∏ s : Fin (a + 1), B (chainPath a (x 0) (h₁ 0) σa s)
+            (chainPath a (x 0) (h₁ 0) σa ((s : ℕ) + 1))) *
+          (∏ s : Fin (b + 1), B (chainPath b (x 1) (h₁ 0) σb s)
+            (chainPath b (x 1) (h₁ 0) σb ((s : ℕ) + 1))) *
+          ∏ s : Fin (c + 1), B (chainPath c (x 2) (h₁ 0) σc s)
+            (chainPath c (x 2) (h₁ 0) σc ((s : ℕ) + 1)))))
+    · refine congrArg₂ (· * ·) rfl (congrArg₂ (· * ·) ?_ ?_)
+      · refine (Fin.prod_univ_three _).trans ?_
+        exact congrArg₂ (· * ·) (congrArg₂ (· * ·)
+          (congrArg₂ B hrootv (hanchor 0 (by omega)))
+          (congrArg₂ B hrootv (hanchor 1 (by omega))))
+          (congrArg₂ B hrootv (hanchor 2 (by omega)))
+      · refine (Fin.prod_univ_three _).trans ?_
+        refine congrArg₂ (· * ·) (congrArg₂ (· * ·) ?_ ?_) ?_
+        · exact Finset.prod_congr rfl fun s _ => congrArg₂ B
+            (harm0 ↑s (le_of_lt s.isLt)
+              (armSeq_lt a b c (0 : Fin 3).isLt (le_of_lt s.isLt)))
+            (harm0 ((s : ℕ) + 1) s.isLt (armSeq_lt a b c (0 : Fin 3).isLt s.isLt))
+        · exact Finset.prod_congr rfl fun s _ => congrArg₂ B
+            (harm1 ↑s (le_of_lt s.isLt)
+              (armSeq_lt a b c (1 : Fin 3).isLt (le_of_lt s.isLt)))
+            (harm1 ((s : ℕ) + 1) s.isLt (armSeq_lt a b c (1 : Fin 3).isLt s.isLt))
+        · exact Finset.prod_congr rfl fun s _ => congrArg₂ B
+            (harm2 ↑s (le_of_lt s.isLt)
+              (armSeq_lt a b c (2 : Fin 3).isLt (le_of_lt s.isLt)))
+            (harm2 ((s : ℕ) + 1) s.isLt (armSeq_lt a b c (2 : Fin 3).isLt s.isLt))
+    · rw [Fin.prod_univ_three (fun u : Fin 3 => W (x u))]
+      ring
+  simp only [hbody]
+  -- Step B: pull constants out of the inner sums and collapse each arm.
+  simp only [← Finset.mul_sum, ← Finset.sum_mul]
+  simp only [armChain_sum_eq_armSum]
+  -- Step C: convert the hub block sum to a plain vertex sum.
+  have hone : ∀ φ : (Fin 1 → Fin T) → ℝ,
+      (∑ h₁ : Fin 1 → Fin T, φ h₁) = ∑ y : Fin T, φ (fun _ => y) :=
+    fun φ => (Equiv.sum_comp (Equiv.funUnique (Fin 1) (Fin T)).symm φ).symm
+  simp only [hone]
+  simp only [Finset.mul_sum]
+  rw [Finset.sum_comm]
+  have hx3 : ∀ G₁ G₂ G₃ : Fin T → ℝ,
+      (∑ x : Fin 3 → Fin T, G₁ (x 0) * (G₂ (x 1) * G₃ (x 2))) =
+        (∑ t : Fin T, G₁ t) * ((∑ t : Fin T, G₂ t) * ∑ t : Fin T, G₃ t) := by
+    intro G₁ G₂ G₃
+    rw [sum_fin_succ_eq_sum_cons]
+    have hv0 : ∀ (t : Fin T) (x' : Fin 2 → Fin T),
+        Fin.cons (α := fun _ => Fin T) t x' 0 = t :=
+      fun t x' => by simp
+    have hv1 : ∀ (t : Fin T) (x' : Fin 2 → Fin T),
+        Fin.cons (α := fun _ => Fin T) t x' 1 = x' 0 :=
+      fun t x' => rfl
+    have hv2 : ∀ (t : Fin T) (x' : Fin 2 → Fin T),
+        Fin.cons (α := fun _ => Fin T) t x' 2 = x' 1 :=
+      fun t x' => rfl
+    simp only [hv0, hv1, hv2]
+    rw [← Finset.sum_mul_sum]
+    congr 1
+    rw [sum_fin_succ_eq_sum_cons]
+    have hw0 : ∀ (t : Fin T) (x' : Fin 1 → Fin T),
+        Fin.cons (α := fun _ => Fin T) t x' 0 = t :=
+      fun t x' => by simp
+    have hw1 : ∀ (t : Fin T) (x' : Fin 1 → Fin T),
+        Fin.cons (α := fun _ => Fin T) t x' 1 = x' 0 :=
+      fun t x' => rfl
+    simp only [hw0, hw1]
+    rw [← Finset.sum_mul_sum]
+    congr 1
+    exact (hone fun x' => G₃ (x' 0)).trans rfl
+  unfold wTriple
+  refine Finset.sum_congr rfl fun y _ => ?_
+  have hper : ∀ x : Fin 3 → Fin T,
+      W (x 0) * B v (x 0) * (W (x 1) * B v (x 1) * (W (x 2) * B v (x 2) *
+        (W y * (armSum B W a (x 0) y *
+          (armSum B W b (x 1) y * armSum B W c (x 2) y))))) =
+      W y * ((W (x 0) * B v (x 0) * armSum B W a (x 0) y) *
+        ((W (x 1) * B v (x 1) * armSum B W b (x 1) y) *
+          (W (x 2) * B v (x 2) * armSum B W c (x 2) y))) := fun x => by ring
+  rw [Finset.sum_congr rfl fun x _ => hper x, ← Finset.mul_sum,
+    hx3 (fun t => W t * B v t * armSum B W a t y)
+      (fun t => W t * B v t * armSum B W b t y)
+      (fun t => W t * B v t * armSum B W c t y),
+    sum_weight_mul_armSum B hB W a (fun t => B v t) y,
+    sum_weight_mul_armSum B hB W b (fun t => B v t) y,
+    sum_weight_mul_armSum B hB W c (fun t => B v t) y]
+  ring
 
 /-- `weightedAdj` is subtractive (mirror of `weightedAdj_add`). -/
 theorem weightedAdj_sub {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
