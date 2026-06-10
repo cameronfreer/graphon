@@ -328,6 +328,61 @@ theorem sqMoment_descends_of_rootedProfileEquiv {T : ℕ}
     ← rootedProfile_rootedCycleGraph_eq_closedWalkProfile B hB W j]
   exact h (m + 2) (rootedCycleGraph (m + 1))
 
+/-! ### The Hadamard-power lift (next target)
+
+With the square moment closed, the route to the full rank theorem
+`vertexOrbitRel_of_rootedProfileEquiv` runs through ALL weighted power sums
+of the rows: `powerSum_descends_of_rootedProfileEquiv` below (k ≥ 3 is the
+open content), then `weighted_powersum_determines_measure` (proved, in
+`Lovasz.lean`) recovers equality of the `W`-weighted row-value measures
+(`rowValueMeasure_eq_of_rootedProfileEquiv`).
+
+**Status of k ≥ 3** (the genuine open math): writing `ε = B i - B j`, the gap
+is `⟨ε, ρᵢ^{∘(k-1)} + ρᵢ^{∘(k-2)}∘ρⱼ + ⋯ + ρⱼ^{∘(k-1)}⟩_W` (Hadamard powers
+of the rows). The available rpe-killed observables with `d` root edges give
+`d`-leg kernels from the Hadamard-ordinary closure of walk kernels (theta
+graphs; at most ONE bare-`B` factor per Hadamard bundle — parallel edges are
+multigraph). The k = 2 proof recovered the forbidden diagonal 2-tensor via
+`u ∈ Im M`; k ≥ 3 needs the analogous recovery of the diagonal k-tensor, one
+level up. Note `B^{∘(k-1)}` itself is NOT in the observable kernel algebra
+(even off the root), so the lift is a genuine extension, not a substitution. -/
+
+/-- **Weighted power sums descend** (k ≤ 2 PROVED; k ≥ 3 SORRY — the
+Hadamard-power lift, the sharpened open target after the square moment fell).
+
+Once proved for all `k`, `weighted_powersum_determines_measure` upgrades this
+to equality of `W`-weighted row-value measures, the key step toward the rank
+theorem `vertexOrbitRel_of_rootedProfileEquiv`. -/
+theorem powerSum_descends_of_rootedProfileEquiv {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j) :
+    ∀ k : ℕ, ∑ t : Fin T, W t * B i t ^ k = ∑ t : Fin T, W t * B j t ^ k := by
+  intro k
+  match k with
+  | 0 => simp
+  | 1 =>
+    have h1 := first_moment_descends_of_rootedProfileEquiv B hB W h
+      (g := fun _ => (1 : ℝ)) (fun _ _ _ => rfl)
+    simpa using h1
+  | 2 =>
+    have h2 := sqMoment_descends_of_rootedProfileEquiv B hB W hW h
+    simpa [sqMoment] using h2
+  | (k + 3) =>
+    sorry
+
+/-- **Row-value measures descend** (proved modulo the `k ≥ 3` power sums):
+under rooted-profile equivalence, the `W`-weighted preimage masses of the two
+rows agree at every value — the rows are equal as weighted value measures. -/
+theorem rowValueMeasure_eq_of_rootedProfileEquiv {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j) (a : ℝ) :
+    (∑ t ∈ Finset.univ.filter (fun t => B i t = a), W t) =
+      ∑ t ∈ Finset.univ.filter (fun t => B j t = a), W t :=
+  weighted_powersum_determines_measure (B i) (B j) W
+    (powerSum_descends_of_rootedProfileEquiv B hB W hW h) a
+
 end Weighted
 
 end Graphon.Lovasz

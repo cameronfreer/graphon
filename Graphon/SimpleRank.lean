@@ -926,16 +926,24 @@ If `i, j` are rooted-profile equivalent and `g` is atom-invariant, the
 `g`-decorated square moments agree. With `g = 1_C` this is the within-atom
 square moment `∑_{t ∈ C} W t * B i t ^ 2`.
 
-**Status after the cycle–Krylov breakthrough** (see
-`sqMoment_descends_of_rootedProfileEquiv` for the resolved `g = 1` case):
-palindromic decorated rooted cycles give `⟨ε, D_g M^q D_g u⟩_W = 0` for
-`q ≥ 1` (`ε = B i - B j`, `u = B i + B j`, `M = B ∘ D_W`, `D_g` the
-diagonal of `g`), so by the same spectral step the classwise gap equals
-`⟨D_g ε, P₀ (D_g u)⟩_W` with `P₀` the `ker M`-projection. This VANISHES
-whenever `det B ≠ 0`; the open residue is only the singular-`B` stratum
-(where `D_g u ∉ Im M` is possible). Numerical search for counterexamples
-(LM cutting-plane, `scripts/falsify_classwise_sqmoment.py`) found none and
-went infeasible at both T=4 and T=5 once long-cycle cuts entered.
+**Status after the cycle–Krylov breakthrough** (the `g = 1` case is PROVED:
+`sqMoment_descends_of_rootedProfileEquiv` in `Graphon/CycleKrylov.lean`):
+
+**BEST KNOWN ROUTE (2026-06-10, weight modification — no singular-`B` issue)**:
+for atom-invariant positive `g`, rooted profiles of `(B, W·g)` are the
+`(B, W)`-profiles with `g` hung at every unlabeled vertex, hence
+rpe(B, W) ⟹ rpe(B, W·g); applying the PROVED plain theorem to `(B, W·g)`
+gives this classwise statement for positive `g`, and general atom-invariant
+`g` follows by linearity (`g = (g + c·1) - c·1`). The only missing piece is
+multi-vertex decoration plumbing: a glue-at-arbitrary-vertex construction
+(`rootAttach` only attaches at the root) plus induction hanging one vertex
+at a time. No new analysis needed.
+
+(Older route, superseded: palindromic decorated cycles reduce the classwise
+gap to `⟨D_g ε, P₀ (D_g u)⟩_W` with `P₀` the `ker M`-projection — closes only
+`det B ≠ 0`.) Numerical search for counterexamples (LM cutting-plane,
+`scripts/falsify_classwise_sqmoment.py`) found none and went infeasible at
+both T=4 and T=5 once long-cycle cuts entered.
 
 No harder than #70: it follows from the rank theorem
 (`classwise_sqMoment_of_rank_theorem` below). -/
