@@ -1816,6 +1816,198 @@ theorem rowValueMeasure_eq_of_rootedProfileEquiv {T : ℕ}
   weighted_powersum_determines_measure (B i) (B j) W
     (powerSum_descends_of_rootedProfileEquiv B hB W hW h) a
 
+/-! ### The `K₂,ₖ`-with-arms family (k ≥ 4 lift) — structured-vertex design
+
+The cube case used `k23Arms`, a `SimpleGraph (Fin (4 + a + b + c + 1))` built
+from explicit offset arithmetic (`armSeq`, `armStart`, nested `appendFn`). That
+layout does not scale to an arbitrary number `k` of arms: the dependent block
+offsets become unmanageable.
+
+Instead we reason on a **structured** finite vertex type `K2kVertex k armLen`
+and transport the graph to `Fin (n + 1)` only at the boundary forced by
+`rootedProfile`, which is hardwired to `SimpleGraph (Fin (n + 1))` with the root
+at position `0`. All human reasoning stays on the constructors; the `Fin`
+version is a pure transport artifact (`SimpleGraph.comap` along an equivalence
+that pins the root to `0`). -/
+
+/-- **Structured vertex type** of the rooted `K₂,ₖ`-with-arms graph: a `root`,
+one `anchor` per arm `l : Fin k`, a shared `hub`, and `armLen l` `internal`
+vertices on arm `l`. Arm `l` is the path
+`anchor l — internal l 0 — ⋯ — internal l (armLen l - 1) — hub`
+(when `armLen l = 0` the arm degenerates to the single edge `anchor l — hub`). -/
+inductive K2kVertex (k : ℕ) (armLen : Fin k → ℕ)
+  | root
+  | anchor (l : Fin k)
+  | hub
+  | internal (l : Fin k) (s : Fin (armLen l))
+  deriving DecidableEq
+
+/-- The NON-root vertices of `K2kVertex` as an explicit `Fintype`:
+anchors `⊕` hub `⊕` internals. Carries the cardinality computation and lets us
+pin the root to position `0` of the `Fin` transport. -/
+abbrev K2kRest (k : ℕ) (armLen : Fin k → ℕ) : Type :=
+  Fin k ⊕ Unit ⊕ (Σ l : Fin k, Fin (armLen l))
+
+/-- `K2kVertex` is `root` adjoined to `K2kRest` (`root ↦ none`). This single
+equivalence supplies the `Fintype` instance and pins the root for the `Fin`
+transport. -/
+def k2kVertexOptionEquiv (k : ℕ) (armLen : Fin k → ℕ) :
+    K2kVertex k armLen ≃ Option (K2kRest k armLen) where
+  toFun
+    | .root => none
+    | .anchor l => some (.inl l)
+    | .hub => some (.inr (.inl ()))
+    | .internal l s => some (.inr (.inr ⟨l, s⟩))
+  invFun
+    | none => .root
+    | some (.inl l) => .anchor l
+    | some (.inr (.inl ())) => .hub
+    | some (.inr (.inr ⟨l, s⟩)) => .internal l s
+  left_inv v := by cases v <;> rfl
+  right_inv o := by rcases o with _ | l | u | ⟨l, s⟩ <;> rfl
+
+instance (k : ℕ) (armLen : Fin k → ℕ) : Fintype (K2kVertex k armLen) :=
+  Fintype.ofEquiv _ (k2kVertexOptionEquiv k armLen).symm
+
+/-- Number of NON-root vertices: `k` anchors `+ 1` hub `+ ∑ armLen` internals. -/
+def k2kRestCard (k : ℕ) (armLen : Fin k → ℕ) : ℕ := k + 1 + ∑ l : Fin k, armLen l
+
+theorem k2kRest_card (k : ℕ) (armLen : Fin k → ℕ) :
+    Fintype.card (K2kRest k armLen) = k2kRestCard k armLen := by
+  simp only [K2kRest, k2kRestCard, Fintype.card_sum, Fintype.card_sigma,
+    Fintype.card_fin, Fintype.card_unit]
+  ring
+
+/-- **Vertex equivalence to `Fin (n + 1)`** with the **root pinned to `0`** —
+the position `simpleEvalAt`/`rootedProfile` fix to the labelled vertex.
+Built as `K2kVertex ≃ Option (K2kRest) ≃ Option (Fin n) ≃ Fin (n + 1)`; the last
+step `(finSuccEquiv n).symm` sends `none ↦ 0`, and the root is the unique
+preimage of `none`. -/
+noncomputable def K2kVertex_equivFin (k : ℕ) (armLen : Fin k → ℕ) :
+    K2kVertex k armLen ≃ Fin (k2kRestCard k armLen + 1) :=
+  (k2kVertexOptionEquiv k armLen).trans
+    ((Equiv.optionCongr (Fintype.equivFinOfCardEq (k2kRest_card k armLen))).trans
+      (finSuccEquiv (k2kRestCard k armLen)).symm)
+
+@[simp] theorem K2kVertex_equivFin_root (k : ℕ) (armLen : Fin k → ℕ) :
+    K2kVertex_equivFin k armLen .root = 0 := by
+  have h : K2kVertex_equivFin k armLen .root
+      = (finSuccEquiv (k2kRestCard k armLen)).symm none := rfl
+  rw [h, Equiv.symm_apply_eq, finSuccEquiv_zero]
+
+/-- The `s`-th vertex along arm `l`: `0 ↦ anchor`, `1 .. armLen ↦ internal`,
+anything beyond `armLen ↦ hub`. The structured analogue of `armSeq`, valued in
+the constructors (no `Fin`-offset arithmetic). When `armLen l = 0` the chain is
+just `anchor l —(s=0)→ hub —(s=1)→ hub`, i.e. the single edge `anchor l — hub`. -/
+def K2kVertex.armNode (k : ℕ) (armLen : Fin k → ℕ) (l : Fin k) (s : ℕ) :
+    K2kVertex k armLen :=
+  if hs0 : s = 0 then .anchor l
+  else if hsa : s ≤ armLen l then .internal l ⟨s - 1, by omega⟩
+  else .hub
+
+/-- Consecutive arm vertices differ (needed for `loopless`). -/
+theorem K2kVertex.armNode_succ_ne (k : ℕ) (armLen : Fin k → ℕ) (l : Fin k)
+    {s : ℕ} (hs : s ≤ armLen l) :
+    K2kVertex.armNode k armLen l s ≠ K2kVertex.armNode k armLen l (s + 1) := by
+  unfold K2kVertex.armNode
+  rcases Nat.eq_zero_or_pos s with hs0 | hspos
+  · subst hs0
+    rw [dif_pos (rfl : (0 : ℕ) = 0), dif_neg (by omega : ¬ (0 + 1 : ℕ) = 0)]
+    split_ifs <;> simp
+  · rw [dif_neg (by omega : ¬ s = 0), dif_pos hs, dif_neg (by omega : ¬ s + 1 = 0)]
+    split_ifs with hsa
+    · simp only [ne_eq, K2kVertex.internal.injEq, heq_eq_eq, Fin.mk.injEq, true_and]; omega
+    · simp
+
+/-- **The structured rooted `K₂,ₖ`-with-arms graph** on `K2kVertex k armLen`:
+the `root` is adjacent to every `anchor l`; arm `l` is the path
+`anchor l — internal l 0 — ⋯ — internal l (armLen l - 1) — hub` (the consecutive
+pairs `armNode l s — armNode l (s+1)` for `s ≤ armLen l`). All reasoning about
+the family happens here; the `Fin` version `k2kArms` is a transport of this. -/
+def k2kArmsStructured (k : ℕ) (armLen : Fin k → ℕ) :
+    SimpleGraph (K2kVertex k armLen) where
+  Adj u v :=
+    (∃ l : Fin k, (u = .root ∧ v = .anchor l) ∨ (v = .root ∧ u = .anchor l)) ∨
+    (∃ l : Fin k, ∃ s ≤ armLen l,
+      (u = K2kVertex.armNode k armLen l s ∧ v = K2kVertex.armNode k armLen l (s + 1)) ∨
+      (v = K2kVertex.armNode k armLen l s ∧ u = K2kVertex.armNode k armLen l (s + 1)))
+  symm := by
+    intro u v h
+    rcases h with ⟨l, h⟩ | ⟨l, s, hs, h⟩
+    · exact Or.inl ⟨l, h.symm⟩
+    · exact Or.inr ⟨l, s, hs, h.symm⟩
+  loopless := by
+    intro u h
+    rcases h with ⟨l, h⟩ | ⟨l, s, hs, h⟩
+    · obtain ⟨h1, h2⟩ | ⟨h1, h2⟩ := h <;> (rw [h1] at h2; simp at h2)
+    · obtain ⟨h1, h2⟩ | ⟨h1, h2⟩ := h <;>
+        exact K2kVertex.armNode_succ_ne k armLen l hs (h1.symm.trans h2)
+
+instance (k : ℕ) (armLen : Fin k → ℕ) :
+    DecidableRel (k2kArmsStructured k armLen).Adj :=
+  fun _ _ => by unfold k2kArmsStructured; infer_instance
+
+/-- **The `Fin`-indexed `K₂,ₖ`-with-arms graph** consumed by `rootedProfile`:
+the structured graph pulled back along the root-pinned equivalence. Because
+`K2kVertex_equivFin .root = 0`, position `0` of `Fin (n + 1)` is the root — the
+position `simpleEvalAt`/`rootedProfile` fix to the labelled vertex. -/
+noncomputable def k2kArms (k : ℕ) (armLen : Fin k → ℕ) :
+    SimpleGraph (Fin (k2kRestCard k armLen + 1)) :=
+  (k2kArmsStructured k armLen).comap (K2kVertex_equivFin k armLen).symm
+
+noncomputable instance (k : ℕ) (armLen : Fin k → ℕ) :
+    DecidableRel (k2kArms k armLen).Adj :=
+  SimpleGraph.instDecidableComapAdj _ _
+
+/-- The edge index type of `k2kArmsStructured`: `k` root-anchor edges plus, per
+arm `l`, the `armLen l + 1` chain edges. -/
+abbrev K2kEdgeIdx (k : ℕ) (armLen : Fin k → ℕ) : Type :=
+  Fin k ⊕ (Σ l : Fin k, Fin (armLen l + 1))
+
+/-- The edge family of `k2kArmsStructured`, indexed by `K2kEdgeIdx`. -/
+def k2kEdge (k : ℕ) (armLen : Fin k → ℕ) :
+    K2kEdgeIdx k armLen → Sym2 (K2kVertex k armLen)
+  | .inl l => s(.root, .anchor l)
+  | .inr ⟨l, s⟩ =>
+      s(K2kVertex.armNode k armLen l s, K2kVertex.armNode k armLen l ((s : ℕ) + 1))
+
+/-- Every indexed edge is an edge of `k2kArmsStructured`. -/
+theorem k2kEdge_mem (k : ℕ) (armLen : Fin k → ℕ) (idx : K2kEdgeIdx k armLen) :
+    k2kEdge k armLen idx ∈ (k2kArmsStructured k armLen).edgeSet := by
+  match idx with
+  | .inl l =>
+    rw [k2kEdge, SimpleGraph.mem_edgeSet]
+    exact Or.inl ⟨l, Or.inl ⟨rfl, rfl⟩⟩
+  | .inr ⟨l, s⟩ =>
+    rw [k2kEdge, SimpleGraph.mem_edgeSet]
+    exact Or.inr ⟨l, (s : ℕ), by have := s.isLt; omega, Or.inl ⟨rfl, rfl⟩⟩
+
+/-- **Edge classification** for the `K₂,ₖ`-with-arms family: the edge finset is
+exactly the image of the indexed family `k2kEdge` — the `k` root-anchor edges
+plus the `k` arm chains, and nothing else. This is the structured, reusable form
+(the analogue of `k23Arms_edgeFinset`); the eventual `k2kArms_eval` will reindex
+the edge product of the `Fin` graph through this. -/
+theorem k2kArmsStructured_edgeFinset (k : ℕ) (armLen : Fin k → ℕ) :
+    (k2kArmsStructured k armLen).edgeFinset =
+      Finset.image (k2kEdge k armLen) Finset.univ := by
+  classical
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, Finset.mem_image, Finset.mem_univ, true_and]
+  constructor
+  · intro he
+    induction e using Sym2.ind with
+    | _ u w =>
+      rw [SimpleGraph.mem_edgeSet] at he
+      rcases he with ⟨l, hroot⟩ | ⟨l, s, hs, harm⟩
+      · refine ⟨.inl l, ?_⟩
+        rw [k2kEdge, Sym2.eq_iff]
+        tauto
+      · refine ⟨.inr ⟨l, ⟨s, by omega⟩⟩, ?_⟩
+        rw [k2kEdge, Sym2.eq_iff]
+        tauto
+  · rintro ⟨idx, rfl⟩
+    exact k2kEdge_mem k armLen idx
+
 end Weighted
 
 end Graphon.Lovasz
