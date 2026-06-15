@@ -2533,6 +2533,71 @@ theorem rowValueMeasure_eq_of_rootedProfileEquiv {T : ℕ}
   weighted_powersum_determines_measure (B i) (B j) W
     (powerSum_descends_of_rootedProfileEquiv B hB W hW h) a
 
+/-! ### Decorated power sums — the bridge to classwise row-value measures
+
+`rowValueMeasure_eq_of_rootedProfileEquiv` gives equality of the GLOBAL
+`W`-weighted row-value measures. The next step toward the rank theorem
+`vertexOrbitRel_of_rootedProfileEquiv` is equality INSIDE each rooted-profile
+atom class — obtained by decorating the power sums with atom indicators. -/
+
+/-- **Weight modification preserves rooted-profile equivalence** (FOCUSED SORRY
+— the multi-vertex decoration crux). For any `g` in the `(B, W)`-rooted-profile
+span, rooted-profile-equivalent vertices stay equivalent under the modified
+weight `W · g`.
+
+**Construction** (the missing plumbing): `rootedProfile B (W·g) v F` expands as
+`∑_σ (∏_w W(σ w)·g(σ w)) · ∏_e B(τ ..)`; writing `g = ∑_k c_k · rootedProfileFun
+B W F_k` (from `hg`) and distributing the per-vertex factors hangs a copy of
+`F_{k_w}` (its root identified with the unlabeled vertex `w`) at every unlabeled
+vertex, turning the sum into `∑_{k⃗} (∏ c) · rootedProfile B W v (gluedGraph)`.
+Hence `v ↦ rootedProfile B (W·g) v F ∈ InRootedProfileSpan B W`, which is
+constant on rpe-classes (`InRootedProfileSpan.const_on_rpe`), giving the
+equality. The only new ingredient is a **glue-at-arbitrary-vertex** construction
+(`rootAttach` only does pendant-at-root) plus induction hanging one unlabeled
+vertex at a time. No new analysis. -/
+theorem rootedProfileEquiv_weightMod {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) {i j : Fin T}
+    (h : rootedProfileEquiv B W i j) {g : Fin T → ℝ}
+    (hg : InRootedProfileSpan B W g) :
+    rootedProfileEquiv B (fun t => W t * g t) i j := by
+  sorry
+
+/-- **Decorated power sums descend** (PROVED modulo `rootedProfileEquiv_weightMod`).
+For `g` in the rooted-profile span (e.g. an atom indicator `rpeIndicator C`),
+the `g`-decorated power sums of rpe-equivalent rows agree at every degree `k`.
+With `g = 1_C` and `k = 2` this is `classwise_sqMoment_descends`; in general it
+gives equality of the row-value measures inside every atom class.
+
+Proof: shift `g` by a positive constant `c` so `g + c > 0` and stays in the span,
+apply `powerSum_descends_of_rootedProfileEquiv` at the positive weight
+`W·(g + c)` (rpe-preserved by `rootedProfileEquiv_weightMod`) and at `W`, then
+subtract (`∑ W·g·B^k = ∑ W·(g+c)·B^k − c·∑ W·B^k`). -/
+theorem decoratedPowerSum_descends_of_rootedProfileEquiv {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ t, 0 < W t) {i j : Fin T} (h : rootedProfileEquiv B W i j)
+    {g : Fin T → ℝ} (hg : InRootedProfileSpan B W g) (k : ℕ) :
+    ∑ t : Fin T, W t * g t * B i t ^ k = ∑ t : Fin T, W t * g t * B j t ^ k := by
+  classical
+  set c : ℝ := 1 + ∑ s, |g s| with hc
+  have hcpos : ∀ t, 0 < g t + c := fun t => by
+    have h1 : |g t| ≤ ∑ s, |g s| :=
+      Finset.single_le_sum (f := fun s => |g s|) (fun s _ => abs_nonneg (g s))
+        (Finset.mem_univ t)
+    have h2 : -|g t| ≤ g t := neg_abs_le _
+    rw [hc]; linarith
+  have hgc : InRootedProfileSpan B W (fun t => g t + c) :=
+    hg.add (InRootedProfileSpan.const B W c)
+  have hgc_des := powerSum_descends_of_rootedProfileEquiv B hB
+    (fun t => W t * (g t + c)) (fun t => mul_pos (hW t) (hcpos t))
+    (rootedProfileEquiv_weightMod B hB W h hgc) k
+  have hplain := powerSum_descends_of_rootedProfileEquiv B hB W hW h k
+  have ei : ∀ j' : Fin T, ∑ t : Fin T, W t * g t * B j' t ^ k =
+      (∑ t : Fin T, W t * (g t + c) * B j' t ^ k) - c * ∑ t : Fin T, W t * B j' t ^ k := by
+    intro j'
+    rw [Finset.mul_sum, ← Finset.sum_sub_distrib]
+    exact Finset.sum_congr rfl fun t _ => by ring
+  rw [ei i, ei j, hgc_des, hplain]
+
 end Weighted
 
 end Graphon.Lovasz
