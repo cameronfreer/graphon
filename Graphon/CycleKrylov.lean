@@ -2680,7 +2680,67 @@ theorem decorateAt_prod_eq {T n m : ℕ} (B : Fin T → Fin T → ℝ)
         out_pair_eq' B hB (fun s => τ (decorVertexEquiv n m s)) _ _,
         out_pair_eq' B hB (fun s => τ (decorVertexEquiv n m (hDecorEmb u s))) a b]
 
-/-- **Single-vertex decoration factorization** (FOCUSED SORRY — Commit 1 target):
+/-- `rootedProfile` in `Fin.cons` form (re-derived here; the `SimpleRank` version
+is private). -/
+theorem rootedProfile_cons {T n : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (v : Fin T) (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj] :
+    rootedProfile B W v F =
+      ∑ σ : Fin n → Fin T, (∏ w : Fin n, W (σ w)) *
+        ∏ e ∈ F.edgeFinset,
+          B (Fin.cons (α := fun _ => Fin T) v σ (Quot.out e).1)
+            (Fin.cons (α := fun _ => Fin T) v σ (Quot.out e).2) := by
+  unfold rootedProfile simpleEvalAt
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  have hτ : ∀ w : Fin (n + 1),
+      (if h : (w : ℕ) < 1 then (fun _ : Fin 1 => v) ⟨w.val, h⟩
+       else σ ⟨w.val - 1, by have := w.isLt; omega⟩) =
+        Fin.cons (α := fun _ => Fin T) v σ w := by
+    intro w
+    rcases Fin.eq_zero_or_eq_succ w with rfl | ⟨x, rfl⟩
+    · rw [dif_pos (by norm_num)]; simp
+    · rw [dif_neg (by simp), Fin.cons_succ]; congr 1
+  simp only [hτ]
+
+theorem decorVertexEquiv_inl_val (n m : ℕ) (x : Fin (n + 1)) :
+    ((decorVertexEquiv n m (Sum.inl x)) : ℕ) = (x : ℕ) := by
+  simp [decorVertexEquiv, finSumFinEquiv]
+
+theorem decorVertexEquiv_inr_val (n m : ℕ) (z : Fin m) :
+    ((decorVertexEquiv n m (Sum.inr z)) : ℕ) = n + 1 + (z : ℕ) := by
+  simp [decorVertexEquiv, finSumFinEquiv]
+
+/-- **F-side assignment value lemma**: under the block assignment `appendFn σF σH`,
+the value at an `F`-vertex `inl x` is `Fin.cons v σF x`. -/
+theorem consAppend_inl {T n m : ℕ} (v : Fin T) (σF : Fin n → Fin T) (σH : Fin m → Fin T)
+    (x : Fin (n + 1)) :
+    Fin.cons (α := fun _ => Fin T) v (appendFn σF σH) (decorVertexEquiv n m (Sum.inl x)) =
+      Fin.cons (α := fun _ => Fin T) v σF x := by
+  rcases Fin.eq_zero_or_eq_succ x with rfl | ⟨w, rfl⟩
+  · rw [show decorVertexEquiv n m (Sum.inl (0 : Fin (n + 1))) = 0 from
+      Fin.ext (by rw [decorVertexEquiv_inl_val]; rfl)]; simp
+  · rw [show decorVertexEquiv n m (Sum.inl (Fin.succ w)) = Fin.succ ⟨w, by omega⟩ from
+      Fin.ext (by rw [decorVertexEquiv_inl_val]; rfl),
+      Fin.cons_succ, Fin.cons_succ, appendFn_low σF σH (by simp)]
+
+/-- **H-side assignment value lemma**: under `appendFn σF σH`, the value at an
+`H`-vertex `hDecorEmb u a` is `Fin.cons (Fin.cons v σF u) σH a` — i.e. `H` rooted
+at the value vertex `u` receives. -/
+theorem consAppend_hDecorEmb {T n m : ℕ} (v : Fin T) (σF : Fin n → Fin T)
+    (σH : Fin m → Fin T) (u : Fin (n + 1)) (a : Fin (m + 1)) :
+    Fin.cons (α := fun _ => Fin T) v (appendFn σF σH)
+        (decorVertexEquiv n m (hDecorEmb u a)) =
+      Fin.cons (α := fun _ => Fin T) (Fin.cons (α := fun _ => Fin T) v σF u) σH a := by
+  rcases Fin.eq_zero_or_eq_succ a with rfl | ⟨z, rfl⟩
+  · show Fin.cons (α := fun _ => Fin T) v (appendFn σF σH)
+        (decorVertexEquiv n m (Sum.inl u)) = _
+    rw [consAppend_inl]; simp
+  · rw [show (hDecorEmb u) (Fin.succ z) = Sum.inr z from by simp [hDecorEmb],
+      show decorVertexEquiv n m (Sum.inr z) = Fin.succ ⟨n + (z : ℕ), by omega⟩ from
+        Fin.ext (by rw [decorVertexEquiv_inr_val]; simp; omega),
+      Fin.cons_succ, Fin.cons_succ, appendFn_high σF σH (by simp)]
+    exact congrArg σH (Fin.ext (by simp))
+
+/-- **Single-vertex decoration factorization** (Commit 1 target — PROVED):
 gluing `H` at vertex `u` multiplies each `F`-assignment's contribution by the
 `H`-profile rooted at the value `u` receives. Analogue of `rootedProfile_rootAttach`,
 but the attachment point is an arbitrary unlabeled vertex, not a fresh pendant root.
@@ -2702,7 +2762,17 @@ theorem rootedProfile_decorate_vertex {T n m : ℕ} (B : Fin T → Fin T → ℝ
           B (Fin.cons (α := fun _ => Fin T) v σ (Quot.out e).1)
             (Fin.cons (α := fun _ => Fin T) v σ (Quot.out e).2)) *
         rootedProfile B W (Fin.cons (α := fun _ => Fin T) v σ u) H := by
-  sorry
+  classical
+  rw [rootedProfile_cons]
+  rw [Finset.sum_congr rfl fun σ (_ : σ ∈ Finset.univ) => by
+    rw [decorateAt_prod_eq B hB F H u (Fin.cons (α := fun _ => Fin T) v σ)]]
+  rw [sum_fin_split n m]
+  refine Finset.sum_congr rfl fun σF _ => ?_
+  rw [rootedProfile_cons, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun σH _ => ?_
+  rw [prod_appendFn W σF σH]
+  simp only [consAppend_inl, consAppend_hDecorEmb]
+  ring
 
 /-! ### Decorated power sums — the bridge to classwise row-value measures
 
