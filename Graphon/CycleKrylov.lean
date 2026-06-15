@@ -2194,6 +2194,127 @@ theorem k2kArms_prod_eq_structured (k : ℕ) (armLen : Fin k → ℕ)
   rw [Finset.prod_congr rfl fun E' _ => key E']
   exact k2kArmsStructured_prod_eq k armLen B hB (fun x => τ (K2kVertex_equivFin k armLen x))
 
+/-! #### Commit 2 — structured eval expansion (reindex + per-arm collapse) -/
+
+/-- The non-root part of `K2kVertex_equivFin` as a standalone equivalence
+`K2kRest ≃ Fin (k2kRestCard)` (definitionally the rest-equiv inside
+`K2kVertex_equivFin`). -/
+noncomputable def k2kRestEquivFin (k : ℕ) (armLen : Fin k → ℕ) :
+    K2kRest k armLen ≃ Fin (k2kRestCard k armLen) :=
+  Fintype.equivFinOfCardEq (k2kRest_card k armLen)
+
+/-- **Vertex → Fin-position value lemma**: a non-root vertex `r` (as a `K2kRest`
+element adjoined via `k2kVertexOptionEquiv.symm`) sits at position
+`(k2kRestEquivFin r).succ` — i.e. one past the root (which is `0`). This is the
+sole fact about the opaque rest-equiv the reindexing needs. -/
+theorem K2kVertex_equivFin_some (k : ℕ) (armLen : Fin k → ℕ)
+    (r : K2kRest k armLen) :
+    K2kVertex_equivFin k armLen ((k2kVertexOptionEquiv k armLen).symm (some r))
+      = (k2kRestEquivFin k armLen r).succ := by
+  rw [K2kVertex_equivFin]
+  simp only [Equiv.trans_apply, Equiv.apply_symm_apply, Equiv.optionCongr_apply,
+    Option.map_some, finSuccEquiv_symm_some]
+  rfl
+
+/-- The structured assignment `K2kVertex → Fin T` with `root ↦ v` and each
+non-root vertex `r` taking the value `ρ r`. -/
+def extendV {k : ℕ} {armLen : Fin k → ℕ} (v : Fin T)
+    (ρ : K2kRest k armLen → Fin T) : K2kVertex k armLen → Fin T :=
+  fun w => (k2kVertexOptionEquiv k armLen w).elim v ρ
+
+@[simp] theorem extendV_root {k : ℕ} {armLen : Fin k → ℕ} (v : Fin T)
+    (ρ : K2kRest k armLen → Fin T) : extendV v ρ (.root) = v := rfl
+
+@[simp] theorem extendV_anchor {k : ℕ} {armLen : Fin k → ℕ} (v : Fin T)
+    (ρ : K2kRest k armLen → Fin T) (l : Fin k) :
+    extendV v ρ (.anchor l) = ρ (.inl l) := rfl
+
+@[simp] theorem extendV_hub {k : ℕ} {armLen : Fin k → ℕ} (v : Fin T)
+    (ρ : K2kRest k armLen → Fin T) : extendV v ρ (.hub) = ρ (.inr (.inl ())) := rfl
+
+@[simp] theorem extendV_internal {k : ℕ} {armLen : Fin k → ℕ} (v : Fin T)
+    (ρ : K2kRest k armLen → Fin T) (l : Fin k) (s : Fin (armLen l)) :
+    extendV v ρ (.internal l s) = ρ (.inr (.inr ⟨l, s⟩)) := rfl
+
+/-- On arm `l`, `extendV ∘ armNode` is exactly the free-standing `chainPath`
+from the anchor value to the hub value over the arm's internal values. -/
+theorem extendV_armNode {k : ℕ} {armLen : Fin k → ℕ} (v : Fin T)
+    (ρ : K2kRest k armLen → Fin T) (l : Fin k) {s : ℕ} (hs : s ≤ armLen l + 1) :
+    extendV v ρ (K2kVertex.armNode k armLen l s) =
+      chainPath (armLen l) (ρ (.inl l)) (ρ (.inr (.inl ())))
+        (fun j => ρ (.inr (.inr ⟨l, j⟩))) s := by
+  unfold K2kVertex.armNode chainPath
+  rcases Nat.eq_zero_or_pos s with rfl | hpos
+  · simp
+  · rw [dif_neg (by omega : ¬ s = 0), dif_neg (by omega : ¬ s = 0)]
+    by_cases hsa : s ≤ armLen l
+    · rw [dif_pos hsa, dif_pos hsa, extendV_internal]
+    · rw [dif_neg hsa, dif_neg hsa, extendV_hub]
+
+/-- **Edge-product transport** (product form): the `Fin`-graph edge product equals
+the structured edge product with vertices read through `K2kVertex_equivFin`. -/
+theorem k2kArms_edge_prod_transport (k : ℕ) (armLen : Fin k → ℕ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (τ : Fin (k2kRestCard k armLen + 1) → Fin T) :
+    (∏ E ∈ (k2kArms k armLen).edgeFinset, B (τ (Quot.out E).1) (τ (Quot.out E).2)) =
+      ∏ E ∈ (k2kArmsStructured k armLen).edgeFinset,
+        B (τ (K2kVertex_equivFin k armLen (Quot.out E).1))
+          (τ (K2kVertex_equivFin k armLen (Quot.out E).2)) := by
+  rw [k2kArms_edgeFinset_transport, Finset.prod_map]
+  refine Finset.prod_congr rfl fun E' _ => ?_
+  induction E' using Sym2.ind with
+  | _ a b =>
+    rw [show (K2kVertex_equivFin k armLen).toEmbedding.sym2Map s(a, b)
+        = s(K2kVertex_equivFin k armLen a, K2kVertex_equivFin k armLen b) from rfl,
+      out_pair_eq' B hB τ _ _,
+      out_pair_eq' B hB (fun x => τ (K2kVertex_equivFin k armLen x)) a b]
+
+/-- **Reindexing the eval onto structured assignments**: the rooted profile of
+`k2kArms` is the sum over structured non-root assignments `ρ : K2kRest → Fin T`
+of the structured weight × edge product (root pinned to `v`). -/
+theorem rootedProfile_k2kArms_eq_structSum (k : ℕ) (armLen : Fin k → ℕ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (v : Fin T) :
+    rootedProfile B W v (k2kArms k armLen)
+      = ∑ ρ : K2kRest k armLen → Fin T,
+          (∏ r, W (ρ r)) *
+          ∏ E ∈ (k2kArmsStructured k armLen).edgeFinset,
+            B (extendV v ρ (Quot.out E).1) (extendV v ρ (Quot.out E).2) := by
+  rw [rootedProfile, simpleEvalAt]
+  refine Fintype.sum_equiv
+    (Equiv.arrowCongr (k2kRestEquivFin k armLen).symm (Equiv.refl (Fin T)))
+    _ _ (fun σ => ?_)
+  have hτ : ∀ w : K2kVertex k armLen,
+      (if h : (↑(K2kVertex_equivFin k armLen w) : ℕ) < 1 then v
+        else σ ⟨↑(K2kVertex_equivFin k armLen w) - 1, by
+          have := (K2kVertex_equivFin k armLen w).isLt
+          have : 1 ≤ k2kRestCard k armLen := by unfold k2kRestCard; omega
+          omega⟩)
+      = extendV v (fun r => σ (k2kRestEquivFin k armLen r)) w := by
+    intro w
+    by_cases hw : w = K2kVertex.root
+    · subst hw; simp [K2kVertex_equivFin_root]
+    · obtain ⟨r, rfl⟩ : ∃ r, w = (k2kVertexOptionEquiv k armLen).symm (some r) := by
+        rcases h : k2kVertexOptionEquiv k armLen w with _ | r
+        · exact absurd ((k2kVertexOptionEquiv k armLen).injective h) hw
+        · exact ⟨r, by rw [← (k2kVertexOptionEquiv k armLen).symm_apply_apply w, h]⟩
+      simp only [K2kVertex_equivFin_some, extendV, Equiv.apply_symm_apply,
+        Option.elim_some]
+      rw [dif_neg (by simp [Fin.val_succ] :
+        ¬ (↑(k2kRestEquivFin k armLen r).succ : ℕ) < 1)]
+      exact congrArg σ (Fin.ext (by simp [Fin.val_succ]))
+  have hρ' : (Equiv.arrowCongr (k2kRestEquivFin k armLen).symm (Equiv.refl (Fin T))) σ
+      = fun r => σ (k2kRestEquivFin k armLen r) := by
+    funext r; simp [Equiv.arrowCongr_apply]
+  rw [hρ']
+  dsimp only
+  rw [k2kArms_edge_prod_transport k armLen B hB
+        (fun v_ : Fin (k2kRestCard k armLen + 1) =>
+          if h : (↑v_ : ℕ) < 1 then v else σ ⟨↑v_ - 1, by have := v_.isLt; omega⟩),
+    ← Equiv.prod_comp (k2kRestEquivFin k armLen) (fun w => W (σ w))]
+  refine congrArg₂ (· * ·) rfl (Finset.prod_congr rfl fun E _ => ?_)
+  rw [hτ (Quot.out E).1, hτ (Quot.out E).2]
+
 end Weighted
 
 end Graphon.Lovasz
