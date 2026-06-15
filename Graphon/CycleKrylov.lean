@@ -1778,44 +1778,6 @@ theorem cubeMoment_descends_of_rootedProfileEquiv {T : ℕ}
   rw [← rootedProfile_k23Arms_sub_eq_polarizedCubeObs B hB W i j a b c,
     h (4 + a + b + c) (k23Arms a b c), sub_self, mul_zero]
 
-/-- **Weighted power sums descend** (k ≤ 3 reduced: k ≤ 2 PROVED, k = 3 via
-`cubeMoment_descends_of_rootedProfileEquiv`; k ≥ 4 SORRY — the general
-Hadamard-power lift, to be attacked after the cube validates the method).
-
-Once proved for all `k`, `weighted_powersum_determines_measure` upgrades this
-to equality of `W`-weighted row-value measures, the key step toward the rank
-theorem `vertexOrbitRel_of_rootedProfileEquiv`. -/
-theorem powerSum_descends_of_rootedProfileEquiv {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
-    {i j : Fin T} (h : rootedProfileEquiv B W i j) :
-    ∀ k : ℕ, ∑ t : Fin T, W t * B i t ^ k = ∑ t : Fin T, W t * B j t ^ k := by
-  intro k
-  match k with
-  | 0 => simp
-  | 1 =>
-    have h1 := first_moment_descends_of_rootedProfileEquiv B hB W h
-      (g := fun _ => (1 : ℝ)) (fun _ _ _ => rfl)
-    simpa using h1
-  | 2 =>
-    have h2 := sqMoment_descends_of_rootedProfileEquiv B hB W hW h
-    simpa [sqMoment] using h2
-  | 3 => exact cubeMoment_descends_of_rootedProfileEquiv B hB W hW h
-  | (k + 4) =>
-    sorry
-
-/-- **Row-value measures descend** (proved modulo the `k ≥ 3` power sums):
-under rooted-profile equivalence, the `W`-weighted preimage masses of the two
-rows agree at every value — the rows are equal as weighted value measures. -/
-theorem rowValueMeasure_eq_of_rootedProfileEquiv {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
-    {i j : Fin T} (h : rootedProfileEquiv B W i j) (a : ℝ) :
-    (∑ t ∈ Finset.univ.filter (fun t => B i t = a), W t) =
-      ∑ t ∈ Finset.univ.filter (fun t => B j t = a), W t :=
-  weighted_powersum_determines_measure (B i) (B j) W
-    (powerSum_descends_of_rootedProfileEquiv B hB W hW h) a
-
 /-! ### The `K₂,ₖ`-with-arms family (k ≥ 4 lift) — structured-vertex design
 
 The cube case used `k23Arms`, a `SimpleGraph (Fin (4 + a + b + c + 1))` built
@@ -2528,6 +2490,48 @@ theorem rootedProfile_k2kArms_sub_eq_polarizedPowObs (k : ℕ) (armLen : Fin k �
       (fun l => weightedAdjIter B W (armLen l + 1) (fun s => B i s) t)
       (fun l => weightedAdjIter B W (armLen l + 1) (fun s => B j s) t)]
   ring
+
+/-- **Weighted power sums descend** — now PROVED for ALL `k` (k ≤ 2 directly,
+k = 3 via `cubeMoment_descends_of_rootedProfileEquiv`, k ≥ 4 via the
+`K₂,ₖ`-arms bridge `rootedProfile_k2kArms_sub_eq_polarizedPowObs` feeding
+`powGap_eq_zero_of_polarized_obs`).
+
+`weighted_powersum_determines_measure` upgrades this to equality of the
+`W`-weighted row-value measures, the key step toward the rank theorem
+`vertexOrbitRel_of_rootedProfileEquiv`. -/
+theorem powerSum_descends_of_rootedProfileEquiv {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j) :
+    ∀ k : ℕ, ∑ t : Fin T, W t * B i t ^ k = ∑ t : Fin T, W t * B j t ^ k := by
+  intro k
+  match k with
+  | 0 => simp
+  | 1 =>
+    have h1 := first_moment_descends_of_rootedProfileEquiv B hB W h
+      (g := fun _ => (1 : ℝ)) (fun _ _ _ => rfl)
+    simpa using h1
+  | 2 =>
+    have h2 := sqMoment_descends_of_rootedProfileEquiv B hB W hW h
+    simpa [sqMoment] using h2
+  | 3 => exact cubeMoment_descends_of_rootedProfileEquiv B hB W hW h
+  | (k + 4) =>
+    refine powGap_eq_zero_of_polarized_obs (k + 4) B hB W hW i j fun φ => ?_
+    have hbridge := rootedProfile_k2kArms_sub_eq_polarizedPowObs (k + 4) φ B hB W i j
+    rw [h (k2kRestCard (k + 4) φ) (k2kArms (k + 4) φ), sub_self, mul_zero] at hbridge
+    linarith [hbridge]
+
+/-- **Row-value measures descend** (now unconditional): under rooted-profile
+equivalence, the `W`-weighted preimage masses of the two rows agree at every
+value — the rows are equal as weighted value measures. -/
+theorem rowValueMeasure_eq_of_rootedProfileEquiv {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j) (a : ℝ) :
+    (∑ t ∈ Finset.univ.filter (fun t => B i t = a), W t) =
+      ∑ t ∈ Finset.univ.filter (fun t => B j t = a), W t :=
+  weighted_powersum_determines_measure (B i) (B j) W
+    (powerSum_descends_of_rootedProfileEquiv B hB W hW h) a
 
 end Weighted
 
