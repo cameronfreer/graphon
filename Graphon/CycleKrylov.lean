@@ -2583,6 +2583,103 @@ noncomputable instance {n m : ℕ} (F : SimpleGraph (Fin (n + 1))) [DecidableRel
     DecidableRel (decorateAt F H u).Adj :=
   SimpleGraph.instDecidableComapAdj _ _
 
+/-- The `F`-block and `H`-block edge sets of `decorateAtSum` are disjoint: an
+`H`-edge has at most one `Sum.inl` endpoint (only its root maps there), while an
+`F`-edge has two — so a shared edge would force a self-loop in `H`. -/
+theorem decorateAtSum_edge_disjoint {n m : ℕ} (F : SimpleGraph (Fin (n + 1)))
+    [DecidableRel F.Adj] (H : SimpleGraph (Fin (m + 1))) [DecidableRel H.Adj]
+    (u : Fin (n + 1)) :
+    Disjoint (SimpleGraph.map Function.Embedding.inl F).edgeFinset
+      (SimpleGraph.map (hDecorEmb u) H).edgeFinset := by
+  rw [Finset.disjoint_left]
+  intro E hF hH
+  rw [SimpleGraph.mem_edgeFinset] at hF hH
+  induction E using Sym2.ind with
+  | _ x y =>
+    rw [SimpleGraph.mem_edgeSet, SimpleGraph.map_adj] at hF hH
+    obtain ⟨a, b, _, ha, hb⟩ := hF
+    obtain ⟨a', b', hadj', ha', hb'⟩ := hH
+    have ha0 : a' = 0 := by
+      rcases Fin.eq_zero_or_eq_succ a' with rfl | ⟨k, rfl⟩
+      · rfl
+      · exfalso
+        have hk : (hDecorEmb u) (Fin.succ k) = Sum.inr k := by simp [hDecorEmb]
+        rw [hk] at ha'; rw [← ha] at ha'; exact absurd ha' (by simp)
+    have hb0 : b' = 0 := by
+      rcases Fin.eq_zero_or_eq_succ b' with rfl | ⟨k, rfl⟩
+      · rfl
+      · exfalso
+        have hk : (hDecorEmb u) (Fin.succ k) = Sum.inr k := by simp [hDecorEmb]
+        rw [hk] at hb'; rw [← hb] at hb'; exact absurd hb' (by simp)
+    subst ha0 hb0
+    exact H.loopless 0 hadj'
+
+/-- **Edge-product transport + split** (Commit 1 steps 1–2): the `rootedProfile`
+edge product over `decorateAt F H u` factors, through `decorVertexEquiv`, into the
+`F`-edge product and the `H`-edge product. -/
+theorem decorateAt_prod_eq {T n m : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (H : SimpleGraph (Fin (m + 1))) [DecidableRel H.Adj] (u : Fin (n + 1))
+    (τ : Fin (n + m + 1) → Fin T) :
+    (∏ E ∈ (decorateAt F H u).edgeFinset, B (τ (Quot.out E).1) (τ (Quot.out E).2)) =
+      (∏ e ∈ F.edgeFinset,
+        B (τ (decorVertexEquiv n m (Sum.inl (Quot.out e).1)))
+          (τ (decorVertexEquiv n m (Sum.inl (Quot.out e).2)))) *
+      (∏ e ∈ H.edgeFinset,
+        B (τ (decorVertexEquiv n m (hDecorEmb u (Quot.out e).1)))
+          (τ (decorVertexEquiv n m (hDecorEmb u (Quot.out e).2)))) := by
+  classical
+  have step1 : (∏ E ∈ (decorateAt F H u).edgeFinset, B (τ (Quot.out E).1) (τ (Quot.out E).2)) =
+      ∏ E ∈ (decorateAtSum F H u).edgeFinset,
+        B (τ (decorVertexEquiv n m (Quot.out E).1))
+          (τ (decorVertexEquiv n m (Quot.out E).2)) := by
+    unfold decorateAt
+    rw [comap_symm_edgeFinset, Finset.prod_map]
+    refine Finset.prod_congr rfl fun E _ => ?_
+    induction E using Sym2.ind with
+    | _ a b =>
+      rw [show (decorVertexEquiv n m).toEmbedding.sym2Map s(a, b)
+          = s(decorVertexEquiv n m a, decorVertexEquiv n m b) from rfl,
+        out_pair_eq' B hB τ _ _,
+        out_pair_eq' B hB (fun s => τ (decorVertexEquiv n m s)) a b]
+  rw [step1]
+  have keySup : (decorateAtSum F H u).edgeFinset =
+      (SimpleGraph.map Function.Embedding.inl F).edgeFinset ∪
+        (SimpleGraph.map (hDecorEmb u) H).edgeFinset := by
+    apply Finset.coe_injective
+    rw [SimpleGraph.coe_edgeFinset, Finset.coe_union, SimpleGraph.coe_edgeFinset,
+      SimpleGraph.coe_edgeFinset]
+    show (decorateAtSum F H u).edgeSet = _
+    unfold decorateAtSum
+    rw [SimpleGraph.edgeSet_sup]
+  rw [keySup, Finset.prod_union (decorateAtSum_edge_disjoint F H u)]
+  congr 1
+  · have key : (SimpleGraph.map Function.Embedding.inl F).edgeFinset
+        = Finset.map (Function.Embedding.inl (β := Fin m)).sym2Map F.edgeFinset := by
+      apply Finset.coe_injective
+      rw [SimpleGraph.coe_edgeFinset, Finset.coe_map, SimpleGraph.coe_edgeFinset,
+        SimpleGraph.edgeSet_map]
+    rw [key, Finset.prod_map]
+    refine Finset.prod_congr rfl fun e _ => ?_
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [show (Function.Embedding.inl (β := Fin m)).sym2Map s(a, b)
+          = s((Sum.inl a : Fin (n + 1) ⊕ Fin m), Sum.inl b) from rfl,
+        out_pair_eq' B hB (fun s => τ (decorVertexEquiv n m s)) _ _,
+        out_pair_eq' B hB (fun s => τ (decorVertexEquiv n m (Sum.inl s))) a b]
+  · have key : (SimpleGraph.map (hDecorEmb u) H).edgeFinset
+        = Finset.map (hDecorEmb u).sym2Map H.edgeFinset := by
+      apply Finset.coe_injective
+      rw [SimpleGraph.coe_edgeFinset, Finset.coe_map, SimpleGraph.coe_edgeFinset,
+        SimpleGraph.edgeSet_map]
+    rw [key, Finset.prod_map]
+    refine Finset.prod_congr rfl fun e _ => ?_
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [show (hDecorEmb u).sym2Map s(a, b) = s(hDecorEmb u a, hDecorEmb u b) from rfl,
+        out_pair_eq' B hB (fun s => τ (decorVertexEquiv n m s)) _ _,
+        out_pair_eq' B hB (fun s => τ (decorVertexEquiv n m (hDecorEmb u s))) a b]
+
 /-- **Single-vertex decoration factorization** (FOCUSED SORRY — Commit 1 target):
 gluing `H` at vertex `u` multiplies each `F`-assignment's contribution by the
 `H`-profile rooted at the value `u` receives. Analogue of `rootedProfile_rootAttach`,
