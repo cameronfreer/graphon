@@ -2315,6 +2315,120 @@ theorem rootedProfile_k2kArms_eq_structSum (k : ℕ) (armLen : Fin k → ℕ)
   refine congrArg₂ (· * ·) rfl (Finset.prod_congr rfl fun E _ => ?_)
   rw [hτ (Quot.out E).1, hτ (Quot.out E).2]
 
+/-- **Assignment splitting equivalence**: a non-root structured assignment is
+exactly a triple (anchor values, hub value, per-arm internal values). Built
+directly so the component value lemmas are `rfl`. -/
+def assignEquiv (k : ℕ) (armLen : Fin k → ℕ) :
+    (K2kRest k armLen → Fin T) ≃
+      (Fin k → Fin T) × Fin T × ((l : Fin k) → Fin (armLen l) → Fin T) where
+  toFun ρ := (fun l => ρ (.inl l), ρ (.inr (.inl ())),
+    fun l j => ρ (.inr (.inr ⟨l, j⟩)))
+  invFun p := fun r => r.elim p.1
+    (fun u => u.elim (fun _ => p.2.1) (fun s => p.2.2 s.1 s.2))
+  left_inv ρ := by funext r; rcases r with l | u | ⟨l, j⟩ <;> rfl
+  right_inv p := rfl
+
+@[simp] theorem assignEquiv_symm_inl (k : ℕ) (armLen : Fin k → ℕ)
+    (p : (Fin k → Fin T) × Fin T × ((l : Fin k) → Fin (armLen l) → Fin T))
+    (l : Fin k) : (assignEquiv k armLen).symm p (.inl l) = p.1 l := rfl
+
+@[simp] theorem assignEquiv_symm_hub (k : ℕ) (armLen : Fin k → ℕ)
+    (p : (Fin k → Fin T) × Fin T × ((l : Fin k) → Fin (armLen l) → Fin T)) :
+    (assignEquiv k armLen).symm p (.inr (.inl ())) = p.2.1 := rfl
+
+@[simp] theorem assignEquiv_symm_inr (k : ℕ) (armLen : Fin k → ℕ)
+    (p : (Fin k → Fin T) × Fin T × ((l : Fin k) → Fin (armLen l) → Fin T))
+    (l : Fin k) (j : Fin (armLen l)) :
+    (assignEquiv k armLen).symm p (.inr (.inr ⟨l, j⟩)) = p.2.2 l j := rfl
+
+/-- Factorization of the structured vertex-weight product over the three
+vertex blocks (anchors / hub / internals). -/
+theorem k2kRest_weight_prod (k : ℕ) (armLen : Fin k → ℕ) (W : Fin T → ℝ)
+    (ρ : K2kRest k armLen → Fin T) :
+    (∏ r, W (ρ r)) =
+      (∏ l : Fin k, W (ρ (.inl l))) *
+        (W (ρ (.inr (.inl ()))) *
+          ∏ l : Fin k, ∏ j : Fin (armLen l), W (ρ (.inr (.inr ⟨l, j⟩)))) := by
+  classical
+  rw [Fintype.prod_sum_type]
+  congr 1
+  rw [Fintype.prod_sum_type]
+  congr 1
+  · exact Fintype.prod_unique _
+  · rw [← Finset.univ_sigma_univ, Finset.prod_sigma]
+
+/-- **Structured eval expansion** (Commit 2b): the rooted profile of `k2kArms`
+expands as a hub sum of an anchor sum of per-arm `armSum` kernels. -/
+theorem k2kArms_eval_expanded (k : ℕ) (armLen : Fin k → ℕ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (v : Fin T) :
+    rootedProfile B W v (k2kArms k armLen)
+      = ∑ hub : Fin T, W hub *
+          ∑ anchors : Fin k → Fin T,
+            ∏ l : Fin k,
+              W (anchors l) * B v (anchors l) * armSum B W (armLen l) (anchors l) hub := by
+  classical
+  rw [rootedProfile_k2kArms_eq_structSum k armLen B hB W v]
+  -- Step 1: per-ρ summand → hub weight × per-arm (anchor weight·edge · internals·chain)
+  have hsummand : ∀ ρ : K2kRest k armLen → Fin T,
+      (∏ r, W (ρ r)) *
+        ∏ E ∈ (k2kArmsStructured k armLen).edgeFinset,
+          B (extendV v ρ (Quot.out E).1) (extendV v ρ (Quot.out E).2)
+      = W (ρ (.inr (.inl ()))) *
+          ∏ l : Fin k,
+            W (ρ (.inl l)) * B v (ρ (.inl l)) *
+              ((∏ j : Fin (armLen l), W (ρ (.inr (.inr ⟨l, j⟩)))) *
+                ∏ s : Fin (armLen l + 1),
+                  B (chainPath (armLen l) (ρ (.inl l)) (ρ (.inr (.inl ())))
+                      (fun j => ρ (.inr (.inr ⟨l, j⟩))) s)
+                    (chainPath (armLen l) (ρ (.inl l)) (ρ (.inr (.inl ())))
+                      (fun j => ρ (.inr (.inr ⟨l, j⟩))) ((s : ℕ) + 1))) := by
+    intro ρ
+    have harm : ∀ (l : Fin k) (s : Fin (armLen l + 1)),
+        B (extendV v ρ (K2kVertex.armNode k armLen l s))
+          (extendV v ρ (K2kVertex.armNode k armLen l ((s : ℕ) + 1)))
+        = B (chainPath (armLen l) (ρ (.inl l)) (ρ (.inr (.inl ())))
+              (fun j => ρ (.inr (.inr ⟨l, j⟩))) s)
+            (chainPath (armLen l) (ρ (.inl l)) (ρ (.inr (.inl ())))
+              (fun j => ρ (.inr (.inr ⟨l, j⟩))) ((s : ℕ) + 1)) := fun l s => by
+      rw [extendV_armNode v ρ l (by have := s.isLt; omega),
+          extendV_armNode v ρ l (by have := s.isLt; omega)]
+    rw [k2kArmsStructured_prod_eq k armLen B hB (extendV v ρ), k2kRest_weight_prod]
+    simp only [extendV_root, extendV_anchor, harm, Finset.prod_mul_distrib]
+    ring
+  simp only [hsummand]
+  -- Step 2: reindex ρ → (anchors, hub, internals)
+  rw [← Equiv.sum_comp (assignEquiv k armLen).symm]
+  simp only [assignEquiv_symm_inl, assignEquiv_symm_hub, assignEquiv_symm_inr,
+    Fintype.sum_prod_type]
+  -- Step 3: collapse the internal sum on each arm via armChain_sum_eq_armSum
+  have hcollapse : ∀ (a : Fin k → Fin T) (h : Fin T),
+      (∑ I : (l : Fin k) → Fin (armLen l) → Fin T,
+        W h * ∏ l : Fin k, (W (a l) * B v (a l) *
+          ((∏ j, W (I l j)) *
+            ∏ s : Fin (armLen l + 1),
+              B (chainPath (armLen l) (a l) h (fun j => I l j) ↑s)
+                (chainPath (armLen l) (a l) h (fun j => I l j) ((s : ℕ) + 1)))))
+      = W h * ∏ l : Fin k, (W (a l) * B v (a l) * armSum B W (armLen l) (a l) h) := by
+    intro a h
+    rw [← Finset.mul_sum]
+    congr 1
+    rw [show (∏ l : Fin k, (W (a l) * B v (a l) * armSum B W (armLen l) (a l) h))
+          = ∏ l : Fin k, ∑ Il : Fin (armLen l) → Fin T,
+              (W (a l) * B v (a l) *
+                ((∏ j, W (Il j)) *
+                  ∏ s : Fin (armLen l + 1),
+                    B (chainPath (armLen l) (a l) h Il ↑s)
+                      (chainPath (armLen l) (a l) h Il ((s : ℕ) + 1)))) from
+        Finset.prod_congr rfl fun l _ => by
+          rw [← armChain_sum_eq_armSum B W (armLen l) (a l) h, Finset.mul_sum]]
+    rw [Finset.prod_univ_sum]
+    exact Finset.sum_congr Fintype.piFinset_univ.symm fun I _ => rfl
+  rw [Finset.sum_congr rfl fun a _ => Finset.sum_congr rfl fun h _ => hcollapse a h,
+    Finset.sum_comm]
+  refine Finset.sum_congr rfl fun hub _ => ?_
+  rw [Finset.mul_sum]
+
 end Weighted
 
 end Graphon.Lovasz
