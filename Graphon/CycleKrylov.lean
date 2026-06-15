@@ -2533,6 +2533,80 @@ theorem rowValueMeasure_eq_of_rootedProfileEquiv {T : ℕ}
   weighted_powersum_determines_measure (B i) (B j) W
     (powerSum_descends_of_rootedProfileEquiv B hB W hW h) a
 
+/-! ### Single-vertex decoration — the gluing primitive for the weight-mod crux
+
+`decorateAt F H u` glues `H` onto vertex `u` of `F` (identifying `H`'s root with
+`u`). Its rooted profile factorizes: the `H`-block contributes
+`rootedProfile B W (value at u) H` to each `F`-assignment. Decorating EVERY
+unlabeled vertex by `H` then realizes the modified weight `W · (profile of H)`,
+which is the engine of `rootedProfileEquiv_weightMod`. -/
+
+/-- Embedding of `H`'s vertices into `Fin (n+1) ⊕ Fin m`: the root `0 ↦ inl u`
+(identified with vertex `u` of `F`), and `Fin.succ k ↦ inr k`. -/
+def hDecorEmb {n m : ℕ} (u : Fin (n + 1)) : Fin (m + 1) ↪ Fin (n + 1) ⊕ Fin m where
+  toFun := Fin.cons (Sum.inl u) (fun k => Sum.inr k)
+  inj' a b hab := by
+    rcases Fin.eq_zero_or_eq_succ a with rfl | ⟨k, rfl⟩ <;>
+      rcases Fin.eq_zero_or_eq_succ b with rfl | ⟨l, rfl⟩ <;>
+      simp_all [Fin.cons_zero, Fin.cons_succ]
+
+/-- The structured single-vertex decoration on `Fin (n+1) ⊕ Fin m`: `F` on the
+`inl` block, `⊔` `H` glued with its root at `u` (via `hDecorEmb`). -/
+def decorateAtSum {n m : ℕ} (F : SimpleGraph (Fin (n + 1)))
+    (H : SimpleGraph (Fin (m + 1))) (u : Fin (n + 1)) :
+    SimpleGraph (Fin (n + 1) ⊕ Fin m) :=
+  SimpleGraph.map Function.Embedding.inl F ⊔ SimpleGraph.map (hDecorEmb u) H
+
+/-- `Fin (n+1) ⊕ Fin m ≃ Fin (n+m+1)` with the `F`-root `inl 0 ↦ 0` (so the
+decorated graph's root is `F`'s root). -/
+noncomputable def decorVertexEquiv (n m : ℕ) :
+    (Fin (n + 1) ⊕ Fin m) ≃ Fin (n + m + 1) :=
+  finSumFinEquiv.trans (finCongr (by omega))
+
+@[simp] theorem decorVertexEquiv_inl_zero (n m : ℕ) :
+    decorVertexEquiv n m (Sum.inl 0) = 0 :=
+  Fin.ext (by simp [decorVertexEquiv, finSumFinEquiv])
+
+/-- **Single-vertex decoration** as a `SimpleGraph (Fin (n+m+1))` (transported
+from the structured form), consumable by `rootedProfile`. -/
+noncomputable def decorateAt {n m : ℕ} (F : SimpleGraph (Fin (n + 1)))
+    (H : SimpleGraph (Fin (m + 1))) (u : Fin (n + 1)) :
+    SimpleGraph (Fin (n + m + 1)) :=
+  (decorateAtSum F H u).comap (decorVertexEquiv n m).symm
+
+instance {n m : ℕ} (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (H : SimpleGraph (Fin (m + 1))) [DecidableRel H.Adj] (u : Fin (n + 1)) :
+    DecidableRel (decorateAtSum F H u).Adj := by unfold decorateAtSum; infer_instance
+
+noncomputable instance {n m : ℕ} (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (H : SimpleGraph (Fin (m + 1))) [DecidableRel H.Adj] (u : Fin (n + 1)) :
+    DecidableRel (decorateAt F H u).Adj :=
+  SimpleGraph.instDecidableComapAdj _ _
+
+/-- **Single-vertex decoration factorization** (FOCUSED SORRY — Commit 1 target):
+gluing `H` at vertex `u` multiplies each `F`-assignment's contribution by the
+`H`-profile rooted at the value `u` receives. Analogue of `rootedProfile_rootAttach`,
+but the attachment point is an arbitrary unlabeled vertex, not a fresh pendant root.
+
+Proof plan: transport the edge product to `decorateAtSum` (`comap` along
+`decorVertexEquiv`, as in `k2kArms_prod_eq_structured`); the structured edge set
+is the disjoint union `(F.map inl).edgeFinset ∪ (H.map (hDecorEmb u)).edgeFinset`,
+so the product splits into the `F`-edge product and the `H`-edge product; reindex
+the assignment sum over `Fin (n+m) → Fin T` into `(Fin n → Fin T) × (Fin m → Fin T)`;
+the `H`-factor, with its root pinned to the value at `u`, sums to
+`rootedProfile B W (Fin.cons v σ u) H`. -/
+theorem rootedProfile_decorate_vertex {T n m : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (v : Fin T)
+    (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (H : SimpleGraph (Fin (m + 1))) [DecidableRel H.Adj] (u : Fin (n + 1)) :
+    rootedProfile B W v (decorateAt F H u) =
+      ∑ σ : Fin n → Fin T, (∏ w : Fin n, W (σ w)) *
+        (∏ e ∈ F.edgeFinset,
+          B (Fin.cons (α := fun _ => Fin T) v σ (Quot.out e).1)
+            (Fin.cons (α := fun _ => Fin T) v σ (Quot.out e).2)) *
+        rootedProfile B W (Fin.cons (α := fun _ => Fin T) v σ u) H := by
+  sorry
+
 /-! ### Decorated power sums — the bridge to classwise row-value measures
 
 `rowValueMeasure_eq_of_rootedProfileEquiv` gives equality of the GLOBAL
