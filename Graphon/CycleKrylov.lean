@@ -2429,6 +2429,106 @@ theorem k2kArms_eval_expanded (k : ℕ) (armLen : Fin k → ℕ)
   refine Finset.sum_congr rfl fun hub _ => ?_
   rw [Finset.mul_sum]
 
+/-! #### Commit 3 — wMulti collapse + polarization bridge -/
+
+/-- **3.1 — `k2kArms` evaluation in `wMulti` form**: the rooted profile is the
+weighted `k`-linear form of the root-row walk kernels `M^{armLen l + 1}(B v)`. -/
+theorem k2kArms_eval (k : ℕ) (armLen : Fin k → ℕ) (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (v : Fin T) :
+    rootedProfile B W v (k2kArms k armLen)
+      = wMulti k W (fun l => weightedAdjIter B W (armLen l + 1) (fun t => B v t)) := by
+  rw [k2kArms_eval_expanded k armLen B hB W v]
+  unfold wMulti
+  refine Finset.sum_congr rfl fun hub _ => ?_
+  congr 1
+  rw [Finset.prod_congr rfl (fun l (_ : l ∈ Finset.univ) =>
+        (sum_weight_mul_armSum B hB W (armLen l) (fun t => B v t) hub).symm),
+    Finset.prod_univ_sum]
+  exact Finset.sum_congr Fintype.piFinset_univ.symm fun anchors _ => rfl
+
+/-- **Multilinear product polarization** (per-slot generalization of
+`pow_sub_pow_expand`): `2^k (∏ a − ∏ b)` is `2 ·` the odd-subset sum of the
+slot products with `a−b` inside the subset and `a+b` outside. -/
+theorem prod_sub_prod_polarization (k : ℕ) (a b : Fin k → ℝ) :
+    2 ^ k * ((∏ l, a l) - ∏ l, b l) =
+      2 * ∑ S ∈ Finset.univ.powerset.filter (fun S : Finset (Fin k) => Odd S.card),
+        ∏ l : Fin k, (if l ∈ S then a l - b l else a l + b l) := by
+  classical
+  have hneg : ∀ S : Finset (Fin k),
+      (∏ l ∈ S, -(a l - b l)) = (-1 : ℝ) ^ S.card * ∏ l ∈ S, (a l - b l) := by
+    intro S
+    rw [← Finset.prod_const, ← Finset.prod_mul_distrib]
+    exact Finset.prod_congr rfl fun l _ => (neg_one_mul _).symm
+  have h1 : (2 : ℝ) ^ k * ∏ l, a l =
+      ∑ S ∈ (Finset.univ : Finset (Fin k)).powerset,
+        (∏ l ∈ S, (a l - b l)) * ∏ l ∈ Finset.univ \ S, (a l + b l) := by
+    rw [← Finset.prod_add,
+      Finset.prod_congr rfl (fun l _ => show (a l - b l) + (a l + b l) = 2 * a l by ring),
+      Finset.prod_mul_distrib, Finset.prod_const, Finset.card_univ, Fintype.card_fin]
+  have h2 : (2 : ℝ) ^ k * ∏ l, b l =
+      ∑ S ∈ (Finset.univ : Finset (Fin k)).powerset,
+        (∏ l ∈ S, -(a l - b l)) * ∏ l ∈ Finset.univ \ S, (a l + b l) := by
+    rw [← Finset.prod_add,
+      Finset.prod_congr rfl (fun l _ => show -(a l - b l) + (a l + b l) = 2 * b l by ring),
+      Finset.prod_mul_distrib, Finset.prod_const, Finset.card_univ, Fintype.card_fin]
+  rw [mul_sub, h1, h2, ← Finset.sum_sub_distrib,
+    ← Finset.sum_filter_add_sum_filter_not
+      ((Finset.univ : Finset (Fin k)).powerset) (fun S => Odd S.card)]
+  have heven : (∑ S ∈ ((Finset.univ : Finset (Fin k)).powerset).filter
+      (fun S => ¬Odd S.card),
+        ((∏ l ∈ S, (a l - b l)) * (∏ l ∈ Finset.univ \ S, (a l + b l)) -
+          (∏ l ∈ S, -(a l - b l)) * ∏ l ∈ Finset.univ \ S, (a l + b l))) = 0 :=
+    Finset.sum_eq_zero fun S hS => by
+      have he : Even S.card := Nat.not_odd_iff_even.mp (Finset.mem_filter.mp hS).2
+      rw [hneg S, he.neg_one_pow, one_mul, sub_self]
+  rw [heven, add_zero, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun S hS => ?_
+  have ho : Odd S.card := (Finset.mem_filter.mp hS).2
+  have hsplit : (∏ l : Fin k, (if l ∈ S then a l - b l else a l + b l)) =
+      (∏ l ∈ S, (a l - b l)) * ∏ l ∈ Finset.univ \ S, (a l + b l) := by
+    rw [Finset.prod_ite, Finset.filter_mem_eq_inter, Finset.univ_inter,
+      ← Finset.sdiff_eq_filter]
+  rw [hsplit, hneg S, ho.neg_one_pow]
+  ring
+
+/-- **3.2 — the graph bridge**: `2 ·` the polarized `k`-th power observable at
+arm lengths `armLen l + 1` equals `2^k ·` the rooted `K₂,ₖ`-arms profile
+difference (the k-ary generalization of `rootedProfile_k23Arms_sub_eq_polarizedCubeObs`;
+at `k = 3`, `2^3 = 8 = 2·4`). -/
+theorem rootedProfile_k2kArms_sub_eq_polarizedPowObs (k : ℕ) (armLen : Fin k → ℕ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (i j : Fin T) :
+    2 * polarizedPowObs k B W i j (fun l => armLen l + 1)
+      = 2 ^ k * (rootedProfile B W i (k2kArms k armLen)
+          - rootedProfile B W j (k2kArms k armLen)) := by
+  classical
+  rw [k2kArms_eval k armLen B hB W i, k2kArms_eval k armLen B hB W j]
+  unfold polarizedPowObs wMulti
+  have hpt : ∀ (S : Finset (Fin k)) (l : Fin k) (t : Fin T),
+      weightedAdjIter B W (armLen l + 1)
+          (if l ∈ S then rowDiff B i j else rowSum B i j) t
+      = if l ∈ S
+        then weightedAdjIter B W (armLen l + 1) (fun s => B i s) t
+              - weightedAdjIter B W (armLen l + 1) (fun s => B j s) t
+        else weightedAdjIter B W (armLen l + 1) (fun s => B i s) t
+              + weightedAdjIter B W (armLen l + 1) (fun s => B j s) t := by
+    intro S l t
+    by_cases hl : l ∈ S
+    · simp only [if_pos hl]
+      rw [show rowDiff B i j = fun s => B i s - B j s from rfl,
+        weightedAdjIter_sub B W (armLen l + 1) (fun s => B i s) (fun s => B j s)]
+    · simp only [if_neg hl]
+      rw [show rowSum B i j = fun s => B i s + B j s from rfl,
+        weightedAdjIter_add B W (armLen l + 1) (fun s => B i s) (fun s => B j s)]
+  simp only [hpt]
+  rw [Finset.sum_comm, Finset.mul_sum, ← Finset.sum_sub_distrib, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun t _ => ?_
+  rw [← Finset.mul_sum, mul_left_comm (2 : ℝ) (W t),
+    ← prod_sub_prod_polarization k
+      (fun l => weightedAdjIter B W (armLen l + 1) (fun s => B i s) t)
+      (fun l => weightedAdjIter B W (armLen l + 1) (fun s => B j s) t)]
+  ring
+
 end Weighted
 
 end Graphon.Lovasz
