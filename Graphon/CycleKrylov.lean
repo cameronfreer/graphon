@@ -2008,6 +2008,192 @@ theorem k2kArmsStructured_edgeFinset (k : ℕ) (armLen : Fin k → ℕ) :
   · rintro ⟨idx, rfl⟩
     exact k2kEdge_mem k armLen idx
 
+/-! #### Commit 1 — Fin/structured edge transport + edge-product factorization -/
+
+/-- `Quot.out` resolver on a literal `Sym2` pair over an ARBITRARY vertex type
+(the `out_pair_eq` generalization needed for the structured graph). -/
+theorem out_pair_eq' {T' : ℕ} {V : Type*} (Bm : Fin T' → Fin T' → ℝ)
+    (hB : ∀ i j, Bm i j = Bm j i) (g : V → Fin T') (x y : V) :
+    Bm (g (Quot.out s(x, y)).1) (g (Quot.out s(x, y)).2) = Bm (g x) (g y) := by
+  have hout := Quot.out_eq s(x, y)
+  rw [Sym2.mk_eq_mk_iff] at hout
+  rcases hout with h | h
+  · rw [congrArg Prod.fst h, congrArg Prod.snd h]
+  · simp only [Prod.swap] at h
+    rw [congrArg Prod.fst h, congrArg Prod.snd h, hB]
+
+/-- Arm index of a vertex (anchors/internals carry their arm; root/hub `none`).
+Used to recover `(l, s)` from a chain endpoint in `k2kEdge_injective`. -/
+def K2kVertex.armOf {k : ℕ} {armLen : Fin k → ℕ} :
+    K2kVertex k armLen → Option (Fin k)
+  | .root => none
+  | .anchor l => some l
+  | .hub => none
+  | .internal l _ => some l
+
+/-- Step (depth) of a vertex along its arm (`0` for anchor, `s+1` for
+internal `s`); `0` on root/hub (irrelevant there). -/
+def K2kVertex.stepOf {k : ℕ} {armLen : Fin k → ℕ} : K2kVertex k armLen → ℕ
+  | .root => 0
+  | .anchor _ => 0
+  | .hub => 0
+  | .internal _ s => (s : ℕ) + 1
+
+theorem K2kVertex.armOf_armNode {k : ℕ} {armLen : Fin k → ℕ} {l : Fin k} {s : ℕ}
+    (hs : s ≤ armLen l) : (K2kVertex.armNode k armLen l s).armOf = some l := by
+  unfold K2kVertex.armNode; split_ifs <;> rfl
+
+theorem K2kVertex.stepOf_armNode {k : ℕ} {armLen : Fin k → ℕ} {l : Fin k} {s : ℕ}
+    (hs : s ≤ armLen l) : (K2kVertex.armNode k armLen l s).stepOf = s := by
+  unfold K2kVertex.armNode
+  rcases Nat.eq_zero_or_pos s with rfl | hpos
+  · rfl
+  · rw [dif_neg (by omega : ¬ s = 0), dif_pos hs]
+    simp only [K2kVertex.stepOf]; omega
+
+theorem K2kVertex.armNode_ne_root {k : ℕ} {armLen : Fin k → ℕ} (l : Fin k) (s : ℕ) :
+    K2kVertex.armNode k armLen l s ≠ .root := by
+  unfold K2kVertex.armNode; split_ifs <;> simp
+
+theorem K2kVertex.armNode_eq_hub_of_gt {k : ℕ} {armLen : Fin k → ℕ} {l : Fin k}
+    {s : ℕ} (h : armLen l < s) : K2kVertex.armNode k armLen l s = .hub := by
+  unfold K2kVertex.armNode
+  rw [dif_neg (by omega : ¬ s = 0), dif_neg (by omega : ¬ s ≤ armLen l)]
+
+/-- The indexed edge family is injective (each `(l, s)` recovered from the
+non-hub chain endpoint via `armOf`/`stepOf`; the reversed orientation is killed
+by `omega`). The structured analogue of `armSeq_pair_inj`. -/
+theorem k2kEdge_injective (k : ℕ) (armLen : Fin k → ℕ) :
+    Function.Injective (k2kEdge k armLen) := by
+  intro x y hxy
+  match x, y with
+  | .inl l, .inl l' =>
+      simp only [k2kEdge, Sym2.eq_iff] at hxy
+      rcases hxy with ⟨-, h⟩ | ⟨h, -⟩
+      · simp only [K2kVertex.anchor.injEq] at h; subst h; rfl
+      · exact absurd h (by simp)
+  | .inl l, .inr ⟨l', s'⟩ =>
+      exfalso; simp only [k2kEdge, Sym2.eq_iff] at hxy
+      rcases hxy with ⟨h, -⟩ | ⟨h, -⟩ <;> exact K2kVertex.armNode_ne_root _ _ h.symm
+  | .inr ⟨l, s⟩, .inl l' =>
+      exfalso; simp only [k2kEdge, Sym2.eq_iff] at hxy
+      rcases hxy with ⟨h, -⟩ | ⟨-, h⟩ <;> exact K2kVertex.armNode_ne_root _ _ h
+  | .inr ⟨l, s⟩, .inr ⟨l', s'⟩ =>
+      have hsl : (s : ℕ) ≤ armLen l := by have := s.isLt; omega
+      have hsl' : (s' : ℕ) ≤ armLen l' := by have := s'.isLt; omega
+      simp only [k2kEdge, Sym2.eq_iff] at hxy
+      rcases hxy with ⟨h1, h2⟩ | ⟨h1, h2⟩
+      · have hl : l = l' := by
+          have ha := congrArg K2kVertex.armOf h1
+          rw [K2kVertex.armOf_armNode hsl, K2kVertex.armOf_armNode hsl'] at ha
+          exact Option.some.inj ha
+        subst hl
+        have hss : s = s' := by
+          apply Fin.ext
+          have hst := congrArg K2kVertex.stepOf h1
+          rwa [K2kVertex.stepOf_armNode hsl, K2kVertex.stepOf_armNode hsl'] at hst
+        subst hss; rfl
+      · exfalso
+        have hl : l = l' := by
+          have ha := congrArg K2kVertex.armOf h1
+          rw [K2kVertex.armOf_armNode hsl] at ha
+          by_cases hc : armLen l' < (s' : ℕ) + 1
+          · rw [K2kVertex.armNode_eq_hub_of_gt hc] at ha; simp [K2kVertex.armOf] at ha
+          · rw [K2kVertex.armOf_armNode (by omega)] at ha; exact Option.some.inj ha
+        subst hl
+        have hub1 : (s' : ℕ) + 1 ≤ armLen l := by
+          by_contra hc
+          have ha := congrArg K2kVertex.armOf h1
+          rw [K2kVertex.armOf_armNode hsl, K2kVertex.armNode_eq_hub_of_gt (by omega)] at ha
+          simp [K2kVertex.armOf] at ha
+        have hub2 : (s : ℕ) + 1 ≤ armLen l := by
+          by_contra hc
+          have ha := congrArg K2kVertex.armOf h2
+          rw [K2kVertex.armNode_eq_hub_of_gt (by omega : armLen l < (s : ℕ) + 1),
+              K2kVertex.armOf_armNode hsl'] at ha
+          simp [K2kVertex.armOf] at ha
+        have e1 := congrArg K2kVertex.stepOf h1
+        rw [K2kVertex.stepOf_armNode hsl, K2kVertex.stepOf_armNode hub1] at e1
+        have e2 := congrArg K2kVertex.stepOf h2
+        rw [K2kVertex.stepOf_armNode hub2, K2kVertex.stepOf_armNode hsl'] at e2
+        omega
+
+/-- **Edge-product factorization on the structured graph** (the analogue of
+`k23Arms_prod_eq`): the edge product splits into the `k` root-edge factors and
+the `k` independent arm-chain products. -/
+theorem k2kArmsStructured_prod_eq (k : ℕ) (armLen : Fin k → ℕ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (Φ : K2kVertex k armLen → Fin T) :
+    (∏ E ∈ (k2kArmsStructured k armLen).edgeFinset,
+        B (Φ (Quot.out E).1) (Φ (Quot.out E).2)) =
+      (∏ l : Fin k, B (Φ .root) (Φ (.anchor l))) *
+        ∏ l : Fin k, ∏ s : Fin (armLen l + 1),
+          B (Φ (K2kVertex.armNode k armLen l s))
+            (Φ (K2kVertex.armNode k armLen l ((s : ℕ) + 1))) := by
+  classical
+  rw [k2kArmsStructured_edgeFinset,
+    Finset.prod_image (fun x _ y _ h => k2kEdge_injective k armLen h),
+    Fintype.prod_sum_type]
+  congr 1
+  · exact Finset.prod_congr rfl fun l _ => by
+      simp only [k2kEdge]; exact out_pair_eq' B hB Φ _ _
+  · rw [← Finset.univ_sigma_univ, Finset.prod_sigma]
+    exact Finset.prod_congr rfl fun l _ => Finset.prod_congr rfl fun s _ => by
+      simp only [k2kEdge]; exact out_pair_eq' B hB Φ _ _
+
+/-- Edge finset of a graph pulled back along an equivalence's inverse is the
+`Sym2`-image of the source edge finset (generic transport lemma). -/
+theorem comap_symm_edgeFinset {V W : Type*} [Fintype V] [Fintype W]
+    [DecidableEq V] [DecidableEq W] (e : V ≃ W) (G : SimpleGraph V)
+    [DecidableRel G.Adj] :
+    (SimpleGraph.comap e.symm G).edgeFinset =
+      Finset.map e.toEmbedding.sym2Map G.edgeFinset := by
+  have hG : SimpleGraph.comap (⇑e.symm) G = SimpleGraph.map e.toEmbedding G :=
+    SimpleGraph.comap_symm G e
+  rw [← SimpleGraph.edgeFinset_map e.toEmbedding G]
+  apply Finset.coe_injective
+  rw [SimpleGraph.coe_edgeFinset, SimpleGraph.coe_edgeFinset, hG]
+
+/-- **Edge-finset transport** for the `Fin`-rooted graph: `k2kArms`' edges are
+the `K2kVertex_equivFin`-images of the structured graph's edges. -/
+theorem k2kArms_edgeFinset_transport (k : ℕ) (armLen : Fin k → ℕ) :
+    (k2kArms k armLen).edgeFinset =
+      Finset.map (K2kVertex_equivFin k armLen).toEmbedding.sym2Map
+        (k2kArmsStructured k armLen).edgeFinset :=
+  comap_symm_edgeFinset (K2kVertex_equivFin k armLen) (k2kArmsStructured k armLen)
+
+/-- **Edge-product factorization on the `Fin` graph** (transport + structured
+factorization combined): the `rootedProfile` edge product over `k2kArms`
+factors, through `K2kVertex_equivFin`, into the `k` root-edge factors and the
+`k` arm-chain products. This is the replacement for the brittle `k23Arms`
+offset work; `k2kArms_eval` consumes it directly. -/
+theorem k2kArms_prod_eq_structured (k : ℕ) (armLen : Fin k → ℕ)
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (τ : Fin (k2kRestCard k armLen + 1) → Fin T) :
+    (∏ E ∈ (k2kArms k armLen).edgeFinset, B (τ (Quot.out E).1) (τ (Quot.out E).2)) =
+      (∏ l : Fin k, B (τ (K2kVertex_equivFin k armLen .root))
+          (τ (K2kVertex_equivFin k armLen (.anchor l)))) *
+        ∏ l : Fin k, ∏ s : Fin (armLen l + 1),
+          B (τ (K2kVertex_equivFin k armLen (K2kVertex.armNode k armLen l s)))
+            (τ (K2kVertex_equivFin k armLen
+              (K2kVertex.armNode k armLen l ((s : ℕ) + 1)))) := by
+  classical
+  rw [k2kArms_edgeFinset_transport, Finset.prod_map]
+  have key : ∀ E' : Sym2 (K2kVertex k armLen),
+      B (τ (Quot.out ((K2kVertex_equivFin k armLen).toEmbedding.sym2Map E')).1)
+        (τ (Quot.out ((K2kVertex_equivFin k armLen).toEmbedding.sym2Map E')).2) =
+      B ((fun x => τ (K2kVertex_equivFin k armLen x)) (Quot.out E').1)
+        ((fun x => τ (K2kVertex_equivFin k armLen x)) (Quot.out E').2) := by
+    intro E'
+    induction E' using Sym2.ind with
+    | _ a b =>
+      rw [show (K2kVertex_equivFin k armLen).toEmbedding.sym2Map s(a, b)
+          = s(K2kVertex_equivFin k armLen a, K2kVertex_equivFin k armLen b) from rfl,
+        out_pair_eq' B hB τ _ _,
+        out_pair_eq' B hB (fun x => τ (K2kVertex_equivFin k armLen x)) a b]
+  rw [Finset.prod_congr rfl fun E' _ => key E']
+  exact k2kArmsStructured_prod_eq k armLen B hB (fun x => τ (K2kVertex_equivFin k armLen x))
+
 end Weighted
 
 end Graphon.Lovasz
