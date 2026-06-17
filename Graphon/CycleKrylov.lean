@@ -3617,6 +3617,29 @@ theorem classwise_sqMoment_descends {T : ℕ}
     _ = ∑ t : Fin T, W t * g t * B j t ^ 2 := hpow
     _ = ∑ t : Fin T, W t * B j t ^ 2 * g t := Finset.sum_congr rfl fun t _ => by ring
 
+/-- **Classwise row-value measures descend** (PROVED). Under rooted-profile
+equivalence `i ~ j`, the two rows `B i` and `B j` have the SAME `W`-weighted
+value distribution INSIDE every atom class `C = atom(r)` (the rpe-class of a
+representative `r`). Phrased with the atom-restricting weight `W · rpeIndicator B W r`
+(which is `W` on the class and `0` off it), so the indicator-weighted preimage mass
+`∑_{t : B i t = a} W t · 1_{atom(r)}(t)` is exactly the `W`-mass of
+`{t ∈ atom(r) : B i t = a}` — see `classwise_rowValueMeasure_eq_filter` for the
+class-filtered restatement.
+
+The classwise refinement of `rowValueMeasure_eq_of_rootedProfileEquiv`: apply
+`weighted_powersum_determines_measure` with weight `W · rpeIndicator B W r`, whose
+moments descend by `decoratedPowerSum_descends_of_rootedProfileEquiv` (span membership
+from `rpeIndicator_mem_span`). The bridge to the orbit/rank theorem. -/
+theorem classwise_rowValueMeasure_eq_of_rootedProfileEquiv {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j) (r : Fin T) (a : ℝ) :
+    (∑ t ∈ Finset.univ.filter (fun t => B i t = a), W t * rpeIndicator B W r t) =
+      ∑ t ∈ Finset.univ.filter (fun t => B j t = a), W t * rpeIndicator B W r t :=
+  weighted_powersum_determines_measure (B i) (B j) (fun t => W t * rpeIndicator B W r t)
+    (fun k => decoratedPowerSum_descends_of_rootedProfileEquiv B hB W hW h
+      (rpeIndicator_mem_span B hB W r) k) a
+
 end Weighted
 
 end Graphon.Lovasz
