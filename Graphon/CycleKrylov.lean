@@ -3103,6 +3103,30 @@ theorem rootedProfile_decorateAll {T n m : ℕ} (B : Fin T → Fin T → ℝ)
   rw [← decorateAll_Hflat_collapse B W H σF, Finset.mul_sum]
   exact Finset.sum_congr rfl fun σHflat _ => by ring
 
+/-- **B4 — single-profile weight modification stays in the span**: modifying the
+weight `W` by the rooted profile of a single graph `H` turns the profile of `F`
+into the profile of the all-vertex decoration `decorateAll F H`, which is a bare
+profile and hence in `InRootedProfileSpan B W`. This is the single-`H` case of
+`rootedProfileEquiv_weightMod`; the general `g ∈ span` case follows by linearity. -/
+theorem rootedProfile_weightMul_of_profile_mem_span {T n m : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (H : SimpleGraph (Fin (m + 1))) [DecidableRel H.Adj] :
+    InRootedProfileSpan B W
+      (fun v => rootedProfile B (fun t => W t * rootedProfile B W t H) v F) := by
+  have hfun : (fun v => rootedProfile B (fun t => W t * rootedProfile B W t H) v F)
+      = rootedProfileFun B W (decorateAll F H) := by
+    funext v
+    show rootedProfile B (fun t => W t * rootedProfile B W t H) v F
+        = rootedProfile B W v (decorateAll F H)
+    rw [rootedProfile_decorateAll B hB W v F H,
+      rootedProfile_cons B (fun t => W t * rootedProfile B W t H) v F]
+    refine Finset.sum_congr rfl fun σF _ => ?_
+    rw [Finset.prod_mul_distrib]
+    ring
+  rw [hfun]
+  exact InRootedProfileSpan.of_profile B W (decorateAll F H)
+
 /-! ### Decorated power sums — the bridge to classwise row-value measures
 
 `rowValueMeasure_eq_of_rootedProfileEquiv` gives equality of the GLOBAL
