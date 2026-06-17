@@ -76,11 +76,11 @@ Replace orbit-separators (which need the cycle) by **definitional** separators:
 - "the proved multigraph theorem shortcuts it": converting multi-separators to simple
   ones is exactly the cycle.
 
-## Sorry inventory of this file (2)
+## Sorry inventory of this file (1)
 
 - `vertexOrbitRel_of_rootedProfileEquiv` — THE #70 paper-root (atoms = orbits).
-- `classwise_sqMoment_descends` — minimal obstruction / test case (classwise form;
-  the plain `sqMoment_descends_of_rootedProfileEquiv` is derived from it at `g = 1`).
+  (`classwise_sqMoment_descends` is now PROVED, no twin-free, in `Graphon/CycleKrylov.lean`
+  via `decoratedPowerSum_descends_of_rootedProfileEquiv`.)
 -/
 
 namespace Graphon.Lovasz
@@ -919,8 +919,10 @@ theorem closedWalkProfile_sub_eq_wInner {T : ℕ} (B : Fin T → Fin T → ℝ)
   rw [closedWalkProfile_eq_wInner B hB W i q, closedWalkProfile_eq_wInner B hB W j q]
   exact (wInner_sub_iter_add B hB W q (fun t => B i t) (fun t => B j t)).symm
 
-/-- **Classwise square-moment descent** (SORRY — reduced to the singular-`M`
-stratum, 2026-06-09).
+/-! **Classwise square-moment descent** — now PROVED (no twin-free needed) as
+`classwise_sqMoment_descends` in `Graphon/CycleKrylov.lean`, via
+`decoratedPowerSum_descends_of_rootedProfileEquiv` at `k = 2` with span
+membership from `InRootedProfileSpan.of_const_on_rpe`. Historical notes follow.
 
 If `i, j` are rooted-profile equivalent and `g` is atom-invariant, the
 `g`-decorated square moments agree. With `g = 1_C` this is the within-atom
@@ -947,15 +949,6 @@ both T=4 and T=5 once long-cycle cuts entered.
 
 No harder than #70: it follows from the rank theorem
 (`classwise_sqMoment_of_rank_theorem` below). -/
-theorem classwise_sqMoment_descends {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    {i j : Fin T} (h : rootedProfileEquiv B W i j)
-    {g : Fin T → ℝ} (hg : ∀ a b, rootedProfileEquiv B W a b → g a = g b) :
-    ∑ t : Fin T, W t * B i t ^ 2 * g t = ∑ t : Fin T, W t * B j t ^ 2 * g t := by
-  sorry
-
 /-! **Minimal test case for the rank theorem** — square-moment descent:
 **FULLY PROVED** (sorry-free, no twin-freeness) as
 `sqMoment_descends_of_rootedProfileEquiv` in `Graphon/CycleKrylov.lean`, by

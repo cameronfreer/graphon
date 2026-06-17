@@ -3596,6 +3596,27 @@ theorem decoratedPowerSum_descends_of_rootedProfileEquiv {T : ℕ}
     exact Finset.sum_congr rfl fun t _ => by ring
   rw [ei i, ei j, hgc_des, hplain]
 
+/-- **Classwise square-moment descent** (PROVED — no twin-free needed). For any
+atom-invariant `g`, the `g`-decorated square moments of rpe-equivalent rows agree.
+The `k = 2` specialization of `decoratedPowerSum_descends_of_rootedProfileEquiv`,
+with span membership supplied by the K=1 fullness theorem
+`InRootedProfileSpan.of_const_on_rpe` (atom-invariant ⟹ in the span). The `htwin`
+hypothesis is retained for API compatibility but is unused — the weight-modification
+route closes this WITHOUT twin-freeness, unlike the older singular-`M` stratum route. -/
+theorem classwise_sqMoment_descends {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j)
+    {g : Fin T → ℝ} (hg : ∀ a b, rootedProfileEquiv B W a b → g a = g b) :
+    ∑ t : Fin T, W t * B i t ^ 2 * g t = ∑ t : Fin T, W t * B j t ^ 2 * g t := by
+  have hspan : InRootedProfileSpan B W g := InRootedProfileSpan.of_const_on_rpe B hB W g hg
+  have hpow := decoratedPowerSum_descends_of_rootedProfileEquiv B hB W hW h hspan 2
+  calc ∑ t : Fin T, W t * B i t ^ 2 * g t
+      = ∑ t : Fin T, W t * g t * B i t ^ 2 := Finset.sum_congr rfl fun t _ => by ring
+    _ = ∑ t : Fin T, W t * g t * B j t ^ 2 := hpow
+    _ = ∑ t : Fin T, W t * B j t ^ 2 * g t := Finset.sum_congr rfl fun t _ => by ring
+
 end Weighted
 
 end Graphon.Lovasz
