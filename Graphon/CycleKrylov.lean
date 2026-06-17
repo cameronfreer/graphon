@@ -3640,6 +3640,74 @@ theorem classwise_rowValueMeasure_eq_of_rootedProfileEquiv {T : ℕ}
     (fun k => decoratedPowerSum_descends_of_rootedProfileEquiv B hB W hW h
       (rpeIndicator_mem_span B hB W r) k) a
 
+/-! ### Chunk A — the atom-class coherent structure
+
+The invariants needed to build a weighted coherent configuration on the atom
+partition of `rootedProfileEquiv`. `atomTransMeasure q i a` = the `W`-mass of the
+value-`a` fibre of row `B i` restricted to atom class `atom(q)` — the "transition
+measure" from the atom of `i` to the atom of `q`. The key fact
+(`atomTransMeasure_eq_of_rpe`) is that it depends only on the atom of `i`, not the
+representative — exactly the coherent-configuration coherence condition. This is
+the constructive input for the orbit/rank theorem
+`vertexOrbitRel_of_rootedProfileEquiv`; it does NOT yet build automorphisms (equal
+`W`-masses give a coupling, not a bijection, with arbitrary positive real weights). -/
+
+/-- **Indicator-`if` form of classwise row-value-measure equality** (wrapper around
+`classwise_rowValueMeasure_eq_of_rootedProfileEquiv`): for rpe-equivalent `i, j` and
+any atom representative `r` and value `a`, the atom-restricted value masses agree. -/
+theorem atom_row_value_measure_eq {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t) {i j : Fin T} (h : rootedProfileEquiv B W i j)
+    (r : Fin T) (a : ℝ) :
+    (∑ t, W t * rpeIndicator B W r t * (if B i t = a then (1 : ℝ) else 0))
+      = ∑ t, W t * rpeIndicator B W r t * (if B j t = a then (1 : ℝ) else 0) := by
+  classical
+  have cvt : ∀ b : Fin T,
+      (∑ t, W t * rpeIndicator B W r t * (if B b t = a then (1 : ℝ) else 0))
+        = ∑ t ∈ Finset.univ.filter (fun t => B b t = a), W t * rpeIndicator B W r t := by
+    intro b
+    rw [Finset.sum_filter]
+    exact Finset.sum_congr rfl fun t _ => by rw [mul_ite, mul_one, mul_zero]
+  rw [cvt i, cvt j]
+  exact classwise_rowValueMeasure_eq_of_rootedProfileEquiv B hB W hW h r a
+
+/-- The total `W`-mass of the atom class of `r` (`= ∑_{t ∈ atom(r)} W t`). -/
+noncomputable def atomWeight {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (r : Fin T) : ℝ :=
+  ∑ t, W t * rpeIndicator B W r t
+
+/-- Every atom class has positive `W`-weight (it contains its representative `r`,
+and `W r > 0`). -/
+theorem atomWeight_pos {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    (r : Fin T) : 0 < atomWeight B W r := by
+  classical
+  unfold atomWeight
+  refine Finset.sum_pos' (fun t _ => ?_) ⟨r, Finset.mem_univ r, ?_⟩
+  · exact mul_nonneg (hW t).le (by unfold rpeIndicator; split_ifs <;> norm_num)
+  · rw [show rpeIndicator B W r r = 1 from by
+      unfold rpeIndicator; rw [if_pos (rootedProfileEquiv.refl B W r)]]
+    simpa using hW r
+
+/-- **Atom transition measure**: the `W`-mass of the value-`a` fibre of row `B i`
+inside atom class `atom(q)`. (The source atom is the atom of `i`.) -/
+noncomputable def atomTransMeasure {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (q i : Fin T) (a : ℝ) : ℝ :=
+  ∑ t, W t * rpeIndicator B W q t * (if B i t = a then (1 : ℝ) else 0)
+
+/-- **Coherence**: the atom transition measure depends only on the ATOM of `i`, not
+the chosen representative — the coherent-configuration condition. -/
+theorem atomTransMeasure_eq_of_rpe {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t) {i j : Fin T} (h : rootedProfileEquiv B W i j)
+    (q : Fin T) (a : ℝ) :
+    atomTransMeasure B W q i a = atomTransMeasure B W q j a :=
+  atom_row_value_measure_eq B hB W hW h q a
+
+/-- **Row signature equality inside atoms** (the coherent-configuration object):
+rpe-equivalent rows `B i`, `B j` have the SAME atom-restricted value distribution
+(`a ↦ atomTransMeasure q i a`) for every target atom `q`. -/
+theorem atom_row_signature_eq {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t) {i j : Fin T} (h : rootedProfileEquiv B W i j) :
+    ∀ q : Fin T, (fun a => atomTransMeasure B W q i a) = fun a => atomTransMeasure B W q j a :=
+  fun q => funext fun a => atomTransMeasure_eq_of_rpe B hB W hW h q a
+
 end Weighted
 
 end Graphon.Lovasz
