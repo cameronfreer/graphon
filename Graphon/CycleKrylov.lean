@@ -2774,6 +2774,69 @@ theorem rootedProfile_decorate_vertex {T n m : ℕ} (B : Fin T → Fin T → ℝ
   simp only [consAppend_inl, consAppend_hDecorEmb]
   ring
 
+/-! ### All-vertex decoration (Route B) — glue a copy of `H` at EVERY unlabeled
+vertex of `F`. One fixed structured vertex type `Fin(n+1) ⊕ (Fin n × Fin m)`:
+`inl 0` = `F`-root, `inl (succ w)` = unlabeled vertex `w`, `inr (w, z)` = the
+`z`-th internal vertex of the `H`-copy glued at `w`. Decorating all vertices
+realizes the modified weight `W · (profile of H)`, the engine of
+`rootedProfileEquiv_weightMod`. -/
+
+/-- Embedding of the `w`-th `H`-copy: root `0 ↦ inl (succ w)`, `succ z ↦ inr (w, z)`. -/
+def embedHCopy {n m : ℕ} (w : Fin n) :
+    Fin (m + 1) ↪ Fin (n + 1) ⊕ (Fin n × Fin m) where
+  toFun := Fin.cons (Sum.inl w.succ) (fun z => Sum.inr (w, z))
+  inj' a b hab := by
+    rcases Fin.eq_zero_or_eq_succ a with rfl | ⟨k, rfl⟩ <;>
+      rcases Fin.eq_zero_or_eq_succ b with rfl | ⟨l, rfl⟩ <;>
+      simp_all [Fin.cons_zero, Fin.cons_succ]
+
+/-- The structured all-vertex decoration: `F` on the `inl` block, joined with one
+`H`-copy per unlabeled vertex (via `Finset.sup`, not `iSup`, to keep decidability
+and edge-finset instances controllable). -/
+def decorateAllSum {n m : ℕ} (F : SimpleGraph (Fin (n + 1)))
+    (H : SimpleGraph (Fin (m + 1))) : SimpleGraph (Fin (n + 1) ⊕ (Fin n × Fin m)) :=
+  SimpleGraph.map Function.Embedding.inl F ⊔
+    Finset.univ.sup (fun w : Fin n => SimpleGraph.map (embedHCopy w) H)
+
+/-- `Fin (n+1) ⊕ (Fin n × Fin m) ≃ Fin (n + n*m + 1)` with `inl 0 ↦ 0`. -/
+noncomputable def decorAllVertexEquiv (n m : ℕ) :
+    (Fin (n + 1) ⊕ (Fin n × Fin m)) ≃ Fin (n + n * m + 1) :=
+  (Equiv.sumCongr (Equiv.refl (Fin (n + 1))) finProdFinEquiv).trans
+    (finSumFinEquiv.trans (finCongr (by omega)))
+
+@[simp] theorem decorAllVertexEquiv_inl_zero (n m : ℕ) :
+    decorAllVertexEquiv n m (Sum.inl 0) = 0 :=
+  Fin.ext (by simp [decorAllVertexEquiv, finSumFinEquiv])
+
+theorem decorAllVertexEquiv_inl_val (n m : ℕ) (x : Fin (n + 1)) :
+    ((decorAllVertexEquiv n m (Sum.inl x)) : ℕ) = (x : ℕ) := by
+  simp [decorAllVertexEquiv, finSumFinEquiv]
+
+/-- **All-vertex decoration** as a `SimpleGraph (Fin (n+n*m+1))`. -/
+noncomputable def decorateAll {n m : ℕ} (F : SimpleGraph (Fin (n + 1)))
+    (H : SimpleGraph (Fin (m + 1))) : SimpleGraph (Fin (n + n * m + 1)) :=
+  (decorateAllSum F H).comap (decorAllVertexEquiv n m).symm
+
+/-- `Finset.sup`-adjacency over `Fin n` is the existential of the per-`w` adjacencies. -/
+theorem decorateAllSum_sup_adj {n m : ℕ} (H : SimpleGraph (Fin (m + 1)))
+    (x y : Fin (n + 1) ⊕ (Fin n × Fin m)) :
+    (Finset.univ.sup (fun w : Fin n => SimpleGraph.map (embedHCopy w) H)).Adj x y ↔
+      ∃ w : Fin n, (SimpleGraph.map (embedHCopy w) H).Adj x y := by
+  simp [Finset.sup_eq_iSup, SimpleGraph.iSup_adj]
+
+instance {n m : ℕ} (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (H : SimpleGraph (Fin (m + 1))) [DecidableRel H.Adj] :
+    DecidableRel (decorateAllSum F H).Adj := by
+  intro x y
+  unfold decorateAllSum
+  rw [SimpleGraph.sup_adj, decorateAllSum_sup_adj]
+  infer_instance
+
+noncomputable instance {n m : ℕ} (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (H : SimpleGraph (Fin (m + 1))) [DecidableRel H.Adj] :
+    DecidableRel (decorateAll F H).Adj :=
+  SimpleGraph.instDecidableComapAdj _ _
+
 /-! ### Decorated power sums — the bridge to classwise row-value measures
 
 `rowValueMeasure_eq_of_rootedProfileEquiv` gives equality of the GLOBAL
