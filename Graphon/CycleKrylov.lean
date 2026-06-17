@@ -3134,27 +3134,40 @@ theorem rootedProfile_weightMul_of_profile_mem_span {T n m : ℕ} (B : Fin T →
 `vertexOrbitRel_of_rootedProfileEquiv` is equality INSIDE each rooted-profile
 atom class — obtained by decorating the power sums with atom indicators. -/
 
-/-- **Weight modification preserves rooted-profile equivalence** (FOCUSED SORRY
-— the multi-vertex decoration crux). For any `g` in the `(B, W)`-rooted-profile
-span, rooted-profile-equivalent vertices stay equivalent under the modified
-weight `W · g`.
+/-- **C3 — modified-weight profile stays in the span** (FOCUSED SORRY, the
+last combinatorial ingredient). For any `g` in the `(B, W)`-rooted-profile span
+and any graph `F`, the modified-weight profile `v ↦ rootedProfile B (W·g) v F`
+lies in `InRootedProfileSpan B W`.
 
-**Construction** (the missing plumbing): `rootedProfile B (W·g) v F` expands as
-`∑_σ (∏_w W(σ w)·g(σ w)) · ∏_e B(τ ..)`; writing `g = ∑_k c_k · rootedProfileFun
-B W F_k` (from `hg`) and distributing the per-vertex factors hangs a copy of
-`F_{k_w}` (its root identified with the unlabeled vertex `w`) at every unlabeled
-vertex, turning the sum into `∑_{k⃗} (∏ c) · rootedProfile B W v (gluedGraph)`.
-Hence `v ↦ rootedProfile B (W·g) v F ∈ InRootedProfileSpan B W`, which is
-constant on rpe-classes (`InRootedProfileSpan.const_on_rpe`), giving the
-equality. The only new ingredient is a **glue-at-arbitrary-vertex** construction
-(`rootAttach` only does pendant-at-root) plus induction hanging one unlabeled
-vertex at a time. No new analysis. -/
+**Construction**: expanding `g = ∑_k c_k · rootedProfileFun B W H_k` from `hg`,
+the per-vertex product `∏_w g(σ w) = ∑_φ ∏_w c_{φ w} · rootedProfile B W (σ w) H_{φ w}`
+(`Finset.prod_univ_sum`); distributing turns `rootedProfile B (W·g) v F` into
+`∑_φ (∏_w c_{φ w}) · rootedProfile B W v (decorateAllFam F (fun w => H_{φ w}))`,
+a finite linear combination of bare profiles of per-vertex glued graphs — hence in
+the span by `InRootedProfileSpan.{add, smul}`. The single-`H` case
+(`decorateAllFam` constant) is `rootedProfile_weightMul_of_profile_mem_span` (B4).
+The general case needs the per-vertex-family glue `decorateAllFam` (a Σ-indexed
+generalization of `decorateAll`, sizes handled by `finSigmaFinEquiv`, not casts). -/
+theorem weightMod_profile_mem_span {T n : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    {g : Fin T → ℝ} (hg : InRootedProfileSpan B W g) :
+    InRootedProfileSpan B W (fun v => rootedProfile B (fun t => W t * g t) v F) := by
+  sorry
+
+/-- **Weight modification preserves rooted-profile equivalence** (C4 — PROVED
+modulo the focused span-membership lemma `weightMod_profile_mem_span`). For any
+`g` in the `(B, W)`-rooted-profile span, rooted-profile-equivalent vertices stay
+equivalent under the modified weight `W · g`. The analytic content is discharged:
+the modified-weight profile lies in the span (`weightMod_profile_mem_span`), and
+span elements are constant on rpe-classes (`InRootedProfileSpan.const_on_rpe`). -/
 theorem rootedProfileEquiv_weightMod {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) {i j : Fin T}
     (h : rootedProfileEquiv B W i j) {g : Fin T → ℝ}
     (hg : InRootedProfileSpan B W g) :
     rootedProfileEquiv B (fun t => W t * g t) i j := by
-  sorry
+  intro n F _
+  exact (weightMod_profile_mem_span B hB W F hg).const_on_rpe h
 
 /-- **Decorated power sums descend** (PROVED modulo `rootedProfileEquiv_weightMod`).
 For `g` in the rooted-profile span (e.g. an atom indicator `rpeIndicator C`),
