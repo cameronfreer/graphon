@@ -3332,6 +3332,136 @@ theorem decorateAllFam_prod_eq {T n : ℕ} {mfam : Fin n → ℕ} (B : Fin T →
         out_pair_eq' B hB (fun s => τ (decorAllFamVertexEquiv mfam s)) _ _,
         out_pair_eq' B hB (fun s => τ (decorAllFamVertexEquiv mfam (embedHCopyFam w s))) a b]
 
+theorem decorAllFamVertexEquiv_inl_val {n : ℕ} (mfam : Fin n → ℕ) (x : Fin (n + 1)) :
+    ((decorAllFamVertexEquiv mfam (Sum.inl x)) : ℕ) = (x : ℕ) := by
+  simp [decorAllFamVertexEquiv, finSumFinEquiv]
+
+theorem decorAllFamVertexEquiv_inr_val {n : ℕ} (mfam : Fin n → ℕ) (w : Fin n) (z : Fin (mfam w)) :
+    ((decorAllFamVertexEquiv mfam (Sum.inr ⟨w, z⟩)) : ℕ)
+      = (n + 1) + (finSigmaFinEquiv (⟨w, z⟩ : (w' : Fin n) × Fin (mfam w')) : ℕ) := by
+  simp [decorAllFamVertexEquiv, finSumFinEquiv]
+
+/-- **C3 F-side value lemma**: under `appendFn σF σHflat`, the value at an
+`F`-vertex `inl x` is `Fin.cons v σF x`. -/
+theorem consAppendAllFam_inl {T n : ℕ} {mfam : Fin n → ℕ} (v : Fin T) (σF : Fin n → Fin T)
+    (σHflat : Fin (∑ w, mfam w) → Fin T) (x : Fin (n + 1)) :
+    Fin.cons (α := fun _ => Fin T) v (appendFn σF σHflat)
+        (decorAllFamVertexEquiv mfam (Sum.inl x)) = Fin.cons (α := fun _ => Fin T) v σF x := by
+  rcases Fin.eq_zero_or_eq_succ x with rfl | ⟨w, rfl⟩
+  · rw [show decorAllFamVertexEquiv mfam (Sum.inl (0 : Fin (n + 1))) = 0 from
+      Fin.ext (by rw [decorAllFamVertexEquiv_inl_val]; rfl)]; simp
+  · rw [show decorAllFamVertexEquiv mfam (Sum.inl (Fin.succ w)) = Fin.succ ⟨w, by omega⟩ from
+      Fin.ext (by rw [decorAllFamVertexEquiv_inl_val]; rfl),
+      Fin.cons_succ, Fin.cons_succ, appendFn_low σF σHflat (by simp)]
+
+/-- **C3 H-side value lemma**: under `appendFn σF σHflat`, the `w`-th `H`-copy's
+assignment is `Fin.cons (Fin.cons v σF w.succ) (fun z => σHflat (finSigmaFinEquiv ⟨w, z⟩))`. -/
+theorem consAppendAllFam_embedHCopyFam {T n : ℕ} {mfam : Fin n → ℕ} (v : Fin T) (σF : Fin n → Fin T)
+    (σHflat : Fin (∑ w, mfam w) → Fin T) (w : Fin n) (a : Fin (mfam w + 1)) :
+    Fin.cons (α := fun _ => Fin T) v (appendFn σF σHflat)
+        (decorAllFamVertexEquiv mfam (embedHCopyFam w a)) =
+      Fin.cons (α := fun _ => Fin T) (Fin.cons (α := fun _ => Fin T) v σF w.succ)
+        (fun z => σHflat (finSigmaFinEquiv ⟨w, z⟩)) a := by
+  rcases Fin.eq_zero_or_eq_succ a with rfl | ⟨z, rfl⟩
+  · show Fin.cons (α := fun _ => Fin T) v (appendFn σF σHflat)
+        (decorAllFamVertexEquiv mfam (Sum.inl w.succ)) = _
+    rw [consAppendAllFam_inl]; simp
+  · rw [show (embedHCopyFam w) (Fin.succ z) = Sum.inr ⟨w, z⟩ from by simp [embedHCopyFam],
+      show decorAllFamVertexEquiv mfam (Sum.inr ⟨w, z⟩)
+          = Fin.succ ⟨n + (finSigmaFinEquiv (⟨w, z⟩ : (w' : Fin n) × Fin (mfam w')) : ℕ), by
+            have := (finSigmaFinEquiv (⟨w, z⟩ : (w' : Fin n) × Fin (mfam w'))).isLt; omega⟩ from
+        Fin.ext (by rw [decorAllFamVertexEquiv_inr_val]; simp; omega),
+      Fin.cons_succ, Fin.cons_succ,
+      appendFn_high σF σHflat (by simp)]
+    exact congrArg σHflat (Fin.ext (by simp))
+
+/-- **Family flat ↔ curried assignment equivalence**: a flat assignment over the
+`∑ mfam` internal vertices is the same as `n` dependent per-copy assignments, matched
+via `finSigmaFinEquiv`. -/
+noncomputable def flatAssignEquivFam {n : ℕ} (mfam : Fin n → ℕ) (T : ℕ) :
+    ((w : Fin n) → Fin (mfam w) → Fin T) ≃ (Fin (∑ w, mfam w) → Fin T) where
+  toFun σH := fun k => σH (finSigmaFinEquiv.symm k).1 (finSigmaFinEquiv.symm k).2
+  invFun σ := fun w z => σ (finSigmaFinEquiv ⟨w, z⟩)
+  left_inv σH := by
+    funext w z
+    exact congrArg (fun p : (w' : Fin n) × Fin (mfam w') => σH p.1 p.2)
+      (finSigmaFinEquiv.symm_apply_apply ⟨w, z⟩)
+  right_inv σ := by
+    funext k
+    show σ (finSigmaFinEquiv (finSigmaFinEquiv.symm k)) = σ k
+    rw [Equiv.apply_symm_apply]
+
+theorem flatAssignEquivFam_apply_fse {T n : ℕ} {mfam : Fin n → ℕ}
+    (σH : (w : Fin n) → Fin (mfam w) → Fin T) (w : Fin n) (z : Fin (mfam w)) :
+    (flatAssignEquivFam mfam T σH) (finSigmaFinEquiv ⟨w, z⟩) = σH w z :=
+  congr_fun (congr_fun ((flatAssignEquivFam mfam T).left_inv σH) w) z
+
+theorem flatAssignEquivFam_weight_prod {T n : ℕ} {mfam : Fin n → ℕ} (W : Fin T → ℝ)
+    (σH : (w : Fin n) → Fin (mfam w) → Fin T) :
+    (∏ k : Fin (∑ w, mfam w), W ((flatAssignEquivFam mfam T σH) k)) =
+      ∏ w : Fin n, ∏ z : Fin (mfam w), W (σH w z) := by
+  rw [← Equiv.prod_comp finSigmaFinEquiv (fun k => W ((flatAssignEquivFam mfam T σH) k)),
+    ← Finset.univ_sigma_univ, Finset.prod_sigma]
+  exact Finset.prod_congr rfl fun w _ => Finset.prod_congr rfl fun z _ => by
+    rw [flatAssignEquivFam_apply_fse]
+
+/-- **n-fold family `H`-copy collapse** (C3 engine): summing the flat internal
+assignment factors the `n` per-vertex glued copies into a product of the `n`
+rooted profiles `rootedProfile B W (r w) (Hfam w)`. -/
+theorem decorateAllFam_Hflat_collapse {T n : ℕ} {mfam : Fin n → ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) (Hfam : (w : Fin n) → SimpleGraph (Fin (mfam w + 1)))
+    [∀ w, DecidableRel (Hfam w).Adj] (r : Fin n → Fin T) :
+    (∑ σ : Fin (∑ w, mfam w) → Fin T, (∏ k : Fin (∑ w, mfam w), W (σ k)) *
+        ∏ w : Fin n, ∏ e ∈ (Hfam w).edgeFinset,
+          B (Fin.cons (α := fun _ => Fin T) (r w)
+                (fun z => σ (finSigmaFinEquiv ⟨w, z⟩)) (Quot.out e).1)
+            (Fin.cons (α := fun _ => Fin T) (r w)
+                (fun z => σ (finSigmaFinEquiv ⟨w, z⟩)) (Quot.out e).2))
+      = ∏ w : Fin n, rootedProfile B W (r w) (Hfam w) := by
+  classical
+  have hrw : (∏ w : Fin n, rootedProfile B W (r w) (Hfam w)) =
+      ∏ w : Fin n, ∑ τ : Fin (mfam w) → Fin T, (∏ z : Fin (mfam w), W (τ z)) *
+        ∏ e ∈ (Hfam w).edgeFinset,
+          B (Fin.cons (α := fun _ => Fin T) (r w) τ (Quot.out e).1)
+            (Fin.cons (α := fun _ => Fin T) (r w) τ (Quot.out e).2) :=
+    Finset.prod_congr rfl fun w _ => rootedProfile_cons B W (r w) (Hfam w)
+  rw [hrw, Finset.prod_univ_sum (fun w : Fin n => (Finset.univ : Finset (Fin (mfam w) → Fin T)))
+      (fun w τ => (∏ z : Fin (mfam w), W (τ z)) *
+        ∏ e ∈ (Hfam w).edgeFinset,
+          B (Fin.cons (α := fun _ => Fin T) (r w) τ (Quot.out e).1)
+            (Fin.cons (α := fun _ => Fin T) (r w) τ (Quot.out e).2)),
+    Fintype.piFinset_univ, ← Equiv.sum_comp (flatAssignEquivFam mfam T)]
+  refine Finset.sum_congr rfl fun σH _ => ?_
+  rw [flatAssignEquivFam_weight_prod, Finset.prod_mul_distrib]
+  refine congrArg (_ * ·) (Finset.prod_congr rfl fun w _ => ?_)
+  rw [show (fun z => (flatAssignEquivFam mfam T σH) (finSigmaFinEquiv ⟨w, z⟩)) = σH w from
+    funext fun z => flatAssignEquivFam_apply_fse σH w z]
+
+/-- **C3 — per-vertex-family decoration factorization**: decorating each unlabeled
+vertex `w` of `F` with `Hfam w` multiplies each `F`-assignment's contribution by
+`∏ w, rootedProfile B W (σF w) (Hfam w)`. The varying-graph generalization of
+`rootedProfile_decorateAll`. -/
+theorem rootedProfile_decorateAllFam {T n : ℕ} {mfam : Fin n → ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (v : Fin T)
+    (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (Hfam : (w : Fin n) → SimpleGraph (Fin (mfam w + 1))) [∀ w, DecidableRel (Hfam w).Adj] :
+    rootedProfile B W v (decorateAllFam F Hfam) =
+      ∑ σF : Fin n → Fin T,
+        ((∏ w : Fin n, W (σF w)) *
+          ∏ e ∈ F.edgeFinset,
+            B (Fin.cons (α := fun _ => Fin T) v σF (Quot.out e).1)
+              (Fin.cons (α := fun _ => Fin T) v σF (Quot.out e).2)) *
+        ∏ w : Fin n, rootedProfile B W (σF w) (Hfam w) := by
+  classical
+  rw [rootedProfile_cons]
+  rw [Finset.sum_congr rfl fun σ (_ : σ ∈ Finset.univ) => by
+    rw [decorateAllFam_prod_eq B hB F Hfam (Fin.cons (α := fun _ => Fin T) v σ)]]
+  rw [sum_fin_split n (∑ w, mfam w)]
+  refine Finset.sum_congr rfl fun σF _ => ?_
+  simp only [prod_appendFn, consAppendAllFam_inl, consAppendAllFam_embedHCopyFam, Fin.cons_succ]
+  rw [← decorateAllFam_Hflat_collapse B W Hfam σF, Finset.mul_sum]
+  exact Finset.sum_congr rfl fun σHflat _ => by ring
+
 /-! ### Decorated power sums — the bridge to classwise row-value measures
 
 `rowValueMeasure_eq_of_rootedProfileEquiv` gives equality of the GLOBAL
