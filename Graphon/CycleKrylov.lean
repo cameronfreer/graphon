@@ -3469,26 +3469,82 @@ theorem rootedProfile_decorateAllFam {T n : ℕ} {mfam : Fin n → ℕ} (B : Fin
 `vertexOrbitRel_of_rootedProfileEquiv` is equality INSIDE each rooted-profile
 atom class — obtained by decorating the power sums with atom indicators. -/
 
-/-- **C3 — modified-weight profile stays in the span** (FOCUSED SORRY, the
-last combinatorial ingredient). For any `g` in the `(B, W)`-rooted-profile span
-and any graph `F`, the modified-weight profile `v ↦ rootedProfile B (W·g) v F`
-lies in `InRootedProfileSpan B W`.
+/-- Finite-sum closure of the rooted-profile span (CycleKrylov-local copy of the
+private `Lovasz` helper, built from `.zero`/`.add`). -/
+theorem InRootedProfileSpan.finset_sum' {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {α : Type*} (S : Finset α) (g : α → Fin T → ℝ)
+    (hg : ∀ a ∈ S, InRootedProfileSpan B W (g a)) :
+    InRootedProfileSpan B W (fun v => ∑ a ∈ S, g a v) := by
+  classical
+  induction S using Finset.induction_on with
+  | empty => simpa only [Finset.sum_empty] using InRootedProfileSpan.zero B W
+  | insert a S ha_notin ih =>
+    have h_add := (hg a (Finset.mem_insert_self a S)).add
+      (ih (fun b hb => hg b (Finset.mem_insert_of_mem hb)))
+    convert h_add using 1
+    funext v
+    rw [Finset.sum_insert ha_notin]; rfl
+
+/-- **C3 — modified-weight profile stays in the span** (PROVED). For any `g` in the
+`(B, W)`-rooted-profile span and any graph `F`, the modified-weight profile
+`v ↦ rootedProfile B (W·g) v F` lies in `InRootedProfileSpan B W`.
 
 **Construction**: expanding `g = ∑_k c_k · rootedProfileFun B W H_k` from `hg`,
 the per-vertex product `∏_w g(σ w) = ∑_φ ∏_w c_{φ w} · rootedProfile B W (σ w) H_{φ w}`
 (`Finset.prod_univ_sum`); distributing turns `rootedProfile B (W·g) v F` into
 `∑_φ (∏_w c_{φ w}) · rootedProfile B W v (decorateAllFam F (fun w => H_{φ w}))`,
 a finite linear combination of bare profiles of per-vertex glued graphs — hence in
-the span by `InRootedProfileSpan.{add, smul}`. The single-`H` case
+the span by `InRootedProfileSpan.{finset_sum, smul}`. The single-`H` case
 (`decorateAllFam` constant) is `rootedProfile_weightMul_of_profile_mem_span` (B4).
-The general case needs the per-vertex-family glue `decorateAllFam` (a Σ-indexed
+The general case uses the per-vertex-family glue `decorateAllFam` (a Σ-indexed
 generalization of `decorateAll`, sizes handled by `finSigmaFinEquiv`, not casts). -/
 theorem weightMod_profile_mem_span {T n : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
     {g : Fin T → ℝ} (hg : InRootedProfileSpan B W g) :
     InRootedProfileSpan B W (fun v => rootedProfile B (fun t => W t * g t) v F) := by
-  sorry
+  classical
+  obtain ⟨N, gdata, c, hgeq⟩ := hg
+  letI hInst : ∀ k : Fin N, DecidableRel ((gdata k).2.1).Adj := fun k => (gdata k).2.2
+  have hfun : (fun v => rootedProfile B (fun t => W t * g t) v F)
+      = fun v => ∑ φ : Fin n → Fin N, (∏ w : Fin n, c (φ w)) *
+          rootedProfileFun B W (decorateAllFam F (fun w => (gdata (φ w)).2.1)) v := by
+    funext v
+    have hL : rootedProfile B (fun t => W t * g t) v F =
+        ∑ σF : Fin n → Fin T, ((∏ w : Fin n, W (σF w)) *
+          ∏ e ∈ F.edgeFinset, B (Fin.cons (α := fun _ => Fin T) v σF (Quot.out e).1)
+            (Fin.cons (α := fun _ => Fin T) v σF (Quot.out e).2)) *
+          ∏ w : Fin n, g (σF w) := by
+      rw [rootedProfile_cons B (fun t => W t * g t) v F]
+      exact Finset.sum_congr rfl fun σF _ => by rw [Finset.prod_mul_distrib]; ring
+    have hR : (∑ φ : Fin n → Fin N, (∏ w : Fin n, c (φ w)) *
+          rootedProfileFun B W (decorateAllFam F (fun w => (gdata (φ w)).2.1)) v)
+        = ∑ σF : Fin n → Fin T, ((∏ w : Fin n, W (σF w)) *
+            ∏ e ∈ F.edgeFinset, B (Fin.cons (α := fun _ => Fin T) v σF (Quot.out e).1)
+              (Fin.cons (α := fun _ => Fin T) v σF (Quot.out e).2)) *
+            ∏ w : Fin n, g (σF w) := by
+      rw [Finset.sum_congr rfl fun φ (_ : φ ∈ Finset.univ) => by
+        rw [show rootedProfileFun B W (decorateAllFam F (fun w => (gdata (φ w)).2.1)) v
+              = rootedProfile B W v (decorateAllFam F (fun w => (gdata (φ w)).2.1)) from rfl,
+          rootedProfile_decorateAllFam B hB W v F (fun w => (gdata (φ w)).2.1), Finset.mul_sum]]
+      rw [Finset.sum_comm]
+      refine Finset.sum_congr rfl fun σF _ => ?_
+      have hinner : (∏ w : Fin n, g (σF w))
+          = ∑ φ : Fin n → Fin N, (∏ w : Fin n, c (φ w)) *
+              ∏ w : Fin n, rootedProfile B W (σF w) (gdata (φ w)).2.1 := by
+        have hpt : ∀ w : Fin n, g (σF w)
+            = ∑ k : Fin N, c k * rootedProfile B W (σF w) (gdata k).2.1 :=
+          fun w => congr_fun hgeq (σF w)
+        rw [Finset.prod_congr rfl fun w (_ : w ∈ Finset.univ) => hpt w, Finset.prod_univ_sum,
+          Fintype.piFinset_univ]
+        exact Finset.sum_congr rfl fun φ _ => Finset.prod_mul_distrib
+      rw [hinner, Finset.mul_sum]
+      exact Finset.sum_congr rfl fun φ _ => by ring
+    rw [hL]; exact hR.symm
+  rw [hfun]
+  exact InRootedProfileSpan.finset_sum' Finset.univ _ fun φ _ =>
+    (InRootedProfileSpan.of_profile B W
+      (decorateAllFam F (fun w => (gdata (φ w)).2.1))).smul (∏ w : Fin n, c (φ w))
 
 /-- **Weight modification preserves rooted-profile equivalence** (C4 — PROVED
 modulo the focused span-membership lemma `weightMod_profile_mem_span`). For any
