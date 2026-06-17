@@ -2978,6 +2978,46 @@ theorem decorateAll_prod_eq {T n m : ℕ} (B : Fin T → Fin T → ℝ)
         out_pair_eq' B hB (fun s => τ (decorAllVertexEquiv n m s)) _ _,
         out_pair_eq' B hB (fun s => τ (decorAllVertexEquiv n m (embedHCopy w s))) a b]
 
+theorem decorAllVertexEquiv_inr_val (n m : ℕ) (w : Fin n) (z : Fin m) :
+    ((decorAllVertexEquiv n m (Sum.inr (w, z))) : ℕ)
+      = (n + 1) + (finProdFinEquiv (w, z) : ℕ) := by
+  simp [decorAllVertexEquiv, finSumFinEquiv]
+
+/-- **B3 F-side value lemma**: under `appendFn σF σHflat`, the value at an
+`F`-vertex `inl x` is `Fin.cons v σF x`. -/
+theorem consAppendAll_inl {T n m : ℕ} (v : Fin T) (σF : Fin n → Fin T)
+    (σHflat : Fin (n * m) → Fin T) (x : Fin (n + 1)) :
+    Fin.cons (α := fun _ => Fin T) v (appendFn σF σHflat)
+        (decorAllVertexEquiv n m (Sum.inl x)) = Fin.cons (α := fun _ => Fin T) v σF x := by
+  rcases Fin.eq_zero_or_eq_succ x with rfl | ⟨w, rfl⟩
+  · rw [show decorAllVertexEquiv n m (Sum.inl (0 : Fin (n + 1))) = 0 from
+      Fin.ext (by rw [decorAllVertexEquiv_inl_val]; rfl)]; simp
+  · rw [show decorAllVertexEquiv n m (Sum.inl (Fin.succ w)) = Fin.succ ⟨w, by omega⟩ from
+      Fin.ext (by rw [decorAllVertexEquiv_inl_val]; rfl),
+      Fin.cons_succ, Fin.cons_succ, appendFn_low σF σHflat (by simp)]
+
+/-- **B3 H-side value lemma**: under `appendFn σF σHflat`, the `w`-th `H`-copy's
+assignment is `Fin.cons (Fin.cons v σF w.succ) (fun z => σHflat (finProdFinEquiv (w,z)))`
+— i.e. the `w`-th copy rooted at the value `F`-vertex `w` receives. -/
+theorem consAppendAll_embedHCopy {T n m : ℕ} (v : Fin T) (σF : Fin n → Fin T)
+    (σHflat : Fin (n * m) → Fin T) (w : Fin n) (a : Fin (m + 1)) :
+    Fin.cons (α := fun _ => Fin T) v (appendFn σF σHflat)
+        (decorAllVertexEquiv n m (embedHCopy w a)) =
+      Fin.cons (α := fun _ => Fin T) (Fin.cons (α := fun _ => Fin T) v σF w.succ)
+        (fun z => σHflat (finProdFinEquiv (w, z))) a := by
+  rcases Fin.eq_zero_or_eq_succ a with rfl | ⟨z, rfl⟩
+  · show Fin.cons (α := fun _ => Fin T) v (appendFn σF σHflat)
+        (decorAllVertexEquiv n m (Sum.inl w.succ)) = _
+    rw [consAppendAll_inl]; simp
+  · rw [show (embedHCopy w) (Fin.succ z) = Sum.inr (w, z) from by simp [embedHCopy],
+      show decorAllVertexEquiv n m (Sum.inr (w, z))
+          = Fin.succ ⟨n + (finProdFinEquiv (w, z) : ℕ), by
+            have := (finProdFinEquiv (w, z)).isLt; omega⟩ from
+        Fin.ext (by rw [decorAllVertexEquiv_inr_val]; simp; omega),
+      Fin.cons_succ, Fin.cons_succ,
+      appendFn_high σF σHflat (by simp)]
+    exact congrArg σHflat (Fin.ext (by simp))
+
 /-! ### Decorated power sums — the bridge to classwise row-value measures
 
 `rowValueMeasure_eq_of_rootedProfileEquiv` gives equality of the GLOBAL
