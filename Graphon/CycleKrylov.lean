@@ -3127,6 +3127,211 @@ theorem rootedProfile_weightMul_of_profile_mem_span {T n m : ℕ} (B : Fin T →
   rw [hfun]
   exact InRootedProfileSpan.of_profile B W (decorateAll F H)
 
+/-! ### Per-vertex-family decoration (`decorateAllFam`) — the Σ-indexed generalization
+
+`decorateAll` glues ONE graph `H` at every unlabeled vertex; for the general
+`g = ∑_k c_k · rootedProfileFun B W H_k` we must glue a possibly DIFFERENT graph
+`Hfam w` at each unlabeled vertex `w`. Sizes vary with `w`, so the internal vertices
+form a Σ-type `(w : Fin n) × Fin (mfam w)` (flattened via `finSigmaFinEquiv`, never
+common-size padding, which would scale the profile by `(∑ W)^extra` — zero for signed `W`). -/
+
+/-- Embedding of the `w`-th `H`-copy (family version): `0 ↦ inl (succ w)`,
+`succ z ↦ inr ⟨w, z⟩`. -/
+def embedHCopyFam {n : ℕ} {mfam : Fin n → ℕ} (w : Fin n) :
+    Fin (mfam w + 1) ↪ Fin (n + 1) ⊕ ((w' : Fin n) × Fin (mfam w')) where
+  toFun := Fin.cons (Sum.inl w.succ) (fun z => Sum.inr ⟨w, z⟩)
+  inj' a b hab := by
+    rcases Fin.eq_zero_or_eq_succ a with rfl | ⟨k, rfl⟩ <;>
+      rcases Fin.eq_zero_or_eq_succ b with rfl | ⟨l, rfl⟩ <;>
+      simp_all [Fin.cons_zero, Fin.cons_succ]
+
+/-- The structured per-vertex-family decoration. -/
+def decorateAllFamSum {n : ℕ} {mfam : Fin n → ℕ} (F : SimpleGraph (Fin (n + 1)))
+    (Hfam : (w : Fin n) → SimpleGraph (Fin (mfam w + 1))) :
+    SimpleGraph (Fin (n + 1) ⊕ ((w' : Fin n) × Fin (mfam w'))) :=
+  SimpleGraph.map Function.Embedding.inl F ⊔
+    Finset.univ.sup (fun w : Fin n => SimpleGraph.map (embedHCopyFam w) (Hfam w))
+
+/-- `Fin (n+1) ⊕ ((w : Fin n) × Fin (mfam w)) ≃ Fin (n + (∑ w, mfam w) + 1)` with `inl 0 ↦ 0`. -/
+noncomputable def decorAllFamVertexEquiv {n : ℕ} (mfam : Fin n → ℕ) :
+    (Fin (n + 1) ⊕ ((w' : Fin n) × Fin (mfam w'))) ≃ Fin (n + (∑ w, mfam w) + 1) :=
+  (Equiv.sumCongr (Equiv.refl (Fin (n + 1))) finSigmaFinEquiv).trans
+    (finSumFinEquiv.trans (finCongr (by omega)))
+
+@[simp] theorem decorAllFamVertexEquiv_inl_zero {n : ℕ} (mfam : Fin n → ℕ) :
+    decorAllFamVertexEquiv mfam (Sum.inl 0) = 0 :=
+  Fin.ext (by simp [decorAllFamVertexEquiv, finSumFinEquiv])
+
+/-- **Per-vertex-family decoration** as a `SimpleGraph (Fin (n + (∑ mfam) + 1))`. -/
+noncomputable def decorateAllFam {n : ℕ} {mfam : Fin n → ℕ} (F : SimpleGraph (Fin (n + 1)))
+    (Hfam : (w : Fin n) → SimpleGraph (Fin (mfam w + 1))) :
+    SimpleGraph (Fin (n + (∑ w, mfam w) + 1)) :=
+  (decorateAllFamSum F Hfam).comap (decorAllFamVertexEquiv mfam).symm
+
+theorem decorateAllFamSum_sup_adj {n : ℕ} {mfam : Fin n → ℕ}
+    (Hfam : (w : Fin n) → SimpleGraph (Fin (mfam w + 1)))
+    (x y : Fin (n + 1) ⊕ ((w' : Fin n) × Fin (mfam w'))) :
+    (Finset.univ.sup (fun w : Fin n => SimpleGraph.map (embedHCopyFam w) (Hfam w))).Adj x y ↔
+      ∃ w : Fin n, (SimpleGraph.map (embedHCopyFam w) (Hfam w)).Adj x y := by
+  simp [Finset.sup_eq_iSup, SimpleGraph.iSup_adj]
+
+instance {n : ℕ} {mfam : Fin n → ℕ} (Hfam : (w : Fin n) → SimpleGraph (Fin (mfam w + 1)))
+    [∀ w, DecidableRel (Hfam w).Adj] :
+    DecidableRel
+      (Finset.univ.sup (fun w : Fin n => SimpleGraph.map (embedHCopyFam w) (Hfam w))).Adj :=
+  fun x y => decidable_of_iff _ (decorateAllFamSum_sup_adj Hfam x y).symm
+
+instance {n : ℕ} {mfam : Fin n → ℕ} (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (Hfam : (w : Fin n) → SimpleGraph (Fin (mfam w + 1))) [∀ w, DecidableRel (Hfam w).Adj] :
+    DecidableRel (decorateAllFamSum F Hfam).Adj := by
+  intro x y
+  unfold decorateAllFamSum
+  rw [SimpleGraph.sup_adj, decorateAllFamSum_sup_adj]
+  infer_instance
+
+noncomputable instance {n : ℕ} {mfam : Fin n → ℕ} (F : SimpleGraph (Fin (n + 1)))
+    [DecidableRel F.Adj] (Hfam : (w : Fin n) → SimpleGraph (Fin (mfam w + 1)))
+    [∀ w, DecidableRel (Hfam w).Adj] : DecidableRel (decorateAllFam F Hfam).Adj :=
+  SimpleGraph.instDecidableComapAdj _ _
+
+theorem embedHCopyFam_apply_ne {n : ℕ} {mfam : Fin n → ℕ} {w w' : Fin n} (hww : w ≠ w')
+    (a : Fin (mfam w + 1)) (a' : Fin (mfam w' + 1)) :
+    (embedHCopyFam w) a ≠ (embedHCopyFam w') a' := by
+  rcases Fin.eq_zero_or_eq_succ a with rfl | ⟨k, rfl⟩ <;>
+    rcases Fin.eq_zero_or_eq_succ a' with rfl | ⟨l, rfl⟩
+  · simp only [embedHCopyFam, Function.Embedding.coeFn_mk, Fin.cons_zero, ne_eq, Sum.inl.injEq]
+    exact fun h => hww (Fin.succ_injective _ h)
+  · simp [embedHCopyFam]
+  · simp [embedHCopyFam]
+  · simp only [embedHCopyFam, Function.Embedding.coeFn_mk, Fin.cons_succ, ne_eq, Sum.inr.injEq]
+    exact fun h => hww (congrArg Sigma.fst h)
+
+theorem decorateAllFam_Hcopy_disjoint {n : ℕ} {mfam : Fin n → ℕ}
+    (Hfam : (w : Fin n) → SimpleGraph (Fin (mfam w + 1))) [∀ w, DecidableRel (Hfam w).Adj]
+    {w w' : Fin n} (hww : w ≠ w') :
+    Disjoint (SimpleGraph.map (embedHCopyFam w) (Hfam w)).edgeFinset
+      (SimpleGraph.map (embedHCopyFam w') (Hfam w')).edgeFinset := by
+  rw [Finset.disjoint_left]
+  intro E hw hw'
+  rw [SimpleGraph.mem_edgeFinset] at hw hw'
+  induction E using Sym2.ind with
+  | _ x y =>
+    rw [SimpleGraph.mem_edgeSet, SimpleGraph.map_adj] at hw hw'
+    obtain ⟨a, b, _, ha, _⟩ := hw
+    obtain ⟨a', b', _, ha', _⟩ := hw'
+    exact embedHCopyFam_apply_ne hww a a' (ha.trans ha'.symm)
+
+theorem decorateAllFam_F_sup_disjoint {n : ℕ} {mfam : Fin n → ℕ}
+    (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (Hfam : (w : Fin n) → SimpleGraph (Fin (mfam w + 1))) [∀ w, DecidableRel (Hfam w).Adj] :
+    Disjoint (SimpleGraph.map Function.Embedding.inl F).edgeFinset
+      (Finset.univ.sup (fun w : Fin n =>
+        SimpleGraph.map (embedHCopyFam w) (Hfam w))).edgeFinset := by
+  rw [Finset.disjoint_left]
+  intro E hF hS
+  rw [SimpleGraph.mem_edgeFinset] at hF hS
+  induction E using Sym2.ind with
+  | _ x y =>
+    rw [SimpleGraph.mem_edgeSet, decorateAllFamSum_sup_adj] at hS
+    obtain ⟨w, hw⟩ := hS
+    rw [SimpleGraph.mem_edgeSet, SimpleGraph.map_adj] at hF
+    rw [SimpleGraph.map_adj] at hw
+    obtain ⟨a, b, _, ha, hb⟩ := hF
+    obtain ⟨a', b', hadj', ha', hb'⟩ := hw
+    have ha0 : a' = 0 := by
+      rcases Fin.eq_zero_or_eq_succ a' with rfl | ⟨k, rfl⟩
+      · rfl
+      · exact absurd (ha'.trans ha.symm) (by simp [embedHCopyFam])
+    have hb0 : b' = 0 := by
+      rcases Fin.eq_zero_or_eq_succ b' with rfl | ⟨k, rfl⟩
+      · rfl
+      · exact absurd (hb'.trans hb.symm) (by simp [embedHCopyFam])
+    subst ha0 hb0
+    exact (Hfam w).loopless 0 hadj'
+
+theorem decorateAllFamSum_sup_edgeFinset {n : ℕ} {mfam : Fin n → ℕ}
+    (Hfam : (w : Fin n) → SimpleGraph (Fin (mfam w + 1))) [∀ w, DecidableRel (Hfam w).Adj] :
+    (Finset.univ.sup (fun w : Fin n => SimpleGraph.map (embedHCopyFam w) (Hfam w))).edgeFinset =
+      Finset.univ.biUnion (fun w => (SimpleGraph.map (embedHCopyFam w) (Hfam w)).edgeFinset) := by
+  ext E
+  induction E using Sym2.ind with
+  | _ x y =>
+    simp only [SimpleGraph.mem_edgeFinset, Finset.mem_biUnion, Finset.mem_univ, true_and,
+      SimpleGraph.mem_edgeSet, decorateAllFamSum_sup_adj]
+
+/-- **Edge-product transport + split** (C3 / B2-analog): the `rootedProfile` edge
+product over `decorateAllFam F Hfam` factors into the `F`-edge product times the
+product over the `n` per-vertex `H`-copy edge products. -/
+theorem decorateAllFam_prod_eq {T n : ℕ} {mfam : Fin n → ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (Hfam : (w : Fin n) → SimpleGraph (Fin (mfam w + 1))) [∀ w, DecidableRel (Hfam w).Adj]
+    (τ : Fin (n + (∑ w, mfam w) + 1) → Fin T) :
+    (∏ E ∈ (decorateAllFam F Hfam).edgeFinset, B (τ (Quot.out E).1) (τ (Quot.out E).2)) =
+      (∏ e ∈ F.edgeFinset,
+        B (τ (decorAllFamVertexEquiv mfam (Sum.inl (Quot.out e).1)))
+          (τ (decorAllFamVertexEquiv mfam (Sum.inl (Quot.out e).2)))) *
+      ∏ w : Fin n, ∏ e ∈ (Hfam w).edgeFinset,
+        B (τ (decorAllFamVertexEquiv mfam (embedHCopyFam w (Quot.out e).1)))
+          (τ (decorAllFamVertexEquiv mfam (embedHCopyFam w (Quot.out e).2))) := by
+  classical
+  have step1 :
+      (∏ E ∈ (decorateAllFam F Hfam).edgeFinset, B (τ (Quot.out E).1) (τ (Quot.out E).2)) =
+      ∏ E ∈ (decorateAllFamSum F Hfam).edgeFinset,
+        B (τ (decorAllFamVertexEquiv mfam (Quot.out E).1))
+          (τ (decorAllFamVertexEquiv mfam (Quot.out E).2)) := by
+    unfold decorateAllFam
+    rw [comap_symm_edgeFinset, Finset.prod_map]
+    refine Finset.prod_congr rfl fun E _ => ?_
+    induction E using Sym2.ind with
+    | _ a b =>
+      rw [show (decorAllFamVertexEquiv mfam).toEmbedding.sym2Map s(a, b)
+          = s(decorAllFamVertexEquiv mfam a, decorAllFamVertexEquiv mfam b) from rfl,
+        out_pair_eq' B hB τ _ _,
+        out_pair_eq' B hB (fun s => τ (decorAllFamVertexEquiv mfam s)) a b]
+  rw [step1]
+  have keySup : (decorateAllFamSum F Hfam).edgeFinset =
+      (SimpleGraph.map Function.Embedding.inl F).edgeFinset ∪
+        (Finset.univ.sup (fun w : Fin n =>
+          SimpleGraph.map (embedHCopyFam w) (Hfam w))).edgeFinset := by
+    apply Finset.coe_injective
+    rw [SimpleGraph.coe_edgeFinset, Finset.coe_union, SimpleGraph.coe_edgeFinset,
+      SimpleGraph.coe_edgeFinset]
+    show (decorateAllFamSum F Hfam).edgeSet = _
+    unfold decorateAllFamSum
+    rw [SimpleGraph.edgeSet_sup]
+  rw [keySup, Finset.prod_union (decorateAllFam_F_sup_disjoint F Hfam)]
+  congr 1
+  · have key : (SimpleGraph.map Function.Embedding.inl F).edgeFinset =
+        Finset.map (Function.Embedding.inl (β := (w' : Fin n) × Fin (mfam w'))).sym2Map
+          F.edgeFinset := by
+      apply Finset.coe_injective
+      rw [SimpleGraph.coe_edgeFinset, Finset.coe_map, SimpleGraph.coe_edgeFinset,
+        SimpleGraph.edgeSet_map]
+    rw [key, Finset.prod_map]
+    refine Finset.prod_congr rfl fun e _ => ?_
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [show (Function.Embedding.inl (β := (w' : Fin n) × Fin (mfam w'))).sym2Map s(a, b)
+          = s((Sum.inl a : Fin (n + 1) ⊕ ((w' : Fin n) × Fin (mfam w'))), Sum.inl b) from rfl,
+        out_pair_eq' B hB (fun s => τ (decorAllFamVertexEquiv mfam s)) _ _,
+        out_pair_eq' B hB (fun s => τ (decorAllFamVertexEquiv mfam (Sum.inl s))) a b]
+  · rw [decorateAllFamSum_sup_edgeFinset,
+      Finset.prod_biUnion (fun w _ w' _ hww => decorateAllFam_Hcopy_disjoint Hfam hww)]
+    refine Finset.prod_congr rfl fun w _ => ?_
+    have key : (SimpleGraph.map (embedHCopyFam w) (Hfam w)).edgeFinset =
+        Finset.map (embedHCopyFam w).sym2Map (Hfam w).edgeFinset := by
+      apply Finset.coe_injective
+      rw [SimpleGraph.coe_edgeFinset, Finset.coe_map, SimpleGraph.coe_edgeFinset,
+        SimpleGraph.edgeSet_map]
+    rw [key, Finset.prod_map]
+    refine Finset.prod_congr rfl fun e _ => ?_
+    induction e using Sym2.ind with
+    | _ a b =>
+      rw [show (embedHCopyFam w).sym2Map s(a, b)
+          = s(embedHCopyFam w a, embedHCopyFam w b) from rfl,
+        out_pair_eq' B hB (fun s => τ (decorAllFamVertexEquiv mfam s)) _ _,
+        out_pair_eq' B hB (fun s => τ (decorAllFamVertexEquiv mfam (embedHCopyFam w s))) a b]
+
 /-! ### Decorated power sums — the bridge to classwise row-value measures
 
 `rowValueMeasure_eq_of_rootedProfileEquiv` gives equality of the GLOBAL
