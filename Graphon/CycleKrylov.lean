@@ -3018,6 +3018,91 @@ theorem consAppendAll_embedHCopy {T n m : ℕ} (v : Fin T) (σF : Fin n → Fin 
       appendFn_high σF σHflat (by simp)]
     exact congrArg σHflat (Fin.ext (by simp))
 
+/-- **Flat ↔ curried assignment equivalence**: a flat assignment over the `n*m`
+internal `H`-copy vertices is the same as `n` separate `H`-copy assignments,
+matched via `finProdFinEquiv`. -/
+noncomputable def flatAssignEquiv (T n m : ℕ) :
+    (Fin n → Fin m → Fin T) ≃ (Fin (n * m) → Fin T) where
+  toFun σH := fun k => σH (finProdFinEquiv.symm k).1 (finProdFinEquiv.symm k).2
+  invFun σ := fun w z => σ (finProdFinEquiv (w, z))
+  left_inv σH := by funext w z; simp
+  right_inv σ := by
+    funext k
+    show σ (finProdFinEquiv (finProdFinEquiv.symm k)) = σ k
+    rw [Equiv.apply_symm_apply]
+
+theorem flatAssignEquiv_apply_fpfe {T n m : ℕ} (σH : Fin n → Fin m → Fin T)
+    (w : Fin n) (z : Fin m) :
+    (flatAssignEquiv T n m σH) (finProdFinEquiv (w, z)) = σH w z := by
+  show σH (finProdFinEquiv.symm (finProdFinEquiv (w, z))).1
+      (finProdFinEquiv.symm (finProdFinEquiv (w, z))).2 = σH w z
+  rw [Equiv.symm_apply_apply]
+
+theorem flatAssignEquiv_weight_prod {T n m : ℕ} (W : Fin T → ℝ)
+    (σH : Fin n → Fin m → Fin T) :
+    (∏ k : Fin (n * m), W ((flatAssignEquiv T n m σH) k)) =
+      ∏ w : Fin n, ∏ z : Fin m, W (σH w z) := by
+  rw [← Equiv.prod_comp finProdFinEquiv (fun k => W ((flatAssignEquiv T n m σH) k)),
+    Fintype.prod_prod_type]
+  exact Finset.prod_congr rfl fun w _ => Finset.prod_congr rfl fun z _ => by
+    rw [flatAssignEquiv_apply_fpfe]
+
+/-- **n-fold `H`-copy collapse** (B3 engine): summing the flat internal-vertex
+assignment factors the contribution of the `n` glued `H`-copies into a product of
+`n` rooted profiles, each rooted at the value `r w` its anchor vertex receives. -/
+theorem decorateAll_Hflat_collapse {T n m : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (H : SimpleGraph (Fin (m + 1))) [DecidableRel H.Adj] (r : Fin n → Fin T) :
+    (∑ σ : Fin (n * m) → Fin T, (∏ k : Fin (n * m), W (σ k)) *
+        ∏ w : Fin n, ∏ e ∈ H.edgeFinset,
+          B (Fin.cons (α := fun _ => Fin T) (r w)
+                (fun z => σ (finProdFinEquiv (w, z))) (Quot.out e).1)
+            (Fin.cons (α := fun _ => Fin T) (r w)
+                (fun z => σ (finProdFinEquiv (w, z))) (Quot.out e).2))
+      = ∏ w : Fin n, rootedProfile B W (r w) H := by
+  classical
+  have hrw : (∏ w : Fin n, rootedProfile B W (r w) H) =
+      ∏ w : Fin n, ∑ τ : Fin m → Fin T, (∏ z : Fin m, W (τ z)) *
+        ∏ e ∈ H.edgeFinset,
+          B (Fin.cons (α := fun _ => Fin T) (r w) τ (Quot.out e).1)
+            (Fin.cons (α := fun _ => Fin T) (r w) τ (Quot.out e).2) :=
+    Finset.prod_congr rfl fun w _ => rootedProfile_cons B W (r w) H
+  rw [hrw, Finset.prod_univ_sum (fun _ : Fin n => (Finset.univ : Finset (Fin m → Fin T)))
+      (fun w τ => (∏ z : Fin m, W (τ z)) *
+        ∏ e ∈ H.edgeFinset,
+          B (Fin.cons (α := fun _ => Fin T) (r w) τ (Quot.out e).1)
+            (Fin.cons (α := fun _ => Fin T) (r w) τ (Quot.out e).2)),
+    Fintype.piFinset_univ, ← Equiv.sum_comp (flatAssignEquiv T n m)]
+  refine Finset.sum_congr rfl fun σH _ => ?_
+  rw [flatAssignEquiv_weight_prod, Finset.prod_mul_distrib]
+  refine congrArg (_ * ·) (Finset.prod_congr rfl fun w _ => ?_)
+  rw [show (fun z => (flatAssignEquiv T n m σH) (finProdFinEquiv (w, z))) = σH w from
+    funext fun z => flatAssignEquiv_apply_fpfe σH w z]
+
+/-- **B3 — all-vertex decoration factorization** (the key theorem): decorating
+every unlabeled vertex of `F` with a copy of `H` multiplies each `F`-assignment's
+contribution by the product, over unlabeled vertices `w`, of the `H`-profile rooted
+at the value `w` receives. The engine of `rootedProfileEquiv_weightMod`. -/
+theorem rootedProfile_decorateAll {T n m : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (v : Fin T)
+    (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj]
+    (H : SimpleGraph (Fin (m + 1))) [DecidableRel H.Adj] :
+    rootedProfile B W v (decorateAll F H) =
+      ∑ σF : Fin n → Fin T,
+        ((∏ w : Fin n, W (σF w)) *
+          ∏ e ∈ F.edgeFinset,
+            B (Fin.cons (α := fun _ => Fin T) v σF (Quot.out e).1)
+              (Fin.cons (α := fun _ => Fin T) v σF (Quot.out e).2)) *
+        ∏ w : Fin n, rootedProfile B W (σF w) H := by
+  classical
+  rw [rootedProfile_cons]
+  rw [Finset.sum_congr rfl fun σ (_ : σ ∈ Finset.univ) => by
+    rw [decorateAll_prod_eq B hB F H (Fin.cons (α := fun _ => Fin T) v σ)]]
+  rw [sum_fin_split n (n * m)]
+  refine Finset.sum_congr rfl fun σF _ => ?_
+  simp only [prod_appendFn, consAppendAll_inl, consAppendAll_embedHCopy, Fin.cons_succ]
+  rw [← decorateAll_Hflat_collapse B W H σF, Finset.mul_sum]
+  exact Finset.sum_congr rfl fun σHflat _ => by ring
+
 /-! ### Decorated power sums — the bridge to classwise row-value measures
 
 `rowValueMeasure_eq_of_rootedProfileEquiv` gives equality of the GLOBAL
