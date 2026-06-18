@@ -3708,6 +3708,84 @@ theorem atom_row_signature_eq {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ 
     ∀ q : Fin T, (fun a => atomTransMeasure B W q i a) = fun a => atomTransMeasure B W q j a :=
   fun q => funext fun a => atomTransMeasure_eq_of_rpe B hB W hW h q a
 
+/-! ### §7 — atoms = orbits (#70 paper-root), via the DIRECT multigraph route
+
+The #70 rank theorem `vertexOrbitRel_of_rootedProfileEquiv` factors through the
+PROVED, axiom-clean multigraph Lemma 2.4 `tupleEquivMulti_implies_orbit`:
+
+  `rootedProfileEquiv → tupleEquivMulti → vertexOrbitRel`.
+
+The middle arrow is the ONLY remaining content — the focused bridge
+`tupleEquivMulti_of_rootedProfileEquiv` (simple-rpe ⟹ multigraph tuple-equivalence
+at K=1). No marker/augmentation is needed: `tupleEquivMulti` uses the SAME `(B,W)`,
+with multigraphs as the PROBES. These declarations were relocated here from
+`SimpleRank.lean` (they have no upstream consumers) because the bridge's eventual
+proof uses the decorated/classwise power-sum machinery defined above. -/
+
+/-- **The simple → multigraph bridge at K=1** (THE #70 paper-root, FOCUSED SORRY).
+Rooted simple-graph-profile equivalence implies MULTIGRAPH tuple-equivalence:
+every multigraph probe (edges with multiplicities) evaluates identically on
+rpe-equivalent vertices. This is the exact and only remaining content of #70.
+
+**What is already in reach** (tree / weighted-WL fragment): a multigraph probe built
+by `decoratedProbe`/`starProbe`/`glue` is a ROOTED TREE; its evaluation expands
+(`multiLabeledEvalK_decoratedProbe`) as `∑ₜ W t · B i t ^ a · χ(t)` with
+`χ(t) = `(sub-probe at `t`). By induction on tree depth — base `starProbe` =
+`powerSum_descends_of_rootedProfileEquiv`, step via
+`decoratedPowerSum_descends_of_rootedProfileEquiv` (`χ` atom-invariant ⟹ in the span
+by `of_const_on_rpe`) — ALL tree/WL multigraph probes descend.
+
+**What remains** (the genuine paper-root): `glue` shares only the root, so it never
+puts an edge between two branches — `decoratedProbe` covers TREE probes ONLY, and
+tree/WL equivalence is insufficient for orbits (Frucht). The open core is
+**cyclic multigraph-probe descent** (`tupleEquivMulti` quantifies over ALL probes).
+`powerSum_descends` reached single-vertex multi-edges via rooted cycles (cycle–Krylov);
+the full cyclic-multi case is the remaining §3 difficulty. -/
+theorem tupleEquivMulti_of_rootedProfileEquiv {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j) :
+    tupleEquivMulti B W (fun _ : Fin 1 => i) (fun _ : Fin 1 => j) := by
+  sorry
+
+/-- **The K=1 simple-graph rank theorem** (#70): rooted-profile equivalence implies
+vertex-orbit equivalence — the atoms of the rooted simple-profile algebra are exactly
+the `(B, W)`-automorphism orbits. PROVED modulo the single focused bridge
+`tupleEquivMulti_of_rootedProfileEquiv`, via the proved multigraph Lemma 2.4. -/
+theorem vertexOrbitRel_of_rootedProfileEquiv {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {i j : Fin T} (h : rootedProfileEquiv B W i j) :
+    vertexOrbitRel B W i j := by
+  obtain ⟨σ, haut, hσ⟩ := tupleEquivMulti_implies_orbit B hB W hW htwin
+    (tupleEquivMulti_of_rootedProfileEquiv B hB W hW h)
+  exact ⟨σ, haut, (hσ 0).symm⟩
+
+/-- **Atoms = orbits**, packaged form of the rank theorem. PROVED modulo
+`tupleEquivMulti_of_rootedProfileEquiv` (via `vertexOrbitRel_of_rootedProfileEquiv`). -/
+theorem algebraAtomRel_eq_vertexOrbitRel {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (i j : Fin T) :
+    algebraAtomRel B W i j ↔ vertexOrbitRel B W i j := by
+  rw [algebraAtomRel_iff_rootedProfileEquiv]
+  exact ⟨vertexOrbitRel_of_rootedProfileEquiv B hB W hW htwin,
+    rootedProfileEquiv_of_vertexOrbitRel B W⟩
+
+/-- **Non-circular `of_const_on_orbit`** — an orbit-invariant function is
+atom-invariant (atoms = orbits) hence in the span (`of_const_on_rpe`). Replaces the
+cyclically-proved `InRootedProfileSpan.of_const_on_orbit` in `Lovasz.lean`. PROVED
+modulo `tupleEquivMulti_of_rootedProfileEquiv`. -/
+theorem InRootedProfileSpan.of_const_on_orbit_noncircular {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (f : Fin T → ℝ)
+    (hf : ∀ i j, vertexOrbitRel B W i j → f i = f j) :
+    InRootedProfileSpan B W f :=
+  InRootedProfileSpan.of_const_on_rpe B hB W f (fun i j hij =>
+    hf i j (vertexOrbitRel_of_rootedProfileEquiv B hB W hW htwin hij))
+
 end Weighted
 
 end Graphon.Lovasz
