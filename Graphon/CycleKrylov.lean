@@ -3722,6 +3722,41 @@ with multigraphs as the PROBES. These declarations were relocated here from
 `SimpleRank.lean` (they have no upstream consumers) because the bridge's eventual
 proof uses the decorated/classwise power-sum machinery defined above. -/
 
+/-- **Tree-fragment, base case**: the multiplicity-`a` star probe descends — its
+evaluation is the `a`-th weighted power sum, which descends by `powerSum_descends`. -/
+theorem starProbe_descends {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t) {i j : Fin T} (h : rootedProfileEquiv B W i j) (a : ℕ) :
+    multiLabeledEvalK 1 1 (starProbe a) B W (fun _ => i)
+      = multiLabeledEvalK 1 1 (starProbe a) B W (fun _ => j) := by
+  rw [multiLabeledEvalK_starProbe B hB W i a, multiLabeledEvalK_starProbe B hB W j a]
+  exact powerSum_descends_of_rootedProfileEquiv B hB W hW h a
+
+/-- **Tree-fragment, inductive step**: if the sub-probe `Mχ` descends (its evaluation
+is atom-invariant), then the decorated star probe `decoratedProbe a Mχ` descends. Its
+evaluation `∑ₜ W t · B i t ^ a · χ(t)` is a decorated power sum with `χ` in the span
+(`of_const_on_rpe`), so `decoratedPowerSum_descends` applies. Together with
+`starProbe_descends` this gives, by induction on tree depth, that EVERY tree (= WL)
+multigraph probe descends — the part of `tupleEquivMulti_of_rootedProfileEquiv` already
+in reach. -/
+theorem decoratedProbe_descends {T m : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ t, 0 < W t) (a : ℕ) (Mχ : MultiLabeledGraph 1 m)
+    (hχ : ∀ p q : Fin T, rootedProfileEquiv B W p q →
+      multiLabeledEvalK 1 m Mχ B W (fun _ => p) = multiLabeledEvalK 1 m Mχ B W (fun _ => q))
+    {i j : Fin T} (h : rootedProfileEquiv B W i j) :
+    multiLabeledEvalK 1 (m + 1) (decoratedProbe a Mχ) B W (fun _ => i)
+      = multiLabeledEvalK 1 (m + 1) (decoratedProbe a Mχ) B W (fun _ => j) := by
+  rw [multiLabeledEvalK_decoratedProbe a Mχ B hB W i,
+      multiLabeledEvalK_decoratedProbe a Mχ B hB W j]
+  have hspan : InRootedProfileSpan B W (fun t => multiLabeledEvalK 1 m Mχ B W (fun _ => t)) :=
+    InRootedProfileSpan.of_const_on_rpe B hB W _ hχ
+  have hdec := decoratedPowerSum_descends_of_rootedProfileEquiv B hB W hW h hspan a
+  calc ∑ t, W t * B i t ^ a * multiLabeledEvalK 1 m Mχ B W (fun _ => t)
+      = ∑ t, W t * multiLabeledEvalK 1 m Mχ B W (fun _ => t) * B i t ^ a :=
+        Finset.sum_congr rfl fun t _ => by ring
+    _ = ∑ t, W t * multiLabeledEvalK 1 m Mχ B W (fun _ => t) * B j t ^ a := hdec
+    _ = ∑ t, W t * B j t ^ a * multiLabeledEvalK 1 m Mχ B W (fun _ => t) :=
+        Finset.sum_congr rfl fun t _ => by ring
+
 /-- **The simple → multigraph bridge at K=1** (THE #70 paper-root, FOCUSED SORRY).
 Rooted simple-graph-profile equivalence implies MULTIGRAPH tuple-equivalence:
 every multigraph probe (edges with multiplicities) evaluates identically on
