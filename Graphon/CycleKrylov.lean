@@ -3757,6 +3757,40 @@ theorem decoratedProbe_descends {T m : ℕ} (B : Fin T → Fin T → ℝ) (hB : 
     _ = ∑ t, W t * B j t ^ a * multiLabeledEvalK 1 m Mχ B W (fun _ => t) :=
         Finset.sum_congr rfl fun t _ => by ring
 
+/-- **Base case (simple `M`)**: a 0/1-multigraph `ofSimple F` evaluates to the rooted
+profile of `F`, so it lies in the span directly (`of_profile`). -/
+theorem rootedMultiEval_ofSimple_mem {T n : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + 1))) [DecidableRel F.Adj] :
+    InRootedProfileSpan B W
+      (fun v => multiLabeledEvalK 1 n (MultiLabeledGraph.ofSimple F) B W (fun _ => v)) := by
+  have heq : (fun v => multiLabeledEvalK 1 n (MultiLabeledGraph.ofSimple F) B W (fun _ => v))
+      = rootedProfileFun B W F := by
+    funext v; rw [multiLabeledEvalK_ofSimple]; rfl
+  rw [heq]; exact InRootedProfileSpan.of_profile B W F
+
+/-- **Base case (root-incident multi-edge / power sum)**: the multiplicity-`a` star
+probe evaluates to `∑ₜ W t · B v t ^ a`, atom-invariant by `powerSum_descends`, hence
+in the span by `of_const_on_rpe` (non-circular — the descent is independently proved). -/
+theorem rootedMultiEval_starProbe_mem {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t) (a : ℕ) :
+    InRootedProfileSpan B W
+      (fun v => multiLabeledEvalK 1 1 (starProbe a) B W (fun _ => v)) :=
+  InRootedProfileSpan.of_const_on_rpe B hB W _
+    (fun _ _ h => starProbe_descends B hB W hW h a)
+
+/-- **Base case (tree / decorated probe)**: if the sub-probe `Mχ` lies in the span,
+so does `decoratedProbe a Mχ` — atom-invariance via `decoratedProbe_descends`
+(using `const_on_rpe` of the `Mχ`-membership), then `of_const_on_rpe`. -/
+theorem rootedMultiEval_decoratedProbe_mem {T m : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t) (a : ℕ)
+    (Mχ : MultiLabeledGraph 1 m)
+    (hMχ : InRootedProfileSpan B W (fun v => multiLabeledEvalK 1 m Mχ B W (fun _ => v))) :
+    InRootedProfileSpan B W
+      (fun v => multiLabeledEvalK 1 (m + 1) (decoratedProbe a Mχ) B W (fun _ => v)) :=
+  InRootedProfileSpan.of_const_on_rpe B hB W _
+    (fun _ _ h => decoratedProbe_descends B hB W hW a Mχ
+      (fun _ _ hpq => hMχ.const_on_rpe hpq) h)
+
 /-- **Rooted multigraph evaluations lie in the simple rooted-profile span**
 (THE #70 paper-root, FOCUSED SORRY — the K=1 case of `InTupleMultiEvalSpan.toSimple`,
 i.e. Lovász Lemma 2.5 specialized to a single root). For every rooted multigraph
