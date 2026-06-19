@@ -3757,30 +3757,46 @@ theorem decoratedProbe_descends {T m : ℕ} (B : Fin T → Fin T → ℝ) (hB : 
     _ = ∑ t, W t * B j t ^ a * multiLabeledEvalK 1 m Mχ B W (fun _ => t) :=
         Finset.sum_congr rfl fun t _ => by ring
 
-/-- **The simple → multigraph bridge at K=1** (THE #70 paper-root, FOCUSED SORRY).
-Rooted simple-graph-profile equivalence implies MULTIGRAPH tuple-equivalence:
-every multigraph probe (edges with multiplicities) evaluates identically on
-rpe-equivalent vertices. This is the exact and only remaining content of #70.
+/-- **Rooted multigraph evaluations lie in the simple rooted-profile span**
+(THE #70 paper-root, FOCUSED SORRY — the K=1 case of `InTupleMultiEvalSpan.toSimple`,
+i.e. Lovász Lemma 2.5 specialized to a single root). For every rooted multigraph
+probe `M`, the function `v ↦ multiLabeledEvalK 1 n M B W (·↦v)` lies in
+`InRootedProfileSpan B W`. This is the clean algebraic form of the remaining #70
+content: membership in the simple algebra, NOT obstruction-by-obstruction identities.
 
-**What is already in reach** (tree / weighted-WL fragment): a multigraph probe built
-by `decoratedProbe`/`starProbe`/`glue` is a ROOTED TREE; its evaluation expands
-(`multiLabeledEvalK_decoratedProbe`) as `∑ₜ W t · B i t ^ a · χ(t)` with
-`χ(t) = `(sub-probe at `t`). By induction on tree depth — base `starProbe` =
-`powerSum_descends_of_rootedProfileEquiv`, step via
-`decoratedPowerSum_descends_of_rootedProfileEquiv` (`χ` atom-invariant ⟹ in the span
-by `of_const_on_rpe`) — ALL tree/WL multigraph probes descend.
+**Base cases already in reach** (membership is NON-circular for these, because their
+descent is independently PROVED, so `of_const_on_rpe` applies):
+- simple `M = ofSimple F`: the eval IS `rootedProfileFun B W F` ⟹ `of_profile`;
+- tree/decorated `M` (`decoratedProbe`/`starProbe`/`glue`): `decoratedProbe_descends`
+  + `starProbe_descends` give atom-invariance ⟹ `of_const_on_rpe`;
+- root-incident multi-edge powers (`starProbe a`): `powerSum_descends` ⟹ `of_const_on_rpe`.
 
-**What remains** (the genuine paper-root): `glue` shares only the root, so it never
-puts an edge between two branches — `decoratedProbe` covers TREE probes ONLY, and
-tree/WL equivalence is insufficient for orbits (Frucht). The open core is
-**cyclic multigraph-probe descent** (`tupleEquivMulti` quantifies over ALL probes).
-`powerSum_descends` reached single-vertex multi-edges via rooted cycles (cycle–Krylov);
-the full cyclic-multi case is the remaining §3 difficulty. -/
+**Open core** (the genuine §3 residue = the Hadamard-square obstruction): an INTERNAL
+multi-edge (multiplicity ≥2 between two UNLABELED vertices) — the simplest is the
+multi-triangle `∑_{s,t} W s W t B(v,s) B(v,t) B(s,t)^c`. The paper-style induction must
+eliminate one internal multiplicity at a time via finite-algebra closure, NOT
+`of_const_on_rpe` (which would reduce membership back to the target — circular). The
+numerical probe (`scripts/multitriangle_*.py`) confirms this descent IS forced at
+finite depth (MU≥3), so the theorem is TRUE and finite; the missing book lemma is the
+K=1 multi-edge-elimination step of Lemma 2.5. -/
+theorem rootedMultiEval_mem_rootedProfileSpan {T n : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    (M : MultiLabeledGraph 1 n) :
+    InRootedProfileSpan B W (fun v => multiLabeledEvalK 1 n M B W (fun _ => v)) := by
+  sorry
+
+/-- **The simple → multigraph bridge at K=1** (PROVED modulo
+`rootedMultiEval_mem_rootedProfileSpan`). Rooted simple-profile equivalence implies
+MULTIGRAPH tuple-equivalence: every multigraph probe evaluates identically on
+rpe-equivalent vertices. Immediate from membership of each rooted multigraph eval in
+the simple span (`rootedMultiEval_mem_rootedProfileSpan`) and the fact that span
+elements are constant on rpe-classes (`InRootedProfileSpan.const_on_rpe`). -/
 theorem tupleEquivMulti_of_rootedProfileEquiv {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
     {i j : Fin T} (h : rootedProfileEquiv B W i j) :
     tupleEquivMulti B W (fun _ : Fin 1 => i) (fun _ : Fin 1 => j) := by
-  sorry
+  intro n M
+  exact (rootedMultiEval_mem_rootedProfileSpan B hB W hW M).const_on_rpe h
 
 /-- **The K=1 simple-graph rank theorem** (#70): rooted-profile equivalence implies
 vertex-orbit equivalence — the atoms of the rooted simple-profile algebra are exactly
