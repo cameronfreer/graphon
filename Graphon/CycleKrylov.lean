@@ -3791,6 +3791,44 @@ theorem rootedMultiEval_decoratedProbe_mem {T m : ℕ} (B : Fin T → Fin T → 
     (fun _ _ h => decoratedProbe_descends B hB W hW a Mχ
       (fun _ _ hpq => hMχ.const_on_rpe hpq) h)
 
+/-- **Warm-up diagonal primitive** (one neighbour, PROVED): for `g, h` in the span,
+the "same-vertex" decorated first moment `v ↦ ∑ₛ W s · B v s · g s · h s` lies in the
+span — via `InRootedProfileSpan.mul` then `.weightedAdj`. This extracts a coincidence
+at ONE neighbour; the internal doubled edge needs the two-variable coincidence
+detector (`tupleEquivSimple_preserves_diagonal`). -/
+theorem rootedProfileSpan_pairDiagonal {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) {g h : Fin T → ℝ}
+    (hg : InRootedProfileSpan B W g) (hh : InRootedProfileSpan B W h) :
+    InRootedProfileSpan B W (fun v => ∑ s, W s * B v s * g s * h s) := by
+  have heq : (fun v => ∑ s, W s * B v s * g s * h s)
+      = weightedAdj B W (fun s => g s * h s) := by
+    funext v
+    simp only [Graphon.Lovasz.weightedAdj]
+    exact Finset.sum_congr rfl fun s _ => by ring
+  rw [heq]
+  exact InRootedProfileSpan.weightedAdj hB (InRootedProfileSpan.mul hB hg hh)
+
+/-- **Coincidence detector** (`tupleEquivSimple` preserves the diagonal) — the KEY
+book step for internal multi-edge elimination (FOCUSED SORRY). If two `2`-tuples are
+simple-equivalent and one is diagonal (`ξ 0 = ξ 1`), so is the other.
+
+**Mechanism (non-circular, settled)**: instantiate `tupleEquivSimple` at the
+common-neighbour simple graph (two labels both joined to one unlabeled vertex),
+whose eval is `⟨B (ξ 0), B (ξ 1)⟩_W = ∑ᵤ W u · B (ξ 0) u · B (ξ 1) u`. For diagonal
+`ξ` (so `ξ 0 = ξ 1 = s`) this and the single-label squares give
+`⟨B (ξ' 0), B (ξ' 1)⟩_W = ‖B (ξ' 0)‖²_W = ‖B (ξ' 1)‖²_W = sqMoment s` (single-label
+restriction + `sqMoment_descends`), whence `‖B (ξ' 0) − B (ξ' 1)‖²_W = s − 2s + s = 0`,
+so `B (ξ' 0) = B (ξ' 1)` (positive `W`); **twin-free** then forces `ξ' 0 = ξ' 1`.
+Uses only proved tools. Consequence: the diagonal indicator is constant on
+`tupleEquivSimple`-classes ⟹ in the simple closure (`of_const_on_tupleEquivSimple`,
+the Lagrange-over-values step), the primitive that extracts the internal `B s t²`. -/
+theorem tupleEquivSimple_preserves_diagonal {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    {ξ ξ' : Fin 2 → Fin T} (h : tupleEquivSimple B W ξ ξ') :
+    (ξ 0 = ξ 1) ↔ (ξ' 0 = ξ' 1) := by
+  sorry
+
 /-- **Rooted multigraph evaluations lie in the simple rooted-profile span**
 (THE #70 paper-root, FOCUSED SORRY — the K=1 case of `InTupleMultiEvalSpan.toSimple`,
 i.e. Lovász Lemma 2.5 specialized to a single root). For every rooted multigraph
@@ -3815,7 +3853,7 @@ finite depth (MU≥3), so the theorem is TRUE and finite; the missing book lemma
 K=1 multi-edge-elimination step of Lemma 2.5. -/
 theorem rootedMultiEval_mem_rootedProfileSpan {T n : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
-    (M : MultiLabeledGraph 1 n) :
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (M : MultiLabeledGraph 1 n) :
     InRootedProfileSpan B W (fun v => multiLabeledEvalK 1 n M B W (fun _ => v)) := by
   sorry
 
@@ -3827,10 +3865,11 @@ the simple span (`rootedMultiEval_mem_rootedProfileSpan`) and the fact that span
 elements are constant on rpe-classes (`InRootedProfileSpan.const_on_rpe`). -/
 theorem tupleEquivMulti_of_rootedProfileEquiv {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {i j : Fin T} (h : rootedProfileEquiv B W i j) :
     tupleEquivMulti B W (fun _ : Fin 1 => i) (fun _ : Fin 1 => j) := by
   intro n M
-  exact (rootedMultiEval_mem_rootedProfileSpan B hB W hW M).const_on_rpe h
+  exact (rootedMultiEval_mem_rootedProfileSpan B hB W hW htwin M).const_on_rpe h
 
 /-- **The K=1 simple-graph rank theorem** (#70): rooted-profile equivalence implies
 vertex-orbit equivalence — the atoms of the rooted simple-profile algebra are exactly
@@ -3843,7 +3882,7 @@ theorem vertexOrbitRel_of_rootedProfileEquiv {T : ℕ}
     {i j : Fin T} (h : rootedProfileEquiv B W i j) :
     vertexOrbitRel B W i j := by
   obtain ⟨σ, haut, hσ⟩ := tupleEquivMulti_implies_orbit B hB W hW htwin
-    (tupleEquivMulti_of_rootedProfileEquiv B hB W hW h)
+    (tupleEquivMulti_of_rootedProfileEquiv B hB W hW htwin h)
   exact ⟨σ, haut, (hσ 0).symm⟩
 
 /-- **Atoms = orbits**, packaged form of the rank theorem. PROVED modulo
