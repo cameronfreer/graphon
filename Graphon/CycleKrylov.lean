@@ -3808,6 +3808,50 @@ theorem rootedProfileSpan_pairDiagonal {T : ℕ} (B : Fin T → Fin T → ℝ)
   rw [heq]
   exact InRootedProfileSpan.weightedAdj hB (InRootedProfileSpan.mul hB hg hh)
 
+/-- **Common-neighbour simple graph**: two labels `0, 1` both joined to the single
+unlabeled vertex `2` (no `0–1` edge). Its rooted evaluation reads `⟨B(ξ 0), B(ξ 1)⟩_W`. -/
+def commonNeighborGraph : SimpleGraph (Fin (1 + 2)) :=
+  SimpleGraph.fromEdgeSet {s(0, 2), s(1, 2)}
+
+noncomputable instance : DecidableRel commonNeighborGraph.Adj :=
+  Classical.decRel _
+
+theorem commonNeighborGraph_edgeFinset :
+    commonNeighborGraph.edgeFinset = {s((0 : Fin (1 + 2)), 2), s((1 : Fin (1 + 2)), 2)} := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, commonNeighborGraph, SimpleGraph.edgeSet_fromEdgeSet,
+    Finset.mem_insert, Finset.mem_singleton, Set.mem_diff, Set.mem_insert_iff,
+    Set.mem_singleton_iff, Sym2.mem_diagSet_iff_isDiag]
+  refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
+  rcases he with he | he <;> rw [he, Sym2.mk_isDiag_iff] <;> decide
+
+/-- **Common-neighbour evaluation**: `simpleEvalAt commonNeighborGraph ξ = ∑ₜ W t · B (ξ 0) t · B (ξ 1) t`
+`= ⟨B (ξ 0), B (ξ 1)⟩_W`. -/
+theorem simpleEvalAt_commonNeighbor {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (ξ : Fin 2 → Fin T) :
+    simpleEvalAt B W commonNeighborGraph ξ = ∑ t, W t * B (ξ 0) t * B (ξ 1) t := by
+  rw [show (∑ t, W t * B (ξ 0) t * B (ξ 1) t)
+      = ∑ σ : Fin 1 → Fin T, W (σ 0) * B (ξ 0) (σ 0) * B (ξ 1) (σ 0) from
+    (Equiv.sum_comp (Equiv.funUnique (Fin 1) (Fin T))
+      (fun t => W t * B (ξ 0) t * B (ξ 1) t)).symm]
+  unfold simpleEvalAt
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  rw [commonNeighborGraph_edgeFinset, Fin.prod_univ_one]
+  show W (σ 0) *
+      ∏ e ∈ ({s((0 : Fin (1 + 2)), 2), s((1 : Fin (1 + 2)), 2)} : Finset (Sym2 (Fin (1 + 2)))),
+        B ((fun v : Fin (1 + 2) => if h : (v : ℕ) < 2 then ξ ⟨v, h⟩
+              else σ ⟨v - 2, by have := v.isLt; omega⟩) (Quot.out e).1)
+          ((fun v : Fin (1 + 2) => if h : (v : ℕ) < 2 then ξ ⟨v, h⟩
+              else σ ⟨v - 2, by have := v.isLt; omega⟩) (Quot.out e).2)
+      = W (σ 0) * B (ξ 0) (σ 0) * B (ξ 1) (σ 0)
+  rw [Finset.prod_pair (show s((0 : Fin (1 + 2)), 2) ≠ s((1 : Fin (1 + 2)), 2) by decide),
+    out_pair_eq' B hB (fun v : Fin (1 + 2) => if h : (v : ℕ) < 2 then ξ ⟨v, h⟩
+        else σ ⟨v - 2, by have := v.isLt; omega⟩) 0 2,
+    out_pair_eq' B hB (fun v : Fin (1 + 2) => if h : (v : ℕ) < 2 then ξ ⟨v, h⟩
+        else σ ⟨v - 2, by have := v.isLt; omega⟩) 1 2]
+  show W (σ 0) * (B (ξ 0) (σ 0) * B (ξ 1) (σ 0)) = W (σ 0) * B (ξ 0) (σ 0) * B (ξ 1) (σ 0)
+  ring
+
 /-- **Coincidence detector** (`tupleEquivSimple` preserves the diagonal) — the KEY
 book step for internal multi-edge elimination (FOCUSED SORRY). If two `2`-tuples are
 simple-equivalent and one is diagonal (`ξ 0 = ξ 1`), so is the other.
@@ -3827,7 +3871,52 @@ theorem tupleEquivSimple_preserves_diagonal {T : ℕ} (B : Fin T → Fin T → �
     (htwin : ∀ i j, i ≠ j → B i ≠ B j)
     {ξ ξ' : Fin 2 → Fin T} (h : tupleEquivSimple B W ξ ξ') :
     (ξ 0 = ξ 1) ↔ (ξ' 0 = ξ' 1) := by
-  sorry
+  have fwd : ∀ (η η' : Fin 2 → Fin T), tupleEquivSimple B W η η' → η 0 = η 1 → η' 0 = η' 1 := by
+    intro η η' hh hdiag
+    -- common-neighbour eval agrees:  ⟨B(η0),B(η1)⟩_W = ⟨B(η'0),B(η'1)⟩_W
+    have hcn : (∑ t, W t * B (η 0) t * B (η 1) t) = ∑ t, W t * B (η' 0) t * B (η' 1) t := by
+      rw [← simpleEvalAt_commonNeighbor B hB W η, ← simpleEvalAt_commonNeighbor B hB W η']
+      exact hh 1 commonNeighborGraph
+    -- single-label restriction gives rpe, hence square-moment equality
+    have rpeAt : ∀ a : Fin 2, rootedProfileEquiv B W (η a) (η' a) := by
+      intro a n F _
+      exact tupleEquivSimple_restrict_along B W hB
+        (⟨fun _ : Fin 1 => a, fun x y _ => Subsingleton.elim x y⟩ : Fin 1 ↪ Fin 2) hh n F
+    have hsq0 : (∑ t, W t * B (η' 0) t ^ 2) = ∑ t, W t * B (η 1) t ^ 2 := by
+      have hd := sqMoment_descends_of_rootedProfileEquiv B hB W hW (rpeAt 0)
+      unfold sqMoment at hd; rw [hdiag] at hd; exact hd.symm
+    have hsq1 : (∑ t, W t * B (η' 1) t ^ 2) = ∑ t, W t * B (η 1) t ^ 2 := by
+      have hd := sqMoment_descends_of_rootedProfileEquiv B hB W hW (rpeAt 1)
+      unfold sqMoment at hd; exact hd.symm
+    rw [hdiag] at hcn
+    have hD : (∑ t, W t * B (η' 0) t * B (η' 1) t) = ∑ t, W t * B (η 1) t ^ 2 := by
+      rw [← hcn]; exact Finset.sum_congr rfl fun t _ => by ring
+    -- ‖B(η'0) − B(η'1)‖²_W = 0
+    have hnorm : (∑ t, W t * (B (η' 0) t - B (η' 1) t) ^ 2) = 0 := by
+      have e1 : (∑ t, W t * B (η' 0) t ^ 2) + (∑ t, W t * B (η' 1) t ^ 2)
+          - 2 * (∑ t, W t * B (η' 0) t * B (η' 1) t)
+          = ∑ t, W t * (B (η' 0) t - B (η' 1) t) ^ 2 := by
+        rw [Finset.mul_sum, ← Finset.sum_add_distrib, ← Finset.sum_sub_distrib]
+        exact Finset.sum_congr rfl fun t _ => by ring
+      rw [← e1, hsq0, hsq1, hD]; ring
+    -- positive weights ⟹ rows equal
+    have hrows : B (η' 0) = B (η' 1) := by
+      funext t
+      have hnn : ∀ s ∈ (Finset.univ : Finset (Fin T)),
+          0 ≤ W s * (B (η' 0) s - B (η' 1) s) ^ 2 :=
+        fun s _ => mul_nonneg (hW s).le (sq_nonneg _)
+      have ht := (Finset.sum_eq_zero_iff_of_nonneg hnn).mp hnorm t (Finset.mem_univ t)
+      have hsq : (B (η' 0) t - B (η' 1) t) ^ 2 = 0 := by
+        rcases mul_eq_zero.mp ht with hw | hs
+        · exact absurd hw (ne_of_gt (hW t))
+        · exact hs
+      have hz : B (η' 0) t - B (η' 1) t = 0 := pow_eq_zero_iff (by norm_num : (2 : ℕ) ≠ 0) |>.mp hsq
+      linarith
+    -- twin-free ⟹ the labels coincide
+    by_contra hne
+    exact htwin (η' 0) (η' 1) hne hrows
+  have hsymm : tupleEquivSimple B W ξ' ξ := by intro n' F _inst; exact (h n' F).symm
+  exact ⟨fwd ξ ξ' h, fwd ξ' ξ hsymm⟩
 
 /-- **Rooted multigraph evaluations lie in the simple rooted-profile span**
 (THE #70 paper-root, FOCUSED SORRY — the K=1 case of `InTupleMultiEvalSpan.toSimple`,
