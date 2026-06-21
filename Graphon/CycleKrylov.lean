@@ -3918,6 +3918,23 @@ theorem tupleEquivSimple_preserves_diagonal {T : ℕ} (B : Fin T → Fin T → �
   have hsymm : tupleEquivSimple B W ξ' ξ := by intro n' F _inst; exact (h n' F).symm
   exact ⟨fwd ξ ξ' h, fwd ξ' ξ hsymm⟩
 
+/-- **Diagonal indicator in the simple profile closure** (PROVED): the function
+`ξ ↦ [ξ 0 = ξ 1]` lies in the `K = 2` simple-profile closure. Since
+`tupleEquivSimple_preserves_diagonal` shows it is constant on
+`tupleEquivSimple`-classes, the proved Lagrange-fullness
+`of_const_on_tupleEquivSimple` puts it in the closure. This is the clean algebraic
+diagonal extractor (the idempotent that detects vertex coincidence). -/
+theorem diagIndicator_mem_simpleClosure {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    InSimpleProfileClosure B W 2 (fun ξ : Fin 2 → Fin T => if ξ 0 = ξ 1 then (1 : ℝ) else 0) := by
+  apply InSimpleProfileClosure.of_const_on_tupleEquivSimple
+  intro ξ ξ' hsimp
+  have hiff := tupleEquivSimple_preserves_diagonal B hB W hW htwin (ξ := ξ) (ξ' := ξ') hsimp
+  by_cases h0 : ξ 0 = ξ 1
+  · rw [if_pos h0, if_pos (hiff.mp h0)]
+  · rw [if_neg h0, if_neg (fun h => h0 (hiff.mpr h))]
+
 /-- **Rooted multigraph evaluations lie in the simple rooted-profile span**
 (THE #70 paper-root, FOCUSED SORRY — the K=1 case of `InTupleMultiEvalSpan.toSimple`,
 i.e. Lovász Lemma 2.5 specialized to a single root). For every rooted multigraph
