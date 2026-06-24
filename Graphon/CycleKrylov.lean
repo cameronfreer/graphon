@@ -3935,33 +3935,42 @@ theorem diagIndicator_mem_simpleClosure {T : ℕ} (B : Fin T → Fin T → ℝ)
   · rw [if_pos h0, if_pos (hiff.mp h0)]
   · rw [if_neg h0, if_neg (fun h => h0 (hiff.mpr h))]
 
+/-- **K=1 bridge: simple-eval span ⟹ rooted-profile span.** At `K = 1` the carrier
+types coincide (`Σ n, SimpleGraph (Fin (n + 1))` in both) and
+`rootedProfileFun B W F v = simpleEvalAt B W F (·↦v)` definitionally
+(`rootedProfile := simpleEvalAt _ _ _ (fun _ : Fin 1 => ·)`), so a `Fin 1`-tuple
+simple-eval span element, read at the constant tuple, is a rooted-profile span
+element with the SAME data. -/
+theorem InRootedProfileSpan.of_tupleSimpleEvalSpan {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (W : Fin T → ℝ) {f : (Fin 1 → Fin T) → ℝ} (h : InTupleSimpleEvalSpan B W f) :
+    InRootedProfileSpan B W (fun v => f (fun _ : Fin 1 => v)) := by
+  obtain ⟨N, g, c, hf⟩ := h
+  refine ⟨N, g, c, ?_⟩
+  funext v
+  rw [hf]
+  rfl
+
 /-- **Rooted multigraph evaluations lie in the simple rooted-profile span**
-(THE #70 paper-root, FOCUSED SORRY — the K=1 case of `InTupleMultiEvalSpan.toSimple`,
-i.e. Lovász Lemma 2.5 specialized to a single root). For every rooted multigraph
-probe `M`, the function `v ↦ multiLabeledEvalK 1 n M B W (·↦v)` lies in
-`InRootedProfileSpan B W`. This is the clean algebraic form of the remaining #70
-content: membership in the simple algebra, NOT obstruction-by-obstruction identities.
+(THE #70 paper-root — the K=1 case of `InTupleMultiEvalSpan.toSimple`, i.e. Lovász
+Lemma 2.5 specialized to a single root). For every rooted multigraph probe `M`, the
+function `v ↦ multiLabeledEvalK 1 n M B W (·↦v)` lies in `InRootedProfileSpan B W`.
 
-**Base cases already in reach** (membership is NON-circular for these, because their
-descent is independently PROVED, so `of_const_on_rpe` applies):
-- simple `M = ofSimple F`: the eval IS `rootedProfileFun B W F` ⟹ `of_profile`;
-- tree/decorated `M` (`decoratedProbe`/`starProbe`/`glue`): `decoratedProbe_descends`
-  + `starProbe_descends` give atom-invariance ⟹ `of_const_on_rpe`;
-- root-incident multi-edge powers (`starProbe a`): `powerSum_descends` ⟹ `of_const_on_rpe`.
-
-**Open core** (the genuine §3 residue = the Hadamard-square obstruction): an INTERNAL
-multi-edge (multiplicity ≥2 between two UNLABELED vertices) — the simplest is the
-multi-triangle `∑_{s,t} W s W t B(v,s) B(v,t) B(s,t)^c`. The paper-style induction must
-eliminate one internal multiplicity at a time via finite-algebra closure, NOT
-`of_const_on_rpe` (which would reduce membership back to the target — circular). The
-numerical probe (`scripts/multitriangle_*.py`) confirms this descent IS forced at
-finite depth (MU≥3), so the theorem is TRUE and finite; the missing book lemma is the
-K=1 multi-edge-elimination step of Lemma 2.5. -/
+**PROVED modulo the canonical residue** `InTupleMultiEvalSpan.toSimple` (Lovász §3 /
+Lemma 2.5): the K=1 multigraph eval lies in the multigraph-eval span (`of_multi`);
+`toSimple hB hW htwin` collapses it into the simple-eval span (this is where the
+Hadamard-square obstruction — internal multiplicity ≥2 — genuinely lives, equivalently
+`InTupleSimpleEvalSpan.mul`); the K=1 bridge `of_tupleSimpleEvalSpan` repackages it as
+a rooted-profile span element. This consolidates #70 onto the single canonical residue:
+the direct diagonal-extraction route (`diagIndicator_mem_simpleClosure`,
+`tupleEquivSimple_preserves_diagonal`, the decorated/star machinery) bottoms out at the
+same closure→linear-span gap, so the honest dependency is `toSimple`, not a separate
+multi-edge-elimination theorem. -/
 theorem rootedMultiEval_mem_rootedProfileSpan {T n : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ t, 0 < W t)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j) (M : MultiLabeledGraph 1 n) :
-    InRootedProfileSpan B W (fun v => multiLabeledEvalK 1 n M B W (fun _ => v)) := by
-  sorry
+    InRootedProfileSpan B W (fun v => multiLabeledEvalK 1 n M B W (fun _ => v)) :=
+  InRootedProfileSpan.of_tupleSimpleEvalSpan B W
+    (InTupleMultiEvalSpan.toSimple hB hW htwin (InTupleMultiEvalSpan.of_multi B W M))
 
 /-- **The simple → multigraph bridge at K=1** (PROVED modulo
 `rootedMultiEval_mem_rootedProfileSpan`). Rooted simple-profile equivalence implies
