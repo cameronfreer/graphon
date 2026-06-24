@@ -4105,6 +4105,111 @@ theorem mem_multiEvalSubmodule_iff {T K : ℕ} (B : Fin T → Fin T → ℝ) (W 
     exact Submodule.sum_mem _ fun k _ =>
       Submodule.smul_mem _ _ (Submodule.subset_span ⟨g k, rfl⟩)
 
+/-! ### Orbit-invariant submodule and `multiEvalSubmodule = orbitInvariant` (Phase B)
+
+The genuinely informative half of the rank framework, and **non-circular**: the
+multigraph-eval submodule equals the submodule of automorphism-invariant functions. The
+`≥` direction rests on the directly-proved (toSimple-free) `tupleOrbitIndicator_mem_multiEvalSpan`.
+This pins the sole #70 residue to exactly `simpleEvalSubmodule = orbitInvariantSubmodule`. -/
+
+/-- The submodule of `(B, W)`-automorphism-invariant functions of a K-tuple. -/
+def orbitInvariantSubmodule {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (K : ℕ) :
+    Submodule ℝ ((Fin K → Fin T) → ℝ) where
+  carrier := { f | ∀ σ : Equiv.Perm (Fin T), IsWeightedAutomorphism B W σ →
+      ∀ ξ, f (σ ∘ ξ) = f ξ }
+  add_mem' := by
+    intro a b hf hg σ hσ ξ
+    simp only [Pi.add_apply]; rw [hf σ hσ ξ, hg σ hσ ξ]
+  zero_mem' := by intro σ hσ ξ; rfl
+  smul_mem' := by
+    intro c a hf σ hσ ξ
+    simp only [Pi.smul_apply, smul_eq_mul]; rw [hf σ hσ ξ]
+
+/-- **Automorphism-invariant ⟹ multigraph-eval span** (the multi analog of
+`tupleSimpleEval_span_aut_invariant`, but NON-circular — it consumes the directly-proved
+`tupleOrbitIndicator_mem_multiEvalSpan`, never `InTupleMultiEvalSpan.toSimple`). Orbit
+indicators are a basis of the invariant functions, and each lies in the multi span. -/
+theorem tupleMultiEval_span_aut_invariant {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (f : (Fin K → Fin T) → ℝ)
+    (h_aut_inv : ∀ (σ : Equiv.Perm (Fin T)),
+      IsWeightedAutomorphism B W σ → ∀ ξ, f (σ ∘ ξ) = f ξ) :
+    InTupleMultiEvalSpan B W f := by
+  classical
+  let S : Setoid (Fin K → Fin T) :=
+    ⟨tupleOrbitRel B W, tupleOrbitRel_refl B W,
+      fun h => tupleOrbitRel_symm B W h,
+      fun h₁ h₂ => tupleOrbitRel_trans B W h₁ h₂⟩
+  haveI : Fintype (Quotient S) := Quotient.fintype S
+  have h_decomp : f = fun ξ =>
+      ∑ q : Quotient S, f (Quotient.out q) * orbitIndicator B W (Quotient.out q) ξ := by
+    funext ξ
+    let q₀ : Quotient S := Quotient.mk S ξ
+    have hq₀_out : tupleOrbitRel B W (Quotient.out q₀) ξ := by
+      have := Quotient.mk_out (s := S) ξ
+      exact this
+    rw [show
+        (∑ q : Quotient S,
+          f (Quotient.out q) * orbitIndicator B W (Quotient.out q) ξ) =
+        f (Quotient.out q₀) * orbitIndicator B W (Quotient.out q₀) ξ +
+        ∑ q ∈ Finset.univ.erase q₀,
+          f (Quotient.out q) * orbitIndicator B W (Quotient.out q) ξ from
+      (Finset.add_sum_erase _ _ (Finset.mem_univ q₀)).symm]
+    have h_other_zero : ∀ q ∈ Finset.univ.erase q₀,
+        f (Quotient.out q) * orbitIndicator B W (Quotient.out q) ξ = 0 := by
+      intro q hq
+      rw [Finset.mem_erase] at hq
+      have h_q_ne : q ≠ q₀ := hq.1
+      have h_not_orbit : ¬ tupleOrbitRel B W (Quotient.out q) ξ := by
+        intro h_orbit
+        apply h_q_ne
+        rw [← Quotient.out_eq q, ← Quotient.out_eq q₀]
+        exact Quotient.sound (Setoid.trans h_orbit (Setoid.symm hq₀_out))
+      rw [orbitIndicator_of_not_orbit B W h_not_orbit, mul_zero]
+    rw [Finset.sum_eq_zero h_other_zero, add_zero]
+    have h_f_eq : f (Quotient.out q₀) = f ξ := by
+      obtain ⟨σ, hσ, hσeq⟩ := hq₀_out
+      have hξ : ξ = σ ∘ Quotient.out q₀ := funext hσeq
+      rw [hξ, h_aut_inv σ hσ]
+    have h_ind_one : orbitIndicator B W (Quotient.out q₀) ξ = 1 := by
+      unfold orbitIndicator
+      rw [if_pos hq₀_out]
+    rw [h_f_eq, h_ind_one, mul_one]
+  rw [h_decomp]
+  apply InTupleMultiEvalSpan.finset_sum
+  intro q _
+  exact InTupleMultiEvalSpan.smul (f (Quotient.out q))
+    (tupleOrbitIndicator_mem_multiEvalSpan B hB W hW htwin (Quotient.out q))
+
+/-- **`≤`: multigraph evaluations are automorphism-invariant.** -/
+theorem multiEvalSubmodule_le_orbitInvariantSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    multiEvalSubmodule B W K ≤ orbitInvariantSubmodule B W K := by
+  intro f hf
+  rw [mem_multiEvalSubmodule_iff] at hf
+  exact fun σ hσ ξ => InTupleMultiEvalSpan.aut_invariant B W hf σ hσ ξ
+
+/-- **`≥`: every automorphism-invariant function lies in the multigraph-eval span**
+(non-circular, via `tupleMultiEval_span_aut_invariant`). -/
+theorem orbitInvariantSubmodule_le_multiEvalSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    orbitInvariantSubmodule B W K ≤ multiEvalSubmodule B W K := by
+  intro f hf
+  rw [mem_multiEvalSubmodule_iff]
+  exact tupleMultiEval_span_aut_invariant B hB W hW htwin f hf
+
+/-- **The multigraph-eval submodule is exactly the automorphism-invariant submodule.**
+The clean, non-circular pillar of the §3 rank framework: the residue is now precisely
+`simpleEvalSubmodule = orbitInvariantSubmodule`. -/
+theorem multiEvalSubmodule_eq_orbitInvariantSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    multiEvalSubmodule B W K = orbitInvariantSubmodule B W K :=
+  le_antisymm (multiEvalSubmodule_le_orbitInvariantSubmodule B W)
+    (orbitInvariantSubmodule_le_multiEvalSubmodule B hB W hW htwin)
+
 end Weighted
 
 end Graphon.Lovasz
