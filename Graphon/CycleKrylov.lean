@@ -4025,6 +4025,86 @@ theorem InRootedProfileSpan.of_const_on_orbit_noncircular {T : ℕ}
   InRootedProfileSpan.of_const_on_rpe B hB W f (fun i j hij =>
     hf i j (vertexOrbitRel_of_rootedProfileEquiv B hB W hW htwin hij))
 
+/-! ### Eval spans as `Submodule`s (Phase A — foundation for the §3 rank/finrank work)
+
+The K-tuple simple- and multigraph-eval spans, currently bare existential predicates
+(`InTupleSimpleEvalSpan` / `InTupleMultiEvalSpan` in `Lovasz.lean`), are repackaged here
+as honest `Submodule ℝ`s. This unlocks `finrank`/`Basis`/`≤` for the rank argument that
+isolates the sole #70 residue `InTupleMultiEvalSpan.toSimple`. The membership-`iff`s tie
+the new submodules back to the existing predicate API, which stays the interface for
+construction. -/
+
+/-- The K-tuple **simple-eval span** as a submodule: spanned by the simple-graph
+evaluation functions `ξ ↦ simpleEvalAt B W F ξ`. -/
+noncomputable def simpleEvalSubmodule {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (K : ℕ) : Submodule ℝ ((Fin K → Fin T) → ℝ) :=
+  Submodule.span ℝ
+    (Set.range (fun p : Σ (n : ℕ) (F : SimpleGraph (Fin (n + K))), DecidableRel F.Adj =>
+      (fun ξ => @simpleEvalAt T K p.1 B W p.2.1 p.2.2 ξ)))
+
+/-- The K-tuple **multigraph-eval span** as a submodule: spanned by the multigraph
+evaluation functions `ξ ↦ multiLabeledEvalK K n M B W ξ`. -/
+noncomputable def multiEvalSubmodule {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (K : ℕ) : Submodule ℝ ((Fin K → Fin T) → ℝ) :=
+  Submodule.span ℝ
+    (Set.range (fun p : Σ (n : ℕ), MultiLabeledGraph K n =>
+      (fun ξ => multiLabeledEvalK K p.1 p.2 B W ξ)))
+
+/-- Submodule membership coincides with the existing simple-eval span predicate
+`InTupleSimpleEvalSpan`. -/
+theorem mem_simpleEvalSubmodule_iff {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f : (Fin K → Fin T) → ℝ) :
+    f ∈ simpleEvalSubmodule B W K ↔ InTupleSimpleEvalSpan B W f := by
+  constructor
+  · intro hf
+    unfold simpleEvalSubmodule at hf
+    induction hf using Submodule.span_induction with
+    | mem x hx =>
+      obtain ⟨p, rfl⟩ := hx
+      exact @InTupleSimpleEvalSpan.of_simple T K p.1 B W p.2.1 p.2.2
+    | zero => exact InTupleSimpleEvalSpan.zero B W
+    | add x y _ _ hx hy => exact hx.add hy
+    | smul a x _ hx => exact InTupleSimpleEvalSpan.smul a hx
+  · intro hf
+    obtain ⟨N, g, c, rfl⟩ := hf
+    have hsum :
+        (fun ξ => ∑ k : Fin N, c k * @simpleEvalAt T K (g k).1 B W (g k).2.1 (g k).2.2 ξ)
+          = ∑ k : Fin N, c k •
+              (fun ξ => @simpleEvalAt T K (g k).1 B W (g k).2.1 (g k).2.2 ξ) := by
+      funext ξ
+      rw [Finset.sum_apply]
+      exact Finset.sum_congr rfl fun k _ => by rw [Pi.smul_apply, smul_eq_mul]
+    rw [hsum]
+    exact Submodule.sum_mem _ fun k _ =>
+      Submodule.smul_mem _ _ (Submodule.subset_span ⟨g k, rfl⟩)
+
+/-- Submodule membership coincides with the existing multigraph-eval span predicate
+`InTupleMultiEvalSpan`. -/
+theorem mem_multiEvalSubmodule_iff {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f : (Fin K → Fin T) → ℝ) :
+    f ∈ multiEvalSubmodule B W K ↔ InTupleMultiEvalSpan B W f := by
+  constructor
+  · intro hf
+    unfold multiEvalSubmodule at hf
+    induction hf using Submodule.span_induction with
+    | mem x hx =>
+      obtain ⟨p, rfl⟩ := hx
+      exact InTupleMultiEvalSpan.of_multi B W p.2
+    | zero => exact InTupleMultiEvalSpan.zero B W
+    | add x y _ _ hx hy => exact hx.add hy
+    | smul a x _ hx => exact InTupleMultiEvalSpan.smul a hx
+  · intro hf
+    obtain ⟨N, g, c, rfl⟩ := hf
+    have hsum :
+        (fun ξ => ∑ k : Fin N, c k * multiLabeledEvalK K (g k).1 (g k).2 B W ξ)
+          = ∑ k : Fin N, c k • (fun ξ => multiLabeledEvalK K (g k).1 (g k).2 B W ξ) := by
+      funext ξ
+      rw [Finset.sum_apply]
+      exact Finset.sum_congr rfl fun k _ => by rw [Pi.smul_apply, smul_eq_mul]
+    rw [hsum]
+    exact Submodule.sum_mem _ fun k _ =>
+      Submodule.smul_mem _ _ (Submodule.subset_span ⟨g k, rfl⟩)
+
 end Weighted
 
 end Graphon.Lovasz
