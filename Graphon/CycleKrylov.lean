@@ -4210,6 +4210,31 @@ theorem multiEvalSubmodule_eq_orbitInvariantSubmodule {T K : ℕ}
   le_antisymm (multiEvalSubmodule_le_orbitInvariantSubmodule B W)
     (orbitInvariantSubmodule_le_multiEvalSubmodule B hB W hW htwin)
 
+/-- **Easy inclusion `simpleEvalSubmodule ≤ orbitInvariantSubmodule`**: simple-graph
+evaluations are automorphism-invariant (`simpleEvalAt_aut_invariant`). Completes the
+clean frame `simpleEvalSubmodule ≤ orbitInvariantSubmodule = multiEvalSubmodule`; the
+sole #70 residue is the reverse inclusion. -/
+theorem simpleEvalSubmodule_le_orbitInvariantSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) :
+    simpleEvalSubmodule B W K ≤ orbitInvariantSubmodule B W K := by
+  intro f hf
+  rw [mem_simpleEvalSubmodule_iff] at hf
+  intro σ hσ ξ
+  obtain ⟨N, g, c, hfeq⟩ := hf
+  rw [congr_fun hfeq (σ ∘ ξ), congr_fun hfeq ξ]
+  refine Finset.sum_congr rfl fun k _ => ?_
+  rw [@simpleEvalAt_aut_invariant T K (g k).1 B hB W (g k).2.1 (g k).2.2 σ hσ ξ]
+
+/-- **Corollary `simpleEvalSubmodule ≤ multiEvalSubmodule`** (the never-in-doubt
+inclusion), directly via `InTupleSimpleEvalSpan.toMulti`. -/
+theorem simpleEvalSubmodule_le_multiEvalSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    simpleEvalSubmodule B W K ≤ multiEvalSubmodule B W K := by
+  intro f hf
+  rw [mem_simpleEvalSubmodule_iff] at hf
+  rw [mem_multiEvalSubmodule_iff]
+  exact hf.toMulti
+
 end Weighted
 
 end Graphon.Lovasz
