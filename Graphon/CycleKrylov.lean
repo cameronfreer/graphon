@@ -4235,6 +4235,95 @@ theorem simpleEvalSubmodule_le_multiEvalSubmodule {T K : ℕ}
   rw [mem_multiEvalSubmodule_iff]
   exact hf.toMulti
 
+/-! ### Phase C1 + D — finrank skeleton of the rank theorem
+
+`finrank orbitInvariantSubmodule = #OrbitClass` (orbit-invariant functions ≅ functions on
+the orbit quotient), and the finrank collapse to the residue. After this, the ONLY remaining
+input is the simple-side lower bound `simpleEvalSubmodule_finrank_ge_orbitClass` (the Lovász
+§3 quantum-graph separation), isolated as a single named `sorry`. -/
+
+noncomputable instance instFintypeOrbitClass {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ} :
+    Fintype (OrbitClass T K B W) := by
+  classical
+  unfold OrbitClass
+  exact Quotient.fintype _
+
+/-- Evaluation-at-orbit-representatives, as a linear map from the orbit-invariant
+functions to functions on the orbit quotient. -/
+noncomputable def orbitInvariantToClassFun {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    orbitInvariantSubmodule B W K →ₗ[ℝ] (OrbitClass T K B W → ℝ) where
+  toFun f := fun q => (f : (Fin K → Fin T) → ℝ) (Quotient.out q)
+  map_add' f g := by funext q; simp
+  map_smul' c f := by funext q; simp
+
+/-- **Orbit-invariant functions ≅ functions on the orbit quotient.** -/
+noncomputable def orbitInvariantEquiv {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    orbitInvariantSubmodule B W K ≃ₗ[ℝ] (OrbitClass T K B W → ℝ) :=
+  LinearEquiv.ofBijective (orbitInvariantToClassFun B W) (by
+    constructor
+    · -- injective: agreement on representatives + orbit-invariance ⟹ equal
+      intro f₁ f₂ h
+      apply Subtype.ext
+      funext ξ
+      have key : ∀ (g : orbitInvariantSubmodule B W K) (η : Fin K → Fin T),
+          (g : (Fin K → Fin T) → ℝ) η
+            = (g : (Fin K → Fin T) → ℝ)
+                (Quotient.out (Quotient.mk (tupleOrbitSetoid B W K) η)) := by
+        intro g η
+        obtain ⟨σ, hσ, hση⟩ := Quotient.mk_out (s := tupleOrbitSetoid B W K) η
+        have hηeq : η = σ ∘ Quotient.out (Quotient.mk (tupleOrbitSetoid B W K) η) := funext hση
+        conv_lhs => rw [hηeq]
+        exact g.2 σ hσ _
+      rw [key f₁ ξ, key f₂ ξ]
+      exact congrFun h (Quotient.mk (tupleOrbitSetoid B W K) ξ)
+    · -- surjective: pull back a class function
+      intro g
+      refine ⟨⟨fun η => g (Quotient.mk (tupleOrbitSetoid B W K) η), ?_⟩, ?_⟩
+      · intro σ hσ η
+        show g (Quotient.mk (tupleOrbitSetoid B W K) (σ ∘ η))
+            = g (Quotient.mk (tupleOrbitSetoid B W K) η)
+        have hmk : Quotient.mk (tupleOrbitSetoid B W K) η
+            = Quotient.mk (tupleOrbitSetoid B W K) (σ ∘ η) :=
+          Quotient.sound ⟨σ, hσ, fun i => rfl⟩
+        rw [hmk]
+      · funext q
+        show g (Quotient.mk (tupleOrbitSetoid B W K) (Quotient.out q)) = g q
+        rw [Quotient.out_eq])
+
+/-- **Phase C1: `finrank orbitInvariantSubmodule = #OrbitClass`.** -/
+theorem finrank_orbitInvariantSubmodule {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    Module.finrank ℝ (orbitInvariantSubmodule B W K) = Fintype.card (OrbitClass T K B W) := by
+  rw [(orbitInvariantEquiv B W).finrank_eq, Module.finrank_fintype_fun_eq_card]
+
+/-- **The sole remaining #70 residue** (the genuine Lovász §3 content): the simple-eval
+span has dimension at least the number of orbit classes — equivalently, simple-graph
+evaluations SEPARATE the orbit classes (realize the orbit projections as quantum graphs).
+Everything else in the rank framework is proved and axiom-clean. -/
+theorem simpleEvalSubmodule_finrank_ge_orbitClass {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    Fintype.card (OrbitClass T K B W) ≤ Module.finrank ℝ (simpleEvalSubmodule B W K) := by
+  sorry
+
+/-- **Phase D: the rank collapse.** Modulo the lower bound, the simple-eval and
+orbit-invariant submodules coincide. -/
+theorem simpleEvalSubmodule_eq_orbitInvariantSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    simpleEvalSubmodule B W K = orbitInvariantSubmodule B W K :=
+  Submodule.eq_of_le_of_finrank_le
+    (simpleEvalSubmodule_le_orbitInvariantSubmodule B hB W)
+    (by rw [finrank_orbitInvariantSubmodule B W]
+        exact simpleEvalSubmodule_finrank_ge_orbitClass B hB W hW htwin)
+
+/-- **The hard inclusion** `orbitInvariantSubmodule ≤ simpleEvalSubmodule`, modulo the
+single residue `simpleEvalSubmodule_finrank_ge_orbitClass`. -/
+theorem orbitInvariantSubmodule_le_simpleEvalSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    orbitInvariantSubmodule B W K ≤ simpleEvalSubmodule B W K :=
+  (simpleEvalSubmodule_eq_orbitInvariantSubmodule B hB W hW htwin).ge
+
 end Weighted
 
 end Graphon.Lovasz
