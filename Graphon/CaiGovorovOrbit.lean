@@ -347,4 +347,102 @@ theorem tupleEquivSimple_starTestGraph_mult {T : ℕ} (B : Fin T → Fin T → �
   simp only [prod_label_eq_prod_mult] at heq
   exact heq
 
+/-- **Aligned-Vandermonde extraction** (graph-free core of chunk 3A). If the moment sums of
+two profile families `x`, `y` (weighted by `a`, `b`) agree for every exponent vector bounded
+by `2·T`, then the `a`-mass and `b`-mass over each profile level set agree. The combined index
+`Fin T ⊕ Fin T` turns the equality into a single multivariate Vandermonde cancellation
+(`Graphon.CaiGovorov.multivariate_vandermonde_class_sums_zero`).
+
+NB the exponent bound is `2·T`, not `T+1`: the combined index has `2T` points, and with only
+`T+1` moments the statement is already false at `T = 2` (3 equations cannot pin a signed measure
+on 4 points). This matches Cai–Govorov's range `0 ≤ k_j < 2m`. -/
+theorem aligned_moments_class_balance {T : ℕ}
+    (x y : Fin T → (Fin T → ℝ)) (a b : Fin T → ℝ)
+    (hmom : ∀ k : Fin T → ℕ, (∀ j, k j < 2 * T) →
+        ∑ t, a t * ∏ j, (x t j) ^ k j = ∑ t, b t * ∏ j, (y t j) ^ k j)
+    (z : Fin T → ℝ) :
+    ∑ t ∈ univ.filter (fun t => x t = z), a t
+      = ∑ t ∈ univ.filter (fun t => y t = z), b t := by
+  classical
+  set bb : (Fin T ⊕ Fin T) → Fin T → ℝ := Sum.elim x y with hbb
+  set aa : (Fin T ⊕ Fin T) → ℝ := Sum.elim a (fun t => - b t) with haa
+  have hcard : Fintype.card (Fin T ⊕ Fin T) = 2 * T := by
+    rw [Fintype.card_sum, Fintype.card_fin, two_mul]
+  have hmoments : ∀ ℓ : Fin T → ℕ, (∀ j, ℓ j < Fintype.card (Fin T ⊕ Fin T)) →
+      ∑ i, aa i * ∏ j, bb i j ^ ℓ j = 0 := by
+    intro ℓ hℓ
+    have hb : ∀ j, ℓ j < 2 * T := fun j => hcard ▸ hℓ j
+    rw [Fintype.sum_sum_type]
+    simp only [hbb, haa, Sum.elim_inl, Sum.elim_inr]
+    rw [hmom ℓ hb, ← Finset.sum_add_distrib]
+    exact Finset.sum_eq_zero fun t _ => by ring
+  have key := CaiGovorov.multivariate_vandermonde_class_sums_zero bb aa hmoments z
+  rw [Finset.sum_filter, Fintype.sum_sum_type] at key
+  simp only [hbb, haa, Sum.elim_inl, Sum.elim_inr, ← Finset.sum_filter] at key
+  have hneg : ∑ t ∈ univ.filter (fun t => y t = z), -b t
+      = -∑ t ∈ univ.filter (fun t => y t = z), b t := Finset.sum_neg_distrib b
+  rw [hneg] at key
+  linarith
+
+/-- Profile-balance specialization: with `x t = B · t` (the profile/column of `t`),
+`y t = B (s ·) t`, and weights `a = b = W`, the aligned moments force the `W`-mass over each
+profile level set to match. -/
+theorem aligned_star_moments_profile_balance {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (s : Fin T → Fin T)
+    (haligned : ∀ k : Fin T → ℕ, (∀ j, k j < 2 * T) →
+        ∑ t, W t * ∏ j, (B j t) ^ k j = ∑ t, W t * ∏ j, (B (s j) t) ^ k j)
+    (z : Fin T → ℝ) :
+    ∑ t ∈ univ.filter (fun t => (fun j => B j t) = z), W t
+      = ∑ t ∈ univ.filter (fun t => (fun j => B (s j) t) = z), W t :=
+  aligned_moments_class_balance (fun t j => B j t) (fun t j => B (s j) t) W W haligned z
+
+/-- **Weight balance.** Twin-freeness collapses the left profile level set of `t` to the
+singleton `{t}`, so the aligned Vandermonde output is exactly `W t = ∑_{u : B·t = B(s·)u} W u`. -/
+theorem aligned_star_moments_weight_balance {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (s : Fin T → Fin T)
+    (haligned : ∀ k : Fin T → ℕ, (∀ j, k j < 2 * T) →
+        ∑ t, W t * ∏ j, (B j t) ^ k j = ∑ t, W t * ∏ j, (B (s j) t) ^ k j)
+    (t : Fin T) :
+    W t = ∑ u ∈ univ.filter (fun u => ∀ j, B j t = B (s j) u), W u := by
+  have hbal := aligned_star_moments_profile_balance B W s haligned (fun j => B j t)
+  have hsingle : (univ.filter (fun t' => (fun j => B j t') = fun j => B j t)) = {t} := by
+    ext t'
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_singleton]
+    constructor
+    · intro hprof
+      by_contra hne
+      refine htwin t' t hne ?_
+      funext j
+      rw [hB t' j, hB t j]
+      exact congrFun hprof j
+    · rintro rfl; rfl
+  rw [hsingle, Finset.sum_singleton] at hbal
+  rw [hbal]
+  refine Finset.sum_congr ?_ (fun _ _ => rfl)
+  apply Finset.filter_congr
+  intro u _
+  constructor
+  · intro h j; exact (congrFun h j).symm
+  · intro h; funext j; exact (h j).symm
+
+/-- **Support.** From weight balance and positivity, every host vertex `t` is matched: there is a
+`u` with `B j t = B (s j) u` for all `j`. (The Vandermonde engine builds the matching.) -/
+theorem aligned_star_moments_support {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ v, 0 < W v)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (s : Fin T → Fin T)
+    (haligned : ∀ k : Fin T → ℕ, (∀ j, k j < 2 * T) →
+        ∑ t, W t * ∏ j, (B j t) ^ k j = ∑ t, W t * ∏ j, (B (s j) t) ^ k j)
+    (t : Fin T) :
+    ∃ u, ∀ j, B j t = B (s j) u := by
+  have hbal := aligned_star_moments_weight_balance B hB W htwin s haligned t
+  have hne : (univ.filter (fun u => ∀ j, B j t = B (s j) u)).Nonempty := by
+    rw [Finset.nonempty_iff_ne_empty]
+    intro hempty
+    rw [hempty, Finset.sum_empty] at hbal
+    exact (hW t).ne' hbal
+  obtain ⟨u, hu⟩ := hne
+  rw [Finset.mem_filter] at hu
+  exact ⟨u, hu.2⟩
+
 end Graphon.Lovasz
