@@ -497,4 +497,80 @@ theorem superFiberSubset_image_const {T : ℕ} (ξ ξ' : Fin K → Fin T) (hξ :
     (j : Fin T) : ∀ i ∈ superFiberSubset ξ ξ' hξ j, ξ' i = superMap ξ ξ' hξ j :=
   (exists_large_const_image_subset ξ ξ' hξ j).choose_spec.choose_spec.2.2
 
+/-- Distinct fibres give disjoint chosen subsets (each lies in a distinct `ξ`-fibre). -/
+theorem superFiberSubset_disjoint {T : ℕ} (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ)
+    {j j' : Fin T} (hjj : j ≠ j') :
+    Disjoint (superFiberSubset ξ ξ' hξ j) (superFiberSubset ξ ξ' hξ j') := by
+  apply Finset.disjoint_left.mpr
+  intro i hi hi'
+  exact hjj ((superFiberSubset_mem_left ξ ξ' hξ j hi).symm.trans
+    (superFiberSubset_mem_left ξ ξ' hξ j' hi'))
+
+/-! ### Chunk 3A.3: aligned moments from selected labels -/
+
+/-- For any bounded exponent vector `k`, select inside each `ξ`-fibre's distinguished subset a
+sub-subset of size exactly `k j`. -/
+theorem exists_exponent_label_set {T : ℕ} (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ)
+    (k : Fin T → ℕ) (hk : ∀ j, k j < 2 * T) :
+    ∃ Kf : Fin T → Finset (Fin K),
+      (∀ j, Kf j ⊆ superFiberSubset ξ ξ' hξ j) ∧ (∀ j, (Kf j).card = k j) := by
+  choose Kf hsub hcard using fun j =>
+    Finset.exists_subset_card_eq (s := superFiberSubset ξ ξ' hξ j) (n := k j)
+      (lt_of_lt_of_le (hk j) (superFiberSubset_card ξ ξ' hξ j)).le
+  exact ⟨Kf, hsub, hcard⟩
+
+/-- **Aligned-moment bridge.** From `tupleEquivSimple` and super-surjectivity, the aligned moment
+identity holds for every bounded exponent vector, with the right-hand side reindexed by `superMap`.
+This consumes the `starTestGraph` closed form: the label set `S = ⋃ⱼ Kⱼ` has `ξ ≡ j` on `Kⱼ` (giving
+`(B j t)^{k j}` on the left) and `ξ' ≡ superMap j` on `Kⱼ` (giving `(B (superMap j) t)^{k j}` on the
+right) — no injectivity of `superMap` is needed. -/
+theorem aligned_moments_of_tupleEquivSimple_super {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (ξ ξ' : Fin K → Fin T)
+    (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    ∀ k : Fin T → ℕ, (∀ j, k j < 2 * T) →
+      ∑ t, W t * ∏ j, (B j t) ^ k j
+        = ∑ t, W t * ∏ j, (B (superMap ξ ξ' hξ j) t) ^ k j := by
+  intro k hk
+  classical
+  obtain ⟨Kf, hKf_sub, hKf_card⟩ := exists_exponent_label_set ξ ξ' hξ k hk
+  set S := univ.biUnion Kf with hS
+  have hdisj : Set.PairwiseDisjoint (↑(univ : Finset (Fin T))) Kf :=
+    fun j _ j' _ hjj => Finset.disjoint_of_subset_left (hKf_sub j)
+      (Finset.disjoint_of_subset_right (hKf_sub j') (superFiberSubset_disjoint ξ ξ' hξ hjj))
+  have hLHS : ∀ t, ∏ i ∈ S, B (ξ i) t = ∏ j, (B j t) ^ k j := by
+    intro t
+    rw [hS, Finset.prod_biUnion hdisj]
+    refine Finset.prod_congr rfl fun j _ => ?_
+    have hconst : ∏ i ∈ Kf j, B (ξ i) t = ∏ i ∈ Kf j, B j t :=
+      Finset.prod_congr rfl fun i hi => by
+        rw [superFiberSubset_mem_left ξ ξ' hξ j (hKf_sub j hi)]
+    rw [hconst, Finset.prod_const, hKf_card j]
+  have hRHS : ∀ t, ∏ i ∈ S, B (ξ' i) t = ∏ j, (B (superMap ξ ξ' hξ j) t) ^ k j := by
+    intro t
+    rw [hS, Finset.prod_biUnion hdisj]
+    refine Finset.prod_congr rfl fun j _ => ?_
+    have hconst : ∏ i ∈ Kf j, B (ξ' i) t = ∏ i ∈ Kf j, B (superMap ξ ξ' hξ j) t :=
+      Finset.prod_congr rfl fun i hi => by
+        rw [superFiberSubset_image_const ξ ξ' hξ j i (hKf_sub j hi)]
+    rw [hconst, Finset.prod_const, hKf_card j]
+  have heq : simpleEvalAt B W (starTestGraph S) ξ = simpleEvalAt B W (starTestGraph S) ξ' :=
+    h 1 (starTestGraph S)
+  rw [simpleEvalAt_starTestGraph B hB W S ξ, simpleEvalAt_starTestGraph B hB W S ξ'] at heq
+  calc ∑ t, W t * ∏ j, (B j t) ^ k j
+      = ∑ t, W t * ∏ i ∈ S, B (ξ i) t := by
+        refine Finset.sum_congr rfl fun t _ => ?_; rw [hLHS t]
+    _ = ∑ t, W t * ∏ i ∈ S, B (ξ' i) t := heq
+    _ = ∑ t, W t * ∏ j, (B (superMap ξ ξ' hξ j) t) ^ k j := by
+        refine Finset.sum_congr rfl fun t _ => ?_; rw [hRHS t]
+
+/-- **`superMap` support** (the user's straightforward corollary): every host vertex `t` is matched
+by the preliminary map — there is a `u` with `B j t = B (superMap … j) u` for all `j`. Combines the
+aligned-moment bridge with the proved aligned-Vandermonde support lemma. -/
+theorem superMap_support {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (t : Fin T) :
+    ∃ u, ∀ j, B j t = B (superMap ξ ξ' hξ j) u :=
+  aligned_star_moments_support B hB W hW htwin (superMap ξ ξ' hξ)
+    (aligned_moments_of_tupleEquivSimple_super B hB W ξ ξ' hξ h) t
+
 end Graphon.Lovasz
