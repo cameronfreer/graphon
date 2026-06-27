@@ -323,7 +323,7 @@ private lemma layer_cake_Icc (a : ℝ) (ha : a ∈ Set.Icc 0 1) :
   rw [h_inter, min_eq_left ha.2]
   by_cases ha0 : a ≤ 0
   · rw [le_antisymm ha0 ha.1, Set.Ioc_self]; simp
-  · push_neg at ha0
+  · push Not at ha0
     rw [setIntegral_const, smul_eq_mul, mul_one]
     unfold Measure.real
     rw [Real.volume_Ioc, sub_zero, ENNReal.toReal_ofReal ha0.le]
@@ -426,7 +426,7 @@ private lemma layer_cake_simple_eq (U W : Graphon α μ) (S : Set α) (hS : Meas
   rw [h_lhs_eq]
   have h_lhs : ∫ p, ∑ i : Fin n, c i * (S ×ˢ T i).indicator K p ∂(μ.prod μ) =
       ∑ i : Fin n, c i * rectIntegralDiff U W S (T i) := by
-    rw [integral_finset_sum]
+    rw [integral_finsetSum]
     · congr 1; ext i
       rw [integral_const_mul, integral_indicator (hS.prod (hT_meas i))]
       rfl
@@ -445,7 +445,7 @@ private lemma layer_cake_simple_eq (U W : Graphon α μ) (S : Set α) (hS : Meas
     · intro hty
       -- g y ≥ t > 0, so g y > 0, so y must be in some T j, and c j ≥ t
       by_contra h_none
-      push_neg at h_none
+      push Not at h_none
       -- h_none : ∀ i, t ≤ c i → y ∉ T i
       -- We'll show g y = 0, contradicting t ≤ g y with t > 0
       have hgy0 : g y = 0 := by
@@ -491,7 +491,7 @@ private lemma layer_cake_simple_eq (U W : Graphon α μ) (S : Set α) (hS : Meas
     rw [h_level t ht.1, h_rect_union t ht.1]
   rw [h_rhs_eq]
   -- Step 4: Swap integral and finite sum
-  rw [integral_finset_sum]
+  rw [integral_finsetSum]
   · -- Step 5: Compute each inner integral
     congr 1; ext i
     -- ∫ t in Ioc 0 1, (if t ≤ c i then R_i else 0) dt = c_i * R_i
@@ -508,7 +508,7 @@ private lemma layer_cake_simple_eq (U W : Graphon α μ) (S : Set α) (hS : Meas
     rw [Set.Ioc_inter_Iic, min_eq_right (hc_bound i).2]
     by_cases hci0 : c i ≤ 0
     · rw [le_antisymm hci0 (hc_bound i).1, Set.Ioc_self, setIntegral_empty, zero_mul]
-    · push_neg at hci0
+    · push Not at hci0
       rw [setIntegral_const, smul_eq_mul]
       congr 1
       unfold Measure.real
@@ -671,7 +671,7 @@ private lemma abs_weighted_integral_diff_indicator_general_le (U W : Graphon α 
         by_cases h : t ≤ g p.2
         · simp [Set.indicator_of_mem (show p.2 ∈ {y : α | t ≤ g y} from h),
                 Set.indicator_of_mem (Set.mem_Iic.mpr h)]
-        · push_neg at h
+        · push Not at h
           simp [Set.indicator_of_notMem (show p.2 ∉ {y : α | t ≤ g y} from not_le.mpr h),
                 Set.indicator_of_notMem (show t ∉ Set.Iic (g p.2) from not_le.mpr h)]
       rw [h_ind_eq]
@@ -883,7 +883,7 @@ theorem abs_weighted_integral_diff_le (U W : Graphon α μ) (f g : α → ℝ)
         by_cases h : s ≤ f p.1
         · simp [Set.indicator_of_mem (show p.1 ∈ {x : α | s ≤ f x} from h),
                 Set.indicator_of_mem (Set.mem_Iic.mpr h)]
-        · push_neg at h
+        · push Not at h
           simp [Set.indicator_of_notMem (show p.1 ∉ {x : α | s ≤ f x} from not_le.mpr h),
                 Set.indicator_of_notMem (show s ∉ Set.Iic (f p.1) from not_le.mpr h)]
       rw [h_ind_eq]
@@ -1244,7 +1244,7 @@ theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
   -- Suffices to show: for all ε > 0, d(U,W) ≤ d(U,V) + d(V,W) + ε
   rw [← sub_nonneg]
   by_contra h_neg
-  push_neg at h_neg
+  push Not at h_neg
   -- h_neg : cutDistance U V + cutDistance V W - cutDistance U W < 0
   set δ := cutDistance U W - cutDistance U V - cutDistance V W with hδ_def
   have hδ_pos : δ > 0 := by linarith

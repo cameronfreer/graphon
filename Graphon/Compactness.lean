@@ -561,7 +561,7 @@ theorem totallyBounded (ε : ℝ) (hε : ε > 0) :
       apply Filter.mem_of_superset (compl_mem_ae_iff.mpr h_null)
       intro x hx hxS
       by_contra h_ne
-      exact hx (Set.mem_diff_of_mem hxS h_ne)
+      exact hx (Set.mem_sdiff_of_mem hxS h_ne)
     have h_e_fst : ∀ᵐ p ∂(μ.prod μ),
         ∀ (S : Set α) (hS : S ∈ P₀.parts), p.1 ∈ S → e p.1 ∈ σ S hS :=
       Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst h_align_ae
@@ -792,7 +792,7 @@ private theorem exists_cutNormDiff_cauchy_realignment
         summable_geometric_of_lt_one (by positivity) (by norm_num)
       have h2 := h.mul_left 2
       simp only [one_div] at h2
-      convert h2 using 1; ext k; rw [inv_pow]; ring
+      exact h2.congr (fun k => by rw [inv_pow]; ring)
   refine ⟨f, hf, δ, hδ_sum, hδ_pos, fun k => ?_⟩
   -- Key calc: f (k+1) = f k . trans (σ k), so ⇑(f (k+1)) = σ_k ∘ f_k
   -- pb(V(k+1), f_{k+1}) = pb(V(k+1), σ_k ∘ f_k) = pb(pb(V(k+1), σ_k), f_k)
@@ -948,7 +948,7 @@ private lemma rectIntegralDiff_le_tail_tsum
             ≤ |rectIntegralDiff (A n) (A m) S T| +
               |rectIntegralDiff (A m) (A (m + 1)) S T| := h_tri
           _ ≤ ∑ j ∈ Finset.range (m - n), δ (n + j) + δ m := add_le_add (ih h) h_step
-      · push_neg at h
+      · push Not at h
         have heq : n = m + 1 := by omega
         subst heq
         simp only [Nat.sub_self, Finset.range_zero, Finset.sum_empty, rectIntegralDiff, sub_self,
@@ -1171,7 +1171,6 @@ private theorem exists_limit_measure_of_summable
     (by simp [hc_empty])
     (by
       intro f hf h_disj
-      simp only []
       rw [hc_additive hf h_disj]
       exact ENNReal.ofReal_tsum_of_nonneg (fun i => hc_nn (f i) (hf i))
         (Summable.of_nonneg_of_le (fun i => hc_nn (f i) (hf i))

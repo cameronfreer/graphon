@@ -573,7 +573,7 @@ theorem moment_nondegenerate_iff_multiOrbitSpan_eq_top {T : ℕ} (K : ℕ) (B : 
     exact horth n M
   · intro htop μ hμ
     by_contra hcon
-    push_neg at hcon
+    push Not at hcon
     apply hμ
     have horth := (allMomentsZero_iff_orthogonal K B W μ).mp hcon
     funext q₀
@@ -592,7 +592,7 @@ theorem sep_of_multiOrbitSpan_eq_top {T : ℕ} (K : ℕ) (B : Fin T → Fin T �
       multiEvalOnOrbit K n M B W q₁ ≠ multiEvalOnOrbit K n M B W q₂ := by
   classical
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   have hle : multiOrbitSpan K B W ≤
       LinearMap.ker ((LinearMap.proj q₁ : (OrbitClass T K B W → ℝ) →ₗ[ℝ] ℝ) - LinearMap.proj q₂) := by
     rw [multiOrbitSpan, Submodule.span_le]
@@ -817,7 +817,7 @@ theorem exists_positive_gram_test {T : ℕ} (K : ℕ) (B : Fin T → Fin T → �
     ∃ (n : ℕ) (M : MultiLabeledGraph K n),
       orbitInner K B W h (multiEvalOnOrbit K n M B W) ≠ 0 := by
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   exact hne (fls_orthogonal_zero K B W hB hW htwin h hcon)
 
 /-- **Full span from a separation hypothesis** (hard direction of the equivalence):
@@ -1150,7 +1150,7 @@ theorem exists_refineSetoidIter_fixed (s : Setoid (Fin T)) :
   have hstab : ∃ n ≤ T,
       classCount (refineSetoidIter B W s (n + 1)) = classCount (refineSetoidIter B W s n) := by
     by_contra hc
-    push_neg at hc
+    push Not at hc
     have hstrict : ∀ n ≤ T,
         classCount (refineSetoidIter B W s n) < classCount (refineSetoidIter B W s (n + 1)) :=
       fun n hn => lt_of_le_of_ne (hmono n) fun he => hc n hn he.symm

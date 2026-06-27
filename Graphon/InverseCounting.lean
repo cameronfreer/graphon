@@ -174,7 +174,7 @@ private theorem homDensity_mkStepGraphon_eq_weightedHomSum
   have hcell_disj : Pairwise (fun σ₁ σ₂ => Disjoint (cellProd σ₁) (cellProd σ₂)) := by
     intro σ₁ σ₂ hne
     have ⟨v, hv⟩ : ∃ v, σ₁ v ≠ σ₂ v := by
-      by_contra h; push_neg at h; exact hne (funext h)
+      by_contra h; push Not at h; exact hne (funext h)
     rw [Set.disjoint_left]
     intro x hx₁ hx₂
     have h₁ := Set.mem_pi.mp hx₁ v (Set.mem_univ v)
@@ -259,7 +259,7 @@ private theorem homDensity_mkStepGraphon_eq_weightedHomSum
     intro σ
     unfold Measure.real
     rw [Measure.pi_pi (fun _ => μ) (fun v => ι (σ v))]
-    exact ENNReal.toReal_prod
+    exact ENNReal.toReal_prod _ _
   -- Rewrite and match weightedHomSum
   simp_rw [h_real_meas, smul_eq_mul]
   -- Now goal: ∑ σ, (∏ v, (μ(ι(σ(v)))).toReal) * (∏ e, c(ι(σ(e.1)), ι(σ(e.2))))
@@ -403,7 +403,7 @@ private theorem mkStepGraphon_eq_of_ae_coeff
       le_antisymm
         ((measure_biUnion_finset_le _ _).trans_eq
           (Finset.sum_eq_zero (fun S hS => (Finset.mem_filter.mp hS).2)))
-        (zero_le _)
+        (zero_le)
     have h_not_in_null : ∀ᵐ x ∂μ,
         x ∉ ⋃ S ∈ P.parts.filter (fun S => μ S = 0), S :=
       compl_mem_ae_iff.mpr h_null_union
@@ -618,7 +618,7 @@ private theorem exists_type_class_mp_bijection
       (fun i (_ : i ∈ Finset.univ.filter (type_c · = t)) => h_ne_top (embed i))
     have h_ne_t := ENNReal.sum_ne_top.mpr
       (fun i (_ : i ∈ Finset.univ.filter (type_c' · = t)) => h_ne_top (embed i))
-    rw [← ENNReal.toReal_eq_toReal h_ne_s h_ne_t,
+    rw [← ENNReal.toReal_eq_toReal_iff' h_ne_s h_ne_t,
         ENNReal.toReal_sum (fun i _ => h_ne_top (embed i)),
         ENNReal.toReal_sum (fun i _ => h_ne_top (embed i))]
     exact h_weight t
@@ -703,7 +703,7 @@ private theorem exists_type_class_mp_bijection
     have h_zero : μ (ι (embed i)) = 0 := by
       have h_sum_zero : ∑ j ∈ Finset.univ.filter (type_c · = type_c i),
           (μ (ι (embed j))).toReal = 0 := by
-        by_contra h_pos; push_neg at h_pos
+        by_contra h_pos; push Not at h_pos
         exact h_good (Finset.mem_filter.mpr ⟨Finset.mem_univ _,
           lt_of_le_of_ne (Finset.sum_nonneg (fun _ _ => ENNReal.toReal_nonneg))
             (Ne.symm h_pos)⟩)
@@ -844,7 +844,7 @@ private theorem exists_pullback_eq_of_step_homDensity_eq
           ∏ e ∈ F.edgeFinset, M (x (Quot.out e).1) (x (Quot.out e).2)) = 0 := by
         apply Finset.sum_eq_zero; intro σ hσ
         simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hσ
-        push_neg at hσ; exact h_vanish M σ hσ
+        push Not at hσ; exact h_vanish M σ hσ
       rw [h_bad_zero, add_zero]
       -- Now biject: ∑ (good filtered Fin k) = ∑ (univ Fin k')
       symm
@@ -901,7 +901,7 @@ private theorem exists_pullback_eq_of_step_homDensity_eq
       le_antisymm
         ((measure_biUnion_finset_le _ _).trans_eq
           (Finset.sum_eq_zero (fun S hS => (Finset.mem_filter.mp hS).2)))
-        (zero_le _)
+        (zero_le)
     have h_not_in_null : ∀ᵐ x ∂μ,
         x ∉ ⋃ S ∈ P.parts.filter (fun S => μ S = 0), S :=
       compl_mem_ae_iff.mpr h_null_union
@@ -1105,7 +1105,7 @@ private theorem simultaneous_regularity [StandardBorelSpace α]
                         _ ≤ 4 ^ N := Nat.pow_le_pow_right (by norm_num) (Nat.sub_le N _),
             Or.inl ⟨h_doneU, h_doneW⟩⟩
       · -- W is bad: refine for W using energy_increment_pair
-        push_neg at h_doneW
+        push Not at h_doneW
         obtain ⟨Q, _, hQ_card_le, hQ_energyW, hQ_mono⟩ :=
           energy_increment_pair W P δ hδ h_doneW
         have hQ_card : Q.parts.card ≤ 4 ^ (N - n) := by
@@ -1127,7 +1127,7 @@ private theorem simultaneous_regularity [StandardBorelSpace α]
             _ = energy U P + energy W P + (↑n + 1) * δ ^ 2 := by ring
             _ = energy U P + energy W P + ↑(n + 1) * δ ^ 2 := by rw [this]
     · -- U is bad: refine for U using energy_increment_pair
-      push_neg at h_doneU
+      push Not at h_doneU
       obtain ⟨Q, _, hQ_card_le, hQ_energyU, hQ_mono⟩ :=
         energy_increment_pair U P δ hδ h_doneU
       have hQ_card : Q.parts.card ≤ 4 ^ (N - n) := by
@@ -1269,7 +1269,7 @@ private theorem step_quantitative_icl
   classical
   -- By contradiction + compactness of coefficient space
   by_contra h_neg
-  push_neg at h_neg
+  push Not at h_neg
   have h_seq : ∀ n : ℕ, ∃ (U_n W_n : Graphon α μ),
       (∀ (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
         |homDensity F (stepify P U_n) - homDensity F (stepify P W_n)| <
@@ -1391,18 +1391,18 @@ private theorem step_quantitative_icl
         (fun i j => coeff_seq (ψ m) i j 0) w) atTop
         (nhds (weightedHomSum n F (fun i j => c_lim i j 0) w)) := by
     intro n F _
-    apply tendsto_finset_sum _ (fun σ _ => ?_)
+    apply tendsto_finsetSum _ (fun σ _ => ?_)
     apply Filter.Tendsto.const_mul
-    apply tendsto_finset_prod _ (fun e _ => ?_)
+    apply tendsto_finsetProd _ (fun e _ => ?_)
     exact h_pw _ _ 0
   have h_whs_conv_W : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
       Tendsto (fun m => weightedHomSum n F
         (fun i j => coeff_seq (ψ m) i j 1) w) atTop
         (nhds (weightedHomSum n F (fun i j => c_lim i j 1) w)) := by
     intro n F _
-    apply tendsto_finset_sum _ (fun σ _ => ?_)
+    apply tendsto_finsetSum _ (fun σ _ => ?_)
     apply Filter.Tendsto.const_mul
-    apply tendsto_finset_prod _ (fun e _ => ?_)
+    apply tendsto_finsetProd _ (fun e _ => ?_)
     exact h_pw _ _ 1
   -- The original bridges will be instantiated per-graphon below
   -- Equal hom densities: pass |t(F,step U_n) - t(F,step W_n)| < 1/(n+1) to the limit
@@ -1679,7 +1679,7 @@ private theorem exists_partition_with_measures {K : ℕ}
   have hS₀_meas : MeasurableSet S₀ := MeasurableSet.univ.diff hR_meas
   have hS₀_eq : μ S₀ = 1 := by
     have : μ Set.univ = μ S₀ + μ (Set.range ξ) := by
-      rw [← measure_union (Set.disjoint_sdiff_left) hR_meas, Set.diff_union_self,
+      rw [← measure_union (Set.disjoint_sdiff_left) hR_meas, Set.sdiff_union_self,
           Set.union_eq_self_of_subset_right (Set.subset_univ _)]
     rw [measure_univ, hR_null, add_zero] at this; exact this.symm
   -- Recursive carving of S₀: build C_i ⊆ S₀ with μ(C_i) = ofReal(w i)
@@ -1741,10 +1741,10 @@ private theorem exists_partition_with_measures {K : ℕ}
       exact hι_disj i j (fun h => hne (congrArg ι h))
     -- ae_covers: complement ⊆ S₀ \ ⋃ C i, which is null
     · rw [ae_iff]
-      refine le_antisymm ?_ (zero_le _)
+      refine le_antisymm ?_ (zero_le)
       calc μ {x | ¬∃ S ∈ parts, x ∈ S}
           ≤ μ (S₀ \ ⋃ i, C i) := measure_mono (fun x hx => by
-            push_neg at hx -- hx : ∀ S ∈ parts, x ∉ S
+            push Not at hx -- hx : ∀ S ∈ parts, x ∉ S
             refine ⟨⟨Set.mem_univ _, fun hxR => ?_⟩, fun hxC => ?_⟩
             · obtain ⟨j, rfl⟩ := hxR
               exact hx (ι j) (Finset.mem_image.mpr ⟨j, Finset.mem_univ _, rfl⟩)
@@ -1777,7 +1777,7 @@ private theorem exists_partition_with_measures {K : ℕ}
     intro S hS hS_ne_top w' _ hw'_sum
     refine ⟨Fin.elim0, fun i => i.elim0, fun i => i.elim0,
       fun i => i.elim0, ?_, fun i => i.elim0⟩
-    simp only [Set.iUnion_of_empty, Set.diff_empty]; simpa using hw'_sum.symm
+    simp only [Set.iUnion_of_empty, Set.sdiff_empty]; simpa using hw'_sum.symm
   | succ n ih =>
     intro S hS hS_ne_top w' hw'_nn hw'_sum
     -- Carve first cell C₀ ⊆ S with μ(C₀) = ENNReal.ofReal(w' 0)
@@ -1788,9 +1788,9 @@ private theorem exists_partition_with_measures {K : ℕ}
     -- Remaining space S' = S \ C₀
     set S' := S \ C₀ with hS'_def
     have hS'm : MeasurableSet S' := hS.diff hC₀m
-    have hS'_ne_top : μ S' ≠ ⊤ := ne_top_of_le_ne_top hS_ne_top (measure_mono diff_subset)
+    have hS'_ne_top : μ S' ≠ ⊤ := ne_top_of_le_ne_top hS_ne_top (measure_mono sdiff_subset)
     have hw'_rest_sum : ENNReal.ofReal (∑ i : Fin n, w' i.succ) = μ S' := by
-      rw [measure_diff hC₀s hC₀m.nullMeasurableSet (by rw [hC₀e]; exact ENNReal.ofReal_ne_top),
+      rw [measure_sdiff hC₀s hC₀m.nullMeasurableSet (by rw [hC₀e]; exact ENNReal.ofReal_ne_top),
           hC₀e, ← hw'_sum, Fin.sum_univ_succ,
           ENNReal.ofReal_add (hw'_nn 0) (Finset.sum_nonneg (fun i _ => hw'_nn _))]
       exact (ENNReal.add_sub_cancel_left ENNReal.ofReal_ne_top).symm
@@ -1804,7 +1804,7 @@ private theorem exists_partition_with_measures {K : ℕ}
     -- Subset
     · intro i; refine Fin.cases ?_ (fun j => ?_) i
       · rw [Fin.cons_zero]; exact hC₀s
-      · rw [Fin.cons_succ]; exact (hC's j).trans diff_subset
+      · rw [Fin.cons_succ]; exact (hC's j).trans sdiff_subset
     -- Disjoint: introduce hij AFTER case split so types are correct
     · intro i j
       refine Fin.cases ?_ (fun i' => ?_) i <;> refine Fin.cases ?_ (fun j' => ?_) j <;>
@@ -1818,7 +1818,7 @@ private theorem exists_partition_with_measures {K : ℕ}
       -- Key: ⋃ i, T i = C₀ ∪ ⋃ j, C' j, so S \ (C₀ ∪ ⋃ C') = (S \ C₀) \ ⋃ C' = S' \ ⋃ C'
       suffices h : ∀ x, x ∈ S \ ⋃ i, @Fin.cons _ (fun _ => Set α) C₀ C' i →
           x ∈ S' \ ⋃ j, C' j by
-        exact le_antisymm (le_trans (measure_mono h) (le_of_eq hC'cov)) (zero_le _)
+        exact le_antisymm (le_trans (measure_mono h) (le_of_eq hC'cov)) (zero_le)
       intro x ⟨hxS, hxU⟩
       simp only [Set.mem_iUnion, not_exists] at hxU
       refine ⟨⟨hxS, fun hxC₀ => hxU 0 (by rw [Fin.cons_zero]; exact hxC₀)⟩, ?_⟩
@@ -1861,10 +1861,10 @@ private theorem cutNormDiff_le_of_ae_agree_off_strip (U W : Graphon α μ)
   have hTdE := hT.diff hE
   -- Key decomposition: S ×ˢ T = (S ∩ E) ×ˢ T ∪ (S \ E) ×ˢ T
   have h_ST_decomp : S ×ˢ T = ((S ∩ E) ×ˢ T) ∪ ((S \ E) ×ˢ T) := by
-    rw [← Set.union_prod, Set.inter_union_diff]
+    rw [← Set.union_prod, Set.inter_union_sdiff]
   -- Further decompose (S \ E) ×ˢ T = (S \ E) ×ˢ (T ∩ E) ∪ (S \ E) ×ˢ (T \ E)
   have h_SdET_decomp : (S \ E) ×ˢ T = ((S \ E) ×ˢ (T ∩ E)) ∪ ((S \ E) ×ˢ (T \ E)) := by
-    rw [← Set.prod_union, Set.inter_union_diff]
+    rw [← Set.prod_union, Set.inter_union_sdiff]
   -- Disjointness
   have h_disj1 : Disjoint ((S ∩ E) ×ˢ T) ((S \ E) ×ˢ T) :=
     disjoint_inf_sdiff.set_prod_left T T
@@ -2071,7 +2071,7 @@ private theorem cutDistance_step_weight_le {K : ℕ}
           exact ⟨src j, Finset.mem_insert_of_mem
             (Finset.mem_image_of_mem _ (Finset.mem_univ j)), hxj⟩
         · exact ⟨waste_src, Finset.mem_insert_self _ _,
-            Set.mem_diff_of_mem (Set.mem_univ _) hx⟩
+            Set.mem_sdiff_of_mem (Set.mem_univ _) hx⟩
     }
     -- Build MeasurablePartition for target (M_P good cells + waste)
     let waste_tgt := Set.univ \ ⋃ j : Fin good.card, tgt j
@@ -2107,7 +2107,7 @@ private theorem cutDistance_step_weight_le {K : ℕ}
           exact ⟨tgt j, Finset.mem_insert_of_mem
             (Finset.mem_image_of_mem _ (Finset.mem_univ j)), hxj⟩
         · exact ⟨waste_tgt, Finset.mem_insert_self _ _,
-            Set.mem_diff_of_mem (Set.mem_univ _) hx⟩
+            Set.mem_sdiff_of_mem (Set.mem_univ _) hx⟩
     }
     -- Prove membership in partition parts
     have hsrc_mem : ∀ j, src j ∈ P_src.parts :=
@@ -2180,10 +2180,10 @@ private theorem cutDistance_step_weight_le {K : ℕ}
     intro h1_not h2_not
     -- p.1 ∉ E_Q means p.1 ∈ ⋃ i, M_Q i
     have h1_in : p.1 ∈ ⋃ i, M_Q i := by
-      simp only [hE_Q_def, Set.mem_diff, Set.mem_univ, true_and, not_not] at h1_not
+      simp only [hE_Q_def, Set.mem_sdiff, Set.mem_univ, true_and, not_not] at h1_not
       exact h1_not
     have h2_in : p.2 ∈ ⋃ i, M_Q i := by
-      simp only [hE_Q_def, Set.mem_diff, Set.mem_univ, true_and, not_not] at h2_not
+      simp only [hE_Q_def, Set.mem_sdiff, Set.mem_univ, true_and, not_not] at h2_not
       exact h2_not
     rw [Set.mem_iUnion] at h1_in h2_in
     obtain ⟨i, hi⟩ := h1_in
@@ -2220,7 +2220,7 @@ private theorem cutDistance_step_weight_le {K : ℕ}
     -- E_Q = univ \ ⋃ i, M_Q i ⊆ (univ \ ⋃ i, ι_Q i) ∪ ⋃ i, (ι_Q i \ M_Q i)
     have h_sub : E_Q ⊆ (Set.univ \ ⋃ i, ι_Q i) ∪ ⋃ i, (ι_Q i \ M_Q i) := by
       intro x hx
-      rw [hE_Q_def, Set.mem_diff] at hx
+      rw [hE_Q_def, Set.mem_sdiff] at hx
       by_cases hx_union : x ∈ ⋃ i, ι_Q i
       · right
         rw [Set.mem_iUnion] at hx_union ⊢
@@ -2232,7 +2232,7 @@ private theorem cutDistance_step_weight_le {K : ℕ}
       _ = 0 + μ (⋃ i, (ι_Q i \ M_Q i)) := by
           congr 1
           -- univ \ ⋃ i, ι_Q i has measure 0 by Q.ae_covers
-          apply le_antisymm _ (zero_le _)
+          apply le_antisymm _ (zero_le)
           -- ⋃ S ∈ Q.parts, S ⊇ ⋃ i, ι_Q i since hι_Q_surj gives that every part is some ι_Q i
           have h_eq : ⋃ i, ι_Q i = ⋃ S ∈ Q.parts, S := by
             ext x; simp only [Set.mem_iUnion, Set.mem_iUnion]; constructor
@@ -2245,7 +2245,7 @@ private theorem cutDistance_step_weight_le {K : ℕ}
           calc μ (Set.univ \ ⋃ S ∈ Q.parts, S)
               ≤ μ {x | ¬∃ S ∈ Q.parts, x ∈ S} := by
                 apply measure_mono; intro x hx
-                simp only [Set.mem_diff, Set.mem_iUnion, Set.mem_setOf_eq] at hx ⊢
+                simp only [Set.mem_sdiff, Set.mem_iUnion, Set.mem_setOf_eq] at hx ⊢
                 exact fun ⟨S, hS, hxS⟩ => hx.2 ⟨S, hS, hxS⟩
               _ = 0 := h_compl_null
       _ ≤ ∑ i : Fin K, μ (ι_Q i \ M_Q i) := by
@@ -2256,7 +2256,7 @@ private theorem cutDistance_step_weight_le {K : ℕ}
                 tsum_eq_sum (fun i hi => absurd (Finset.mem_univ i) hi)
       _ = ∑ i : Fin K, (μ (ι_Q i) - μ (M_Q i)) := by
           congr 1; ext i
-          rw [measure_diff (hM_Q_sub i) (hM_Q_meas i).nullMeasurableSet (measure_ne_top μ _)]
+          rw [measure_sdiff (hM_Q_sub i) (hM_Q_meas i).nullMeasurableSet (measure_ne_top μ _)]
   -- Convert to Real
   have h_ne_top : ∀ i : Fin K, μ (ι_Q i) ≠ ⊤ := fun i => measure_ne_top μ _
   have h_M_ne_top : ∀ i : Fin K, μ (M_Q i) ≠ ⊤ := fun i => measure_ne_top μ _
@@ -2406,10 +2406,10 @@ private theorem cutDistance_cross_partition_weight_le {K : ℕ}
         (fun S hS => P.measurableSet_part hS))
     have hE_P_null : μ E_P = 0 := by
       have h_ae := P.ae_covers; rw [ae_iff] at h_ae
-      refine le_antisymm ?_ (zero_le _)
+      refine le_antisymm ?_ (zero_le)
       calc μ E_P ≤ μ {x | ¬∃ S ∈ P.parts, x ∈ S} := by
             apply measure_mono; intro x hx
-            rw [hE_P_def, Set.mem_diff] at hx
+            rw [hE_P_def, Set.mem_sdiff] at hx
             simp only [Set.mem_setOf_eq]
             exact fun ⟨S, hS, hxS⟩ =>
               hx.2 (Set.mem_biUnion hS hxS)
@@ -2536,7 +2536,7 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
       cutDistance (stepify P U) (stepify P W) < ε := by
   classical
   by_contra h_neg
-  push_neg at h_neg
+  push Not at h_neg
   have h_seq : ∀ n : ℕ, ∃ (P_n : MeasurablePartition α μ) (_ : P_n.parts.card ≤ K)
       (U_n W_n : Graphon α μ),
       (∀ (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
@@ -2665,7 +2665,7 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
     have h_ae := (P_seq n).ae_covers
     rw [ae_iff] at h_ae
     have h_null : μ ((⋃ S ∈ (P_seq n).parts, S)ᶜ) = 0 := by
-      refine le_antisymm ?_ (zero_le _)
+      refine le_antisymm ?_ (zero_le)
       calc μ ((⋃ S ∈ (P_seq n).parts, S)ᶜ)
           ≤ μ {x | ¬∃ S ∈ (P_seq n).parts, x ∈ S} := by
             apply measure_mono; intro x hx
@@ -2677,7 +2677,7 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
     simp [measure_univ]
   have h_wlim_sum : ∑ i : Fin K, w_lim i = 1 := by
     exact tendsto_nhds_unique
-      ((tendsto_finset_sum _ (fun i _ => h_pw_w i)).congr
+      ((tendsto_finsetSum _ (fun i _ => h_pw_w i)).congr
         (fun n => (h_w_sum (ψ n)).symm ▸ rfl))
       tendsto_const_nhds
   obtain ⟨P_lim, ι_lim, hι_lim_mem, hι_lim_inj, hι_lim_surj, hP_lim_card, hι_lim_meas⟩ :=
@@ -2752,18 +2752,18 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
       Tendsto (fun m => weightedHomSum n F
         (fun i j => coeff_seq (ψ m) i j 0) (w_seq (ψ m))) atTop
         (nhds (weightedHomSum n F (fun i j => c_lim i j 0) w_lim)) := by
-    intro n F _; apply tendsto_finset_sum _ (fun σ _ => ?_)
+    intro n F _; apply tendsto_finsetSum _ (fun σ _ => ?_)
     apply Filter.Tendsto.mul
-    · apply tendsto_finset_prod _ (fun v _ => ?_); exact h_pw_w (σ v)
-    · apply tendsto_finset_prod _ (fun e _ => ?_); exact h_pw_c _ _ 0
+    · apply tendsto_finsetProd _ (fun v _ => ?_); exact h_pw_w (σ v)
+    · apply tendsto_finsetProd _ (fun e _ => ?_); exact h_pw_c _ _ 0
   have h_whs_conv_W : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
       Tendsto (fun m => weightedHomSum n F
         (fun i j => coeff_seq (ψ m) i j 1) (w_seq (ψ m))) atTop
         (nhds (weightedHomSum n F (fun i j => c_lim i j 1) w_lim)) := by
-    intro n F _; apply tendsto_finset_sum _ (fun σ _ => ?_)
+    intro n F _; apply tendsto_finsetSum _ (fun σ _ => ?_)
     apply Filter.Tendsto.mul
-    · apply tendsto_finset_prod _ (fun v _ => ?_); exact h_pw_w (σ v)
-    · apply tendsto_finset_prod _ (fun e _ => ?_); exact h_pw_c _ _ 1
+    · apply tendsto_finsetProd _ (fun v _ => ?_); exact h_pw_w (σ v)
+    · apply tendsto_finsetProd _ (fun e _ => ?_); exact h_pw_c _ _ 1
   have h_stepify_bridge : ∀ m : ℕ, ∀ (V : Graphon α μ) (b : Fin 2),
       ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
       n ≤ ψ m →
@@ -3124,7 +3124,7 @@ theorem cutDistance_le_of_homDensity_close [StandardBorelSpace α] [NoAtoms μ] 
   -- If false, for each n, ∃ U_n W_n with Fin-n hom densities within 1/(n+1) but d ≥ ε.
   -- Extract convergent subsequences; limits have equal hom densities but d ≥ ε, contradiction.
   by_contra h_neg
-  push_neg at h_neg
+  push Not at h_neg
   have h_seq : ∀ n : ℕ, ∃ (U W : Graphon α μ),
       (∀ (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
         |homDensity F U - homDensity F W| < 1 / (↑n + 1 : ℝ)) ∧
@@ -3142,7 +3142,7 @@ theorem cutDistance_le_of_homDensity_close [StandardBorelSpace α] [NoAtoms μ] 
     fun ε' hε' => hφ₂_conv ε' hε'
   have h_lim_far : cutDistance U_lim W_lim ≥ ε := by
     by_contra h_small
-    push_neg at h_small
+    push Not at h_small
     set δ₀ := (ε - cutDistance U_lim W_lim) / 3 with hδ₀_def
     have hδ₀_pos : δ₀ > 0 := by linarith [cutDistance_nonneg U_lim W_lim]
     obtain ⟨N₁, hN₁⟩ := hU_conv δ₀ hδ₀_pos
@@ -3302,7 +3302,7 @@ theorem limit_unique_upto_weakIso [StandardBorelSpace α]
   unfold WeaklyIsomorphic
   apply le_antisymm
   · by_contra h_neg
-    push_neg at h_neg
+    push Not at h_neg
     set ε := cutDistance U V / 2 with hε_def
     have hε_pos : ε > 0 := by positivity
     obtain ⟨N₁, hN₁⟩ := hU ε hε_pos

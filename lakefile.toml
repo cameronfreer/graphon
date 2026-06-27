@@ -4,30 +4,22 @@ keywords = ["math"]
 defaultTargets = ["Graphon"]
 
 [[require]]
-name = "mathlib"
-scope = "leanprover-community"
-rev = "d557daf6dc764277d2f5cb03daf31d21bc5f01d3"
-
-[[require]]
 name = "LeanArchitect"
-git = "https://github.com/cameronfreer/LeanArchitect.git"
-rev = "e14a867"
-
-[[require]]
-name = "batteries"
-scope = "leanprover-community"
-git = "https://github.com/leanprover-community/batteries"
-rev = "v4.27.0"
-
-[[require]]
-name = "Cli"
-git = "https://github.com/mhuisi/lean4-cli"
-rev = "v4.27.0"
+git = "https://github.com/hanwenzhu/LeanArchitect.git"
+rev = "d9013cc08bd2b5483e837368dfa4cc7ead92a5c2"
 
 [[require]]
 name = "checkdecls"
 git = "https://github.com/PatrickMassot/checkdecls.git"
 rev = "3d425859e73fcfbef85b9638c2a91708ef4a22d4"
+
+# batteries and Cli are provided transitively by Mathlib; pinning them explicitly
+# breaks `lake exe cache get` hash computation (Lake warns to remove them).
+# `require mathlib` is LAST so Mathlib's transitive dependency versions take precedence.
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.32.0-rc1"
 
 [[lean_lib]]
 name = "Graphon"

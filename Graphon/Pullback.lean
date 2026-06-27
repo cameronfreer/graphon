@@ -62,7 +62,7 @@ theorem measurePreserving_prodMap_self {φ : α → β} (hφ : MeasurePreserving
 
 Given a symmetric kernel `W : β × β → ℝ` and a measure-preserving map `φ : α → β`,
 the pullback `W^φ(x, y) = W(φ(x), φ(y))` is again a symmetric kernel on `α`. -/
-def pullback (W : SymmKernel β ν) (φ : α → β) (hφ : MeasurePreserving φ μ ν) :
+noncomputable def pullback (W : SymmKernel β ν) (φ : α → β) (hφ : MeasurePreserving φ μ ν) :
     SymmKernel α μ where
   toAEEqFun := W.toAEEqFun.compMeasurePreserving (Prod.map φ φ) (measurePreserving_prodMap_self hφ)
   symm' := by
@@ -117,7 +117,7 @@ This operation is fundamental for defining the cut distance:
 Key property: `t(F, W^φ) = t(F, W)` for all graphs F (proved in `homDensity_pullback`). -/
 @[blueprint "def:pullback"
   (title := /-- Pullback of a graphon -/)]
-def pullback (W : Graphon β ν) (φ : α → β) (hφ : MeasurePreserving φ μ ν) :
+noncomputable def pullback (W : Graphon β ν) (φ : α → β) (hφ : MeasurePreserving φ μ ν) :
     Graphon α μ where
   toSymmKernel := W.toSymmKernel.pullback φ hφ
   ae_mem_Icc := by
