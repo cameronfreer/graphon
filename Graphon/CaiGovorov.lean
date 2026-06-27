@@ -257,4 +257,145 @@ theorem multivariate_vandermonde_class_sums_zero {s : ℕ} {ι : Type*} [Fintype
         apply sum_congr rfl; intro i _; by_cases hi : b i = β <;> simp [hi]
     _ = 0 := happ
 
+/-- Univariate Lemma 4.1 with an explicit bound `N` on the number of distinct values of `x`
+(in place of `|ι|`). -/
+theorem vandermonde_class_sums_zero_of_bound {ι : Type*} [Fintype ι]
+    (x a : ι → ℝ) (N : ℕ) (hN : (univ.image x).card ≤ N)
+    (h : ∀ j : ℕ, j < N → ∑ i, a i * x i ^ j = 0) (c : ℝ) :
+    ∑ i ∈ univ.filter (fun i => x i = c), a i = 0 := by
+  classical
+  have hgroup : ∀ n : ℕ, (∑ d ∈ univ.image x,
+          (∑ i ∈ univ.filter (fun i => x i = d), a i) * d ^ n) = ∑ i, a i * x i ^ n := by
+    intro n
+    rw [← sum_fiberwise_of_maps_to
+          (fun i _ => mem_image_of_mem x (mem_univ i))
+          (fun i => a i * x i ^ n)]
+    apply sum_congr rfl
+    intro d _
+    rw [Finset.sum_mul]
+    apply sum_congr rfl
+    intro i hi
+    rw [mem_filter] at hi
+    rw [hi.2]
+  have key : ∀ d ∈ univ.image x,
+      (∑ i ∈ univ.filter (fun i => x i = d), a i) = 0 := by
+    refine finset_vandermonde_zero
+      (fun d => ∑ i ∈ univ.filter (fun i => x i = d), a i) (fun n hn => ?_)
+    rw [hgroup n]
+    exact h n (lt_of_lt_of_le hn hN)
+  by_cases hc : c ∈ univ.image x
+  · exact key c hc
+  · rw [Finset.filter_eq_empty_iff.mpr ?_, Finset.sum_empty]
+    intro i _ hxi
+    exact hc (hxi ▸ mem_image_of_mem x (mem_univ i))
+
+/-- Univariate ∀f form with an explicit distinct-value bound. -/
+theorem vandermonde_apply_eq_zero_of_bound {ι : Type*} [Fintype ι]
+    (x a : ι → ℝ) (N : ℕ) (hN : (univ.image x).card ≤ N)
+    (h : ∀ j : ℕ, j < N → ∑ i, a i * x i ^ j = 0) (f : ℝ → ℝ) :
+    ∑ i, a i * f (x i) = 0 :=
+  sum_apply_eq_zero_of_fibers x a (vandermonde_class_sums_zero_of_bound x a N hN h) f
+
+/-- Multivariate ∀f form with a UNIFORM bound `M` such that every coordinate `j` of the
+profile `b` takes at most `M` distinct values. -/
+theorem multivariate_vandermonde_apply_eq_zero_of_bound :
+    ∀ (s : ℕ) {ι : Type*} [Fintype ι] (b : ι → Fin s → ℝ) (a : ι → ℝ) (M : ℕ),
+      (∀ j, (univ.image (fun i => b i j)).card ≤ M) →
+      (∀ ℓ : Fin s → ℕ, (∀ j, ℓ j < M) → ∑ i, a i * ∏ j, b i j ^ ℓ j = 0) →
+      ∀ f : (Fin s → ℝ) → ℝ, ∑ i, a i * f (b i) = 0 := by
+  intro s
+  induction s with
+  | zero =>
+      intro ι _ b a M hM h f
+      have hsum : ∑ i, a i = 0 := by
+        simpa using h Fin.elim0 (fun j => j.elim0)
+      have key : ∀ i, f (b i) = f (fun _ => (0 : ℝ)) := fun i =>
+        congrArg f (funext (fun j : Fin 0 => j.elim0))
+      calc ∑ i, a i * f (b i)
+          = ∑ i, a i * f (fun _ => (0 : ℝ)) := by
+              apply sum_congr rfl; intro i _; rw [key i]
+        _ = (∑ i, a i) * f (fun _ => (0 : ℝ)) := by rw [Finset.sum_mul]
+        _ = 0 := by rw [hsum, zero_mul]
+  | succ s ih =>
+      intro ι _ b a M hM h f
+      -- (†) separation: ∀ g h2, ∑ i, a i * (g (b i 0) * h2 (tail (b i))) = 0
+      have hsep : ∀ (g : ℝ → ℝ) (h2 : (Fin s → ℝ) → ℝ),
+          ∑ i, a i * (g (b i 0) * h2 (fun j => b i j.succ)) = 0 := by
+        intro g h2
+        have hyp_tail : ∀ ℓ : Fin s → ℕ, (∀ j, ℓ j < M) →
+            ∑ i, (a i * g (b i 0)) * ∏ j, b i j.succ ^ ℓ j = 0 := by
+          intro ℓ hℓ
+          -- univariate `∀ f` form on values `b · 0`, coefficients `a · * ∏ tail`
+          have hstepA : ∀ n : ℕ, n < M →
+              ∑ i, (a i * ∏ j, b i j.succ ^ ℓ j) * (b i 0) ^ n = 0 := by
+            intro n hn
+            have hbnd : ∀ j, (Fin.cons n ℓ : Fin (s + 1) → ℕ) j < M := by
+              intro j
+              refine Fin.cases ?_ ?_ j
+              · simpa using hn
+              · intro j'; simpa using hℓ j'
+            have heq : ∑ i, (a i * ∏ j, b i j.succ ^ ℓ j) * (b i 0) ^ n
+                     = ∑ i, a i * ∏ j : Fin (s + 1), b i j ^ (Fin.cons n ℓ) j := by
+              apply sum_congr rfl
+              intro i _
+              rw [Fin.prod_univ_succ]
+              simp only [Fin.cons_zero, Fin.cons_succ]
+              ring
+            rw [heq]
+            exact h (Fin.cons n ℓ) hbnd
+          have happ := vandermonde_apply_eq_zero_of_bound (fun i => b i 0)
+              (fun i => a i * ∏ j, b i j.succ ^ ℓ j) M (hM 0) hstepA g
+          have hreorder : ∑ i, (a i * g (b i 0)) * ∏ j, b i j.succ ^ ℓ j
+                        = ∑ i, (a i * ∏ j, b i j.succ ^ ℓ j) * g (b i 0) := by
+            apply sum_congr rfl; intro i _; ring
+          rw [hreorder]; exact happ
+        have htail := ih (fun i j => b i j.succ) (fun i => a i * g (b i 0)) M
+          (fun j => hM j.succ) hyp_tail h2
+        have hassoc : ∑ i, a i * (g (b i 0) * h2 (fun j => b i j.succ))
+                    = ∑ i, (a i * g (b i 0)) * h2 (fun j => b i j.succ) := by
+          apply sum_congr rfl; intro i _; ring
+        rw [hassoc]; exact htail
+      -- finish: classify by `v i = (b i 0, tail (b i))`, recover all of `f (b i)`
+      have hfib : ∀ pq : ℝ × (Fin s → ℝ),
+          ∑ i ∈ univ.filter (fun i => (b i 0, fun j => b i j.succ) = pq), a i = 0 := by
+        intro pq
+        have hsep' := hsep (fun y => if y = pq.1 then (1 : ℝ) else 0)
+                           (fun y => if y = pq.2 then (1 : ℝ) else 0)
+        rw [Finset.sum_filter]
+        have hcongr : ∑ i, (if (b i 0, fun j => b i j.succ) = pq then a i else 0)
+             = ∑ i, a i * ((if b i 0 = pq.1 then (1 : ℝ) else 0)
+                          * (if (fun j => b i j.succ) = pq.2 then (1 : ℝ) else 0)) := by
+          apply sum_congr rfl
+          intro i _
+          by_cases h1 : b i 0 = pq.1 <;>
+            by_cases h2 : (fun j => b i j.succ) = pq.2 <;>
+            simp [h1, h2, Prod.ext_iff]
+        rw [hcongr]; exact hsep'
+      have hgoal := sum_apply_eq_zero_of_fibers
+          (fun i => (b i 0, fun j => b i j.succ)) a hfib
+          (fun pq => f (Fin.cons pq.1 pq.2))
+      have heqg : ∑ i, a i * f (b i)
+                = ∑ i, a i * f (Fin.cons (b i 0) (fun j => b i j.succ)) := by
+        apply sum_congr rfl
+        intro i _
+        congr 2
+        exact (Fin.cons_self_tail (b i)).symm
+      rw [heqg]; exact hgoal
+
+/-- Multivariate level-set form with a uniform distinct-value bound `M`. -/
+theorem multivariate_vandermonde_class_sums_zero_of_bound {s : ℕ} {ι : Type*} [Fintype ι]
+    (b : ι → Fin s → ℝ) (a : ι → ℝ) (M : ℕ)
+    (hM : ∀ j, (univ.image (fun i => b i j)).card ≤ M)
+    (h : ∀ ℓ : Fin s → ℕ, (∀ j, ℓ j < M) → ∑ i, a i * ∏ j, b i j ^ ℓ j = 0)
+    (β : Fin s → ℝ) :
+    ∑ i ∈ univ.filter (fun i => b i = β), a i = 0 := by
+  classical
+  have happ := multivariate_vandermonde_apply_eq_zero_of_bound s b a M hM h
+    (fun y => if y = β then (1 : ℝ) else 0)
+  rw [Finset.sum_filter]
+  calc ∑ i, (if b i = β then a i else 0)
+      = ∑ i, a i * (if b i = β then (1 : ℝ) else 0) := by
+        apply sum_congr rfl; intro i _; by_cases hi : b i = β <;> simp [hi]
+    _ = 0 := happ
+
 end Graphon.CaiGovorov
