@@ -573,4 +573,41 @@ theorem superMap_support {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, 
   aligned_star_moments_support B hB W hW htwin (superMap ξ ξ' hξ)
     (aligned_moments_of_tupleEquivSimple_super B hB W ξ ξ' hξ h) t
 
+/-! ### Chunk 3A.4: `superMap` is bijective -/
+
+/-- **`superMap` is injective.** If `superMap a = superMap b`, then for every `t` the support
+witness `u` gives `B a t = B (superMap a) u = B (superMap b) u = B b t`, so the rows `B a`, `B b`
+agree; twin-freeness forces `a = b`. (No edge tests needed.) -/
+theorem superMap_injective {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    Function.Injective (superMap ξ ξ' hξ) := by
+  intro a b hab
+  by_contra hne
+  refine htwin a b hne ?_
+  funext t
+  obtain ⟨u, hu⟩ := superMap_support B hB W hW htwin ξ ξ' hξ h t
+  rw [hu a, hu b, hab]
+
+/-- **`superMap` is bijective** (injective endomap of a finite type). -/
+theorem superMap_bijective {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    Function.Bijective (superMap ξ ξ' hξ) :=
+  Finite.injective_iff_bijective.mp (superMap_injective B hB W hW htwin ξ ξ' hξ h)
+
+/-- The preliminary map as a permutation of `Fin T`. The orbit-defining automorphism `σ` will be
+exactly this permutation (since `ξ' i = superMap (ξ i)` on the selected labels, `σ = superMap`,
+not its inverse); edge/weight preservation are established next (3A.5) via `edgeTestGraph`. -/
+noncomputable def superPerm {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    Equiv.Perm (Fin T) :=
+  Equiv.ofBijective (superMap ξ ξ' hξ) (superMap_bijective B hB W hW htwin ξ ξ' hξ h)
+
+@[simp] theorem superPerm_apply {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (j : Fin T) :
+    superPerm B hB W hW htwin ξ ξ' hξ h j = superMap ξ ξ' hξ j := rfl
+
 end Graphon.Lovasz
