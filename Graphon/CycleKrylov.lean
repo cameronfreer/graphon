@@ -963,14 +963,12 @@ def k23Arms (a b c : ℕ) : SimpleGraph (Fin (4 + a + b + c + 1)) where
     (∃ l < 3, ∃ s ≤ armLen a b c l,
       ((u : ℕ) = armSeq a b c l s ∧ (v : ℕ) = armSeq a b c l (s + 1)) ∨
       ((v : ℕ) = armSeq a b c l s ∧ (u : ℕ) = armSeq a b c l (s + 1)))
-  symm := by
-    intro u v h
+  symm.symm := fun u v h => by
     rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨l, hl, s, hs, h⟩
     · exact Or.inr (Or.inl ⟨h1, h2⟩)
     · exact Or.inl ⟨h1, h2⟩
     · exact Or.inr (Or.inr ⟨l, hl, s, hs, h.symm⟩)
-  loopless := by
-    intro u h
+  loopless.irrefl := fun u h => by
     rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨l, hl, s, hs, h⟩
     · omega
     · omega
@@ -1133,12 +1131,10 @@ theorem k23Edge_injective (a b c : ℕ) :
 private theorem out_pair_eq {T' n : ℕ} (Bm : Fin T' → Fin T' → ℝ)
     (hB : ∀ i j, Bm i j = Bm j i) (τ : Fin n → Fin T') (x y : Fin n) :
     Bm (τ (Quot.out s(x, y)).1) (τ (Quot.out s(x, y)).2) = Bm (τ x) (τ y) := by
-  have hout := Quot.out_eq s(x, y)
-  rw [Sym2.mk_eq_mk_iff] at hout
-  rcases hout with h | h
-  · rw [congrArg Prod.fst h, congrArg Prod.snd h]
-  · simp only [Prod.swap] at h
-    rw [congrArg Prod.fst h, congrArg Prod.snd h, hB]
+  have hout : s((Quot.out s(x, y)).1, (Quot.out s(x, y)).2) = s(x, y) := Quot.out_eq _
+  rcases Sym2.eq_iff.mp hout with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · rw [h1, h2]
+  · rw [h1, h2, hB]
 
 /-- **Edge-product factorization** for `k23Arms`: the edge product splits into
 the three root-edge factors times the three independent arm-chain products. -/
@@ -1893,13 +1889,11 @@ def k2kArmsStructured (k : ℕ) (armLen : Fin k → ℕ) :
     (∃ l : Fin k, ∃ s ≤ armLen l,
       (u = K2kVertex.armNode k armLen l s ∧ v = K2kVertex.armNode k armLen l (s + 1)) ∨
       (v = K2kVertex.armNode k armLen l s ∧ u = K2kVertex.armNode k armLen l (s + 1)))
-  symm := by
-    intro u v h
+  symm.symm := fun u v h => by
     rcases h with ⟨l, h⟩ | ⟨l, s, hs, h⟩
     · exact Or.inl ⟨l, h.symm⟩
     · exact Or.inr ⟨l, s, hs, h.symm⟩
-  loopless := by
-    intro u h
+  loopless.irrefl := fun u h => by
     rcases h with ⟨l, h⟩ | ⟨l, s, hs, h⟩
     · obtain ⟨h1, h2⟩ | ⟨h1, h2⟩ := h <;> (rw [h1] at h2; simp at h2)
     · obtain ⟨h1, h2⟩ | ⟨h1, h2⟩ := h <;>
@@ -1977,12 +1971,10 @@ theorem k2kArmsStructured_edgeFinset (k : ℕ) (armLen : Fin k → ℕ) :
 theorem out_pair_eq' {T' : ℕ} {V : Type*} (Bm : Fin T' → Fin T' → ℝ)
     (hB : ∀ i j, Bm i j = Bm j i) (g : V → Fin T') (x y : V) :
     Bm (g (Quot.out s(x, y)).1) (g (Quot.out s(x, y)).2) = Bm (g x) (g y) := by
-  have hout := Quot.out_eq s(x, y)
-  rw [Sym2.mk_eq_mk_iff] at hout
-  rcases hout with h | h
-  · rw [congrArg Prod.fst h, congrArg Prod.snd h]
-  · simp only [Prod.swap] at h
-    rw [congrArg Prod.fst h, congrArg Prod.snd h, hB]
+  have hout : s((Quot.out s(x, y)).1, (Quot.out s(x, y)).2) = s(x, y) := Quot.out_eq _
+  rcases Sym2.eq_iff.mp hout with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · rw [h1, h2]
+  · rw [h1, h2, hB]
 
 /-- Arm index of a vertex (anchors/internals carry their arm; root/hub `none`).
 Used to recover `(l, s)` from a chain endpoint in `k2kEdge_injective`. -/
@@ -2612,7 +2604,7 @@ theorem decorateAtSum_edge_disjoint {n m : ℕ} (F : SimpleGraph (Fin (n + 1)))
         have hk : (hDecorEmb u) (Fin.succ k) = Sum.inr k := by simp [hDecorEmb]
         rw [hk] at hb'; rw [← hb] at hb'; exact absurd hb' (by simp)
     subst ha0 hb0
-    exact H.loopless 0 hadj'
+    exact H.irrefl hadj'
 
 /-- **Edge-product transport + split** (Commit 1 steps 1–2): the `rootedProfile`
 edge product over `decorateAt F H u` factors, through `decorVertexEquiv`, into the
@@ -2895,7 +2887,7 @@ theorem decorateAll_F_sup_disjoint {n m : ℕ} (F : SimpleGraph (Fin (n + 1)))
       · rfl
       · exact absurd (hb'.trans hb.symm) (by simp [embedHCopy])
     subst ha0 hb0
-    exact H.loopless 0 hadj'
+    exact H.irrefl hadj'
 
 /-- The `Finset.sup` of the `H`-copies has edge finset the disjoint union of the
 per-copy edge finsets. -/
@@ -3247,7 +3239,7 @@ theorem decorateAllFam_F_sup_disjoint {n : ℕ} {mfam : Fin n → ℕ}
       · rfl
       · exact absurd (hb'.trans hb.symm) (by simp [embedHCopyFam])
     subst ha0 hb0
-    exact (Hfam w).loopless 0 hadj'
+    exact (Hfam w).irrefl hadj'
 
 theorem decorateAllFamSum_sup_edgeFinset {n : ℕ} {mfam : Fin n → ℕ}
     (Hfam : (w : Fin n) → SimpleGraph (Fin (mfam w + 1))) [∀ w, DecidableRel (Hfam w).Adj] :

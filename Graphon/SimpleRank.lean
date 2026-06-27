@@ -184,7 +184,9 @@ private theorem InRootedProfileSpan.profile_sub_const {T n : ℕ}
   have h₂ : InRootedProfileSpan B W (fun _ => -(rootedProfile B W j F)) :=
     InRootedProfileSpan.const B W _
   have h_combined := h₁.add h₂
-  convert h_combined using 2
+  convert h_combined using 1
+  ext v
+  simp [rootedProfileFun, Pi.add_apply, sub_eq_add_neg]
 
 /-- Lagrange factor: scaled difference function. -/
 private theorem InRootedProfileSpan.lagrange_factor {T n : ℕ}
@@ -442,18 +444,16 @@ private def rootAttach (n : ℕ) (G : SimpleGraph (Fin (n + 1))) :
     (u.val = 0 ∧ v.val = 1) ∨ (u.val = 1 ∧ v.val = 0) ∨
     (1 ≤ u.val ∧ 1 ≤ v.val ∧
       G.Adj ⟨u.val - 1, by omega⟩ ⟨v.val - 1, by omega⟩)
-  symm := by
-    intro u v h
+  symm.symm := fun u v h => by
     rcases h with ⟨hu, hv⟩ | ⟨hu, hv⟩ | ⟨hu, hv, hadj⟩
     · right; left; exact ⟨hv, hu⟩
     · left; exact ⟨hv, hu⟩
-    · right; right; exact ⟨hv, hu, G.symm hadj⟩
-  loopless := by
-    intro v h
+    · right; right; exact ⟨hv, hu, G.adj_symm hadj⟩
+  loopless.irrefl := fun v h => by
     rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩ | ⟨_, _, hadj⟩
     · omega
     · omega
-    · exact G.loopless _ hadj
+    · exact G.irrefl hadj
 
 private instance rootAttachDecRel (n : ℕ) (G : SimpleGraph (Fin (n + 1)))
     [DecidableRel G.Adj] : DecidableRel (rootAttach n G).Adj :=
@@ -497,8 +497,8 @@ private theorem rootAttach_edgeFinset (n : ℕ) (G : SimpleGraph (Fin (n + 1)))
       induction e' using Sym2.ind with
       | _ a b =>
         rw [SimpleGraph.mem_edgeSet] at he'
-        simp only [Sym2.map_pair_eq, Fin.coe_succEmb, SimpleGraph.mem_edgeSet]
-        exact Or.inr (Or.inr ⟨by simp, by simp, by convert he' using 2⟩)
+        simp only [Sym2.map_mk, Fin.coe_succEmb, SimpleGraph.mem_edgeSet]
+        exact Or.inr (Or.inr ⟨by simp, by simp, by convert he' using 2 <;> simp [Fin.val_succ]⟩)
 
 /-- The bridge edge is not a shifted `G`-edge. -/
 private theorem rootAttach_bridge_not_mem_shifted (n : ℕ)
@@ -532,34 +532,27 @@ private theorem rootAttach_prod_eq {k : ℕ} (n : ℕ) (G : SimpleGraph (Fin (n 
     Finset.prod_map G.edgeFinset (Fin.succEmb (n + 1)).sym2Map]
   congr 1
   · -- Bridge edge: resolve Quot.out
-    have hout := Quot.out_eq s((0 : Fin (n + 2)), ⟨1, by omega⟩)
-    rw [Sym2.mk_eq_mk_iff] at hout
-    rcases hout with h | h
-    · rw [congr_arg Prod.fst h, congr_arg Prod.snd h, h1eq]
-    · have h1 := congr_arg Prod.fst h; have h2 := congr_arg Prod.snd h
-      simp only [Prod.swap] at h1 h2
-      rw [h1, h2, h1eq, hc]
+    have hout : s((Quot.out s((0 : Fin (n + 2)), ⟨1, by omega⟩)).1,
+                  (Quot.out s((0 : Fin (n + 2)), ⟨1, by omega⟩)).2) =
+                s((0 : Fin (n + 2)), ⟨1, by omega⟩) := Quot.out_eq _
+    rcases Sym2.eq_iff.mp hout with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · rw [h1, h2, h1eq]
+    · rw [h1, h2, h1eq, hc]
   · congr 1; ext e
     -- Shifted edge: resolve Quot.out of mapped edge (use symmetry of c)
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, Fin.coe_succEmb]
-      have hout := Quot.out_eq s(Fin.succ a, Fin.succ b)
-      rw [Sym2.mk_eq_mk_iff] at hout
-      have hout' := Quot.out_eq s(a, b)
-      rw [Sym2.mk_eq_mk_iff] at hout'
-      rcases hout with h | h <;> rcases hout' with h' | h'
-      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
-            congr_arg Prod.fst h', congr_arg Prod.snd h']
-      · rw [congr_arg Prod.fst h, congr_arg Prod.snd h]
-        simp only [Prod.swap] at h'
-        rw [congr_arg Prod.fst h', congr_arg Prod.snd h', hc]
-      · simp only [Prod.swap] at h
-        rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
-            congr_arg Prod.fst h', congr_arg Prod.snd h', hc]
-      · simp only [Prod.swap] at h h'
-        rw [congr_arg Prod.fst h, congr_arg Prod.snd h,
-            congr_arg Prod.fst h', congr_arg Prod.snd h']
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk, Fin.coe_succEmb]
+      have hout : s((Quot.out s(Fin.succ a, Fin.succ b)).1,
+                    (Quot.out s(Fin.succ a, Fin.succ b)).2) =
+                  s(Fin.succ a, Fin.succ b) := Quot.out_eq _
+      have hout' : s((Quot.out s(a, b)).1, (Quot.out s(a, b)).2) = s(a, b) := Quot.out_eq _
+      rcases Sym2.eq_iff.mp hout with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;>
+      rcases Sym2.eq_iff.mp hout' with ⟨h1', h2'⟩ | ⟨h1', h2'⟩
+      · rw [h1, h2, h1', h2']
+      · rw [h1, h2, h1', h2', hc]
+      · rw [h1, h2, h1', h2', hc]
+      · rw [h1, h2, h1', h2']
 
 /-- `rootedProfile` in `Fin.cons` form (bridging `simpleEvalAt`'s dif-based
 coordinate assignment to the cons-based one). -/
