@@ -259,7 +259,7 @@ private theorem homDensity_mkStepGraphon_eq_weightedHomSum
     intro σ
     unfold Measure.real
     rw [Measure.pi_pi (fun _ => μ) (fun v => ι (σ v))]
-    exact ENNReal.toReal_prod
+    exact ENNReal.toReal_prod _ _
   -- Rewrite and match weightedHomSum
   simp_rw [h_real_meas, smul_eq_mul]
   -- Now goal: ∑ σ, (∏ v, (μ(ι(σ(v)))).toReal) * (∏ e, c(ι(σ(e.1)), ι(σ(e.2))))
@@ -403,7 +403,7 @@ private theorem mkStepGraphon_eq_of_ae_coeff
       le_antisymm
         ((measure_biUnion_finset_le _ _).trans_eq
           (Finset.sum_eq_zero (fun S hS => (Finset.mem_filter.mp hS).2)))
-        (zero_le _)
+        (zero_le)
     have h_not_in_null : ∀ᵐ x ∂μ,
         x ∉ ⋃ S ∈ P.parts.filter (fun S => μ S = 0), S :=
       compl_mem_ae_iff.mpr h_null_union
@@ -618,7 +618,7 @@ private theorem exists_type_class_mp_bijection
       (fun i (_ : i ∈ Finset.univ.filter (type_c · = t)) => h_ne_top (embed i))
     have h_ne_t := ENNReal.sum_ne_top.mpr
       (fun i (_ : i ∈ Finset.univ.filter (type_c' · = t)) => h_ne_top (embed i))
-    rw [← ENNReal.toReal_eq_toReal h_ne_s h_ne_t,
+    rw [← ENNReal.toReal_eq_toReal_iff' h_ne_s h_ne_t,
         ENNReal.toReal_sum (fun i _ => h_ne_top (embed i)),
         ENNReal.toReal_sum (fun i _ => h_ne_top (embed i))]
     exact h_weight t
@@ -901,7 +901,7 @@ private theorem exists_pullback_eq_of_step_homDensity_eq
       le_antisymm
         ((measure_biUnion_finset_le _ _).trans_eq
           (Finset.sum_eq_zero (fun S hS => (Finset.mem_filter.mp hS).2)))
-        (zero_le _)
+        (zero_le)
     have h_not_in_null : ∀ᵐ x ∂μ,
         x ∉ ⋃ S ∈ P.parts.filter (fun S => μ S = 0), S :=
       compl_mem_ae_iff.mpr h_null_union
@@ -1741,7 +1741,7 @@ private theorem exists_partition_with_measures {K : ℕ}
       exact hι_disj i j (fun h => hne (congrArg ι h))
     -- ae_covers: complement ⊆ S₀ \ ⋃ C i, which is null
     · rw [ae_iff]
-      refine le_antisymm ?_ (zero_le _)
+      refine le_antisymm ?_ (zero_le)
       calc μ {x | ¬∃ S ∈ parts, x ∈ S}
           ≤ μ (S₀ \ ⋃ i, C i) := measure_mono (fun x hx => by
             push_neg at hx -- hx : ∀ S ∈ parts, x ∉ S
@@ -1818,7 +1818,7 @@ private theorem exists_partition_with_measures {K : ℕ}
       -- Key: ⋃ i, T i = C₀ ∪ ⋃ j, C' j, so S \ (C₀ ∪ ⋃ C') = (S \ C₀) \ ⋃ C' = S' \ ⋃ C'
       suffices h : ∀ x, x ∈ S \ ⋃ i, @Fin.cons _ (fun _ => Set α) C₀ C' i →
           x ∈ S' \ ⋃ j, C' j by
-        exact le_antisymm (le_trans (measure_mono h) (le_of_eq hC'cov)) (zero_le _)
+        exact le_antisymm (le_trans (measure_mono h) (le_of_eq hC'cov)) (zero_le)
       intro x ⟨hxS, hxU⟩
       simp only [Set.mem_iUnion, not_exists] at hxU
       refine ⟨⟨hxS, fun hxC₀ => hxU 0 (by rw [Fin.cons_zero]; exact hxC₀)⟩, ?_⟩
@@ -2232,7 +2232,7 @@ private theorem cutDistance_step_weight_le {K : ℕ}
       _ = 0 + μ (⋃ i, (ι_Q i \ M_Q i)) := by
           congr 1
           -- univ \ ⋃ i, ι_Q i has measure 0 by Q.ae_covers
-          apply le_antisymm _ (zero_le _)
+          apply le_antisymm _ (zero_le)
           -- ⋃ S ∈ Q.parts, S ⊇ ⋃ i, ι_Q i since hι_Q_surj gives that every part is some ι_Q i
           have h_eq : ⋃ i, ι_Q i = ⋃ S ∈ Q.parts, S := by
             ext x; simp only [Set.mem_iUnion, Set.mem_iUnion]; constructor
@@ -2406,7 +2406,7 @@ private theorem cutDistance_cross_partition_weight_le {K : ℕ}
         (fun S hS => P.measurableSet_part hS))
     have hE_P_null : μ E_P = 0 := by
       have h_ae := P.ae_covers; rw [ae_iff] at h_ae
-      refine le_antisymm ?_ (zero_le _)
+      refine le_antisymm ?_ (zero_le)
       calc μ E_P ≤ μ {x | ¬∃ S ∈ P.parts, x ∈ S} := by
             apply measure_mono; intro x hx
             rw [hE_P_def, Set.mem_diff] at hx
@@ -2665,7 +2665,7 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
     have h_ae := (P_seq n).ae_covers
     rw [ae_iff] at h_ae
     have h_null : μ ((⋃ S ∈ (P_seq n).parts, S)ᶜ) = 0 := by
-      refine le_antisymm ?_ (zero_le _)
+      refine le_antisymm ?_ (zero_le)
       calc μ ((⋃ S ∈ (P_seq n).parts, S)ᶜ)
           ≤ μ {x | ¬∃ S ∈ (P_seq n).parts, x ∈ S} := by
             apply measure_mono; intro x hx
