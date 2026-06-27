@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.CycleKrylov
 import Graphon.CaiGovorov
+import Mathlib.Combinatorics.Pigeonhole
 
 /-!
 # Cai–Govorov simple test graphs and their closed forms (#70)
@@ -444,5 +445,56 @@ theorem aligned_star_moments_support {T : ℕ} (B : Fin T → Fin T → ℝ)
   obtain ⟨u, hu⟩ := hne
   rw [Finset.mem_filter] at hu
   exact ⟨u, hu.2⟩
+
+/-! ### Chunk 3A.2: pigeonhole and the preliminary map `s` -/
+
+/-- **Pigeonhole.** Super-surjectivity gives, inside each `ξ`-fibre over `j`, a subset `J` of
+size `≥ 2T` on which `ξ'` is constant (value `s_j`). (`ξ'` takes ≤ T values on the fibre of
+size `≥ 2T²`, so some value is hit `≥ 2T` times.) -/
+theorem exists_large_const_image_subset {T : ℕ} (ξ ξ' : Fin K → Fin T)
+    (hξ : SuperSurjective ξ) (j : Fin T) :
+    ∃ (s_j : Fin T) (J : Finset (Fin K)),
+      J ⊆ univ.filter (fun i => ξ i = j) ∧ 2 * T ≤ J.card ∧ (∀ i ∈ J, ξ' i = s_j) := by
+  classical
+  have hmaps : ∀ i ∈ univ.filter (fun i => ξ i = j), ξ' i ∈ (univ : Finset (Fin T)) :=
+    fun i _ => mem_univ _
+  have hcard : (univ : Finset (Fin T)).card * (2 * T)
+      ≤ (univ.filter (fun i => ξ i = j)).card := by
+    rw [Finset.card_univ, Fintype.card_fin]
+    calc T * (2 * T) = 2 * T * T := by ring
+      _ ≤ (univ.filter (fun i => ξ i = j)).card := hξ j
+  obtain ⟨s_j, _, hsj⟩ :=
+    Finset.exists_le_card_fiber_of_mul_le_card_of_maps_to hmaps ⟨j, mem_univ j⟩ hcard
+  exact ⟨s_j, (univ.filter (fun i => ξ i = j)).filter (fun i => ξ' i = s_j),
+    Finset.filter_subset _ _, hsj, fun i hi => (Finset.mem_filter.mp hi).2⟩
+
+/-- The preliminary Cai–Govorov map `s : Fin T → Fin T`: the constant `ξ'`-value on a large
+subset of each `ξ`-fibre. -/
+noncomputable def superMap {T : ℕ} (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (j : Fin T) :
+    Fin T :=
+  (exists_large_const_image_subset ξ ξ' hξ j).choose
+
+/-- The chosen large `ξ'`-constant subset of the `ξ`-fibre over `j`. -/
+noncomputable def superFiberSubset {T : ℕ} (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ)
+    (j : Fin T) : Finset (Fin K) :=
+  (exists_large_const_image_subset ξ ξ' hξ j).choose_spec.choose
+
+theorem superFiberSubset_subset {T : ℕ} (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ)
+    (j : Fin T) : superFiberSubset ξ ξ' hξ j ⊆ univ.filter (fun i => ξ i = j) :=
+  (exists_large_const_image_subset ξ ξ' hξ j).choose_spec.choose_spec.1
+
+theorem superFiberSubset_card {T : ℕ} (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ)
+    (j : Fin T) : 2 * T ≤ (superFiberSubset ξ ξ' hξ j).card :=
+  (exists_large_const_image_subset ξ ξ' hξ j).choose_spec.choose_spec.2.1
+
+theorem superFiberSubset_mem_left {T : ℕ} (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ)
+    (j : Fin T) {i : Fin K} (hi : i ∈ superFiberSubset ξ ξ' hξ j) : ξ i = j := by
+  have := superFiberSubset_subset ξ ξ' hξ j hi
+  rw [Finset.mem_filter] at this
+  exact this.2
+
+theorem superFiberSubset_image_const {T : ℕ} (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ)
+    (j : Fin T) : ∀ i ∈ superFiberSubset ξ ξ' hξ j, ξ' i = superMap ξ ξ' hξ j :=
+  (exists_large_const_image_subset ξ ξ' hξ j).choose_spec.choose_spec.2.2
 
 end Graphon.Lovasz
