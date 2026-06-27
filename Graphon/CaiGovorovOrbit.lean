@@ -870,4 +870,163 @@ theorem aligned_edge_moments_pair_balance {T : ℕ} (B : Fin T → Fin T → ℝ
   rw [← Finset.sum_filter, ← Finset.sum_filter, hfiltL, hfiltR]
   exact key
 
+/-! ### Chunk 3A.5 steps 2–7: the support-witness map and the weighted automorphism -/
+
+/-- The support-witness map `r = superInv`: `r t` is the unique `u` with
+`∀ j, B j t = B (superMap j) u`. It turns out to be the orbit automorphism (`= superMap`). -/
+noncomputable def superInv {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (t : Fin T) :
+    Fin T :=
+  (superMap_support B hB W hW htwin ξ ξ' hξ h t).choose
+
+theorem superInv_spec {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (t : Fin T) :
+    ∀ j, B j t = B (superMap ξ ξ' hξ j) (superInv B hB W hW htwin ξ ξ' hξ h t) :=
+  (superMap_support B hB W hW htwin ξ ξ' hξ h t).choose_spec
+
+theorem superInv_unique {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') {t u : Fin T}
+    (hu : ∀ j, B j t = B (superMap ξ ξ' hξ j) u) :
+    u = superInv B hB W hW htwin ξ ξ' hξ h t := by
+  by_contra hne
+  refine htwin u (superInv B hB W hW htwin ξ ξ' hξ h t) hne ?_
+  funext w
+  obtain ⟨j, hj⟩ := (superMap_bijective B hB W hW htwin ξ ξ' hξ h).surjective w
+  rw [← hj, hB u (superMap ξ ξ' hξ j),
+    hB (superInv B hB W hW htwin ξ ξ' hξ h t) (superMap ξ ξ' hξ j),
+    ← hu j, superInv_spec B hB W hW htwin ξ ξ' hξ h t j]
+
+theorem superInv_injective {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    Function.Injective (superInv B hB W hW htwin ξ ξ' hξ h) := by
+  intro a b hab
+  by_contra hne
+  refine htwin a b hne ?_
+  funext j
+  rw [hB a j, superInv_spec B hB W hW htwin ξ ξ' hξ h a j, hab,
+    ← superInv_spec B hB W hW htwin ξ ξ' hξ h b j, ← hB b j]
+
+theorem superInv_bijective {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    Function.Bijective (superInv B hB W hW htwin ξ ξ' hξ h) :=
+  Finite.injective_iff_bijective.mp (superInv_injective B hB W hW htwin ξ ξ' hξ h)
+
+/-- **Weight preservation for `superInv`.** The support fibre of `t` is the singleton
+`{superInv t}`, so weight balance gives `W (superInv t) = W t`. -/
+theorem superInv_preserves_W {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (t : Fin T) :
+    W (superInv B hB W hW htwin ξ ξ' hξ h t) = W t := by
+  have hbal := aligned_star_moments_weight_balance B hB W htwin (superMap ξ ξ' hξ)
+    (aligned_moments_of_tupleEquivSimple_super B hB W ξ ξ' hξ h) t
+  have hfib : (univ.filter (fun u => ∀ j, B j t = B (superMap ξ ξ' hξ j) u))
+      = {superInv B hB W hW htwin ξ ξ' hξ h t} := by
+    ext u
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_singleton]
+    exact ⟨fun hu => superInv_unique B hB W hW htwin ξ ξ' hξ h hu,
+      fun hu => hu ▸ superInv_spec B hB W hW htwin ξ ξ' hξ h t⟩
+  rw [hfib, Finset.sum_singleton] at hbal
+  exact hbal.symm
+
+/-- **Edge preservation for `superInv`.** Plugging the pair balance at `z₁ = B·a`, `z₂ = B·b`:
+the left fibre is `{(a,b)}` (twin-free) and the right fibre is `{(superInv a, superInv b)}`
+(`superInv_unique`); positivity cancels the weights. So `superInv` preserves `B`. -/
+theorem superInv_preserves_B {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (a b : Fin T) :
+    B (superInv B hB W hW htwin ξ ξ' hξ h a) (superInv B hB W hW htwin ξ ξ' hξ h b) = B a b := by
+  classical
+  have hcol : ∀ u v : Fin T, (fun j => B j u) = (fun j => B j v) → u = v := by
+    intro u v huv
+    by_contra hne
+    refine htwin u v hne ?_
+    funext j
+    have hj := congrFun huv j
+    rw [hB u j, hB v j]; exact hj
+  have hLHS : (∑ p : Fin T × Fin T,
+      if (fun j => B j p.1) = (fun j => B j a) ∧ (fun j => B j p.2) = (fun j => B j b)
+      then W p.1 * W p.2 * B p.1 p.2 else 0) = W a * W b * B a b := by
+    rw [Finset.sum_eq_single (a, b)]
+    · simp
+    · intro p _ hp
+      have hfalse : ¬ ((fun j => B j p.1) = (fun j => B j a) ∧
+          (fun j => B j p.2) = (fun j => B j b)) := by
+        rintro ⟨hp1, hp2⟩
+        exact hp (Prod.ext (hcol p.1 a hp1) (hcol p.2 b hp2))
+      rw [if_neg hfalse]
+    · intro hc; exact absurd (Finset.mem_univ _) hc
+  have hRHS : (∑ p : Fin T × Fin T,
+      if (fun j => B (superMap ξ ξ' hξ j) p.1) = (fun j => B j a) ∧
+         (fun j => B (superMap ξ ξ' hξ j) p.2) = (fun j => B j b)
+      then W p.1 * W p.2 * B p.1 p.2 else 0)
+      = W (superInv B hB W hW htwin ξ ξ' hξ h a) * W (superInv B hB W hW htwin ξ ξ' hξ h b)
+        * B (superInv B hB W hW htwin ξ ξ' hξ h a) (superInv B hB W hW htwin ξ ξ' hξ h b) := by
+    rw [Finset.sum_eq_single (superInv B hB W hW htwin ξ ξ' hξ h a,
+        superInv B hB W hW htwin ξ ξ' hξ h b)]
+    · rw [if_pos]
+      exact ⟨funext fun j => (superInv_spec B hB W hW htwin ξ ξ' hξ h a j).symm,
+        funext fun j => (superInv_spec B hB W hW htwin ξ ξ' hξ h b j).symm⟩
+    · intro p _ hp
+      have hfalse : ¬ ((fun j => B (superMap ξ ξ' hξ j) p.1) = (fun j => B j a) ∧
+          (fun j => B (superMap ξ ξ' hξ j) p.2) = (fun j => B j b)) := by
+        rintro ⟨hp1, hp2⟩
+        exact hp (Prod.ext
+          (superInv_unique B hB W hW htwin ξ ξ' hξ h (fun j => (congrFun hp1 j).symm))
+          (superInv_unique B hB W hW htwin ξ ξ' hξ h (fun j => (congrFun hp2 j).symm)))
+      rw [if_neg hfalse]
+    · intro hc; exact absurd (Finset.mem_univ _) hc
+  have hpb := aligned_edge_moments_pair_balance B hB W ξ ξ' hξ h (fun j => B j a) (fun j => B j b)
+  rw [hLHS, hRHS, superInv_preserves_W B hB W hW htwin ξ ξ' hξ h a,
+    superInv_preserves_W B hB W hW htwin ξ ξ' hξ h b] at hpb
+  have hpos : W a * W b ≠ 0 := ne_of_gt (mul_pos (hW a) (hW b))
+  exact (mul_left_cancel₀ hpos hpb).symm
+
+/-- **`superInv = superMap`.** Support gives `B a b = B (superMap a) (superInv b)`, and edge
+preservation gives `B a b = B (superInv a) (superInv b)`; comparing over all columns
+(`superInv` surjective) and applying twin-freeness identifies the two maps. -/
+theorem superInv_eq_superMap {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    superInv B hB W hW htwin ξ ξ' hξ h = superMap ξ ξ' hξ := by
+  funext a
+  have hrow : B (superMap ξ ξ' hξ a) = B (superInv B hB W hW htwin ξ ξ' hξ h a) := by
+    funext w
+    obtain ⟨b, hb⟩ := (superInv_bijective B hB W hW htwin ξ ξ' hξ h).surjective w
+    rw [← hb, ← superInv_spec B hB W hW htwin ξ ξ' hξ h b a]
+    exact (superInv_preserves_B B hB W hW htwin ξ ξ' hξ h a b).symm
+  by_contra hne
+  exact (htwin (superMap ξ ξ' hξ a) (superInv B hB W hW htwin ξ ξ' hξ h a)
+    (fun heq => hne heq.symm)) hrow
+
+/-! ### Chunk 3A.5 exports: superMap is a weighted automorphism -/
+
+theorem superMap_preserves_B {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (a b : Fin T) :
+    B (superMap ξ ξ' hξ a) (superMap ξ ξ' hξ b) = B a b := by
+  rw [← superInv_eq_superMap B hB W hW htwin ξ ξ' hξ h]
+  exact superInv_preserves_B B hB W hW htwin ξ ξ' hξ h a b
+
+theorem superMap_preserves_W {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (a : Fin T) :
+    W (superMap ξ ξ' hξ a) = W a := by
+  rw [← superInv_eq_superMap B hB W hW htwin ξ ξ' hξ h]
+  exact superInv_preserves_W B hB W hW htwin ξ ξ' hξ h a
+
+/-- **The super-surjective orbit automorphism.** `superPerm` is a weighted automorphism of
+`(B, W)` — the certified output of chunk 3A.5. -/
+theorem superMap_isWeightedAutomorphism {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    IsWeightedAutomorphism B W (superPerm B hB W hW htwin ξ ξ' hξ h) := by
+  refine ⟨fun i => ?_, fun i j => ?_⟩
+  · rw [superPerm_apply]; exact superMap_preserves_W B hB W hW htwin ξ ξ' hξ h i
+  · rw [superPerm_apply, superPerm_apply]; exact superMap_preserves_B B hB W hW htwin ξ ξ' hξ h i j
+
 end Graphon.Lovasz
