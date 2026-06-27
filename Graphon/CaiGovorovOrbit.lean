@@ -610,4 +610,74 @@ noncomputable def superPerm {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i 
     (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (j : Fin T) :
     superPerm B hB W hW htwin ξ ξ' hξ h j = superMap ξ ξ' hξ j := rfl
 
+/-! ### Chunk 3A.5: aligned edge moments (`edgeTestGraph`) -/
+
+/-- Regroup a product over a pairwise-disjoint union `⋃ⱼ Kf j` of a function that is constant
+(`= c j`) on each block `Kf j` into `∏ⱼ (c j) ^ (k j)`, where `(Kf j).card = k j`. -/
+private theorem prod_biUnion_const {T : ℕ} {Kf : Fin T → Finset (Fin K)}
+    (hdisj : Set.PairwiseDisjoint (↑(univ : Finset (Fin T))) Kf)
+    {f : Fin K → ℝ} {c : Fin T → ℝ} (hc : ∀ j, ∀ i ∈ Kf j, f i = c j)
+    {k : Fin T → ℕ} (hcard : ∀ j, (Kf j).card = k j) :
+    ∏ i ∈ univ.biUnion Kf, f i = ∏ j, (c j) ^ k j := by
+  rw [Finset.prod_biUnion hdisj]
+  refine Finset.prod_congr rfl fun j _ => ?_
+  have hconst : ∏ i ∈ Kf j, f i = ∏ i ∈ Kf j, c j :=
+    Finset.prod_congr rfl fun i hi => hc j i hi
+  rw [hconst, Finset.prod_const, hcard j]
+
+/-- **Aligned edge-moment bridge** (pair analogue of `aligned_moments_of_tupleEquivSimple_super`).
+From `tupleEquivSimple` and super-surjectivity, the aligned *edge*-moment identity holds for every
+pair of bounded exponent vectors `k`, `l`, with the right-hand side reindexed by `superMap`. This
+consumes the `edgeTestGraph` closed form: with `Sₗ = ⋃ⱼ Klⱼ`, `Sτ = ⋃ⱼ Ktⱼ` one has `ξ ≡ j` on
+each block (giving `(B j ·)^{k j}`/`(B j ·)^{l j}`) and `ξ' ≡ superMap j` (giving the reindexed
+right-hand side) — no injectivity of `superMap` is needed. -/
+theorem aligned_edge_moments_of_tupleEquivSimple_super {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (ξ ξ' : Fin K → Fin T)
+    (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    ∀ k l : Fin T → ℕ, (∀ j, k j < 2 * T) → (∀ j, l j < 2 * T) →
+      ∑ x, ∑ y, W x * W y * B x y * (∏ j, (B j x) ^ k j) * (∏ j, (B j y) ^ l j)
+        = ∑ x, ∑ y, W x * W y * B x y
+            * (∏ j, (B (superMap ξ ξ' hξ j) x) ^ k j) * (∏ j, (B (superMap ξ ξ' hξ j) y) ^ l j) := by
+  intro k l hk hl
+  classical
+  obtain ⟨Kl, hKl_sub, hKl_card⟩ := exists_exponent_label_set ξ ξ' hξ k hk
+  obtain ⟨Kt, hKt_sub, hKt_card⟩ := exists_exponent_label_set ξ ξ' hξ l hl
+  have hdisj_l : Set.PairwiseDisjoint (↑(univ : Finset (Fin T))) Kl :=
+    fun j _ j' _ hjj => Finset.disjoint_of_subset_left (hKl_sub j)
+      (Finset.disjoint_of_subset_right (hKl_sub j') (superFiberSubset_disjoint ξ ξ' hξ hjj))
+  have hdisj_t : Set.PairwiseDisjoint (↑(univ : Finset (Fin T))) Kt :=
+    fun j _ j' _ hjj => Finset.disjoint_of_subset_left (hKt_sub j)
+      (Finset.disjoint_of_subset_right (hKt_sub j') (superFiberSubset_disjoint ξ ξ' hξ hjj))
+  have hLl : ∀ x, ∏ i ∈ univ.biUnion Kl, B (ξ i) x = ∏ j, (B j x) ^ k j := fun x =>
+    prod_biUnion_const hdisj_l
+      (fun j i hi => by rw [superFiberSubset_mem_left ξ ξ' hξ j (hKl_sub j hi)]) hKl_card
+  have hLl' : ∀ x, ∏ i ∈ univ.biUnion Kl, B (ξ' i) x
+      = ∏ j, (B (superMap ξ ξ' hξ j) x) ^ k j := fun x =>
+    prod_biUnion_const hdisj_l
+      (fun j i hi => by rw [superFiberSubset_image_const ξ ξ' hξ j i (hKl_sub j hi)]) hKl_card
+  have hTt : ∀ y, ∏ i ∈ univ.biUnion Kt, B (ξ i) y = ∏ j, (B j y) ^ l j := fun y =>
+    prod_biUnion_const hdisj_t
+      (fun j i hi => by rw [superFiberSubset_mem_left ξ ξ' hξ j (hKt_sub j hi)]) hKt_card
+  have hTt' : ∀ y, ∏ i ∈ univ.biUnion Kt, B (ξ' i) y
+      = ∏ j, (B (superMap ξ ξ' hξ j) y) ^ l j := fun y =>
+    prod_biUnion_const hdisj_t
+      (fun j i hi => by rw [superFiberSubset_image_const ξ ξ' hξ j i (hKt_sub j hi)]) hKt_card
+  have heq : simpleEvalAt B W (edgeTestGraph (univ.biUnion Kl) (univ.biUnion Kt)) ξ
+      = simpleEvalAt B W (edgeTestGraph (univ.biUnion Kl) (univ.biUnion Kt)) ξ' :=
+    h 2 (edgeTestGraph (univ.biUnion Kl) (univ.biUnion Kt))
+  rw [simpleEvalAt_edgeTestGraph B hB W _ _ ξ,
+    simpleEvalAt_edgeTestGraph B hB W _ _ ξ'] at heq
+  calc ∑ x, ∑ y, W x * W y * B x y * (∏ j, (B j x) ^ k j) * (∏ j, (B j y) ^ l j)
+      = ∑ x, ∑ y, W x * W y * B x y
+          * (∏ i ∈ univ.biUnion Kl, B (ξ i) x) * (∏ i ∈ univ.biUnion Kt, B (ξ i) y) := by
+        refine Finset.sum_congr rfl fun x _ => Finset.sum_congr rfl fun y _ => ?_
+        rw [hLl x, hTt y]
+    _ = ∑ x, ∑ y, W x * W y * B x y
+          * (∏ i ∈ univ.biUnion Kl, B (ξ' i) x) * (∏ i ∈ univ.biUnion Kt, B (ξ' i) y) := heq
+    _ = ∑ x, ∑ y, W x * W y * B x y
+          * (∏ j, (B (superMap ξ ξ' hξ j) x) ^ k j)
+          * (∏ j, (B (superMap ξ ξ' hξ j) y) ^ l j) := by
+        refine Finset.sum_congr rfl fun x _ => Finset.sum_congr rfl fun y _ => ?_
+        rw [hLl' x, hTt' y]
+
 end Graphon.Lovasz
