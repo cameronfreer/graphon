@@ -385,6 +385,56 @@ theorem aligned_moments_class_balance {T : ℕ}
   rw [hneg] at key
   linarith
 
+/-- **Bounded-exponent aligned-Vandermonde extraction.** The bounded analogue of
+`aligned_moments_class_balance`: an explicit per-coordinate distinct-value bound `N` replaces the
+implicit cardinality `|ι|`, and the cancellation runs through the bounded multivariate Vandermonde
+(`Graphon.CaiGovorov.multivariate_vandermonde_class_sums_zero_of_bound`). The combined index has at
+most `2·N` distinct values per coordinate, matching the exponent range `0 ≤ k_c < 2·N`. -/
+theorem aligned_moments_class_balance_of_bound {ι : Type*} [Fintype ι] {s : ℕ}
+    (x y : ι → (Fin s → ℝ)) (a b : ι → ℝ) (N : ℕ)
+    (hNx : ∀ c, (univ.image (fun i => x i c)).card ≤ N)
+    (hNy : ∀ c, (univ.image (fun i => y i c)).card ≤ N)
+    (hmom : ∀ k : Fin s → ℕ, (∀ c, k c < 2 * N) →
+        ∑ i, a i * ∏ c, (x i c) ^ k c = ∑ i, b i * ∏ c, (y i c) ^ k c)
+    (z : Fin s → ℝ) :
+    ∑ i ∈ univ.filter (fun i => x i = z), a i
+      = ∑ i ∈ univ.filter (fun i => y i = z), b i := by
+  classical
+  set bb : (ι ⊕ ι) → Fin s → ℝ := Sum.elim x y with hbb
+  set aa : (ι ⊕ ι) → ℝ := Sum.elim a (fun i => - b i) with haa
+  have hbound : ∀ c, (univ.image (fun p => bb p c)).card ≤ 2 * N := by
+    intro c
+    have hsub : univ.image (fun p => bb p c)
+        ⊆ (univ.image (fun i => x i c)) ∪ (univ.image (fun i => y i c)) := by
+      rw [Finset.image_subset_iff]
+      rintro (i | i) _
+      · simp only [hbb, Sum.elim_inl]
+        exact Finset.mem_union_left _ (Finset.mem_image_of_mem _ (mem_univ i))
+      · simp only [hbb, Sum.elim_inr]
+        exact Finset.mem_union_right _ (Finset.mem_image_of_mem _ (mem_univ i))
+    calc (univ.image (fun p => bb p c)).card
+        ≤ ((univ.image (fun i => x i c)) ∪ (univ.image (fun i => y i c))).card :=
+          Finset.card_le_card hsub
+      _ ≤ (univ.image (fun i => x i c)).card + (univ.image (fun i => y i c)).card :=
+          Finset.card_union_le _ _
+      _ ≤ N + N := Nat.add_le_add (hNx c) (hNy c)
+      _ = 2 * N := (two_mul N).symm
+  have hmoments : ∀ ℓ : Fin s → ℕ, (∀ c, ℓ c < 2 * N) →
+      ∑ p, aa p * ∏ c, bb p c ^ ℓ c = 0 := by
+    intro ℓ hb
+    rw [Fintype.sum_sum_type]
+    simp only [hbb, haa, Sum.elim_inl, Sum.elim_inr]
+    rw [hmom ℓ hb, ← Finset.sum_add_distrib]
+    exact Finset.sum_eq_zero fun i _ => by ring
+  have key := CaiGovorov.multivariate_vandermonde_class_sums_zero_of_bound bb aa (2 * N)
+    hbound hmoments z
+  rw [Finset.sum_filter, Fintype.sum_sum_type] at key
+  simp only [hbb, haa, Sum.elim_inl, Sum.elim_inr, ← Finset.sum_filter] at key
+  have hneg : ∑ i ∈ univ.filter (fun i => y i = z), -b i
+      = -∑ i ∈ univ.filter (fun i => y i = z), b i := Finset.sum_neg_distrib b
+  rw [hneg] at key
+  linarith
+
 /-- Profile-balance specialization: with `x t = B · t` (the profile/column of `t`),
 `y t = B (s ·) t`, and weights `a = b = W`, the aligned moments force the `W`-mass over each
 profile level set to match. -/
