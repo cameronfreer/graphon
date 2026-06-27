@@ -214,7 +214,7 @@ variable [IsProbabilityMeasure μ]
 
 For a sequence of empty graphs `Gₙ` (graphs with no edges), the edge density
 between any two sets converges to 0, giving the graphon `W(x,y) = 0` for all `x,y`. -/
-def zero : Graphon α μ where
+noncomputable def zero : Graphon α μ where
   toAEEqFun := AEEqFun.const (α × α) 0
   symm' := by
     have h1 : ∀ᵐ p ∂(μ.prod μ), (AEEqFun.const (α × α) (0 : ℝ) : (α × α) →ₘ[μ.prod μ] ℝ) p = 0 :=
@@ -232,7 +232,7 @@ def zero : Graphon α μ where
 
 For a sequence of complete graphs `Kₙ`, the edge density between any two sets
 converges to 1, giving the graphon `W(x,y) = 1` for all `x,y`. -/
-def one : Graphon α μ where
+noncomputable def one : Graphon α μ where
   toAEEqFun := AEEqFun.const (α × α) 1
   symm' := by
     have h1 : ∀ᵐ p ∂(μ.prod μ), (AEEqFun.const (α × α) (1 : ℝ) : (α × α) →ₘ[μ.prod μ] ℝ) p = 1 :=
@@ -268,7 +268,7 @@ Key properties:
 If `W` is the graphon limit of graphs `Gₙ`, then `compl W` is the limit of the
 complement graphs `Ḡₙ`. The edge probability `W(x,y)` becomes the non-edge
 probability `1 - W(x,y)`. -/
-def compl (W : Graphon α μ) : Graphon α μ where
+noncomputable def compl (W : Graphon α μ) : Graphon α μ where
   toAEEqFun := AEEqFun.const (α × α) 1 - W.toAEEqFun
   symm' := by
     have hsub_ae : ∀ᵐ p ∂(μ.prod μ),
@@ -382,7 +382,7 @@ If `W₁(x,y) ∈ [0,1]` and `W₂(x,y) ∈ [0,1]` a.e., then
 
 This operation is fundamental for defining the cut distance:
 `δ□(U, W) = inf_φ ‖U - W^φ‖_□` where `W^φ` is a pullback of `W`. -/
-def sub (W₁ W₂ : Graphon α μ) : SignedGraphon α μ where
+noncomputable def sub (W₁ W₂ : Graphon α μ) : SignedGraphon α μ where
   toAEEqFun := W₁.toAEEqFun - W₂.toAEEqFun
   symm' := by
     have hsub_ae := AEEqFun.coeFn_sub W₁.toAEEqFun W₂.toAEEqFun

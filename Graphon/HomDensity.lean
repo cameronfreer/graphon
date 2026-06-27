@@ -120,7 +120,8 @@ theorem homDensity_bot (W : Graphon α μ) :
 theorem edge_out_ne {F : SimpleGraph V} [DecidableRel F.Adj] {e : Sym2 V}
     (he : e ∈ F.edgeSet) : (Quot.out e).1 ≠ (Quot.out e).2 := by
   have h_not_diag := F.not_isDiag_of_mem_edgeSet he
-  have h_eq : e = Sym2.mk (Quot.out e) := (Quot.out_eq e).symm
+  have h_eq : e = s((Quot.out e).1, (Quot.out e).2) := by
+    simp [Sym2.mk, Quot.out_eq]
   rw [h_eq, Sym2.mk_isDiag_iff] at h_not_diag
   exact h_not_diag
 

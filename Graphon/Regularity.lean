@@ -139,8 +139,7 @@ theorem tAverage_measurable (W : Graphon α μ) (T : Set α) (hT : MeasurableSet
       -- Use StronglyMeasurable.integral_prod_right for restricted measure
       have h1 : StronglyMeasurable fun x => ∫ y, W.toAEEqFun (x, y) ∂(μ.restrict T) :=
         StronglyMeasurable.integral_prod_right W.toAEEqFun.stronglyMeasurable
-      simp only [Measure.restrict_apply'] at h1 ⊢
-      convert h1 using 1
+      exact h1
     exact h_int.measurable
 
 /-- The T-average takes values in [0, 1] for a.e. x when W is a graphon.
@@ -362,7 +361,6 @@ theorem tAverage_sq_le_defect_div (W : Graphon α μ) (S T : Set α)
       have h2 : (W.toAEEqFun (x, y) - c) ^ 2 ≤ 4 := by
         obtain ⟨h1a, h1b⟩ := abs_le.mp h1
         have := sq_le_sq' h1a h1b
-        simp only at this
         linarith [sq_nonneg (W.toAEEqFun (x, y) - c)]
       rw [abs_of_nonneg (sq_nonneg _)]
       exact h2
@@ -580,7 +578,6 @@ theorem defect_eq_within_plus_between (W : Graphon α μ) (S T : Set α)
       have h2 : (W.toAEEqFun (x, y) - c) ^ 2 ≤ 4 := by
         obtain ⟨h1a, h1b⟩ := abs_le.mp h1
         have := sq_le_sq' h1a h1b
-        simp only at this
         linarith [sq_nonneg (W.toAEEqFun (x, y) - c)]
       rw [abs_of_nonneg (sq_nonneg _)]
       exact h2
@@ -629,7 +626,6 @@ theorem defect_eq_within_plus_between (W : Graphon α μ) (S T : Set α)
         rw [abs_le]; constructor <;> linarith [ha.1, ha.2, hb.1, hb.2]
       obtain ⟨h1a, h1b⟩ := abs_le.mp h1
       have := sq_le_sq' h1a h1b
-      simp only at this
       linarith [sq_nonneg (a - b)]
 
   -- Integrability of (W - W_T)² on T for a.e. x
@@ -835,7 +831,7 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
       rw [ae_restrict_iff' hS]
       -- The set (A_high ∪ A_low) ∩ S has measure 0
       have h_null_in_S : μ ((A_high ∪ A_low) ∩ S) = 0 := by
-        apply le_antisymm _ (zero_le _)
+        apply le_antisymm _ (zero_le)
         calc μ ((A_high ∪ A_low) ∩ S) ≤ μ (A_high ∪ A_low) := measure_mono Set.inter_subset_left
           _ = 0 := h_union_zero
       -- Outside this null set, the bound holds
@@ -4697,7 +4693,7 @@ theorem exists_measurable_subset_of_measure [StandardBorelSpace α] [NoAtoms μ]
       refine ⟨?_, ?_, ?_, ?_⟩
       · show MeasurableSet (step 0).2; rw [h0]; exact hS
       · show (step 0).2 ⊆ S; rw [h0]
-      · show (step 0).1 ≤ r; rw [h0]; exact zero_le r
+      · show (step 0).1 ≤ r; rw [h0]; exact zero_le
       · show r - (step 0).1 ≤ μ (step 0).2; rw [h0]; simpa using hr
     | succ n ih =>
       obtain ⟨hR_meas, hR_sub, hacc_le, hgap⟩ := ih
@@ -4896,7 +4892,7 @@ private theorem exists_equal_measure_partition [StandardBorelSpace α] [NoAtoms 
     -- Show q ≤ μ R (since μ R = (m+1) * q ≥ q)
     have hq_le : q ≤ μ R := by
       rw [hR_mu]
-      exact le_mul_of_one_le_left (zero_le q)
+      exact le_mul_of_one_le_left (zero_le)
         (by exact_mod_cast Nat.one_le_iff_ne_zero.mpr (Nat.succ_ne_zero m))
     -- Apply IVT oracle to get a piece T ⊆ R with μ T = q
     obtain ⟨T, hT_meas, hT_sub, hT_mu⟩ := exists_measurable_subset_of_measure hR_meas hq_le

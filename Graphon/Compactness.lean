@@ -792,7 +792,7 @@ private theorem exists_cutNormDiff_cauchy_realignment
         summable_geometric_of_lt_one (by positivity) (by norm_num)
       have h2 := h.mul_left 2
       simp only [one_div] at h2
-      convert h2 using 1; ext k; rw [inv_pow]; ring
+      exact h2.congr (fun k => by rw [inv_pow]; ring)
   refine ⟨f, hf, δ, hδ_sum, hδ_pos, fun k => ?_⟩
   -- Key calc: f (k+1) = f k . trans (σ k), so ⇑(f (k+1)) = σ_k ∘ f_k
   -- pb(V(k+1), f_{k+1}) = pb(V(k+1), σ_k ∘ f_k) = pb(pb(V(k+1), σ_k), f_k)
@@ -1171,7 +1171,6 @@ private theorem exists_limit_measure_of_summable
     (by simp [hc_empty])
     (by
       intro f hf h_disj
-      simp only []
       rw [hc_additive hf h_disj]
       exact ENNReal.ofReal_tsum_of_nonneg (fun i => hc_nn (f i) (hf i))
         (Summable.of_nonneg_of_le (fun i => hc_nn (f i) (hf i))
