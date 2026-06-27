@@ -310,4 +310,41 @@ theorem simpleEvalAt_edgeTestGraph {T : ℕ} (B : Fin T → Fin T → ℝ)
         tau2_apply_labVertex2 ξ σ i, tau2_apply_unlVertex1 ξ σ]]
   ring
 
+/-! ## Chunk 3A: super-surjective orbit separation (Cai–Govorov Lemma 5.1, base case) -/
+
+/-- `ξ : Fin K → Fin T` is **super-surjective** when every host vertex `v` is the image of
+at least `2·T²` labels. This Cai–Govorov hypothesis provides the room to realize every
+bounded exponent vector in the Vandermonde argument (by pigeonhole it yields, inside each
+`ξ`-fibre, a `ξ'`-constant subset of size `≥ 2T`, aligning the exponents on both sides). -/
+def SuperSurjective {T : ℕ} (ξ : Fin K → Fin T) : Prop :=
+  ∀ v : Fin T, 2 * T * T ≤ (univ.filter (fun i => ξ i = v)).card
+
+/-- Regroup a product over labels into a product over host vertices weighted by multiplicity:
+`∏_{i∈S} B (ξ i) t = ∏_v (B v t) ^ |{i∈S : ξ i = v}|`. -/
+theorem prod_label_eq_prod_mult {T : ℕ} (B : Fin T → Fin T → ℝ) (ξ : Fin K → Fin T)
+    (S : Finset (Fin K)) (t : Fin T) :
+    ∏ i ∈ S, B (ξ i) t = ∏ v, (B v t) ^ (S.filter (fun i => ξ i = v)).card := by
+  rw [Finset.prod_comp (fun v => B v t) ξ]
+  refine Finset.prod_subset (Finset.subset_univ _) ?_
+  intro v _ hv
+  rw [Finset.mem_image] at hv
+  have hempty : S.filter (fun i => ξ i = v) = ∅ := by
+    rw [Finset.filter_eq_empty_iff]
+    exact fun i hi heq => hv ⟨i, hi, heq⟩
+  rw [hempty, Finset.card_empty, pow_zero]
+
+/-- **Multiplicity form of the Gχ equation.** Simple-equivalence makes the two
+host-multiplicity-weighted moment sums agree, for every label subset `S`. This is the
+bridge from `tupleEquivSimple` + the `starTestGraph` closed form to the Vandermonde input. -/
+theorem tupleEquivSimple_starTestGraph_mult {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) {ξ ξ' : Fin K → Fin T}
+    (h : tupleEquivSimple B W ξ ξ') (S : Finset (Fin K)) :
+    ∑ t, W t * ∏ v, (B v t) ^ (S.filter (fun i => ξ i = v)).card
+      = ∑ t, W t * ∏ v, (B v t) ^ (S.filter (fun i => ξ' i = v)).card := by
+  have heq : simpleEvalAt B W (starTestGraph S) ξ = simpleEvalAt B W (starTestGraph S) ξ' :=
+    h 1 (starTestGraph S)
+  rw [simpleEvalAt_starTestGraph B hB W S ξ, simpleEvalAt_starTestGraph B hB W S ξ'] at heq
+  simp only [prod_label_eq_prod_mult] at heq
+  exact heq
+
 end Graphon.Lovasz
