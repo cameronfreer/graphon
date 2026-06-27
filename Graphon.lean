@@ -22,6 +22,7 @@ import Graphon.Lovasz
 import Graphon.SimpleRank
 import Graphon.CycleKrylov
 import Graphon.MatrixDetermination
+import Graphon.CaiGovorovOrbit
 import Graphon.InverseCounting
 import Graphon.Convergence
 
