@@ -17,6 +17,7 @@ import Graphon.Counting
 import Graphon.Regularity
 import Graphon.Compactness
 import Graphon.Sampling
+import Graphon.CaiGovorov
 import Graphon.Lovasz
 import Graphon.SimpleRank
 import Graphon.CycleKrylov
@@ -42,6 +43,7 @@ in Lean 4 using Mathlib.
 * `Graphon.Regularity` — Energy increment, Frieze–Kannan weak regularity lemma
 * `Graphon.Counting` — Homomorphism density, counting lemma
 * `Graphon.Compactness` — Total boundedness, completeness
+* `Graphon.CaiGovorov` — Graph-free Vandermonde argument (Cai–Govorov §4), for #70 orbit separation
 * `Graphon.Lovasz` — Connection-matrix algebra scaffolding (Lovász §3)
 * `Graphon.SimpleRank` — K=1 simple-graph rank theorem, algebra-atom framing (#70)
 * `Graphon.CycleKrylov` — spectral slice of the cycle–Krylov square-moment proof (#70)
