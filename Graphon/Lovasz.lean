@@ -323,7 +323,7 @@ noncomputable def MultiLabeledGraph.ofSimple {K n : ℕ}
     rw [if_neg]
     intro h
     rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h
-    exact F.loopless _ h
+    exact F.loopless.irrefl _ h
 
 /-- **`multiLabeledEvalK` of `ofSimple F` matches the simple-graph
 σ-sum body** (the analog of `MatrixDetermination.lean:7156`).
@@ -1661,9 +1661,9 @@ theorem multiLabeledEvalK_tupleEquiv_invariant_n_zero {T K : ℕ}
       simp only [ne_eq, Fin.mk.injEq, u, v]; intro h; apply hab; exact Fin.ext h
     let F : SimpleGraph (Fin (0 + K)) :=
       { Adj := fun a b => (a = u ∧ b = v) ∨ (a = v ∧ b = u)
-        symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
+        symm.symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
                                      (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
-        loopless := fun _ h => by
+        loopless.irrefl := fun _ h => by
           rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
           · exact hne (h1.symm.trans h2)
           · exact hne (h2.symm.trans h1) }
@@ -2372,9 +2372,9 @@ private lemma multigraphEval_LL_excess_descends_aux {T K n : ℕ}
     -- Build the corresponding simple graph and apply h_simple.
     let F : SimpleGraph (Fin (n + K)) :=
       { Adj := fun a b => a ≠ b ∧ M.mult s(a, b) = 1
-        symm := fun a b ⟨hne, hmult⟩ =>
+        symm.symm := fun a b ⟨hne, hmult⟩ =>
           ⟨hne.symm, by rwa [Sym2.eq_swap]⟩
-        loopless := fun a ⟨hne, _⟩ => hne rfl }
+        loopless.irrefl := fun a ⟨hne, _⟩ => hne rfl }
     haveI : DecidableRel F.Adj := Classical.decRel _
     have hmult_eq : ∀ e, M.mult e = (MultiLabeledGraph.ofSimple F).mult e := by
       intro e
@@ -2500,8 +2500,8 @@ private lemma multigraphEval_LL_excess_descends_aux {T K n : ℕ}
           exact Fin.ext (by have := congr_arg Fin.val h_eq; simpa [aF, bF] using this)
         let G : SimpleGraph (Fin (0 + K)) :=
           { Adj := fun u v => (u = aF ∧ v = bF) ∨ (u = bF ∧ v = aF)
-            symm := fun u v => by rintro (⟨h1, h2⟩ | ⟨h1, h2⟩) <;> [right; left] <;> exact ⟨h2, h1⟩
-            loopless := fun u h => by
+            symm.symm := fun u v => by rintro (⟨h1, h2⟩ | ⟨h1, h2⟩) <;> [right; left] <;> exact ⟨h2, h1⟩
+            loopless.irrefl := fun u h => by
               rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
               · exact h_aF_ne_bF (h1.symm.trans h2)
               · exact h_aF_ne_bF (h2.symm.trans h1) }
@@ -3006,9 +3006,9 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
   -- F_rest: simple graph on Fin (n - 2 + K) with edges from mult-1 edges of M.
   let F_rest : SimpleGraph (Fin (n - 2 + K)) :=
     { Adj := fun a b => a ≠ b ∧ M.mult s(restEmbed a, restEmbed b) = 1
-      symm := fun a b ⟨hne, hmult⟩ =>
+      symm.symm := fun a b ⟨hne, hmult⟩ =>
         ⟨hne.symm, by rwa [Sym2.eq_swap]⟩
-      loopless := fun a ⟨hne, _⟩ => hne rfl }
+      loopless.irrefl := fun a ⟨hne, _⟩ => hne rfl }
   haveI : DecidableRel F_rest.Adj := Classical.decRel _
   -- Step 7 application: instantiate h_simple at F_rest. This gives the
   -- equality of F_rest's evaluation at ξ vs ξ' for free.
@@ -3582,8 +3582,8 @@ private theorem multigraphEval_label_unlabeled_isolated_descends
   let restEmbed : Fin (n - 1 + K) → Fin (n + K) := @restEmbedAux n K (n - 1) g_rest
   let F_rest : SimpleGraph (Fin (n - 1 + K)) :=
     { Adj := fun a b => a ≠ b ∧ M.mult s(restEmbed a, restEmbed b) = 1
-      symm := fun a b ⟨hne, hmult⟩ => ⟨hne.symm, by rwa [Sym2.eq_swap]⟩
-      loopless := fun a ⟨hne, _⟩ => hne rfl }
+      symm.symm := fun a b ⟨hne, hmult⟩ => ⟨hne.symm, by rwa [Sym2.eq_swap]⟩
+      loopless.irrefl := fun a ⟨hne, _⟩ => hne rfl }
   haveI : DecidableRel F_rest.Adj := Classical.decRel _
   have h_simple_F_rest := h_simple (n - 1) F_rest
   have restEmbed_injective : Function.Injective restEmbed :=
@@ -4244,9 +4244,9 @@ theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
     · classical
       let F : SimpleGraph (Fin ((n + 1) + K)) :=
         { Adj := fun a b => a ≠ b ∧ M.mult s(a, b) = 1
-          symm := fun a b ⟨hne, hmult⟩ =>
+          symm.symm := fun a b ⟨hne, hmult⟩ =>
             ⟨hne.symm, by rwa [Sym2.eq_swap]⟩
-          loopless := fun a ⟨hne, _⟩ => hne rfl }
+          loopless.irrefl := fun a ⟨hne, _⟩ => hne rfl }
       haveI : DecidableRel F.Adj := Classical.decRel _
       have hmult_eq : ∀ e, M.mult e = (MultiLabeledGraph.ofSimple F).mult e := by
         intro e
@@ -4413,9 +4413,9 @@ theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
       classical
       let F : SimpleGraph (Fin ((n + 1) + K)) :=
         { Adj := fun a b => a ≠ b ∧ M.mult s(a, b) = 1
-          symm := fun a b ⟨hne, hmult⟩ =>
+          symm.symm := fun a b ⟨hne, hmult⟩ =>
             ⟨hne.symm, by rwa [Sym2.eq_swap]⟩
-          loopless := fun a ⟨hne, _⟩ => hne rfl }
+          loopless.irrefl := fun a ⟨hne, _⟩ => hne rfl }
       haveI : DecidableRel F.Adj := Classical.decRel _
       -- Show M.mult = (MultiLabeledGraph.ofSimple F).mult pointwise.
       have hmult_eq : ∀ e, M.mult e = (MultiLabeledGraph.ofSimple F).mult e := by
@@ -4818,11 +4818,12 @@ theorem tupleEquivSimple_restrict {T k : ℕ}
       B (ν (Quot.out (s(a, b) : Sym2 (Fin m))).1)
         (ν (Quot.out (s(a, b) : Sym2 (Fin m))).2) = B (ν a) (ν b) := by
     intro m ν a b
-    have h_out_eq : Sym2.mk (Quot.out (s(a, b) : Sym2 (Fin m))) = s(a, b) :=
+    have h_out_eq : s((Quot.out (s(a, b) : Sym2 (Fin m))).1,
+                       (Quot.out (s(a, b) : Sym2 (Fin m))).2) = s(a, b) :=
       Quot.out_eq _
-    rcases Sym2.mk_eq_mk_iff.mp h_out_eq with heq | heq
-    · rw [heq]
-    · rw [heq]; exact hB _ _
+    rcases Sym2.eq_iff.mp h_out_eq with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · rw [h1, h2]
+    · rw [h1, h2]; exact hB _ _
   -- Pivot at position k; shift = succAboveEmb p maps Fin (n+k) → Fin (n+(k+1)).
   have hk : k < n + (k + 1) := by omega
   let p : Fin (n + (k + 1)) := ⟨k, hk⟩
@@ -4864,6 +4865,7 @@ theorem tupleEquivSimple_restrict {T k : ℕ}
     | _ a b =>
       simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at *
       rw [SimpleGraph.mem_edgeSet] at he ⊢
+      rw [SimpleGraph.map_adj]
       exact ⟨a, b, he, rfl, rfl⟩
   · -- 2. Injective.
     intro e1 _ e2 _ hij
@@ -4875,6 +4877,7 @@ theorem tupleEquivSimple_restrict {T k : ℕ}
     induction e using Sym2.ind with
     | _ x y =>
       rw [SimpleGraph.mem_edgeSet] at he
+      rw [SimpleGraph.map_adj] at he
       obtain ⟨a, b, hab, hax, hby⟩ := he
       refine ⟨s(a, b), ?_, ?_⟩
       · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact hab
@@ -5340,7 +5343,6 @@ theorem coeffRestrictSimple_equiv {T k : ℕ}
     have hind := class_eq
       (fun η => @ite ℝ (tupleEquivSimple B W μ η) (Classical.dec _) 1 0)
       (fun η η' heq => by
-        simp only
         congr 1
         refine propext ⟨fun hh => ?_, fun hh => ?_⟩
         · intro n F _
@@ -5596,11 +5598,12 @@ theorem tupleEquivSimple_restrict_along {T k T' : ℕ}
       B (ν (Quot.out (s(a, b) : Sym2 (Fin m))).1)
         (ν (Quot.out (s(a, b) : Sym2 (Fin m))).2) = B (ν a) (ν b) := by
     intro m ν a b
-    have h_out_eq : Sym2.mk (Quot.out (s(a, b) : Sym2 (Fin m))) = s(a, b) :=
+    have h_out_eq : s((Quot.out (s(a, b) : Sym2 (Fin m))).1,
+                       (Quot.out (s(a, b) : Sym2 (Fin m))).2) = s(a, b) :=
       Quot.out_eq _
-    rcases Sym2.mk_eq_mk_iff.mp h_out_eq with heq | heq
-    · rw [heq]
-    · rw [heq]; exact hB _ _
+    rcases Sym2.eq_iff.mp h_out_eq with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · rw [h1, h2]
+    · rw [h1, h2]; exact hB _ _
   -- Build shift : Fin (n + T') → Fin (n + k): label positions via r,
   -- unlabeled positions shifted by (k - T').
   let shiftFun : Fin (n + T') → Fin (n + k) := fun v =>
@@ -5682,6 +5685,7 @@ theorem tupleEquivSimple_restrict_along {T k T' : ℕ}
     | _ a b =>
       simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at *
       rw [SimpleGraph.mem_edgeSet] at he ⊢
+      rw [SimpleGraph.map_adj]
       exact ⟨a, b, he, rfl, rfl⟩
   · intro e1 _ e2 _ hij
     exact shift.sym2Map.injective hij
@@ -5691,6 +5695,7 @@ theorem tupleEquivSimple_restrict_along {T k T' : ℕ}
     induction e using Sym2.ind with
     | _ x y =>
       rw [SimpleGraph.mem_edgeSet] at he
+      rw [SimpleGraph.map_adj] at he
       obtain ⟨a, b, hab, hax, hby⟩ := he
       refine ⟨s(a, b), ?_, ?_⟩
       · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact hab
@@ -5780,10 +5785,10 @@ theorem tupleEquivSimple_id_bijective {T : ℕ}
           exact (Fin.mk.injEq _ _ _ _).mp he
         let F : SimpleGraph (Fin (0 + (S + 1))) :=
           { Adj := fun x y => (x = u ∧ y = v_p) ∨ (x = v_p ∧ y = u)
-            symm := fun _ _ h =>
+            symm.symm := fun _ _ h =>
               h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
                      (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
-            loopless := fun _ h => by
+            loopless.irrefl := fun _ h => by
               rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
               · exact huv_ne (h1.symm.trans h2)
               · exact huv_ne (h2.symm.trans h1) }
@@ -5805,8 +5810,7 @@ theorem tupleEquivSimple_id_bijective {T : ℕ}
           one_mul, hedge, Finset.prod_singleton] at key
         -- Unfold τ at u and v_p: u.val = a.val < S+1, v_p.val = b.val < S+1.
         set p := Quot.out (s(u, v_p) : Sym2 (Fin (0 + (S + 1))))
-        have hout : (Sym2.mk p : Sym2 (Fin (0 + (S + 1)))) = s(u, v_p) :=
-          Quot.out_eq _
+        have hout : s(p.1, p.2) = s(u, v_p) := Quot.out_eq _
         have key' : (p.1 = u ∧ p.2 = v_p) ∨ (p.1 = v_p ∧ p.2 = u) := by
           have := Sym2.eq_iff.mp hout
           rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩
@@ -5864,10 +5868,10 @@ theorem tupleEquivSimple_id_bijective {T : ℕ}
             intro he; have := congrArg Fin.val he; simp [u', v'] at this
           let G : SimpleGraph (Fin (1 + (S + 1))) :=
             { Adj := fun x y => (x = u' ∧ y = v') ∨ (x = v' ∧ y = u')
-              symm := fun _ _ h =>
+              symm.symm := fun _ _ h =>
                 h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
                        (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
-              loopless := fun _ h => by
+              loopless.irrefl := fun _ h => by
                 rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
                 · exact hne' (h1.symm.trans h2)
                 · exact hne' (h2.symm.trans h1) }
@@ -5903,7 +5907,7 @@ theorem tupleEquivSimple_id_bijective {T : ℕ}
             congr 1
             -- Use Quot.out + Sym2 case-split.
             set p := Quot.out (s(u', v') : Sym2 (Fin (1 + (S + 1))))
-            have hout : Sym2.mk p = s(u', v') := Quot.out_eq _
+            have hout : s(p.1, p.2) = s(u', v') := Quot.out_eq _
             have key : (p.1 = u' ∧ p.2 = v') ∨ (p.1 = v' ∧ p.2 = u') := by
               have := Sym2.eq_iff.mp hout
               rcases this with ⟨h1, h2⟩ | ⟨h1, h2⟩ <;> [left; right] <;>
@@ -6123,9 +6127,9 @@ theorem tupleEquivSimple_ext_eq_of_surj {T k : ℕ}
   -- Define the single-edge graph inline.
   let F : SimpleGraph (Fin (0 + (k + 1))) :=
     { Adj := fun x y => (x = u ∧ y = v) ∨ (x = v ∧ y = u)
-      symm := fun _ _ h =>
+      symm.symm := fun _ _ h =>
         h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩) (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
-      loopless := fun _ h => by
+      loopless.irrefl := fun _ h => by
         rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
         · exact hne (h1.symm.trans h2)
         · exact hne (h2.symm.trans h1) }
@@ -6153,7 +6157,7 @@ theorem tupleEquivSimple_ext_eq_of_surj {T k : ℕ}
   -- Now τ for both sides: positions < k+1 read the label map (snoc α _),
   -- and there are no positions ≥ k+1 since n' = 0.
   set p := Quot.out (s(u, v) : Sym2 (Fin (0 + (k + 1))))
-  have hout : (Sym2.mk p : Sym2 (Fin (0 + (k + 1)))) = s(u, v) := Quot.out_eq _
+  have hout : s(p.1, p.2) = s(u, v) := Quot.out_eq _
   -- Case split on which order p represents.
   have key' : (p.1 = u ∧ p.2 = v) ∨ (p.1 = v ∧ p.2 = u) := by
     have := Sym2.eq_iff.mp hout
@@ -6674,9 +6678,14 @@ theorem InRootedProfileSpan.smul {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fi
 theorem rootedProfileFun_bot {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
     rootedProfileFun B W (⊥ : SimpleGraph (Fin (0 + 1))) = fun _ => 1 := by
   funext v
-  unfold rootedProfileFun rootedProfile simpleEvalAt
-  simp
-  convert (pow_zero (B v v)).symm using 1
+  simp only [rootedProfileFun, rootedProfile, simpleEvalAt,
+    Fintype.sum_unique, Finset.univ_eq_empty, Finset.prod_empty, one_mul]
+  apply Finset.prod_eq_one
+  intro e he
+  have heset : e ∈ (⊥ : SimpleGraph (Fin (0 + 1))).edgeSet :=
+    @Set.mem_toFinset _ _ (⊥ : SimpleGraph (Fin (0 + 1))).fintypeEdgeSet e |>.mp he
+  rw [SimpleGraph.edgeSet_bot] at heset
+  exact heset.elim
 
 /-- Constant function `1` is in the rooted-profile span (via the empty graph). -/
 theorem InRootedProfileSpan.one {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
@@ -6907,17 +6916,17 @@ theorem ofSimple_rootedProduct_eq_glue {n₁ n₂ : ℕ}
         rw [hglueCast₂ a, hglueCast₂ b, dif_pos ha0, dif_pos hb0]
         simp only
         have h1 : ¬ (SimpleGraph.map (rootedProductEmb₁ n₁ n₂) F₁).Adj a b := by
-          rw [hab_root]; exact (SimpleGraph.map _ F₁).loopless b
+          rw [hab_root]; exact (SimpleGraph.map _ F₁).loopless.irrefl b
         have h2 : ¬ (SimpleGraph.map (rootedProductEmb₂ n₁ n₂) F₂).Adj a b := by
-          rw [hab_root]; exact (SimpleGraph.map _ F₂).loopless b
+          rw [hab_root]; exact (SimpleGraph.map _ F₂).loopless.irrefl b
         rw [if_neg (fun h => h.elim h1 h2)]
         have hab_val : a.val = b.val := by omega
         have hF₁ : ¬ F₁.Adj ⟨a.val, ha_lt⟩ ⟨b.val, hb_lt⟩ := by
           have heq : (⟨a.val, ha_lt⟩ : Fin _) = ⟨b.val, hb_lt⟩ := Fin.ext hab_val
-          rw [heq]; exact F₁.loopless _
+          rw [heq]; exact F₁.loopless.irrefl _
         have hF₂ : ¬ F₂.Adj ⟨a.val, by omega⟩ ⟨b.val, by omega⟩ := by
           have heq : (⟨a.val, by omega⟩ : Fin (n₂ + 1)) = ⟨b.val, by omega⟩ := Fin.ext hab_val
-          rw [heq]; exact F₂.loopless _
+          rw [heq]; exact F₂.loopless.irrefl _
         rw [if_neg hF₁, if_neg hF₂]
       · -- a at root, b in F₁-only. F₂-part = 0 (glueCast₂ b = none).
         have hb_ge' : ¬ b.val ≥ n₁ + 1 := by omega
@@ -7976,6 +7985,7 @@ theorem InTupleMultiEvalSpan.eval_sub_const {T K n : ℕ}
     InTupleMultiEvalSpan B W (fun ζ => multiLabeledEvalK K n M B W ζ - w) := by
   have h := (InTupleMultiEvalSpan.of_multi B W M).add (InTupleMultiEvalSpan.const B W (-w))
   convert h using 1
+  funext ζ; simp [Pi.add_apply, sub_eq_add_neg]
 
 /-- A Lagrange factor `(eval M · - eval M η) / (eval M ξ - eval M η)` is in the
 span. Mirrors `InRootedProfileSpan.lagrange_factor`. -/
@@ -8366,8 +8376,8 @@ theorem tupleEquivMulti_id_preserves_B {T : ℕ}
   have huv_ne : u ≠ v_p := fun he => hab (Fin.ext ((Fin.mk.injEq _ _ _ _).mp he))
   let F : SimpleGraph (Fin (0 + T)) :=
     { Adj := fun x y => (x = u ∧ y = v_p) ∨ (x = v_p ∧ y = u)
-      symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩) (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
-      loopless := fun _ h => by
+      symm.symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩) (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
+      loopless.irrefl := fun _ h => by
         rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
         · exact huv_ne (h1.symm.trans h2)
         · exact huv_ne (h2.symm.trans h1) }
@@ -9828,7 +9838,8 @@ private theorem InRootedProfileSpan.profile_sub_const {T n : ℕ}
   have h₂ : InRootedProfileSpan B W (fun _ => -(rootedProfile B W j F)) :=
     InRootedProfileSpan.const B W _
   have h_combined := h₁.add h₂
-  convert h_combined using 2
+  convert h_combined using 1
+  funext v; simp [rootedProfileFun, Pi.add_apply, sub_eq_add_neg]
 
 /-- **Lagrange factor**: scaled difference function from `profile_sub_const`. -/
 private theorem InRootedProfileSpan.lagrange_factor {T n : ℕ}
@@ -10197,11 +10208,12 @@ private theorem rootedProfileEquiv_of_tupleEquivSimple {T K : ℕ}
       B (ν (Quot.out (s(a, b) : Sym2 (Fin m))).1)
         (ν (Quot.out (s(a, b) : Sym2 (Fin m))).2) = B (ν a) (ν b) := by
     intro m ν a b
-    have h_out_eq : Sym2.mk (Quot.out (s(a, b) : Sym2 (Fin m))) = s(a, b) :=
+    have h_out_eq : s((Quot.out (s(a, b) : Sym2 (Fin m))).1,
+                       (Quot.out (s(a, b) : Sym2 (Fin m))).2) = s(a, b) :=
       Quot.out_eq _
-    rcases Sym2.mk_eq_mk_iff.mp h_out_eq with heq | heq
-    · rw [heq]
-    · rw [heq]; exact hB _ _
+    rcases Sym2.eq_iff.mp h_out_eq with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · rw [h1, h2]
+    · rw [h1, h2]; exact hB _ _
   -- Key identity: for any `ζ : Fin K → Fin T`,
   -- simpleEvalAt B W G ζ (= K-level eval of G at ζ) equals
   -- rootedProfile B W (ζ a) F (= K=1 eval of F at ζ a).
@@ -10235,6 +10247,7 @@ private theorem rootedProfileEquiv_of_tupleEquivSimple {T K : ℕ}
     | _ x y =>
       simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at *
       rw [SimpleGraph.mem_edgeSet] at he ⊢
+      rw [SimpleGraph.map_adj]
       exact ⟨x, y, he, rfl, rfl⟩
   · -- 2. Injective on F.edgeFinset.
     intro e1 _ e2 _ hij
@@ -10246,6 +10259,7 @@ private theorem rootedProfileEquiv_of_tupleEquivSimple {T K : ℕ}
     induction e using Sym2.ind with
     | _ u v =>
       rw [SimpleGraph.mem_edgeSet] at he
+      rw [SimpleGraph.map_adj] at he
       obtain ⟨x, y, hxy, hxu, hyv⟩ := he
       refine ⟨s(x, y), ?_, ?_⟩
       · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact hxy
@@ -10626,13 +10640,13 @@ ensures `m + 2 ≥ 2`, so the graph has at least one edge. -/
 def rootedCycleGraph (m : ℕ) : SimpleGraph (Fin (m + 2)) where
   Adj a b := (a.val + 1 = b.val) ∨ (b.val + 1 = a.val) ∨
              (a.val = 0 ∧ b.val = m + 1) ∨ (a.val = m + 1 ∧ b.val = 0)
-  symm := fun a b h => by
+  symm.symm := fun a b h => by
     rcases h with h | h | ⟨h1, h2⟩ | ⟨h1, h2⟩
     · exact Or.inr (Or.inl h)
     · exact Or.inl h
     · exact Or.inr (Or.inr (Or.inr ⟨h2, h1⟩))
     · exact Or.inr (Or.inr (Or.inl ⟨h2, h1⟩))
-  loopless := fun a h => by
+  loopless.irrefl := fun a h => by
     rcases h with h | h | ⟨h1, h2⟩ | ⟨h1, h2⟩
     · omega
     · omega
@@ -10654,7 +10668,7 @@ instance (m : ℕ) : DecidableRel (rootedCycleGraph m).Adj := by
 /-- Loopless property unfolding. -/
 lemma rootedCycleGraph_not_adj_self {m : ℕ} (a : Fin (m + 2)) :
     ¬ (rootedCycleGraph m).Adj a a :=
-  (rootedCycleGraph m).loopless a
+  (rootedCycleGraph m).loopless.irrefl a
 
 /-- Sum decomposition: a sum over `Fin (k+1) → α` decomposes as a double sum
 over the head (element of `α`) and the tail (`Fin k → α`). Re-indexing via
@@ -10730,7 +10744,7 @@ lemma rootedCycleGraph_adj_iff_succ {m : ℕ} (a b : Fin (m + 3)) :
   · intro h
     rcases h with h | h
     · rw [← h]; exact cycleSucc_adj a
-    · rw [← h]; exact (rootedCycleGraph (m + 1)).symm (cycleSucc_adj b)
+    · rw [← h]; exact (cycleSucc_adj b).symm
 
 /-- `cycleSucc` is not its own inverse: `cycleSucc (cycleSucc j) ≠ j` on
 `Fin (m + 3)` (which has at least 3 elements, so no 2-cycles exist). -/
@@ -10807,7 +10821,8 @@ lemma rootedCycleGraph_edgeProduct_eq {T m : ℕ}
   intro j _
   -- For each j: Quot.out of s(j, cycleSucc j) gives some (a, b) with
   -- Sym2.mk (a, b) = s(j, cycleSucc j); use Sym2.eq_iff + hB symmetry.
-  have hp : (Sym2.mk (Quot.out (s(j, cycleSucc j) : Sym2 _)))
+  have hp : s((Quot.out (s(j, cycleSucc j) : Sym2 _)).1,
+               (Quot.out (s(j, cycleSucc j) : Sym2 _)).2)
             = (s(j, cycleSucc j) : Sym2 _) := Quot.out_eq _
   rw [Sym2.eq_iff] at hp
   rcases hp with ⟨h1, h2⟩ | ⟨h1, h2⟩
