@@ -730,4 +730,144 @@ theorem aligned_edge_moments_of_tupleEquivSimple_super {T : ℕ} (B : Fin T → 
         refine Finset.sum_congr rfl fun x _ => Finset.sum_congr rfl fun y _ => ?_
         rw [hLl' x, hTt' y]
 
+/-- **Aligned edge-moment pair balance.** Specializing the bounded extraction engine
+`aligned_moments_class_balance_of_bound` at `ι = Fin T × Fin T` and coordinate dimension `T + T`
+(gluing the two `B`-columns of a pair via `Fin.append`), the aligned edge moments force the
+`W·W·B`-mass over each pair of column profiles `(z₁, z₂)` to match between the original labelling and
+the `superMap`-reindexed one. -/
+theorem aligned_edge_moments_pair_balance {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (ξ ξ' : Fin K → Fin T)
+    (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (z₁ z₂ : Fin T → ℝ) :
+    ∑ p : Fin T × Fin T,
+        (if (fun j => B j p.1) = z₁ ∧ (fun j => B j p.2) = z₂
+         then W p.1 * W p.2 * B p.1 p.2 else 0)
+      = ∑ p : Fin T × Fin T,
+          (if (fun j => B (superMap ξ ξ' hξ j) p.1) = z₁ ∧
+              (fun j => B (superMap ξ ξ' hξ j) p.2) = z₂
+           then W p.1 * W p.2 * B p.1 p.2 else 0) := by
+  set x : Fin T × Fin T → (Fin (T + T) → ℝ) :=
+    fun p => Fin.append (fun j => B j p.1) (fun j => B j p.2) with hx
+  set y : Fin T × Fin T → (Fin (T + T) → ℝ) :=
+    fun p => Fin.append (fun j => B (superMap ξ ξ' hξ j) p.1)
+      (fun j => B (superMap ξ ξ' hξ j) p.2) with hy
+  set a : Fin T × Fin T → ℝ := fun p => W p.1 * W p.2 * B p.1 p.2 with ha
+  -- Per-coordinate distinct-value bound (≤ T) for the left profiles.
+  have hNx : ∀ c, (univ.image (fun p => x p c)).card ≤ T := by
+    intro c
+    refine Fin.addCases (fun j => ?_) (fun j => ?_) c
+    · have hsub : univ.image (fun p : Fin T × Fin T => x p (Fin.castAdd T j))
+          ⊆ univ.image (fun u : Fin T => B j u) := by
+        intro val hval
+        rw [mem_image] at hval ⊢
+        obtain ⟨p, -, hp⟩ := hval
+        refine ⟨p.1, mem_univ _, ?_⟩
+        rw [← hp]; simp only [hx, Fin.append_left]
+      calc (univ.image (fun p : Fin T × Fin T => x p (Fin.castAdd T j))).card
+          ≤ (univ.image (fun u : Fin T => B j u)).card := Finset.card_le_card hsub
+        _ ≤ (univ : Finset (Fin T)).card := Finset.card_image_le
+        _ = T := by rw [Finset.card_univ, Fintype.card_fin]
+    · have hsub : univ.image (fun p : Fin T × Fin T => x p (Fin.natAdd T j))
+          ⊆ univ.image (fun u : Fin T => B j u) := by
+        intro val hval
+        rw [mem_image] at hval ⊢
+        obtain ⟨p, -, hp⟩ := hval
+        refine ⟨p.2, mem_univ _, ?_⟩
+        rw [← hp]; simp only [hx, Fin.append_right]
+      calc (univ.image (fun p : Fin T × Fin T => x p (Fin.natAdd T j))).card
+          ≤ (univ.image (fun u : Fin T => B j u)).card := Finset.card_le_card hsub
+        _ ≤ (univ : Finset (Fin T)).card := Finset.card_image_le
+        _ = T := by rw [Finset.card_univ, Fintype.card_fin]
+  have hNy : ∀ c, (univ.image (fun p => y p c)).card ≤ T := by
+    intro c
+    refine Fin.addCases (fun j => ?_) (fun j => ?_) c
+    · have hsub : univ.image (fun p : Fin T × Fin T => y p (Fin.castAdd T j))
+          ⊆ univ.image (fun u : Fin T => B (superMap ξ ξ' hξ j) u) := by
+        intro val hval
+        rw [mem_image] at hval ⊢
+        obtain ⟨p, -, hp⟩ := hval
+        refine ⟨p.1, mem_univ _, ?_⟩
+        rw [← hp]; simp only [hy, Fin.append_left]
+      calc (univ.image (fun p : Fin T × Fin T => y p (Fin.castAdd T j))).card
+          ≤ (univ.image (fun u : Fin T => B (superMap ξ ξ' hξ j) u)).card :=
+            Finset.card_le_card hsub
+        _ ≤ (univ : Finset (Fin T)).card := Finset.card_image_le
+        _ = T := by rw [Finset.card_univ, Fintype.card_fin]
+    · have hsub : univ.image (fun p : Fin T × Fin T => y p (Fin.natAdd T j))
+          ⊆ univ.image (fun u : Fin T => B (superMap ξ ξ' hξ j) u) := by
+        intro val hval
+        rw [mem_image] at hval ⊢
+        obtain ⟨p, -, hp⟩ := hval
+        refine ⟨p.2, mem_univ _, ?_⟩
+        rw [← hp]; simp only [hy, Fin.append_right]
+      calc (univ.image (fun p : Fin T × Fin T => y p (Fin.natAdd T j))).card
+          ≤ (univ.image (fun u : Fin T => B (superMap ξ ξ' hξ j) u)).card :=
+            Finset.card_le_card hsub
+        _ ≤ (univ : Finset (Fin T)).card := Finset.card_image_le
+        _ = T := by rw [Finset.card_univ, Fintype.card_fin]
+  -- The bounded moment identity, fed by the edge-moment bridge.
+  have hmom : ∀ k : Fin (T + T) → ℕ, (∀ c, k c < 2 * T) →
+      ∑ p, a p * ∏ c, (x p c) ^ k c = ∑ p, a p * ∏ c, (y p c) ^ k c := by
+    intro k hk
+    have hbridge := aligned_edge_moments_of_tupleEquivSimple_super B hB W ξ ξ' hξ h
+      (fun j => k (Fin.castAdd T j)) (fun j => k (Fin.natAdd T j))
+      (fun j => hk (Fin.castAdd T j)) (fun j => hk (Fin.natAdd T j))
+    have hxprod : ∀ p : Fin T × Fin T, ∏ c, (x p c) ^ k c
+        = (∏ j, (B j p.1) ^ k (Fin.castAdd T j)) * (∏ j, (B j p.2) ^ k (Fin.natAdd T j)) := by
+      intro p
+      rw [Fin.prod_univ_add]
+      congr 1
+      · refine Finset.prod_congr rfl (fun i _ => ?_); simp only [hx, Fin.append_left]
+      · refine Finset.prod_congr rfl (fun i _ => ?_); simp only [hx, Fin.append_right]
+    have hyprod : ∀ p : Fin T × Fin T, ∏ c, (y p c) ^ k c
+        = (∏ j, (B (superMap ξ ξ' hξ j) p.1) ^ k (Fin.castAdd T j))
+          * (∏ j, (B (superMap ξ ξ' hξ j) p.2) ^ k (Fin.natAdd T j)) := by
+      intro p
+      rw [Fin.prod_univ_add]
+      congr 1
+      · refine Finset.prod_congr rfl (fun i _ => ?_); simp only [hy, Fin.append_left]
+      · refine Finset.prod_congr rfl (fun i _ => ?_); simp only [hy, Fin.append_right]
+    calc ∑ p, a p * ∏ c, (x p c) ^ k c
+        = ∑ p : Fin T × Fin T, W p.1 * W p.2 * B p.1 p.2
+            * (∏ j, (B j p.1) ^ k (Fin.castAdd T j))
+            * (∏ j, (B j p.2) ^ k (Fin.natAdd T j)) := by
+          refine Finset.sum_congr rfl (fun p _ => ?_)
+          rw [hxprod p]; simp only [ha]; ring
+      _ = ∑ p : Fin T × Fin T, W p.1 * W p.2 * B p.1 p.2
+            * (∏ j, (B (superMap ξ ξ' hξ j) p.1) ^ k (Fin.castAdd T j))
+            * (∏ j, (B (superMap ξ ξ' hξ j) p.2) ^ k (Fin.natAdd T j)) := by
+          rw [Fintype.sum_prod_type, Fintype.sum_prod_type]; exact hbridge
+      _ = ∑ p, a p * ∏ c, (y p c) ^ k c := by
+          refine Finset.sum_congr rfl (fun p _ => ?_)
+          rw [hyprod p]; simp only [ha]; ring
+  -- Apply the bounded extraction engine at `z = Fin.append z₁ z₂`.
+  have key := aligned_moments_class_balance_of_bound x y a a T hNx hNy hmom (Fin.append z₁ z₂)
+  -- `Fin.append`-injectivity: a glued profile equals `append z₁ z₂` iff its halves are `z₁`, `z₂`.
+  have happend : ∀ f g : Fin T → ℝ,
+      (Fin.append f g = Fin.append z₁ z₂) ↔ (f = z₁ ∧ g = z₂) := by
+    intro f g
+    constructor
+    · intro happ
+      refine ⟨?_, ?_⟩
+      · funext j
+        have hj := congrFun happ (Fin.castAdd T j)
+        rwa [Fin.append_left, Fin.append_left] at hj
+      · funext j
+        have hj := congrFun happ (Fin.natAdd T j)
+        rwa [Fin.append_right, Fin.append_right] at hj
+    · rintro ⟨rfl, rfl⟩; rfl
+  have hfiltL : univ.filter (fun p : Fin T × Fin T =>
+        (fun j => B j p.1) = z₁ ∧ (fun j => B j p.2) = z₂)
+      = univ.filter (fun p => x p = Fin.append z₁ z₂) := by
+    refine Finset.filter_congr (fun p _ => ?_)
+    exact (happend (fun j => B j p.1) (fun j => B j p.2)).symm
+  have hfiltR : univ.filter (fun p : Fin T × Fin T =>
+        (fun j => B (superMap ξ ξ' hξ j) p.1) = z₁ ∧
+          (fun j => B (superMap ξ ξ' hξ j) p.2) = z₂)
+      = univ.filter (fun p => y p = Fin.append z₁ z₂) := by
+    refine Finset.filter_congr (fun p _ => ?_)
+    exact (happend (fun j => B (superMap ξ ξ' hξ j) p.1)
+      (fun j => B (superMap ξ ξ' hξ j) p.2)).symm
+  rw [← Finset.sum_filter, ← Finset.sum_filter, hfiltL, hfiltR]
+  exact key
+
 end Graphon.Lovasz
