@@ -799,7 +799,7 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
   -- If both were zero, then |f - m| < η a.e. on S, so variance < η² μ(S) < ε² μ(S)
   have h_exists : μ A_high ≠ 0 ∨ μ A_low ≠ 0 := by
     by_contra h_both_zero
-    push_neg at h_both_zero
+    push Not at h_both_zero
     obtain ⟨h_high_zero, h_low_zero⟩ := h_both_zero
     -- If μ(A_high) = 0 and μ(A_low) = 0, then |f - m| < η a.e. on S
     -- So ∫_S (f - m)² ≤ η² μ(S) = (ε/2)² μ(S) < ε² μ(S), contradicting h_var
@@ -847,13 +847,13 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
       -- Since x ∈ S, we get f x < m + η
       have h1 : f x < m + η := by
         by_contra h
-        push_neg at h
+        push Not at h
         exact hx_not_high ⟨hxS, h⟩
       -- A_low = S ∩ {f ≤ m - η}, so x ∉ A_low means: x ∉ S or f x > m - η
       -- Since x ∈ S, we get f x > m - η
       have h2 : f x > m - η := by
         by_contra h
-        push_neg at h
+        push Not at h
         exact hx_not_low ⟨hxS, h⟩
       -- Now |f x - m| < η
       have h_abs : |f x - m| < η := abs_sub_lt_iff.mpr ⟨by linarith, by linarith⟩
@@ -909,7 +909,7 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
         filter_upwards [h_compl_ae] with x hx hxS
         -- x ∈ (S \ A_high)ᶜ and x ∈ S ⟹ x ∈ A_high
         -- (S \ A_high)ᶜ = Sᶜ ∪ A_high
-        rw [Set.compl_diff] at hx
+        rw [Set.compl_sdiff] at hx
         cases hx with
         | inl hx_in_high => exact h_lb_on_high x hx_in_high
         | inr hx_not_S => exact absurd hxS hx_not_S
@@ -973,7 +973,7 @@ theorem exists_variance_cut (f : α → ℝ) (S : Set α) (hS : MeasurableSet S)
           rw [compl_mem_ae_iff]
           exact h_compl_zero
         filter_upwards [h_compl_ae] with x hx hxS
-        rw [Set.compl_diff] at hx
+        rw [Set.compl_sdiff] at hx
         cases hx with
         | inl hx_in_low => exact h_ub_on_low x hx_in_low
         | inr hx_not_S => exact absurd hxS hx_not_S
@@ -1375,7 +1375,7 @@ lemma energy_rect_split (W : Graphon α μ) (S T S₁ : Set α)
   have hμS₂_pos : 0 < (μ S₂).toReal := ENNReal.toReal_pos hμS₂ hμS₂_top
   -- Step 1: Show μ(S) = μ(S₁) + μ(S₂)
   have h_disj : Disjoint S₁ S₂ := Set.disjoint_sdiff_right
-  have h_union : S = S₁ ∪ S₂ := (Set.union_diff_cancel hS₁_sub).symm
+  have h_union : S = S₁ ∪ S₂ := (Set.union_sdiff_cancel hS₁_sub).symm
   have hμ_add : (μ S).toReal = (μ S₁).toReal + (μ S₂).toReal := by
     rw [h_union, measure_union h_disj hS₂_meas]
     exact ENNReal.toReal_add hμS₁_top hμS₂_top
@@ -1398,7 +1398,7 @@ lemma energy_rect_split (W : Graphon α μ) (S T S₁ : Set α)
     have h_int_S₁ : IntegrableOn (fun p => W.toAEEqFun p) (S₁ ×ˢ T) (μ.prod μ) := h_int.mono
       (Set.prod_mono hS₁_sub Subset.rfl) le_rfl
     have h_int_S₂ : IntegrableOn (fun p => W.toAEEqFun p) (S₂ ×ˢ T) (μ.prod μ) := h_int.mono
-      (Set.prod_mono Set.diff_subset Subset.rfl) le_rfl
+      (Set.prod_mono Set.sdiff_subset Subset.rfl) le_rfl
     have h_rect_union : S ×ˢ T = (S₁ ×ˢ T) ∪ (S₂ ×ˢ T) := by
       rw [← Set.union_prod, h_union]
     have h_rect_disj : Disjoint (S₁ ×ˢ T) (S₂ ×ˢ T) := by
@@ -1545,7 +1545,7 @@ theorem energy_splitPart_ge (W : Graphon α μ) (P : MeasurablePartition α μ)
     have h2 := (Finset.mem_erase.mp h).2  -- S₂ ∈ P.parts
     have := P.pairwiseDisjoint h2 hS_mem h1
     exact hμS₂ (measure_mono_null (Set.disjoint_iff_inter_eq_empty.mp this ▸
-      Set.subset_inter Subset.rfl Set.diff_subset) (measure_empty))
+      Set.subset_inter Subset.rfl Set.sdiff_subset) (measure_empty))
   -- Disjointness for Finset.sum_union
   have hE_disj_S : Disjoint E ({S₁, S₂} : Finset (Set α)) := by
     rw [Finset.disjoint_left]
@@ -1704,7 +1704,7 @@ private theorem energy_increment_of_between_variance
       exact tAverage_integral_eq_rectAverage W A₂ V hA₂_meas hV_meas hμA₂ hμV
     -- Weighted average identity
     have h_A_union : A = A₁ ∪ A₂ := by
-      rw [hA₂_def, Set.union_diff_cancel hA₁_sub]
+      rw [hA₂_def, Set.union_sdiff_cancel hA₁_sub]
     have h_disj : Disjoint A₁ A₂ := by
       rw [hA₂_def]; exact Set.disjoint_sdiff_right
     have hμ_add : (μ A).toReal = (μ A₁).toReal + (μ A₂).toReal := by
@@ -1713,7 +1713,7 @@ private theorem energy_increment_of_between_variance
     have h_int_add : ∫ x in A, f x ∂μ = ∫ x in A₁, f x ∂μ + ∫ x in A₂, f x ∂μ := by
       rw [h_A_union]
       exact setIntegral_union h_disj hA₂_meas (hf_int.mono hA₁_sub le_rfl)
-        (hf_int.mono (Set.diff_subset) le_rfl)
+        (hf_int.mono (Set.sdiff_subset) le_rfl)
     have hc_weighted : c = ((μ A₁).toReal * c₁ + (μ A₂).toReal * c₂) / (μ A).toReal := by
       rw [hc_mean, h_int_add, hc₁_def, hc₂_def]
       field_simp [ne_of_gt hμA₁_real_pos, ne_of_gt hμA₂_real_pos, ne_of_gt hμA_real_pos]
@@ -1828,7 +1828,7 @@ private theorem energy_increment_of_within_variance
     exact energy_increment_of_between_variance W P ε' hε'_pos
       S hS_mem T hT_mem hS_meas hT_meas hμS hμT h_var
   · -- B_T = 0: the between-T variance vanishes
-    push_neg at hB_T_pos
+    push Not at hB_T_pos
     have hB_T_nonneg : B_T ≥ 0 :=
       setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
     have hB_T_zero : B_T = 0 := le_antisymm hB_T_pos hB_T_nonneg
@@ -1852,7 +1852,7 @@ private theorem energy_increment_of_within_variance
     · -- Case 3: B_T = 0 AND B_S = 0 (hard case)
       -- W_T = c a.e. on S and W_S = c' a.e. on T, but within-T variance is large.
       -- Need to find a global cut that simultaneously splits S and T.
-      push_neg at hB_S_pos
+      push Not at hB_S_pos
       have hB_S_nonneg : B_S ≥ 0 :=
         setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
       have hB_S_zero : B_S = 0 := le_antisymm hB_S_pos hB_S_nonneg
@@ -1931,7 +1931,7 @@ private theorem energy_increment_of_within_variance
         have h_good_cut : ∃ B : Set α, MeasurableSet B ∧ B ⊆ S ∧ μ B ≠ 0 ∧ μ (S \ B) ≠ 0 ∧
             rectAverage W B B ≠ c := by
           by_contra h_neg
-          push_neg at h_neg
+          push Not at h_neg
           exfalso
           -- Shorthand for the product measure restricted to S × S
           set ν := (μ.restrict S).prod (μ.restrict S) with hν_def
@@ -2070,7 +2070,7 @@ private theorem energy_increment_of_within_variance
                   have h2 := h_diag_zero C hC_meas hC_sub hμC hμSC
                   -- ∫_{C×S} = ∫_{C×C} + ∫_{C×(S\C)}
                   have h_union : C ×ˢ S = (C ×ˢ C) ∪ (C ×ˢ (S \ C)) := by
-                    rw [← Set.prod_union, Set.union_diff_cancel hC_sub]
+                    rw [← Set.prod_union, Set.union_sdiff_cancel hC_sub]
                   have h_disj_prod : Disjoint (C ×ˢ C) (C ×ˢ (S \ C)) := by
                     rw [Set.disjoint_iff]; intro ⟨x, y⟩ ⟨⟨_, hy1⟩, ⟨_, hy2⟩⟩
                     exact hy2.2 hy1
@@ -2086,7 +2086,7 @@ private theorem energy_increment_of_within_variance
                     exact ⟨hD_sub hxD, fun hxC => Set.disjoint_iff.mp hCD_disj ⟨hxC, hxD⟩⟩
                   -- ∫_{C×(S\C)} = ∫_{C×D} + ∫_{C×((S\C)\D)}
                   have h_union2 : C ×ˢ (S \ C) = (C ×ˢ D) ∪ (C ×ˢ ((S \ C) \ D)) := by
-                    rw [← Set.prod_union, Set.union_diff_cancel hD_sub_SC]
+                    rw [← Set.prod_union, Set.union_sdiff_cancel hD_sub_SC]
                   -- But we can't separate ∫_{C×D} from ∫_{C×((S\C)\D)} without more info.
                   -- Instead, use symmetry of W:
                   -- ∫_{D×C} (W(x,y)-c) = ∫_{C×D} (W(y,x)-c) (by swap)
@@ -2116,7 +2116,7 @@ private theorem energy_increment_of_within_variance
                       setIntegral_measure_zero _ (by
                         rw [Measure.prod_prod]; simp [hμSCUD])
                     have h_eq_SC_D : (S \ C) \ D = S \ (C ∪ D) := by
-                      ext x; simp [Set.mem_diff, Set.mem_union]; tauto
+                      ext x; simp [Set.mem_sdiff, Set.mem_union]; tauto
                     rw [h_eq_SC_D] at h_union2
                     have h_disj3 : Disjoint (C ×ˢ D) (C ×ˢ (S \ (C ∪ D))) := by
                       rw [Set.disjoint_iff]; intro ⟨_, y⟩ ⟨hy1, hy2⟩
@@ -2206,7 +2206,7 @@ private theorem energy_increment_of_within_variance
             -- A×B = AB×AB ∪ AB×BdA ∪ AdB×AB ∪ AdB×BdA
             have h_decomp : A ×ˢ B = (AB ×ˢ AB) ∪ (AB ×ˢ BdA) ∪ (AdB ×ˢ AB) ∪ (AdB ×ˢ BdA) := by
               ext ⟨x, y⟩
-              simp only [Set.mem_prod, Set.mem_union, Set.mem_inter_iff, Set.mem_diff]
+              simp only [Set.mem_prod, Set.mem_union, Set.mem_inter_iff, Set.mem_sdiff]
               constructor
               · intro ⟨hxA, hyB⟩
                 by_cases hxB : x ∈ B
@@ -2237,7 +2237,7 @@ private theorem energy_increment_of_within_variance
               · by_cases hμSC : μ (S \ C) = 0
                 · -- C =ᵐ S: ∫_{C×C} = ∫_{S×S} (up to null set)
                   have hC_ae_S : C =ᵐ[μ] S :=
-                    ae_eq_set.mpr ⟨by simp [Set.diff_eq_empty.mpr hC_sub], hμSC⟩
+                    ae_eq_set.mpr ⟨by simp [Set.sdiff_eq_empty.mpr hC_sub], hμSC⟩
                   have h_ae : C ×ˢ C =ᵐ[μ.prod μ] S ×ˢ S :=
                     Measure.set_prod_ae_eq hC_ae_S hC_ae_S
                   rw [setIntegral_congr_set h_ae]
@@ -2424,7 +2424,7 @@ private theorem energy_increment_of_within_variance
                   ∫ p in B ×ˢ S₂, W.toAEEqFun p ∂(μ.prod μ) from by
                 unfold rectAverage; simp [hμB, hμSB, dif_neg]]
               have h_union : B ×ˢ S = (B ×ˢ B) ∪ (B ×ˢ S₂) := by
-                rw [← Set.prod_union, Set.union_diff_cancel hB_sub]
+                rw [← Set.prod_union, Set.union_sdiff_cancel hB_sub]
               have h_disj : Disjoint (B ×ˢ B) (B ×ˢ S₂) := by
                 rw [Set.disjoint_iff]; intro ⟨_, y⟩ ⟨⟨_, hy1⟩, ⟨_, hy2⟩⟩; exact hy2.2 hy1
               rw [h_union, setIntegral_union h_disj (hB_meas.prod hS₂_meas)
@@ -2434,7 +2434,7 @@ private theorem energy_increment_of_within_variance
                 ne_of_gt hμS_real_pos]
             rw [h_rectAvg_BS, ← h_eq] at h_split
             have hμ_add : (μ S).toReal = (μ B).toReal + (μ S₂).toReal := by
-              rw [show S = B ∪ S₂ from (Set.union_diff_cancel hB_sub).symm]
+              rw [show S = B ∪ S₂ from (Set.union_sdiff_cancel hB_sub).symm]
               rw [measure_union Set.disjoint_sdiff_right hS₂_meas]
               exact ENNReal.toReal_add hμB_top hμS₂_top
             -- h_split: μS * c = μB * rectAvg(B,B) + μS₂ * rectAvg(B,B)
@@ -2494,7 +2494,7 @@ private theorem energy_increment_of_within_variance
             intro h
             have h1 := (Finset.mem_erase.mp h).1; have h2 := (Finset.mem_erase.mp h).2
             exact hμSB (measure_mono_null (Set.disjoint_iff_inter_eq_empty.mp
-              (P.pairwiseDisjoint h2 hS_mem h1) ▸ Set.subset_inter Subset.rfl Set.diff_subset)
+              (P.pairwiseDisjoint h2 hS_mem h1) ▸ Set.subset_inter Subset.rfl Set.sdiff_subset)
               (measure_empty))
           have hE_disj_S : Disjoint E ({B, S₂} : Finset (Set α)) := by
             rw [Finset.disjoint_left]; intro x hx hx2
@@ -2617,7 +2617,7 @@ private theorem energy_increment_of_within_variance
             ∫ x in S, (tAverage W B x - c) ^ 2 ∂μ > 0 := by
           -- By contradiction: assume for all nontrivial B ⊆ T, the between-B variance is ≤ 0.
           by_contra h_neg
-          push_neg at h_neg
+          push Not at h_neg
           -- For all nontrivial B ⊆ T, tAvg_B = c a.e. on S (variance = 0)
           have h_tAvg_eq : ∀ B : Set α, MeasurableSet B → B ⊆ T → μ B ≠ 0 → μ (T \ B) ≠ 0 →
               tAverage W B =ᵐ[μ.restrict S] fun _ => c := by
@@ -2679,7 +2679,7 @@ private theorem energy_increment_of_within_variance
             · by_cases hμTB' : μ (T \ B') = 0
               · -- B' =ᵐ T: use setIntegral_congr_set
                 have h_ae_eq : B' =ᵐ[μ] T :=
-                  ae_eq_set.mpr ⟨by simp [Set.diff_eq_empty.mpr hB'_sub], hμTB'⟩
+                  ae_eq_set.mpr ⟨by simp [Set.sdiff_eq_empty.mpr hB'_sub], hμTB'⟩
                 filter_upwards [h_T_inner_zero] with x hx
                 simp only [Pi.zero_apply] at hx ⊢
                 rwa [setIntegral_congr_set h_ae_eq]
@@ -2848,8 +2848,8 @@ private theorem energy_increment_of_within_variance
               energy W Q > energy W P by
           rcases h_one_pos with hIA_pos | hITA_pos
           · exact h_main A hA_meas hA_sub hμA hμTA hIA_pos
-          · exact h_main (T \ A) (hT_meas.diff hA_meas) Set.diff_subset hμTA
-              (by rwa [Set.diff_diff_cancel_left hA_sub]) hITA_pos
+          · exact h_main (T \ A) (hT_meas.diff hA_meas) Set.sdiff_subset hμTA
+              (by rwa [Set.sdiff_sdiff_cancel_left hA_sub]) hITA_pos
         -- Prove the main construction
         intro B hB_meas hB_sub hμB hμTB hI_B_pos
         -- Step A: Build Q₁ = splitPart P T B
@@ -2950,7 +2950,7 @@ private theorem energy_increment_of_within_variance
             tAverage_integral_eq_rectAverage W S₂ B hS₂_meas_local hB_meas hμS₂ hμB
           -- Weighted average
           have h_S_union : S = S₁ ∪ S₂ := by
-            rw [hS₂_def_local, Set.union_diff_cancel hS₁_sub]
+            rw [hS₂_def_local, Set.union_sdiff_cancel hS₁_sub]
           have h_disj : Disjoint S₁ S₂ := by
             rw [hS₂_def_local]; exact Set.disjoint_sdiff_right
           have hμ_add : (μ S).toReal = (μ S₁).toReal + (μ S₂).toReal := by
@@ -2960,7 +2960,7 @@ private theorem energy_increment_of_within_variance
               ∫ x in S₁, f_B x ∂μ + ∫ x in S₂, f_B x ∂μ := by
             rw [h_S_union]
             exact setIntegral_union h_disj hS₂_meas_local
-              (hf_B_int.mono hS₁_sub le_rfl) (hf_B_int.mono Set.diff_subset le_rfl)
+              (hf_B_int.mono hS₁_sub le_rfl) (hf_B_int.mono Set.sdiff_subset le_rfl)
           have hc_B_weighted : rectAverage W S B =
               ((μ S₁).toReal * c₁ + (μ S₂).toReal * c₂) / (μ S).toReal := by
             rw [hc_B_mean, h_int_add, hc₁_def, hc₂_def]
@@ -3110,7 +3110,7 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
     have hB_T_nonneg : B_T ≥ 0 := setIntegral_nonneg_of_ae_restrict (ae_of_all _ (fun _ => sq_nonneg _))
     have hμTB_T_nonneg : (μ T).toReal * B_T ≥ 0 := mul_nonneg (le_of_lt hμT_real_pos) hB_T_nonneg
     by_contra h_neg
-    push_neg at h_neg
+    push Not at h_neg
     obtain ⟨h1, h2⟩ := h_neg
     have h_upper : A_T + (μ T).toReal * B_T <
         ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal + ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := by
@@ -3212,7 +3212,7 @@ theorem energy_increment (W : Graphon α μ) (P : MeasurablePartition α μ)
       -- Sub-case 2b-ii: B_T < ε²/2 * μ(S) AND B_S < ε²/2 * μ(T)
       -- Both within-variances A_T, A_S are large, both between-variances B_T, B_S are small.
       -- Apply the FK global cut lemma (uses splitAllParts).
-      · push_neg at h_split_T_sym h_check_B_T
+      · push Not at h_split_T_sym h_check_B_T
         have h_A_T_large : A_T ≥ ε ^ 2 / 2 * (μ S).toReal * (μ T).toReal := h_split_T
         have h_within_unfolded : ∫ x in S, (∫ y in T,
             (W.toAEEqFun (x, y) - tAverage W T x) ^ 2 ∂μ) ∂μ ≥
@@ -3243,7 +3243,7 @@ lemma exists_bad_rect_of_defect_gt (W : Graphon α μ) (P : MeasurablePartition 
   -- Contrapositive: if every non-null rectangle has defect < ε² μ(S) μ(T),
   -- then total defect = Σ defect(S,T) < ε² Σ μ(S)μ(T) = ε² · (Σ μ(S))² ≤ ε²
   by_contra h_neg
-  push_neg at h_neg
+  push Not at h_neg
   -- h_neg: ∀ S ∈ P.parts, ∀ T ∈ P.parts, μ S ≠ 0 → μ T ≠ 0 →
   --        ∫_{S×T} (W - c)² < ε² μ(S) μ(T)
   have h_bound : defect W P ≤ ε ^ 2 := by
@@ -3687,7 +3687,7 @@ private lemma setIntegral_stepify_eq_on_refines_cell
   -- S × T =ᵐ cellUnion
   have h_ae_eq : S ×ˢ T =ᵐ[μ.prod μ] cellUnion := by
     rw [ae_eq_set]
-    refine ⟨?_, by rw [Set.diff_eq_empty.mpr h_sub]; exact measure_empty⟩
+    refine ⟨?_, by rw [Set.sdiff_eq_empty.mpr h_sub]; exact measure_empty⟩
     have h0 : (μ.prod μ).restrict (S ×ˢ T) cellUnionᶜ = 0 := ae_iff.mp h_cover
     rwa [Measure.restrict_apply h_cellUnion_meas.compl, Set.inter_comm] at h0
   -- Integrability of both integrands on each cell
@@ -3823,7 +3823,7 @@ private lemma energy_doubleSplit_ge_sq
       MeasurableSet.biUnion (P.parts ×ˢ P.parts).countable_toSet h_cells_meas
     have h_ae_eq : S₀ ×ˢ T₀ =ᵐ[μ.prod μ] cellUnion := by
       rw [ae_eq_set]
-      refine ⟨?_, by rw [Set.diff_eq_empty.mpr h_sub]; exact measure_empty⟩
+      refine ⟨?_, by rw [Set.sdiff_eq_empty.mpr h_sub]; exact measure_empty⟩
       -- μ((S₀×T₀) \ cellUnion) = 0
       -- h_cover gives (μ.prod μ).restrict (S₀×T₀) {p | p ∉ cellUnion} = 0
       have h0 : (μ.prod μ).restrict (S₀ ×ˢ T₀) cellUnionᶜ = 0 :=
@@ -4116,7 +4116,7 @@ private lemma energy_doubleSplit_ge_sq
         ⟨⟨hpS, (Set.mem_prod.mp hp).1⟩, ⟨hpT, (Set.mem_prod.mp hp).2⟩⟩⟩
     have h_ae_eq' : S₀ ×ˢ T₀ =ᵐ[μ.prod μ] cellU := by
       rw [ae_eq_set]
-      refine ⟨?_, by rw [Set.diff_eq_empty.mpr h_sub']; exact measure_empty⟩
+      refine ⟨?_, by rw [Set.sdiff_eq_empty.mpr h_sub']; exact measure_empty⟩
       have h0 : (μ.prod μ).restrict (S₀ ×ˢ T₀) cellUᶜ = 0 := ae_iff.mp h_cover'
       rwa [Measure.restrict_apply h_cellU_meas.compl, Set.inter_comm] at h0
     -- integrability on each cell
@@ -4218,7 +4218,7 @@ private lemma energy_doubleSplit_ge_sq
           Finset.mem_filter.mpr ⟨hV_mem, hV_sub⟩⟩, Set.mem_prod.mpr ⟨hpU, hpV⟩⟩
       have h_qae : (S ∩ S₀) ×ˢ (T ∩ T₀) =ᵐ[μ.prod μ] qUnion := by
         rw [ae_eq_set]
-        refine ⟨?_, by rw [Set.diff_eq_empty.mpr h_qsub]; exact measure_empty⟩
+        refine ⟨?_, by rw [Set.sdiff_eq_empty.mpr h_qsub]; exact measure_empty⟩
         have h0 : (μ.prod μ).restrict ((S ∩ S₀) ×ˢ (T ∩ T₀)) qUnionᶜ = 0 := ae_iff.mp h_qcover
         rwa [Measure.restrict_apply h_qmeas.compl, Set.inter_comm] at h0
       -- Integrability on each Q-cell
@@ -4427,7 +4427,7 @@ private lemma exists_rectIntegralDiff_gt_of_cutNormDiff_gt
     ∃ (S : Set α), MeasurableSet S ∧ ∃ (T : Set α), MeasurableSet T ∧
       c < |rectIntegralDiff U W S T| := by
   by_contra h_neg
-  push_neg at h_neg
+  push Not at h_neg
   have hc : 0 ≤ c := le_trans (abs_nonneg _) (h_neg ∅ MeasurableSet.empty ∅ MeasurableSet.empty)
   have h_le : cutNormDiff U W ≤ c := by
     unfold cutNormDiff
@@ -4611,7 +4611,7 @@ theorem regularity (W : Graphon α μ) (ε : ℝ) (hε : ε > 0) :
           _ ≤ 4 ^ N := Nat.pow_le_pow_right (by norm_num) (Nat.sub_le N _)
         , Or.inl h_done⟩
     · -- Cut norm > ε: apply energy_increment_quantitative
-      push_neg at h_done
+      push Not at h_done
       obtain ⟨Q, _hQ_ref, hQ_card_le, hQ_energy⟩ :=
         energy_increment_quantitative W P ε hε h_done
       -- Q.parts.card ≤ 4 * P.parts.card ≤ 4 * 4^(N-(n+1)) = 4^(N-n)
@@ -4708,8 +4708,8 @@ theorem exists_measurable_subset_of_measure [StandardBorelSpace α] [NoAtoms μ]
           rw [step_succ]; simp [hcond]
         rw [show R (n + 1) = R n \ C n from hR_eq,
             show acc (n + 1) = acc n + μ (R n ∩ C n) from hacc_eq]
-        refine ⟨hR_meas.diff (hC_meas n), diff_subset.trans hR_sub, hcond, ?_⟩
-        have h_split := measure_inter_add_diff (μ := μ) (R n) (hC_meas n)
+        refine ⟨hR_meas.diff (hC_meas n), sdiff_subset.trans hR_sub, hcond, ?_⟩
+        have h_split := measure_inter_add_sdiff (μ := μ) (R n) (hC_meas n)
         rw [tsub_le_iff_right, add_comm (μ _)]
         calc r ≤ μ (R n) + acc n := tsub_le_iff_right.mp hgap
           _ = (μ (R n ∩ C n) + μ (R n \ C n)) + acc n := by rw [h_split]
@@ -4723,7 +4723,7 @@ theorem exists_measurable_subset_of_measure [StandardBorelSpace α] [NoAtoms μ]
           rw [step_succ]; simp [hcond]
         rw [show R (n + 1) = R n ∩ C n from hR_eq,
             show acc (n + 1) = acc n from hacc_eq]
-        push_neg at hcond
+        push Not at hcond
         refine ⟨hR_meas.inter (hC_meas n), inter_subset_left.trans hR_sub, hacc_le, ?_⟩
         exact tsub_le_iff_right.mpr (le_of_lt (by rwa [add_comm] at hcond))
   -- R is antitone: at each step, we take either a diff or intersection (both subsets)
@@ -4732,7 +4732,7 @@ theorem exists_measurable_subset_of_measure [StandardBorelSpace α] [NoAtoms μ]
     show (step (n + 1)).2 ⊆ (step n).2
     rw [step_succ]
     split
-    · exact diff_subset
+    · exact sdiff_subset
     · exact inter_subset_left
   have hR_anti : Antitone R := antitone_nat_of_succ_le hR_step_le
   -- Points in ⋂ R agree on all C n, hence are equal by separation
@@ -4886,7 +4886,7 @@ private theorem exists_equal_measure_partition [StandardBorelSpace α] [NoAtoms 
     simp only [Nat.cast_zero, zero_mul] at hR_mu
     rw [ae_iff]
     apply measure_mono_null (fun x (hx : ¬ _) => ?_) (by rw [hR_mu])
-    exact (_root_.not_imp.mp hx).1
+    exact (Classical.not_imp.mp hx).1
   | succ m ih =>
     intro R hR_meas hR_sub hR_mu
     -- Show q ≤ μ R (since μ R = (m+1) * q ≥ q)
@@ -4899,11 +4899,11 @@ private theorem exists_equal_measure_partition [StandardBorelSpace α] [NoAtoms 
     -- Set R' = R \ T
     set R' := R \ T with hR'_def
     have hR'_meas : MeasurableSet R' := hR_meas.diff hT_meas
-    have hR'_sub : R' ⊆ S := diff_subset.trans hR_sub
+    have hR'_sub : R' ⊆ S := sdiff_subset.trans hR_sub
     -- Compute μ R' = m * q
     have hT_mu_ne_top : μ T ≠ ⊤ := by rw [hT_mu]; exact hq_ne_top
     have hR'_mu : μ R' = ↑m * q := by
-      have h_diff := measure_diff hT_sub hT_meas.nullMeasurableSet hT_mu_ne_top
+      have h_diff := measure_sdiff hT_sub hT_meas.nullMeasurableSet hT_mu_ne_top
       rw [h_diff, hR_mu, hT_mu]
       rw [show (↑(m + 1) : ℝ≥0∞) = ↑m + 1 from by push_cast; ring]
       rw [add_mul, one_mul]
@@ -4934,7 +4934,7 @@ private theorem exists_equal_measure_partition [StandardBorelSpace α] [NoAtoms 
       rw [Finset.mem_cons] at hU
       rcases hU with rfl | hU
       · exact hT_sub
-      · exact (hsub_old U hU).trans diff_subset
+      · exact (hsub_old U hU).trans sdiff_subset
     · -- pairwise disjoint
       intro U₁ hU₁ U₂ hU₂ hne₁₂
       rw [Finset.mem_coe, Finset.mem_cons] at hU₁ hU₂
@@ -4958,8 +4958,8 @@ private theorem exists_equal_measure_partition [StandardBorelSpace α] [NoAtoms 
       apply measure_mono_null (fun x (hx : ¬ _) => ?_) hcov_old'
       -- hx : ¬(x ∈ R → ∃ T ∈ cons ..., x ∈ T)
       -- goal : ¬(x ∈ R' → ∃ T ∈ pieces_old, x ∈ T)
-      have ⟨hxR, hx_none⟩ := _root_.not_imp.mp hx
-      apply _root_.not_imp.mpr
+      have ⟨hxR, hx_none⟩ := Classical.not_imp.mp hx
+      apply Classical.not_imp.mpr
       exact ⟨⟨hxR, fun hxT => hx_none ⟨T, Finset.mem_cons_self T pieces_old, hxT⟩⟩,
         fun ⟨U, hU, hxU⟩ => hx_none ⟨U, Finset.mem_cons_of_mem hU, hxU⟩⟩
 
@@ -5111,7 +5111,7 @@ private theorem exists_equitable_refinement_construction [StandardBorelSpace α]
     have hT_meas_nonneg : 0 ≤ (μ T).toReal := ENNReal.toReal_nonneg
     have hcard_ge_m : m ≤ (P.parts.biUnion f).card := by
       obtain ⟨S₀, hS₀, hμS₀⟩ : ∃ S₀ ∈ P.parts, μ S₀ ≠ 0 := by
-        by_contra h_all; push_neg at h_all
+        by_contra h_all; push Not at h_all
         have h_not_in : ∀ S ∈ P.parts, ∀ᵐ x ∂μ, x ∉ S := by
           intro S' hS'
           rw [ae_iff, show ({x : α | ¬x ∉ S'} : Set α) = S' from Set.ext (fun _ => not_not)]

@@ -208,17 +208,17 @@ noncomputable def MeasurablePartition.splitPart (P : MeasurablePartition α μ)
       · exact (P.measurableSet_part hS).diff hS₁_meas
     pairwiseDisjoint := fun T₁ hT₁ T₂ hT₂ hne => by
       simp only [Finset.coe_union, Finset.coe_erase, Finset.coe_insert,
-          Finset.coe_singleton, Set.mem_union, Set.mem_diff, Set.mem_singleton_iff,
+          Finset.coe_singleton, Set.mem_union, Set.mem_sdiff, Set.mem_singleton_iff,
           Set.mem_insert_iff] at hT₁ hT₂
       rcases hT₁ with ⟨hT₁_in, hT₁_ne⟩ | (hT₁_eq | hT₁_eq)
       <;> rcases hT₂ with ⟨hT₂_in, hT₂_ne⟩ | (hT₂_eq | hT₂_eq)
       · exact P.pairwiseDisjoint hT₁_in hT₂_in hne
       · subst hT₂_eq; exact (P.pairwiseDisjoint hT₁_in hS hT₁_ne).mono_right hS₁_sub
-      · subst hT₂_eq; exact (P.pairwiseDisjoint hT₁_in hS hT₁_ne).mono_right diff_subset
+      · subst hT₂_eq; exact (P.pairwiseDisjoint hT₁_in hS hT₁_ne).mono_right sdiff_subset
       · subst hT₁_eq; exact ((P.pairwiseDisjoint hT₂_in hS hT₂_ne).mono_right hS₁_sub).symm
       · subst hT₁_eq; subst hT₂_eq; exact absurd rfl hne
       · subst hT₁_eq; subst hT₂_eq; exact Set.disjoint_sdiff_right
-      · subst hT₁_eq; exact ((P.pairwiseDisjoint hT₂_in hS hT₂_ne).mono_right diff_subset).symm
+      · subst hT₁_eq; exact ((P.pairwiseDisjoint hT₂_in hS hT₂_ne).mono_right sdiff_subset).symm
       · subst hT₁_eq; subst hT₂_eq; exact Set.disjoint_sdiff_right.symm
       · subst hT₁_eq; subst hT₂_eq; exact absurd rfl hne
     ae_covers := by
@@ -243,7 +243,7 @@ theorem MeasurablePartition.splitPart_refines (P : MeasurablePartition α μ)
   rcases hT with ⟨_, hT_in⟩ | (rfl | rfl)
   · exact ⟨T, hT_in, Subset.refl T⟩
   · exact ⟨S, hS, hS₁_sub⟩
-  · exact ⟨S, hS, diff_subset⟩
+  · exact ⟨S, hS, sdiff_subset⟩
 
 /-- Splitting adds at most one part. -/
 theorem MeasurablePartition.splitPart_card (P : MeasurablePartition α μ)
@@ -297,17 +297,17 @@ noncomputable def MeasurablePartition.splitAllParts (P : MeasurablePartition α 
       · by_cases h : S₁ = S₂
         · subst h; exact disjoint_inf_sdiff
         · exact (P.pairwiseDisjoint hS₁_mem hS₂_mem h).mono
-            Set.inter_subset_left Set.diff_subset
+            Set.inter_subset_left Set.sdiff_subset
       -- (S₁ \ A, S₂ ∩ A)
       · by_cases h : S₁ = S₂
         · subst h; exact disjoint_inf_sdiff.symm
         · exact (P.pairwiseDisjoint hS₁_mem hS₂_mem h).mono
-            Set.diff_subset Set.inter_subset_left
+            Set.sdiff_subset Set.inter_subset_left
       -- (S₁ \ A, S₂ \ A)
       · by_cases h : S₁ = S₂
         · subst h; exact absurd rfl hne
         · exact (P.pairwiseDisjoint hS₁_mem hS₂_mem h).mono
-            Set.diff_subset Set.diff_subset
+            Set.sdiff_subset Set.sdiff_subset
     ae_covers := by
       filter_upwards [P.ae_covers] with x ⟨S, hS_mem, hx⟩
       by_cases hxA : x ∈ A
@@ -328,7 +328,7 @@ theorem MeasurablePartition.splitAllParts_refines (P : MeasurablePartition α μ
       Finset.mem_singleton] at hT
   obtain ⟨S, hS_mem, rfl | rfl⟩ := hT
   · exact ⟨S, hS_mem, Set.inter_subset_left⟩
-  · exact ⟨S, hS_mem, Set.diff_subset⟩
+  · exact ⟨S, hS_mem, Set.sdiff_subset⟩
 
 omit [IsProbabilityMeasure μ] in
 /-- splitAllParts has at most 2 * P.parts.card parts. -/

@@ -2307,7 +2307,7 @@ private theorem weightedHomSum_collapse {k : ℕ}
     · subst h; simp
     · rw [if_neg h]
       obtain ⟨v, hv⟩ : ∃ v, ¬(rowClassMap c (σ v) = τ v) := by
-        by_contra hall; push_neg at hall; exact h (funext hall).symm
+        by_contra hall; push Not at hall; exact h (funext hall).symm
       exact Finset.prod_eq_zero (Finset.mem_univ v) (if_neg hv)
   simp_rw [h_ind, ite_mul, zero_mul]
   simp only [Finset.sum_ite_eq', Finset.mem_univ, ite_true]
@@ -2394,7 +2394,7 @@ private theorem rootAttach_edgeFinset (n : ℕ) (G : SimpleGraph (Fin (n + 1)))
       · left; exact Sym2.eq_iff.mpr (Or.inr ⟨Fin.ext ha, Fin.ext hb⟩)
       · right
         refine ⟨s(⟨a.val - 1, by omega⟩, ⟨b.val - 1, by omega⟩), hadj, ?_⟩
-        simp only [Sym2.map_pair_eq, Fin.coe_succEmb]
+        simp only [Sym2.map_mk, Fin.coe_succEmb]
         exact Sym2.eq_iff.mpr
           (Or.inl ⟨Fin.ext (by simp [Fin.val_succ]; omega),
                    Fin.ext (by simp [Fin.val_succ]; omega)⟩)
@@ -2407,7 +2407,7 @@ private theorem rootAttach_edgeFinset (n : ℕ) (G : SimpleGraph (Fin (n + 1)))
       induction e' using Sym2.ind with
       | _ a b =>
         rw [SimpleGraph.mem_edgeSet] at he'
-        simp only [Sym2.map_pair_eq, Fin.coe_succEmb, SimpleGraph.mem_edgeSet]
+        simp only [Sym2.map_mk, Fin.coe_succEmb, SimpleGraph.mem_edgeSet]
         exact Or.inr (Or.inr ⟨by simp [Fin.val_succ], by simp [Fin.val_succ],
           by convert he' using 2 <;> simp [Fin.val_succ]⟩)
 
@@ -2421,7 +2421,7 @@ private theorem rootAttach_bridge_not_mem_shifted (n : ℕ)
   obtain ⟨e, _, he⟩ := hmem
   induction e using Sym2.ind with
   | _ a b =>
-    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, Fin.coe_succEmb] at he
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk, Fin.coe_succEmb] at he
     rw [Sym2.eq_iff] at he
     rcases he with ⟨h1, _⟩ | ⟨_, h1⟩ <;>
       exact absurd (congr_arg Fin.val h1) (by simp [Fin.val_succ])
@@ -2454,7 +2454,7 @@ private theorem rootAttach_prod_eq {k : ℕ} (n : ℕ) (G : SimpleGraph (Fin (n 
     -- Shifted edge: resolve Quot.out of mapped edge (use symmetry of c)
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, Fin.coe_succEmb]
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk, Fin.coe_succEmb]
       have hout : s((Quot.out s(Fin.succ a, Fin.succ b)).1,
                     (Quot.out s(Fin.succ a, Fin.succ b)).2) = s(Fin.succ a, Fin.succ b) :=
         Quot.out_eq _
@@ -2553,13 +2553,13 @@ private theorem rootGlue_edgeFinset (n₁ n₂ : ℕ) (F₁ : SimpleGraph (Fin (
       rcases he with ⟨ha, hb, hadj⟩ | ⟨ha, hb, hadj⟩
       · left
         refine ⟨s(⟨a.val, by omega⟩, ⟨b.val, by omega⟩), hadj, ?_⟩
-        simp only [Sym2.map_pair_eq, rootGlueEmb₁]
+        simp only [Sym2.map_mk, rootGlueEmb₁]
         exact Sym2.eq_iff.mpr (Or.inl ⟨Fin.ext rfl, Fin.ext rfl⟩)
       · right
         refine ⟨s(⟨if a.val = 0 then 0 else a.val - n₁, by have := a.isLt; split_ifs <;> omega⟩,
                   ⟨if b.val = 0 then 0 else b.val - n₁, by have := b.isLt; split_ifs <;> omega⟩),
                 hadj, ?_⟩
-        simp only [Sym2.map_pair_eq, rootGlueEmb₂, Function.Embedding.coeFn_mk]
+        simp only [Sym2.map_mk, rootGlueEmb₂, Function.Embedding.coeFn_mk]
         apply Sym2.eq_iff.mpr; left; constructor
         · apply Fin.ext
           rcases ha with ha₀ | ha₁
@@ -2578,14 +2578,14 @@ private theorem rootGlue_edgeFinset (n₁ n₂ : ℕ) (F₁ : SimpleGraph (Fin (
     · induction e' using Sym2.ind with
       | _ a b =>
         simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at he'
-        simp only [Sym2.map_pair_eq, rootGlueEmb₁, SimpleGraph.mem_edgeSet,
+        simp only [Sym2.map_mk, rootGlueEmb₁, SimpleGraph.mem_edgeSet,
           rootGlue, Function.Embedding.coeFn_mk]
         exact Or.inl ⟨by have := a.isLt; omega, by have := b.isLt; omega,
                by convert he' using 2 <;> exact Fin.ext (by simp)⟩
     · induction e' using Sym2.ind with
       | _ a b =>
         simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at he'
-        simp only [Sym2.map_pair_eq, SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
+        simp only [Sym2.map_mk, SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
         show (rootGlue n₁ n₂ F₁ F₂).Adj (rootGlueEmb₂ n₁ n₂ a) (rootGlueEmb₂ n₁ n₂ b)
         apply Or.inr
         refine ⟨?_, ?_, ?_⟩
@@ -2621,7 +2621,7 @@ private theorem rootGlue_edgeFinset_disjoint (n₁ n₂ : ℕ)
     simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at he₁'
     induction e₂ using Sym2.ind with
     | _ a₂ b₂ =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq,
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk,
         rootGlueEmb₁, rootGlueEmb₂, Function.Embedding.coeFn_mk] at he₂eq
       have hne := F₁.ne_of_adj he₁'
       have ha₁ := a₁.isLt; have hb₁ := b₁.isLt
@@ -2663,11 +2663,11 @@ private theorem rootGlue_prod_eq {k : ℕ} (n₁ n₂ : ℕ)
     congr 1; ext e
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, Function.comp_apply]
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk, Function.comp_apply]
       have hout_new : s((Quot.out (Sym2.map emb s(a, b))).1,
                         (Quot.out (Sym2.map emb s(a, b))).2) = Sym2.map emb s(a, b) :=
         Quot.out_eq _
-      rw [Sym2.map_pair_eq] at hout_new
+      rw [Sym2.map_mk] at hout_new
       rw [Sym2.eq_iff] at hout_new
       have hout_old : s((Quot.out s(a, b)).1, (Quot.out s(a, b)).2) = s(a, b) := Quot.out_eq _
       rw [Sym2.eq_iff] at hout_old
@@ -2882,7 +2882,7 @@ private theorem leftAttach2_edgeFinset (n : ℕ) (F : SimpleGraph (Fin (n + 2)))
       · left; exact Sym2.eq_iff.mpr (Or.inl ⟨Fin.ext ha, Fin.ext hb⟩)
       · left; exact Sym2.eq_iff.mpr (Or.inr ⟨Fin.ext ha, Fin.ext hb⟩)
       · right
-        exact ⟨s(x, y), hadj, by rw [Sym2.map_pair_eq]; exact Sym2.eq_iff.mpr (Or.inl ⟨hx, hy⟩)⟩
+        exact ⟨s(x, y), hadj, by rw [Sym2.map_mk]; exact Sym2.eq_iff.mpr (Or.inl ⟨hx, hy⟩)⟩
   · intro he
     rcases he with rfl | ⟨e', he', rfl⟩
     · -- Bridge edge
@@ -2892,7 +2892,7 @@ private theorem leftAttach2_edgeFinset (n : ℕ) (F : SimpleGraph (Fin (n + 2)))
       induction e' using Sym2.ind with
       | _ a b =>
         rw [SimpleGraph.mem_edgeSet] at he'
-        simp only [Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        simp only [Sym2.map_mk, SimpleGraph.mem_edgeSet]
         exact Or.inr (Or.inr ⟨a, b, he', rfl, rfl⟩)
 
 /-- The bridge edge `s(0, 2)` is not a shifted `F`-edge (since 0 is not in the range of
@@ -2906,7 +2906,7 @@ private theorem leftAttach2_bridge_not_mem_shifted (n : ℕ)
   obtain ⟨e, _, he⟩ := hmem
   induction e using Sym2.ind with
   | _ a b =>
-    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at he
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk] at he
     rw [Sym2.eq_iff] at he
     -- leftAttach2Shift never maps to 0, so no shifted edge contains vertex 0.
     -- But the bridge edge s(0, 2) has vertex 0. Contradiction.
@@ -2950,7 +2950,7 @@ private theorem leftAttach2_prod_eq {k : ℕ} (n : ℕ) (F : SimpleGraph (Fin (n
     -- Shifted edge: resolve Quot.out of mapped edge (use symmetry of c)
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
       have hout : s((Quot.out s(leftAttach2Shift n a, leftAttach2Shift n b)).1,
                     (Quot.out s(leftAttach2Shift n a, leftAttach2Shift n b)).2) =
                   s(leftAttach2Shift n a, leftAttach2Shift n b) := Quot.out_eq _
@@ -3078,7 +3078,7 @@ private theorem rightAttach2_edgeFinset (n : ℕ) (F : SimpleGraph (Fin (n + 2))
       · left; exact Sym2.eq_iff.mpr (Or.inl ⟨Fin.ext ha, Fin.ext hb⟩)
       · left; exact Sym2.eq_iff.mpr (Or.inr ⟨Fin.ext ha, Fin.ext hb⟩)
       · right
-        exact ⟨s(x, y), hadj, by rw [Sym2.map_pair_eq]; exact Sym2.eq_iff.mpr (Or.inl ⟨hx, hy⟩)⟩
+        exact ⟨s(x, y), hadj, by rw [Sym2.map_mk]; exact Sym2.eq_iff.mpr (Or.inl ⟨hx, hy⟩)⟩
   · intro he
     rcases he with rfl | ⟨e', he', rfl⟩
     · rw [SimpleGraph.mem_edgeSet]
@@ -3086,7 +3086,7 @@ private theorem rightAttach2_edgeFinset (n : ℕ) (F : SimpleGraph (Fin (n + 2))
     · induction e' using Sym2.ind with
       | _ a b =>
         rw [SimpleGraph.mem_edgeSet] at he'
-        simp only [Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        simp only [Sym2.map_mk, SimpleGraph.mem_edgeSet]
         exact Or.inr (Or.inr ⟨a, b, he', rfl, rfl⟩)
 
 private theorem rightAttach2_bridge_not_mem_shifted (n : ℕ)
@@ -3098,7 +3098,7 @@ private theorem rightAttach2_bridge_not_mem_shifted (n : ℕ)
   obtain ⟨e, _, he⟩ := hmem
   induction e using Sym2.ind with
   | _ a b =>
-    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at he
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk] at he
     rw [Sym2.eq_iff] at he
     all_goals {
       rcases he with ⟨h1, h2⟩ | ⟨h1, h2⟩
@@ -3135,7 +3135,7 @@ private theorem rightAttach2_prod_eq {k : ℕ} (n : ℕ) (F : SimpleGraph (Fin (
   · congr 1; ext e
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
       have hout : s((Quot.out s(rightAttach2Shift n a, rightAttach2Shift n b)).1,
                     (Quot.out s(rightAttach2Shift n a, rightAttach2Shift n b)).2) =
                   s(rightAttach2Shift n a, rightAttach2Shift n b) := Quot.out_eq _
@@ -3626,20 +3626,20 @@ private theorem edgeFreeGlue2_edgeFinset (n₁ n₂ : ℕ)
           glueShift2 n₁ n₂ x = a ∧ glueShift2 n₁ n₂ y = b)) at he
       rcases he with ⟨x, y, hadj, hx, hy⟩ | ⟨x, y, hadj, hx, hy⟩
       · left; exact ⟨s(x, y), hadj,
-          by simp only [Sym2.map_pair_eq]; exact Sym2.eq_iff.mpr (Or.inl ⟨hx, hy⟩)⟩
+          by simp only [Sym2.map_mk]; exact Sym2.eq_iff.mpr (Or.inl ⟨hx, hy⟩)⟩
       · right; exact ⟨s(x, y), hadj,
-          by simp only [Sym2.map_pair_eq]; exact Sym2.eq_iff.mpr (Or.inl ⟨hx, hy⟩)⟩
+          by simp only [Sym2.map_mk]; exact Sym2.eq_iff.mpr (Or.inl ⟨hx, hy⟩)⟩
   · intro he
     rcases he with ⟨e', he', rfl⟩ | ⟨e', he', rfl⟩
     · induction e' using Sym2.ind with
       | _ a b =>
         simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at he'
-        simp only [Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        simp only [Sym2.map_mk, SimpleGraph.mem_edgeSet]
         exact Or.inl ⟨a, b, he', rfl, rfl⟩
     · induction e' using Sym2.ind with
       | _ a b =>
         simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at he'
-        simp only [Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        simp only [Sym2.map_mk, SimpleGraph.mem_edgeSet]
         exact Or.inr ⟨a, b, he', rfl, rfl⟩
 
 /-- The two shifted edge finsets in `edgeFreeGlue2` are disjoint (using h₁, h₂). -/
@@ -3664,7 +3664,7 @@ private theorem edgeFreeGlue2_edgeFinset_disjoint (n₁ n₂ : ℕ)
       have ha₁ := a₁.isLt; have hb₁ := b₁.isLt
       have ha₂ := a₂.isLt; have hb₂ := b₂.isLt
       -- Unfold both shifts and work at val level
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq,
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk,
         glueShift1, glueShift2, Function.Embedding.coeFn_mk] at he₂eq
       -- Extract the Fin equalities from the Sym2 equality
       -- Helper: ⟨x.val,_⟩ equals glueShift2 image implies x.val ∈ {0,1}
@@ -3727,11 +3727,11 @@ private theorem edgeFreeGlue2_prod_eq {k : ℕ} (n₁ n₂ : ℕ)
     congr 1; ext e
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, Function.comp_apply]
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk, Function.comp_apply]
       have hout_new : s((Quot.out (Sym2.map emb s(a, b))).1,
                         (Quot.out (Sym2.map emb s(a, b))).2) = Sym2.map emb s(a, b) :=
         Quot.out_eq _
-      rw [Sym2.map_pair_eq] at hout_new
+      rw [Sym2.map_mk] at hout_new
       rw [Sym2.eq_iff] at hout_new
       have hout_old : s((Quot.out s(a, b)).1, (Quot.out s(a, b)).2) = s(a, b) := Quot.out_eq _
       rw [Sym2.eq_iff] at hout_old
@@ -4503,7 +4503,7 @@ private theorem tupleEquiv_restrict {T : ℕ}
     -- in (SimpleGraph.map shift F').edgeSet.
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at *
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk] at *
       rw [SimpleGraph.mem_edgeSet] at he ⊢
       rw [SimpleGraph.map_adj]
       exact ⟨a, b, he, rfl, rfl⟩
@@ -4521,7 +4521,7 @@ private theorem tupleEquiv_restrict {T : ℕ}
       obtain ⟨a, b, hab, hax, hby⟩ := he
       refine ⟨s(a, b), ?_, ?_⟩
       · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact hab
-      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
         rw [hax, hby]
   · -- 4. Term-by-term equality.
     intro e _
@@ -4536,7 +4536,7 @@ private theorem tupleEquiv_restrict {T : ℕ}
     -- Induct on e : Sym2 (Fin (n+k)).
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
       -- Goal: B (ν' (out s(a,b)).1) (ν' (out s(a,b)).2) =
       --       B (ν (out s(shift a, shift b)).1) (ν (out s(shift a, shift b)).2).
       change B (ν' (Quot.out s(a, b)).1) (ν' (Quot.out s(a, b)).2) =
@@ -4555,14 +4555,14 @@ private theorem tupleEquiv_restrict {T : ℕ}
             rw [Fin.succAbove_of_castSucc_lt]
             · rfl
             · show v.castSucc < p
-              simp only [Fin.lt_iff_val_lt_val, Fin.coe_castSucc]
+              simp only [Fin.lt_def, Fin.val_castSucc]
               exact hv
           have h_lt : ((shift v : Fin (n + (k + 1))) : ℕ) < k + 1 := by
             rw [h_shift_val]; omega
           simp only [hν_def, hν'_def, dif_pos h_lt, dif_pos hv, restrictTuple]
           congr 1
           apply Fin.ext
-          simp only [Fin.coe_castSucc]
+          simp only [Fin.val_castSucc]
           exact h_shift_val
         · -- Above the pivot: shift v = v.succ, (shift v).val = v.val + 1.
           have h_shift_val : (shift v : Fin (n + (k + 1))).val = v.val + 1 := by
@@ -4571,7 +4571,7 @@ private theorem tupleEquiv_restrict {T : ℕ}
             rw [Fin.succAbove_of_le_castSucc]
             · rfl
             · show p ≤ v.castSucc
-              simp only [Fin.le_iff_val_le_val, Fin.coe_castSucc]
+              simp only [Fin.le_iff_val_le_val, Fin.val_castSucc]
               show k ≤ v.val
               omega
           have h_not_lt : ¬ ((shift v : Fin (n + (k + 1))) : ℕ) < k + 1 := by
@@ -4675,7 +4675,7 @@ private theorem tupleEquiv_dom_perm {T : ℕ}
     rw [SimpleGraph.mem_edgeFinset] at he ⊢
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at *
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk] at *
       rw [SimpleGraph.mem_edgeSet] at he ⊢
       rw [SimpleGraph.map_adj]
       exact ⟨a, b, he, rfl, rfl⟩
@@ -4690,7 +4690,7 @@ private theorem tupleEquiv_dom_perm {T : ℕ}
       obtain ⟨a, b, hab, hax, hby⟩ := he
       refine ⟨s(a, b), ?_, ?_⟩
       · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact hab
-      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
         rw [hax, hby]
   · intro e _
     set ν' : Fin (n + k) → Fin T := fun v =>
@@ -4701,7 +4701,7 @@ private theorem tupleEquiv_dom_perm {T : ℕ}
       else σ ⟨(v : Fin (n + k)).val - k, by have := v.isLt; omega⟩ with hν_def
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
       change B (ν' (Quot.out s(a, b)).1) (ν' (Quot.out s(a, b)).2) =
         B (ν (Quot.out s(σ_perm a, σ_perm b)).1) (ν (Quot.out s(σ_perm a, σ_perm b)).2)
       rw [h_edge ν' a b, h_edge ν (σ_perm a) (σ_perm b)]
@@ -4830,7 +4830,7 @@ private theorem tupleEquiv_restrict_along {T k T' : ℕ}
     rw [SimpleGraph.mem_edgeFinset] at he ⊢
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at *
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk] at *
       rw [SimpleGraph.mem_edgeSet] at he ⊢
       rw [SimpleGraph.map_adj]
       exact ⟨a, b, he, rfl, rfl⟩
@@ -4845,7 +4845,7 @@ private theorem tupleEquiv_restrict_along {T k T' : ℕ}
       obtain ⟨a, b, hab, hax, hby⟩ := he
       refine ⟨s(a, b), ?_, ?_⟩
       · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact hab
-      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
         rw [hax, hby]
   · intro e _
     set ν' : Fin (n + T') → Fin T := fun v =>
@@ -4856,7 +4856,7 @@ private theorem tupleEquiv_restrict_along {T k T' : ℕ}
       else σ ⟨(v : Fin (n + k)).val - k, by have := v.isLt; omega⟩ with hν_def
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
       change B (ν' (Quot.out s(a, b)).1) (ν' (Quot.out s(a, b)).2) =
         B (ν (Quot.out s(shift a, shift b)).1) (ν (Quot.out s(shift a, shift b)).2)
       rw [h_edge' ν' a b, h_edge ν (shift a) (shift b)]
@@ -5027,7 +5027,7 @@ private theorem functional_span_zero {Q : Type*} [Fintype Q] [DecidableEq Q]
     -- If d = 0, done.
     by_cases h_all_zero : ∀ q, d q = 0
     · exact h_all_zero
-    push_neg at h_all_zero
+    push Not at h_all_zero
     obtain ⟨q₀, hq₀⟩ := h_all_zero
     -- If q₀ is the only nonzero, use hconst to derive contradiction.
     by_cases h_unique : ∀ q, q ≠ q₀ → d q = 0
@@ -5041,7 +5041,7 @@ private theorem functional_span_zero {Q : Type*} [Fintype Q] [DecidableEq Q]
       rw [hzero, add_zero] at this
       exact absurd this hq₀
     · -- ∃ q₁ ≠ q₀ with d(q₁) ≠ 0.
-      push_neg at h_unique
+      push Not at h_unique
       obtain ⟨q₁, hq₁_ne, hq₁⟩ := h_unique
       -- Find f_i separating q₀ and q₁.
       obtain ⟨i_sep, hi_sep⟩ := hsep q₀ q₁ hq₁_ne.symm
@@ -5661,7 +5661,7 @@ private theorem tupleEquiv_surjective_case_both {T : ℕ}
     obtain ⟨i, rfl⟩ := hj
     rw [hψr_eq i, hr_spec i]
   · -- j ∉ im(r). Build alternative section r' with r'(φ j) = j.
-    push_neg at hj
+    push Not at hj
     set i₀ : Fin T := φ j with hi₀
     let r' : Fin T → Fin k := fun i => if i = i₀ then j else r i
     have hr'_spec : ∀ i, φ (r' i) = i := by
@@ -5833,7 +5833,7 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
       -- a₀ b₀ with both val < K contradicts hF₂.
       have ha₀ : a₀.val < K := by
         by_contra hge
-        push_neg at hge
+        push Not at hge
         -- a₀.val ≥ K means emb₂ a₀ = ⟨n₁ + a₀.val, _⟩, so a.val = n₁ + a₀.val ≥ K.
         have hval_a : a.val = (emb₂ a₀).val := by rw [← hea]
         have hval_e : (emb₂ a₀).val = n₁ + a₀.val := by
@@ -5841,7 +5841,7 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
         omega
       have hb₀ : b₀.val < K := by
         by_contra hge
-        push_neg at hge
+        push Not at hge
         have hval_b : b.val = (emb₂ b₀).val := by rw [← heb]
         have hval_e : (emb₂ b₀).val = n₁ + b₀.val := by
           simp only [emb₂, dif_neg (not_lt.mpr hge)]
@@ -5927,19 +5927,19 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
       · -- F₁-type edge: both endpoints have val < n₁+K.
         refine Or.inl ⟨s((⟨u.val, hu⟩ : Fin (n₁+K)), (⟨v.val, hv⟩ : Fin (n₁+K))),
           hadj, ?_⟩
-        simp only [Sym2.map_pair_eq, e₁, Function.Embedding.coeFn_mk]
+        simp only [Sym2.map_mk, e₁, Function.Embedding.coeFn_mk]
       · -- F₂-type edge: u = emb₂ a, v = emb₂ b.
         refine Or.inr ⟨s(a, b), hadj, ?_⟩
-        simp only [Sym2.map_pair_eq, e₂, Function.Embedding.coeFn_mk]
+        simp only [Sym2.map_mk, e₂, Function.Embedding.coeFn_mk]
         exact Sym2.eq_iff.mpr (Or.inl ⟨ha, hb⟩)
     · -- Backward: F₁-image or F₂-image → F₃.edgeSet
       rintro (⟨e₁', he₁', rfl⟩ | ⟨e₂', he₂', rfl⟩)
       · revert he₁'; refine Sym2.ind (fun a b => ?_) e₁'; intro he₁'
-        simp only [Sym2.map_pair_eq, e₁, Function.Embedding.coeFn_mk]
+        simp only [Sym2.map_mk, e₁, Function.Embedding.coeFn_mk]
         show F₃.Adj ⟨a.val, by have := a.isLt; omega⟩ ⟨b.val, by have := b.isLt; omega⟩
         exact Or.inl ⟨a.isLt, b.isLt, he₁'⟩
       · revert he₂'; refine Sym2.ind (fun a b => ?_) e₂'; intro he₂'
-        simp only [Sym2.map_pair_eq, e₂, Function.Embedding.coeFn_mk]
+        simp only [Sym2.map_mk, e₂, Function.Embedding.coeFn_mk]
         show F₃.Adj (emb₂ a) (emb₂ b)
         exact Or.inr ⟨a, b, rfl, rfl, he₂'⟩
   have hdisj : Disjoint
@@ -5953,12 +5953,12 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
     refine Sym2.ind (fun a₂ b₂ => ?_) e₂'
     intro he₂' he₂eq
     -- he₂' : s(a₂, b₂) ∈ F₂.edgeFinset. By hF₂, at least one has val ≥ K.
-    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, e₁, e₂,
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk, e₁, e₂,
       Function.Embedding.coeFn_mk, Sym2.eq_iff] at he₂eq
     rw [SimpleGraph.mem_edgeFinset] at he₂'
     have hadj₂ : F₂.Adj a₂ b₂ := he₂'
     have hge : ¬a₂.val < K ∨ ¬b₂.val < K := by
-      by_contra h; push_neg at h; exact hF₂ a₂ b₂ h.1 h.2 hadj₂
+      by_contra h; push Not at h; exact hF₂ a₂ b₂ h.1 h.2 hadj₂
     -- emb₂ sends val ≥ K to Fin.val ≥ n₁+K. All e₁ vals are < n₁+K.
     have hemb_ge : ∀ v : Fin (n₂ + K), ¬v.val < K → (emb₂ v).val ≥ n₁ + K := by
       intro v hv; simp only [emb₂, dif_neg hv, Fin.val_mk]; omega
@@ -5991,7 +5991,7 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
   · -- F₁ terms: B(τ₃(Quot.out(e₁.sym2Map e)...) = B(τ₁(Quot.out e)...)
     apply Finset.prod_congr rfl; intro e _
     refine Sym2.ind (fun a b => ?_) e
-    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, e₁,
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk, e₁,
       Function.Embedding.coeFn_mk]
     -- Convert to named coloring functions (definitional equality).
     show B (τ₃ (Quot.out s(⟨a.val, (by omega)⟩, ⟨b.val, (by omega)⟩)).1)
@@ -6003,7 +6003,7 @@ private theorem labeledEvalK_glue (K : ℕ) (n₁ n₂ : ℕ)
   · -- F₂ terms: B(τ₃(Quot.out(e₂.sym2Map e)...) = B(τ₂(Quot.out e)...)
     apply Finset.prod_congr rfl; intro e _
     refine Sym2.ind (fun a b => ?_) e
-    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, e₂,
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk, e₂,
       Function.Embedding.coeFn_mk]
     show B (τ₃ (Quot.out s(emb₂ a, emb₂ b)).1) (τ₃ (Quot.out s(emb₂ a, emb₂ b)).2) =
          B (τ₂ (Quot.out s(a, b)).1) (τ₂ (Quot.out s(a, b)).2)
@@ -6399,7 +6399,7 @@ private theorem snoc_LL_decomp {T K : ℕ} (B : Fin T → Fin T → ℝ)
       refine ⟨Finset.mem_univ _, ?_⟩
       induction s using Sym2.ind with
       | _ a b =>
-        simp only [Sym2.map_pair_eq, isInner]
+        simp only [Sym2.map_mk, isInner]
         set p := Quot.out (s(a.castSucc, b.castSucc) : Sym2 (Fin (K + 1)))
         have hp : p.1 = a.castSucc ∧ p.2 = b.castSucc ∨
                   p.1 = b.castSucc ∧ p.2 = a.castSucc := by
@@ -6417,7 +6417,7 @@ private theorem snoc_LL_decomp {T K : ℕ} (B : Fin T → Fin T → ℝ)
       have hx_inner : isInner x := hx.2
       refine ⟨s(⟨(Quot.out x).1.val, hx_inner.1⟩, ⟨(Quot.out x).2.val, hx_inner.2⟩),
               Finset.mem_coe.mpr (Finset.mem_univ _), ?_⟩
-      simp only [Sym2.map_pair_eq]
+      simp only [Sym2.map_mk]
       have e1 : ((⟨(Quot.out x).1.val, hx_inner.1⟩ : Fin K).castSucc) = (Quot.out x).1 :=
         Fin.ext rfl
       have e2 : ((⟨(Quot.out x).2.val, hx_inner.2⟩ : Fin K).castSucc) = (Quot.out x).2 :=
@@ -6429,7 +6429,7 @@ private theorem snoc_LL_decomp {T K : ℕ} (B : Fin T → Fin T → ℝ)
       intro s _
       induction s using Sym2.ind with
       | _ a b =>
-        simp only [Sym2.map_pair_eq]
+        simp only [Sym2.map_mk]
         rw [B_quot_out_eq hB ξ, B_quot_out_eq hB (Fin.snoc ξ t : Fin (K + 1) → Fin T)]
         have h1 : (Fin.snoc ξ t : Fin (K + 1) → Fin T) a.castSucc = ξ a :=
           Fin.snoc_castSucc ..
@@ -6750,14 +6750,14 @@ private theorem DecLabeledGraph.trace_eval {T K n : ℕ}
   · -- hi: D.graph edges map to comap edges
     intro a ha
     refine Sym2.ind (fun u v h => ?_) a ha
-    rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+    rw [SimpleGraph.mem_edgeFinset, Sym2.map_mk, SimpleGraph.mem_edgeSet]
     rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h
     simp only [SimpleGraph.comap_adj]
     convert h using 2 <;> {apply Fin.ext; simp [e, finCongr]}
   · -- hj: comap edges map to D.graph edges
     intro a ha
     refine Sym2.ind (fun u v h => ?_) a ha
-    rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+    rw [SimpleGraph.mem_edgeFinset, Sym2.map_mk, SimpleGraph.mem_edgeSet]
     simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, SimpleGraph.comap_adj] at h
     convert h using 2 <;> {apply Fin.ext; simp [e, finCongr]}
   · -- left_inv
@@ -6769,7 +6769,7 @@ private theorem DecLabeledGraph.trace_eval {T K n : ℕ}
   · -- hfg: value equality for corresponding edges (uses B_quot_out_eq + hτ).
     intro a ha
     refine Sym2.ind (fun u v _ => ?_) a ha
-    simp only [Sym2.map_pair_eq]
+    simp only [Sym2.map_mk]
     let τ_LHS : Fin (n + (K + 1)) → Fin T := fun x =>
       if h : (x : ℕ) < K + 1 then (Fin.snoc ξ t : Fin (K + 1) → Fin T) ⟨x, h⟩
       else σ ⟨x.val - (K + 1), by have := x.isLt; omega⟩
@@ -6783,11 +6783,11 @@ private theorem DecLabeledGraph.trace_eval {T K n : ℕ}
     have h1 : τ_LHS u = τ_RHS (e u) := by
       have := hτ u
       simp only [τ_LHS, τ_RHS, e, finCongr_apply]
-      simp only [Fin.coe_cast]; exact this
+      simp only [Fin.val_cast]; exact this
     have h2 : τ_LHS v = τ_RHS (e v) := by
       have := hτ v
       simp only [τ_LHS, τ_RHS, e, finCongr_apply]
-      simp only [Fin.coe_cast]; exact this
+      simp only [Fin.val_cast]; exact this
     rw [h1, h2]
 
 /-! **`tupleEquiv`-invariance of the traced evaluation** — historical context.
@@ -7510,7 +7510,7 @@ private theorem DecLabeledGraph.trace_parallel_lu0_descends {T K n : ℕ}
           B (τ (Quot.out e).1) (τ (Quot.out e).2) ^ M_trace.mult e) = 1 := by
         refine Finset.prod_eq_one fun e he => ?_
         rw [Finset.mem_sdiff, Finset.mem_union] at he
-        push_neg at he
+        push Not at he
         have hM_zero : M_trace.mult e = 0 := by
           show (if hcr : e ∈ crossEdges then _
                 else if e ∈ D.trace.graph.edgeFinset then 1 else (0 : ℕ)) = 0
@@ -7613,7 +7613,7 @@ private theorem DecLabeledGraph.trace_eval_tupleEquiv_invariant {T K n : ℕ}
   -- `D.trace.llMult s = D.llMult (Sym2.map castSucc s)`.
   have h_trace_noDiag : ∀ x : Fin K, D.trace.llMult s(x, x) = 0 := fun x => by
     show D.llMult (Sym2.map Fin.castSucc s(x, x)) = 0
-    rw [Sym2.map_pair_eq]
+    rw [Sym2.map_mk]
     exact h_diag (Fin.castSucc x)
   unfold DecLabeledGraphTr.eval
   congr 1
@@ -7882,7 +7882,7 @@ private theorem DecLabeledGraph.trace_eval_tupleEquiv_invariant {T K n : ℕ}
         rw [hbridge ξ, hbridge ξ']
         exact h (n + 1) G'
       · -- **Sub-case `∃ a, lu0Mult a ≥ 2`.** Delegate to the named root.
-        push_neg at hle
+        push Not at hle
         obtain ⟨a, ha⟩ := hle
         exact DecLabeledGraph.trace_parallel_lu0_descends
           D B hB W hW htwin h_diag ⟨a, ha⟩ h
@@ -7974,13 +7974,13 @@ private lemma DecLabeledGraph.ll_filter_eq_map {n K : ℕ}
       have heq : Sym2.map (DecLabeledGraph.labelEmbed (n := n))
           (s((⟨(Quot.out e).1.val, hP.1⟩ : Fin K),
              ⟨(Quot.out e).2.val, hP.2⟩) : Sym2 _) = e := by
-        simp only [Sym2.map_pair_eq, DecLabeledGraph.labelEmbed,
+        simp only [Sym2.map_mk, DecLabeledGraph.labelEmbed,
           show (⟨(Quot.out e).1.val, _⟩ : Fin (n + K)) = (Quot.out e).1 from Fin.ext rfl,
           show (⟨(Quot.out e).2.val, _⟩ : Fin (n + K)) = (Quot.out e).2 from Fin.ext rfl]
         exact Quot.out_eq e
       rw [heq]; exact heF
     · -- labelEmbedding.sym2Map of preimage equals e.
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq,
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk,
         DecLabeledGraph.labelEmbedding,
         show (⟨(Quot.out e).1.val, _⟩ : Fin (n + K)) = (Quot.out e).1 from Fin.ext rfl,
         show (⟨(Quot.out e).2.val, _⟩ : Fin (n + K)) = (Quot.out e).2 from Fin.ext rfl]
@@ -7995,7 +7995,7 @@ private lemma DecLabeledGraph.ll_filter_eq_map {n K : ℕ}
     refine ⟨ha, ?_⟩
     induction a using Sym2.ind with
     | h x y =>
-      rw [Sym2.map_pair_eq]
+      rw [Sym2.map_mk]
       -- Derive .val equalities from h1, h2 via congr_arg Fin.val.
       have hout := Sym2.eq_iff.mp (Quot.out_eq
           (s((DecLabeledGraph.labelEmbed (n := n) x : Fin (n + K)),
@@ -8095,20 +8095,20 @@ private theorem DecLabeledGraph.eval_ofSimple {T K n : ℕ}
         · have h1v : (Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))).1.val =
                      x.val := by
             have := congr_arg Fin.val h1
-            simp only [Sym2.map_pair_eq, DecLabeledGraph.labelEmbed] at this; exact this
+            simp only [Sym2.map_mk, DecLabeledGraph.labelEmbed] at this; exact this
           have h2v : (Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))).2.val =
                      y.val := by
             have := congr_arg Fin.val h2
-            simp only [Sym2.map_pair_eq, DecLabeledGraph.labelEmbed] at this; exact this
+            simp only [Sym2.map_mk, DecLabeledGraph.labelEmbed] at this; exact this
           exact ⟨h1v ▸ x.isLt, h2v ▸ y.isLt⟩
         · have h1v : (Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))).1.val =
                      y.val := by
             have := congr_arg Fin.val h1
-            simp only [Sym2.map_pair_eq, DecLabeledGraph.labelEmbed] at this; exact this
+            simp only [Sym2.map_mk, DecLabeledGraph.labelEmbed] at this; exact this
           have h2v : (Quot.out (Sym2.map (DecLabeledGraph.labelEmbed (n := n)) s(x, y))).2.val =
                      x.val := by
             have := congr_arg Fin.val h2
-            simp only [Sym2.map_pair_eq, DecLabeledGraph.labelEmbed] at this; exact this
+            simp only [Sym2.map_mk, DecLabeledGraph.labelEmbed] at this; exact this
           exact ⟨h1v ▸ y.isLt, h2v ▸ x.isLt⟩
     rw [dif_pos hcond]
     -- Apply Helper 1.
@@ -8317,7 +8317,7 @@ private theorem product_trace_identity_of_eval_tupleEquiv_invariant
       rw [if_neg]
       intro hmem
       rw [SimpleGraph.mem_edgeFinset] at hmem
-      simp only [Sym2.map_pair_eq] at hmem
+      simp only [Sym2.map_mk] at hmem
       exact p.2.irrefl hmem
     · intro φ
       rw [DecLabeledGraph.eval_mul _ _ B hB W φ, hDeval]
@@ -8994,11 +8994,11 @@ private theorem tr_k_singleton_descends {T K : ℕ}
     apply Finset.prod_nbij' (Sym2.map e) (Sym2.map e.symm)
     · intro a ha
       refine Sym2.ind (fun u v h => ?_) a ha
-      rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+      rw [SimpleGraph.mem_edgeFinset, Sym2.map_mk, SimpleGraph.mem_edgeSet]
       rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h; exact h
     · intro a ha
       refine Sym2.ind (fun u v h => ?_) a ha
-      rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+      rw [SimpleGraph.mem_edgeFinset, Sym2.map_mk, SimpleGraph.mem_edgeSet]
       simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, G] at h; exact h
     · intro a _
       simp only [Sym2.map_map, Equiv.symm_comp_self]; exact congr_fun Sym2.map_id a
@@ -9006,7 +9006,7 @@ private theorem tr_k_singleton_descends {T K : ℕ}
       simp only [Sym2.map_map, Equiv.self_comp_symm]; exact congr_fun Sym2.map_id a
     · intro a ha
       refine Sym2.ind (fun u v _ => ?_) a ha
-      simp only [Sym2.map_pair_eq]
+      simp only [Sym2.map_mk]
       have hout_F : Quot.out s(u, v) = (u, v) ∨ Quot.out s(u, v) = (v, u) :=
         Sym2.rel_iff'.mp (Sym2.Rel.is_equivalence.eqvGen_iff.mp
           (Quot.eqvGen_exact (Quot.out_eq s(u, v))))
@@ -9229,7 +9229,7 @@ private theorem exists_decGraph_for_connCol {T K : ℕ}
               s(x, x) ∈ p.2.edgeFinset then (1 : ℕ) else 0) = 0
       rw [if_neg]
       intro h
-      rw [Sym2.map_pair_eq, SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h
+      rw [Sym2.map_mk, SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h
       exact p.2.irrefl h
 
 /-- **Weighted inner product of two connection-matrix columns descends
@@ -10498,12 +10498,12 @@ private theorem coeffRestrict_equiv {T : ℕ}
       -- hi: F-edges map to G-edges
       · intro a ha
         refine Sym2.ind (fun u v h => ?_) a ha
-        rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        rw [SimpleGraph.mem_edgeFinset, Sym2.map_mk, SimpleGraph.mem_edgeSet]
         rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet] at h; exact h
       -- hj: G-edges map to F-edges
       · intro a ha
         refine Sym2.ind (fun u v h => ?_) a ha
-        rw [SimpleGraph.mem_edgeFinset, Sym2.map_pair_eq, SimpleGraph.mem_edgeSet]
+        rw [SimpleGraph.mem_edgeFinset, Sym2.map_mk, SimpleGraph.mem_edgeSet]
         simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, G] at h; exact h
       -- left_inv: Sym2.map e.symm ∘ Sym2.map e = id
       · intro a _
@@ -10516,7 +10516,7 @@ private theorem coeffRestrict_equiv {T : ℕ}
       -- orderings. Use B-symmetry (hB) to handle both cases.
       · intro a ha
         refine Sym2.ind (fun u v _ => ?_) a ha
-        simp only [Sym2.map_pair_eq]
+        simp only [Sym2.map_mk]
         -- Need: B(τ_F(Quot.out s(u,v)).1)(τ_F(Quot.out s(u,v)).2) =
         --       B(τ_G(Quot.out s(eu,ev)).1)(τ_G(Quot.out s(eu,ev)).2)
         -- where τ_F, τ_G evaluate the same function on .val.
@@ -10810,7 +10810,7 @@ private theorem labeledEvalK_separates {T : ℕ}
     --
     -- This is the remaining algebra-intensive step (~150-200 lines). The infrastructure
     -- (labeledEvalK_glue, functional_span_zero, B_quot_out_eq) is all in place.
-    push_neg at hcase
+    push Not at hcase
     sorry
 
 /-! ### Surjective-base extension uniqueness -/
@@ -11380,8 +11380,8 @@ private lemma tri1Graph_edgeFree : ¬ tri1Graph.Adj 0 1 := by
 private lemma star0Graph_edgeFinset : star0Graph.edgeFinset = {s((0 : Fin 3), 2)} := by
   ext e
   simp only [SimpleGraph.mem_edgeFinset, star0Graph, SimpleGraph.edgeSet_fromEdgeSet,
-    Finset.mem_singleton, Set.mem_diff, Set.mem_singleton_iff,
-    Sym2.mem_diagSet_iff_isDiag]
+    Finset.mem_singleton, Set.mem_sdiff, Set.mem_singleton_iff,
+    Sym2.mem_diagSet]
   refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
   rw [he, Sym2.mk_isDiag_iff]
   decide
@@ -11454,8 +11454,8 @@ private theorem labeledEval2_star0Graph {T : ℕ}
 private lemma star1Graph_edgeFinset : star1Graph.edgeFinset = {s((1 : Fin 3), 2)} := by
   ext e
   simp only [SimpleGraph.mem_edgeFinset, star1Graph, SimpleGraph.edgeSet_fromEdgeSet,
-    Finset.mem_singleton, Set.mem_diff, Set.mem_singleton_iff,
-    Sym2.mem_diagSet_iff_isDiag]
+    Finset.mem_singleton, Set.mem_sdiff, Set.mem_singleton_iff,
+    Sym2.mem_diagSet]
   refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
   rw [he, Sym2.mk_isDiag_iff]
   decide
@@ -11487,8 +11487,8 @@ private lemma pathGraph01_edgeFinset :
     pathGraph01.edgeFinset = {s((0 : Fin 3), 2), s((1 : Fin 3), 2)} := by
   ext e
   simp only [SimpleGraph.mem_edgeFinset, pathGraph01, SimpleGraph.edgeSet_fromEdgeSet,
-    Finset.mem_insert, Finset.mem_singleton, Set.mem_diff, Set.mem_insert_iff,
-    Set.mem_singleton_iff, Sym2.mem_diagSet_iff_isDiag]
+    Finset.mem_insert, Finset.mem_singleton, Set.mem_sdiff, Set.mem_insert_iff,
+    Set.mem_singleton_iff, Sym2.mem_diagSet]
   refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
   rcases he with he | he <;> rw [he, Sym2.mk_isDiag_iff] <;> decide
 
@@ -11542,8 +11542,8 @@ private lemma tri0Graph_edgeFinset :
       {s((0 : Fin 4), 2), s((0 : Fin 4), 3), s((2 : Fin 4), 3)} := by
   ext e
   simp only [SimpleGraph.mem_edgeFinset, tri0Graph, SimpleGraph.edgeSet_fromEdgeSet,
-    Finset.mem_insert, Finset.mem_singleton, Set.mem_diff, Set.mem_insert_iff,
-    Set.mem_singleton_iff, Sym2.mem_diagSet_iff_isDiag]
+    Finset.mem_insert, Finset.mem_singleton, Set.mem_sdiff, Set.mem_insert_iff,
+    Set.mem_singleton_iff, Sym2.mem_diagSet]
   refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
   rcases he with he | he | he <;> rw [he, Sym2.mk_isDiag_iff] <;> decide
 
@@ -11623,8 +11623,8 @@ private lemma tri1Graph_edgeFinset :
       {s((1 : Fin 4), 2), s((1 : Fin 4), 3), s((2 : Fin 4), 3)} := by
   ext e
   simp only [SimpleGraph.mem_edgeFinset, tri1Graph, SimpleGraph.edgeSet_fromEdgeSet,
-    Finset.mem_insert, Finset.mem_singleton, Set.mem_diff, Set.mem_insert_iff,
-    Set.mem_singleton_iff, Sym2.mem_diagSet_iff_isDiag]
+    Finset.mem_insert, Finset.mem_singleton, Set.mem_sdiff, Set.mem_insert_iff,
+    Set.mem_singleton_iff, Sym2.mem_diagSet]
   refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
   rcases he with he | he | he <;> rw [he, Sym2.mk_isDiag_iff] <;> decide
 
@@ -11722,7 +11722,7 @@ private theorem pairOrbit_separated_by_edgeFreeEval {T : ℕ}
   have hne : pairProfile B W p ≠ pairProfile B W q :=
     fun heq => h (pairOrbitRel_of_pairProfile_eq hB hW htwin heq)
   have ⟨k, hk⟩ : ∃ k : Fin 5, pairProfile B W p k ≠ pairProfile B W q k := by
-    by_contra hall; push_neg at hall; exact hne (funext hall)
+    by_contra hall; push Not at hall; exact hne (funext hall)
   -- Return the corresponding motif graph from edgeFreeEvalSet
   refine ⟨fun i j => pairProfile B W (i, j) k,
     pairProfile_component_mem_edgeFreeEvalSet B W hB k, ?_⟩
@@ -11834,7 +11834,7 @@ private theorem edgeFreeIndist_class_indicator_mem {T : ℕ}
       rw [← Quotient.out_eq q, heq, hp₀_def]
       exact Quotient.out_eq o
     simp only [edgeFreeIndist] at hne
-    push_neg at hne
+    push Not at hne
     exact hne
   let gSep : ∀ q : Quotient (edgeFreeIndistSetoid B W), q ≠ o → Fin T → Fin T → ℝ :=
     fun q hqo => Classical.choose (sep q hqo)

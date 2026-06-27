@@ -155,7 +155,7 @@ theorem exists_rpe_separator {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T 
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) (inst : DecidableRel F.Adj),
       @rootedProfile T n B W i F inst ≠ @rootedProfile T n B W j F inst := by
   unfold rootedProfileEquiv at h
-  push_neg at h
+  push Not at h
   exact h
 
 /-- Build an `RpeSeparator` from non-equivalence via `Classical.choose`. -/
@@ -485,7 +485,7 @@ private theorem rootAttach_edgeFinset (n : ℕ) (G : SimpleGraph (Fin (n + 1)))
       · left; exact Sym2.eq_iff.mpr (Or.inr ⟨Fin.ext ha, Fin.ext hb⟩)
       · right
         refine ⟨s(⟨a.val - 1, by omega⟩, ⟨b.val - 1, by omega⟩), hadj, ?_⟩
-        simp only [Sym2.map_pair_eq, Fin.coe_succEmb]
+        simp only [Sym2.map_mk, Fin.coe_succEmb]
         exact Sym2.eq_iff.mpr
           (Or.inl ⟨Fin.ext (by simp; omega), Fin.ext (by simp; omega)⟩)
   · intro he
@@ -510,7 +510,7 @@ private theorem rootAttach_bridge_not_mem_shifted (n : ℕ)
   obtain ⟨e, _, he⟩ := hmem
   induction e using Sym2.ind with
   | _ a b =>
-    simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, Fin.coe_succEmb] at he
+    simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk, Fin.coe_succEmb] at he
     rw [Sym2.eq_iff] at he
     rcases he with ⟨h1, _⟩ | ⟨_, h1⟩ <;>
       exact absurd (congr_arg Fin.val h1) (by simp [Fin.val_succ])

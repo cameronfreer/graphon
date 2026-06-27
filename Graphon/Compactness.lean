@@ -561,7 +561,7 @@ theorem totallyBounded (ε : ℝ) (hε : ε > 0) :
       apply Filter.mem_of_superset (compl_mem_ae_iff.mpr h_null)
       intro x hx hxS
       by_contra h_ne
-      exact hx (Set.mem_diff_of_mem hxS h_ne)
+      exact hx (Set.mem_sdiff_of_mem hxS h_ne)
     have h_e_fst : ∀ᵐ p ∂(μ.prod μ),
         ∀ (S : Set α) (hS : S ∈ P₀.parts), p.1 ∈ S → e p.1 ∈ σ S hS :=
       Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst h_align_ae
@@ -948,7 +948,7 @@ private lemma rectIntegralDiff_le_tail_tsum
             ≤ |rectIntegralDiff (A n) (A m) S T| +
               |rectIntegralDiff (A m) (A (m + 1)) S T| := h_tri
           _ ≤ ∑ j ∈ Finset.range (m - n), δ (n + j) + δ m := add_le_add (ih h) h_step
-      · push_neg at h
+      · push Not at h
         have heq : n = m + 1 := by omega
         subst heq
         simp only [Nat.sub_self, Finset.range_zero, Finset.sum_empty, rectIntegralDiff, sub_self,

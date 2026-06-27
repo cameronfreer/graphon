@@ -832,7 +832,7 @@ theorem gluePart₁_eq_zero_of_not_mem_image {K n₁ n₂ : ℕ}
       exact (congr_arg Fin.val hu).symm
     show u_b.val = b.val
     exact huval
-  exact ⟨s(u_a, u_b), by rw [Sym2.map_pair_eq, ha_eq, hb_eq]⟩
+  exact ⟨s(u_a, u_b), by rw [Sym2.map_mk, ha_eq, hb_eq]⟩
 
 /-- `gluePart₂` is zero outside the image of `glueEmb₂.sym2Map`. -/
 theorem gluePart₂_eq_zero_of_not_mem_image {K n₁ n₂ : ℕ}
@@ -893,7 +893,7 @@ theorem gluePart₂_eq_zero_of_not_mem_image {K n₁ n₂ : ℕ}
         show (glueEmb₂ K n₁ n₂ u_b).val = b.val
         simp only [glueEmb₂, Function.Embedding.coeFn_mk, dif_neg hub]
         omega
-  exact ⟨s(u_a, u_b), by rw [Sym2.map_pair_eq, ha_eq, hb_eq]⟩
+  exact ⟨s(u_a, u_b), by rw [Sym2.map_mk, ha_eq, hb_eq]⟩
 
 /-- **Sym2 product over `glueEmb₁` factors via prod over `Sym2 (Fin (n₁ + K))`.**
 For any function `g : Sym2 (Fin ((n₁+n₂)+K)) → ℝ` that equals `1` outside the
@@ -1045,7 +1045,7 @@ theorem multiLabeledEvalK_glue {T K n₁ n₂ : ℕ}
       · -- The pulled-back form equals the M₁ Sym2 product
         refine Finset.prod_congr rfl fun e _ => ?_
         refine Sym2.ind (fun a b => ?_) e
-        rw [Sym2.map_pair_eq, gluePart₁_emb₁]
+        rw [Sym2.map_mk, gluePart₁_emb₁]
         -- Need: B^M₁.mult s(a,b) at τ_glue ∘ emb₁ pair equals at τ₁ pair
         rw [B_pow_quot_out_eq hB τ_glue (glueEmb₁ K n₁ n₂ a) (glueEmb₁ K n₁ n₂ b)]
         rw [B_pow_quot_out_eq hB τ₁ a b]
@@ -1065,7 +1065,7 @@ theorem multiLabeledEvalK_glue {T K n₁ n₂ : ℕ}
           B (τ_glue (Quot.out e).1) (τ_glue (Quot.out e).2) ^ gluePart₂ M₁ M₂ e)]
       · refine Finset.prod_congr rfl fun e _ => ?_
         refine Sym2.ind (fun a b => ?_) e
-        rw [Sym2.map_pair_eq, gluePart₂_emb₂]
+        rw [Sym2.map_mk, gluePart₂_emb₂]
         rw [B_pow_quot_out_eq hB τ_glue (glueEmb₂ K n₁ n₂ a) (glueEmb₂ K n₁ n₂ b)]
         rw [B_pow_quot_out_eq hB τ₂ a b]
         rw [h_τ₂, h_τ₂]
@@ -1099,7 +1099,7 @@ def MultiLabeledGraph.trace {K n : ℕ}
     (M : MultiLabeledGraph (K + 1) n) : MultiLabeledGraph K (n + 1) where
   mult e := M.mult (Sym2.map (Fin.cast (show (n + 1) + K = n + (K + 1) by omega)) e)
   multNoLoop x := by
-    rw [Sym2.map_pair_eq]
+    rw [Sym2.map_mk]
     exact M.multNoLoop _
 
 /-- **Promotion** (section of `trace`): from `MultiLabeledGraph K (n+1)` build
@@ -1110,7 +1110,7 @@ def MultiLabeledGraph.promote {K n : ℕ}
     (M : MultiLabeledGraph K (n + 1)) : MultiLabeledGraph (K + 1) n where
   mult e := M.mult (Sym2.map (Fin.cast (show n + (K + 1) = (n + 1) + K by omega)) e)
   multNoLoop x := by
-    rw [Sym2.map_pair_eq]
+    rw [Sym2.map_mk]
     exact M.multNoLoop _
 
 /-- **Trace-promote round-trip**: closing the last label of a promoted
@@ -1230,7 +1230,7 @@ theorem multiLabeledEvalK_sum_last_label {T K n : ℕ}
   -- e_sym2 s(a, b) = s(Fin.cast h_eq a, Fin.cast h_eq b).
   have h_es : e_sym2 s(a, b) = s(Fin.cast h_eq a, Fin.cast h_eq b) := by
     show Sym2.map e_fin s(a, b) = _
-    rw [Sym2.map_pair_eq]
+    rw [Sym2.map_mk]
     rfl
   rw [h_es]
   -- Quot.out orientations on both sides.
@@ -1428,7 +1428,7 @@ def reroot1 {m : ℕ} (Mχ : MultiLabeledGraph 1 m) : MultiLabeledGraph 2 m wher
     (e' : Sym2 (Fin (m + 1))) :
     (reroot1 Mχ).mult (Sym2.map (succEmb m) e') = Mχ.mult e' := by
   refine Sym2.ind (fun a b => ?_) e'
-  rw [Sym2.map_pair_eq]
+  rw [Sym2.map_mk]
   show (match rerootCast (succEmb m a), rerootCast (succEmb m b) with
         | some u', some v' => Mχ.mult s(u', v') | _, _ => 0) = Mχ.mult s(a, b)
   rw [succEmb_apply, succEmb_apply, rerootCast_succ, rerootCast_succ]
@@ -1464,14 +1464,14 @@ private theorem reroot1_prod_reindex {T m : ℕ} (Mχ : MultiLabeledGraph 1 m)
     apply he
     rw [Finset.mem_map]
     refine ⟨s(u', v'), Finset.mem_univ _, ?_⟩
-    rw [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq, succEmb_apply, succEmb_apply,
+    rw [Function.Embedding.sym2Map_apply, Sym2.map_mk, succEmb_apply, succEmb_apply,
       ← rerootCast_eq_some hca, ← rerootCast_eq_some hcb]
   rw [hfac]
   refine Finset.prod_congr rfl fun e' _ => ?_
   rw [reroot1_mult_map_succ]
   congr 1
   refine Sym2.ind (fun a b => ?_) e'
-  rw [Sym2.map_pair_eq, succEmb_apply, succEmb_apply,
+  rw [Sym2.map_mk, succEmb_apply, succEmb_apply,
     B_quot_out_eq hB τ₂ a.succ b.succ, B_quot_out_eq hB τ₁ a b, halign a, halign b]
 
 /-- **Reroot evaluation**: `reroot1 Mχ` evaluated at `φ` reads `Mχ` at the
@@ -1949,7 +1949,7 @@ private noncomputable def mkTupleSimpleSeparator {T K : ℕ}
     TupleSimpleSeparator B W ξ ξ' :=
   let h' : ∃ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (_ : DecidableRel F.Adj),
       @inlineSimpleEval T K n B W F _ ξ ≠ @inlineSimpleEval T K n B W F _ ξ' := by
-    push_neg at h; exact h
+    push Not at h; exact h
   { n := h'.choose
     F := h'.choose_spec.choose
     inst := h'.choose_spec.choose_spec.choose
@@ -2295,16 +2295,16 @@ private theorem restEmbedAux_injective {n K m : ℕ} {g : Fin m → Fin n}
   · by_cases hy : y.val < K
     · rw [restEmbedAux_val_lab g x hx, restEmbedAux_val_lab g y hy] at h_val
       exact h_val
-    · push_neg at hy
+    · push Not at hy
       rw [restEmbedAux_val_lab g x hx,
           restEmbedAux_val_rest g y (not_lt.mpr hy)] at h_val
       omega
-  · push_neg at hx
+  · push Not at hx
     by_cases hy : y.val < K
     · rw [restEmbedAux_val_rest g x (not_lt.mpr hx),
           restEmbedAux_val_lab g y hy] at h_val
       omega
-    · push_neg at hy
+    · push Not at hy
       rw [restEmbedAux_val_rest g x (not_lt.mpr hx),
           restEmbedAux_val_rest g y (not_lt.mpr hy)] at h_val
       have h_inner : (g ⟨x.val - K, by have := x.isLt; omega⟩ : Fin n).val =
@@ -2413,7 +2413,7 @@ private lemma multigraphEval_LL_excess_descends_aux {T K n : ℕ}
     have h_exists : ∃ e ∈ (Finset.univ.filter isLLEdge :
         Finset (Sym2 (Fin (n + K)))), 1 ≤ M.mult e := by
       by_contra h
-      push_neg at h
+      push Not at h
       have : M.LLSum = 0 := by
         unfold MultiLabeledGraph.LLSum
         exact Finset.sum_eq_zero fun e he => by have := h e he; omega
@@ -2971,7 +2971,7 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
   -- Step 7 foundations: cardinality of complement subtype, n ≥ 2.
   have hn_ge_2 : 2 ≤ n := by
     by_contra h
-    push_neg at h
+    push Not at h
     -- h : n < 2. Since u_p : Fin n, n ≥ 1. So n = 1. Then Fin 1 is subsingleton.
     have h_ge_1 : 1 ≤ n := Nat.one_le_iff_ne_zero.mpr (fun heq => by
       rw [heq] at u_p
@@ -3058,7 +3058,7 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
         show (a ≠ b ∧ M.mult s(restEmbed a, restEmbed b) = 1) ↔
              (a ≠ b ∧ M.mult (Sym2.map restEmbed s(a, b)) = 1)
-        rw [Sym2.map_pair_eq]
+        rw [Sym2.map_mk]
     -- Step 7b₂ continued: restEmbed injectivity via the top-level lemma.
     have restEmbed_injective : Function.Injective restEmbed :=
       restEmbedAux_injective g_rest_injective
@@ -3103,7 +3103,7 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
             apply Fin.ext
             exact restEmbedAux_val_lab g_rest ⟨x.val, by have := hn_ge_2; omega⟩ hx_lab
           · -- Unlabeled case.
-            push_neg at hx_lab
+            push Not at hx_lab
             let x_un : Fin n := ⟨x.val - K, by have := x.isLt; omega⟩
             have hx_un_ne_u_p : x_un ≠ u_p := by
               intro h_eq
@@ -3159,10 +3159,10 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
             intro h_eq
             exact hab_ne (ha'.symm.trans ((congrArg restEmbed h_eq).trans hb'))
           · -- M.mult (Sym2.map restEmbed s(a', b')) = 1.
-            rw [Sym2.map_pair_eq, ha', hb']
+            rw [Sym2.map_mk, ha', hb']
             exact hmult
         · -- Sym2.map restEmbed s(a', b') = s(a, b).
-          rw [Sym2.map_pair_eq, ha', hb']
+          rw [Sym2.map_mk, ha', hb']
     -- Step 7b₂ remainder: assemble the per-ρ body equality.
     -- Both sides are W-product * B-product. Split via congr 1.
     dsimp only
@@ -3193,7 +3193,7 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         congr 1
         exact Fin.ext h_re_val
       · -- Rest case.
-        push_neg at h_lab
+        push Not at h_lab
         have h_v_not_lab : ¬ v.val < K := not_lt.mpr h_lab
         let r : Fin (n - 2) := ⟨v.val - K, by have := v.isLt; omega⟩
         let k : {x : Fin n // ¬ p x} := complEquiv.symm r
@@ -3231,7 +3231,7 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
       induction e with
       | h a b =>
         rw [B_quot_out_eq hB τ_rest a b]
-        rw [Sym2.map_pair_eq]
+        rw [Sym2.map_mk]
         rw [B_quot_out_eq hB τ_orig (restEmbed a) (restEmbed b)]
         rw [hτ_compat a, hτ_compat b]
     -- Step 2: h_rhs_filter — split complement product by M.mult = 1.
@@ -3273,7 +3273,7 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
       · have hv : (restEmbed v).val = v.val := restEmbedAux_val_lab g_rest v h_lab
         have : v.val = i.val := by rw [← hv, h_eq]
         omega
-      · push_neg at h_lab
+      · push Not at h_lab
         have hv : (restEmbed v).val =
             (g_rest ⟨v.val - K, by have := v.isLt; omega⟩).val + K :=
           restEmbedAux_val_rest g_rest v (not_lt.mpr h_lab)
@@ -3293,7 +3293,7 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
       · have hv : (restEmbed v).val = v.val := restEmbedAux_val_lab g_rest v h_lab
         have : v.val = j.val := by rw [← hv, h_eq]
         omega
-      · push_neg at h_lab
+      · push Not at h_lab
         have hv : (restEmbed v).val =
             (g_rest ⟨v.val - K, by have := v.isLt; omega⟩).val + K :=
           restEmbedAux_val_rest g_rest v (not_lt.mpr h_lab)
@@ -3323,7 +3323,7 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
         · show i ∉ Sym2.map restEmbed e ∧ j ∉ Sym2.map restEmbed e
           induction e with
           | h a b =>
-            rw [Sym2.map_pair_eq]
+            rw [Sym2.map_mk]
             refine ⟨?_, ?_⟩
             · rw [Sym2.mem_iff]
               rintro (heq | heq)
@@ -3629,7 +3629,7 @@ private theorem multigraphEval_label_unlabeled_isolated_descends
         rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
         show (a ≠ b ∧ M.mult s(restEmbed a, restEmbed b) = 1) ↔
              (a ≠ b ∧ M.mult (Sym2.map restEmbed s(a, b)) = 1)
-        rw [Sym2.map_pair_eq]
+        rw [Sym2.map_mk]
     -- restEmbed never hits b (image avoids u_p position).
     have h_restEmbed_ne_b : ∀ v : Fin (n - 1 + K), restEmbed v ≠ b := by
       intro v h_eq
@@ -3637,7 +3637,7 @@ private theorem multigraphEval_label_unlabeled_isolated_descends
       · have hv : (restEmbed v).val = v.val := restEmbedAux_val_lab g_rest v h_lab
         have : v.val = b.val := by rw [← hv, h_eq]
         omega
-      · push_neg at h_lab
+      · push Not at h_lab
         have hv : (restEmbed v).val =
             (g_rest ⟨v.val - K, by have := v.isLt; omega⟩).val + K :=
           restEmbedAux_val_rest g_rest v (not_lt.mpr h_lab)
@@ -3673,7 +3673,7 @@ private theorem multigraphEval_label_unlabeled_isolated_descends
           · refine ⟨⟨z.val, by have := hn_ge_1; omega⟩, ?_⟩
             apply Fin.ext
             exact restEmbedAux_val_lab g_rest ⟨z.val, by have := hn_ge_1; omega⟩ hz_lab
-          · push_neg at hz_lab
+          · push Not at hz_lab
             let z_un : Fin n := ⟨z.val - K, by have := z.isLt; omega⟩
             have hz_un_ne_u_p : z_un ≠ u_p := by
               intro h_eq
@@ -3708,8 +3708,8 @@ private theorem multigraphEval_label_unlabeled_isolated_descends
           · show x' ≠ y'
             intro h_eq
             exact hxy_ne (hx'.symm.trans ((congrArg restEmbed h_eq).trans hy'))
-          · rw [Sym2.map_pair_eq, hx', hy']; exact hmult
-        · rw [Sym2.map_pair_eq, hx', hy']
+          · rw [Sym2.map_mk, hx', hy']; exact hmult
+        · rw [Sym2.map_mk, hx', hy']
     -- Assemble: W * B-rest equality.
     dsimp only
     rw [hW_rest]
@@ -3733,7 +3733,7 @@ private theorem multigraphEval_label_unlabeled_isolated_descends
         rw [dif_pos h_re_lab, dif_pos h_lab]
         congr 1
         exact Fin.ext h_re_val
-      · push_neg at h_lab
+      · push Not at h_lab
         have h_v_not_lab : ¬ v.val < K := not_lt.mpr h_lab
         let r : Fin (n - 1) := ⟨v.val - K, by have := v.isLt; omega⟩
         let k : {x : Fin n // ¬ p x} := complEquiv.symm r
@@ -3769,7 +3769,7 @@ private theorem multigraphEval_label_unlabeled_isolated_descends
       induction e with
       | h x y =>
         rw [B_quot_out_eq hB τ_rest x y]
-        rw [Sym2.map_pair_eq]
+        rw [Sym2.map_mk]
         rw [B_quot_out_eq hB τ_orig (restEmbed x) (restEmbed y)]
         rw [hτ_compat x, hτ_compat y]
     have h_rhs_filter :
@@ -3816,7 +3816,7 @@ private theorem multigraphEval_label_unlabeled_isolated_descends
         · show b ∉ Sym2.map restEmbed e
           induction e with
           | h x y =>
-            rw [Sym2.map_pair_eq]
+            rw [Sym2.map_mk]
             rw [Sym2.mem_iff]
             rintro (heq | heq)
             · exact h_restEmbed_ne_b x heq.symm
@@ -4149,7 +4149,7 @@ private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
       · -- Both labels: contradicts `he₀_unlabeled`.
         exact absurd (show a.val < K ∧ b.val < K from ⟨ha_lab, hb_lab⟩) he₀_unlabeled
       · -- `a` label, `b` unlabeled. Label-unlabeled case.
-        push_neg at hb_lab
+        push Not at hb_lab
         by_cases h_b_iso : ∀ e, e ≠ s(a, b) → b ∈ e → M.mult e = 0
         · exact multigraphEval_label_unlabeled_isolated_descends
             B hB W hW htwin M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one
@@ -4157,7 +4157,7 @@ private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
         · exact multigraphEval_label_unlabeled_nonisolated_descends
             B hB W hW htwin M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one
             h_b_iso h_simple h_sq_moment
-    · push_neg at ha_lab
+    · push Not at ha_lab
       by_cases hb_lab : b.val < K
       · -- `a` unlabeled, `b` label.
         by_cases h_a_iso : ∀ e, e ≠ s(a, b) → a ∈ e → M.mult e = 0
@@ -4168,7 +4168,7 @@ private theorem multigraphEval_one_doubled_unlabeled_edge_descends {T K n : ℕ}
             B hB W hW htwin M a b ha_lab hb_lab hab_ne he₀_doubled h_others_le_one
             h_a_iso h_simple h_sq_moment
       · -- Both unlabeled.
-        push_neg at hb_lab
+        push Not at hb_lab
         by_cases h_iso : ∀ e, e ≠ s(a, b) → (a ∈ e ∨ b ∈ e) → M.mult e = 0
         · -- **Isolated unlabeled-unlabeled doubled edge** — CLOSED via
           -- `multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends` (proved).
@@ -4300,7 +4300,7 @@ theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
         have h_nonLL_le_one : ∀ e, ¬ isLLEdge e → M.mult e ≤ 1 := by
           intro e he
           by_contra h_ge
-          push_neg at h_ge
+          push Not at h_ge
           have hLL := h_LL_excess e (by omega)
           exact he hLL
         exact multigraphEval_LL_excess_descends_aux B hB W
@@ -4311,7 +4311,7 @@ theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
         -- is non-LL (touches an unlabeled vertex).
         have h_unlabeled_excess :
             ∃ e : Sym2 (Fin ((n + 1) + K)), ¬ isLLEdge e ∧ 2 ≤ M.mult e := by
-          push_neg at h_LL_excess
+          push Not at h_LL_excess
           obtain ⟨e, he_mult, he_notLL⟩ := h_LL_excess
           refine ⟨e, ?_, he_mult⟩
           -- The local `isLL` and the global `isLLEdge` are definitionally equal.
@@ -4764,7 +4764,7 @@ lemma exists_not_mem_rangeFinset {T k : ℕ} (φ : Fin k → Fin T)
   classical
   rw [surjective_iff_rangeFinset_eq_univ] at h
   by_contra hcontra
-  push_neg at hcontra
+  push Not at hcontra
   apply h
   exact Finset.eq_univ_iff_forall.mpr hcontra
 
@@ -4863,7 +4863,7 @@ theorem tupleEquivSimple_restrict {T k : ℕ}
     rw [SimpleGraph.mem_edgeFinset] at he ⊢
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at *
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk] at *
       rw [SimpleGraph.mem_edgeSet] at he ⊢
       rw [SimpleGraph.map_adj]
       exact ⟨a, b, he, rfl, rfl⟩
@@ -4881,7 +4881,7 @@ theorem tupleEquivSimple_restrict {T k : ℕ}
       obtain ⟨a, b, hab, hax, hby⟩ := he
       refine ⟨s(a, b), ?_, ?_⟩
       · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact hab
-      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
         rw [hax, hby]
   · -- 4. Term-by-term equality.
     intro e _
@@ -4894,7 +4894,7 @@ theorem tupleEquivSimple_restrict {T k : ℕ}
               by have := v.isLt; omega⟩ with hν_def
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
       change B (ν' (Quot.out s(a, b)).1) (ν' (Quot.out s(a, b)).2) =
         B (ν (Quot.out s(shift a, shift b)).1)
           (ν (Quot.out s(shift a, shift b)).2)
@@ -5032,7 +5032,7 @@ theorem exists_extension_of_coeffRestrictSimple_pos {T k : ℕ}
     ∃ a : Fin T, tupleEquivSimple B W μ (Fin.snoc ψ a) := by
   classical
   by_contra h_no
-  push_neg at h_no
+  push Not at h_no
   -- Every term vanishes, so the sum is 0, contradicting positivity.
   have h_all_zero : ∀ t : Fin T,
       (if tupleEquivSimple B W μ (Fin.snoc ψ t) then W t else 0) = 0 := by
@@ -5089,7 +5089,7 @@ private theorem functional_span_zero {Q : Type*} [Fintype Q] [DecidableEq Q]
     intro d hm hd_ortho
     by_cases h_all_zero : ∀ q, d q = 0
     · exact h_all_zero
-    push_neg at h_all_zero
+    push Not at h_all_zero
     obtain ⟨q₀, hq₀⟩ := h_all_zero
     by_cases h_unique : ∀ q, q ≠ q₀ → d q = 0
     · obtain ⟨i₀, hi₀⟩ := hconst
@@ -5101,7 +5101,7 @@ private theorem functional_span_zero {Q : Type*} [Fintype Q] [DecidableEq Q]
         Finset.sum_eq_zero fun q hq => h_unique q (Finset.ne_of_mem_erase hq)
       rw [hzero, add_zero] at h
       exact absurd h hq₀
-    · push_neg at h_unique
+    · push Not at h_unique
       obtain ⟨q₁, hq₁_ne, hq₁⟩ := h_unique
       obtain ⟨i_sep, hi_sep⟩ := hsep q₀ q₁ hq₁_ne.symm
       let d' : Q → ℝ := fun q => d q * (f i_sep q - f i_sep q₀)
@@ -5683,7 +5683,7 @@ theorem tupleEquivSimple_restrict_along {T k T' : ℕ}
     rw [SimpleGraph.mem_edgeFinset] at he ⊢
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at *
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk] at *
       rw [SimpleGraph.mem_edgeSet] at he ⊢
       rw [SimpleGraph.map_adj]
       exact ⟨a, b, he, rfl, rfl⟩
@@ -5699,7 +5699,7 @@ theorem tupleEquivSimple_restrict_along {T k T' : ℕ}
       obtain ⟨a, b, hab, hax, hby⟩ := he
       refine ⟨s(a, b), ?_, ?_⟩
       · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact hab
-      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
         rw [hax, hby]
   · intro e _
     set ν' : Fin (n + T') → Fin T := fun v =>
@@ -5710,7 +5710,7 @@ theorem tupleEquivSimple_restrict_along {T k T' : ℕ}
       else σ ⟨(v : Fin (n + k)).val - k, by have := v.isLt; omega⟩ with hν_def
     induction e using Sym2.ind with
     | _ a b =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
       change B (ν' (Quot.out s(a, b)).1) (ν' (Quot.out s(a, b)).2) =
         B (ν (Quot.out s(shift a, shift b)).1) (ν (Quot.out s(shift a, shift b)).2)
       rw [h_edge_rep ν' a b, h_edge_rep ν (shift a) (shift b)]
@@ -6050,7 +6050,7 @@ theorem tupleEquivSimple_surjective_case {T k : ℕ}
   by_cases hj : ∃ i, r i = j
   · obtain ⟨i, rfl⟩ := hj
     rw [hψr_eq i, hr_spec i]
-  · push_neg at hj
+  · push Not at hj
     set i₀ : Fin T := φ j with hi₀
     let r' : Fin T → Fin k := fun i => if i = i₀ then j else r i
     have hr'_spec : ∀ i, φ (r' i) = i := by
@@ -8027,7 +8027,7 @@ theorem exists_sep_of_not_tupleEquivMulti {T K : ℕ} {B : Fin T → Fin T → �
     ∃ (n : ℕ) (M : MultiLabeledGraph K n),
       multiLabeledEvalK K n M B W η ≠ multiLabeledEvalK K n M B W μ := by
   unfold tupleEquivMulti at h
-  push_neg at h
+  push Not at h
   exact h
 
 /-- **`tupleEquivMulti`-class indicator** of `μ`: `1` on `μ`'s equivalence class, `0` elsewhere. -/
@@ -8197,7 +8197,7 @@ theorem tupleEquivMulti_extend_one {T k : ℕ}
   -- A positive trace sum forces some `Fin.snoc ξ' t` into `μ`'s class.
   have hex : ∃ t : Fin T, tupleEquivMulti B W (Fin.snoc ξ' t) μ := by
     by_contra hcon
-    push_neg at hcon
+    push Not at hcon
     have hzero : traceLastTupleFun W (tupleEquivMultiIndicator B W μ) ξ' = 0 := by
       unfold traceLastTupleFun
       apply Finset.sum_eq_zero
@@ -8313,14 +8313,14 @@ private theorem addIsoLabel_prod_reindex {T K n : ℕ} (M : MultiLabeledGraph K 
     apply he
     rw [Finset.mem_map]
     refine ⟨s(u', v'), Finset.mem_univ _, ?_⟩
-    rw [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq,
+    rw [Function.Embedding.sym2Map_apply, Sym2.map_mk,
       ← insLabelEmb_eq_of_unInsLabel K n hca, ← insLabelEmb_eq_of_unInsLabel K n hcb]
   rw [hfac]
   refine Finset.prod_congr rfl fun e' _ => ?_
   rw [addIsoLabel_mult_map_emb]
   congr 1
   refine Sym2.ind (fun a b => ?_) e'
-  rw [Sym2.map_pair_eq,
+  rw [Sym2.map_mk,
     B_quot_out_eq hB τ₂ (insLabelEmb K n a) (insLabelEmb K n b), B_quot_out_eq hB τ₁ a b,
     halign a, halign b]
 
@@ -8569,14 +8569,14 @@ private theorem restrictAlongGraph_prod_reindex {T k l n : ℕ} (e : Fin k ↪ F
     exfalso; apply hd
     rw [Finset.mem_map]
     refine ⟨s(u', v'), Finset.mem_univ _, ?_⟩
-    rw [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq,
+    rw [Function.Embedding.sym2Map_apply, Sym2.map_mk,
       ← restrictAlongEmb_eq_of_unembAlong e hca, ← restrictAlongEmb_eq_of_unembAlong e hcb]
   rw [hfac]
   refine Finset.prod_congr rfl fun d' _ => ?_
   rw [restrictAlongGraph_mult_map_emb]
   congr 1
   refine Sym2.ind (fun a b => ?_) d'
-  rw [Sym2.map_pair_eq,
+  rw [Sym2.map_mk,
     B_quot_out_eq hB τ₂ (restrictAlongEmb e n a) (restrictAlongEmb e n b),
     B_quot_out_eq hB τ₁ a b, halign a, halign b]
 
@@ -8976,7 +8976,7 @@ theorem multiTau_liftLabelPerm {T K n : ℕ} (ρ : Equiv.Perm (Fin K)) (ζ : Fin
 def MultiLabeledGraph.relabel {K n : ℕ} (ρ : Equiv.Perm (Fin K)) (M : MultiLabeledGraph K n) :
     MultiLabeledGraph K n where
   mult e := M.mult (Sym2.map (liftLabelPerm ρ).symm e)
-  multNoLoop x := by rw [Sym2.map_pair_eq]; exact M.multNoLoop _
+  multNoLoop x := by rw [Sym2.map_mk]; exact M.multNoLoop _
 
 theorem multiLabeledEvalK_relabel {T K n : ℕ} (ρ : Equiv.Perm (Fin K))
     (M : MultiLabeledGraph K n) (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
@@ -9001,7 +9001,7 @@ theorem multiLabeledEvalK_relabel {T K n : ℕ} (ρ : Equiv.Perm (Fin K))
   have hmult : (M.relabel ρ).mult (Sym2.map (liftLabelPerm ρ) s(a, b)) = M.mult s(a, b) := by
     show M.mult (Sym2.map (liftLabelPerm ρ).symm (Sym2.map (liftLabelPerm ρ) s(a, b))) = M.mult s(a, b)
     rw [Sym2.map_map, hsymm, Sym2.map_id, id_eq]
-  rw [hmult, Sym2.map_pair_eq,
+  rw [hmult, Sym2.map_mk,
     B_quot_out_eq hB (multiTau K n (ζ ∘ ρ) σ) a b,
     B_quot_out_eq hB (multiTau K n ζ σ) (liftLabelPerm ρ a) (liftLabelPerm ρ b),
     multiTau_liftLabelPerm ρ ζ σ a, multiTau_liftLabelPerm ρ ζ σ b]
@@ -9221,7 +9221,7 @@ theorem tupleEquivMulti_implies_orbit {T K : ℕ}
     · exact tupleEquivMulti_surjective_case B hB W hW htwin hsurj hξξ'
     · have hv_ex : ∃ v, v ∉ Finset.image ξ Finset.univ := by
         by_contra hno
-        push_neg at hno
+        push Not at hno
         exact hsurj fun v => by
           obtain ⟨a, _, ha⟩ := Finset.mem_image.mp (hno v); exact ⟨a, ha⟩
       obtain ⟨v, hv⟩ := hv_ex
@@ -9273,7 +9273,7 @@ theorem multiEval_separates_orbits {T K : ℕ}
     ∃ (n : ℕ) (M : MultiLabeledGraph K n),
       multiLabeledEvalK K n M B W ξ ≠ multiLabeledEvalK K n M B W η := by
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   exact h (tupleEquivMulti_implies_orbit B hB W hW htwin hcon)
 
 /-- Separator packaging (avoids nested `Classical.choose` instance issues).
@@ -9814,7 +9814,7 @@ private theorem k1_orbit_sep_aux {T : ℕ}
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + 1))) (_ : DecidableRel F.Adj),
       rootedProfile B W i F ≠ rootedProfile B W j F := by
   by_contra h_no_sep
-  push_neg at h_no_sep
+  push Not at h_no_sep
   apply h
   have h_eq : tupleEquivSimple B W (fun _ : Fin 1 => i) (fun _ : Fin 1 => j) := by
     intro n F hF
@@ -10245,7 +10245,7 @@ private theorem rootedProfileEquiv_of_tupleEquivSimple {T K : ℕ}
     rw [SimpleGraph.mem_edgeFinset] at he ⊢
     induction e using Sym2.ind with
     | _ x y =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq] at *
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk] at *
       rw [SimpleGraph.mem_edgeSet] at he ⊢
       rw [SimpleGraph.map_adj]
       exact ⟨x, y, he, rfl, rfl⟩
@@ -10263,7 +10263,7 @@ private theorem rootedProfileEquiv_of_tupleEquivSimple {T K : ℕ}
       obtain ⟨x, y, hxy, hxu, hyv⟩ := he
       refine ⟨s(x, y), ?_, ?_⟩
       · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact hxy
-      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      · simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
         rw [hxu, hyv]
   · -- 4. Term-by-term: B (τ_F (out e).1) (τ_F (out e).2)
     --    = B (τ_G (out (emb.sym2Map e)).1) (τ_G (out (emb.sym2Map e)).2).
@@ -10343,7 +10343,7 @@ private theorem rootedProfileEquiv_of_tupleEquivSimple {T K : ℕ}
     -- Use h_edge_rep to bypass Quot.out orientation.
     induction e using Sym2.ind with
     | _ x y =>
-      simp only [Function.Embedding.sym2Map_apply, Sym2.map_pair_eq]
+      simp only [Function.Embedding.sym2Map_apply, Sym2.map_mk]
       rw [h_edge_rep τF x y, h_edge_rep τG (emb x) (emb y)]
       rw [hτ x, hτ y]
 
@@ -11097,7 +11097,7 @@ theorem rooted_profiles_separate_vertex_orbits {T : ℕ}
       rootedProfile B W i F ≠ rootedProfile B W j F := by
   -- Contrapositive of rootedProfileEquiv_imp_vertexOrbitRel.
   by_contra h_no_sep
-  push_neg at h_no_sep
+  push Not at h_no_sep
   apply h
   apply rootedProfileEquiv_imp_vertexOrbitRel B hB W hW htwin
   intro n F hF_dec

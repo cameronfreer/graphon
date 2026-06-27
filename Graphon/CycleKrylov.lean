@@ -6,7 +6,7 @@ Authors: Cameron Freer
 import Mathlib.Analysis.InnerProductSpace.PiL2
 import Mathlib.Analysis.InnerProductSpace.ProdL2
 import Mathlib.Analysis.InnerProductSpace.Projection.Basic
-import Mathlib.Data.Real.Sqrt
+import Mathlib.Analysis.Real.Sqrt
 import Graphon.SimpleRank
 
 /-!
@@ -3812,8 +3812,8 @@ theorem commonNeighborGraph_edgeFinset :
     commonNeighborGraph.edgeFinset = {s((0 : Fin (1 + 2)), 2), s((1 : Fin (1 + 2)), 2)} := by
   ext e
   simp only [SimpleGraph.mem_edgeFinset, commonNeighborGraph, SimpleGraph.edgeSet_fromEdgeSet,
-    Finset.mem_insert, Finset.mem_singleton, Set.mem_diff, Set.mem_insert_iff,
-    Set.mem_singleton_iff, Sym2.mem_diagSet_iff_isDiag]
+    Finset.mem_insert, Finset.mem_singleton, Set.mem_sdiff, Set.mem_insert_iff,
+    Set.mem_singleton_iff, Sym2.mem_diagSet]
   refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
   rcases he with he | he <;> rw [he, Sym2.mk_isDiag_iff] <;> decide
 
