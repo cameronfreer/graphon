@@ -1029,4 +1029,135 @@ theorem superMap_isWeightedAutomorphism {T : ℕ} (B : Fin T → Fin T → ℝ) 
   · rw [superPerm_apply]; exact superMap_preserves_W B hB W hW htwin ξ ξ' hξ h i
   · rw [superPerm_apply, superPerm_apply]; exact superMap_preserves_B B hB W hW htwin ξ ξ' hξ h i j
 
+/-- **One-extra-label raw moment identity.** Attaching a single distinguished label `i₀` to a
+star-test graph and selecting disjoint exponent blocks inside the (large) super-fibres minus
+`{i₀}`, the `tupleEquivSimple` equality on the star graph yields the raw moment identity with one
+extra `B (ξ i₀) t` / `B (ξ' i₀) t` factor. Reindexing the right-hand side by the orbit permutation
+`superMap` (which preserves `W` and `B`) turns `B (ξ' i₀) t` into `B (ξ' i₀) (superMap t)` while
+restoring the aligned exponent product `∏ⱼ (B j t) ^ k j`. -/
+theorem one_extra_label_moment {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (i₀ : Fin K)
+    (k : Fin T → ℕ) (hk : ∀ j, k j < T) :
+    ∑ t, W t * B (ξ i₀) t * ∏ j, (B j t) ^ k j
+      = ∑ t, W t * B (ξ' i₀) (superMap ξ ξ' hξ t) * ∏ j, (B j t) ^ k j := by
+  classical
+  -- Each super-fibre minus `{i₀}` is still large enough to hold `k j` labels.
+  have hbound : ∀ j, k j ≤ (superFiberSubset ξ ξ' hξ j \ {i₀}).card := by
+    intro j
+    have h1 := superFiberSubset_card ξ ξ' hξ j
+    have h2 : (superFiberSubset ξ ξ' hξ j).card
+        ≤ (superFiberSubset ξ ξ' hξ j \ {i₀}).card + ({i₀} : Finset (Fin K)).card :=
+      Finset.card_le_card_sdiff_add_card
+    have h3 : ({i₀} : Finset (Fin K)).card = 1 := Finset.card_singleton i₀
+    have h4 := hk j
+    omega
+  choose Kf hKf_sub hKf_card using fun j =>
+    Finset.exists_subset_card_eq (s := superFiberSubset ξ ξ' hξ j \ {i₀}) (n := k j) (hbound j)
+  have hKf_sub' : ∀ j, Kf j ⊆ superFiberSubset ξ ξ' hξ j :=
+    fun j => (hKf_sub j).trans Finset.sdiff_subset
+  have hi₀ : i₀ ∉ univ.biUnion Kf := by
+    intro hmem
+    rw [Finset.mem_biUnion] at hmem
+    obtain ⟨j, -, hj⟩ := hmem
+    have hj' := hKf_sub j hj
+    rw [Finset.mem_sdiff] at hj'
+    exact hj'.2 (Finset.mem_singleton_self i₀)
+  have hdisj : Set.PairwiseDisjoint (↑(univ : Finset (Fin T))) Kf :=
+    fun j _ j' _ hjj => Finset.disjoint_of_subset_left (hKf_sub' j)
+      (Finset.disjoint_of_subset_right (hKf_sub' j') (superFiberSubset_disjoint ξ ξ' hξ hjj))
+  have hLHS : ∀ t, ∏ i ∈ univ.biUnion Kf, B (ξ i) t = ∏ j, (B j t) ^ k j := fun t =>
+    prod_biUnion_const hdisj
+      (fun j i hi => by rw [superFiberSubset_mem_left ξ ξ' hξ j (hKf_sub' j hi)]) hKf_card
+  have hRHS : ∀ t, ∏ i ∈ univ.biUnion Kf, B (ξ' i) t
+      = ∏ j, (B (superMap ξ ξ' hξ j) t) ^ k j := fun t =>
+    prod_biUnion_const hdisj
+      (fun j i hi => by rw [superFiberSubset_image_const ξ ξ' hξ j i (hKf_sub' j hi)]) hKf_card
+  -- The star-test equality on `S = insert i₀ (⋃ⱼ Kf j)`.
+  have heq : simpleEvalAt B W (starTestGraph (insert i₀ (univ.biUnion Kf))) ξ
+      = simpleEvalAt B W (starTestGraph (insert i₀ (univ.biUnion Kf))) ξ' :=
+    h 1 (starTestGraph (insert i₀ (univ.biUnion Kf)))
+  rw [simpleEvalAt_starTestGraph B hB W _ ξ, simpleEvalAt_starTestGraph B hB W _ ξ'] at heq
+  -- Phase A: raw moment identity with one extra `i₀` factor.
+  have phaseA : ∑ t, W t * B (ξ i₀) t * ∏ j, (B j t) ^ k j
+      = ∑ t, W t * B (ξ' i₀) t * ∏ j, (B (superMap ξ ξ' hξ j) t) ^ k j := by
+    calc ∑ t, W t * B (ξ i₀) t * ∏ j, (B j t) ^ k j
+        = ∑ t, W t * ∏ i ∈ insert i₀ (univ.biUnion Kf), B (ξ i) t := by
+          refine Finset.sum_congr rfl fun t _ => ?_
+          rw [Finset.prod_insert hi₀, hLHS t]; ring
+      _ = ∑ t, W t * ∏ i ∈ insert i₀ (univ.biUnion Kf), B (ξ' i) t := heq
+      _ = ∑ t, W t * B (ξ' i₀) t * ∏ j, (B (superMap ξ ξ' hξ j) t) ^ k j := by
+          refine Finset.sum_congr rfl fun t _ => ?_
+          rw [Finset.prod_insert hi₀, hRHS t]; ring
+  -- Phase B: reindex the right-hand side by the orbit permutation `superMap`.
+  have phaseB : ∑ t, W t * B (ξ' i₀) t * ∏ j, (B (superMap ξ ξ' hξ j) t) ^ k j
+      = ∑ t, W t * B (ξ' i₀) (superMap ξ ξ' hξ t) * ∏ j, (B j t) ^ k j := by
+    rw [← Equiv.sum_comp (superPerm B hB W hW htwin ξ ξ' hξ h)
+      (fun t => W t * B (ξ' i₀) t * ∏ j, (B (superMap ξ ξ' hξ j) t) ^ k j)]
+    refine Finset.sum_congr rfl fun u _ => ?_
+    simp only [superPerm_apply]
+    rw [superMap_preserves_W B hB W hW htwin ξ ξ' hξ h u]
+    congr 1
+    refine Finset.prod_congr rfl fun j _ => ?_
+    rw [superMap_preserves_B B hB W hW htwin ξ ξ' hξ h j u]
+  exact phaseA.trans phaseB
+
+/-- **Full-fibre reconciliation (3A.6).** Every label `i` maps under `ξ'` to `superMap (ξ i)` —
+not only the labels in the selected subsets. The one-extra-label moment identity feeds the
+(graph-free) Vandermonde class-sum over `Fin T`: twin-freeness makes each profile fibre a
+singleton, positivity gives `B (ξ i₀) t = B (ξ' i₀) (superMap t)` for all `t`, and applying the
+automorphism property identifies `ξ' i₀ = superMap (ξ i₀)`. -/
+theorem superMap_agrees_on_all_labels {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    ∀ i : Fin K, ξ' i = superMap ξ ξ' hξ (ξ i) := by
+  intro i₀
+  have hmom : ∀ k : Fin T → ℕ, (∀ j, k j < T) →
+      ∑ t, (W t * (B (ξ i₀) t - B (ξ' i₀) (superMap ξ ξ' hξ t))) * ∏ j, (B j t) ^ k j = 0 := by
+    intro k hk
+    have heq := one_extra_label_moment B hB W hW htwin ξ ξ' hξ h i₀ k hk
+    have hsplit : ∑ t, (W t * (B (ξ i₀) t - B (ξ' i₀) (superMap ξ ξ' hξ t))) * ∏ j, (B j t) ^ k j
+        = (∑ t, W t * B (ξ i₀) t * ∏ j, (B j t) ^ k j)
+          - (∑ t, W t * B (ξ' i₀) (superMap ξ ξ' hξ t) * ∏ j, (B j t) ^ k j) := by
+      rw [← Finset.sum_sub_distrib]
+      refine Finset.sum_congr rfl (fun t _ => ?_); ring
+    rw [hsplit, heq, sub_self]
+  have hstar : ∀ t, B (ξ i₀) t = B (ξ' i₀) (superMap ξ ξ' hξ t) := by
+    intro t₀
+    have hclass := CaiGovorov.multivariate_vandermonde_class_sums_zero
+      (fun t => fun j => B j t)
+      (fun t => W t * (B (ξ i₀) t - B (ξ' i₀) (superMap ξ ξ' hξ t)))
+      (fun ℓ hℓ => hmom ℓ (fun j => Fintype.card_fin T ▸ hℓ j)) (fun j => B j t₀)
+    have hfilt : (univ.filter (fun t => (fun j => B j t) = (fun j => B j t₀))) = {t₀} := by
+      ext t
+      simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_singleton]
+      constructor
+      · intro hcol
+        by_contra hne
+        refine htwin t t₀ hne ?_
+        funext j; have hj := congrFun hcol j; rw [hB t j, hB t₀ j]; exact hj
+      · rintro rfl; rfl
+    rw [hfilt, Finset.sum_singleton] at hclass
+    rcases mul_eq_zero.mp hclass with h0 | h0
+    · exact absurd h0 (ne_of_gt (hW t₀))
+    · exact sub_eq_zero.mp h0
+  by_contra hne
+  refine htwin (superMap ξ ξ' hξ (ξ i₀)) (ξ' i₀) (fun heq => hne heq.symm) ?_
+  funext u
+  obtain ⟨t, ht⟩ := (superMap_bijective B hB W hW htwin ξ ξ' hξ h).surjective u
+  rw [← ht, superMap_preserves_B B hB W hW htwin ξ ξ' hξ h (ξ i₀) t]
+  exact hstar t
+
+/-- **Chunk 3A — the super-surjective Cai–Govorov orbit separation.** If `ξ` is super-surjective
+and `ξ ≈ ξ'` (equal simple-graph evaluations), then `ξ'` is in the weighted-automorphism orbit of
+`ξ`. Combines `superMap_isWeightedAutomorphism` with the full-fibre reconciliation. -/
+theorem tupleEquivSimple_implies_orbit_super {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ v, 0 < W v)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ)
+    (h : tupleEquivSimple B W ξ ξ') :
+    tupleOrbitRel B W ξ ξ' :=
+  ⟨superPerm B hB W hW htwin ξ ξ' hξ h,
+   superMap_isWeightedAutomorphism B hB W hW htwin ξ ξ' hξ h,
+   fun i => by rw [superPerm_apply]; exact superMap_agrees_on_all_labels B hB W hW htwin ξ ξ' hξ h i⟩
+
 end Graphon.Lovasz
