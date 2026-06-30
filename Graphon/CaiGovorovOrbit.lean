@@ -1160,4 +1160,69 @@ theorem tupleEquivSimple_implies_orbit_super {T : ℕ} (B : Fin T → Fin T → 
    superMap_isWeightedAutomorphism B hB W hW htwin ξ ξ' hξ h,
    fun i => by rw [superPerm_apply]; exact superMap_agrees_on_all_labels B hB W hW htwin ξ ξ' hξ h i⟩
 
+/-- The extended label type: the `K` original labels plus, for each host vertex, `2*T²` copies. -/
+def ExtLabel (K T : ℕ) : Type := Fin K ⊕ (Fin T × Fin (2 * T ^ 2))
+
+instance (K T : ℕ) : Fintype (ExtLabel K T) := inferInstanceAs (Fintype (Fin K ⊕ _))
+instance (K T : ℕ) : DecidableEq (ExtLabel K T) := inferInstanceAs (DecidableEq (Fin K ⊕ _))
+
+/-- The extended tuple: original labels keep their `ξ`-value; the copy `(v, _)` maps to `v`. -/
+def extTuple {T : ℕ} (ξ : Fin K → Fin T) : ExtLabel K T → Fin T
+  | Sum.inl i => ξ i
+  | Sum.inr p => p.1
+
+/-- Size of the extended label set. -/
+def extCard (K T : ℕ) : ℕ := K + T * (2 * T ^ 2)
+
+theorem card_extLabel (K T : ℕ) : Fintype.card (ExtLabel K T) = extCard K T := by
+  show Fintype.card (Fin K ⊕ (Fin T × Fin (2 * T ^ 2))) = extCard K T
+  simp [extCard, Fintype.card_sum, Fintype.card_prod, Fintype.card_fin]
+
+/-- Transport `ExtLabel` to `Fin (extCard K T)`. -/
+noncomputable def extLabelEquivFin (K T : ℕ) : ExtLabel K T ≃ Fin (extCard K T) :=
+  Fintype.equivFinOfCardEq (card_extLabel K T)
+
+/-- The extended tuple as a `Fin`-indexed tuple (for use with `simpleEvalAt`/`SuperSurjective`). -/
+noncomputable def extTupleFin {T : ℕ} (ξ : Fin K → Fin T) : Fin (extCard K T) → Fin T :=
+  fun i => extTuple ξ ((extLabelEquivFin K T).symm i)
+
+theorem extTuple_restrict {T : ℕ} (ξ : Fin K → Fin T) (i : Fin K) :
+    extTuple ξ (Sum.inl i) = ξ i := rfl
+
+/-- The canonical extension is super-surjective: each host vertex `v` has the `2*T²` copies
+`(v, c)` in its preimage. -/
+theorem extTuple_superSurjective {T : ℕ} (ξ : Fin K → Fin T) :
+    SuperSurjective (extTupleFin ξ) := by
+  intro v
+  -- The injection from the `2*T²` copies of `v` into the fibre over `v`.
+  set f : Fin (2 * T ^ 2) → Fin (extCard K T) :=
+    fun c => extLabelEquivFin K T (Sum.inr (v, c)) with hf_def
+  have hf_inj : Function.Injective f := by
+    intro c₁ c₂ h
+    have h2 := (extLabelEquivFin K T).injective h
+    have h3 : ((v, c₁) : Fin T × Fin (2 * T ^ 2)) = (v, c₂) := Sum.inr.inj h2
+    exact congrArg Prod.snd h3
+  have hsub : univ.image f ⊆ univ.filter (fun i => extTupleFin ξ i = v) := by
+    intro i hi
+    rw [Finset.mem_image] at hi
+    obtain ⟨c, _, rfl⟩ := hi
+    rw [Finset.mem_filter]
+    refine ⟨Finset.mem_univ _, ?_⟩
+    show extTupleFin ξ (extLabelEquivFin K T (Sum.inr (v, c))) = v
+    simp [extTupleFin, extTuple, Equiv.symm_apply_apply]
+  have hcard : (univ.image f).card = 2 * T ^ 2 := by
+    rw [Finset.card_image_of_injective _ hf_inj, Finset.card_univ, Fintype.card_fin]
+  have hle : 2 * T ^ 2 ≤ (univ.filter (fun i => extTupleFin ξ i = v)).card := by
+    rw [← hcard]; exact Finset.card_le_card hsub
+  calc 2 * T * T = 2 * T ^ 2 := by ring
+    _ ≤ _ := hle
+
+/-- `μ` extends `ξ` if it agrees with `ξ` on the original labels. -/
+def Extends {T : ℕ} (ξ : Fin K → Fin T) (μ : ExtLabel K T → Fin T) : Prop :=
+  ∀ i, μ (Sum.inl i) = ξ i
+
+/-- The product of `W` over the extra-label values of `μ` (the weight factor in eq. (10)). -/
+noncomputable def extensionWeight {T : ℕ} (W : Fin T → ℝ) (μ : ExtLabel K T → Fin T) : ℝ :=
+  ∏ p : Fin T × Fin (2 * T ^ 2), W (μ (Sum.inr p))
+
 end Graphon.Lovasz
