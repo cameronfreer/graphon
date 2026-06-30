@@ -1225,4 +1225,94 @@ def Extends {T : ℕ} (ξ : Fin K → Fin T) (μ : ExtLabel K T → Fin T) : Pro
 noncomputable def extensionWeight {T : ℕ} (W : Fin T → ℝ) (μ : ExtLabel K T → Fin T) : ℝ :=
   ∏ p : Fin T × Fin (2 * T ^ 2), W (μ (Sum.inr p))
 
+/-! ## Chunk 3B.1b: iterating the trace over the extra labels
+
+The trace operator `MultiLabeledGraph.trace` folds the *last* label into a new unlabeled
+vertex. Iterating it `m` times folds the last `m` labels of a `(K+m)`-labeled multigraph,
+yielding a `K`-labeled multigraph on `n + m` unlabeled vertices. The closure identity
+`multiLabeledEvalK_sum_last_label` then accumulates into a `W`-weighted sum over the `m`
+folded label values (`ρ : Fin m → Fin T`). -/
+
+/-- **Unlabeled re-cast of a multigraph.** Reindex the vertex space `Fin (b + K)` of a target
+multigraph onto `Fin (a + K)` through the val-preserving `Fin.cast`, when `a = b`. Used to
+reconcile `(n + 1) + m` with `n + (m + 1)` in `traceIterExtraLabels`. -/
+def MultiLabeledGraph.castUnlabeled {K a b : ℕ} (hab : a = b) (M : MultiLabeledGraph K a) :
+    MultiLabeledGraph K b where
+  mult e := M.mult (Sym2.map (Fin.cast (by rw [hab])) e)
+  multNoLoop x := by rw [Sym2.map_mk]; exact M.multNoLoop _
+
+/-- The multigraph evaluation is invariant under the val-preserving unlabeled re-cast. -/
+theorem multiLabeledEvalK_castUnlabeled {T K a b : ℕ} (hab : a = b)
+    (M : MultiLabeledGraph K a) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    multiLabeledEvalK K b (M.castUnlabeled hab) B W φ = multiLabeledEvalK K a M B W φ := by
+  subst hab
+  have hmult : ∀ e : Sym2 (Fin (a + K)), (M.castUnlabeled (rfl : a = a)).mult e = M.mult e := by
+    intro e
+    refine congrArg M.mult ?_
+    refine Sym2.ind (fun x y => ?_) e
+    rw [Sym2.map_mk, Fin.cast_eq_self, Fin.cast_eq_self]
+  simp only [multiLabeledEvalK]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  congr 1
+  refine Finset.prod_congr rfl fun e _ => ?_
+  rw [hmult e]
+
+/-- **Iterated trace** over the last `m` labels. Folds the last `m` labels of a `(K+m)`-labeled
+multigraph into `m` new unlabeled vertices, yielding a `K`-labeled multigraph on `n + m`
+unlabeled vertices. Recurses on `m`, threading `MultiLabeledGraph.trace` and reconciling the
+`(n+1)+m = n+(m+1)` vertex-count mismatch with `castUnlabeled`. -/
+def traceIterExtraLabels {K : ℕ} : ∀ {n : ℕ} (m : ℕ),
+    MultiLabeledGraph (K + m) n → MultiLabeledGraph K (n + m)
+  | _, 0, M => M
+  | n, m + 1, M =>
+      (traceIterExtraLabels m M.trace).castUnlabeled (by omega : (n + 1) + m = n + (m + 1))
+
+theorem multiLabeledEvalK_sum_extra_labels {K m n T : ℕ}
+    (M : MultiLabeledGraph (K + m) n) (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (φ : Fin K → Fin T) :
+    ∑ ρ : Fin m → Fin T,
+        (∏ j : Fin m, W (ρ j)) * multiLabeledEvalK (K + m) n M B W (Fin.append φ ρ)
+      = multiLabeledEvalK K (n + m) (traceIterExtraLabels m M) B W φ := by
+  induction m generalizing n with
+  | zero =>
+    rw [Fintype.sum_unique, Fin.prod_univ_zero, one_mul]
+    have happ : Fin.append φ (default : Fin 0 → Fin T) = φ := by
+      rw [Fin.append_right_nil φ _ rfl]
+      funext v
+      exact congrArg φ (Fin.ext rfl)
+    rw [happ]
+    rfl
+  | succ m ih =>
+    have hcast : multiLabeledEvalK K (n + (m + 1)) (traceIterExtraLabels (m + 1) M) B W φ
+        = multiLabeledEvalK K ((n + 1) + m) (traceIterExtraLabels m M.trace) B W φ := by
+      rw [show traceIterExtraLabels (m + 1) M
+            = (traceIterExtraLabels m M.trace).castUnlabeled
+                (by omega : (n + 1) + m = n + (m + 1)) from rfl]
+      rw [multiLabeledEvalK_castUnlabeled]
+    rw [hcast, ← ih M.trace]
+    -- Normalize the label count `K + (m+1)` to `K + m + 1` to align with `sum_last_label`.
+    show ∑ ρ : Fin (m + 1) → Fin T,
+        (∏ j : Fin (m + 1), W (ρ j)) *
+          multiLabeledEvalK (K + m + 1) n M B W (@Fin.append K (m + 1) (Fin T) φ ρ)
+      = ∑ ρ : Fin m → Fin T,
+        (∏ j : Fin m, W (ρ j)) *
+          multiLabeledEvalK (K + m) (n + 1) M.trace B W (Fin.append φ ρ)
+    -- Split the last folded label `x` off `ρ = Fin.snoc ρ₀ x`.
+    have hsnocEq : ∀ p : Fin T × (Fin m → Fin T),
+        (Fin.snocEquiv (fun _ : Fin (m + 1) => Fin T)) p = Fin.snoc p.2 p.1 :=
+      fun p => funext fun x => Fin.snocEquiv_apply (fun _ : Fin (m + 1) => Fin T) p x
+    rw [← Equiv.sum_comp (Fin.snocEquiv (fun _ : Fin (m + 1) => Fin T)),
+        Fintype.sum_prod_type]
+    simp only [hsnocEq]
+    rw [Finset.sum_comm]
+    refine Finset.sum_congr rfl fun ρ₀ _ => ?_
+    simp only [Fin.prod_univ_castSucc, Fin.snoc_castSucc, Fin.snoc_last, Fin.append_snoc]
+    have hlast : ∑ x : Fin T,
+        W x * multiLabeledEvalK (K + m + 1) n M B W (Fin.snoc (Fin.append φ ρ₀) x)
+      = multiLabeledEvalK (K + m) (n + 1) M.trace B W (Fin.append φ ρ₀) :=
+      multiLabeledEvalK_sum_last_label M B hB W (Fin.append φ ρ₀)
+    rw [← hlast, Finset.mul_sum]
+    refine Finset.sum_congr rfl fun x _ => ?_
+    ring
+
 end Graphon.Lovasz
