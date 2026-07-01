@@ -1536,4 +1536,20 @@ theorem superExt_superSurjective {T : ℕ} (ξ : Fin K → Fin T) :
   calc 2 * T * T = 2 * T ^ 2 := by ring
     _ ≤ _ := hle
 
+/-! ### Chunk 3B.2b: separation (contrapositive of the super-surjective case) -/
+
+/-- **Separation (Cai–Govorov Lemma 10).** Since `superExt ξ` is super-surjective, any extension
+`μ` not in its weighted-automorphism orbit is *not* simple-equivalent to it — i.e. some simple
+graph separates them. This is the contrapositive of `tupleEquivSimple_implies_orbit_super` applied
+to the reference extension `η = superExt ξ`, and it is the oracle that builds the finite separating
+family in the counting/Vandermonde step. -/
+theorem not_tupleEquivSimple_of_not_orbit {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ v, 0 < W v)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (ξ : Fin K → Fin T)
+    (μ : Fin (K + T * (2 * T ^ 2)) → Fin T)
+    (hnotorbit : ¬ tupleOrbitRel B W (superExt ξ) μ) :
+    ¬ tupleEquivSimple B W (superExt ξ) μ :=
+  fun heq => hnotorbit (tupleEquivSimple_implies_orbit_super B hB W hW htwin (superExt ξ) μ
+    (superExt_superSurjective ξ) heq)
+
 end Graphon.Lovasz
