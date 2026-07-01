@@ -1474,4 +1474,66 @@ theorem extension_sum_identity {T m n : ℕ} (B : Fin T → Fin T → ℝ) (hB :
   rw [hbridge ξ, hbridge ξ']
   exact h (n + m) (unlabelExtras G)
 
+/-! ### Chunk 3B.2a: the concrete super-surjective extension of `ξ` (extras-last) -/
+
+/-- The extra-value tuple that maps `2*T²` labels to each host vertex. Uses the product equiv
+`Fin T × Fin (2*T²) ≃ Fin (T * (2*T²))`: label `j` maps to the vertex component of `j`. -/
+noncomputable def coverExtra (T : ℕ) : Fin (T * (2 * T ^ 2)) → Fin T :=
+  fun j => (finProdFinEquiv.symm j).1
+
+/-- The canonical super-surjective extension of `ξ`: keep `ξ` on the first `K` labels, then add
+`T * (2*T²)` extra labels covering every host vertex `2*T²` times. -/
+noncomputable def superExt {T : ℕ} (ξ : Fin K → Fin T) :
+    Fin (K + T * (2 * T ^ 2)) → Fin T :=
+  Fin.append ξ (coverExtra T)
+
+theorem superExt_extends {T : ℕ} (ξ : Fin K → Fin T) :
+    ExtendsFin ξ (superExt ξ) := by
+  intro i; rw [superExt, Fin.append_left]
+
+theorem coverExtra_fiber_card {T : ℕ} (v : Fin T) :
+    (univ.filter (fun j => coverExtra T j = v)).card = 2 * T ^ 2 := by
+  classical
+  have hg_inj : Function.Injective
+      (fun c : Fin (2 * T ^ 2) => finProdFinEquiv (v, c)) := by
+    intro c₁ c₂ h
+    exact congrArg Prod.snd (finProdFinEquiv.injective h)
+  have hset : univ.filter (fun j => coverExtra T j = v)
+      = univ.image (fun c : Fin (2 * T ^ 2) => finProdFinEquiv (v, c)) := by
+    ext j
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_image]
+    constructor
+    · intro hj
+      simp only [coverExtra] at hj
+      refine ⟨(finProdFinEquiv.symm j).2, ?_⟩
+      rw [← hj]
+      exact finProdFinEquiv.apply_symm_apply j
+    · rintro ⟨c, rfl⟩
+      simp only [coverExtra, Equiv.symm_apply_apply]
+  rw [hset, Finset.card_image_of_injective _ hg_inj, Finset.card_univ, Fintype.card_fin]
+
+theorem superExt_superSurjective {T : ℕ} (ξ : Fin K → Fin T) :
+    SuperSurjective (superExt ξ) := by
+  intro v
+  classical
+  have hsub : (univ.filter (fun j => coverExtra T j = v)).image (Fin.natAdd K)
+      ⊆ univ.filter (fun i => superExt ξ i = v) := by
+    intro i hi
+    rw [Finset.mem_image] at hi
+    obtain ⟨j, hj, rfl⟩ := hi
+    rw [Finset.mem_filter] at hj ⊢
+    refine ⟨Finset.mem_univ _, ?_⟩
+    show superExt ξ (Fin.natAdd K j) = v
+    rw [superExt, Fin.append_right]
+    exact hj.2
+  have hcard : ((univ.filter (fun j => coverExtra T j = v)).image (Fin.natAdd K)).card
+      = 2 * T ^ 2 := by
+    rw [Finset.card_image_of_injective _ (Fin.natAdd_injective (T * (2 * T ^ 2)) K),
+      coverExtra_fiber_card]
+  have hle : 2 * T ^ 2 ≤ (univ.filter (fun i => superExt ξ i = v)).card := by
+    have hcle := Finset.card_le_card hsub
+    rwa [hcard] at hcle
+  calc 2 * T * T = 2 * T ^ 2 := by ring
+    _ ≤ _ := hle
+
 end Graphon.Lovasz
