@@ -1315,4 +1315,158 @@ theorem multiLabeledEvalK_sum_extra_labels {K m n T : ℕ}
     refine Finset.sum_congr rfl fun x _ => ?_
     ring
 
+/-! ## Chunk 3B.1c step 2: the trace-to-simple eval bridge -/
+
+/-- Local (public) connector: `simpleEvalAt` is `multiLabeledEvalK` on `ofSimple`
+(the file-local analog of the private `simpleEvalAt_eq_multi` in `Lovasz`). -/
+theorem simpleEvalAt_eq_multi' {T K n : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (F : SimpleGraph (Fin (n + K))) [DecidableRel F.Adj] (ξ : Fin K → Fin T) :
+    simpleEvalAt B W F ξ = multiLabeledEvalK K n (MultiLabeledGraph.ofSimple F) B W ξ := by
+  rw [multiLabeledEvalK_ofSimple]; rfl
+
+/-- **Unlabel-extras simple graph.** Comap of `G` along the val-preserving cast
+`Fin ((n + m) + K) → Fin (n + (K + m))`, moving the last `m` labels back into unlabeled
+position. The trace bridge (`traceIterExtraLabels_ofSimple_eq`) identifies
+`traceIterExtraLabels m (ofSimple G)` with `ofSimple (unlabelExtras G)`. -/
+def unlabelExtras {K m n : ℕ} (G : SimpleGraph (Fin (n + (K + m)))) :
+    SimpleGraph (Fin ((n + m) + K)) :=
+  SimpleGraph.comap (Fin.cast (by omega : (n + m) + K = n + (K + m))) G
+
+noncomputable instance {K m n} (G : SimpleGraph (Fin (n + (K + m)))) [DecidableRel G.Adj] :
+    DecidableRel (unlabelExtras G).Adj := Classical.decRel _
+
+/-- **Net-cast lemma** (the crux). The iterated `trace`/`castUnlabeled` reindexing collapses to
+a single val-preserving `Fin.cast`: reading a multiplicity of `traceIterExtraLabels m M` at `e`
+equals reading `M`'s multiplicity at the cast of `e`. -/
+theorem traceIterExtraLabels_mult {K : ℕ} : ∀ {n : ℕ} (m : ℕ) (M : MultiLabeledGraph (K + m) n)
+    (e : Sym2 (Fin ((n + m) + K))),
+    (traceIterExtraLabels m M).mult e
+      = M.mult (Sym2.map (Fin.cast (by omega : (n + m) + K = n + (K + m))) e) := by
+  intro n m
+  induction m generalizing n with
+  | zero =>
+    intro M e
+    refine e.ind fun x y => ?_
+    show M.mult s(x, y) = M.mult (Sym2.map (Fin.cast _) s(x, y))
+    rw [Sym2.map_mk]
+    congr 1
+  | succ m ih =>
+    intro M e
+    rw [show traceIterExtraLabels (m + 1) M
+          = (traceIterExtraLabels m M.trace).castUnlabeled
+              (by omega : (n + 1) + m = n + (m + 1)) from rfl]
+    refine e.ind fun x y => ?_
+    show (traceIterExtraLabels m M.trace).mult (Sym2.map (Fin.cast _) s(x, y))
+        = M.mult (Sym2.map (Fin.cast _) s(x, y))
+    rw [ih M.trace]
+    show M.mult (Sym2.map (Fin.cast _) (Sym2.map (Fin.cast _) (Sym2.map (Fin.cast _) s(x, y))))
+        = M.mult (Sym2.map (Fin.cast _) s(x, y))
+    rw [Sym2.map_mk, Sym2.map_mk, Sym2.map_mk, Sym2.map_mk]
+    congr 1
+
+/-- **Graph bridge.** Iterating the trace over the extra labels of an `ofSimple` multigraph
+yields the `ofSimple` multigraph of the unlabel-extras simple graph. -/
+theorem traceIterExtraLabels_ofSimple_eq {K m n : ℕ} (G : SimpleGraph (Fin (n + (K + m))))
+    [DecidableRel G.Adj] :
+    traceIterExtraLabels m (MultiLabeledGraph.ofSimple G)
+      = MultiLabeledGraph.ofSimple (unlabelExtras G) := by
+  have hiff : ∀ e : Sym2 (Fin ((n + m) + K)),
+      (Sym2.map (Fin.cast (by omega : (n + m) + K = n + (K + m))) e) ∈ G.edgeFinset
+        ↔ e ∈ (unlabelExtras G).edgeFinset := by
+    refine fun e => e.ind fun u v => ?_
+    rw [Sym2.map_mk]
+    simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, unlabelExtras,
+      SimpleGraph.comap_adj]
+  have hmult : ∀ e, (traceIterExtraLabels m (MultiLabeledGraph.ofSimple G)).mult e
+      = (MultiLabeledGraph.ofSimple (unlabelExtras G)).mult e := by
+    intro e
+    rw [traceIterExtraLabels_mult]
+    show (if (Sym2.map (Fin.cast _) e) ∈ G.edgeFinset then (1 : ℕ) else 0)
+        = (if e ∈ (unlabelExtras G).edgeFinset then (1 : ℕ) else 0)
+    rw [if_congr (hiff e) rfl rfl]
+  rcases hG : MultiLabeledGraph.ofSimple (unlabelExtras G) with ⟨mu, mnu⟩
+  rcases hT : traceIterExtraLabels m (MultiLabeledGraph.ofSimple G) with ⟨mt, mnt⟩
+  show MultiLabeledGraph.mk _ _ = MultiLabeledGraph.mk _ _
+  congr 1
+  funext e
+  have := hmult e
+  rw [hG, hT] at this
+  exact this
+
+/-- **Eval bridge** (the step-2 target). Evaluating the traced `ofSimple G` multigraph equals the
+simple-graph evaluation of the unlabel-extras graph. -/
+theorem traceIterExtraLabels_ofSimple_eval {T K m n : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (G : SimpleGraph (Fin (n + (K + m)))) [DecidableRel G.Adj] (ξ : Fin K → Fin T) :
+    multiLabeledEvalK K (n + m) (traceIterExtraLabels m (MultiLabeledGraph.ofSimple G)) B W ξ
+      = simpleEvalAt B W (unlabelExtras G) ξ := by
+  rw [traceIterExtraLabels_ofSimple_eq, ← simpleEvalAt_eq_multi']
+
+/-! ### Chunk 3B.1c steps 3–5: extension family (extras-last) and equation (10) -/
+
+/-- `μ : Fin (K + m) → Fin T` extends `ξ` if it agrees with `ξ` on the first `K` labels.
+(`abbrev` so the subtype `{μ // ExtendsFin ξ μ}` gets `DecidablePred`/`Fintype` automatically.) -/
+abbrev ExtendsFin {T m : ℕ} (ξ : Fin K → Fin T) (μ : Fin (K + m) → Fin T) : Prop :=
+  ∀ i : Fin K, μ (Fin.castAdd m i) = ξ i
+
+/-- The `W`-product over the `m` extra label values of `μ`. -/
+noncomputable def extensionWeightFin {T m : ℕ} (W : Fin T → ℝ) (μ : Fin (K + m) → Fin T) : ℝ :=
+  ∏ j : Fin m, W (μ (Fin.natAdd K j))
+
+/-- Extensions of `ξ` are exactly `Fin.append ξ ρ` for the free extra-value tuple `ρ`. -/
+def appendExtensionEquiv {T m : ℕ} (ξ : Fin K → Fin T) :
+    (Fin m → Fin T) ≃ {μ : Fin (K + m) → Fin T // ExtendsFin ξ μ} where
+  toFun ρ := ⟨Fin.append ξ ρ, by intro i; rw [Fin.append_left]⟩
+  invFun μ := fun j => μ.1 (Fin.natAdd K j)
+  left_inv ρ := by
+    funext j
+    show Fin.append ξ ρ (Fin.natAdd K j) = ρ j
+    rw [Fin.append_right]
+  right_inv μ := by
+    apply Subtype.ext
+    funext k
+    show Fin.append ξ (fun j => μ.1 (Fin.natAdd K j)) k = μ.1 k
+    refine Fin.addCases (fun i => ?_) (fun j => ?_) k
+    · rw [Fin.append_left]; exact (μ.2 i).symm
+    · rw [Fin.append_right]
+
+theorem sum_extensions_eq_sum_rho {T m n : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (G : SimpleGraph (Fin (n + (K + m)))) [DecidableRel G.Adj] (ξ : Fin K → Fin T) :
+    ∑ μ : {μ : Fin (K + m) → Fin T // ExtendsFin ξ μ},
+        extensionWeightFin W μ.1 * simpleEvalAt B W G μ.1
+      = ∑ ρ : Fin m → Fin T, (∏ j, W (ρ j)) * simpleEvalAt B W G (Fin.append ξ ρ) := by
+  rw [← Equiv.sum_comp (appendExtensionEquiv ξ)
+    (fun μ => extensionWeightFin W μ.1 * simpleEvalAt B W G μ.1)]
+  refine Finset.sum_congr rfl (fun ρ _ => ?_)
+  show extensionWeightFin W (Fin.append ξ ρ) * simpleEvalAt B W G (Fin.append ξ ρ)
+    = (∏ j, W (ρ j)) * simpleEvalAt B W G (Fin.append ξ ρ)
+  congr 1
+  unfold extensionWeightFin
+  exact Finset.prod_congr rfl (fun j _ => by rw [Fin.append_right])
+
+/-- **Equation (10)** (Cai–Govorov, the extension-family sum identity). Simple-equivalence at
+level `K` lifts to an equality of extension-family sums at level `K + m`: unpinning the extra
+labels (trace-to-simple bridge) reduces both sides to `simpleEvalAt` of `unlabelExtras G`, where
+`h` applies. -/
+theorem extension_sum_identity {T m n : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) {ξ ξ' : Fin K → Fin T} (h : tupleEquivSimple B W ξ ξ')
+    (G : SimpleGraph (Fin (n + (K + m)))) [DecidableRel G.Adj] :
+    ∑ μ : {μ : Fin (K + m) → Fin T // ExtendsFin ξ μ},
+        extensionWeightFin W μ.1 * simpleEvalAt B W G μ.1
+      = ∑ ν : {ν : Fin (K + m) → Fin T // ExtendsFin ξ' ν},
+          extensionWeightFin W ν.1 * simpleEvalAt B W G ν.1 := by
+  have hbridge : ∀ ζ : Fin K → Fin T,
+      ∑ μ : {μ : Fin (K + m) → Fin T // ExtendsFin ζ μ},
+          extensionWeightFin W μ.1 * simpleEvalAt B W G μ.1
+        = simpleEvalAt B W (unlabelExtras G) ζ := by
+    intro ζ
+    rw [sum_extensions_eq_sum_rho B W G ζ,
+      show (∑ ρ : Fin m → Fin T, (∏ j, W (ρ j)) * simpleEvalAt B W G (Fin.append ζ ρ))
+          = ∑ ρ : Fin m → Fin T, (∏ j, W (ρ j)) *
+              multiLabeledEvalK (K + m) n (MultiLabeledGraph.ofSimple G) B W (Fin.append ζ ρ) from
+        Finset.sum_congr rfl (fun ρ _ => by rw [simpleEvalAt_eq_multi']),
+      multiLabeledEvalK_sum_extra_labels (MultiLabeledGraph.ofSimple G) B hB W ζ,
+      traceIterExtraLabels_ofSimple_eval B W G ζ]
+  rw [hbridge ξ, hbridge ξ']
+  exact h (n + m) (unlabelExtras G)
+
 end Graphon.Lovasz
