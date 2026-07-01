@@ -1267,6 +1267,11 @@ def traceIterExtraLabels {K : ℕ} : ∀ {n : ℕ} (m : ℕ),
   | n, m + 1, M =>
       (traceIterExtraLabels m M.trace).castUnlabeled (by omega : (n + 1) + m = n + (m + 1))
 
+/-- **Eq. (10) core** (3B.1 pillar). Unpinning the last `m` labels: summing the `(K+m)`-labeled
+evaluation over the extra label values `ρ`, weighted by `∏ⱼ W(ρ j)`, equals the `K`-labeled
+evaluation of the `m`-fold trace `traceIterExtraLabels m M`. Induction on `m`, peeling the last
+label each step via `multiLabeledEvalK_sum_last_label`. Purely multigraph-side; bridged to simple
+graphs by `traceIterExtraLabels_ofSimple_eq` and fed into `extension_sum_identity`. -/
 theorem multiLabeledEvalK_sum_extra_labels {K m n T : ℕ}
     (M : MultiLabeledGraph (K + m) n) (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (φ : Fin K → Fin T) :
