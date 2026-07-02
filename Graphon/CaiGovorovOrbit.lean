@@ -1758,4 +1758,135 @@ theorem glueList_simpleMult (l : List (Σ n, MultiLabeledGraph K n))
         (fun q hq => hlp q (List.mem_cons_of_mem p hq)))
       (glueList_noLabelPairs l fun q hq => hlp q (List.mem_cons_of_mem p hq))
 
+/-! ## Chunk 4D: the test-moment profile and its exponent graphs
+
+The Vandermonde step classifies extensions by their vector of star/edge test moments
+(`testMoment`). The moment products `∏_c moment_c^{k c}` demanded by the multivariate
+Vandermonde are realized as `simpleEvalAt` of a single simple graph `expTestGraph k`:
+glue `k c` copies of each coordinate's test graph (a multigraph a priori, but mult ≤ 1 by
+chunk 4B since test graphs have no label-label edges) and convert back via `toSimple`. -/
+
+/-- Test-moment coordinates: `inl S` is the star test `Gχ S`; `inr (Sₗ, Sτ)` the edge test. -/
+abbrev TestCoord (L : ℕ) := Finset (Fin L) ⊕ (Finset (Fin L) × Finset (Fin L))
+
+/-- The closed-form moment of a test coordinate at the tuple `μ` (the `simpleEvalAt` value of
+the corresponding test graph, see `coordGraph_eval`). -/
+noncomputable def testMoment {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (c : TestCoord K) (μ : Fin K → Fin T) : ℝ :=
+  Sum.elim (fun S => ∑ t, W t * ∏ i ∈ S, B (μ i) t)
+    (fun p => ∑ t, ∑ t', W t * W t' * B t t'
+      * (∏ i ∈ p.1, B (μ i) t) * (∏ i ∈ p.2, B (μ i) t')) c
+
+/-- The test coordinate's graph, as a sigma-packaged `ofSimple` multigraph. -/
+noncomputable def coordGraph (c : TestCoord K) : Σ n, MultiLabeledGraph K n :=
+  Sum.elim (fun S => ⟨1, MultiLabeledGraph.ofSimple (starTestGraph S)⟩)
+    (fun p => ⟨2, MultiLabeledGraph.ofSimple (edgeTestGraph p.1 p.2)⟩) c
+
+theorem coordGraph_eval {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (c : TestCoord K) (μ : Fin K → Fin T) :
+    multiLabeledEvalK K (coordGraph c).1 (coordGraph c).2 B W μ = testMoment B W c μ := by
+  cases c with
+  | inl S =>
+    show multiLabeledEvalK K 1 (MultiLabeledGraph.ofSimple (starTestGraph S)) B W μ = _
+    rw [← simpleEvalAt_eq_multi', simpleEvalAt_starTestGraph B hB W S μ]
+    rfl
+  | inr p =>
+    show multiLabeledEvalK K 2 (MultiLabeledGraph.ofSimple (edgeTestGraph p.1 p.2)) B W μ = _
+    rw [← simpleEvalAt_eq_multi', simpleEvalAt_edgeTestGraph B hB W p.1 p.2 μ]
+    rfl
+
+theorem coordGraph_simpleMult (c : TestCoord K) : (coordGraph c).2.SimpleMult := by
+  cases c with
+  | inl S => exact MultiLabeledGraph.ofSimple_simpleMult _
+  | inr p => exact MultiLabeledGraph.ofSimple_simpleMult _
+
+theorem coordGraph_noLabelPairs (c : TestCoord K) : (coordGraph c).2.NoLabelPairs := by
+  cases c with
+  | inl S => exact starTestGraph_noLabelPairs S
+  | inr p => exact edgeTestGraph_noLabelPairs p.1 p.2
+
+/-- Product bookkeeping for replicated flatMaps (self-contained; avoids hunting for a
+flatMap-product lemma). -/
+private theorem prod_map_flatMap_replicate {α β γ : Type*} [CommMonoid γ] (l : List α)
+    (k : α → ℕ) (g : α → β) (f : β → γ) :
+    ((l.flatMap fun a => List.replicate (k a) (g a)).map f).prod
+      = (l.map fun a => f (g a) ^ k a).prod := by
+  induction l with
+  | nil => rfl
+  | cons a l ih =>
+    rw [List.flatMap_cons, List.map_append, List.prod_append, ih, List.map_cons, List.prod_cons,
+      List.map_replicate, List.prod_replicate]
+
+/-- The **exponent graph**: glue `k c` copies of each test coordinate's graph. -/
+noncomputable def expGraph (k : TestCoord K → ℕ) : Σ n, MultiLabeledGraph K n :=
+  glueList ((Finset.univ : Finset (TestCoord K)).toList.flatMap
+    fun c => List.replicate (k c) (coordGraph c))
+
+/-- Every component list element of `expGraph` is a `coordGraph`. -/
+private theorem expGraph_mem {k : TestCoord K → ℕ} {p : Σ n, MultiLabeledGraph K n}
+    (hp : p ∈ (Finset.univ : Finset (TestCoord K)).toList.flatMap
+      fun c => List.replicate (k c) (coordGraph c)) : ∃ c, p = coordGraph c := by
+  rw [List.mem_flatMap] at hp
+  obtain ⟨c, -, hmem⟩ := hp
+  exact ⟨c, List.eq_of_mem_replicate hmem⟩
+
+theorem expGraph_simpleMult (k : TestCoord K → ℕ) : (expGraph k).2.SimpleMult := by
+  refine glueList_simpleMult _ (fun p hp => ?_) (fun p hp => ?_) <;>
+    obtain ⟨c, rfl⟩ := expGraph_mem hp
+  · exact coordGraph_simpleMult c
+  · exact coordGraph_noLabelPairs c
+
+/-- **Closed form of the exponent graph**: its evaluation is the product of test-moment
+powers. -/
+theorem expGraph_eval {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (k : TestCoord K → ℕ) (μ : Fin K → Fin T) :
+    multiLabeledEvalK K (expGraph k).1 (expGraph k).2 B W μ
+      = ∏ c : TestCoord K, (testMoment B W c μ) ^ k c := by
+  rw [expGraph, multiLabeledEvalK_glueList B hB W,
+    prod_map_flatMap_replicate _ k coordGraph (fun p => multiLabeledEvalK K p.1 p.2 B W μ)]
+  rw [show ((Finset.univ : Finset (TestCoord K)).toList.map
+        fun c => multiLabeledEvalK K (coordGraph c).1 (coordGraph c).2 B W μ ^ k c)
+      = ((Finset.univ : Finset (TestCoord K)).toList.map
+        fun c => testMoment B W c μ ^ k c) from
+    List.map_congr_left fun c _ => by rw [coordGraph_eval B hB W c μ]]
+  exact Finset.prod_map_toList _ _
+
+/-- The exponent graph, converted back to an honest simple graph (chunk 4B). -/
+noncomputable def expTestGraph (k : TestCoord K → ℕ) :
+    SimpleGraph (Fin ((expGraph k).1 + K)) :=
+  (expGraph k).2.toSimple
+
+noncomputable instance (k : TestCoord K → ℕ) : DecidableRel (expTestGraph k).Adj :=
+  Classical.decRel _
+
+/-- **The moment-power realization**: `simpleEvalAt` of the exponent test graph is the
+product of test-moment powers. This is the input eq. (10) consumes in chunk 4E. -/
+theorem simpleEvalAt_expTestGraph {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (k : TestCoord K → ℕ) (μ : Fin K → Fin T) :
+    simpleEvalAt B W (expTestGraph k) μ = ∏ c : TestCoord K, (testMoment B W c μ) ^ k c := by
+  have h := simpleEvalAt_toSimple B W (expGraph k).2 (expGraph_simpleMult k) μ
+  rw [expGraph_eval B hB W k μ] at h
+  exact h
+
+/-- The `TestEvalEq` interface is equivalent to matching of all test moments. -/
+theorem testEvalEq_iff_moments {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) {ξ ξ' : Fin K → Fin T} :
+    TestEvalEq B W ξ ξ' ↔ ∀ c : TestCoord K, testMoment B W c ξ = testMoment B W c ξ' := by
+  constructor
+  · intro h c
+    cases c with
+    | inl S =>
+      have := h.star S
+      rwa [simpleEvalAt_starTestGraph B hB W S ξ, simpleEvalAt_starTestGraph B hB W S ξ'] at this
+    | inr p =>
+      have := h.edge p.1 p.2
+      rwa [simpleEvalAt_edgeTestGraph B hB W p.1 p.2 ξ,
+        simpleEvalAt_edgeTestGraph B hB W p.1 p.2 ξ'] at this
+  · intro h
+    refine ⟨fun S => ?_, fun Sₗ Sτ => ?_⟩
+    · rw [simpleEvalAt_starTestGraph B hB W S ξ, simpleEvalAt_starTestGraph B hB W S ξ']
+      exact h (Sum.inl S)
+    · rw [simpleEvalAt_edgeTestGraph B hB W Sₗ Sτ ξ, simpleEvalAt_edgeTestGraph B hB W Sₗ Sτ ξ']
+      exact h (Sum.inr (Sₗ, Sτ))
+
 end Graphon.Lovasz
