@@ -84,6 +84,133 @@ theorem finrank_orbitInvariantSubmodule {T K : ℕ} (B : Fin T → Fin T → ℝ
     Module.finrank ℝ (orbitInvariantSubmodule B W K) = Fintype.card (OrbitClass T K B W) := by
   rw [(orbitInvariantEquiv B W).finrank_eq, Module.finrank_fintype_fun_eq_card]
 
+/-! ### The annihilator lemma (chunk 5B)
+
+Any `c : OrbitClass → ℝ` that annihilates every simple evaluation at orbit representatives is
+zero. This is STRICTLY stronger than point-separation of the orbit classes (distinct rows can
+still be linearly dependent); the signed single-family Vandermonde over
+`OrbitClass × (Fin m → Fin T)` does the real work, powered by the Cai–Govorov descent
+ingredients (`sum_extensions_eval`, `expTestGraph`, `testEvalEq_implies_orbit_super`). -/
+
+/-- Reindexing the test-moment power product along `Fintype.equivFin` (profile form). -/
+private theorem prod_profile_pow {T L : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (μ : Fin L → Fin T) (k : Fin (Fintype.card (TestCoord L)) → ℕ) :
+    ∏ c : TestCoord L, (testMoment B W c μ) ^ k (Fintype.equivFin (TestCoord L) c)
+      = ∏ c, (testProfile B W μ c) ^ k c := by
+  calc ∏ c : TestCoord L, (testMoment B W c μ) ^ k (Fintype.equivFin (TestCoord L) c)
+      = ∏ c : TestCoord L, (testProfile B W μ (Fintype.equivFin (TestCoord L) c))
+          ^ k (Fintype.equivFin (TestCoord L) c) := by
+        refine Finset.prod_congr rfl fun c _ => ?_
+        congr 1
+        show testMoment B W c μ
+          = testMoment B W ((Fintype.equivFin (TestCoord L)).symm
+              (Fintype.equivFin (TestCoord L) c)) μ
+        rw [Equiv.symm_apply_apply]
+    _ = ∏ c, (testProfile B W μ c) ^ k c :=
+        Equiv.prod_comp (Fintype.equivFin (TestCoord L))
+          (fun c => (testProfile B W μ c) ^ k c)
+
+/-- **The annihilator lemma.** If `∑ q, c q · simpleEvalAt F (out q) = 0` for every simple
+graph `F`, then `c = 0`. Signed Vandermonde over `OrbitClass × (Fin m → Fin T)` with the
+test-moment profile of `Fin.append (out q) ρ` as classifier: the class of the profile of
+`superExt (out q₀)` consists exactly of pairs `(q₀, ρ)` (chunk 4A at level `K + m` forces
+`q = q₀`), and its `W`-mass is positive, so the class-sum `c q₀ · (positive) = 0` kills
+`c q₀`. -/
+theorem eval_rep_annihilator_zero {T K : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (c : OrbitClass T K B W → ℝ)
+    (hc : ∀ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (inst : DecidableRel F.Adj),
+      ∑ q, c q * @simpleEvalAt T K n B W F inst (Quotient.out q) = 0) :
+    c = 0 := by
+  classical
+  funext q₀
+  show c q₀ = 0
+  -- ρ-form of the extension-sum collapse (eq. (10), one side).
+  have hρsum : ∀ (n : ℕ) (G : SimpleGraph (Fin (n + (K + T * (2 * T ^ 2)))))
+      (_ : DecidableRel G.Adj) (ζ : Fin K → Fin T),
+      ∑ ρ : Fin (T * (2 * T ^ 2)) → Fin T,
+          (∏ j, W (ρ j)) * simpleEvalAt B W G (Fin.append ζ ρ)
+        = simpleEvalAt B W (unlabelExtras G) ζ := fun n G _ ζ =>
+    (sum_extensions_eq_sum_rho B W G ζ).symm.trans (sum_extensions_eval B hB W G ζ)
+  -- Moment vanishing for the signed family over `OrbitClass × (Fin m → Fin T)`.
+  have hmom : ∀ ℓ : Fin (Fintype.card (TestCoord (K + T * (2 * T ^ 2)))) → ℕ,
+      (∀ j, ℓ j < Fintype.card (OrbitClass T K B W × (Fin (T * (2 * T ^ 2)) → Fin T))) →
+      ∑ i : OrbitClass T K B W × (Fin (T * (2 * T ^ 2)) → Fin T),
+          (c i.1 * ∏ j, W (i.2 j))
+            * ∏ j, (testProfile B W (Fin.append (Quotient.out i.1) i.2) j) ^ ℓ j = 0 := by
+    intro ℓ _
+    rw [Fintype.sum_prod_type]
+    have hterm : ∀ q : OrbitClass T K B W,
+        ∑ ρ : Fin (T * (2 * T ^ 2)) → Fin T,
+            (c q * ∏ j, W (ρ j))
+              * ∏ j, (testProfile B W (Fin.append (Quotient.out q) ρ) j) ^ ℓ j
+          = c q * simpleEvalAt B W
+              (unlabelExtras (expTestGraph
+                (fun c' => ℓ (Fintype.equivFin (TestCoord (K + T * (2 * T ^ 2))) c'))))
+              (Quotient.out q) := by
+      intro q
+      rw [← hρsum _ (expTestGraph
+          (fun c' => ℓ (Fintype.equivFin (TestCoord (K + T * (2 * T ^ 2))) c')))
+        inferInstance (Quotient.out q), Finset.mul_sum]
+      refine Finset.sum_congr rfl fun ρ _ => ?_
+      rw [simpleEvalAt_expTestGraph B hB W _ (Fin.append (Quotient.out q) ρ),
+        prod_profile_pow B W (Fin.append (Quotient.out q) ρ) ℓ]
+      ring
+    rw [Finset.sum_congr rfl fun q _ => hterm q]
+    exact hc _ _ inferInstance
+  -- Class-sum at the profile of `superExt (out q₀)`.
+  have hclass := CaiGovorov.multivariate_vandermonde_class_sums_zero
+    (fun i : OrbitClass T K B W × (Fin (T * (2 * T ^ 2)) → Fin T) =>
+      testProfile B W (Fin.append (Quotient.out i.1) i.2))
+    (fun i => c i.1 * ∏ j, W (i.2 j)) hmom
+    (testProfile B W (superExt (Quotient.out q₀)))
+  -- The class forces `q = q₀` (chunk 4A at level K + m).
+  have hq_eq : ∀ (q : OrbitClass T K B W) (ρ : Fin (T * (2 * T ^ 2)) → Fin T),
+      testProfile B W (Fin.append (Quotient.out q) ρ)
+        = testProfile B W (superExt (Quotient.out q₀)) → q = q₀ := by
+    intro q ρ hprof
+    have hTE : TestEvalEq B W (superExt (Quotient.out q₀)) (Fin.append (Quotient.out q) ρ) :=
+      (testEvalEq_iff_moments B hB W).mpr fun c' => (testProfile_eq_iff.mp hprof c').symm
+    obtain ⟨σ, hσ_aut, hσ⟩ := testEvalEq_implies_orbit_super B hB W hW htwin _ _
+      (superExt_superSurjective (Quotient.out q₀)) hTE
+    have horb : tupleOrbitRel B W (Quotient.out q₀) (Quotient.out q) := by
+      refine ⟨σ, hσ_aut, fun i => ?_⟩
+      have hi := hσ (Fin.castAdd (T * (2 * T ^ 2)) i)
+      rw [Fin.append_left, superExt_extends (Quotient.out q₀) i] at hi
+      exact hi
+    have hmk : Quotient.mk (tupleOrbitSetoid B W K) (Quotient.out q₀)
+        = Quotient.mk (tupleOrbitSetoid B W K) (Quotient.out q) := Quotient.sound horb
+    rw [Quotient.out_eq, Quotient.out_eq] at hmk
+    exact hmk.symm
+  -- The class is exactly `{q₀} ×ˢ P` for the ρ-side class `P`.
+  have hfilter_eq : (univ.filter
+      (fun i : OrbitClass T K B W × (Fin (T * (2 * T ^ 2)) → Fin T) =>
+        testProfile B W (Fin.append (Quotient.out i.1) i.2)
+          = testProfile B W (superExt (Quotient.out q₀))))
+      = {q₀} ×ˢ (univ.filter (fun ρ : Fin (T * (2 * T ^ 2)) → Fin T =>
+          testProfile B W (Fin.append (Quotient.out q₀) ρ)
+            = testProfile B W (superExt (Quotient.out q₀)))) := by
+    ext ⟨q, ρ⟩
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_product,
+      Finset.mem_singleton]
+    constructor
+    · intro hprof
+      obtain rfl := hq_eq q ρ hprof
+      exact ⟨rfl, hprof⟩
+    · rintro ⟨rfl, hprof⟩
+      exact hprof
+  -- Collapse the class-sum to `c q₀ · (positive W-mass)`.
+  have hmass : c q₀ * ∑ ρ ∈ univ.filter (fun ρ : Fin (T * (2 * T ^ 2)) → Fin T =>
+      testProfile B W (Fin.append (Quotient.out q₀) ρ)
+        = testProfile B W (superExt (Quotient.out q₀))), ∏ j, W (ρ j) = 0 := by
+    rw [Finset.mul_sum, ← hclass, hfilter_eq, Finset.sum_product, Finset.sum_singleton]
+  have hpos : (0 : ℝ) < ∑ ρ ∈ univ.filter (fun ρ : Fin (T * (2 * T ^ 2)) → Fin T =>
+      testProfile B W (Fin.append (Quotient.out q₀) ρ)
+        = testProfile B W (superExt (Quotient.out q₀))), ∏ j, W (ρ j) :=
+    Finset.sum_pos (fun ρ _ => Finset.prod_pos fun j _ => hW _)
+      ⟨coverExtra T, Finset.mem_filter.mpr ⟨Finset.mem_univ _, rfl⟩⟩
+  exact (mul_eq_zero.mp hmass).resolve_right (ne_of_gt hpos)
+
 /-- **The simple-side lower bound** (the genuine Lovász §3 content, formerly the sole #70
 residue): the simple-eval span has dimension at least the number of orbit classes. -/
 theorem simpleEvalSubmodule_finrank_ge_orbitClass {T K : ℕ}
