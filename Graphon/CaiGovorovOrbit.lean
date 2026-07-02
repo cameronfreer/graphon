@@ -8,23 +8,35 @@ import Graphon.CaiGovorov
 import Mathlib.Combinatorics.Pigeonhole
 
 /-!
-# Cai–Govorov simple test graphs and their closed forms (#70)
+# The Cai–Govorov simple-graph orbit theorem (#70)
 
-The Cai–Govorov orbit-separation route for `#70` uses two families of simple test
-graphs whose `simpleEvalAt` values are explicit weighted moment sums. This file
-defines them and proves the closed forms, as inputs to the Vandermonde argument
-(`Graphon.CaiGovorov`).
+The full Cai–Govorov orbit-separation route for `#70`, culminating in the general
+**`tupleEquivSimple_implies_orbit_general`**: equal simple-graph evaluations imply
+weighted-automorphism orbit equivalence, with no surjectivity hypothesis.
 
-* `starTestGraph S` (Gχ): one unlabeled vertex joined to the labels in `S ⊆ Fin K`.
-  `simpleEvalAt B W (starTestGraph S) ξ = ∑ₜ W t · ∏_{i∈S} B (ξ i) t`.
-* `edgeTestGraph Sₗ Sτ` (Gλτ): two adjacent unlabeled vertices, the first joined to
-  the labels in `Sₗ`, the second to `Sτ`.
-  `simpleEvalAt B W (edgeTestGraph Sₗ Sτ) ξ =`
-  `∑ₜ ∑ₜ' W t · W t' · B t t' · (∏_{i∈Sₗ} B (ξ i) t) · (∏_{i∈Sτ} B (ξ i) t')`.
+* **Test graphs + closed forms**: `starTestGraph S` (Gχ, one unlabeled vertex joined to
+  `S ⊆ Fin K`; eval `= ∑ₜ W t · ∏_{i∈S} B (ξ i) t`) and `edgeTestGraph Sₗ Sτ` (Gλτ, two
+  adjacent unlabeled vertices; the double-sum closed form).
+* **Chunk 3A / 4A** — the super-surjective case, moment form
+  (`testEvalEq_implies_orbit_super` from the `TestEvalEq` star/edge interface, with the
+  `tupleEquivSimple_implies_orbit_super` wrapper): pigeonhole + bounded Vandermonde build
+  `superMap`/`superPerm`, edge moments certify it as a weighted automorphism, one-extra-label
+  moments reconcile all labels.
+* **Chunk 3B** — eq. (10) `extension_sum_identity` (extension-family sums collapse via the
+  iterated trace) with the `superExt`/`coverExtra` super-surjective extension and the
+  separation oracle `not_tupleEquivSimple_of_not_orbit`.
+* **Chunks 4B–4E** — the mult ≤ 1 `toSimple` bridge and `glueList` product law realize
+  test-moment powers as single simple graphs (`expTestGraph`), so eq. (10) yields the
+  power-moment identity `extension_power_moments`.
+* **Chunks 4F–4G** — the descent: two-family Vandermonde matches an extension of `ξ'`
+  against `superExt ξ` (`exists_matching_extension`), the super-case runs at level
+  `K + T·2T²`, and restriction gives the general theorem.
 
-(Staging file: imports `CycleKrylov` for `out_pair_eq'`/`simpleEvalAt`; the proofs
-will be relocated upstream into `Lovasz` when wiring the `tupleEquivSimple_implies_orbit`
-wrapper, since that theorem and its consumers precede `CycleKrylov`.)
+The rank endgame (`simpleEvalSubmodule_finrank_ge_orbitClass` and the collapse
+`simpleEvalSubmodule = orbitInvariantSubmodule`) lives downstream in
+`Graphon.SimpleOrbitRank`. The upstream `Lovasz.lean` sorry `tupleEquivSimple_implies_orbit`
+(§3.10) states this file's general theorem; filling it in place would require relocating
+this stack above Lovász §3.10 — a separate refactor, off the #70 critical path.
 -/
 
 open Finset

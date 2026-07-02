@@ -7343,13 +7343,13 @@ theorem orbit_separation_by_simple_graph {T K : ℕ}
   -- `tupleEquivSimple_implies_orbit` no longer routes through this theorem,
   -- so the cycle is broken.
   --
-  -- **Live strategy (2026-07, Cai–Govorov #70 branch)**: the general
-  -- `tupleEquivSimple ⟹ orbit` theorem is being proved downstream in
-  -- `Graphon/CaiGovorovOrbit.lean` (super-surjective case
-  -- `tupleEquivSimple_implies_orbit_super` + eq. (10) descent), which yields
-  -- this statement as its contrapositive. Discharging THIS upstream sorry
-  -- requires relocating that stack above Lovász §3.10 (see the
-  -- `CaiGovorovOrbit.lean` header); until then it stays, documented.
+  -- **PROVED DOWNSTREAM (2026-07-02)**: the general theorem is
+  -- `tupleEquivSimple_implies_orbit_general` in `Graphon/CaiGovorovOrbit.lean`
+  -- (super-surjective case + eq. (10) Cai–Govorov descent, axiom-clean), and
+  -- this statement is its contrapositive. Discharging THIS upstream sorry in
+  -- place would require relocating that stack above Lovász §3.10; until that
+  -- refactor it stays, documented — nothing on the #70 critical path depends
+  -- on it (the rank theorem lives in `Graphon/SimpleOrbitRank.lean`).
   sorry
 
 /-- **Orbit separation, identity case** — narrowest case of
@@ -7587,16 +7587,17 @@ theorem tupleEquivSimple_implies_orbit {T K : ℕ}
         --   square-moment proof needs orbit-invariance (B(i,t)² is not a
         --   simple-graph factor), so the weaker theorem doesn't suffice.
         --
-        -- **Live strategy (2026-07, Cai–Govorov branch)**: the general
-        -- theorem is proved downstream as the Cai–Govorov descent —
-        -- super-surjective case `tupleEquivSimple_implies_orbit_super`
-        -- plus the eq. (10) extension argument in
-        -- `Graphon/CaiGovorovOrbit.lean`. Filling THIS sorry in place
-        -- would require relocating that stack above Lovász §3.10 (see the
-        -- CaiGovorovOrbit header); it stays documented until that refactor.
-        -- (The former "Option B" — a Lovász §3 rank/dimension argument —
-        -- is realized by the finrank framework in `CycleKrylov.lean` /
-        -- `SimpleOrbitRank.lean` fed by the same Cai–Govorov machinery.)
+        -- **PROVED DOWNSTREAM (2026-07-02)**: the general theorem is
+        -- `tupleEquivSimple_implies_orbit_general` in
+        -- `Graphon/CaiGovorovOrbit.lean` — the Cai–Govorov descent:
+        -- super-surjective case `testEvalEq_implies_orbit_super` + the
+        -- eq. (10) extension/Vandermonde matching (axiom-clean). Filling
+        -- THIS sorry in place would require relocating that stack above
+        -- Lovász §3.10; it stays documented until that refactor. (The
+        -- former "Option B" — the Lovász §3 rank/dimension argument — is
+        -- REALIZED: `simpleEvalSubmodule_finrank_ge_orbitClass` and the
+        -- rank collapse are PROVED in `Graphon/SimpleOrbitRank.lean` via
+        -- the annihilator argument fed by the same machinery.)
         sorry
 
 /-! ### §3.10.5a — `InTupleSimpleEvalSpan` predicate and algebra closure
