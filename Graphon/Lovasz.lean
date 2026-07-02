@@ -7310,26 +7310,21 @@ theorem rootedOrbitIndicator_const_on_orbit {T : ℕ}
 If two tuples `ξ ξ' : Fin K → Fin T` are NOT in the same `(B, W)`-orbit,
 some level-K simple-graph evaluation separates them.
 
-**Status** (2026-05-17): BLOCKED on `multiLabeledEvalK_tupleEquiv_invariant`
-(task #62, primary paper-root). The proof requires:
-1. Strong induction on K.
-2. Case-split on surjectivity of `restrictTuple ξ`.
-3. For the non-surjective branch: WF measure on (deficit, size), which
-   requires **IH-free Claims 4.3/4.4** to avoid a circular IH at deficit-1
-   size-T-1.
+**Status** (2026-07-02): the mathematical content is PROVED — this statement
+is the contrapositive of `tupleEquivSimple_implies_orbit_general`
+(`Graphon/CaiGovorovOrbit.lean`, the Cai–Govorov descent, axiom-clean).
+Filling this sorry in place requires relocating that stack above Lovász
+§3.10 (a pending refactor); until then the sorry stays, documented.
 
-The IH-free Claims need diagonal `B(ψ i, ψ i)` and pointwise `W(ψ i)`
-data, which are NOT extractable from simple-graph evaluations alone
-(see docstring of `tupleEquivSimple_implies_orbit` for full analysis).
-Both require multigraph evaluations — i.e., closing #62.
-
-**Path A** (recommended): close #62, then derive #70 via IH-free Claims.
-**Path B**: direct combinatorial fiber construction (~300-500 LOC).
-**Path C** (current): treat as derived paper-root, blocked on #62.
+(Historical note: a 2026-05-17 version of this docstring recorded the
+theorem as BLOCKED on #62 via IH-free Claims 4.3/4.4, with the analysis
+that the needed diagonal/pointwise data was not extractable from
+simple-graph evaluations. The Cai–Govorov route bypasses that obstacle
+entirely — super-surjective extensions make the data extractable.)
 
 Downstream K=1 specialization (`rooted_profiles_separate_vertex_orbits`,
-proved this session) handles the most-used case; this general-K target
-remains for completeness of the Lovász §3 chain. -/
+proved) handles the most-used case; this general-K target remains for
+completeness of the Lovász §3 chain. -/
 theorem orbit_separation_by_simple_graph {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
@@ -7469,10 +7464,17 @@ either a deeper refactor of `tupleEquivSimple_surjective_case` /
 `MatrixDetermination.lean:11002-11007`) or an alternative argument at
 that specific inner-base point.
 
-**Architectural obstacle** (post-2026-05-12 subagent analysis): an
-IH-free `bijective_case_direct` / `id_bijective_direct` would close
-the residual but is **not derivable from simple-graph evaluations
-alone** with current Lovasz infrastructure. Specifically:
+**Architectural obstacle** (post-2026-05-12 subagent analysis;
+**superseded 2026-07-02** — see below): an IH-free
+`bijective_case_direct` / `id_bijective_direct` would close the
+residual but is not derivable from simple-graph evaluations alone
+*within this induction scheme*. NB the Cai–Govorov route
+(`tupleEquivSimple_implies_orbit_general`,
+`Graphon/CaiGovorovOrbit.lean`) PROVES the full theorem from
+simple-graph evaluations alone — super-surjective extensions make the
+missing diagonal/pointwise data extractable, bypassing the IH-free
+Claims entirely. The analysis below documents the obstruction to the
+*original* plan only:
   - **B-preservation diagonal** `B(χ i, χ i) = B(i, i)`: simple
     graphs have no self-loops, so `B(t, t)` terms never appear in
     simple-graph evaluations. Cannot be extracted directly.
@@ -7573,8 +7575,15 @@ theorem tupleEquivSimple_implies_orbit {T K : ℕ}
         -- simple-graph Lemma 2.4 (#70). (A pre-2026-06 version of this
         -- comment labeled it "#62"; the multigraph #62/#73 chain has since
         -- been proved independently — `tupleEquivMulti_implies_orbit` and
-        -- its roots are sorry-free — so nothing proved depends on this
-        -- sorry anymore. The "downstream" list it carried is obsolete.)
+        -- its roots are sorry-free and do NOT route through here.)
+        --
+        -- **Still tainted by THIS sorry** (simple-graph side): the chain
+        -- `k1_orbit_sep_aux` → `mkRootedSeparator` →
+        -- `InRootedProfileSpan.of_const_on_orbit` →
+        -- `label_unlabeled_square_moment_descends` (and its
+        -- `multigraphEval_label_unlabeled_isolated_descends` consumers)
+        -- routes through this theorem — those remain sorry-tainted until
+        -- this sorry is filled (see below).
         --
         -- **Triangular cycle** (after session 3 analysis):
         --   Lemma 2.4 (K=1 non-surj) ↔ k1_orbit_sep_aux ↔ of_const_on_orbit

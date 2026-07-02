@@ -23,8 +23,8 @@ weighted-automorphism orbit equivalence, with no surjectivity hypothesis.
   `superMap`/`superPerm`, edge moments certify it as a weighted automorphism, one-extra-label
   moments reconcile all labels.
 * **Chunk 3B** — eq. (10) `extension_sum_identity` (extension-family sums collapse via the
-  iterated trace) with the `superExt`/`coverExtra` super-surjective extension and the
-  separation oracle `not_tupleEquivSimple_of_not_orbit`.
+  iterated trace) with the `superExt`/`coverExtra` super-surjective extension (plus the
+  documented separation corollary `not_tupleEquivSimple_of_not_orbit`, not on the live path).
 * **Chunks 4B–4E** — the mult ≤ 1 `toSimple` bridge and `glueList` product law realize
   test-moment powers as single simple graphs (`expTestGraph`), so eq. (10) yields the
   power-moment identity `extension_power_moments`.
@@ -347,8 +347,11 @@ theorem prod_label_eq_prod_mult {T : ℕ} (B : Fin T → Fin T → ℝ) (ξ : Fi
   rw [hempty, Finset.card_empty, pow_zero]
 
 /-- **Multiplicity form of the Gχ equation.** Simple-equivalence makes the two
-host-multiplicity-weighted moment sums agree, for every label subset `S`. This is the
-bridge from `tupleEquivSimple` + the `starTestGraph` closed form to the Vandermonde input. -/
+host-multiplicity-weighted moment sums agree, for every label subset `S`.
+
+NB not on the live path: the working bridge to the Vandermonde input is
+`aligned_moments_of_testEvalEq_super`, which derives the moment identity directly from
+`TestEvalEq.star`. Kept as the standalone multiplicity-form record of the Gχ equation. -/
 theorem tupleEquivSimple_starTestGraph_mult {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) {ξ ξ' : Fin K → Fin T}
     (h : tupleEquivSimple B W ξ ξ') (S : Finset (Fin K)) :
@@ -644,7 +647,7 @@ theorem aligned_moments_of_testEvalEq_super {T : ℕ} (B : Fin T → Fin T → �
     _ = ∑ t, W t * ∏ j, (B (superMap ξ ξ' hξ j) t) ^ k j := by
         refine Finset.sum_congr rfl fun t _ => ?_; rw [hRHS t]
 
-/-- **`superMap` support** (the user's straightforward corollary): every host vertex `t` is matched
+/-- **`superMap` support**: every host vertex `t` is matched
 by the preliminary map — there is a `u` with `B j t = B (superMap … j) u` for all `j`. Combines the
 aligned-moment bridge with the proved aligned-Vandermonde support lemma. -/
 theorem superMap_support {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
@@ -1523,11 +1526,15 @@ theorem superExt_superSurjective {T : ℕ} (ξ : Fin K → Fin T) :
 
 /-! ### Chunk 3B.2b: separation (contrapositive of the super-surjective case) -/
 
-/-- **Separation (Cai–Govorov Lemma 10).** Since `superExt ξ` is super-surjective, any extension
-`μ` not in its weighted-automorphism orbit is *not* simple-equivalent to it — i.e. some simple
-graph separates them. This is the contrapositive of `tupleEquivSimple_implies_orbit_super` applied
-to the reference extension `η = superExt ξ`, and it is the oracle that builds the finite separating
-family in the counting/Vandermonde step. -/
+/-- **Separation at the super-surjective reference** (contrapositive of
+`tupleEquivSimple_implies_orbit_super` at `η = superExt ξ`): any extension `μ` not in the
+weighted-automorphism orbit of `superExt ξ` is *not* simple-equivalent to it — some simple
+graph separates them.
+
+NB not on the live descent path: the paper's plan built a finite separating family from this
+oracle, but the formalized descent (chunk 4F, `exists_matching_extension`) runs the
+class-balance Vandermonde directly and never consumes this statement. Kept as the documented
+separation form of the super-case. -/
 theorem not_tupleEquivSimple_of_not_orbit {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ v, 0 < W v)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j) (ξ : Fin K → Fin T)

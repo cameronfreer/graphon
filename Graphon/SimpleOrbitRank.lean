@@ -271,8 +271,9 @@ theorem simpleEvalSubmodule_finrank_ge_orbitClass {T K : ℕ}
   rw [← Module.finrank_pi (ι := OrbitClass T K B W) ℝ]
   exact h1
 
-/-- **Phase D: the rank collapse.** Modulo the lower bound, the simple-eval and
-orbit-invariant submodules coincide. -/
+/-- **Phase D: the rank collapse** — the simple-eval and orbit-invariant submodules coincide
+(unconditional: the lower bound `simpleEvalSubmodule_finrank_ge_orbitClass` is proved above).
+This is the #70 rank theorem. -/
 theorem simpleEvalSubmodule_eq_orbitInvariantSubmodule {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :

@@ -4229,13 +4229,16 @@ theorem simpleEvalSubmodule_le_multiEvalSubmodule {T K : ℕ}
 
 /-! ### Phase C1 + D — finrank skeleton of the rank theorem
 
-MOVED to `Graphon/SimpleOrbitRank.lean` (2026-07-02): the skeleton
-(`instFintypeOrbitClass`, `orbitInvariantToClassFun`, `orbitInvariantEquiv`,
-`finrank_orbitInvariantSubmodule`, `simpleEvalSubmodule_finrank_ge_orbitClass`,
-`simpleEvalSubmodule_eq_orbitInvariantSubmodule`,
-`orbitInvariantSubmodule_le_simpleEvalSubmodule`) needs the Cai–Govorov machinery of
+MOVED to `Graphon/SimpleOrbitRank.lean` (2026-07-02): the residue
+`simpleEvalSubmodule_finrank_ge_orbitClass` and its dependents
+(`simpleEvalSubmodule_eq_orbitInvariantSubmodule`,
+`orbitInvariantSubmodule_le_simpleEvalSubmodule`) need the Cai–Govorov machinery of
 `Graphon/CaiGovorovOrbit.lean`, which imports THIS file — so the rank endgame lives
-downstream. -/
+downstream. The self-contained prefix (`instFintypeOrbitClass`, `orbitInvariantToClassFun`,
+`orbitInvariantEquiv`, `finrank_orbitInvariantSubmodule`) moved with it to keep the section
+in one place; NB importers of this file alone no longer get the `Fintype (OrbitClass …)`
+instance — import `Graphon.SimpleOrbitRank` for it. (A pending relocation refactor moves the
+whole stack upstream into `Lovasz.lean`, dissolving this split.) -/
 
 end Weighted
 
