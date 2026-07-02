@@ -1519,4 +1519,191 @@ theorem not_tupleEquivSimple_of_not_orbit {T : ℕ} (B : Fin T → Fin T → ℝ
   fun heq => hnotorbit (tupleEquivSimple_implies_orbit_super B hB W hW htwin (superExt ξ) μ
     (superExt_superSurjective ξ) heq)
 
+/-! ## Chunk 4B: the mult ≤ 1 bridge — multigraphs that are secretly simple
+
+Products of test evaluations are realized (chunks 4C/4D) as `glue`s of `ofSimple` test
+multigraphs. Since the test graphs have no label-label edges, the glued multiplicities never
+exceed 1, and such a multigraph converts back to an honest `SimpleGraph` with the same
+evaluation. This section provides the invariants (`SimpleMult`, `NoLabelPairs`), the
+conversion (`toSimple` with `ofSimple_toSimple`/`simpleEvalAt_toSimple`), and preservation of
+the invariants under `glue` — where label-label pairs are the ONLY place multiplicities add,
+which is exactly what `NoLabelPairs` forbids. -/
+
+/-- All multiplicities are at most 1 — the multigraph is (the `ofSimple` image of) a simple
+graph. -/
+def MultiLabeledGraph.SimpleMult {K n : ℕ} (M : MultiLabeledGraph K n) : Prop :=
+  ∀ e, M.mult e ≤ 1
+
+/-- No edge joins two labeled vertices (labels sit at values `< K`). Under `glue`, label-label
+pairs are the only place multiplicities ADD; this invariant keeps the glue multiplicity-safe. -/
+def MultiLabeledGraph.NoLabelPairs {K n : ℕ} (M : MultiLabeledGraph K n) : Prop :=
+  ∀ a b : Fin (n + K), (a : ℕ) < K → (b : ℕ) < K → M.mult s(a, b) = 0
+
+/-- Convert a multigraph back to a simple graph: edges are the multiplicity-1 pairs. Inverse to
+`MultiLabeledGraph.ofSimple` on multiplicity-≤-1 multigraphs (`ofSimple_toSimple`). -/
+noncomputable def MultiLabeledGraph.toSimple {K n : ℕ} (M : MultiLabeledGraph K n) :
+    SimpleGraph (Fin (n + K)) :=
+  SimpleGraph.fromEdgeSet {e | M.mult e = 1}
+
+noncomputable instance {K n : ℕ} (M : MultiLabeledGraph K n) : DecidableRel M.toSimple.Adj :=
+  Classical.decRel _
+
+theorem MultiLabeledGraph.mem_toSimple_edgeFinset {K n : ℕ} (M : MultiLabeledGraph K n)
+    (e : Sym2 (Fin (n + K))) : e ∈ M.toSimple.edgeFinset ↔ M.mult e = 1 := by
+  refine Sym2.ind (fun x y => ?_) e
+  simp only [SimpleGraph.mem_edgeFinset, MultiLabeledGraph.toSimple,
+    SimpleGraph.edgeSet_fromEdgeSet, Set.mem_sdiff, Set.mem_setOf_eq, Sym2.mem_diagSet,
+    Sym2.mk_isDiag_iff]
+  refine ⟨fun h => h.1, fun he => ⟨he, fun hxy => ?_⟩⟩
+  subst hxy
+  rw [M.multNoLoop x] at he
+  exact one_ne_zero he.symm
+
+/-- Multigraphs with equal multiplicity functions are equal (`multNoLoop` is a proposition). -/
+theorem MultiLabeledGraph.ext' {K n : ℕ} {M₁ M₂ : MultiLabeledGraph K n}
+    (h : M₁.mult = M₂.mult) : M₁ = M₂ := by
+  cases M₁; cases M₂; subst h; rfl
+
+/-- `toSimple` is a section of `ofSimple` on multiplicity-≤-1 multigraphs. -/
+theorem MultiLabeledGraph.ofSimple_toSimple {K n : ℕ} (M : MultiLabeledGraph K n)
+    (hM : M.SimpleMult) : MultiLabeledGraph.ofSimple M.toSimple = M := by
+  refine MultiLabeledGraph.ext' (funext fun e => ?_)
+  show (if e ∈ M.toSimple.edgeFinset then 1 else 0) = M.mult e
+  by_cases he : e ∈ M.toSimple.edgeFinset
+  · rw [if_pos he, (M.mem_toSimple_edgeFinset e).mp he]
+  · rw [if_neg he]
+    have h1 : M.mult e ≠ 1 := fun h1 => he ((M.mem_toSimple_edgeFinset e).mpr h1)
+    have h2 := hM e
+    omega
+
+/-- Evaluating the simple graph `M.toSimple` agrees with the multigraph evaluation of `M`,
+provided all multiplicities are ≤ 1. -/
+theorem simpleEvalAt_toSimple {T K n : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (M : MultiLabeledGraph K n) (hM : M.SimpleMult) (ξ : Fin K → Fin T) :
+    simpleEvalAt B W M.toSimple ξ = multiLabeledEvalK K n M B W ξ := by
+  rw [simpleEvalAt_eq_multi', M.ofSimple_toSimple hM]
+
+/-! ### Invariant suppliers: `ofSimple`, the test graphs, and `empty` -/
+
+theorem MultiLabeledGraph.ofSimple_simpleMult {K n : ℕ} (F : SimpleGraph (Fin (n + K)))
+    [DecidableRel F.Adj] : (MultiLabeledGraph.ofSimple F).SimpleMult := fun e => by
+  show (if e ∈ F.edgeFinset then 1 else 0) ≤ 1
+  split_ifs <;> omega
+
+theorem MultiLabeledGraph.ofSimple_noLabelPairs {K n : ℕ} (F : SimpleGraph (Fin (n + K)))
+    [DecidableRel F.Adj]
+    (hF : ∀ a b : Fin (n + K), (a : ℕ) < K → (b : ℕ) < K → s(a, b) ∉ F.edgeFinset) :
+    (MultiLabeledGraph.ofSimple F).NoLabelPairs := fun a b ha hb => by
+  show (if s(a, b) ∈ F.edgeFinset then 1 else 0) = 0
+  rw [if_neg (hF a b ha hb)]
+
+theorem MultiLabeledGraph.empty_simpleMult {K n : ℕ} :
+    (MultiLabeledGraph.empty K n).SimpleMult := fun _ => Nat.zero_le 1
+
+theorem MultiLabeledGraph.empty_noLabelPairs {K n : ℕ} :
+    (MultiLabeledGraph.empty K n).NoLabelPairs := fun _ _ _ _ => rfl
+
+/-- Every `starTestGraph` edge touches the unlabeled vertex (value `K`), so there are no
+label-label edges. -/
+theorem starTestGraph_noLabelPairs (S : Finset (Fin K)) :
+    (MultiLabeledGraph.ofSimple (starTestGraph S)).NoLabelPairs := by
+  refine MultiLabeledGraph.ofSimple_noLabelPairs _ fun a b ha hb hmem => ?_
+  rw [starTestGraph_edgeFinset, Finset.mem_image] at hmem
+  obtain ⟨i, -, heq⟩ := hmem
+  rw [Sym2.eq_iff] at heq
+  rcases heq with ⟨-, h2⟩ | ⟨-, h2⟩ <;>
+    (have := congrArg Fin.val h2; simp only [unlVertex] at this; omega)
+
+/-- Every `edgeTestGraph` edge touches an unlabeled vertex (values `K`, `K+1`), so there are no
+label-label edges. -/
+theorem edgeTestGraph_noLabelPairs (Sₗ Sτ : Finset (Fin K)) :
+    (MultiLabeledGraph.ofSimple (edgeTestGraph Sₗ Sτ)).NoLabelPairs := by
+  refine MultiLabeledGraph.ofSimple_noLabelPairs _ fun a b ha hb hmem => ?_
+  rw [edgeTestGraph_edgeFinset, Finset.mem_insert, Finset.mem_union] at hmem
+  rcases hmem with heq | hmem | hmem
+  · rw [Sym2.eq_iff] at heq
+    rcases heq with ⟨h1, -⟩ | ⟨h1, -⟩ <;>
+      (have := congrArg Fin.val h1; simp only [unlVertex0, unlVertex1] at this; omega)
+  all_goals
+    rw [Finset.mem_image] at hmem
+    obtain ⟨i, -, heq⟩ := hmem
+    rw [Sym2.eq_iff] at heq
+    rcases heq with ⟨-, h2⟩ | ⟨-, h2⟩ <;>
+      (have := congrArg Fin.val h2; simp only [unlVertex0, unlVertex1] at this; omega)
+
+/-! ### `glueCast` characterizations and invariant preservation under `glue` -/
+
+theorem glueCast₁_some_val {K n₁ n₂ : ℕ} {v : Fin ((n₁ + n₂) + K)} {u : Fin (n₁ + K)}
+    (h : glueCast₁ K n₁ n₂ v = some u) : (u : ℕ) = (v : ℕ) ∧ (v : ℕ) < n₁ + K := by
+  unfold glueCast₁ at h
+  split_ifs at h with hv
+  exact ⟨congrArg Fin.val (Option.some.inj h).symm, hv⟩
+
+theorem glueCast₂_some_val {K n₁ n₂ : ℕ} {v : Fin ((n₁ + n₂) + K)} {u : Fin (n₂ + K)}
+    (h : glueCast₂ K n₁ n₂ v = some u) :
+    ((v : ℕ) < K ∧ (u : ℕ) = (v : ℕ)) ∨ (n₁ + K ≤ (v : ℕ) ∧ (u : ℕ) = (v : ℕ) - n₁) := by
+  unfold glueCast₂ at h
+  split_ifs at h with h1 h2
+  · exact Or.inl ⟨h1, congrArg Fin.val (Option.some.inj h).symm⟩
+  · exact Or.inr ⟨h2, congrArg Fin.val (Option.some.inj h).symm⟩
+
+theorem glueCast₁_ne_none_of_lt {K n₁ n₂ : ℕ} {v : Fin ((n₁ + n₂) + K)}
+    (hv : (v : ℕ) < n₁ + K) : glueCast₁ K n₁ n₂ v ≠ none := by
+  unfold glueCast₁; rw [dif_pos hv]; simp
+
+theorem glueCast₂_ne_none_of_lt {K n₁ n₂ : ℕ} {v : Fin ((n₁ + n₂) + K)}
+    (hv : (v : ℕ) < K) : glueCast₂ K n₁ n₂ v ≠ none := by
+  unfold glueCast₂; rw [dif_pos hv]; simp
+
+/-- `glue` preserves multiplicity ≤ 1, given `NoLabelPairs` on the second factor: the only
+pairs where the two `glue` contributions can BOTH be nonzero are label-label pairs, and there
+the `M₂` contribution vanishes. -/
+theorem MultiLabeledGraph.glue_simpleMult {K n₁ n₂ : ℕ}
+    {M₁ : MultiLabeledGraph K n₁} {M₂ : MultiLabeledGraph K n₂}
+    (h₁ : M₁.SimpleMult) (h₂ : M₂.SimpleMult) (hlp₂ : M₂.NoLabelPairs) :
+    (M₁.glue M₂).SimpleMult := by
+  intro e
+  refine Sym2.ind (fun a b => ?_) e
+  rw [MultiLabeledGraph.glue_mult_pair]
+  rcases hc1a : glueCast₁ K n₁ n₂ a with _ | u₁a <;>
+    rcases hc1b : glueCast₁ K n₁ n₂ b with _ | u₁b <;>
+    rcases hc2a : glueCast₂ K n₁ n₂ a with _ | u₂a <;>
+    rcases hc2b : glueCast₂ K n₁ n₂ b with _ | u₂b <;>
+    dsimp only <;>
+    first
+      | omega
+      | simpa using h₁ s(u₁a, u₁b)
+      | simpa using h₂ s(u₂a, u₂b)
+      | (obtain ⟨hu1a, hva⟩ := glueCast₁_some_val hc1a
+         obtain ⟨hu1b, hvb⟩ := glueCast₁_some_val hc1b
+         rcases glueCast₂_some_val hc2a with ⟨haK, hu2a⟩ | ⟨haK, -⟩
+         · rcases glueCast₂_some_val hc2b with ⟨hbK, hu2b⟩ | ⟨hbK, -⟩
+           · rw [hlp₂ u₂a u₂b (by omega) (by omega)]
+             simpa using h₁ s(u₁a, u₁b)
+           · omega
+         · omega)
+
+/-- `glue` preserves the no-label-pairs invariant. -/
+theorem MultiLabeledGraph.glue_noLabelPairs {K n₁ n₂ : ℕ}
+    {M₁ : MultiLabeledGraph K n₁} {M₂ : MultiLabeledGraph K n₂}
+    (h₁ : M₁.NoLabelPairs) (h₂ : M₂.NoLabelPairs) : (M₁.glue M₂).NoLabelPairs := by
+  intro a b ha hb
+  rw [MultiLabeledGraph.glue_mult_pair]
+  rcases hc1a : glueCast₁ K n₁ n₂ a with _ | u₁a
+  · exact absurd hc1a (glueCast₁_ne_none_of_lt (by omega))
+  rcases hc1b : glueCast₁ K n₁ n₂ b with _ | u₁b
+  · exact absurd hc1b (glueCast₁_ne_none_of_lt (by omega))
+  rcases hc2a : glueCast₂ K n₁ n₂ a with _ | u₂a
+  · exact absurd hc2a (glueCast₂_ne_none_of_lt ha)
+  rcases hc2b : glueCast₂ K n₁ n₂ b with _ | u₂b
+  · exact absurd hc2b (glueCast₂_ne_none_of_lt hb)
+  dsimp only
+  obtain ⟨hu1a, -⟩ := glueCast₁_some_val hc1a
+  obtain ⟨hu1b, -⟩ := glueCast₁_some_val hc1b
+  rcases glueCast₂_some_val hc2a with ⟨-, hu2a⟩ | ⟨haK, -⟩
+  · rcases glueCast₂_some_val hc2b with ⟨-, hu2b⟩ | ⟨hbK, -⟩
+    · rw [h₁ u₁a u₁b (by omega) (by omega), h₂ u₂a u₂b (by omega) (by omega)]
+    · omega
+  · omega
+
 end Graphon.Lovasz
