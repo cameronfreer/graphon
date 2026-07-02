@@ -348,6 +348,24 @@ theorem tupleEquivSimple_starTestGraph_mult {T : ℕ} (B : Fin T → Fin T → �
   simp only [prod_label_eq_prod_mult] at heq
   exact heq
 
+/-- **Test-graph evaluation equality** — the moment-level interface to the chunk-3A engine.
+Records exactly the two families of simple-graph equalities the super-surjective argument
+consumes: the star tests `Gχ` and the edge tests `Gλτ`. Weaker than `tupleEquivSimple`
+(which quantifies over ALL simple graphs); the descent step (chunk 4F) produces instances
+of this interface from eq. (10) moment matching, where full `tupleEquivSimple` is not
+available. -/
+structure TestEvalEq {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (ξ ξ' : Fin K → Fin T) : Prop where
+  star : ∀ S : Finset (Fin K),
+    simpleEvalAt B W (starTestGraph S) ξ = simpleEvalAt B W (starTestGraph S) ξ'
+  edge : ∀ Sₗ Sτ : Finset (Fin K),
+    simpleEvalAt B W (edgeTestGraph Sₗ Sτ) ξ = simpleEvalAt B W (edgeTestGraph Sₗ Sτ) ξ'
+
+/-- Full simple-equivalence yields the test-graph interface. -/
+theorem TestEvalEq.of_tupleEquivSimple {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquivSimple B W ξ ξ') : TestEvalEq B W ξ ξ' :=
+  ⟨fun S => h 1 (starTestGraph S), fun Sₗ Sτ => h 2 (edgeTestGraph Sₗ Sτ)⟩
+
 /-- **Aligned-Vandermonde extraction** (graph-free core of chunk 3A). If the moment sums of
 two profile families `x`, `y` (weighted by `a`, `b`) agree for every exponent vector bounded
 by `2·T`, then the `a`-mass and `b`-mass over each profile level set agree. The combined index
@@ -569,14 +587,15 @@ theorem exists_exponent_label_set {T : ℕ} (ξ ξ' : Fin K → Fin T) (hξ : Su
       (lt_of_lt_of_le (hk j) (superFiberSubset_card ξ ξ' hξ j)).le
   exact ⟨Kf, hsub, hcard⟩
 
-/-- **Aligned-moment bridge.** From `tupleEquivSimple` and super-surjectivity, the aligned moment
-identity holds for every bounded exponent vector, with the right-hand side reindexed by `superMap`.
+/-- **Aligned-moment bridge.** From the star-test equalities (`TestEvalEq.star`) and
+super-surjectivity, the aligned moment identity holds for every bounded exponent vector, with the
+right-hand side reindexed by `superMap`.
 This consumes the `starTestGraph` closed form: the label set `S = ⋃ⱼ Kⱼ` has `ξ ≡ j` on `Kⱼ` (giving
 `(B j t)^{k j}` on the left) and `ξ' ≡ superMap j` on `Kⱼ` (giving `(B (superMap j) t)^{k j}` on the
 right) — no injectivity of `superMap` is needed. -/
-theorem aligned_moments_of_tupleEquivSimple_super {T : ℕ} (B : Fin T → Fin T → ℝ)
+theorem aligned_moments_of_testEvalEq_super {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (ξ ξ' : Fin K → Fin T)
-    (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') :
     ∀ k : Fin T → ℕ, (∀ j, k j < 2 * T) →
       ∑ t, W t * ∏ j, (B j t) ^ k j
         = ∑ t, W t * ∏ j, (B (superMap ξ ξ' hξ j) t) ^ k j := by
@@ -604,7 +623,7 @@ theorem aligned_moments_of_tupleEquivSimple_super {T : ℕ} (B : Fin T → Fin T
         rw [superFiberSubset_image_const ξ ξ' hξ j i (hKf_sub j hi)]
     rw [hconst, Finset.prod_const, hKf_card j]
   have heq : simpleEvalAt B W (starTestGraph S) ξ = simpleEvalAt B W (starTestGraph S) ξ' :=
-    h 1 (starTestGraph S)
+    h.star S
   rw [simpleEvalAt_starTestGraph B hB W S ξ, simpleEvalAt_starTestGraph B hB W S ξ'] at heq
   calc ∑ t, W t * ∏ j, (B j t) ^ k j
       = ∑ t, W t * ∏ i ∈ S, B (ξ i) t := by
@@ -618,10 +637,10 @@ by the preliminary map — there is a `u` with `B j t = B (superMap … j) u` fo
 aligned-moment bridge with the proved aligned-Vandermonde support lemma. -/
 theorem superMap_support {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (t : Fin T) :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') (t : Fin T) :
     ∃ u, ∀ j, B j t = B (superMap ξ ξ' hξ j) u :=
   aligned_star_moments_support B hB W hW htwin (superMap ξ ξ' hξ)
-    (aligned_moments_of_tupleEquivSimple_super B hB W ξ ξ' hξ h) t
+    (aligned_moments_of_testEvalEq_super B hB W ξ ξ' hξ h) t
 
 /-! ### Chunk 3A.4: `superMap` is bijective -/
 
@@ -630,7 +649,7 @@ witness `u` gives `B a t = B (superMap a) u = B (superMap b) u = B b t`, so the 
 agree; twin-freeness forces `a = b`. (No edge tests needed.) -/
 theorem superMap_injective {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') :
     Function.Injective (superMap ξ ξ' hξ) := by
   intro a b hab
   by_contra hne
@@ -642,7 +661,7 @@ theorem superMap_injective {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j
 /-- **`superMap` is bijective** (injective endomap of a finite type). -/
 theorem superMap_bijective {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') :
     Function.Bijective (superMap ξ ξ' hξ) :=
   Finite.injective_iff_bijective.mp (superMap_injective B hB W hW htwin ξ ξ' hξ h)
 
@@ -651,13 +670,13 @@ exactly this permutation (since `ξ' i = superMap (ξ i)` on the selected labels
 not its inverse); edge/weight preservation are established next (3A.5) via `edgeTestGraph`. -/
 noncomputable def superPerm {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') :
     Equiv.Perm (Fin T) :=
   Equiv.ofBijective (superMap ξ ξ' hξ) (superMap_bijective B hB W hW htwin ξ ξ' hξ h)
 
 @[simp] theorem superPerm_apply {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (j : Fin T) :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') (j : Fin T) :
     superPerm B hB W hW htwin ξ ξ' hξ h j = superMap ξ ξ' hξ j := rfl
 
 /-! ### Chunk 3A.5: aligned edge moments (`edgeTestGraph`) -/
@@ -675,15 +694,16 @@ private theorem prod_biUnion_const {T : ℕ} {Kf : Fin T → Finset (Fin K)}
     Finset.prod_congr rfl fun i hi => hc j i hi
   rw [hconst, Finset.prod_const, hcard j]
 
-/-- **Aligned edge-moment bridge** (pair analogue of `aligned_moments_of_tupleEquivSimple_super`).
-From `tupleEquivSimple` and super-surjectivity, the aligned *edge*-moment identity holds for every
-pair of bounded exponent vectors `k`, `l`, with the right-hand side reindexed by `superMap`. This
+/-- **Aligned edge-moment bridge** (pair analogue of `aligned_moments_of_testEvalEq_super`).
+From the edge-test equalities (`TestEvalEq.edge`) and super-surjectivity, the aligned
+*edge*-moment identity holds for every pair of bounded exponent vectors `k`, `l`, with the
+right-hand side reindexed by `superMap`. This
 consumes the `edgeTestGraph` closed form: with `Sₗ = ⋃ⱼ Klⱼ`, `Sτ = ⋃ⱼ Ktⱼ` one has `ξ ≡ j` on
 each block (giving `(B j ·)^{k j}`/`(B j ·)^{l j}`) and `ξ' ≡ superMap j` (giving the reindexed
 right-hand side) — no injectivity of `superMap` is needed. -/
-theorem aligned_edge_moments_of_tupleEquivSimple_super {T : ℕ} (B : Fin T → Fin T → ℝ)
+theorem aligned_edge_moments_of_testEvalEq_super {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (ξ ξ' : Fin K → Fin T)
-    (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') :
     ∀ k l : Fin T → ℕ, (∀ j, k j < 2 * T) → (∀ j, l j < 2 * T) →
       ∑ x, ∑ y, W x * W y * B x y * (∏ j, (B j x) ^ k j) * (∏ j, (B j y) ^ l j)
         = ∑ x, ∑ y, W x * W y * B x y
@@ -714,7 +734,7 @@ theorem aligned_edge_moments_of_tupleEquivSimple_super {T : ℕ} (B : Fin T → 
       (fun j i hi => by rw [superFiberSubset_image_const ξ ξ' hξ j i (hKt_sub j hi)]) hKt_card
   have heq : simpleEvalAt B W (edgeTestGraph (univ.biUnion Kl) (univ.biUnion Kt)) ξ
       = simpleEvalAt B W (edgeTestGraph (univ.biUnion Kl) (univ.biUnion Kt)) ξ' :=
-    h 2 (edgeTestGraph (univ.biUnion Kl) (univ.biUnion Kt))
+    h.edge (univ.biUnion Kl) (univ.biUnion Kt)
   rw [simpleEvalAt_edgeTestGraph B hB W _ _ ξ,
     simpleEvalAt_edgeTestGraph B hB W _ _ ξ'] at heq
   calc ∑ x, ∑ y, W x * W y * B x y * (∏ j, (B j x) ^ k j) * (∏ j, (B j y) ^ l j)
@@ -737,7 +757,7 @@ theorem aligned_edge_moments_of_tupleEquivSimple_super {T : ℕ} (B : Fin T → 
 the `superMap`-reindexed one. -/
 theorem aligned_edge_moments_pair_balance {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (ξ ξ' : Fin K → Fin T)
-    (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (z₁ z₂ : Fin T → ℝ) :
+    (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') (z₁ z₂ : Fin T → ℝ) :
     ∑ p : Fin T × Fin T,
         (if (fun j => B j p.1) = z₁ ∧ (fun j => B j p.2) = z₂
          then W p.1 * W p.2 * B p.1 p.2 else 0)
@@ -808,7 +828,7 @@ theorem aligned_edge_moments_pair_balance {T : ℕ} (B : Fin T → Fin T → ℝ
   have hmom : ∀ k : Fin (T + T) → ℕ, (∀ c, k c < 2 * T) →
       ∑ p, a p * ∏ c, (x p c) ^ k c = ∑ p, a p * ∏ c, (y p c) ^ k c := by
     intro k hk
-    have hbridge := aligned_edge_moments_of_tupleEquivSimple_super B hB W ξ ξ' hξ h
+    have hbridge := aligned_edge_moments_of_testEvalEq_super B hB W ξ ξ' hξ h
       (fun j => k (Fin.castAdd T j)) (fun j => k (Fin.natAdd T j))
       (fun j => hk (Fin.castAdd T j)) (fun j => hk (Fin.natAdd T j))
     have hxprod : ∀ p : Fin T × Fin T, ∏ c, (x p c) ^ k c
@@ -876,19 +896,19 @@ theorem aligned_edge_moments_pair_balance {T : ℕ} (B : Fin T → Fin T → ℝ
 `∀ j, B j t = B (superMap j) u`. It turns out to be the orbit automorphism (`= superMap`). -/
 noncomputable def superInv {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (t : Fin T) :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') (t : Fin T) :
     Fin T :=
   (superMap_support B hB W hW htwin ξ ξ' hξ h t).choose
 
 theorem superInv_spec {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (t : Fin T) :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') (t : Fin T) :
     ∀ j, B j t = B (superMap ξ ξ' hξ j) (superInv B hB W hW htwin ξ ξ' hξ h t) :=
   (superMap_support B hB W hW htwin ξ ξ' hξ h t).choose_spec
 
 theorem superInv_unique {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') {t u : Fin T}
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') {t u : Fin T}
     (hu : ∀ j, B j t = B (superMap ξ ξ' hξ j) u) :
     u = superInv B hB W hW htwin ξ ξ' hξ h t := by
   by_contra hne
@@ -901,7 +921,7 @@ theorem superInv_unique {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B
 
 theorem superInv_injective {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') :
     Function.Injective (superInv B hB W hW htwin ξ ξ' hξ h) := by
   intro a b hab
   by_contra hne
@@ -912,7 +932,7 @@ theorem superInv_injective {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j
 
 theorem superInv_bijective {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') :
     Function.Bijective (superInv B hB W hW htwin ξ ξ' hξ h) :=
   Finite.injective_iff_bijective.mp (superInv_injective B hB W hW htwin ξ ξ' hξ h)
 
@@ -920,10 +940,10 @@ theorem superInv_bijective {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j
 `{superInv t}`, so weight balance gives `W (superInv t) = W t`. -/
 theorem superInv_preserves_W {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (t : Fin T) :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') (t : Fin T) :
     W (superInv B hB W hW htwin ξ ξ' hξ h t) = W t := by
   have hbal := aligned_star_moments_weight_balance B hB W htwin (superMap ξ ξ' hξ)
-    (aligned_moments_of_tupleEquivSimple_super B hB W ξ ξ' hξ h) t
+    (aligned_moments_of_testEvalEq_super B hB W ξ ξ' hξ h) t
   have hfib : (univ.filter (fun u => ∀ j, B j t = B (superMap ξ ξ' hξ j) u))
       = {superInv B hB W hW htwin ξ ξ' hξ h t} := by
     ext u
@@ -938,7 +958,7 @@ the left fibre is `{(a,b)}` (twin-free) and the right fibre is `{(superInv a, su
 (`superInv_unique`); positivity cancels the weights. So `superInv` preserves `B`. -/
 theorem superInv_preserves_B {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (a b : Fin T) :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') (a b : Fin T) :
     B (superInv B hB W hW htwin ξ ξ' hξ h a) (superInv B hB W hW htwin ξ ξ' hξ h b) = B a b := by
   classical
   have hcol : ∀ u v : Fin T, (fun j => B j u) = (fun j => B j v) → u = v := by
@@ -991,7 +1011,7 @@ preservation gives `B a b = B (superInv a) (superInv b)`; comparing over all col
 (`superInv` surjective) and applying twin-freeness identifies the two maps. -/
 theorem superInv_eq_superMap {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') :
     superInv B hB W hW htwin ξ ξ' hξ h = superMap ξ ξ' hξ := by
   funext a
   have hrow : B (superMap ξ ξ' hξ a) = B (superInv B hB W hW htwin ξ ξ' hξ h a) := by
@@ -1007,14 +1027,14 @@ theorem superInv_eq_superMap {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i
 
 theorem superMap_preserves_B {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (a b : Fin T) :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') (a b : Fin T) :
     B (superMap ξ ξ' hξ a) (superMap ξ ξ' hξ b) = B a b := by
   rw [← superInv_eq_superMap B hB W hW htwin ξ ξ' hξ h]
   exact superInv_preserves_B B hB W hW htwin ξ ξ' hξ h a b
 
 theorem superMap_preserves_W {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (a : Fin T) :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') (a : Fin T) :
     W (superMap ξ ξ' hξ a) = W a := by
   rw [← superInv_eq_superMap B hB W hW htwin ξ ξ' hξ h]
   exact superInv_preserves_W B hB W hW htwin ξ ξ' hξ h a
@@ -1023,7 +1043,7 @@ theorem superMap_preserves_W {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i
 `(B, W)` — the certified output of chunk 3A.5. -/
 theorem superMap_isWeightedAutomorphism {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') :
     IsWeightedAutomorphism B W (superPerm B hB W hW htwin ξ ξ' hξ h) := by
   refine ⟨fun i => ?_, fun i j => ?_⟩
   · rw [superPerm_apply]; exact superMap_preserves_W B hB W hW htwin ξ ξ' hξ h i
@@ -1037,7 +1057,7 @@ extra `B (ξ i₀) t` / `B (ξ' i₀) t` factor. Reindexing the right-hand side 
 restoring the aligned exponent product `∏ⱼ (B j t) ^ k j`. -/
 theorem one_extra_label_moment {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') (i₀ : Fin K)
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') (i₀ : Fin K)
     (k : Fin T → ℕ) (hk : ∀ j, k j < T) :
     ∑ t, W t * B (ξ i₀) t * ∏ j, (B j t) ^ k j
       = ∑ t, W t * B (ξ' i₀) (superMap ξ ξ' hξ t) * ∏ j, (B j t) ^ k j := by
@@ -1076,7 +1096,7 @@ theorem one_extra_label_moment {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀
   -- The star-test equality on `S = insert i₀ (⋃ⱼ Kf j)`.
   have heq : simpleEvalAt B W (starTestGraph (insert i₀ (univ.biUnion Kf))) ξ
       = simpleEvalAt B W (starTestGraph (insert i₀ (univ.biUnion Kf))) ξ' :=
-    h 1 (starTestGraph (insert i₀ (univ.biUnion Kf)))
+    h.star (insert i₀ (univ.biUnion Kf))
   rw [simpleEvalAt_starTestGraph B hB W _ ξ, simpleEvalAt_starTestGraph B hB W _ ξ'] at heq
   -- Phase A: raw moment identity with one extra `i₀` factor.
   have phaseA : ∑ t, W t * B (ξ i₀) t * ∏ j, (B j t) ^ k j
@@ -1109,7 +1129,7 @@ singleton, positivity gives `B (ξ i₀) t = B (ξ' i₀) (superMap t)` for all 
 automorphism property identifies `ξ' i₀ = superMap (ξ i₀)`. -/
 theorem superMap_agrees_on_all_labels {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ v, 0 < W v) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : tupleEquivSimple B W ξ ξ') :
+    (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ) (h : TestEvalEq B W ξ ξ') :
     ∀ i : Fin K, ξ' i = superMap ξ ξ' hξ (ξ i) := by
   intro i₀
   have hmom : ∀ k : Fin T → ℕ, (∀ j, k j < T) →
@@ -1148,17 +1168,29 @@ theorem superMap_agrees_on_all_labels {T : ℕ} (B : Fin T → Fin T → ℝ) (h
   rw [← ht, superMap_preserves_B B hB W hW htwin ξ ξ' hξ h (ξ i₀) t]
   exact hstar t
 
+/-- **Chunk 3A core — the super-surjective Cai–Govorov orbit separation, moment form.** If `ξ`
+is super-surjective and the star/edge test evaluations agree (`TestEvalEq`), then `ξ'` is in the
+weighted-automorphism orbit of `ξ`. Combines `superMap_isWeightedAutomorphism` with the
+full-fibre reconciliation. The `TestEvalEq` interface (rather than full `tupleEquivSimple`) is
+what the eq. (10) descent step can supply for matched extensions. -/
+theorem testEvalEq_implies_orbit_super {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ v, 0 < W v)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ)
+    (h : TestEvalEq B W ξ ξ') :
+    tupleOrbitRel B W ξ ξ' :=
+  ⟨superPerm B hB W hW htwin ξ ξ' hξ h,
+   superMap_isWeightedAutomorphism B hB W hW htwin ξ ξ' hξ h,
+   fun i => by rw [superPerm_apply]; exact superMap_agrees_on_all_labels B hB W hW htwin ξ ξ' hξ h i⟩
+
 /-- **Chunk 3A — the super-surjective Cai–Govorov orbit separation.** If `ξ` is super-surjective
 and `ξ ≈ ξ'` (equal simple-graph evaluations), then `ξ'` is in the weighted-automorphism orbit of
-`ξ`. Combines `superMap_isWeightedAutomorphism` with the full-fibre reconciliation. -/
+`ξ`. Wrapper around the moment-form core `testEvalEq_implies_orbit_super`. -/
 theorem tupleEquivSimple_implies_orbit_super {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ v, 0 < W v)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j) (ξ ξ' : Fin K → Fin T) (hξ : SuperSurjective ξ)
     (h : tupleEquivSimple B W ξ ξ') :
     tupleOrbitRel B W ξ ξ' :=
-  ⟨superPerm B hB W hW htwin ξ ξ' hξ h,
-   superMap_isWeightedAutomorphism B hB W hW htwin ξ ξ' hξ h,
-   fun i => by rw [superPerm_apply]; exact superMap_agrees_on_all_labels B hB W hW htwin ξ ξ' hξ h i⟩
+  testEvalEq_implies_orbit_super B hB W hW htwin ξ ξ' hξ (.of_tupleEquivSimple h)
 
 /-! ## Chunk 3B.1b: iterating the trace over the extra labels
 
