@@ -3,10 +3,12 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Graphon.CaiGovorov
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Algebra.BigOperators.Ring.Finset
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
 import Mathlib.Algebra.Polynomial.Eval.Degree
+import Mathlib.Combinatorics.Pigeonhole
 import Mathlib.Combinatorics.SimpleGraph.Finite
 import Mathlib.Data.Fintype.BigOperators
 import Mathlib.Data.Real.Basic
@@ -5184,6 +5186,17 @@ private theorem simpleEvalAt_eq_multi {T K n : ℕ}
     simpleEvalAt B W F ξ =
       multiLabeledEvalK K n (MultiLabeledGraph.ofSimple F) B W ξ := by
   rw [multiLabeledEvalK_ofSimple]; rfl
+
+/-- `Quot.out` resolver on a literal `Sym2` pair over an ARBITRARY vertex type
+(the `out_pair_eq` generalization needed for structured graphs). Moved here from
+`CycleKrylov.lean` (2026-07-02) so the Cai–Govorov stack below can use it. -/
+theorem out_pair_eq' {T' : ℕ} {V : Type*} (Bm : Fin T' → Fin T' → ℝ)
+    (hB : ∀ i j, Bm i j = Bm j i) (g : V → Fin T') (x y : V) :
+    Bm (g (Quot.out s(x, y)).1) (g (Quot.out s(x, y)).2) = Bm (g x) (g y) := by
+  have hout : s((Quot.out s(x, y)).1, (Quot.out s(x, y)).2) = s(x, y) := Quot.out_eq _
+  rcases Sym2.eq_iff.mp hout with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · rw [h1, h2]
+  · rw [h1, h2, hB]
 
 /-- **Product trace identity (named focused sorry)** —
 the LIST-product analog of `simpleEvalAt_trace_eq` below.

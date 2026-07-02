@@ -1966,15 +1966,8 @@ theorem k2kArmsStructured_edgeFinset (k : ℕ) (armLen : Fin k → ℕ) :
 
 /-! #### Commit 1 — Fin/structured edge transport + edge-product factorization -/
 
-/-- `Quot.out` resolver on a literal `Sym2` pair over an ARBITRARY vertex type
-(the `out_pair_eq` generalization needed for the structured graph). -/
-theorem out_pair_eq' {T' : ℕ} {V : Type*} (Bm : Fin T' → Fin T' → ℝ)
-    (hB : ∀ i j, Bm i j = Bm j i) (g : V → Fin T') (x y : V) :
-    Bm (g (Quot.out s(x, y)).1) (g (Quot.out s(x, y)).2) = Bm (g x) (g y) := by
-  have hout : s((Quot.out s(x, y)).1, (Quot.out s(x, y)).2) = s(x, y) := Quot.out_eq _
-  rcases Sym2.eq_iff.mp hout with ⟨h1, h2⟩ | ⟨h1, h2⟩
-  · rw [h1, h2]
-  · rw [h1, h2, hB]
+-- `out_pair_eq'` MOVED upstream to `Lovasz.lean` (2026-07-02), where the Cai–Govorov
+-- stack also needs it; all uses below resolve through the import chain.
 
 /-- Arm index of a vertex (anchors/internals carry their arm; root/hub `none`).
 Used to recover `(l, s)` from a chain endpoint in `k2kEdge_injective`. -/
