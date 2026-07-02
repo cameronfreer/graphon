@@ -1415,6 +1415,24 @@ theorem sum_extensions_eq_sum_rho {T m n : ℕ} (B : Fin T → Fin T → ℝ) (W
   unfold extensionWeightFin
   exact Finset.prod_congr rfl (fun j _ => by rw [Fin.append_right])
 
+/-- **Extension-sum collapse** (one side of eq. (10)). The weighted sum of `simpleEvalAt G`
+over ALL extensions of `ζ` collapses to a single simple evaluation at `ζ` — of the
+unlabel-extras graph. Extracted from `extension_sum_identity`; reused by the rank-residue
+annihilator argument (chunk 5B). -/
+theorem sum_extensions_eval {T m n : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
+    (W : Fin T → ℝ) (G : SimpleGraph (Fin (n + (K + m)))) [DecidableRel G.Adj]
+    (ζ : Fin K → Fin T) :
+    ∑ μ : {μ : Fin (K + m) → Fin T // ExtendsFin ζ μ},
+        extensionWeightFin W μ.1 * simpleEvalAt B W G μ.1
+      = simpleEvalAt B W (unlabelExtras G) ζ := by
+  rw [sum_extensions_eq_sum_rho B W G ζ,
+    show (∑ ρ : Fin m → Fin T, (∏ j, W (ρ j)) * simpleEvalAt B W G (Fin.append ζ ρ))
+        = ∑ ρ : Fin m → Fin T, (∏ j, W (ρ j)) *
+            multiLabeledEvalK (K + m) n (MultiLabeledGraph.ofSimple G) B W (Fin.append ζ ρ) from
+      Finset.sum_congr rfl (fun ρ _ => by rw [simpleEvalAt_eq_multi']),
+    multiLabeledEvalK_sum_extra_labels (MultiLabeledGraph.ofSimple G) B hB W ζ,
+    traceIterExtraLabels_ofSimple_eval B W G ζ]
+
 /-- **Equation (10)** (Cai–Govorov, the extension-family sum identity). Simple-equivalence at
 level `K` lifts to an equality of extension-family sums at level `K + m`: unpinning the extra
 labels (trace-to-simple bridge) reduces both sides to `simpleEvalAt` of `unlabelExtras G`, where
@@ -1426,19 +1444,7 @@ theorem extension_sum_identity {T m n : ℕ} (B : Fin T → Fin T → ℝ) (hB :
         extensionWeightFin W μ.1 * simpleEvalAt B W G μ.1
       = ∑ ν : {ν : Fin (K + m) → Fin T // ExtendsFin ξ' ν},
           extensionWeightFin W ν.1 * simpleEvalAt B W G ν.1 := by
-  have hbridge : ∀ ζ : Fin K → Fin T,
-      ∑ μ : {μ : Fin (K + m) → Fin T // ExtendsFin ζ μ},
-          extensionWeightFin W μ.1 * simpleEvalAt B W G μ.1
-        = simpleEvalAt B W (unlabelExtras G) ζ := by
-    intro ζ
-    rw [sum_extensions_eq_sum_rho B W G ζ,
-      show (∑ ρ : Fin m → Fin T, (∏ j, W (ρ j)) * simpleEvalAt B W G (Fin.append ζ ρ))
-          = ∑ ρ : Fin m → Fin T, (∏ j, W (ρ j)) *
-              multiLabeledEvalK (K + m) n (MultiLabeledGraph.ofSimple G) B W (Fin.append ζ ρ) from
-        Finset.sum_congr rfl (fun ρ _ => by rw [simpleEvalAt_eq_multi']),
-      multiLabeledEvalK_sum_extra_labels (MultiLabeledGraph.ofSimple G) B hB W ζ,
-      traceIterExtraLabels_ofSimple_eval B W G ζ]
-  rw [hbridge ξ, hbridge ξ']
+  rw [sum_extensions_eval B hB W G ξ, sum_extensions_eval B hB W G ξ']
   exact h (n + m) (unlabelExtras G)
 
 /-! ### Chunk 3B.2a: the concrete super-surjective extension of `ξ` (extras-last) -/
@@ -1888,5 +1894,26 @@ theorem testEvalEq_iff_moments {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀
       exact h (Sum.inl S)
     · rw [simpleEvalAt_edgeTestGraph B hB W Sₗ Sτ ξ, simpleEvalAt_edgeTestGraph B hB W Sₗ Sτ ξ']
       exact h (Sum.inr (Sₗ, Sτ))
+
+/-! ## Chunk 4E: the power-moment identity for extension families
+
+Equation (10) instantiated at the exponent test graphs: simple-equivalence at level `K`
+forces every weighted moment of the level-`(K+m)` test profile over the extension family of
+`ξ` to match that of `ξ'`. This is the `hmom` input for the two-family Vandermonde in the
+descent step (chunk 4F). -/
+
+/-- **Power-moment identity** (eq. (10) at `G := expTestGraph k`). -/
+theorem extension_power_moments {T m : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) {ξ ξ' : Fin K → Fin T}
+    (h : tupleEquivSimple B W ξ ξ') (k : TestCoord (K + m) → ℕ) :
+    ∑ ρ : Fin m → Fin T, (∏ j, W (ρ j))
+        * ∏ c : TestCoord (K + m), (testMoment B W c (Fin.append ξ ρ)) ^ k c
+      = ∑ ρ : Fin m → Fin T, (∏ j, W (ρ j))
+          * ∏ c : TestCoord (K + m), (testMoment B W c (Fin.append ξ' ρ)) ^ k c := by
+  have hid := extension_sum_identity B hB W h (expTestGraph k)
+  rw [sum_extensions_eq_sum_rho B W (expTestGraph k) ξ,
+    sum_extensions_eq_sum_rho B W (expTestGraph k) ξ'] at hid
+  simp only [simpleEvalAt_expTestGraph B hB W k] at hid
+  exact hid
 
 end Graphon.Lovasz
