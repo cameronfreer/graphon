@@ -13,6 +13,7 @@ import Mathlib.Combinatorics.SimpleGraph.Finite
 import Mathlib.Data.Fintype.BigOperators
 import Mathlib.Data.Real.Basic
 import Mathlib.Data.Sym.Sym2
+import Mathlib.LinearAlgebra.Dual.Lemmas
 import Mathlib.Logic.Equiv.Fin.Basic
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Ring
@@ -7346,11 +7347,11 @@ weighted-automorphism orbit equivalence, with no surjectivity hypothesis.
   against `superExt ξ` (`exists_matching_extension`), the super-case runs at level
   `K + T·2T²`, and restriction gives the general theorem.
 
-The rank endgame (`simpleEvalSubmodule_finrank_ge_orbitClass` and the collapse
-`simpleEvalSubmodule = orbitInvariantSubmodule`) lives downstream in
-`Graphon.SimpleOrbitRank`. The upstream `Lovasz.lean` sorry `tupleEquivSimple_implies_orbit`
-(§3.10) states this file's general theorem; filling it in place would require relocating
-this stack above Lovász §3.10 — a separate refactor, off the #70 critical path.
+Downstream in this file, the stack fills `orbit_separation_by_simple_graph` and the
+"both non-surjective" branch of `tupleEquivSimple_implies_orbit` (§3.10), and powers the
+rank endgame (`simpleEvalSubmodule_finrank_ge_orbitClass` and the collapse
+`simpleEvalSubmodule = orbitInvariantSubmodule`, § RankTheorem after
+`simpleEvalAt_aut_invariant`).
 -/
 
 open Finset
@@ -11553,6 +11554,492 @@ theorem simpleEvalAt_aut_invariant {T K n : ℕ}
   -- conj: ξ i = σ.symm ((σ ∘ ξ) i) = σ.symm (σ (ξ i)) = ξ i. ✓
   exact multiLabeledEvalK_eq_of_orbit B hB W (MultiLabeledGraph.ofSimple F)
     ⟨σ.symm, hσs_aut.1, hσs_aut.2, fun i => (σ.symm_apply_apply _).symm⟩
+
+section RankTheorem
+
+/-!
+### The #70 rank theorem: eval spans as `Submodule`s + the finrank collapse
+
+Moved here from `CycleKrylov.lean` (submodule packaging, Phase A/B) and the dissolved
+`SimpleOrbitRank.lean` (Phase C1+D + the annihilator argument), 2026-07-02. Sits directly
+after `simpleEvalAt_aut_invariant` and the Cai–Govorov stack — everything it needs.
+-/
+
+open Finset
+
+/-! ### Eval spans as `Submodule`s (Phase A — foundation for the §3 rank/finrank work)
+
+The K-tuple simple- and multigraph-eval spans, currently bare existential predicates
+(`InTupleSimpleEvalSpan` / `InTupleMultiEvalSpan` in `Lovasz.lean`), are repackaged here
+as honest `Submodule ℝ`s. This unlocks `finrank`/`Basis`/`≤` for the rank argument that
+isolates the sole #70 residue `InTupleMultiEvalSpan.toSimple`. The membership-`iff`s tie
+the new submodules back to the existing predicate API, which stays the interface for
+construction. -/
+
+/-- The K-tuple **simple-eval span** as a submodule: spanned by the simple-graph
+evaluation functions `ξ ↦ simpleEvalAt B W F ξ`. -/
+noncomputable def simpleEvalSubmodule {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (K : ℕ) : Submodule ℝ ((Fin K → Fin T) → ℝ) :=
+  Submodule.span ℝ
+    (Set.range (fun p : Σ (n : ℕ) (F : SimpleGraph (Fin (n + K))), DecidableRel F.Adj =>
+      (fun ξ => @simpleEvalAt T K p.1 B W p.2.1 p.2.2 ξ)))
+
+/-- The K-tuple **multigraph-eval span** as a submodule: spanned by the multigraph
+evaluation functions `ξ ↦ multiLabeledEvalK K n M B W ξ`. -/
+noncomputable def multiEvalSubmodule {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (K : ℕ) : Submodule ℝ ((Fin K → Fin T) → ℝ) :=
+  Submodule.span ℝ
+    (Set.range (fun p : Σ (n : ℕ), MultiLabeledGraph K n =>
+      (fun ξ => multiLabeledEvalK K p.1 p.2 B W ξ)))
+
+/-- Submodule membership coincides with the existing simple-eval span predicate
+`InTupleSimpleEvalSpan`. -/
+theorem mem_simpleEvalSubmodule_iff {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f : (Fin K → Fin T) → ℝ) :
+    f ∈ simpleEvalSubmodule B W K ↔ InTupleSimpleEvalSpan B W f := by
+  constructor
+  · intro hf
+    unfold simpleEvalSubmodule at hf
+    induction hf using Submodule.span_induction with
+    | mem x hx =>
+      obtain ⟨p, rfl⟩ := hx
+      exact @InTupleSimpleEvalSpan.of_simple T K p.1 B W p.2.1 p.2.2
+    | zero => exact InTupleSimpleEvalSpan.zero B W
+    | add x y _ _ hx hy => exact hx.add hy
+    | smul a x _ hx => exact InTupleSimpleEvalSpan.smul a hx
+  · intro hf
+    obtain ⟨N, g, c, rfl⟩ := hf
+    have hsum :
+        (fun ξ => ∑ k : Fin N, c k * @simpleEvalAt T K (g k).1 B W (g k).2.1 (g k).2.2 ξ)
+          = ∑ k : Fin N, c k •
+              (fun ξ => @simpleEvalAt T K (g k).1 B W (g k).2.1 (g k).2.2 ξ) := by
+      funext ξ
+      rw [Finset.sum_apply]
+      exact Finset.sum_congr rfl fun k _ => by rw [Pi.smul_apply, smul_eq_mul]
+    rw [hsum]
+    exact Submodule.sum_mem _ fun k _ =>
+      Submodule.smul_mem _ _ (Submodule.subset_span ⟨g k, rfl⟩)
+
+/-- Submodule membership coincides with the existing multigraph-eval span predicate
+`InTupleMultiEvalSpan`. -/
+theorem mem_multiEvalSubmodule_iff {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (f : (Fin K → Fin T) → ℝ) :
+    f ∈ multiEvalSubmodule B W K ↔ InTupleMultiEvalSpan B W f := by
+  constructor
+  · intro hf
+    unfold multiEvalSubmodule at hf
+    induction hf using Submodule.span_induction with
+    | mem x hx =>
+      obtain ⟨p, rfl⟩ := hx
+      exact InTupleMultiEvalSpan.of_multi B W p.2
+    | zero => exact InTupleMultiEvalSpan.zero B W
+    | add x y _ _ hx hy => exact hx.add hy
+    | smul a x _ hx => exact InTupleMultiEvalSpan.smul a hx
+  · intro hf
+    obtain ⟨N, g, c, rfl⟩ := hf
+    have hsum :
+        (fun ξ => ∑ k : Fin N, c k * multiLabeledEvalK K (g k).1 (g k).2 B W ξ)
+          = ∑ k : Fin N, c k • (fun ξ => multiLabeledEvalK K (g k).1 (g k).2 B W ξ) := by
+      funext ξ
+      rw [Finset.sum_apply]
+      exact Finset.sum_congr rfl fun k _ => by rw [Pi.smul_apply, smul_eq_mul]
+    rw [hsum]
+    exact Submodule.sum_mem _ fun k _ =>
+      Submodule.smul_mem _ _ (Submodule.subset_span ⟨g k, rfl⟩)
+
+/-! ### Orbit-invariant submodule and `multiEvalSubmodule = orbitInvariant` (Phase B)
+
+The genuinely informative half of the rank framework, and **non-circular**: the
+multigraph-eval submodule equals the submodule of automorphism-invariant functions. The
+`≥` direction rests on the directly-proved (toSimple-free) `tupleOrbitIndicator_mem_multiEvalSpan`.
+This pins the sole #70 residue to exactly `simpleEvalSubmodule = orbitInvariantSubmodule`. -/
+
+/-- The submodule of `(B, W)`-automorphism-invariant functions of a K-tuple. -/
+def orbitInvariantSubmodule {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (K : ℕ) :
+    Submodule ℝ ((Fin K → Fin T) → ℝ) where
+  carrier := { f | ∀ σ : Equiv.Perm (Fin T), IsWeightedAutomorphism B W σ →
+      ∀ ξ, f (σ ∘ ξ) = f ξ }
+  add_mem' := by
+    intro a b hf hg σ hσ ξ
+    simp only [Pi.add_apply]; rw [hf σ hσ ξ, hg σ hσ ξ]
+  zero_mem' := by intro σ hσ ξ; rfl
+  smul_mem' := by
+    intro c a hf σ hσ ξ
+    simp only [Pi.smul_apply, smul_eq_mul]; rw [hf σ hσ ξ]
+
+/-- **Automorphism-invariant ⟹ multigraph-eval span** (the multi analog of
+`tupleSimpleEval_span_aut_invariant`, but NON-circular — it consumes the directly-proved
+`tupleOrbitIndicator_mem_multiEvalSpan`, never `InTupleMultiEvalSpan.toSimple`). Orbit
+indicators are a basis of the invariant functions, and each lies in the multi span. -/
+theorem tupleMultiEval_span_aut_invariant {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (f : (Fin K → Fin T) → ℝ)
+    (h_aut_inv : ∀ (σ : Equiv.Perm (Fin T)),
+      IsWeightedAutomorphism B W σ → ∀ ξ, f (σ ∘ ξ) = f ξ) :
+    InTupleMultiEvalSpan B W f := by
+  classical
+  let S : Setoid (Fin K → Fin T) :=
+    ⟨tupleOrbitRel B W, tupleOrbitRel_refl B W,
+      fun h => tupleOrbitRel_symm B W h,
+      fun h₁ h₂ => tupleOrbitRel_trans B W h₁ h₂⟩
+  haveI : Fintype (Quotient S) := Quotient.fintype S
+  have h_decomp : f = fun ξ =>
+      ∑ q : Quotient S, f (Quotient.out q) * orbitIndicator B W (Quotient.out q) ξ := by
+    funext ξ
+    let q₀ : Quotient S := Quotient.mk S ξ
+    have hq₀_out : tupleOrbitRel B W (Quotient.out q₀) ξ := by
+      have := Quotient.mk_out (s := S) ξ
+      exact this
+    rw [show
+        (∑ q : Quotient S,
+          f (Quotient.out q) * orbitIndicator B W (Quotient.out q) ξ) =
+        f (Quotient.out q₀) * orbitIndicator B W (Quotient.out q₀) ξ +
+        ∑ q ∈ Finset.univ.erase q₀,
+          f (Quotient.out q) * orbitIndicator B W (Quotient.out q) ξ from
+      (Finset.add_sum_erase _ _ (Finset.mem_univ q₀)).symm]
+    have h_other_zero : ∀ q ∈ Finset.univ.erase q₀,
+        f (Quotient.out q) * orbitIndicator B W (Quotient.out q) ξ = 0 := by
+      intro q hq
+      rw [Finset.mem_erase] at hq
+      have h_q_ne : q ≠ q₀ := hq.1
+      have h_not_orbit : ¬ tupleOrbitRel B W (Quotient.out q) ξ := by
+        intro h_orbit
+        apply h_q_ne
+        rw [← Quotient.out_eq q, ← Quotient.out_eq q₀]
+        exact Quotient.sound (Setoid.trans h_orbit (Setoid.symm hq₀_out))
+      rw [orbitIndicator_of_not_orbit B W h_not_orbit, mul_zero]
+    rw [Finset.sum_eq_zero h_other_zero, add_zero]
+    have h_f_eq : f (Quotient.out q₀) = f ξ := by
+      obtain ⟨σ, hσ, hσeq⟩ := hq₀_out
+      have hξ : ξ = σ ∘ Quotient.out q₀ := funext hσeq
+      rw [hξ, h_aut_inv σ hσ]
+    have h_ind_one : orbitIndicator B W (Quotient.out q₀) ξ = 1 := by
+      unfold orbitIndicator
+      rw [if_pos hq₀_out]
+    rw [h_f_eq, h_ind_one, mul_one]
+  rw [h_decomp]
+  apply InTupleMultiEvalSpan.finset_sum
+  intro q _
+  exact InTupleMultiEvalSpan.smul (f (Quotient.out q))
+    (tupleOrbitIndicator_mem_multiEvalSpan B hB W hW htwin (Quotient.out q))
+
+/-- **`≤`: multigraph evaluations are automorphism-invariant.** -/
+theorem multiEvalSubmodule_le_orbitInvariantSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    multiEvalSubmodule B W K ≤ orbitInvariantSubmodule B W K := by
+  intro f hf
+  rw [mem_multiEvalSubmodule_iff] at hf
+  exact fun σ hσ ξ => InTupleMultiEvalSpan.aut_invariant B W hf σ hσ ξ
+
+/-- **`≥`: every automorphism-invariant function lies in the multigraph-eval span**
+(non-circular, via `tupleMultiEval_span_aut_invariant`). -/
+theorem orbitInvariantSubmodule_le_multiEvalSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    orbitInvariantSubmodule B W K ≤ multiEvalSubmodule B W K := by
+  intro f hf
+  rw [mem_multiEvalSubmodule_iff]
+  exact tupleMultiEval_span_aut_invariant B hB W hW htwin f hf
+
+/-- **The multigraph-eval submodule is exactly the automorphism-invariant submodule.**
+The clean, non-circular pillar of the §3 rank framework: the residue is now precisely
+`simpleEvalSubmodule = orbitInvariantSubmodule`. -/
+theorem multiEvalSubmodule_eq_orbitInvariantSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    multiEvalSubmodule B W K = orbitInvariantSubmodule B W K :=
+  le_antisymm (multiEvalSubmodule_le_orbitInvariantSubmodule B W)
+    (orbitInvariantSubmodule_le_multiEvalSubmodule B hB W hW htwin)
+
+/-- **Easy inclusion `simpleEvalSubmodule ≤ orbitInvariantSubmodule`**: simple-graph
+evaluations are automorphism-invariant (`simpleEvalAt_aut_invariant`). Completes the
+clean frame `simpleEvalSubmodule ≤ orbitInvariantSubmodule = multiEvalSubmodule`; the
+sole #70 residue is the reverse inclusion. -/
+theorem simpleEvalSubmodule_le_orbitInvariantSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) :
+    simpleEvalSubmodule B W K ≤ orbitInvariantSubmodule B W K := by
+  intro f hf
+  rw [mem_simpleEvalSubmodule_iff] at hf
+  intro σ hσ ξ
+  obtain ⟨N, g, c, hfeq⟩ := hf
+  rw [congr_fun hfeq (σ ∘ ξ), congr_fun hfeq ξ]
+  refine Finset.sum_congr rfl fun k _ => ?_
+  rw [@simpleEvalAt_aut_invariant T K (g k).1 B hB W (g k).2.1 (g k).2.2 σ hσ ξ]
+
+/-- **Corollary `simpleEvalSubmodule ≤ multiEvalSubmodule`** (the never-in-doubt
+inclusion), directly via `InTupleSimpleEvalSpan.toMulti`. -/
+theorem simpleEvalSubmodule_le_multiEvalSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    simpleEvalSubmodule B W K ≤ multiEvalSubmodule B W K := by
+  intro f hf
+  rw [mem_simpleEvalSubmodule_iff] at hf
+  rw [mem_multiEvalSubmodule_iff]
+  exact hf.toMulti
+
+
+
+noncomputable instance instFintypeOrbitClass {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ} :
+    Fintype (OrbitClass T K B W) := by
+  classical
+  unfold OrbitClass
+  exact Quotient.fintype _
+
+/-- Evaluation-at-orbit-representatives, as a linear map from the orbit-invariant
+functions to functions on the orbit quotient. -/
+noncomputable def orbitInvariantToClassFun {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    orbitInvariantSubmodule B W K →ₗ[ℝ] (OrbitClass T K B W → ℝ) where
+  toFun f := fun q => (f : (Fin K → Fin T) → ℝ) (Quotient.out q)
+  map_add' f g := by funext q; simp
+  map_smul' c f := by funext q; simp
+
+/-- **Orbit-invariant functions ≅ functions on the orbit quotient.** -/
+noncomputable def orbitInvariantEquiv {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    orbitInvariantSubmodule B W K ≃ₗ[ℝ] (OrbitClass T K B W → ℝ) :=
+  LinearEquiv.ofBijective (orbitInvariantToClassFun B W) (by
+    constructor
+    · -- injective: agreement on representatives + orbit-invariance ⟹ equal
+      intro f₁ f₂ h
+      apply Subtype.ext
+      funext ξ
+      have key : ∀ (g : orbitInvariantSubmodule B W K) (η : Fin K → Fin T),
+          (g : (Fin K → Fin T) → ℝ) η
+            = (g : (Fin K → Fin T) → ℝ)
+                (Quotient.out (Quotient.mk (tupleOrbitSetoid B W K) η)) := by
+        intro g η
+        obtain ⟨σ, hσ, hση⟩ := Quotient.mk_out (s := tupleOrbitSetoid B W K) η
+        have hηeq : η = σ ∘ Quotient.out (Quotient.mk (tupleOrbitSetoid B W K) η) := funext hση
+        conv_lhs => rw [hηeq]
+        exact g.2 σ hσ _
+      rw [key f₁ ξ, key f₂ ξ]
+      exact congrFun h (Quotient.mk (tupleOrbitSetoid B W K) ξ)
+    · -- surjective: pull back a class function
+      intro g
+      refine ⟨⟨fun η => g (Quotient.mk (tupleOrbitSetoid B W K) η), ?_⟩, ?_⟩
+      · intro σ hσ η
+        show g (Quotient.mk (tupleOrbitSetoid B W K) (σ ∘ η))
+            = g (Quotient.mk (tupleOrbitSetoid B W K) η)
+        have hmk : Quotient.mk (tupleOrbitSetoid B W K) η
+            = Quotient.mk (tupleOrbitSetoid B W K) (σ ∘ η) :=
+          Quotient.sound ⟨σ, hσ, fun i => rfl⟩
+        rw [hmk]
+      · funext q
+        show g (Quotient.mk (tupleOrbitSetoid B W K) (Quotient.out q)) = g q
+        rw [Quotient.out_eq])
+
+/-- **Phase C1: `finrank orbitInvariantSubmodule = #OrbitClass`.** -/
+theorem finrank_orbitInvariantSubmodule {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    Module.finrank ℝ (orbitInvariantSubmodule B W K) = Fintype.card (OrbitClass T K B W) := by
+  rw [(orbitInvariantEquiv B W).finrank_eq, Module.finrank_fintype_fun_eq_card]
+
+/-! ### The annihilator lemma (chunk 5B)
+
+Any `c : OrbitClass → ℝ` that annihilates every simple evaluation at orbit representatives is
+zero. This is STRICTLY stronger than point-separation of the orbit classes (distinct rows can
+still be linearly dependent); the signed single-family Vandermonde over
+`OrbitClass × (Fin m → Fin T)` does the real work, powered by the Cai–Govorov descent
+ingredients (`sum_extensions_eval`, `expTestGraph`, `testEvalEq_implies_orbit_super`). -/
+
+/-- Reindexing the test-moment power product along `Fintype.equivFin` (profile form). -/
+private theorem prod_profile_pow {T L : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (μ : Fin L → Fin T) (k : Fin (Fintype.card (TestCoord L)) → ℕ) :
+    ∏ c : TestCoord L, (testMoment B W c μ) ^ k (Fintype.equivFin (TestCoord L) c)
+      = ∏ c, (testProfile B W μ c) ^ k c := by
+  calc ∏ c : TestCoord L, (testMoment B W c μ) ^ k (Fintype.equivFin (TestCoord L) c)
+      = ∏ c : TestCoord L, (testProfile B W μ (Fintype.equivFin (TestCoord L) c))
+          ^ k (Fintype.equivFin (TestCoord L) c) := by
+        refine Finset.prod_congr rfl fun c _ => ?_
+        congr 1
+        show testMoment B W c μ
+          = testMoment B W ((Fintype.equivFin (TestCoord L)).symm
+              (Fintype.equivFin (TestCoord L) c)) μ
+        rw [Equiv.symm_apply_apply]
+    _ = ∏ c, (testProfile B W μ c) ^ k c :=
+        Equiv.prod_comp (Fintype.equivFin (TestCoord L))
+          (fun c => (testProfile B W μ c) ^ k c)
+
+/-- **The annihilator lemma.** If `∑ q, c q · simpleEvalAt F (out q) = 0` for every simple
+graph `F`, then `c = 0`. Signed Vandermonde over `OrbitClass × (Fin m → Fin T)` with the
+test-moment profile of `Fin.append (out q) ρ` as classifier: the class of the profile of
+`superExt (out q₀)` consists exactly of pairs `(q₀, ρ)` (chunk 4A at level `K + m` forces
+`q = q₀`), and its `W`-mass is positive, so the class-sum `c q₀ · (positive) = 0` kills
+`c q₀`. -/
+theorem eval_rep_annihilator_zero {T K : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (c : OrbitClass T K B W → ℝ)
+    (hc : ∀ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (inst : DecidableRel F.Adj),
+      ∑ q, c q * @simpleEvalAt T K n B W F inst (Quotient.out q) = 0) :
+    c = 0 := by
+  classical
+  funext q₀
+  show c q₀ = 0
+  -- ρ-form of the extension-sum collapse (eq. (10), one side).
+  have hρsum : ∀ (n : ℕ) (G : SimpleGraph (Fin (n + (K + T * (2 * T ^ 2)))))
+      (_ : DecidableRel G.Adj) (ζ : Fin K → Fin T),
+      ∑ ρ : Fin (T * (2 * T ^ 2)) → Fin T,
+          (∏ j, W (ρ j)) * simpleEvalAt B W G (Fin.append ζ ρ)
+        = simpleEvalAt B W (unlabelExtras G) ζ := fun n G _ ζ =>
+    (sum_extensions_eq_sum_rho B W G ζ).symm.trans (sum_extensions_eval B hB W G ζ)
+  -- Moment vanishing for the signed family over `OrbitClass × (Fin m → Fin T)`.
+  have hmom : ∀ ℓ : Fin (Fintype.card (TestCoord (K + T * (2 * T ^ 2)))) → ℕ,
+      (∀ j, ℓ j < Fintype.card (OrbitClass T K B W × (Fin (T * (2 * T ^ 2)) → Fin T))) →
+      ∑ i : OrbitClass T K B W × (Fin (T * (2 * T ^ 2)) → Fin T),
+          (c i.1 * ∏ j, W (i.2 j))
+            * ∏ j, (testProfile B W (Fin.append (Quotient.out i.1) i.2) j) ^ ℓ j = 0 := by
+    intro ℓ _
+    rw [Fintype.sum_prod_type]
+    have hterm : ∀ q : OrbitClass T K B W,
+        ∑ ρ : Fin (T * (2 * T ^ 2)) → Fin T,
+            (c q * ∏ j, W (ρ j))
+              * ∏ j, (testProfile B W (Fin.append (Quotient.out q) ρ) j) ^ ℓ j
+          = c q * simpleEvalAt B W
+              (unlabelExtras (expTestGraph
+                (fun c' => ℓ (Fintype.equivFin (TestCoord (K + T * (2 * T ^ 2))) c'))))
+              (Quotient.out q) := by
+      intro q
+      rw [← hρsum _ (expTestGraph
+          (fun c' => ℓ (Fintype.equivFin (TestCoord (K + T * (2 * T ^ 2))) c')))
+        inferInstance (Quotient.out q), Finset.mul_sum]
+      refine Finset.sum_congr rfl fun ρ _ => ?_
+      rw [simpleEvalAt_expTestGraph B hB W _ (Fin.append (Quotient.out q) ρ),
+        prod_profile_pow B W (Fin.append (Quotient.out q) ρ) ℓ]
+      ring
+    rw [Finset.sum_congr rfl fun q _ => hterm q]
+    exact hc _ _ inferInstance
+  -- Class-sum at the profile of `superExt (out q₀)`.
+  have hclass := CaiGovorov.multivariate_vandermonde_class_sums_zero
+    (fun i : OrbitClass T K B W × (Fin (T * (2 * T ^ 2)) → Fin T) =>
+      testProfile B W (Fin.append (Quotient.out i.1) i.2))
+    (fun i => c i.1 * ∏ j, W (i.2 j)) hmom
+    (testProfile B W (superExt (Quotient.out q₀)))
+  -- The class forces `q = q₀` (chunk 4A at level K + m).
+  have hq_eq : ∀ (q : OrbitClass T K B W) (ρ : Fin (T * (2 * T ^ 2)) → Fin T),
+      testProfile B W (Fin.append (Quotient.out q) ρ)
+        = testProfile B W (superExt (Quotient.out q₀)) → q = q₀ := by
+    intro q ρ hprof
+    have hTE : TestEvalEq B W (superExt (Quotient.out q₀)) (Fin.append (Quotient.out q) ρ) :=
+      (testEvalEq_iff_moments B hB W).mpr fun c' => (testProfile_eq_iff.mp hprof c').symm
+    obtain ⟨σ, hσ_aut, hσ⟩ := testEvalEq_implies_orbit_super B hB W hW htwin _ _
+      (superExt_superSurjective (Quotient.out q₀)) hTE
+    have horb : tupleOrbitRel B W (Quotient.out q₀) (Quotient.out q) := by
+      refine ⟨σ, hσ_aut, fun i => ?_⟩
+      have hi := hσ (Fin.castAdd (T * (2 * T ^ 2)) i)
+      rw [Fin.append_left, superExt_extends (Quotient.out q₀) i] at hi
+      exact hi
+    have hmk : Quotient.mk (tupleOrbitSetoid B W K) (Quotient.out q₀)
+        = Quotient.mk (tupleOrbitSetoid B W K) (Quotient.out q) := Quotient.sound horb
+    rw [Quotient.out_eq, Quotient.out_eq] at hmk
+    exact hmk.symm
+  -- The class is exactly `{q₀} ×ˢ P` for the ρ-side class `P`.
+  have hfilter_eq : (univ.filter
+      (fun i : OrbitClass T K B W × (Fin (T * (2 * T ^ 2)) → Fin T) =>
+        testProfile B W (Fin.append (Quotient.out i.1) i.2)
+          = testProfile B W (superExt (Quotient.out q₀))))
+      = {q₀} ×ˢ (univ.filter (fun ρ : Fin (T * (2 * T ^ 2)) → Fin T =>
+          testProfile B W (Fin.append (Quotient.out q₀) ρ)
+            = testProfile B W (superExt (Quotient.out q₀)))) := by
+    ext ⟨q, ρ⟩
+    simp only [Finset.mem_filter, Finset.mem_univ, true_and, Finset.mem_product,
+      Finset.mem_singleton]
+    constructor
+    · intro hprof
+      obtain rfl := hq_eq q ρ hprof
+      exact ⟨rfl, hprof⟩
+    · rintro ⟨rfl, hprof⟩
+      exact hprof
+  -- Collapse the class-sum to `c q₀ · (positive W-mass)`.
+  have hmass : c q₀ * ∑ ρ ∈ univ.filter (fun ρ : Fin (T * (2 * T ^ 2)) → Fin T =>
+      testProfile B W (Fin.append (Quotient.out q₀) ρ)
+        = testProfile B W (superExt (Quotient.out q₀))), ∏ j, W (ρ j) = 0 := by
+    rw [Finset.mul_sum, ← hclass, hfilter_eq, Finset.sum_product, Finset.sum_singleton]
+  have hpos : (0 : ℝ) < ∑ ρ ∈ univ.filter (fun ρ : Fin (T * (2 * T ^ 2)) → Fin T =>
+      testProfile B W (Fin.append (Quotient.out q₀) ρ)
+        = testProfile B W (superExt (Quotient.out q₀))), ∏ j, W (ρ j) :=
+    Finset.sum_pos (fun ρ _ => Finset.prod_pos fun j _ => hW _)
+      ⟨coverExtra T, Finset.mem_filter.mpr ⟨Finset.mem_univ _, rfl⟩⟩
+  exact (mul_eq_zero.mp hmass).resolve_right (ne_of_gt hpos)
+
+/-! ### The dual-pairing endgame (chunk 5C)
+
+The representative pairing turns the annihilator lemma into injectivity of a map into the
+dual of `simpleEvalSubmodule`; comparing dimensions gives the lower bound. Transcribes the
+`hle1` half of `connectionMatrix_full_rank_of_orthogonal` (`Spectral.lean`). -/
+
+/-- The representative pairing `⟨c, f⟩ := ∑ q, c q · f (Quotient.out q)` as a bilinear map
+(mirrors `orbitInnerBil`). -/
+noncomputable def evalRepPairing {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    (OrbitClass T K B W → ℝ) →ₗ[ℝ] ((Fin K → Fin T) → ℝ) →ₗ[ℝ] ℝ :=
+  LinearMap.mk₂ ℝ (fun c f => ∑ q, c q * f (Quotient.out q))
+    (fun c₁ c₂ f => by
+      simp only [← Finset.sum_add_distrib]
+      refine Finset.sum_congr rfl fun q _ => ?_
+      simp only [Pi.add_apply]; ring)
+    (fun r c f => by
+      simp only [Finset.smul_sum]
+      refine Finset.sum_congr rfl fun q _ => ?_
+      simp only [Pi.smul_apply, smul_eq_mul]; ring)
+    (fun c f₁ f₂ => by
+      simp only [← Finset.sum_add_distrib]
+      refine Finset.sum_congr rfl fun q _ => ?_
+      simp only [Pi.add_apply]; ring)
+    (fun r c f => by
+      simp only [Finset.smul_sum]
+      refine Finset.sum_congr rfl fun q _ => ?_
+      simp only [Pi.smul_apply, smul_eq_mul]; ring)
+
+@[simp] lemma evalRepPairing_apply {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (c : OrbitClass T K B W → ℝ) (f : (Fin K → Fin T) → ℝ) :
+    evalRepPairing B W c f = ∑ q, c q * f (Quotient.out q) := rfl
+
+/-- **The simple-side lower bound** (the genuine Lovász §3 content, formerly the sole #70
+residue): the simple-eval span has dimension at least the number of orbit classes. The
+composite `Ψ := subtype.dualMap ∘ evalRepPairing` is injective by the annihilator lemma, so
+`#OrbitClass = finrank (OrbitClass → ℝ) ≤ finrank (Dual simpleEvalSubmodule)
+= finrank simpleEvalSubmodule`. -/
+theorem simpleEvalSubmodule_finrank_ge_orbitClass {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    Fintype.card (OrbitClass T K B W) ≤ Module.finrank ℝ (simpleEvalSubmodule B W K) := by
+  classical
+  set Ψ : (OrbitClass T K B W → ℝ) →ₗ[ℝ] Module.Dual ℝ (simpleEvalSubmodule B W K) :=
+    (simpleEvalSubmodule B W K).subtype.dualMap ∘ₗ evalRepPairing B W with hΨ
+  have hΨinj : Function.Injective Ψ := by
+    rw [← LinearMap.ker_eq_bot, LinearMap.ker_eq_bot']
+    intro c hcker
+    refine eval_rep_annihilator_zero B hB W hW htwin c fun n F inst => ?_
+    have hgen := LinearMap.congr_fun hcker
+      (⟨fun ξ => @simpleEvalAt T K n B W F inst ξ,
+        Submodule.subset_span ⟨⟨n, F, inst⟩, rfl⟩⟩ : simpleEvalSubmodule B W K)
+    simpa only [hΨ, LinearMap.comp_apply, LinearMap.dualMap_apply, Submodule.subtype_apply,
+      evalRepPairing_apply, LinearMap.zero_apply] using hgen
+  have h1 : Module.finrank ℝ (OrbitClass T K B W → ℝ)
+      ≤ Module.finrank ℝ (Module.Dual ℝ (simpleEvalSubmodule B W K)) :=
+    LinearMap.finrank_le_finrank_of_injective hΨinj
+  rw [Subspace.dual_finrank_eq] at h1
+  rw [← Module.finrank_pi (ι := OrbitClass T K B W) ℝ]
+  exact h1
+
+/-- **Phase D: the rank collapse** — the simple-eval and orbit-invariant submodules coincide
+(unconditional: the lower bound `simpleEvalSubmodule_finrank_ge_orbitClass` is proved above).
+This is the #70 rank theorem. -/
+theorem simpleEvalSubmodule_eq_orbitInvariantSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    simpleEvalSubmodule B W K = orbitInvariantSubmodule B W K :=
+  Submodule.eq_of_le_of_finrank_le
+    (simpleEvalSubmodule_le_orbitInvariantSubmodule B hB W)
+    (by rw [finrank_orbitInvariantSubmodule B W]
+        exact simpleEvalSubmodule_finrank_ge_orbitClass B hB W hW htwin)
+
+/-- **The hard inclusion** `orbitInvariantSubmodule ≤ simpleEvalSubmodule`. -/
+theorem orbitInvariantSubmodule_le_simpleEvalSubmodule {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) :
+    orbitInvariantSubmodule B W K ≤ simpleEvalSubmodule B W K :=
+  (simpleEvalSubmodule_eq_orbitInvariantSubmodule B hB W hW htwin).ge
+
+
+end RankTheorem
 
 /-! ### §3.10.5 — Lovász Lemma 2.5 (column-space rank theorem)
 
