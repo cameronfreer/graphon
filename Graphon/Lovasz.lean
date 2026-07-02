@@ -6413,69 +6413,8 @@ theorem orbitIndicator_of_not_orbit {T K : ℕ}
   unfold orbitIndicator
   simp [h]
 
-/-- **Orbit indicators lie in the ℝ-span of simple-graph evaluations**
-(Lovász §3 — fullness of the simple-graph evaluation algebra under
-twin-free `B`) — **SECONDARY / OFF-AXIS** (post-2026-05-13 reanalysis).
-
-For any source tuple `ξ : Fin K → Fin T`, the orbit indicator
-`orbitIndicator B W ξ` can be written as an ℝ-linear combination of
-simple-graph evaluations `simpleEvalAt B W F : (Fin K → Fin T) → ℝ`
-(ranging over simple graphs `F` on `Fin (n + K)` for various `n`).
-
-**Status reverted to OFF-AXIS**: the natural Lagrange-interpolation
-route produces PRODUCTS of `simpleEvalAt` (= multigraph evals via
-glue), not linear combinations. Converting back to a linear
-combination of simple-graph evals would itself need Lemma 2.5
-content — circular.
-
-The PRIMARY ROOT is now `orbit_separation_by_simple_graph` (the
-contrapositive form, which doesn't require product expansion). This
-span theorem is a stronger CONSEQUENCE that may follow from
-separation + the multigraph bridge.
-
-The representation uses pairs `(c, ⟨n, ⟨F, dec⟩⟩)` where
-`c : ℝ` is a coefficient, `n : ℕ` is an unlabeled-vertex count,
-`F : SimpleGraph (Fin (n + K))` is a simple labeled graph, and
-`dec : DecidableRel F.Adj` is the required decidability witness.
-
-**Status**: canonical primary sorry (migrated from
-`orbit_separation_by_simple_graph`).
-
-**Proof approach** (Lovász §3): the simple-graph evaluation algebra
-under twin-free `B` is **dense** in the space of orbit-invariant
-functions; the orbit indicators form a basis of this latter space;
-hence each indicator is a finite ℝ-linear combination. This is the
-multigraph-algebra fullness theorem of Lovász §3, restricted to
-simple graphs under the twin-free hypothesis.
-
-**Natural Lagrange-interpolation route** (per post-2026-05-13 user
-analysis): for each orbit class O' ≠ orbit(ξ), pick a separating
-simple graph F_{O'} (its existence is `orbit_separation_by_simple_graph`,
-PROVED from this theorem — a circular dependency). The indicator is
-the product `∏_{O' ≠ orbit(ξ)} (simpleEvalAt F_{O'} - w_{O'}) /
-(v_{O'} - w_{O'})` over orbit classes.
-
-**Obstacle** (multigraph-vs-simple-graph product): expanding the
-product yields PRODUCTS of `simpleEvalAt`s, which via the
-glue-multigraph identity are MULTIGRAPH evaluations (since disjoint
-unions of simple graphs at shared labels can produce label-label
-multi-edges). Converting these multigraph evals back to simple-graph
-linear combinations is itself the Lemma 2.5 content. The
-contrapositive `orbit_separation_by_simple_graph` does NOT have this
-issue (it just exhibits a single separating graph) — so the
-"separation" form may be the actually attackable formulation, with
-the span form derived from it via a careful product-expansion route. -/
-theorem orbitIndicator_mem_simpleGraphSpan {T K : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
-    (_hW : ∀ i, 0 < W i)
-    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
-    (ξ : Fin K → Fin T) :
-    ∃ (cs : List (ℝ × Σ (n : ℕ) (F : SimpleGraph (Fin (n + K))),
-        DecidableRel F.Adj)),
-      orbitIndicator B W ξ = fun η =>
-        (cs.map (fun p =>
-          p.1 * @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 η)).sum := by
-  sorry
+-- `orbitIndicator_mem_simpleGraphSpan` MOVED below § RankTheorem (2026-07-02) and PROVED
+-- there (list repackaging of `tupleOrbitIndicator_mem_simpleEvalSpan`).
 
 /-! ### Orbit separation: edge-or-degree → simple-graph form
 
@@ -9970,21 +9909,8 @@ theorem InTupleMultiEvalSpan.aut_invariant {T K : ℕ} (B : Fin T → Fin T → 
   refine Finset.sum_congr rfl fun k _ => ?_
   rw [multiLabeledEvalK_aut_invariant B W (g k).2 σ hσ.1 hσ.2 ξ]
 
-/-- **Multigraph algebra collapses to the simple-graph algebra** (Lovász §3 /
-Lemma 2.5 content). Under twin-free `B` and positive `W`, every
-multigraph-eval span element is also a simple-eval span element. This is the
-genuine hard direction: the Hadamard-square obstruction (label–label
-multiplicity ≥ 2) lives exactly here, so it cannot reduce to the bounded glue
-algebra. SORRY — one of the two honest §3 residues (the other being
-`tupleOrbitIndicator_mem_multiEvalSpan`); one or both may be discharged by the
-same Lovász §3 rank/idempotent argument. The hypotheses are required (without
-twin-free/positivity the collapse is false) and match
-`tupleOrbitIndicator_mem_simpleEvalSpan`, so the bridge composes downstream. -/
-theorem InTupleMultiEvalSpan.toSimple {T K : ℕ} {B : Fin T → Fin T → ℝ}
-    (hB : ∀ i j, B i j = B j i) {W : Fin T → ℝ} (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j, i ≠ j → B i ≠ B j) {f : (Fin K → Fin T) → ℝ}
-    (h : InTupleMultiEvalSpan B W f) : InTupleSimpleEvalSpan B W f := by
-  sorry
+-- `InTupleMultiEvalSpan.toSimple` MOVED below § RankTheorem (2026-07-02), where its proof
+-- (the rank collapse `orbitInvariantSubmodule_le_simpleEvalSubmodule`) is in scope.
 
 /-! #### Lagrange construction of orbit indicators in the multigraph span
 
@@ -11505,31 +11431,8 @@ weighted-hom-determines-isomorphism / connection-rank theorem. This scaffolding 
 no critical-path consumers (the residues stay `multiEval_separates_orbits` and
 `InTupleMultiEvalSpan.toSimple`). -/
 
-/-- **Closure under pointwise multiplication for the simple-graph span** —
-OFF THE CRITICAL PATH; superseded by the multigraph route.
-
-This is NOT a bounded "mirror K=1" lemma. The K=1 analog
-`InRootedProfileSpan.mul` works only because `K = 1` has a single root vertex,
-hence no label–label edges; for `K ≥ 2` two simple graphs sharing a label–label
-edge `{i,j}` force a Hadamard square `B(ξ_i,ξ_j)²` (since `ofSimple` caps
-multiplicity at 1 but `glue` adds), which no simple graph can produce. So
-`ofSimple_tupleProduct_eq_glue` / `simpleEvalAt_tupleProduct` are FALSE for
-`K ≥ 2`, and (without twin-free/positivity) unconditional simple `.mul` is
-itself false; with those hypotheses it is true only as a corollary of full
-Lemma 2.5. See `Lovasz.lean` §3.10.5a-multi and the note near
-`orbitIndicator_mem_simpleGraphSpan`.
-
-The honest route lives in the multigraph algebra: products are bounded there
-(`InTupleMultiEvalSpan.mul` via `multiLabeledEvalK_glue`), and the genuine
-difficulty is isolated as `InTupleMultiEvalSpan.toSimple`. Once `.toSimple` (and
-`hB/hW/htwin`) are available this is provable as
-`(h₁.toMulti.mul hB h₂.toMulti).toSimple hB hW htwin`; that statement change is
-deferred. Left as `sorry` (no current code consumers). -/
-theorem InTupleSimpleEvalSpan.mul {T K : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    {f₁ f₂ : (Fin K → Fin T) → ℝ}
-    (_h₁ : InTupleSimpleEvalSpan B W f₁) (_h₂ : InTupleSimpleEvalSpan B W f₂) :
-    InTupleSimpleEvalSpan B W (fun ξ => f₁ ξ * f₂ ξ) := by
-  sorry
+-- `InTupleSimpleEvalSpan.mul` MOVED below § RankTheorem (2026-07-02) and PROVED there via
+-- `.toSimple` (with the `hB hW htwin` hypotheses its docstring always said it needs).
 
 /-- **Simple-graph evaluations are automorphism-invariant**.
 
@@ -12038,6 +11941,33 @@ theorem orbitInvariantSubmodule_le_simpleEvalSubmodule {T K : ℕ}
     orbitInvariantSubmodule B W K ≤ simpleEvalSubmodule B W K :=
   (simpleEvalSubmodule_eq_orbitInvariantSubmodule B hB W hW htwin).ge
 
+/-! ### Corollaries of the rank collapse: the former §3 residues -/
+
+/-- **Multigraph algebra collapses to the simple-graph algebra** (Lovász Lemma 2.5 content).
+Under twin-free `B` and positive `W`, every multigraph-eval span element is also a
+simple-eval span element. Formerly the Hadamard-square residue; now a direct corollary of
+the rank collapse: multigraph evals are automorphism-invariant, and orbit-invariant
+functions lie in the simple-eval span. -/
+theorem InTupleMultiEvalSpan.toSimple {T K : ℕ} {B : Fin T → Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) {W : Fin T → ℝ} (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) {f : (Fin K → Fin T) → ℝ}
+    (h : InTupleMultiEvalSpan B W f) : InTupleSimpleEvalSpan B W f := by
+  rw [← mem_simpleEvalSubmodule_iff]
+  exact orbitInvariantSubmodule_le_simpleEvalSubmodule B hB W hW htwin
+    (multiEvalSubmodule_le_orbitInvariantSubmodule B W
+      ((mem_multiEvalSubmodule_iff B W f).mpr h))
+
+/-- **Closure under pointwise multiplication for the simple-graph span** (with the twin-free
+and positivity hypotheses its earlier docstring recorded as necessary — without them the
+statement is false; the label–label Hadamard square obstructs any bounded proof). Routes
+through the multigraph algebra: `.toMulti`, bounded `.mul` via `glue`, and the rank-collapse
+`.toSimple`. -/
+theorem InTupleSimpleEvalSpan.mul {T K : ℕ} {B : Fin T → Fin T → ℝ}
+    (hB : ∀ i j, B i j = B j i) {W : Fin T → ℝ} (hW : ∀ i, 0 < W i)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) {f₁ f₂ : (Fin K → Fin T) → ℝ}
+    (h₁ : InTupleSimpleEvalSpan B W f₁) (h₂ : InTupleSimpleEvalSpan B W f₂) :
+    InTupleSimpleEvalSpan B W (fun ξ => f₁ ξ * f₂ ξ) :=
+  (h₁.toMulti.mul hB h₂.toMulti).toSimple hB hW htwin
 
 end RankTheorem
 
@@ -12133,6 +12063,27 @@ theorem tupleOrbitIndicator_mem_simpleEvalSpan {T K : ℕ}
     InTupleSimpleEvalSpan B W (orbitIndicator B W ξ) :=
   InTupleMultiEvalSpan.toSimple hB hW htwin
     (tupleOrbitIndicator_mem_multiEvalSpan B hB W hW htwin ξ)
+
+/-- **Orbit indicators lie in the ℝ-span of simple-graph evaluations** (Lovász §3 fullness,
+list form). List repackaging of `tupleOrbitIndicator_mem_simpleEvalSpan` — the
+representation uses pairs `(c, ⟨n, ⟨F, dec⟩⟩)` of a coefficient and a decidably-adjacent
+simple labeled graph. -/
+theorem orbitIndicator_mem_simpleGraphSpan {T K : ℕ}
+    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (_hW : ∀ i, 0 < W i)
+    (_htwin : ∀ i j, i ≠ j → B i ≠ B j)
+    (ξ : Fin K → Fin T) :
+    ∃ (cs : List (ℝ × Σ (n : ℕ) (F : SimpleGraph (Fin (n + K))),
+        DecidableRel F.Adj)),
+      orbitIndicator B W ξ = fun η =>
+        (cs.map (fun p =>
+          p.1 * @simpleEvalAt T K p.2.1 B W p.2.2.1 p.2.2.2 η)).sum := by
+  obtain ⟨N, g, c, hf⟩ := tupleOrbitIndicator_mem_simpleEvalSpan B _hB W _hW _htwin ξ
+  refine ⟨(List.finRange N).map (fun k => (c k, g k)), ?_⟩
+  rw [hf]
+  funext η
+  rw [List.map_map, Fin.sum_univ_def]
+  rfl
 
 theorem tupleSimpleEval_span_aut_invariant {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
