@@ -23,6 +23,7 @@ import Graphon.SimpleRank
 import Graphon.CycleKrylov
 import Graphon.MatrixDetermination
 import Graphon.CaiGovorovOrbit
+import Graphon.SimpleOrbitRank
 import Graphon.InverseCounting
 import Graphon.Convergence
 
@@ -50,6 +51,7 @@ in Lean 4 using Mathlib.
 * `Graphon.CycleKrylov` — spectral slice of the cycle–Krylov square-moment proof (#70)
 * `Graphon.MatrixDetermination` — Algebraic determination of step graphons
 * `Graphon.CaiGovorovOrbit` — Cai–Govorov test graphs, super-surjective orbit theorem, eq. (10) (#70)
+* `Graphon.SimpleOrbitRank` — #70 rank theorem: simple-eval span = orbit-invariant functions
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 
