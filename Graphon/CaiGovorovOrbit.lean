@@ -1706,4 +1706,56 @@ theorem MultiLabeledGraph.glue_noLabelPairs {K n₁ n₂ : ℕ}
     · omega
   · omega
 
+/-! ## Chunk 4C: gluing lists of multigraphs — the iterated product law
+
+`glueList` folds a list of `K`-labeled multigraphs (of varying unlabeled sizes, packaged in a
+sigma type) into one by repeated disjoint gluing; its evaluation is the product of the
+component evaluations (iterating `multiLabeledEvalK_glue`), and it inherits the chunk-4B
+invariants from its components. -/
+
+/-- Sigma-packaged disjoint glue of two multigraphs with arbitrary unlabeled sizes. -/
+def glueSigma (p q : Σ n, MultiLabeledGraph K n) : Σ n, MultiLabeledGraph K n :=
+  ⟨p.1 + q.1, p.2.glue q.2⟩
+
+/-- Fold a list of multigraphs into one by repeated disjoint gluing (empty multigraph base). -/
+def glueList (l : List (Σ n, MultiLabeledGraph K n)) : Σ n, MultiLabeledGraph K n :=
+  l.foldr glueSigma ⟨0, MultiLabeledGraph.empty K 0⟩
+
+/-- **Iterated glue factorization**: the evaluation of `glueList l` is the product of the
+component evaluations. -/
+theorem multiLabeledEvalK_glueList {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    (l : List (Σ n, MultiLabeledGraph K n)) (μ : Fin K → Fin T) :
+    multiLabeledEvalK K (glueList l).1 (glueList l).2 B W μ
+      = (l.map fun p => multiLabeledEvalK K p.1 p.2 B W μ).prod := by
+  induction l with
+  | nil =>
+    show multiLabeledEvalK K 0 (MultiLabeledGraph.empty K 0) B W μ = 1
+    rw [multiLabeledEvalK_empty]
+    simp
+  | cons p l ih =>
+    rw [List.map_cons, List.prod_cons, ← ih]
+    exact multiLabeledEvalK_glue B hB W p.2 (glueList l).2 μ
+
+/-- `glueList` inherits `NoLabelPairs` from its components. -/
+theorem glueList_noLabelPairs (l : List (Σ n, MultiLabeledGraph K n))
+    (hlp : ∀ p ∈ l, p.2.NoLabelPairs) : (glueList l).2.NoLabelPairs := by
+  induction l with
+  | nil => exact MultiLabeledGraph.empty_noLabelPairs
+  | cons p l ih =>
+    exact MultiLabeledGraph.glue_noLabelPairs (hlp p (by simp))
+      (ih fun q hq => hlp q (List.mem_cons_of_mem p hq))
+
+/-- `glueList` inherits `SimpleMult` from components that also satisfy `NoLabelPairs`. -/
+theorem glueList_simpleMult (l : List (Σ n, MultiLabeledGraph K n))
+    (hs : ∀ p ∈ l, p.2.SimpleMult) (hlp : ∀ p ∈ l, p.2.NoLabelPairs) :
+    (glueList l).2.SimpleMult := by
+  induction l with
+  | nil => exact MultiLabeledGraph.empty_simpleMult
+  | cons p l ih =>
+    exact MultiLabeledGraph.glue_simpleMult (hs p (by simp))
+      (ih (fun q hq => hs q (List.mem_cons_of_mem p hq))
+        (fun q hq => hlp q (List.mem_cons_of_mem p hq)))
+      (glueList_noLabelPairs l fun q hq => hlp q (List.mem_cons_of_mem p hq))
+
 end Graphon.Lovasz
