@@ -4324,8 +4324,8 @@ theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
 non-twin-free version).
 
 **Dependency hierarchy** (post-2026-05-12 architectural decision):
-  - **PRIMARY ROOT**: `connection_matrix_rank_theorem` at L3018
-    (Lovász §3 Theorem 2.2, simple-graph form, requires twin-free).
+  - **PRIMARY ROOT**: `connection_matrix_rank_theorem` (later in this file;
+    Lovász §3 Theorem 2.2, simple-graph form, requires twin-free).
   - **SECONDARY**: this bridge (no twin-free hypothesis; strictly
     stronger statement).
 
@@ -7310,26 +7310,21 @@ theorem rootedOrbitIndicator_const_on_orbit {T : ℕ}
 If two tuples `ξ ξ' : Fin K → Fin T` are NOT in the same `(B, W)`-orbit,
 some level-K simple-graph evaluation separates them.
 
-**Status** (2026-05-17): BLOCKED on `multiLabeledEvalK_tupleEquiv_invariant`
-(task #62, primary paper-root). The proof requires:
-1. Strong induction on K.
-2. Case-split on surjectivity of `restrictTuple ξ`.
-3. For the non-surjective branch: WF measure on (deficit, size), which
-   requires **IH-free Claims 4.3/4.4** to avoid a circular IH at deficit-1
-   size-T-1.
+**Status** (2026-07-02): the mathematical content is PROVED — this statement
+is the contrapositive of `tupleEquivSimple_implies_orbit_general`
+(`Graphon/CaiGovorovOrbit.lean`, the Cai–Govorov descent, axiom-clean).
+Filling this sorry in place requires relocating that stack above Lovász
+§3.10 (a pending refactor); until then the sorry stays, documented.
 
-The IH-free Claims need diagonal `B(ψ i, ψ i)` and pointwise `W(ψ i)`
-data, which are NOT extractable from simple-graph evaluations alone
-(see docstring of `tupleEquivSimple_implies_orbit` for full analysis).
-Both require multigraph evaluations — i.e., closing #62.
-
-**Path A** (recommended): close #62, then derive #70 via IH-free Claims.
-**Path B**: direct combinatorial fiber construction (~300-500 LOC).
-**Path C** (current): treat as derived paper-root, blocked on #62.
+(Historical note: a 2026-05-17 version of this docstring recorded the
+theorem as BLOCKED on #62 via IH-free Claims 4.3/4.4, with the analysis
+that the needed diagonal/pointwise data was not extractable from
+simple-graph evaluations. The Cai–Govorov route bypasses that obstacle
+entirely — super-surjective extensions make the data extractable.)
 
 Downstream K=1 specialization (`rooted_profiles_separate_vertex_orbits`,
-proved this session) handles the most-used case; this general-K target
-remains for completeness of the Lovász §3 chain. -/
+proved) handles the most-used case; this general-K target remains for
+completeness of the Lovász §3 chain. -/
 theorem orbit_separation_by_simple_graph {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (_hW : ∀ i, 0 < W i)
@@ -7341,8 +7336,15 @@ theorem orbit_separation_by_simple_graph {T K : ℕ}
   -- Derivable as contrapositive of `tupleEquivSimple_implies_orbit`
   -- (declared later in the file). After the 2026-05-20 refactor,
   -- `tupleEquivSimple_implies_orbit` no longer routes through this theorem,
-  -- so the cycle is broken. To turn this into a clean derivation, reorder
-  -- so `tupleEquivSimple_implies_orbit` precedes this declaration.
+  -- so the cycle is broken.
+  --
+  -- **PROVED DOWNSTREAM (2026-07-02)**: the general theorem is
+  -- `tupleEquivSimple_implies_orbit_general` in `Graphon/CaiGovorovOrbit.lean`
+  -- (super-surjective case + eq. (10) Cai–Govorov descent, axiom-clean), and
+  -- this statement is its contrapositive. Discharging THIS upstream sorry in
+  -- place would require relocating that stack above Lovász §3.10; until that
+  -- refactor it stays, documented — nothing on the #70 critical path depends
+  -- on it (the rank theorem lives in `Graphon/SimpleOrbitRank.lean`).
   sorry
 
 /-- **Orbit separation, identity case** — narrowest case of
@@ -7462,10 +7464,17 @@ either a deeper refactor of `tupleEquivSimple_surjective_case` /
 `MatrixDetermination.lean:11002-11007`) or an alternative argument at
 that specific inner-base point.
 
-**Architectural obstacle** (post-2026-05-12 subagent analysis): an
-IH-free `bijective_case_direct` / `id_bijective_direct` would close
-the residual but is **not derivable from simple-graph evaluations
-alone** with current Lovasz infrastructure. Specifically:
+**Architectural obstacle** (post-2026-05-12 subagent analysis;
+**superseded 2026-07-02** — see below): an IH-free
+`bijective_case_direct` / `id_bijective_direct` would close the
+residual but is not derivable from simple-graph evaluations alone
+*within this induction scheme*. NB the Cai–Govorov route
+(`tupleEquivSimple_implies_orbit_general`,
+`Graphon/CaiGovorovOrbit.lean`) PROVES the full theorem from
+simple-graph evaluations alone — super-surjective extensions make the
+missing diagonal/pointwise data extractable, bypassing the IH-free
+Claims entirely. The analysis below documents the obstruction to the
+*original* plan only:
   - **B-preservation diagonal** `B(χ i, χ i) = B(i, i)`: simple
     graphs have no self-loops, so `B(t, t)` terms never appear in
     simple-graph evaluations. Cannot be extracted directly.
@@ -7562,39 +7571,42 @@ theorem tupleEquivSimple_implies_orbit {T K : ℕ}
             tupleEquivSimple B W φ' ψ' → tupleOrbitRel B W φ' ψ' :=
           fun {φ' ψ'} h' => IH_strong (T - 1) hT1_lt φ' ψ' h'
         exact tupleEquivSimple_surjective_case B W hW hB htwin IH_T1 φ ψ hφ_surj hpsi
-      · -- **Both α and φ non-surjective** — THE single critical sorry
-        -- for #62 (multigraph bridge) post-2026-05-26 refactor.
+      · -- **Both α and φ non-surjective** — THE critical sorry of the
+        -- simple-graph Lemma 2.4 (#70). (A pre-2026-06 version of this
+        -- comment labeled it "#62"; the multigraph #62/#73 chain has since
+        -- been proved independently — `tupleEquivMulti_implies_orbit` and
+        -- its roots are sorry-free and do NOT route through here.)
+        --
+        -- **Still tainted by THIS sorry** (simple-graph side): the chain
+        -- `k1_orbit_sep_aux` → `mkRootedSeparator` →
+        -- `InRootedProfileSpan.of_const_on_orbit` →
+        -- `label_unlabeled_square_moment_descends` (and its
+        -- `multigraphEval_label_unlabeled_isolated_descends` consumers)
+        -- routes through this theorem — those remain sorry-tainted until
+        -- this sorry is filled (see below).
         --
         -- **Triangular cycle** (after session 3 analysis):
         --   Lemma 2.4 (K=1 non-surj) ↔ k1_orbit_sep_aux ↔ of_const_on_orbit
         -- All three are mutually equivalent and form a triangular
-        -- self-reference. Currently all are "proved" but one (Lemma 2.4
-        -- non-surj) carries the actual sorry.
+        -- self-reference; a direct proof here must not route through them.
         --
         -- **Option A FAILED** (separator-free of_const_on_orbit):
-        --   Refactoring of_const_on_orbit to quotient by
-        --   rooted-profile-equivalence classes (where hsep is built-in
-        --   via the definition of ~_RP) is structurally feasible. But the
-        --   resulting theorem only gives `RPclass-invariant ⊆ span`.
-        --   Upgrading RP-class-invariance to ORBIT-invariance requires
-        --   ~_RP ⟹ ~_orbit (i.e., Lemma 2.4 K=1), which is exactly the
-        --   cycle. The downstream square moment proof needs ORBIT-
-        --   invariance (sqMoment isn't naively RP-class-invariant since
-        --   B(i,t)² isn't a simple-graph factor), so the weaker theorem
-        --   doesn't suffice.
+        --   RP-class-invariance cannot be upgraded to orbit-invariance
+        --   without Lemma 2.4 K=1 — exactly the cycle. The downstream
+        --   square-moment proof needs orbit-invariance (B(i,t)² is not a
+        --   simple-graph factor), so the weaker theorem doesn't suffice.
         --
-        -- **Option B (recommended next session)**: Translate Lovász §3
-        -- column-space / dimension argument (Lemma 2.5). This proves
-        -- rank N(1, G) = #orbits directly via algebra/quantum graphs,
-        -- bypassing the cycle. ~300-500 LOC of new infrastructure.
-        --
-        -- **What's downstream of THIS sorry**:
-        --   - of_const_on_orbit (transitive via k1_orbit_sep_aux)
-        --   - label_unlabeled_square_moment_descends (uses of_const_on_orbit)
-        --   - multigraphEval_label_unlabeled_isolated_descends (uses square moment)
-        --   - multiLabeledEvalK_eq_of_orbit (uses Lemma 2.4)
-        --   - MD bridge wrapper (uses multiLabeledEvalK_eq_of_orbit)
-        --   - All of #62 / #86 / etc.
+        -- **PROVED DOWNSTREAM (2026-07-02)**: the general theorem is
+        -- `tupleEquivSimple_implies_orbit_general` in
+        -- `Graphon/CaiGovorovOrbit.lean` — the Cai–Govorov descent:
+        -- super-surjective case `testEvalEq_implies_orbit_super` + the
+        -- eq. (10) extension/Vandermonde matching (axiom-clean). Filling
+        -- THIS sorry in place would require relocating that stack above
+        -- Lovász §3.10; it stays documented until that refactor. (The
+        -- former "Option B" — the Lovász §3 rank/dimension argument — is
+        -- REALIZED: `simpleEvalSubmodule_finrank_ge_orbitClass` and the
+        -- rank collapse are PROVED in `Graphon/SimpleOrbitRank.lean` via
+        -- the annihilator argument fed by the same machinery.)
         sorry
 
 /-! ### §3.10.5a — `InTupleSimpleEvalSpan` predicate and algebra closure
@@ -9257,15 +9269,15 @@ theorem tupleEquivMulti_implies_orbit {T K : ℕ}
       simp only [restrictTuple] at h3
       rw [← h2, hσ i.castSucc, h3]
 
-/-- **Independent multigraph separator** (Lovász §3 residue). For distinct
-orbits there is a multigraph whose evaluation distinguishes the tuples.
+/-- **Independent multigraph separator** (Lovász §3). For distinct orbits
+there is a multigraph whose evaluation distinguishes the tuples.
 
-SORRY. This MUST be proved independently of `orbit_separation_by_simple_graph`
-/ Lemma 2.4 — those are downstream of Lemma 2.5 in the current architecture, so
-routing through them would recreate the broken cycle. It is weaker than (would
-follow from) the simple-graph separator, hence at worst equally hard. This is
-one of the two honest §3 residues (the other: `InTupleMultiEvalSpan.toSimple`);
-the same Lovász §3 rank/idempotent argument may discharge one or both. -/
+PROVED, sorry-free: a direct corollary of `tupleEquivMulti_implies_orbit`
+(the honest multigraph Lemma 2.4), independent of
+`orbit_separation_by_simple_graph` / the simple-graph Lemma 2.4 — so no cycle
+with the Lemma 2.5 chain. (An earlier docstring here described this as a
+sorry'd §3 residue; that is stale — the residue was discharged when the
+multigraph Lemma 2.4 chain landed.) -/
 theorem multiEval_separates_orbits {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)

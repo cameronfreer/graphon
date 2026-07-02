@@ -854,9 +854,9 @@ theorem closedWalkProfile_eq_wInner {T : ℕ} (B : Fin T → Fin T → ℝ)
 /-- **Cycle difference identity, recursive/algebraic form** (Step 1 of the
 cycle–Krylov proof): closed-walk profile differences are exactly
 `⟨ε, M^[q] u⟩_W`. The graph side — `rootedProfile` of `rootedCycleGraph`
-equals `closedWalkProfile` — is the separate plumbing slice (the existing
-focused sorry `rootedProfile_rootedCycleGraph_eq_closedWalkProfile` in
-`Lovasz.lean`). -/
+equals `closedWalkProfile` — is the separate plumbing slice, PROVED as
+`rootedProfile_rootedCycleGraph_eq_closedWalkProfile` in `Lovasz.lean`
+(an earlier version of this docstring called it a "focused sorry"; stale). -/
 theorem closedWalkProfile_sub_eq_wInner {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) (q : ℕ) :
     closedWalkProfile B W i (q + 2) - closedWalkProfile B W j (q + 2) =

@@ -6910,9 +6910,15 @@ restructure cannot eliminate the content; what's needed is either:
   (a') New mathematical content for the generator theorem (some form
        of the A_k algebra argument with specific trace structure).
   (b') Pivot to explicit Lovász A_k / connection-matrix machinery.
-  (c') Accept current state: 8 sorries total (1 frontier + 4 frozen +
-       3 architectural), with the algebraic chain wired through a
-       single semantic root.
+  (c') Accept current state, with the algebraic chain wired through a
+       single semantic root. [Census updated 2026-07-02: this file now
+       carries 6 sorries — 2 frozen C₅⊔C₆ motifs (`star0_tri0`,
+       `pairOrbit_of_vertexOrbits_and_path`; `star1_tri1` now delegates),
+       1 known-false off-path (`labeledEvalK_separates`), and
+       3 architectural (this σ-sum frontier, the private
+       `tupleEquiv_implies_tupleOrbitRel` non-surjective branch,
+       `twinfree_bijection_of_weightedHomSum_eq`). `labeledEvalK_glue`
+       is fully PROVED.]
 
 **OFF-AXIS** (post-bridge consolidation): this theorem is **no longer**
 the canonical root. The active chain now routes through
