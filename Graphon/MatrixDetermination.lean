@@ -7192,7 +7192,9 @@ private theorem multiLabeledEvalK_ofSimple {T K n : ℕ}
   -- After `set`, both σ-sum bodies should reference τ.
   exact congrArg _ (hprod τ)
 
-/-- **The multigraph bridge — canonical sorry.**
+/-- **The multigraph bridge** — PROVED, sorry-free (the "canonical sorry"
+framing below is historical; it was discharged when the Lovász-module orbit
+route landed).
 
 Every multigraph evaluation descends through `tupleEquiv` at level K.
 This is the Lovász §3 content (Theorem 2.2 / Lemma 2.5) translated to
@@ -7200,7 +7202,7 @@ our framework: simple-graph `tupleEquiv` ⟹ all multigraph evaluations
 agree (since simple-graph evaluations span the multigraph evaluation
 algebra `f_k(𝒢_k) ⊆ 𝒜_k`, and aut-orbits coincide).
 
-**Status**: single canonical sorry replacing all of:
+**Status (historical)**: single canonical sorry replacing all of:
   - `tupleEquiv_single_coord_square_moment_independent` (closed below);
   - `DecLabeledGraph.trace_parallel_lu0_descends` (closed below);
   - `DecLabeledGraphTr.eval_tupleEquiv_invariant` (off-axis, unaffected).
@@ -10889,16 +10891,13 @@ private theorem tupleEquiv_ext_eq_of_surj {T : ℕ}
 For twin-free `(B, W)` with positive weights, `tupleEquiv B W φ ψ` implies
 `tupleOrbitRel B W φ ψ` at every label level `k`.
 
-Proved by induction on `k`:
-- **k = 0**: trivial.
-- **k + 1**: restrict to level `k` (Claim 4.1), apply IH to get automorphism `σ`,
-  normalize `ψ` by `σ⁻¹` so the first `k` coordinates agree, then show the last
-  coordinates must also agree (surjective-base case via `tupleEquiv_ext_eq_of_surj`),
-  or find an additional automorphism (general case).
-
-The non-surjective base case (when `restrictTuple φ` does not cover all of `Fin T`)
-requires the full Lovász algebra `A_k` / graph-product multiplicative closure
-argument and remains as a sorry. -/
+PROVED (2026-07-02, sorry-free): bridged to the Lovász module's simple-graph
+Lemma 2.4 (`Lovasz.tupleEquivSimple_implies_orbit_via_2_5`, itself proved via the
+#70 rank theorem / Cai–Govorov machinery) — `tupleEquiv` is definitionally
+`Lovasz.tupleEquivSimple` after unfolding `labeledEvalK`. (The previous body ran
+Lovász's induction on `k` with Claims 4.1–4.4 and carried the non-surjective
+base case as the file's architectural sorry; the intermediate claims remain
+above as standalone theorems.) -/
 private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i)
@@ -10906,137 +10905,17 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
     {k : ℕ} {φ ψ : Fin k → Fin T}
     (h : tupleEquiv B W φ ψ) :
     tupleOrbitRel B W φ ψ := by
-  -- Strong induction on k: supplies IH at ALL levels < k, in particular at both
-  -- k-1 (for restriction step) and T-1 (for Claim 4.4 in non-surjective branch).
-  suffices strong : ∀ (m : ℕ) (φ ψ : Fin m → Fin T),
-      tupleEquiv B W φ ψ → tupleOrbitRel B W φ ψ from strong k φ ψ h
-  exact fun m => @Nat.strongRecOn
-    (fun j => ∀ (φ ψ : Fin j → Fin T), tupleEquiv B W φ ψ → tupleOrbitRel B W φ ψ)
-    m fun m IH_strong => by
-    intro φ ψ h
-    rcases m with _ | k
-    · exact ⟨1, ⟨fun _ => rfl, fun _ _ => rfl⟩, nofun⟩
-    · -- m = k + 1. IH_strong : ∀ j < k+1, ∀ (φ ψ : Fin j → Fin T), tupleEquiv → tupleOrbitRel.
-      have IH : ∀ {φ' ψ' : Fin k → Fin T},
-          tupleEquiv B W φ' ψ' → tupleOrbitRel B W φ' ψ' :=
-        fun {φ' ψ'} h' => IH_strong k (Nat.lt_succ_self k) φ' ψ' h'
-      -- Step 1: Restrict to level k and apply IH.
-      obtain ⟨σ, hσ_aut, hσ_conj⟩ := IH (tupleEquiv_restrict B W hB h)
-      -- Step 2: IsWeightedAutomorphism for σ⁻¹.
-      have hσs : IsWeightedAutomorphism B W σ.symm :=
-        ⟨fun i => by have := (hσ_aut.1 (σ.symm i)).symm; rwa [σ.apply_symm_apply] at this,
-         fun i j => by have := (hσ_aut.2 (σ.symm i) (σ.symm j)).symm
-                       rwa [σ.apply_symm_apply, σ.apply_symm_apply] at this⟩
-      -- Step 3: Normalize ψ by σ⁻¹ using tupleEquiv_of_tupleOrbitRel.
-      have h' : tupleEquiv B W φ (σ.symm ∘ ψ) := fun n F _ =>
-        (h n F).trans (tupleEquiv_of_tupleOrbitRel ⟨σ.symm, hσs, fun _ => rfl⟩ n F)
-      -- Step 4: The first k coordinates now agree.
-      have hbase : restrictTuple (σ.symm ∘ ψ) = restrictTuple φ := by
-        funext i; simp only [restrictTuple, Function.comp]
-        have := hσ_conj i; simp only [restrictTuple] at this
-        rw [this, σ.symm_apply_apply]
-      -- Step 5: Express as Fin.snoc extensions of the common base α.
-      set α := restrictTuple φ
-      have ha : φ = Fin.snoc α (φ (Fin.last k)) := by
-        ext i; by_cases hi : (i : ℕ) < k
-        · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl, Fin.snoc_castSucc]; rfl
-        · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega), Fin.snoc_last]
-      have hb : σ.symm ∘ ψ = Fin.snoc α ((σ.symm ∘ ψ) (Fin.last k)) := by
-        ext i; by_cases hi : (i : ℕ) < k
-        · rw [show i = (⟨i, hi⟩ : Fin k).castSucc from Fin.ext rfl, Fin.snoc_castSucc, ← hbase]
-          rfl
-        · rw [show i = Fin.last k from Fin.ext (show i.val = k by omega), Fin.snoc_last]
-      rw [ha, hb] at h'
-      -- Step 6: Surjective base ⟹ last coordinates equal ⟹ orbit relation.
-      by_cases hα_surj : Function.Surjective α
-      · have hab := tupleEquiv_ext_eq_of_surj B W hB htwin hα_surj h'
-        exact ⟨σ, hσ_aut, fun i => by
-          have : (σ.symm ∘ ψ) i = φ i := congr_fun (hb.trans (hab ▸ ha.symm)) i
-          rwa [Function.comp_apply, Equiv.symm_apply_eq] at this⟩
-      · -- Non-surjective base. Split on whether φ itself is surjective.
-        by_cases hφ_surj : Function.Surjective φ
-        · -- φ surjective: apply Claim 4.4. Since φ surj, T ≤ k+1, so T-1 < k+1.
-          have hT1_lt : T - 1 < k + 1 := by
-            have := Fintype.card_le_of_surjective φ hφ_surj
-            simp only [Fintype.card_fin] at this
-            omega
-          have IH_T1 : ∀ {φ' ψ' : Fin (T - 1) → Fin T},
-              tupleEquiv B W φ' ψ' → tupleOrbitRel B W φ' ψ' :=
-            fun {φ' ψ'} h' => IH_strong (T - 1) hT1_lt φ' ψ' h'
-          exact tupleEquiv_surjective_case B W hW hB htwin IH_T1 φ ψ hφ_surj h
-        · -- Neither α = restrictTuple φ nor φ itself is surjective.
-          --
-          -- Context at this point in the proof:
-          --   · α : Fin k → Fin T is non-surjective.
-          --   · φ = Fin.snoc α a with a := φ (Fin.last k).
-          --   · σ.symm ∘ ψ = Fin.snoc α b with b := (σ.symm ∘ ψ) (Fin.last k).
-          --   · h' : tupleEquiv B W (Fin.snoc α a) (Fin.snoc α b).
-          -- Goal: tupleOrbitRel B W φ ψ, equivalently: an automorphism σ'
-          -- with σ' ∘ α = α (fixing range(α) pointwise) and σ'(a) = b.
-          --
-          -- Standard Lovász plan ("extend-and-recurse"):
-          --   1. Pick r ∈ Fin T outside range(α) ∪ {a, b}. (Requires the
-          --      deficit T − |range α ∪ {a, b}| ≥ 1, i.e. a case analysis.)
-          --   2. Build `Φ_ext := Fin.snoc (Fin.snoc α a) r` at level k+2,
-          --      `Ψ_ext := Fin.snoc (Fin.snoc α b) ?`. We need
-          --      `tupleEquiv B W Φ_ext Ψ_ext` where the last coordinate of
-          --      Ψ_ext matches some element yielding tupleEquiv.
-          --   3. Apply the outer IH at (Φ_ext, Ψ_ext) at measure strictly
-          --      smaller than (d, k+1) under a lex order `(deficit, size)`
-          --      with deficit primary. Extract an automorphism σ'.
-          --   4. Restrict σ' back to conclude on (φ, ψ).
-          --
-          -- Why closing this branch still requires work after the recent
-          -- wiring (`product_trace_identity` now reduces to the extension
-          -- theorem `DecLabeledGraphTr.eval_tupleEquiv_invariant` — see
-          -- the "Multigraph / A_k extension frontier" section):
-          --
-          --   Step 2 — producing `tupleEquiv B W Φ_ext Ψ_ext` — is
-          --   `tupleEquiv_extend`, which is proved **modulo** the
-          --   extension theorem (the one remaining frontier sorry).
-          --   Closing that extension theorem immediately unblocks
-          --   `tupleEquiv_extend`. The remaining gap here is therefore
-          --   *architectural*: Step 3 (applying the outer IH at smaller
-          --   measure) requires a well-founded induction refactor on
-          --   `(deficit, size)`, since strong induction on `size`
-          --   alone cannot supply the IH at `(k+2)` in the extend-and-
-          --   recurse branch.
-          --
-          --   The IH-free variant `tupleEquiv_extend_of_ih` is not a
-          --   substitute: it needs the Lemma-2.4 conclusion at the
-          --   specific pair `(Fin.snoc α a, Fin.snoc α b)` at level
-          --   `k+1`, which is the current outer goal — circular under
-          --   any lex measure with that pair at its current slot.
-          --
-          -- An alternative (direct-single-edge) route mirroring
-          -- `tupleEquiv_ext_eq_of_surj` can only extract
-          -- `B (α j) a = B (α j) b` for j ∈ range(α); without surjectivity
-          -- of α the rows B(a, ·) and B(b, ·) cannot be compared outside
-          -- range(α) ∪ {a, b}.
-          --
-          -- Closing the gap requires (i) the extension theorem and
-          -- (ii) a WF induction refactor on `(deficit, size)` plus a
-          -- third piece identified after attempting (ii) mechanically:
-          --
-          -- (iii) `tupleEquiv_surjective_case` calls `IH_T1` at level
-          -- `T-1` for an **arbitrary-deficit** pair — specifically
-          -- `(restrictTuple id, restrictTuple χ)` where `χ` is a
-          -- bijection of `Fin T`. This restriction has deficit 1 when
-          -- `χ(Fin.last) = Fin.last` and deficit 0 otherwise. Under
-          -- deficit-primary lex `(d, size)` with the outer call at
-          -- `(0, k+1)` (Φ surjective ⟹ d=0), an IH at `(1, T-1)` is
-          -- lex-GREATER, not smaller. Size-primary lex fixes this but
-          -- then fails on extensions (size grows).
-          --
-          -- The deepest clean refactor therefore requires ALSO
-          -- restructuring `tupleEquiv_bijective_case` and
-          -- `tupleEquiv_id_bijective` to avoid the deficit-1 IH — e.g.
-          -- by routing through extension (from deficit-0 size-T
-          -- instances) rather than restriction to deficit-1 size-T-1.
-          -- This is a nontrivial internal refactor of Claim 4.3/4.4.
-          --
-          -- Retained here so the file continues to compile.
-          sorry
+  -- Bridge to the sorry-free Lovász simple-graph Lemma 2.4 (via the rank theorem):
+  -- `tupleEquiv` is definitionally `Lovasz.tupleEquivSimple` (unfold `labeledEvalK`),
+  -- and the orbit conclusions coincide (identical `IsWeightedAutomorphism` bodies).
+  have h_simple : Graphon.Lovasz.tupleEquivSimple B W φ ψ := by
+    intro n' F _
+    have heq := h n' F
+    unfold labeledEvalK at heq
+    exact heq
+  obtain ⟨σ, hσ_aut, hσconj⟩ :=
+    Graphon.Lovasz.tupleEquivSimple_implies_orbit_via_2_5 B hB W hW htwin h_simple
+  exact ⟨σ, ⟨hσ_aut.1, hσ_aut.2⟩, hσconj⟩
 
 /-! #### Level 4 ext stubs — delegations to the main theorem
 
