@@ -9372,11 +9372,9 @@ end CaiGovorovStack
 If two tuples `ξ ξ' : Fin K → Fin T` are NOT in the same `(B, W)`-orbit,
 some level-K simple-graph evaluation separates them.
 
-**Status** (2026-07-02): the mathematical content is PROVED — this statement
-is the contrapositive of `tupleEquivSimple_implies_orbit_general`
-(`Graphon/CaiGovorovOrbit.lean`, the Cai–Govorov descent, axiom-clean).
-Filling this sorry in place requires relocating that stack above Lovász
-§3.10 (a pending refactor); until then the sorry stays, documented.
+**Status** (2026-07-02): PROVED — the contrapositive of
+`tupleEquivSimple_implies_orbit_general` (the Cai–Govorov descent,
+§ CaiGovorovStack above, axiom-clean).
 
 (Historical note: a 2026-05-17 version of this docstring recorded the
 theorem as BLOCKED on #62 via IH-free Claims 4.3/4.4, with the analysis
@@ -9395,19 +9393,13 @@ theorem orbit_separation_by_simple_graph {T K : ℕ}
     (_h : ¬ tupleOrbitRel B W ξ ξ') :
     ∃ (n : ℕ) (F : SimpleGraph (Fin (n + K))) (_ : DecidableRel F.Adj),
       simpleEvalAt B W F ξ ≠ simpleEvalAt B W F ξ' := by
-  -- Derivable as contrapositive of `tupleEquivSimple_implies_orbit`
-  -- (declared later in the file). After the 2026-05-20 refactor,
-  -- `tupleEquivSimple_implies_orbit` no longer routes through this theorem,
-  -- so the cycle is broken.
-  --
-  -- **PROVED DOWNSTREAM (2026-07-02)**: the general theorem is
-  -- `tupleEquivSimple_implies_orbit_general` in `Graphon/CaiGovorovOrbit.lean`
-  -- (super-surjective case + eq. (10) Cai–Govorov descent, axiom-clean), and
-  -- this statement is its contrapositive. Discharging THIS upstream sorry in
-  -- place would require relocating that stack above Lovász §3.10; until that
-  -- refactor it stays, documented — nothing on the #70 critical path depends
-  -- on it (the rank theorem lives in `Graphon/SimpleOrbitRank.lean`).
-  sorry
+  -- Contrapositive of the Cai–Govorov descent (`tupleEquivSimple_implies_orbit_general`,
+  -- § CaiGovorovStack above): `tupleEquivSimple` is definitionally the family of
+  -- `simpleEvalAt` equalities.
+  by_contra hcon
+  push_neg at hcon
+  exact _h (tupleEquivSimple_implies_orbit_general B _hB W _hW _htwin ξ ξ'
+    (fun n F inst => hcon n F inst))
 
 /-- **Orbit separation, identity case** — narrowest case of
 `orbit_separation_by_simple_graph` where `K = T` and the source tuple is
@@ -9510,21 +9502,13 @@ Steps in the inductive case `m = k + 1`:
      induction refactor on `(deficit, size)` which is beyond a strong
      `Nat`-induction on `size` alone.
 
-**Status**: proved modulo (i) the Claim 4.2 sub-sorry
-(`product_trace_identity_simple` via `tupleEquivSimple_extend`), and
-(ii) a refined sorry at the inner-base of the deficit-induction in the
-non-surjective branch — specifically the case `T - 1 ≥ k + 1` (i.e.,
-`T ≥ k + 2`) where the outer strong-induction-on-`K` cannot supply the
-IH at size `T - 1` required by `tupleEquivSimple_surjective_case`.
-
-The architectural sorry has been REFACTORED: the previous "neither
-α nor ξ surj" case is now CLOSED via deficit-induction (Lovász's
-"extend-and-recurse") for the sub-case `T ≤ k + 1`. The residual
-sub-case `T > k + 1` remains as a more specific sorry, requiring
-either a deeper refactor of `tupleEquivSimple_surjective_case` /
-`tupleEquivSimple_id_bijective` to avoid the deficit-1 IH (see
-`MatrixDetermination.lean:11002-11007`) or an alternative argument at
-that specific inner-base point.
+**Status** (2026-07-02): PROVED, sorry-free. The historically-residual
+"both α and φ non-surjective" branch is closed by the Cai–Govorov
+descent (`tupleEquivSimple_implies_orbit_general`, § CaiGovorovStack
+above), which needs neither surjectivity nor the deficit-1 IH.
+(Earlier state, for the record: the branch had been reduced by
+deficit-induction to the inner-base sub-case `T > k + 1`, which
+resisted every IH-based plan — see the historical analysis below.)
 
 **Architectural obstacle** (post-2026-05-12 subagent analysis;
 **superseded 2026-07-02** — see below): an IH-free
@@ -9633,43 +9617,20 @@ theorem tupleEquivSimple_implies_orbit {T K : ℕ}
             tupleEquivSimple B W φ' ψ' → tupleOrbitRel B W φ' ψ' :=
           fun {φ' ψ'} h' => IH_strong (T - 1) hT1_lt φ' ψ' h'
         exact tupleEquivSimple_surjective_case B W hW hB htwin IH_T1 φ ψ hφ_surj hpsi
-      · -- **Both α and φ non-surjective** — THE critical sorry of the
-        -- simple-graph Lemma 2.4 (#70). (A pre-2026-06 version of this
-        -- comment labeled it "#62"; the multigraph #62/#73 chain has since
-        -- been proved independently — `tupleEquivMulti_implies_orbit` and
-        -- its roots are sorry-free and do NOT route through here.)
-        --
-        -- **Still tainted by THIS sorry** (simple-graph side): the chain
-        -- `k1_orbit_sep_aux` → `mkRootedSeparator` →
-        -- `InRootedProfileSpan.of_const_on_orbit` →
-        -- `label_unlabeled_square_moment_descends` (and its
-        -- `multigraphEval_label_unlabeled_isolated_descends` consumers)
-        -- routes through this theorem — those remain sorry-tainted until
-        -- this sorry is filled (see below).
-        --
-        -- **Triangular cycle** (after session 3 analysis):
-        --   Lemma 2.4 (K=1 non-surj) ↔ k1_orbit_sep_aux ↔ of_const_on_orbit
-        -- All three are mutually equivalent and form a triangular
-        -- self-reference; a direct proof here must not route through them.
-        --
-        -- **Option A FAILED** (separator-free of_const_on_orbit):
-        --   RP-class-invariance cannot be upgraded to orbit-invariance
-        --   without Lemma 2.4 K=1 — exactly the cycle. The downstream
-        --   square-moment proof needs orbit-invariance (B(i,t)² is not a
-        --   simple-graph factor), so the weaker theorem doesn't suffice.
-        --
-        -- **PROVED DOWNSTREAM (2026-07-02)**: the general theorem is
-        -- `tupleEquivSimple_implies_orbit_general` in
-        -- `Graphon/CaiGovorovOrbit.lean` — the Cai–Govorov descent:
-        -- super-surjective case `testEvalEq_implies_orbit_super` + the
-        -- eq. (10) extension/Vandermonde matching (axiom-clean). Filling
-        -- THIS sorry in place would require relocating that stack above
-        -- Lovász §3.10; it stays documented until that refactor. (The
-        -- former "Option B" — the Lovász §3 rank/dimension argument — is
-        -- REALIZED: `simpleEvalSubmodule_finrank_ge_orbitClass` and the
-        -- rank collapse are PROVED in `Graphon/SimpleOrbitRank.lean` via
-        -- the annihilator argument fed by the same machinery.)
-        sorry
+      · -- **Both α and φ non-surjective** — historically THE critical sorry
+        -- of the simple-graph Lemma 2.4 (#70); CLOSED 2026-07-02 by the
+        -- Cai–Govorov descent (`tupleEquivSimple_implies_orbit_general`,
+        -- § CaiGovorovStack above), which needs no surjectivity and no IH.
+        -- With it, the formerly-tainted simple-graph chain
+        -- (`k1_orbit_sep_aux` → `of_const_on_orbit` →
+        -- `label_unlabeled_square_moment_descends`) is sorry-free.
+        -- (Historical notes: the earlier plans failed on a triangular
+        -- self-reference — Lemma 2.4 K=1 ↔ k1_orbit_sep_aux ↔
+        -- of_const_on_orbit — and RP-class-invariance could not be
+        -- upgraded to orbit-invariance without re-entering the cycle. The
+        -- descent bypasses all of it; the "Option B" rank argument is
+        -- ALSO realized independently, see the rank-theorem section.)
+        exact tupleEquivSimple_implies_orbit_general B hB W hW htwin φ ψ hpsi
 
 /-! ### §3.10.5a — `InTupleSimpleEvalSpan` predicate and algebra closure
 
