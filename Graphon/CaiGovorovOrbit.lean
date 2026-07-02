@@ -1916,4 +1916,120 @@ theorem extension_power_moments {T m : ℕ} (B : Fin T → Fin T → ℝ)
   simp only [simpleEvalAt_expTestGraph B hB W k] at hid
   exact hid
 
+/-! ## Chunk 4F: matching a super-surjective extension of `ξ` inside the `ξ'`-family
+
+Two-family bounded Vandermonde over the extension families: the power-moment identity
+(chunk 4E) matches all weighted test-moment powers, so the class-balance engine equates, at
+each profile value, the two weighted masses. At the profile of `superExt ξ` the `ξ`-side mass
+is positive (it contains `ρ = coverExtra T`, and `W > 0`), so the `ξ'`-side class is
+nonempty: some extension of `ξ'` matches ALL test moments of `superExt ξ`. -/
+
+/-- The test-moment profile as a `Fin`-indexed vector (transport along `Fintype.equivFin`),
+for the graph-free Vandermonde engines. -/
+noncomputable def testProfile {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (μ : Fin K → Fin T) : Fin (Fintype.card (TestCoord K)) → ℝ :=
+  fun c => testMoment B W ((Fintype.equivFin (TestCoord K)).symm c) μ
+
+theorem testProfile_eq_iff {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
+    {μ ν : Fin K → Fin T} :
+    testProfile B W μ = testProfile B W ν
+      ↔ ∀ c : TestCoord K, testMoment B W c μ = testMoment B W c ν := by
+  constructor
+  · intro h c
+    have := congrFun h (Fintype.equivFin (TestCoord K) c)
+    simpa only [testProfile, Equiv.symm_apply_apply] using this
+  · intro h
+    funext c
+    exact h _
+
+/-- **Matching extension** (the 4F pivot). If `ξ ≈ ξ'` (equal simple evaluations), some
+extension `Fin.append ξ' ρ'` of `ξ'` matches `superExt ξ` on every test moment. -/
+theorem exists_matching_extension {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ v, 0 < W v)
+    {ξ ξ' : Fin K → Fin T} (h : tupleEquivSimple B W ξ ξ') :
+    ∃ ρ' : Fin (T * (2 * T ^ 2)) → Fin T,
+      ∀ c : TestCoord (K + T * (2 * T ^ 2)),
+        testMoment B W c (Fin.append ξ' ρ') = testMoment B W c (superExt ξ) := by
+  classical
+  set e := Fintype.equivFin (TestCoord (K + T * (2 * T ^ 2))) with he
+  -- Profile-form conversion of the power products.
+  have hconv : ∀ (μ : Fin (K + T * (2 * T ^ 2)) → Fin T)
+      (k : Fin (Fintype.card (TestCoord (K + T * (2 * T ^ 2)))) → ℕ),
+      ∏ c : TestCoord (K + T * (2 * T ^ 2)), (testMoment B W c μ) ^ k (e c)
+        = ∏ c, (testProfile B W μ c) ^ k c := by
+    intro μ k
+    calc ∏ c : TestCoord (K + T * (2 * T ^ 2)), (testMoment B W c μ) ^ k (e c)
+        = ∏ c : TestCoord (K + T * (2 * T ^ 2)), (testProfile B W μ (e c)) ^ k (e c) := by
+          refine Finset.prod_congr rfl fun c _ => ?_
+          congr 1
+          show testMoment B W c μ = testMoment B W (e.symm (e c)) μ
+          rw [Equiv.symm_apply_apply]
+      _ = ∏ c, (testProfile B W μ c) ^ k c :=
+          Equiv.prod_comp e (fun c => (testProfile B W μ c) ^ k c)
+  -- The moment feed for the class-balance engine (no exponent bound needed).
+  have hmom : ∀ k : Fin (Fintype.card (TestCoord (K + T * (2 * T ^ 2)))) → ℕ,
+      (∀ c, k c < 2 * Fintype.card (Fin (T * (2 * T ^ 2)) → Fin T)) →
+      ∑ ρ : Fin (T * (2 * T ^ 2)) → Fin T, (∏ j, W (ρ j))
+          * ∏ c, (testProfile B W (Fin.append ξ ρ) c) ^ k c
+        = ∑ ρ : Fin (T * (2 * T ^ 2)) → Fin T, (∏ j, W (ρ j))
+            * ∏ c, (testProfile B W (Fin.append ξ' ρ) c) ^ k c := by
+    intro k _
+    have hpm := extension_power_moments B hB W h (fun c => k (e c))
+    calc ∑ ρ : Fin (T * (2 * T ^ 2)) → Fin T, (∏ j, W (ρ j))
+          * ∏ c, (testProfile B W (Fin.append ξ ρ) c) ^ k c
+        = ∑ ρ : Fin (T * (2 * T ^ 2)) → Fin T, (∏ j, W (ρ j))
+            * ∏ c : TestCoord (K + T * (2 * T ^ 2)),
+              (testMoment B W c (Fin.append ξ ρ)) ^ k (e c) := by
+          refine Finset.sum_congr rfl fun ρ _ => ?_
+          rw [hconv]
+      _ = ∑ ρ : Fin (T * (2 * T ^ 2)) → Fin T, (∏ j, W (ρ j))
+            * ∏ c : TestCoord (K + T * (2 * T ^ 2)),
+              (testMoment B W c (Fin.append ξ' ρ)) ^ k (e c) := hpm
+      _ = ∑ ρ : Fin (T * (2 * T ^ 2)) → Fin T, (∏ j, W (ρ j))
+            * ∏ c, (testProfile B W (Fin.append ξ' ρ) c) ^ k c := by
+          refine Finset.sum_congr rfl fun ρ _ => ?_
+          rw [hconv]
+  -- Class balance at the profile of `superExt ξ`.
+  have hbal := aligned_moments_class_balance_of_bound
+    (fun ρ : Fin (T * (2 * T ^ 2)) → Fin T => testProfile B W (Fin.append ξ ρ))
+    (fun ρ => testProfile B W (Fin.append ξ' ρ))
+    (fun ρ => ∏ j, W (ρ j)) (fun ρ => ∏ j, W (ρ j))
+    (Fintype.card (Fin (T * (2 * T ^ 2)) → Fin T))
+    (fun _ => Finset.card_image_le.trans (by simp))
+    (fun _ => Finset.card_image_le.trans (by simp))
+    hmom (testProfile B W (superExt ξ))
+  -- The ξ-side mass is positive: `coverExtra T` lies in the class, and all weights are > 0.
+  have hmem : coverExtra T ∈ univ.filter (fun ρ : Fin (T * (2 * T ^ 2)) → Fin T =>
+      testProfile B W (Fin.append ξ ρ) = testProfile B W (superExt ξ)) :=
+    Finset.mem_filter.mpr ⟨Finset.mem_univ _, rfl⟩
+  have hpos : (0 : ℝ) < ∑ ρ ∈ univ.filter (fun ρ : Fin (T * (2 * T ^ 2)) → Fin T =>
+      testProfile B W (Fin.append ξ ρ) = testProfile B W (superExt ξ)), ∏ j, W (ρ j) :=
+    Finset.sum_pos (fun ρ _ => Finset.prod_pos fun j _ => hW _) ⟨coverExtra T, hmem⟩
+  rw [hbal] at hpos
+  obtain ⟨ρ', hρ'mem⟩ := Finset.nonempty_of_sum_ne_zero (ne_of_gt hpos)
+  exact ⟨ρ', fun c => testProfile_eq_iff.mp (Finset.mem_filter.mp hρ'mem).2 c⟩
+
+/-! ## Chunk 4G: the general descent theorem -/
+
+/-- **The Cai–Govorov descent — the general simple-graph orbit theorem (#70).** If all
+simple-graph evaluations at `ξ` and `ξ'` agree, then `ξ'` is in the weighted-automorphism
+orbit of `ξ` — with NO surjectivity hypothesis on either tuple. Route: match an extension of
+`ξ'` against the super-surjective `superExt ξ` on all test moments (chunk 4F), run the
+moment-form super-case (chunk 4A) at level `K + T·2T²`, and restrict the resulting
+automorphism to the first `K` labels. This is the statement of the sorry'd
+`tupleEquivSimple_implies_orbit` (`Lovasz.lean` §3.10), proved downstream. -/
+theorem tupleEquivSimple_implies_orbit_general {T : ℕ} (B : Fin T → Fin T → ℝ)
+    (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ v, 0 < W v)
+    (htwin : ∀ i j, i ≠ j → B i ≠ B j) (ξ ξ' : Fin K → Fin T)
+    (h : tupleEquivSimple B W ξ ξ') : tupleOrbitRel B W ξ ξ' := by
+  obtain ⟨ρ', hρ'⟩ := exists_matching_extension B hB W hW h
+  have hTE : TestEvalEq B W (superExt ξ) (Fin.append ξ' ρ') :=
+    (testEvalEq_iff_moments B hB W).mpr fun c => (hρ' c).symm
+  obtain ⟨σ, hσ_aut, hσ⟩ := testEvalEq_implies_orbit_super B hB W hW htwin (superExt ξ)
+    (Fin.append ξ' ρ') (superExt_superSurjective ξ) hTE
+  refine ⟨σ, hσ_aut, fun i => ?_⟩
+  have hi := hσ (Fin.castAdd (T * (2 * T ^ 2)) i)
+  rw [Fin.append_left, superExt_extends ξ i] at hi
+  exact hi
+
 end Graphon.Lovasz
