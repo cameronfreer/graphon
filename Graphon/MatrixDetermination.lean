@@ -12726,6 +12726,120 @@ theorem simpleEvalAt_common_connected_inr {m : ℕ} {F : SimpleGraph (Fin (m + 1
   refine Finset.sum_congr rfl fun σ _ => ?_
   simp only [hgC, hemb, commonW_inr, fullAssign_commonInr_const, commonB_inr_inr]
 
+/-! #### Tuple generalization (all labels in one block) -/
+
+/-- Unlabeled vertex `K + v` (value `≥ K`) carries `σ v`. -/
+lemma fullAssign_unlabeled_gen {S K m : ℕ} (ξ : Fin K → Fin S) (σ : Fin m → Fin S) (v : Fin m) :
+    fullAssign ξ σ ⟨K + (v : ℕ), by omega⟩ = σ v := by
+  simp only [fullAssign]
+  rw [dif_neg (show ¬ ((⟨K + (v : ℕ), by omega⟩ : Fin (m + K)) : ℕ) < K by
+    show ¬ (K + (v : ℕ) < K); omega)]
+  congr 1
+  exact Fin.ext (by show K + (v : ℕ) - K = (v : ℕ); omega)
+
+/-- Pushing `commonInl` through `fullAssign` (all-left labels). -/
+lemma fullAssign_commonInl_tuple {K m : ℕ} (ξ : Fin K → Fin T) (σ : Fin m → Fin T)
+    (w : Fin (m + K)) :
+    fullAssign ((fun i => commonInl (ξ i) : Fin K → Fin (T + T')))
+        ((fun v => commonInl (σ v) : Fin m → Fin (T + T'))) w
+      = commonInl (fullAssign ξ σ w) := by
+  simp only [fullAssign]; split_ifs <;> rfl
+
+/-- Pushing `commonInr` through `fullAssign` (all-right labels). -/
+lemma fullAssign_commonInr_tuple {K m : ℕ} (ξ : Fin K → Fin T') (σ : Fin m → Fin T')
+    (w : Fin (m + K)) :
+    fullAssign ((fun i => commonInr (ξ i) : Fin K → Fin (T + T')))
+        ((fun v => commonInr (σ v) : Fin m → Fin (T + T'))) w
+      = commonInr (fullAssign ξ σ w) := by
+  simp only [fullAssign]; split_ifs <;> rfl
+
+/-- **Tuple connected decomposition, left block (K ≥ 1).** If every label sits in the left
+block and `F` is connected, the common-host evaluation equals the `(B, W)` evaluation. -/
+theorem simpleEvalAt_common_connected_inl_tuple {K m : ℕ} {F : SimpleGraph (Fin (m + K))}
+    [DecidableRel F.Adj] (hconn : F.Connected) (hK : 0 < K) (ξ : Fin K → Fin T) :
+    Graphon.Lovasz.simpleEvalAt (commonB B B') (commonW W W') F (fun i => commonInl (ξ i))
+      = Graphon.Lovasz.simpleEvalAt B W F ξ := by
+  classical
+  rw [simpleEvalAt_eq_fullAssign, simpleEvalAt_eq_fullAssign]
+  set gC : (Fin m → Fin (T + T')) → ℝ := fun σ' =>
+    (∏ v, commonW W W' (σ' v)) *
+      ∏ e ∈ F.edgeFinset, commonB B B'
+        (fullAssign (fun i => commonInl (ξ i)) σ' (Quot.out e).1)
+        (fullAssign (fun i => commonInl (ξ i)) σ' (Quot.out e).2) with hgC
+  set emb : (Fin m → Fin T) → (Fin m → Fin (T + T')) := fun σ v => commonInl (σ v) with hemb
+  have hembinj : Function.Injective emb :=
+    fun _ _ h => funext fun v => commonInl_injective (congr_fun h v)
+  set SL := Finset.univ.image emb with hSL
+  have hzero : ∀ σ' ∈ (Finset.univ : Finset (Fin m → Fin (T + T'))),
+      σ' ∉ SL → gC σ' = 0 := by
+    intro σ' _ hσ'
+    by_contra hne
+    have hedge : (∏ e ∈ F.edgeFinset, commonB B B'
+        (fullAssign (fun i => commonInl (ξ i)) σ' (Quot.out e).1)
+        (fullAssign (fun i => commonInl (ξ i)) σ' (Quot.out e).2)) ≠ 0 := by
+      intro h0; apply hne; show (∏ v, commonW W W' (σ' v)) * _ = 0; rw [h0, mul_zero]
+    rcases common_assignment_component_local (F := F)
+        (τ := fullAssign (fun i => commonInl (ξ i)) σ') hconn hedge with hL | hR
+    · have hσ'L : ∀ v : Fin m, ∃ a, σ' v = commonInl a := fun v => by
+        obtain ⟨a, ha⟩ := hL ⟨K + (v : ℕ), by omega⟩
+        exact ⟨a, (fullAssign_unlabeled_gen (fun i => commonInl (ξ i)) σ' v).symm.trans ha⟩
+      choose ρ hρ using hσ'L
+      exact hσ' (Finset.mem_image.mpr ⟨ρ, Finset.mem_univ _,
+        funext fun v => by rw [hemb]; exact (hρ v).symm⟩)
+    · have hw : (0 : ℕ) < m + K := by omega
+      have hcond : ((⟨0, hw⟩ : Fin (m + K)) : ℕ) < K := hK
+      obtain ⟨b, hb⟩ := hR ⟨0, hw⟩
+      have heval : fullAssign (fun i => commonInl (ξ i)) σ' ⟨0, hw⟩ = commonInl (ξ ⟨0, hK⟩) := by
+        simp only [fullAssign, dif_pos hcond]
+      exact absurd (heval.symm.trans hb) (commonInl_ne_commonInr (ξ ⟨0, hK⟩) b)
+  rw [← Finset.sum_subset (Finset.subset_univ SL) hzero, hSL,
+    Finset.sum_image fun _ _ _ _ h => hembinj h]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  simp only [hgC, hemb, commonW_inl, fullAssign_commonInl_tuple, commonB_inl_inl]
+
+/-- **Tuple connected decomposition, right block (K ≥ 1).** -/
+theorem simpleEvalAt_common_connected_inr_tuple {K m : ℕ} {F : SimpleGraph (Fin (m + K))}
+    [DecidableRel F.Adj] (hconn : F.Connected) (hK : 0 < K) (ξ : Fin K → Fin T') :
+    Graphon.Lovasz.simpleEvalAt (commonB B B') (commonW W W') F (fun i => commonInr (ξ i))
+      = Graphon.Lovasz.simpleEvalAt B' W' F ξ := by
+  classical
+  rw [simpleEvalAt_eq_fullAssign, simpleEvalAt_eq_fullAssign]
+  set gC : (Fin m → Fin (T + T')) → ℝ := fun σ' =>
+    (∏ v, commonW W W' (σ' v)) *
+      ∏ e ∈ F.edgeFinset, commonB B B'
+        (fullAssign (fun i => commonInr (ξ i)) σ' (Quot.out e).1)
+        (fullAssign (fun i => commonInr (ξ i)) σ' (Quot.out e).2) with hgC
+  set emb : (Fin m → Fin T') → (Fin m → Fin (T + T')) := fun σ v => commonInr (σ v) with hemb
+  have hembinj : Function.Injective emb :=
+    fun _ _ h => funext fun v => commonInr_injective (congr_fun h v)
+  set SR := Finset.univ.image emb with hSR
+  have hzero : ∀ σ' ∈ (Finset.univ : Finset (Fin m → Fin (T + T'))),
+      σ' ∉ SR → gC σ' = 0 := by
+    intro σ' _ hσ'
+    by_contra hne
+    have hedge : (∏ e ∈ F.edgeFinset, commonB B B'
+        (fullAssign (fun i => commonInr (ξ i)) σ' (Quot.out e).1)
+        (fullAssign (fun i => commonInr (ξ i)) σ' (Quot.out e).2)) ≠ 0 := by
+      intro h0; apply hne; show (∏ v, commonW W W' (σ' v)) * _ = 0; rw [h0, mul_zero]
+    rcases common_assignment_component_local (F := F)
+        (τ := fullAssign (fun i => commonInr (ξ i)) σ') hconn hedge with hL | hR
+    · have hw : (0 : ℕ) < m + K := by omega
+      have hcond : ((⟨0, hw⟩ : Fin (m + K)) : ℕ) < K := hK
+      obtain ⟨a, ha⟩ := hL ⟨0, hw⟩
+      have heval : fullAssign (fun i => commonInr (ξ i)) σ' ⟨0, hw⟩ = commonInr (ξ ⟨0, hK⟩) := by
+        simp only [fullAssign, dif_pos hcond]
+      exact absurd (heval.symm.trans ha).symm (commonInl_ne_commonInr a (ξ ⟨0, hK⟩))
+    · have hσ'R : ∀ v : Fin m, ∃ b, σ' v = commonInr b := fun v => by
+        obtain ⟨b, hb⟩ := hR ⟨K + (v : ℕ), by omega⟩
+        exact ⟨b, (fullAssign_unlabeled_gen (fun i => commonInr (ξ i)) σ' v).symm.trans hb⟩
+      choose ρ hρ using hσ'R
+      exact hσ' (Finset.mem_image.mpr ⟨ρ, Finset.mem_univ _,
+        funext fun v => by rw [hemb]; exact (hρ v).symm⟩)
+  rw [← Finset.sum_subset (Finset.subset_univ SR) hzero, hSR,
+    Finset.sum_image fun _ _ _ _ h => hembinj h]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  simp only [hgC, hemb, commonW_inr, fullAssign_commonInr_tuple, commonB_inr_inr]
+
 end CommonHostLocalization
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
