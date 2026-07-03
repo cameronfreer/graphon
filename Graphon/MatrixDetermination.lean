@@ -12300,6 +12300,115 @@ private theorem card_le_of_nonempty_disjoint {a b : ℕ} (E : Fin a → Finset (
 
 /-! ### Twin-free bijection -/
 
+section CommonHost
+
+/-! #### Common host: the block-diagonal direct sum `B ⊕ B'`
+
+`twinfree_bijection_of_weightedHomSum_eq` compares weighted hom sums across two
+DIFFERENT hosts — `(B, W)` on `Fin T` and `(B', W')` on `Fin T'` — but the proved
+orbit machinery (`Lovasz.tupleEquivSimple_implies_orbit`) lives on a SINGLE host. We
+bridge the two with the block-diagonal common host on `Fin (T + T')`:
+
+* `commonB B B'` — the matrix direct sum `B ⊕ B'`: diagonal blocks `B` and `B'`, with
+  **cross-blocks `0`** (no edges between the two sides);
+* `commonW W W'` — weights `W` on the left block, `W'` on the right.
+
+**Cross-block `= 0` is the key design choice.** With no cross-edges, any graph
+homomorphism into the common host that routes an edge across the two blocks is
+annihilated (the crossing edge weight is `0`). Hence a *connected* test graph maps
+entirely into one block, and a weighted hom sum over the common host splits into the
+two single-host hom sums — the localization that lets a test graph read off one side
+in isolation. This is the `⊕` direct-sum matrix of the adopted plan.
+
+**Twin-freeness caveat (deferred to the bijection proof).** The block-diagonal host
+inherits twin-freeness from `B`, `B'` EXCEPT in one corner case: if each of `B`, `B'`
+has an all-zero row (an isolated vertex), those two isolated vertices share the
+all-zero row of the common host and become twins. That single degeneracy — the
+isolated vertices are matched separately, by weight — is the only twin obstruction
+this choice defers. -/
+
+variable {T T' : ℕ}
+
+/-- Left-block embedding `Fin T ↪ Fin (T + T')`. -/
+def commonInl (i : Fin T) : Fin (T + T') := finSumFinEquiv (Sum.inl i)
+
+/-- Right-block embedding `Fin T' ↪ Fin (T + T')`. -/
+def commonInr (i : Fin T') : Fin (T + T') := finSumFinEquiv (Sum.inr i)
+
+/-- The block-diagonal common host matrix `B ⊕ B'` on `Fin (T + T')`: diagonal blocks
+`B`, `B'`, and `0` off the diagonal blocks. -/
+noncomputable def commonB (B : Fin T → Fin T → ℝ) (B' : Fin T' → Fin T' → ℝ) :
+    Fin (T + T') → Fin (T + T') → ℝ := fun a b =>
+  (finSumFinEquiv.symm a).elim
+    (fun i => (finSumFinEquiv.symm b).elim (B i) (fun _ => 0))
+    (fun i => (finSumFinEquiv.symm b).elim (fun _ => 0) (B' i))
+
+/-- Common host weights: `W` on the left block, `W'` on the right block. -/
+noncomputable def commonW (W : Fin T → ℝ) (W' : Fin T' → ℝ) : Fin (T + T') → ℝ :=
+  fun a => (finSumFinEquiv.symm a).elim W W'
+
+variable {B : Fin T → Fin T → ℝ} {B' : Fin T' → Fin T' → ℝ}
+  {W : Fin T → ℝ} {W' : Fin T' → ℝ}
+
+@[simp] lemma commonB_inl_inl (i j : Fin T) :
+    commonB B B' (commonInl i) (commonInl j) = B i j := by simp [commonB, commonInl]
+
+@[simp] lemma commonB_inr_inr (i j : Fin T') :
+    commonB B B' (commonInr i) (commonInr j) = B' i j := by simp [commonB, commonInr]
+
+@[simp] lemma commonB_inl_inr (i : Fin T) (j : Fin T') :
+    commonB B B' (commonInl i) (commonInr j) = 0 := by simp [commonB, commonInl, commonInr]
+
+@[simp] lemma commonB_inr_inl (i : Fin T') (j : Fin T) :
+    commonB B B' (commonInr i) (commonInl j) = 0 := by simp [commonB, commonInl, commonInr]
+
+@[simp] lemma commonW_inl (i : Fin T) : commonW W W' (commonInl i) = W i := by
+  simp [commonW, commonInl]
+
+@[simp] lemma commonW_inr (i : Fin T') : commonW W W' (commonInr i) = W' i := by
+  simp [commonW, commonInr]
+
+/-- Every common-host vertex is a left- or right-block embedding. -/
+lemma common_cases (a : Fin (T + T')) :
+    (∃ i : Fin T, a = commonInl i) ∨ (∃ i : Fin T', a = commonInr i) := by
+  rcases h : finSumFinEquiv.symm a with i | i
+  · refine Or.inl ⟨i, ?_⟩
+    have : finSumFinEquiv (finSumFinEquiv.symm a) = finSumFinEquiv (Sum.inl i) := by rw [h]
+    simpa [commonInl, Equiv.apply_symm_apply] using this
+  · refine Or.inr ⟨i, ?_⟩
+    have : finSumFinEquiv (finSumFinEquiv.symm a) = finSumFinEquiv (Sum.inr i) := by rw [h]
+    simpa [commonInr, Equiv.apply_symm_apply] using this
+
+/-- `commonB` is symmetric when `B`, `B'` are. -/
+lemma commonB_symm (hB : ∀ i j, B i j = B j i) (hB' : ∀ i j, B' i j = B' j i) :
+    ∀ a b, commonB B B' a b = commonB B B' b a := by
+  intro a b
+  rcases common_cases a with ⟨i, rfl⟩ | ⟨i, rfl⟩ <;>
+    rcases common_cases b with ⟨j, rfl⟩ | ⟨j, rfl⟩ <;> simp [hB, hB']
+
+/-- `commonB` has entries in `[0,1]` when `B`, `B'` do. -/
+lemma commonB_mem (hB : ∀ i j, B i j ∈ Set.Icc (0 : ℝ) 1)
+    (hB' : ∀ i j, B' i j ∈ Set.Icc (0 : ℝ) 1) :
+    ∀ a b, commonB B B' a b ∈ Set.Icc (0 : ℝ) 1 := by
+  intro a b
+  rcases common_cases a with ⟨i, rfl⟩ | ⟨i, rfl⟩ <;>
+    rcases common_cases b with ⟨j, rfl⟩ | ⟨j, rfl⟩ <;>
+    simp only [commonB_inl_inl, commonB_inl_inr, commonB_inr_inl, commonB_inr_inr]
+  · exact hB i j
+  · exact Set.mem_Icc.mpr ⟨le_refl 0, zero_le_one⟩
+  · exact Set.mem_Icc.mpr ⟨le_refl 0, zero_le_one⟩
+  · exact hB' i j
+
+/-- `commonW` is positive when `W`, `W'` are. -/
+lemma commonW_pos (hW : ∀ i, 0 < W i) (hW' : ∀ i, 0 < W' i) :
+    ∀ a, 0 < commonW W W' a := by
+  intro a
+  rcases common_cases a with ⟨i, rfl⟩ | ⟨i, rfl⟩
+  · simpa using hW i
+  · simpa using hW' i
+
+end CommonHost
+
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
 have equal weighted hom sums for all graphs, there is a permutation matching weights and
 entries. This is Lovász [2012] Theorem 5.30 for the twin-free case.
