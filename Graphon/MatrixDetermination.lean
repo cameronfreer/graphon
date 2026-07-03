@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Mathlib.Combinatorics.SimpleGraph.Finite
+import Mathlib.Combinatorics.SimpleGraph.Connectivity.Connected
 import Mathlib.Data.Real.Basic
 import Mathlib.LinearAlgebra.Vandermonde
 import Mathlib.LinearAlgebra.Matrix.ToLinearEquiv
@@ -12408,6 +12409,161 @@ lemma commonW_pos (hW : ∀ i, 0 < W i) (hW' : ∀ i, 0 < W' i) :
   · simpa using hW' i
 
 end CommonHost
+
+section CommonHostLocalization
+
+variable {T T' : ℕ} {B : Fin T → Fin T → ℝ} {B' : Fin T' → Fin T' → ℝ}
+
+/-- Which block a common-host vertex lies in (`true` = the left block). -/
+def commonIsLeft (x : Fin (T + T')) : Bool := (finSumFinEquiv.symm x).isLeft
+
+@[simp] lemma commonIsLeft_inl (a : Fin T) :
+    commonIsLeft (commonInl a : Fin (T + T')) = true := by simp [commonIsLeft, commonInl]
+
+@[simp] lemma commonIsLeft_inr (b : Fin T') :
+    commonIsLeft (commonInr b : Fin (T + T')) = false := by simp [commonIsLeft, commonInr]
+
+lemma commonInl_of_isLeft {x : Fin (T + T')} (h : commonIsLeft x = true) :
+    ∃ a, x = commonInl a := by
+  rcases common_cases x with ⟨a, rfl⟩ | ⟨b, rfl⟩
+  · exact ⟨a, rfl⟩
+  · simp at h
+
+lemma commonInr_of_not_isLeft {x : Fin (T + T')} (h : commonIsLeft x = false) :
+    ∃ b, x = commonInr b := by
+  rcases common_cases x with ⟨a, rfl⟩ | ⟨b, rfl⟩
+  · simp at h
+  · exact ⟨b, rfl⟩
+
+/-- **Cross-edge vanishing (3A).** A nonzero common-host edge weight forces both
+endpoints into the same block. -/
+theorem commonB_edge_cross_zero {x y : Fin (T + T')} (h : commonB B B' x y ≠ 0) :
+    (∃ a b, x = commonInl a ∧ y = commonInl b) ∨
+    (∃ a b, x = commonInr a ∧ y = commonInr b) := by
+  rcases common_cases x with ⟨a, rfl⟩ | ⟨a, rfl⟩ <;>
+    rcases common_cases y with ⟨b, rfl⟩ | ⟨b, rfl⟩
+  · exact Or.inl ⟨a, b, rfl, rfl⟩
+  · exact absurd (commonB_inl_inr a b) h
+  · exact absurd (commonB_inr_inl a b) h
+  · exact Or.inr ⟨a, b, rfl, rfl⟩
+
+/-- A nonzero common-host edge weight keeps its two endpoints in one block. -/
+lemma commonB_ne_zero_isLeft {x y : Fin (T + T')} (h : commonB B B' x y ≠ 0) :
+    commonIsLeft x = commonIsLeft y := by
+  rcases commonB_edge_cross_zero h with ⟨a, b, rfl, rfl⟩ | ⟨a, b, rfl, rfl⟩ <;> simp
+
+variable {n : ℕ} {F : SimpleGraph (Fin n)} {τ : Fin n → Fin (T + T')}
+
+/-- Along any walk the block is constant, given every edge keeps its endpoints in one
+block. -/
+lemma commonIsLeft_of_walk {u v : Fin n} (p : F.Walk u v)
+    (hadj : ∀ x y, F.Adj x y → commonIsLeft (τ x) = commonIsLeft (τ y)) :
+    commonIsLeft (τ u) = commonIsLeft (τ v) := by
+  induction p with
+  | nil => rfl
+  | cons h q ih => exact (hadj _ _ h).trans ih
+
+/-- **Connected assignment localization (3B).** If the common-host edge product over a
+connected graph `F` is nonzero, the assignment `τ` lands entirely in one block. -/
+theorem common_assignment_component_local [DecidableRel F.Adj] (hFconn : F.Connected)
+    (hprod : (∏ e ∈ F.edgeFinset,
+        commonB B B' (τ (Quot.out e).1) (τ (Quot.out e).2)) ≠ 0) :
+    (∀ v, ∃ a, τ v = commonInl a) ∨ (∀ v, ∃ b, τ v = commonInr b) := by
+  have hfactor := Finset.prod_ne_zero_iff.mp hprod
+  have hadj : ∀ u v, F.Adj u v → commonIsLeft (τ u) = commonIsLeft (τ v) := by
+    intro u v huv
+    have hmem : s(u, v) ∈ F.edgeFinset := by
+      simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]; exact huv
+    have hblk := commonB_ne_zero_isLeft (hfactor _ hmem)
+    have hout : s((Quot.out (s(u, v) : Sym2 (Fin n))).1,
+        (Quot.out (s(u, v) : Sym2 (Fin n))).2) = s(u, v) := Quot.out_eq _
+    rcases Sym2.eq_iff.mp hout with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · rw [h1, h2] at hblk; exact hblk
+    · rw [h1, h2] at hblk; exact hblk.symm
+  obtain ⟨r⟩ := hFconn.nonempty
+  have hroot : ∀ v, commonIsLeft (τ r) = commonIsLeft (τ v) := by
+    intro v
+    obtain ⟨p⟩ := hFconn.preconnected r v
+    exact commonIsLeft_of_walk p hadj
+  by_cases hbr : commonIsLeft (τ r) = true
+  · exact Or.inl fun v => commonInl_of_isLeft (by rw [← hroot v]; exact hbr)
+  · refine Or.inr fun v => commonInr_of_not_isLeft ?_
+    rw [Bool.not_eq_true] at hbr
+    rw [← hroot v]; exact hbr
+
+lemma commonInl_injective : Function.Injective (commonInl : Fin T → Fin (T + T')) :=
+  fun _ _ h => Sum.inl_injective (finSumFinEquiv.injective h)
+
+lemma commonInr_injective : Function.Injective (commonInr : Fin T' → Fin (T + T')) :=
+  fun _ _ h => Sum.inr_injective (finSumFinEquiv.injective h)
+
+lemma commonInl_ne_commonInr (a : Fin T) (b : Fin T') :
+    (commonInl a : Fin (T + T')) ≠ commonInr b := by
+  intro h
+  simpa using congrArg commonIsLeft h
+
+/-- **Connected decomposition (3C).** On a connected graph the common-host weighted hom
+sum splits as the sum of the two single-host hom sums: all-left assignments reindex to
+`(B, W)`, all-right ones to `(B', W')`, and mixed ones vanish by localization (3B). -/
+theorem weightedHomSum_common_connected [DecidableRel F.Adj] (hconn : F.Connected) :
+    weightedHomSum n F (commonB B B') (commonW W W')
+      = weightedHomSum n F B W + weightedHomSum n F B' W' := by
+  classical
+  set g : (Fin n → Fin (T + T')) → ℝ := fun σ =>
+    (∏ v, commonW W W' (σ v)) *
+      ∏ e ∈ F.edgeFinset, commonB B B' (σ (Quot.out e).1) (σ (Quot.out e).2) with hg
+  set ιL : (Fin n → Fin T) → (Fin n → Fin (T + T')) := fun ρ => commonInl ∘ ρ with hιL
+  set ιR : (Fin n → Fin T') → (Fin n → Fin (T + T')) := fun ρ => commonInr ∘ ρ with hιR
+  have hιLinj : Function.Injective ιL :=
+    fun _ _ h => funext fun v => commonInl_injective (congr_fun h v)
+  have hιRinj : Function.Injective ιR :=
+    fun _ _ h => funext fun v => commonInr_injective (congr_fun h v)
+  set SL := Finset.univ.image ιL with hSL
+  set SR := Finset.univ.image ιR with hSR
+  obtain ⟨r⟩ := hconn.nonempty
+  have hzero : ∀ σ ∈ (Finset.univ : Finset (Fin n → Fin (T + T'))),
+      σ ∉ SL ∪ SR → g σ = 0 := by
+    intro σ _ hσ
+    by_contra hne
+    have hedge : (∏ e ∈ F.edgeFinset,
+        commonB B B' (σ (Quot.out e).1) (σ (Quot.out e).2)) ≠ 0 := by
+      intro h0
+      apply hne
+      show (∏ v, commonW W W' (σ v)) *
+        (∏ e ∈ F.edgeFinset, commonB B B' (σ (Quot.out e).1) (σ (Quot.out e).2)) = 0
+      rw [h0, mul_zero]
+    rcases common_assignment_component_local hconn hedge with hL | hR
+    · choose ρ hρ using hL
+      exact hσ (Finset.mem_union_left _ (Finset.mem_image.mpr ⟨ρ, Finset.mem_univ _,
+        funext fun v => by simp only [hιL, Function.comp_apply]; exact (hρ v).symm⟩))
+    · choose ρ hρ using hR
+      exact hσ (Finset.mem_union_right _ (Finset.mem_image.mpr ⟨ρ, Finset.mem_univ _,
+        funext fun v => by simp only [hιR, Function.comp_apply]; exact (hρ v).symm⟩))
+  have hdisj : Disjoint SL SR := by
+    rw [Finset.disjoint_left]
+    intro σ hσL hσR
+    rw [hSL, Finset.mem_image] at hσL
+    obtain ⟨ρ, -, rfl⟩ := hσL
+    rw [hSR, Finset.mem_image] at hσR
+    obtain ⟨ρ', -, hρ'⟩ := hσR
+    have hval := congr_fun hρ' r
+    simp only [hιL, hιR, Function.comp_apply] at hval
+    exact commonInl_ne_commonInr (ρ r) (ρ' r) hval.symm
+  have hLHS : weightedHomSum n F (commonB B B') (commonW W W') = ∑ σ, g σ := rfl
+  calc weightedHomSum n F (commonB B B') (commonW W W')
+      = ∑ σ ∈ SL ∪ SR, g σ := by
+        rw [hLHS]; exact (Finset.sum_subset (Finset.subset_univ _) hzero).symm
+    _ = ∑ σ ∈ SL, g σ + ∑ σ ∈ SR, g σ := Finset.sum_union hdisj
+    _ = weightedHomSum n F B W + weightedHomSum n F B' W' := by
+        congr 1
+        · rw [hSL, Finset.sum_image fun _ _ _ _ h => hιLinj h, weightedHomSum]
+          exact Finset.sum_congr rfl fun ρ _ => by
+            simp only [hg, hιL, Function.comp_apply, commonW_inl, commonB_inl_inl]
+        · rw [hSR, Finset.sum_image fun _ _ _ _ h => hιRinj h, weightedHomSum]
+          exact Finset.sum_congr rfl fun ρ _ => by
+            simp only [hg, hιR, Function.comp_apply, commonW_inr, commonB_inr_inr]
+
+end CommonHostLocalization
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
 have equal weighted hom sums for all graphs, there is a permutation matching weights and
