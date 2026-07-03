@@ -12563,6 +12563,169 @@ theorem weightedHomSum_common_connected [DecidableRel F.Adj] (hconn : F.Connecte
           exact Finset.sum_congr rfl fun ρ _ => by
             simp only [hg, hιR, Function.comp_apply, commonW_inr, commonB_inr_inr]
 
+/-! #### Isolated-vertex uniqueness (the deferred twin obstruction) -/
+
+/-- In a twin-free matrix there is at most one all-zero row. -/
+lemma zeroRow_unique_of_twinfree (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    {i j : Fin T} (hi : B i = 0) (hj : B j = 0) : i = j := by
+  by_contra h
+  exact htwin i j h (hi.trans hj.symm)
+
+/-- A left vertex and a right vertex are twins in the common host iff each has an all-zero
+row in its own host. -/
+lemma common_cross_twin_iff_zeroRows (i : Fin T) (j : Fin T') :
+    commonB B B' (commonInl i) = commonB B B' (commonInr j) ↔ B i = 0 ∧ B' j = 0 := by
+  constructor
+  · intro h
+    refine ⟨funext fun b => ?_, funext fun b => ?_⟩
+    · simpa using congr_fun h (commonInl b)
+    · simpa using (congr_fun h (commonInr b)).symm
+  · rintro ⟨hi, hj⟩
+    funext x
+    rcases common_cases x with ⟨b, rfl⟩ | ⟨b, rfl⟩
+    · simp [congr_fun hi b]
+    · simp [congr_fun hj b]
+
+/-! #### Rooted connected decomposition (K = 1) -/
+
+/-- The internal label/unlabeled assignment `τ` of `simpleEvalAt`, named for manipulation:
+labels `ξ` on the first `K` vertices, `σ` on the remaining `m`. -/
+def fullAssign {S K m : ℕ} (ξ : Fin K → Fin S) (σ : Fin m → Fin S) : Fin (m + K) → Fin S :=
+  fun v => if h : (v : ℕ) < K then ξ ⟨v, h⟩ else σ ⟨v - K, by have := v.isLt; omega⟩
+
+/-- `simpleEvalAt` written with the named `fullAssign` instead of its inline `let`. -/
+lemma simpleEvalAt_eq_fullAssign {S K m : ℕ} (C : Fin S → Fin S → ℝ) (V : Fin S → ℝ)
+    (F : SimpleGraph (Fin (m + K))) [DecidableRel F.Adj] (ξ : Fin K → Fin S) :
+    Graphon.Lovasz.simpleEvalAt C V F ξ =
+      ∑ σ : Fin m → Fin S, (∏ v, V (σ v)) *
+        ∏ e ∈ F.edgeFinset, C (fullAssign ξ σ (Quot.out e).1) (fullAssign ξ σ (Quot.out e).2) :=
+  rfl
+
+/-- The label vertex `0` (value `< 1`) carries the (constant) label. -/
+lemma fullAssign_zero {S m : ℕ} (ξ : Fin 1 → Fin S) (σ : Fin m → Fin S) :
+    fullAssign ξ σ 0 = ξ 0 := by
+  simp only [fullAssign, Fin.val_zero, Nat.lt_one_iff, dif_pos]
+  rfl
+
+/-- Unlabeled vertex `1 + v` (value `≥ 1`) carries `σ v`. -/
+lemma fullAssign_unlabeled {S m : ℕ} (ξ : Fin 1 → Fin S) (σ : Fin m → Fin S) (v : Fin m) :
+    fullAssign ξ σ ⟨1 + (v : ℕ), by omega⟩ = σ v := by
+  have hlt : ¬ ((⟨1 + (v : ℕ), by omega⟩ : Fin (m + 1)) : ℕ) < 1 := by simp
+  simp only [fullAssign, hlt, dif_neg]
+  congr 1
+  apply Fin.ext
+  simp
+
+/-- Pushing `commonInl` through `fullAssign` (constant left label). -/
+lemma fullAssign_commonInl_const {m : ℕ} (i : Fin T) (σ : Fin m → Fin T)
+    (w : Fin (m + 1)) :
+    fullAssign ((fun _ => commonInl i : Fin 1 → Fin (T + T')))
+        ((fun v => commonInl (σ v) : Fin m → Fin (T + T'))) w
+      = commonInl (fullAssign (fun _ : Fin 1 => i) σ w) := by
+  simp only [fullAssign]; split_ifs <;> rfl
+
+/-- **Rooted connected decomposition, left root (K = 1).** On a connected graph, evaluating
+the common host at a left-block root equals evaluating `(B, W)` at that root: nonzero
+assignments localize to the left block (the root pins vertex `0` there). -/
+theorem simpleEvalAt_common_connected_inl {m : ℕ} {F : SimpleGraph (Fin (m + 1))}
+    [DecidableRel F.Adj] (hconn : F.Connected) (i : Fin T) :
+    Graphon.Lovasz.simpleEvalAt (commonB B B') (commonW W W') F (fun _ : Fin 1 => commonInl i)
+      = Graphon.Lovasz.simpleEvalAt B W F (fun _ : Fin 1 => i) := by
+  classical
+  rw [simpleEvalAt_eq_fullAssign, simpleEvalAt_eq_fullAssign]
+  set gC : (Fin m → Fin (T + T')) → ℝ := fun σ' =>
+    (∏ v, commonW W W' (σ' v)) *
+      ∏ e ∈ F.edgeFinset, commonB B B'
+        (fullAssign (fun _ => commonInl i) σ' (Quot.out e).1)
+        (fullAssign (fun _ => commonInl i) σ' (Quot.out e).2) with hgC
+  set emb : (Fin m → Fin T) → (Fin m → Fin (T + T')) := fun σ v => commonInl (σ v) with hemb
+  have hembinj : Function.Injective emb :=
+    fun _ _ h => funext fun v => commonInl_injective (congr_fun h v)
+  set SL := Finset.univ.image emb with hSL
+  have hzero : ∀ σ' ∈ (Finset.univ : Finset (Fin m → Fin (T + T'))),
+      σ' ∉ SL → gC σ' = 0 := by
+    intro σ' _ hσ'
+    by_contra hne
+    have hedge : (∏ e ∈ F.edgeFinset, commonB B B'
+        (fullAssign (fun _ => commonInl i) σ' (Quot.out e).1)
+        (fullAssign (fun _ => commonInl i) σ' (Quot.out e).2)) ≠ 0 := by
+      intro h0
+      apply hne
+      show (∏ v, commonW W W' (σ' v)) * _ = 0
+      rw [h0, mul_zero]
+    have h0left : fullAssign (fun _ => commonInl i) σ' 0 = commonInl i := fullAssign_zero _ _
+    rcases common_assignment_component_local (F := F)
+        (τ := fullAssign (fun _ => commonInl i) σ') hconn hedge with hL | hR
+    · have hσ'L : ∀ v : Fin m, ∃ a, σ' v = commonInl a := by
+        intro v
+        obtain ⟨a, ha⟩ := hL ⟨1 + (v : ℕ), by omega⟩
+        exact ⟨a, by rw [← fullAssign_unlabeled (fun _ => commonInl i) σ' v]; exact ha⟩
+      choose ρ hρ using hσ'L
+      exact hσ' (Finset.mem_image.mpr ⟨ρ, Finset.mem_univ _,
+        funext fun v => by rw [hemb]; exact (hρ v).symm⟩)
+    · obtain ⟨b, hb⟩ := hR 0
+      rw [h0left] at hb
+      exact absurd hb (commonInl_ne_commonInr i b)
+  rw [← Finset.sum_subset (Finset.subset_univ SL) hzero, hSL,
+    Finset.sum_image fun _ _ _ _ h => hembinj h]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  simp only [hgC, hemb, commonW_inl, fullAssign_commonInl_const, commonB_inl_inl]
+
+/-- Pushing `commonInr` through `fullAssign` (constant right label). -/
+lemma fullAssign_commonInr_const {m : ℕ} (j : Fin T') (σ : Fin m → Fin T')
+    (w : Fin (m + 1)) :
+    fullAssign ((fun _ => commonInr j : Fin 1 → Fin (T + T')))
+        ((fun v => commonInr (σ v) : Fin m → Fin (T + T'))) w
+      = commonInr (fullAssign (fun _ : Fin 1 => j) σ w) := by
+  simp only [fullAssign]; split_ifs <;> rfl
+
+/-- **Rooted connected decomposition, right root (K = 1).** On a connected graph, evaluating
+the common host at a right-block root equals evaluating `(B', W')` at that root. -/
+theorem simpleEvalAt_common_connected_inr {m : ℕ} {F : SimpleGraph (Fin (m + 1))}
+    [DecidableRel F.Adj] (hconn : F.Connected) (j : Fin T') :
+    Graphon.Lovasz.simpleEvalAt (commonB B B') (commonW W W') F (fun _ : Fin 1 => commonInr j)
+      = Graphon.Lovasz.simpleEvalAt B' W' F (fun _ : Fin 1 => j) := by
+  classical
+  rw [simpleEvalAt_eq_fullAssign, simpleEvalAt_eq_fullAssign]
+  set gC : (Fin m → Fin (T + T')) → ℝ := fun σ' =>
+    (∏ v, commonW W W' (σ' v)) *
+      ∏ e ∈ F.edgeFinset, commonB B B'
+        (fullAssign (fun _ : Fin 1 => commonInr j) σ' (Quot.out e).1)
+        (fullAssign (fun _ : Fin 1 => commonInr j) σ' (Quot.out e).2) with hgC
+  set emb : (Fin m → Fin T') → (Fin m → Fin (T + T')) := fun σ v => commonInr (σ v) with hemb
+  have hembinj : Function.Injective emb :=
+    fun _ _ h => funext fun v => commonInr_injective (congr_fun h v)
+  set SR := Finset.univ.image emb with hSR
+  have hzero : ∀ σ' ∈ (Finset.univ : Finset (Fin m → Fin (T + T'))),
+      σ' ∉ SR → gC σ' = 0 := by
+    intro σ' _ hσ'
+    by_contra hne
+    have hedge : (∏ e ∈ F.edgeFinset, commonB B B'
+        (fullAssign (fun _ : Fin 1 => commonInr j) σ' (Quot.out e).1)
+        (fullAssign (fun _ : Fin 1 => commonInr j) σ' (Quot.out e).2)) ≠ 0 := by
+      intro h0
+      apply hne
+      show (∏ v, commonW W W' (σ' v)) * _ = 0
+      rw [h0, mul_zero]
+    have h0right : fullAssign (fun _ : Fin 1 => commonInr j) σ' 0 = commonInr j :=
+      fullAssign_zero _ _
+    rcases common_assignment_component_local (F := F)
+        (τ := fullAssign (fun _ : Fin 1 => commonInr j) σ') hconn hedge with hL | hR
+    · obtain ⟨a, ha⟩ := hL 0
+      rw [h0right] at ha
+      exact absurd ha.symm (commonInl_ne_commonInr a j)
+    · have hσ'R : ∀ v : Fin m, ∃ b, σ' v = commonInr b := by
+        intro v
+        obtain ⟨b, hb⟩ := hR ⟨1 + (v : ℕ), by omega⟩
+        exact ⟨b, by rw [← fullAssign_unlabeled (fun _ : Fin 1 => commonInr j) σ' v]; exact hb⟩
+      choose ρ hρ using hσ'R
+      exact hσ' (Finset.mem_image.mpr ⟨ρ, Finset.mem_univ _,
+        funext fun v => by rw [hemb]; exact (hρ v).symm⟩)
+  rw [← Finset.sum_subset (Finset.subset_univ SR) hzero, hSR,
+    Finset.sum_image fun _ _ _ _ h => hembinj h]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  simp only [hgC, hemb, commonW_inr, fullAssign_commonInr_const, commonB_inr_inr]
+
 end CommonHostLocalization
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
