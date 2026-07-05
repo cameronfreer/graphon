@@ -12840,6 +12840,89 @@ theorem simpleEvalAt_common_connected_inr_tuple {K m : ℕ} {F : SimpleGraph (Fi
   refine Finset.sum_congr rfl fun σ _ => ?_
   simp only [hgC, hemb, commonW_inr, fullAssign_commonInr_tuple, commonB_inr_inr]
 
+/-! #### Two-host extension-sum identity (the counting bridge) -/
+
+/-- Label vertex `i` (value `< K`) carries `ξ i`. -/
+lemma fullAssign_label {S K m : ℕ} (ξ : Fin K → Fin S) (σ : Fin m → Fin S) (i : Fin K) :
+    fullAssign ξ σ ⟨(i : ℕ), by omega⟩ = ξ i := by
+  simp only [fullAssign]
+  rw [dif_pos (show ((⟨(i : ℕ), by omega⟩ : Fin (m + K)) : ℕ) < K from i.isLt)]
+
+/-- Split `Fin (m + K)` into label indices (value `< K`) and unlabeled indices. -/
+def splitAtK {K m : ℕ} : Fin (m + K) ≃ Fin K ⊕ Fin m where
+  toFun w := if h : (w : ℕ) < K then Sum.inl ⟨(w : ℕ), h⟩ else Sum.inr ⟨(w : ℕ) - K, by omega⟩
+  invFun := Sum.elim (fun i => ⟨(i : ℕ), by omega⟩) (fun j => ⟨K + (j : ℕ), by omega⟩)
+  left_inv w := by
+    by_cases h : (w : ℕ) < K
+    · simp only [dif_pos h, Sum.elim_inl]
+    · simp only [dif_neg h, Sum.elim_inr]; exact Fin.ext (by simp only [Fin.val_mk]; omega)
+  right_inv s := by
+    rcases s with i | j
+    · simp only [Sum.elim_inl]
+      rw [dif_pos (show ((⟨(i : ℕ), by omega⟩ : Fin (m + K)) : ℕ) < K from i.isLt)]
+    · simp only [Sum.elim_inr]
+      rw [dif_neg (show ¬ ((⟨K + (j : ℕ), by omega⟩ : Fin (m + K)) : ℕ) < K by
+        simp only [Fin.val_mk]; omega)]
+      exact congrArg Sum.inr (Fin.ext (by simp only [Fin.val_mk]; omega))
+
+/-- The weight product over the full assignment splits into label- and unlabeled-parts. -/
+lemma fullAssign_weight_prod {S K m : ℕ} (V : Fin S → ℝ) (μ : Fin K → Fin S) (σ : Fin m → Fin S) :
+    (∏ w, V (fullAssign μ σ w)) = (∏ i, V (μ i)) * ∏ v, V (σ v) := by
+  have hstep : ∀ w : Fin (m + K),
+      V (fullAssign μ σ w) = Sum.elim (fun i => V (μ i)) (fun v => V (σ v)) (splitAtK w) := by
+    intro w
+    simp only [splitAtK, Equiv.coe_fn_mk]
+    by_cases h : (w : ℕ) < K
+    · rw [dif_pos h, Sum.elim_inl]; congr 1; simp only [fullAssign, dif_pos h]
+    · rw [dif_neg h, Sum.elim_inr]; congr 1; simp only [fullAssign, dif_neg h]
+  rw [Fintype.prod_equiv splitAtK (fun w => V (fullAssign μ σ w)) _ hstep,
+    Fintype.prod_sum_type]
+  simp only [Sum.elim_inl, Sum.elim_inr]
+
+/-- Assemble a full assignment from its label- and unlabeled-parts (the inverse packages
+`fullAssign`). -/
+def labelUnlabelEquiv {S K m : ℕ} :
+    (Fin K → Fin S) × (Fin m → Fin S) ≃ (Fin (m + K) → Fin S) where
+  toFun p := fullAssign p.1 p.2
+  invFun ρ := (fun i => ρ ⟨(i : ℕ), by omega⟩, fun v => ρ ⟨K + (v : ℕ), by omega⟩)
+  left_inv p := by
+    refine Prod.ext (funext fun i => ?_) (funext fun v => ?_)
+    · exact fullAssign_label p.1 p.2 i
+    · exact fullAssign_unlabeled_gen p.1 p.2 v
+  right_inv ρ := by
+    funext w
+    simp only [fullAssign]
+    split_ifs with h
+    · congr 1
+    · congr 1; exact Fin.ext (by simp only [Fin.val_mk]; omega)
+
+@[simp] lemma labelUnlabelEquiv_apply {S K m : ℕ} (μ : Fin K → Fin S) (σ : Fin m → Fin S) :
+    labelUnlabelEquiv (μ, σ) = fullAssign μ σ := rfl
+
+/-- **Unlabel identity.** Summing a `K`-labeled evaluation over all label tuples (weighted by
+the labels' weights) recovers the fully-unlabeled hom sum. -/
+lemma simpleEvalAt_sum_labels {S K n : ℕ} (C : Fin S → Fin S → ℝ) (V : Fin S → ℝ)
+    (G : SimpleGraph (Fin (n + K))) [DecidableRel G.Adj] :
+    ∑ μ : Fin K → Fin S, (∏ i, V (μ i)) * Graphon.Lovasz.simpleEvalAt C V G μ
+      = weightedHomSum (n + K) G C V := by
+  rw [weightedHomSum, ← Equiv.sum_comp labelUnlabelEquiv, Fintype.sum_prod_type]
+  refine Finset.sum_congr rfl fun μ _ => ?_
+  rw [simpleEvalAt_eq_fullAssign, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun σ _ => ?_
+  rw [labelUnlabelEquiv_apply, fullAssign_weight_prod V μ σ]
+  ring
+
+/-- **Two-host extension-sum identity (equation (10), two hosts).** From unlabeled hom-sum
+equality, the weighted label-tuple sums of any `K`-labeled graph agree across the two hosts. -/
+lemma simpleEvalAt_sum_labels_two_host {K n : ℕ} (G : SimpleGraph (Fin (n + K)))
+    [DecidableRel G.Adj]
+    (h_eq : ∀ (N : ℕ) (F : SimpleGraph (Fin N)) [DecidableRel F.Adj],
+      weightedHomSum N F B W = weightedHomSum N F B' W') :
+    ∑ μ : Fin K → Fin T, (∏ i, W (μ i)) * Graphon.Lovasz.simpleEvalAt B W G μ
+      = ∑ ν : Fin K → Fin T', (∏ i, W' (ν i)) * Graphon.Lovasz.simpleEvalAt B' W' G ν := by
+  rw [simpleEvalAt_sum_labels, simpleEvalAt_sum_labels]
+  exact h_eq (n + K) G
+
 end CommonHostLocalization
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
