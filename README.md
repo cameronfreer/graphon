@@ -19,15 +19,19 @@ A **graphon** is a symmetric measurable function `W : α² → [0,1]` on a proba
 
 ## Proof Status
 
-Three live `sorry` blockers remain, all on the path to the final determination theorem:
+Two live `sorry` blockers remain, both on the path to the final determination theorem:
 
 | Pending result | Location | Notes |
 |----------------|----------|-------|
 | **Rokhlin's theorem** | `exists_common_extension` | Mathlib has `PolishSpace.measurableEquiv` but not the measure-preserving version |
-| **Twin-free bijection** (Lovász Theorem 5.30 core) | `twinfree_bijection_of_weightedHomSum_eq` | The cross-matrix algebraic core. The dispatchers `matrix_quotient_of_weightedHomSum_eq` / `_pos` contain no local `sorry` but remain sorry-dependent on this theorem. The single-matrix Lovász rank/orbit machinery (`Graphon/Lovasz.lean`) is fully proved. |
-| **Determination pending theorem** | `cutDistance_zero_of_homDensity_eq` | Depends on both of the above, plus its own uniform-regularity assembly (currently a bare `sorry`) |
+| **Determination pending theorem** | `cutDistance_zero_of_homDensity_eq` | Depends on Rokhlin plus its own uniform-regularity assembly (currently a bare `sorry`) |
 
-In addition, seven `sorry` statements are deliberately retained as **documentation of refuted conjectures** (in `Lovasz.lean`, `Spectral.lean`, and `MatrixDetermination.lean`); each is marked FALSE/REFUTED in its docstring and nothing depends on it. The raw project sorry count is therefore 10, of which only the three above are live. No custom axioms are introduced.
+**Algebraic determination is PROVED** (2026-07-06): `matrix_quotient_of_weightedHomSum_eq`
+(Lovász Theorem 5.30, k≥2 positive-weight case) is axiom-clean, via the twin-free bijection
+`twinfree_bijection_of_weightedHomSum_eq` and the cross-matrix super transfer
+(`Graphon/CrossSuper.lean`).
+
+In addition, seven `sorry` statements are deliberately retained as **documentation of refuted conjectures** (in `Lovasz.lean`, `Spectral.lean`, and `MatrixDetermination.lean`); each is marked FALSE/REFUTED in its docstring and nothing depends on it. The raw project sorry count is therefore 9, of which only the two above are live. No custom axioms are introduced.
 
 ## Files
 
@@ -45,6 +49,7 @@ In addition, seven `sorry` statements are deliberately retained as **documentati
 | `Graphon/Compactness.lean` | Core | Total boundedness, completeness, limit construction |
 | `Graphon/CaiGovorov.lean` | Core | Graph-free Vandermonde argument (Cai–Govorov §4) |
 | `Graphon/Lovasz.lean` | Core | Connection-matrix algebra (Lovász §3), orbit separation, rank theorem |
+| `Graphon/CrossSuper.lean` | Core | Cross-matrix super-surjective transfer (Cai–Govorov Lemma 5.1, partition form) |
 | `Graphon/SimpleRank.lean` | Core | K=1 simple-graph rank theorem, algebra-atom framing |
 | `Graphon/CycleKrylov.lean` | Core | Cycle–Krylov spectral slice of the square-moment descent |
 | `Graphon/MatrixDetermination.lean` | Core | Algebraic determination of step graphons |

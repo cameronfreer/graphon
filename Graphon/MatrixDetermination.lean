@@ -12046,24 +12046,21 @@ CROSS-matrix bridge from the hom-sum hypothesis. The route:
   positive W-weight, so its matching right class is nonempty: every `φ₀` has a right tuple
   with an identical test-moment profile. Applied at `K = T`, `φ₀ = id`.
 
-**Open crux (cycle 2)**: upgrading a matched test-moment profile to full cross-equivalence
-(every `(n, F)` evaluation equal) and to the bijection. In-matrix, `TestEvalEq ⟹ orbit`
-is proved only in the super/surjective case (`Lovasz.testEvalEq_implies_orbit_super`); the
-general in-matrix descent (`tupleEquivSimple_implies_orbit_via_2_5`) consumes FULL simple
-equivalence. Candidate routes, to be settled by reading the super-case proof:
-1. **Surjectivity transfer**: show a right tuple profile-matched to the surjective `id_T`
-   is itself surjective (cross analogue of the super case), then run the composition trick
-   with the symmetric matched tuple and Lemma 2.4 on each side to get bijectivity.
-2. **Level-propagation**: cross-matched profiles at level K propagate to matched extension
-   clouds at level K+1 (Vandermonde on `Lovasz.sum_extensions_eval` /
-   `extension_power_moments` data), giving full cross-equivalence by unlabeled-peeling
-   induction — mirrors the proved descent's internal structure.
-Known obstructions (do NOT retry): naive gluing of k-labeled simple graphs is false
-(L3273 note — label-label multi-edges); powers of raw label-label entries are NOT
-simple-realizable, only testMoment power-products are. After bijectivity: entries via the
-single label-label edge graph, weights via the K = T vs K = T+1 class-weight ratio
-(`|Aut|·∏W` bookkeeping), with the right class identified as an `Aut(B',W')`-orbit via
-single-matrix Lemma 2.4 on the B' side. -/
+**Crux resolution (2026-07-06, PROVED)**: the route through `id_T`-matching and
+composition was abandoned. Instead, match a SUPER-SURJECTIVE left tuple (L5,
+`exists_superSurjective_tuple`) and port the proved single-matrix chunk 3A `superMap`
+argument cross-matrix in **partition form** (`Graphon/CrossSuper.lean`,
+`cross_super_partition`): star/edge tests cannot break a fractional refinement across
+matrices of different sizes, so the port delivers per-left-vertex classes
+`C t ⊆ Fin T'` (nonempty, disjoint, covering, weight-matching, block-averaged edges) —
+NOT a bijection. The assembly below runs the transfer in BOTH directions; counting the
+two partitions forces `T = T'`, whence all classes are singletons and the partition
+collapses to the weight- and entry-preserving bijection. Only left twin-freeness enters
+each transfer.
+Known obstructions that shaped this design (do NOT retry): naive gluing of k-labeled
+simple graphs is false (L3273 note — label-label multi-edges); powers of raw label-label
+entries are NOT simple-realizable, only testMoment power-products are; test-moment
+profiles imply orbits in-matrix only via the super-surjective case. -/
 
 /-- The splice equivalence between (label tuple, unlabeled tuple) pairs and full colorings
 of `Fin (n + k)`, labels at indices `< k` — the `labeledEvalK` convention. -/
@@ -12306,11 +12303,13 @@ private theorem card_le_of_nonempty_disjoint {a b : ℕ} (E : Fin a → Finset (
 have equal weighted hom sums for all graphs, there is a permutation matching weights and
 entries. This is Lovász [2012] Theorem 5.30 for the twin-free case.
 
-**Status**: Assembled (2026-07-06) from the cross-matrix transport chain (L1–L3 PROVED:
-`labeledEvalK_weighted_sum`, `cross_testProfile_pushforward_eq`,
-`cross_matched_tuple_exists`); the remaining sorries are the two feeder stubs
-`exists_superSurjective_tuple` (elementary) and `cross_super_row_transfer` (the
-cross-matrix port of the proved single-matrix chunk 3A `superMap` construction).
+**Status**: PROVED (2026-07-06), axiom-clean. Route: the cross-matrix transport chain
+(`labeledEvalK_weighted_sum` → `cross_testProfile_pushforward_eq` →
+`cross_matched_tuple_exists`) matches a super-surjective left tuple to a right tuple
+with an identical test-moment profile; `Graphon.CrossSuper.cross_super_partition`
+(Cai–Govorov Lemma 5.1, two-matrix partition form) turns each matched pair into a
+per-vertex partition; the two symmetric partitions force `T = T'` by counting, and the
+singleton classes give the bijection.
 
 **Why the previous approach failed**: The deleted `eval_algebra_span_full` claimed that
 1-labeled rootedEval functions span ℝ^T for any twin-free matrix. This is false:

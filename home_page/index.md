@@ -26,15 +26,16 @@ The formalization covers:
 
 ## Proof Status
 
-Three live `sorry` blockers remain, driven by two main missing mathematical inputs: a Rokhlin-style alignment theorem and the twin-free bijection at the core of algebraic determination. No custom axioms are introduced; these are `sorry`s that will be replaced with proofs.
+Two live `sorry` blockers remain, both driven by one missing mathematical input: a Rokhlin-style alignment theorem. No custom axioms are introduced; these are `sorry`s that will be replaced with proofs.
 
 | Pending result | `sorry` location | Used by | Progress |
 |----------------|-----------------|---------|----------|
 | **Rokhlin's theorem** (isomorphism of standard Borel probability spaces) | `exists_common_extension` | Cut distance triangle inequality, partition alignment, compactness | Mathlib has `PolishSpace.measurableEquiv` but not the measure-preserving version; proving this is in progress |
-| **Twin-free bijection** (Lov&aacute;sz Theorem 5.30 core) | `twinfree_bijection_of_weightedHomSum_eq` | Inverse counting lemma core, via the `matrix_quotient_of_weightedHomSum_eq` dispatchers (which contain no local `sorry` but remain sorry-dependent on this theorem) | The single-matrix Lov&aacute;sz rank/orbit machinery (`Graphon/Lovasz.lean`) is fully proved; the remaining work is the cross-matrix connection-matrix bridge |
-| **Determination pending theorem** (depends on the above two) | `cutDistance_zero_of_homDensity_eq` | Convergence equivalence | Awaits Rokhlin + the twin-free bijection, plus its own uniform-regularity assembly |
+| **Determination pending theorem** | `cutDistance_zero_of_homDensity_eq` | Convergence equivalence | Awaits Rokhlin, plus its own uniform-regularity assembly |
 
-Seven further `sorry` statements are deliberately retained as documentation of refuted conjectures (each marked FALSE/REFUTED in its docstring, with nothing depending on it); only the three above are live. All other declarations contain no additional `sorry`s.
+**Algebraic determination is PROVED** (2026-07-06): `matrix_quotient_of_weightedHomSum_eq` (Lov&aacute;sz Theorem 5.30, k&ge;2 positive-weight case) is axiom-clean, via the twin-free bijection and the cross-matrix super-surjective transfer (`Graphon/CrossSuper.lean`).
+
+Seven further `sorry` statements are deliberately retained as documentation of refuted conjectures (each marked FALSE/REFUTED in its docstring, with nothing depending on it); only the two above are live. All other declarations contain no additional `sorry`s.
 
 ## Components
 
@@ -52,6 +53,7 @@ Seven further `sorry` statements are deliberately retained as documentation of r
 | `Graphon/Compactness.lean` | Core | Total boundedness, completeness, limit construction |
 | `Graphon/CaiGovorov.lean` | Core | Graph-free Vandermonde argument (Cai&ndash;Govorov &sect;4) |
 | `Graphon/Lovasz.lean` | Core | Connection-matrix algebra (Lov&aacute;sz &sect;3), orbit separation, rank theorem |
+| `Graphon/CrossSuper.lean` | Core | Cross-matrix super-surjective transfer (Cai&ndash;Govorov Lemma 5.1, partition form) |
 | `Graphon/SimpleRank.lean` | Core | K=1 simple-graph rank theorem, algebra-atom framing |
 | `Graphon/CycleKrylov.lean` | Core | Cycle&ndash;Krylov spectral slice of the square-moment descent |
 | `Graphon/MatrixDetermination.lean` | Core | Algebraic determination of step graphons |
