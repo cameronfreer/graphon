@@ -10496,10 +10496,11 @@ picture; no further docstring here. -/
 
 /-! #### Level 6 — downstream twin-free bijection
 
-`twinfree_bijection_of_weightedHomSum_eq` (stub at ~L8790) then falls
-out via the k≥2 case's row-collapse argument, once the Lovász Lemma-2.4
-chain above is in place. This is known to be the final step per existing
-memory notes; no new stub here.
+`twinfree_bijection_of_weightedHomSum_eq` is PROVED (2026-07-06) — but NOT by this
+level's original plan: row-collapse (`matrix_quotient_of_weightedHomSum_eq_pos`) is the
+CONSUMER of the twin-free bijection, not its proof route. The actual proof is the
+cross-matrix transport chain + `Graphon.CrossSuper.cross_super_partition` route
+documented at the theorem (see the *Cross-matrix transport* section below, ~L12100).
 
 **End of skeleton.** Follow-up proving sessions should target
 Level 1 first (`tupleEquiv_power_sum_invariance`), which is both the
@@ -12323,14 +12324,13 @@ rowProfile, joint classes) produce automorphism-invariant quantities and cannot
 separate vertices in the same (B,W)-orbit. The collapsed matrix from row collapse
 can have non-trivial automorphisms, so this bug is reachable at the call site.
 
-**Correct proof direction**: Lovász [2012] §5.2 proves the result via the connection
-matrix M(W,k) for k-labeled graphs. The k=1 case fails when Aut(B,W) is non-trivial,
-but k≥2 can probe individual entries B(i,j) by fixing both endpoints. The exact
-formalization requires careful design. The existing `rootedEval_rootAttach` remains
-available for the entry-matching step once a correct transfer permutation is
-established by orbit-breaking means.
+**Proof direction realized**: Lovász [2012] §5.2 proves the result via the connection
+matrix M(W,k) for k-labeled graphs; the k=1 case fails when Aut(B,W) is non-trivial.
+The formalization here probes with a SUPER-SURJECTIVE label tuple instead of k=2
+endpoint-pinning: profile matching + the CrossSuper partition machinery replace the
+k≥2 entry probe, and the entries fall out of the singleton-collapsed edge relation.
 
-**Sorry traces to**: algebraic graph theory (connection matrix rank, Lovász §5.2) -/
+**Axioms**: `propext`, `Classical.choice`, `Quot.sound` only (no `sorryAx`). -/
 private theorem twinfree_bijection_of_weightedHomSum_eq {T T' : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)

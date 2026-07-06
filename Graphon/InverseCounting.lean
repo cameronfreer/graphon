@@ -1038,11 +1038,11 @@ For partitions with at most K cells, the quantitative step ICL gives parameters
 as delta decreases, this constrains delta from below. A solution always exists
 because for fixed K, the step ICL gives fixed positive delta_step.
 
-**Sorry traces to**: `matrix_quotient_of_weightedHomSum_eq` (algebraic core,
-Lovasz [2012] Theorem 5.30) + `MeasurePreserving.exists_common_extension`
-(Rokhlin's theorem), via `cutDistance_zero_of_step_homDensity_eq`. The
-simultaneous regularity is a standard extension of Frieze-Kannan and
-does not introduce any new axiom. -/
+**Sorry traces to**: `MeasurePreserving.exists_common_extension` (Rokhlin's theorem)
+only, via `cutDistance_zero_of_step_homDensity_eq` — the algebraic core
+`matrix_quotient_of_weightedHomSum_eq` (Lovasz [2012] Theorem 5.30) is PROVED as of
+2026-07-06 (axiom-clean). The simultaneous regularity is a standard extension of
+Frieze-Kannan and does not introduce any new axiom. -/
 /-- Simultaneous weak regularity lemma for a pair of graphons.
 
 For any δ > 0, there exists a partition P with at most `4 ^ (2 * (⌈1/δ²⌉ + 1))` parts

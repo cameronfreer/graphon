@@ -35,7 +35,7 @@ Two live `sorry` blockers remain, both driven by one missing mathematical input:
 
 **Algebraic determination is PROVED** (2026-07-06): `matrix_quotient_of_weightedHomSum_eq` (Lov&aacute;sz Theorem 5.30, k&ge;2 positive-weight case) is axiom-clean, via the twin-free bijection and the cross-matrix super-surjective transfer (`Graphon/CrossSuper.lean`).
 
-Seven further `sorry` statements are deliberately retained as documentation of refuted conjectures (each marked FALSE/REFUTED in its docstring, with nothing depending on it); only the two above are live. All other declarations contain no additional `sorry`s.
+Seven further `sorry` statements are deliberately retained as documentation of refuted conjectures (each marked FALSE/REFUTED in its docstring); no live or public theorem depends on them (a few private off-axis helpers still do &mdash; they are quarantined with their roots). Only the two above are live. All other declarations contain no additional `sorry`s.
 
 ## Components
 

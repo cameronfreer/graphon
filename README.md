@@ -31,7 +31,7 @@ Two live `sorry` blockers remain, both on the path to the final determination th
 `twinfree_bijection_of_weightedHomSum_eq` and the cross-matrix super transfer
 (`Graphon/CrossSuper.lean`).
 
-In addition, seven `sorry` statements are deliberately retained as **documentation of refuted conjectures** (in `Lovasz.lean`, `Spectral.lean`, and `MatrixDetermination.lean`); each is marked FALSE/REFUTED in its docstring and nothing depends on it. The raw project sorry count is therefore 9, of which only the two above are live. No custom axioms are introduced.
+In addition, seven `sorry` statements are deliberately retained as **documentation of refuted conjectures** (in `Lovasz.lean`, `Spectral.lean`, and `MatrixDetermination.lean`); each is marked FALSE/REFUTED in its docstring, and no live or public theorem depends on them (a few private off-axis helpers still do — they are quarantined with their roots). The raw project sorry count is therefore 9, of which only the two above are live. No custom axioms are introduced.
 
 ## Files
 
