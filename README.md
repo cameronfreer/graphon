@@ -24,7 +24,7 @@ Two live `sorry` blockers remain, both on the path to the final determination th
 | Pending result | Location | Notes |
 |----------------|----------|-------|
 | **Rokhlin's theorem** | `exists_common_extension` | Mathlib has `PolishSpace.measurableEquiv` but not the measure-preserving version |
-| **Determination pending theorem** | `cutDistance_zero_of_homDensity_eq` | Depends on Rokhlin plus its own uniform-regularity assembly (currently a bare `sorry`) |
+| **Headline parameter selection** | `headline_parameter_selection` | The determination theorem `cutDistance_zero_of_homDensity_eq` is now fully assembled (regularity → counting bridge → step ICL → triangle inequality); this lemma isolates the one remaining input — a partition-size-independent step inverse counting parameter choice, classically discharged via the sampling lemmas (see its docstring for why regularity bookkeeping cannot do it) |
 
 **Algebraic determination is PROVED** (2026-07-06): `matrix_quotient_of_weightedHomSum_eq`
 (Lovász Theorem 5.30, k≥2 positive-weight case) is axiom-clean, via the twin-free bijection
