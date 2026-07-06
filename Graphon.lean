@@ -22,8 +22,6 @@ import Graphon.Lovasz
 import Graphon.SimpleRank
 import Graphon.CycleKrylov
 import Graphon.MatrixDetermination
-import Graphon.CaiGovorovOrbit
-import Graphon.SimpleOrbitRank
 import Graphon.InverseCounting
 import Graphon.Convergence
 
@@ -46,12 +44,10 @@ in Lean 4 using Mathlib.
 * `Graphon.Counting` — Homomorphism density, counting lemma
 * `Graphon.Compactness` — Total boundedness, completeness
 * `Graphon.CaiGovorov` — Graph-free Vandermonde argument (Cai–Govorov §4), for #70 orbit separation
-* `Graphon.Lovasz` — Connection-matrix algebra scaffolding (Lovász §3)
+* `Graphon.Lovasz` — Connection-matrix algebra scaffolding (Lovász §3), incl. the Cai–Govorov #70 orbit theorem and rank theorem
 * `Graphon.SimpleRank` — K=1 simple-graph rank theorem, algebra-atom framing (#70)
 * `Graphon.CycleKrylov` — spectral slice of the cycle–Krylov square-moment proof (#70)
 * `Graphon.MatrixDetermination` — Algebraic determination of step graphons
-* `Graphon.CaiGovorovOrbit` — Cai–Govorov test graphs, super-surjective orbit theorem, eq. (10) (#70)
-* `Graphon.SimpleOrbitRank` — #70 rank theorem: simple-eval span = orbit-invariant functions
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 
