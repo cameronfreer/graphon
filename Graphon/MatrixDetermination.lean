@@ -12022,6 +12022,165 @@ private theorem eval2Span_eq_pairInvariantSubspace {T : ℕ}
   exact edgeFreeEvalSpan_le_eval2Span B W
     (pairOrbit_indicator_mem_edgeFreeEvalSpan B W hB hW htwin o)
 
+/-! ### Cross-matrix transport (Lovász §5.2 / Cai–Govorov bridge)
+
+Skeleton for `twinfree_bijection_of_weightedHomSum_eq` (design cycle, 2026-07-06).
+The single-matrix Lemma 2.4 (`tupleEquiv_implies_tupleOrbitRel`, proved via the Lovász
+module's rank theorem) handles tuples into ONE matrix; the twin-free bijection needs a
+CROSS-matrix bridge from the hom-sum hypothesis. The route:
+
+* **L1** (`labeledEvalK_weighted_sum`): summing `labeledEvalK` over all label tuples with
+  weights recovers `weightedHomSum` — the general-`k` form of `rootedEval_weighted_sum`
+  (k=1, L2329) and `labeledEval2_weighted_sum` (k=2, L3218).
+* **L2** (`labeledEvalK_eq_of_weightedHomSum_eq`): hence equal hom sums transport the
+  W-weighted FIRST moment of every k-labeled simple-graph evaluation across matrices.
+* **L3** (`cross_testProfile_pushforward_eq`): the W-pushforward of the test-moment
+  profile map `φ ↦ (testMoment B W c φ)_c` equals the W'-pushforward, tested against an
+  ARBITRARY functional `h`. Engine: mixed power-products of test moments are genuine
+  simple-graph evaluations (`Lovasz.simpleEvalAt_expTestGraph`), so they transport by L2;
+  the Cai–Govorov multivariate Vandermonde (values need not be distinct — it is built for
+  the joint two-sided cloud) plus Lagrange interpolation on the finite joint profile set
+  upgrade polynomial `h` to arbitrary `h`.
+* **L3-existence** (`cross_matched_tuple_exists`): the profile class of any left tuple has
+  positive W-weight, so its matching right class is nonempty: every `φ₀` has a right tuple
+  with an identical test-moment profile. Applied at `K = T`, `φ₀ = id`.
+
+**Open crux (cycle 2)**: upgrading a matched test-moment profile to full cross-equivalence
+(every `(n, F)` evaluation equal) and to the bijection. In-matrix, `TestEvalEq ⟹ orbit`
+is proved only in the super/surjective case (`Lovasz.testEvalEq_implies_orbit_super`); the
+general in-matrix descent (`tupleEquivSimple_implies_orbit_via_2_5`) consumes FULL simple
+equivalence. Candidate routes, to be settled by reading the super-case proof:
+1. **Surjectivity transfer**: show a right tuple profile-matched to the surjective `id_T`
+   is itself surjective (cross analogue of the super case), then run the composition trick
+   with the symmetric matched tuple and Lemma 2.4 on each side to get bijectivity.
+2. **Level-propagation**: cross-matched profiles at level K propagate to matched extension
+   clouds at level K+1 (Vandermonde on `Lovasz.sum_extensions_eval` /
+   `extension_power_moments` data), giving full cross-equivalence by unlabeled-peeling
+   induction — mirrors the proved descent's internal structure.
+Known obstructions (do NOT retry): naive gluing of k-labeled simple graphs is false
+(L3273 note — label-label multi-edges); powers of raw label-label entries are NOT
+simple-realizable, only testMoment power-products are. After bijectivity: entries via the
+single label-label edge graph, weights via the K = T vs K = T+1 class-weight ratio
+(`|Aut|·∏W` bookkeeping), with the right class identified as an `Aut(B',W')`-orbit via
+single-matrix Lemma 2.4 on the B' side. -/
+
+/-- The splice equivalence between (label tuple, unlabeled tuple) pairs and full colorings
+of `Fin (n + k)`, labels at indices `< k` — the `labeledEvalK` convention. -/
+private def spliceEquiv (T k n : ℕ) :
+    ((Fin k → Fin T) × (Fin n → Fin T)) ≃ (Fin (n + k) → Fin T) where
+  toFun p v :=
+    if h : (v : ℕ) < k then p.1 ⟨v, h⟩ else p.2 ⟨v - k, by have := v.isLt; omega⟩
+  invFun τ :=
+    (fun i ↦ τ ⟨i, by have := i.isLt; omega⟩, fun j ↦ τ ⟨k + j, by have := j.isLt; omega⟩)
+  left_inv p := by
+    obtain ⟨φ, σ⟩ := p
+    refine Prod.ext (funext fun i ↦ ?_) (funext fun j ↦ ?_) <;> simp only
+    · rw [dif_pos i.isLt]
+    · rw [dif_neg (by omega : ¬ (k + (j : ℕ) < k))]
+      exact congrArg σ (Fin.ext (by show k + (j : ℕ) - k = (j : ℕ); omega))
+  right_inv τ := by
+    funext v
+    by_cases h : (v : ℕ) < k
+    · simp only [dif_pos h]
+    · simp only [dif_neg h]
+      exact congrArg τ (Fin.ext (by show k + ((v : ℕ) - k) = (v : ℕ); omega))
+
+private theorem spliceEquiv_apply_lt {T k n : ℕ} (p : (Fin k → Fin T) × (Fin n → Fin T))
+    (v : Fin (n + k)) (h : (v : ℕ) < k) :
+    spliceEquiv T k n p v = p.1 ⟨v, h⟩ := dif_pos h
+
+private theorem spliceEquiv_apply_ge {T k n : ℕ} (p : (Fin k → Fin T) × (Fin n → Fin T))
+    (v : Fin (n + k)) (h : ¬ (v : ℕ) < k) :
+    spliceEquiv T k n p v = p.2 ⟨v - k, by have := v.isLt; omega⟩ := dif_neg h
+
+/-- The weight product over a spliced coloring splits into label and unlabeled factors. -/
+private theorem spliceEquiv_weight_prod {T k n : ℕ} (W : Fin T → ℝ)
+    (φ : Fin k → Fin T) (σ : Fin n → Fin T) :
+    ∏ v : Fin (n + k), W (spliceEquiv T k n (φ, σ) v) =
+      (∏ i, W (φ i)) * ∏ j, W (σ j) := by
+  rw [← Equiv.prod_comp (finCongr (Nat.add_comm k n))
+        (fun v ↦ W (spliceEquiv T k n (φ, σ) v)),
+      Fin.prod_univ_add]
+  congr 1
+  · exact Finset.prod_congr rfl fun i _ ↦ congrArg W
+      ((spliceEquiv_apply_lt (φ, σ) _ i.isLt).trans (congrArg φ (Fin.ext rfl)))
+  · refine Finset.prod_congr rfl fun j _ ↦ congrArg W ?_
+    refine (spliceEquiv_apply_ge (φ, σ) _
+      (by show ¬ (k + (j : ℕ) < k); omega)).trans (congrArg σ (Fin.ext ?_))
+    show k + (j : ℕ) - k = (j : ℕ)
+    omega
+
+/-- **L1 — unlabeling identity.** Summing `labeledEvalK` over all label tuples with label
+weights recovers the weighted hom sum: the general-`k` form of `rootedEval_weighted_sum`
+and `labeledEval2_weighted_sum`. -/
+private theorem labeledEvalK_weighted_sum {T : ℕ} (k n : ℕ)
+    (F : SimpleGraph (Fin (n + k))) [DecidableRel F.Adj]
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    ∑ φ : Fin k → Fin T, (∏ i, W (φ i)) * labeledEvalK k n F B W φ =
+      weightedHomSum (n + k) F B W := by
+  classical
+  have hsplice : ∀ φ : Fin k → Fin T, labeledEvalK k n F B W φ =
+      ∑ σ : Fin n → Fin T, (∏ v, W (σ v)) *
+        ∏ e ∈ F.edgeFinset,
+          B (spliceEquiv T k n (φ, σ) (Quot.out e).1)
+            (spliceEquiv T k n (φ, σ) (Quot.out e).2) := fun φ ↦ rfl
+  rw [weightedHomSum, ← Equiv.sum_comp (spliceEquiv T k n)
+    (fun τ ↦ (∏ v, W (τ v)) *
+      ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)),
+    Fintype.sum_prod_type]
+  refine Finset.sum_congr rfl fun φ _ ↦ ?_
+  rw [hsplice, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun σ _ ↦ ?_
+  rw [spliceEquiv_weight_prod]
+  ring
+
+/-- **L2 — cross first-moment transport.** Equal weighted hom sums transfer the weighted
+sum of every k-labeled evaluation across the two matrices (generalizes
+`labeledEval2_eq_of_weightedHomSum_eq`). -/
+private theorem labeledEvalK_eq_of_weightedHomSum_eq {T T' : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F B W = weightedHomSum n F B' W')
+    (k n : ℕ) (F : SimpleGraph (Fin (n + k))) [DecidableRel F.Adj] :
+    ∑ φ : Fin k → Fin T, (∏ i, W (φ i)) * labeledEvalK k n F B W φ =
+    ∑ ψ : Fin k → Fin T', (∏ i, W' (ψ i)) * labeledEvalK k n F B' W' ψ := by
+  rw [labeledEvalK_weighted_sum, h_eq, ← labeledEvalK_weighted_sum]
+
+/-- **L3 — cross profile-pushforward matching.** The W-weighted pushforward of the
+test-moment profile map agrees across the two matrices against every functional `h`.
+Engine: `Lovasz.simpleEvalAt_expTestGraph` realizes mixed moment power-products as simple
+evaluations (transported by L2), then Cai–Govorov multivariate Vandermonde + Lagrange
+interpolation on the finite joint profile value set. -/
+private theorem cross_testProfile_pushforward_eq {T T' : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (hB_symm : ∀ i j, B i j = B j i) (hB'_symm : ∀ i j, B' i j = B' j i)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F B W = weightedHomSum n F B' W')
+    (K : ℕ) (h : (Graphon.Lovasz.TestCoord K → ℝ) → ℝ) :
+    ∑ φ : Fin K → Fin T,
+        (∏ i, W (φ i)) * h (fun c ↦ Graphon.Lovasz.testMoment B W c φ) =
+    ∑ ψ : Fin K → Fin T',
+        (∏ i, W' (ψ i)) * h (fun c ↦ Graphon.Lovasz.testMoment B' W' c ψ) := by
+  sorry
+
+/-- **L3-existence — matched right tuple.** Every left tuple has a right tuple with an
+identical test-moment profile: its profile class has positive left weight (the tuple
+itself contributes `∏ W > 0`), so by L3 the matching right class weight is positive, hence
+nonempty. -/
+private theorem cross_matched_tuple_exists {T T' : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (hB_symm : ∀ i j, B i j = B j i) (hB'_symm : ∀ i j, B' i j = B' j i)
+    (hW_pos : ∀ i, 0 < W i) (hW'_pos : ∀ i, 0 < W' i)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F B W = weightedHomSum n F B' W')
+    {K : ℕ} (φ₀ : Fin K → Fin T) :
+    ∃ ψ : Fin K → Fin T', ∀ c : Graphon.Lovasz.TestCoord K,
+      Graphon.Lovasz.testMoment B W c φ₀ = Graphon.Lovasz.testMoment B' W' c ψ := by
+  sorry
+
 /-! ### Twin-free bijection -/
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
