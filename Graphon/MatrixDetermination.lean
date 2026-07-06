@@ -9,6 +9,7 @@ import Mathlib.LinearAlgebra.Vandermonde
 import Mathlib.LinearAlgebra.Matrix.ToLinearEquiv
 import Mathlib.Tactic.LinearCombination
 import Graphon.Lovasz
+import Graphon.CrossSuper
 
 /-!
 # Algebraic Determination for Finite Matrices
@@ -10495,10 +10496,11 @@ picture; no further docstring here. -/
 
 /-! #### Level 6 — downstream twin-free bijection
 
-`twinfree_bijection_of_weightedHomSum_eq` (stub at ~L8790) then falls
-out via the k≥2 case's row-collapse argument, once the Lovász Lemma-2.4
-chain above is in place. This is known to be the final step per existing
-memory notes; no new stub here.
+`twinfree_bijection_of_weightedHomSum_eq` is PROVED (2026-07-06) — but NOT by this
+level's original plan: row-collapse (`matrix_quotient_of_weightedHomSum_eq_pos`) is the
+CONSUMER of the twin-free bijection, not its proof route. The actual proof is the
+cross-matrix transport chain + `Graphon.CrossSuper.cross_super_partition` route
+documented at the theorem (see the *Cross-matrix transport* section below, ~L12100).
 
 **End of skeleton.** Follow-up proving sessions should target
 Level 1 first (`tupleEquiv_power_sum_invariance`), which is both the
@@ -12022,13 +12024,293 @@ private theorem eval2Span_eq_pairInvariantSubspace {T : ℕ}
   exact edgeFreeEvalSpan_le_eval2Span B W
     (pairOrbit_indicator_mem_edgeFreeEvalSpan B W hB hW htwin o)
 
+/-! ### Cross-matrix transport (Lovász §5.2 / Cai–Govorov bridge)
+
+Skeleton for `twinfree_bijection_of_weightedHomSum_eq` (design cycle, 2026-07-06).
+The single-matrix Lemma 2.4 (`tupleEquiv_implies_tupleOrbitRel`, proved via the Lovász
+module's rank theorem) handles tuples into ONE matrix; the twin-free bijection needs a
+CROSS-matrix bridge from the hom-sum hypothesis. The route:
+
+* **L1** (`labeledEvalK_weighted_sum`): summing `labeledEvalK` over all label tuples with
+  weights recovers `weightedHomSum` — the general-`k` form of `rootedEval_weighted_sum`
+  (k=1, L2329) and `labeledEval2_weighted_sum` (k=2, L3218).
+* **L2** (`labeledEvalK_eq_of_weightedHomSum_eq`): hence equal hom sums transport the
+  W-weighted FIRST moment of every k-labeled simple-graph evaluation across matrices.
+* **L3** (`cross_testProfile_pushforward_eq`): the W-pushforward of the test-moment
+  profile map `φ ↦ (testMoment B W c φ)_c` equals the W'-pushforward, tested against an
+  ARBITRARY functional `h`. Engine: mixed power-products of test moments are genuine
+  simple-graph evaluations (`Lovasz.simpleEvalAt_expTestGraph`), so they transport by L2;
+  the Cai–Govorov multivariate Vandermonde (values need not be distinct — it is built for
+  the joint two-sided cloud) plus Lagrange interpolation on the finite joint profile set
+  upgrade polynomial `h` to arbitrary `h`.
+* **L3-existence** (`cross_matched_tuple_exists`): the profile class of any left tuple has
+  positive W-weight, so its matching right class is nonempty: every `φ₀` has a right tuple
+  with an identical test-moment profile. Applied at `K = T`, `φ₀ = id`.
+
+**Crux resolution (2026-07-06, PROVED)**: the route through `id_T`-matching and
+composition was abandoned. Instead, match a SUPER-SURJECTIVE left tuple (L5,
+`exists_superSurjective_tuple`) and port the proved single-matrix chunk 3A `superMap`
+argument cross-matrix in **partition form** (`Graphon/CrossSuper.lean`,
+`cross_super_partition`): star/edge tests cannot break a fractional refinement across
+matrices of different sizes, so the port delivers per-left-vertex classes
+`C t ⊆ Fin T'` (nonempty, disjoint, covering, weight-matching, block-averaged edges) —
+NOT a bijection. The assembly below runs the transfer in BOTH directions; counting the
+two partitions forces `T = T'`, whence all classes are singletons and the partition
+collapses to the weight- and entry-preserving bijection. Only left twin-freeness enters
+each transfer.
+Known obstructions that shaped this design (do NOT retry): naive gluing of k-labeled
+simple graphs is false (L3273 note — label-label multi-edges); powers of raw label-label
+entries are NOT simple-realizable, only testMoment power-products are; test-moment
+profiles imply orbits in-matrix only via the super-surjective case. -/
+
+/-- The splice equivalence between (label tuple, unlabeled tuple) pairs and full colorings
+of `Fin (n + k)`, labels at indices `< k` — the `labeledEvalK` convention. -/
+private def spliceEquiv (T k n : ℕ) :
+    ((Fin k → Fin T) × (Fin n → Fin T)) ≃ (Fin (n + k) → Fin T) where
+  toFun p v :=
+    if h : (v : ℕ) < k then p.1 ⟨v, h⟩ else p.2 ⟨v - k, by have := v.isLt; omega⟩
+  invFun τ :=
+    (fun i ↦ τ ⟨i, by have := i.isLt; omega⟩, fun j ↦ τ ⟨k + j, by have := j.isLt; omega⟩)
+  left_inv p := by
+    obtain ⟨φ, σ⟩ := p
+    refine Prod.ext (funext fun i ↦ ?_) (funext fun j ↦ ?_) <;> simp only
+    · rw [dif_pos i.isLt]
+    · rw [dif_neg (by omega : ¬ (k + (j : ℕ) < k))]
+      exact congrArg σ (Fin.ext (by show k + (j : ℕ) - k = (j : ℕ); omega))
+  right_inv τ := by
+    funext v
+    by_cases h : (v : ℕ) < k
+    · simp only [dif_pos h]
+    · simp only [dif_neg h]
+      exact congrArg τ (Fin.ext (by show k + ((v : ℕ) - k) = (v : ℕ); omega))
+
+private theorem spliceEquiv_apply_lt {T k n : ℕ} (p : (Fin k → Fin T) × (Fin n → Fin T))
+    (v : Fin (n + k)) (h : (v : ℕ) < k) :
+    spliceEquiv T k n p v = p.1 ⟨v, h⟩ := dif_pos h
+
+private theorem spliceEquiv_apply_ge {T k n : ℕ} (p : (Fin k → Fin T) × (Fin n → Fin T))
+    (v : Fin (n + k)) (h : ¬ (v : ℕ) < k) :
+    spliceEquiv T k n p v = p.2 ⟨v - k, by have := v.isLt; omega⟩ := dif_neg h
+
+/-- The weight product over a spliced coloring splits into label and unlabeled factors. -/
+private theorem spliceEquiv_weight_prod {T k n : ℕ} (W : Fin T → ℝ)
+    (φ : Fin k → Fin T) (σ : Fin n → Fin T) :
+    ∏ v : Fin (n + k), W (spliceEquiv T k n (φ, σ) v) =
+      (∏ i, W (φ i)) * ∏ j, W (σ j) := by
+  rw [← Equiv.prod_comp (finCongr (Nat.add_comm k n))
+        (fun v ↦ W (spliceEquiv T k n (φ, σ) v)),
+      Fin.prod_univ_add]
+  congr 1
+  · exact Finset.prod_congr rfl fun i _ ↦ congrArg W
+      ((spliceEquiv_apply_lt (φ, σ) _ i.isLt).trans (congrArg φ (Fin.ext rfl)))
+  · refine Finset.prod_congr rfl fun j _ ↦ congrArg W ?_
+    refine (spliceEquiv_apply_ge (φ, σ) _
+      (by show ¬ (k + (j : ℕ) < k); omega)).trans (congrArg σ (Fin.ext ?_))
+    show k + (j : ℕ) - k = (j : ℕ)
+    omega
+
+/-- **L1 — unlabeling identity.** Summing `labeledEvalK` over all label tuples with label
+weights recovers the weighted hom sum: the general-`k` form of `rootedEval_weighted_sum`
+and `labeledEval2_weighted_sum`. -/
+private theorem labeledEvalK_weighted_sum {T : ℕ} (k n : ℕ)
+    (F : SimpleGraph (Fin (n + k))) [DecidableRel F.Adj]
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
+    ∑ φ : Fin k → Fin T, (∏ i, W (φ i)) * labeledEvalK k n F B W φ =
+      weightedHomSum (n + k) F B W := by
+  classical
+  have hsplice : ∀ φ : Fin k → Fin T, labeledEvalK k n F B W φ =
+      ∑ σ : Fin n → Fin T, (∏ v, W (σ v)) *
+        ∏ e ∈ F.edgeFinset,
+          B (spliceEquiv T k n (φ, σ) (Quot.out e).1)
+            (spliceEquiv T k n (φ, σ) (Quot.out e).2) := fun φ ↦ rfl
+  rw [weightedHomSum, ← Equiv.sum_comp (spliceEquiv T k n)
+    (fun τ ↦ (∏ v, W (τ v)) *
+      ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2)),
+    Fintype.sum_prod_type]
+  refine Finset.sum_congr rfl fun φ _ ↦ ?_
+  rw [hsplice, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun σ _ ↦ ?_
+  rw [spliceEquiv_weight_prod]
+  ring
+
+/-- **L2 — cross first-moment transport.** Equal weighted hom sums transfer the weighted
+sum of every k-labeled evaluation across the two matrices (generalizes
+`labeledEval2_eq_of_weightedHomSum_eq`). -/
+private theorem labeledEvalK_eq_of_weightedHomSum_eq {T T' : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F B W = weightedHomSum n F B' W')
+    (k n : ℕ) (F : SimpleGraph (Fin (n + k))) [DecidableRel F.Adj] :
+    ∑ φ : Fin k → Fin T, (∏ i, W (φ i)) * labeledEvalK k n F B W φ =
+    ∑ ψ : Fin k → Fin T', (∏ i, W' (ψ i)) * labeledEvalK k n F B' W' ψ := by
+  rw [labeledEvalK_weighted_sum, h_eq, ← labeledEvalK_weighted_sum]
+
+/-- **Moment power-products unlabel to hom sums**: the W-weighted sum of a mixed
+power-product of test moments is the weighted hom sum of the (unlabeled) exponent test
+graph. Combines `Lovasz.simpleEvalAt_expTestGraph` with L1 (`simpleEvalAt` is
+definitionally `labeledEvalK`). -/
+private theorem momentProd_weighted_sum {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    {K : ℕ} (m : Graphon.Lovasz.TestCoord K → ℕ) :
+    ∑ φ : Fin K → Fin T,
+        (∏ i, W (φ i)) * ∏ c, Graphon.Lovasz.testMoment B W c φ ^ m c =
+      weightedHomSum ((Graphon.Lovasz.expGraph m).1 + K)
+        (Graphon.Lovasz.expTestGraph m) B W := by
+  rw [← labeledEvalK_weighted_sum K (Graphon.Lovasz.expGraph m).1
+    (Graphon.Lovasz.expTestGraph m) B W]
+  refine Finset.sum_congr rfl fun φ _ ↦ ?_
+  congr 1
+  exact ((show labeledEvalK K (Graphon.Lovasz.expGraph m).1
+      (Graphon.Lovasz.expTestGraph m) B W φ =
+    Graphon.Lovasz.simpleEvalAt B W (Graphon.Lovasz.expTestGraph m) φ from rfl).trans
+    (Graphon.Lovasz.simpleEvalAt_expTestGraph B hB W m φ)).symm
+
+/-- **L3 — cross profile-pushforward matching.** The W-weighted pushforward of the
+test-moment profile map agrees across the two matrices against every functional `h`.
+Engine: `Lovasz.simpleEvalAt_expTestGraph` realizes mixed moment power-products as simple
+evaluations (transported by L2 / `momentProd_weighted_sum`), then the Cai–Govorov
+multivariate Vandermonde (`∀ f` form) on the joint two-sided cloud. -/
+private theorem cross_testProfile_pushforward_eq {T T' : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (hB_symm : ∀ i j, B i j = B j i) (hB'_symm : ∀ i j, B' i j = B' j i)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F B W = weightedHomSum n F B' W')
+    (K : ℕ) (h : (Graphon.Lovasz.TestCoord K → ℝ) → ℝ) :
+    ∑ φ : Fin K → Fin T,
+        (∏ i, W (φ i)) * h (fun c ↦ Graphon.Lovasz.testMoment B W c φ) =
+    ∑ ψ : Fin K → Fin T',
+        (∏ i, W' (ψ i)) * h (fun c ↦ Graphon.Lovasz.testMoment B' W' c ψ) := by
+  classical
+  set s := Fintype.card (Graphon.Lovasz.TestCoord K) with hs
+  let eqv : Graphon.Lovasz.TestCoord K ≃ Fin s := Fintype.equivFin _
+  let b : ((Fin K → Fin T) ⊕ (Fin K → Fin T')) → Fin s → ℝ := Sum.elim
+    (fun φ j ↦ Graphon.Lovasz.testMoment B W (eqv.symm j) φ)
+    (fun ψ j ↦ Graphon.Lovasz.testMoment B' W' (eqv.symm j) ψ)
+  let a : ((Fin K → Fin T) ⊕ (Fin K → Fin T')) → ℝ := Sum.elim
+    (fun φ ↦ ∏ i, W (φ i)) (fun ψ ↦ -(∏ i, W' (ψ i)))
+  have hmono : ∀ ℓ : Fin s → ℕ, ∑ i, a i * ∏ j, b i j ^ ℓ j = 0 := by
+    intro ℓ
+    rw [Fintype.sum_sum_type]
+    have hb : ∀ (φ : Fin K → Fin T),
+        ∏ j, b (Sum.inl φ) j ^ ℓ j =
+          ∏ c, Graphon.Lovasz.testMoment B W c φ ^ (ℓ (eqv c)) := fun φ ↦ by
+      rw [← Equiv.prod_comp eqv (fun j ↦ b (Sum.inl φ) j ^ ℓ j)]
+      exact Finset.prod_congr rfl fun c _ ↦ by
+        simp [b, Equiv.symm_apply_apply]
+    have hb' : ∀ (ψ : Fin K → Fin T'),
+        ∏ j, b (Sum.inr ψ) j ^ ℓ j =
+          ∏ c, Graphon.Lovasz.testMoment B' W' c ψ ^ (ℓ (eqv c)) := fun ψ ↦ by
+      rw [← Equiv.prod_comp eqv (fun j ↦ b (Sum.inr ψ) j ^ ℓ j)]
+      exact Finset.prod_congr rfl fun c _ ↦ by
+        simp [b, Equiv.symm_apply_apply]
+    have h1 : ∑ φ : Fin K → Fin T, (∏ i, W (φ i)) * ∏ j, b (Sum.inl φ) j ^ ℓ j =
+        weightedHomSum ((Graphon.Lovasz.expGraph fun c ↦ ℓ (eqv c)).1 + K)
+          (Graphon.Lovasz.expTestGraph fun c ↦ ℓ (eqv c)) B W := by
+      rw [← momentProd_weighted_sum B hB_symm W (fun c ↦ ℓ (eqv c))]
+      exact Finset.sum_congr rfl fun φ _ ↦ by rw [hb φ]
+    have h2 : ∑ ψ : Fin K → Fin T', (∏ i, W' (ψ i)) * ∏ j, b (Sum.inr ψ) j ^ ℓ j =
+        weightedHomSum ((Graphon.Lovasz.expGraph fun c ↦ ℓ (eqv c)).1 + K)
+          (Graphon.Lovasz.expTestGraph fun c ↦ ℓ (eqv c)) B' W' := by
+      rw [← momentProd_weighted_sum B' hB'_symm W' (fun c ↦ ℓ (eqv c))]
+      exact Finset.sum_congr rfl fun ψ _ ↦ by rw [hb' ψ]
+    simp only [a, Sum.elim_inl, Sum.elim_inr, neg_mul, Finset.sum_neg_distrib]
+    rw [h1, h2, h_eq]
+    ring
+  have key := Graphon.CaiGovorov.multivariate_vandermonde_apply_eq_zero s b a
+    (fun ℓ _ ↦ hmono ℓ) (fun p ↦ h (fun c ↦ p (eqv c)))
+  rw [Fintype.sum_sum_type] at key
+  simp only [a, b, Sum.elim_inl, Sum.elim_inr, neg_mul,
+    Finset.sum_neg_distrib, Equiv.symm_apply_apply] at key
+  linarith [key]
+
+/-- **L3-existence — matched right tuple.** Every left tuple has a right tuple with an
+identical test-moment profile: its profile class has positive left weight (the tuple
+itself contributes `∏ W > 0`), so by L3 the matching right class weight is positive, hence
+nonempty. -/
+private theorem cross_matched_tuple_exists {T T' : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (hB_symm : ∀ i j, B i j = B j i) (hB'_symm : ∀ i j, B' i j = B' j i)
+    (hW_pos : ∀ i, 0 < W i) (_hW'_pos : ∀ i, 0 < W' i)
+    (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
+      weightedHomSum n F B W = weightedHomSum n F B' W')
+    {K : ℕ} (φ₀ : Fin K → Fin T) :
+    ∃ ψ : Fin K → Fin T', ∀ c : Graphon.Lovasz.TestCoord K,
+      Graphon.Lovasz.testMoment B W c φ₀ = Graphon.Lovasz.testMoment B' W' c ψ := by
+  classical
+  by_contra hcon
+  push Not at hcon
+  have key := cross_testProfile_pushforward_eq B W B' W' hB_symm hB'_symm h_eq K
+    (fun p ↦ if p = (fun c ↦ Graphon.Lovasz.testMoment B W c φ₀) then (1 : ℝ) else 0)
+  have hR : ∑ ψ : Fin K → Fin T', (∏ i, W' (ψ i)) *
+      (if (fun c ↦ Graphon.Lovasz.testMoment B' W' c ψ) =
+          (fun c ↦ Graphon.Lovasz.testMoment B W c φ₀) then (1 : ℝ) else 0) = 0 := by
+    refine Finset.sum_eq_zero fun ψ _ ↦ ?_
+    rw [if_neg, mul_zero]
+    intro hfun
+    obtain ⟨c, hc⟩ := hcon ψ
+    exact hc (congrFun hfun c).symm
+  have hL : 0 < ∑ φ : Fin K → Fin T, (∏ i, W (φ i)) *
+      (if (fun c ↦ Graphon.Lovasz.testMoment B W c φ) =
+          (fun c ↦ Graphon.Lovasz.testMoment B W c φ₀) then (1 : ℝ) else 0) := by
+    refine Finset.sum_pos' (fun φ _ ↦ mul_nonneg
+      (Finset.prod_nonneg fun i _ ↦ (hW_pos (φ i)).le) (by split_ifs <;> norm_num))
+      ⟨φ₀, Finset.mem_univ _, ?_⟩
+    rw [if_pos rfl, mul_one]
+    exact Finset.prod_pos fun i _ ↦ hW_pos (φ₀ i)
+  rw [key, hR] at hL
+  exact lt_irrefl 0 hL
+
+/-- **L5 — super-surjective tuples exist**: for positive `T` and any demanded fiber size
+`M`, some tuple `Fin K₀ → Fin T` hits every vertex at least `M` times (concretely the
+second projection of `Fin M × Fin T`, transported along `finProdFinEquiv`). -/
+private theorem exists_superSurjective_tuple (T M : ℕ) (_hT : 0 < T) :
+    ∃ (K₀ : ℕ) (ξ₀ : Fin K₀ → Fin T),
+      ∀ v : Fin T, M ≤ (Finset.univ.filter (fun i ↦ ξ₀ i = v)).card := by
+  classical
+  refine ⟨M * T, fun i ↦ (finProdFinEquiv.symm i).2, fun v ↦ ?_⟩
+  have e2 : {p : Fin M × Fin T // p.2 = v} ≃ Fin M :=
+    { toFun := fun p ↦ p.1.1
+      invFun := fun a ↦ ⟨(a, v), rfl⟩
+      left_inv := fun ⟨⟨a, t⟩, ht⟩ ↦ by subst ht; rfl
+      right_inv := fun _ ↦ rfl }
+  refine le_of_eq ?_
+  calc M = Fintype.card {p : Fin M × Fin T // p.2 = v} := by
+        rw [Fintype.card_congr e2, Fintype.card_fin]
+    _ = Fintype.card {i : Fin (M * T) // (finProdFinEquiv.symm i).2 = v} :=
+        Fintype.card_congr (finProdFinEquiv.subtypeEquiv fun p ↦ by simp)
+    _ = (Finset.univ.filter
+          (fun i : Fin (M * T) ↦ (finProdFinEquiv.symm i).2 = v)).card :=
+        Fintype.card_subtype _
+
+/-- A family of nonempty pairwise-disjoint finsets indexed by `Fin a` inside `Fin b`
+forces `a ≤ b` (choose one member per class; disjointness makes the choice injective). -/
+private theorem card_le_of_nonempty_disjoint {a b : ℕ} (E : Fin a → Finset (Fin b))
+    (hne : ∀ t, (E t).Nonempty) (hdisj : ∀ t u, t ≠ u → Disjoint (E t) (E u)) :
+    a ≤ b := by
+  classical
+  choose f hf using hne
+  have hinj : Function.Injective f := by
+    intro t u htu
+    by_contra hne'
+    exact Finset.disjoint_left.mp (hdisj t u hne') (hf t) (by rw [htu]; exact hf u)
+  simpa using Fintype.card_le_of_injective f hinj
+
 /-! ### Twin-free bijection -/
 
 /-- Twin-free bijection: if two twin-free symmetric [0,1]-matrices with positive weights
 have equal weighted hom sums for all graphs, there is a permutation matching weights and
 entries. This is Lovász [2012] Theorem 5.30 for the twin-free case.
 
-**Status**: Sorry. Needs an orbit-breaking proof ingredient.
+**Status**: PROVED (2026-07-06), axiom-clean. Route: the cross-matrix transport chain
+(`labeledEvalK_weighted_sum` → `cross_testProfile_pushforward_eq` →
+`cross_matched_tuple_exists`) matches a super-surjective left tuple to a right tuple
+with an identical test-moment profile; `Graphon.CrossSuper.cross_super_partition`
+(Cai–Govorov Lemma 5.1, two-matrix partition form) turns each matched pair into a
+per-vertex partition; the two symmetric partitions force `T = T'` by counting, and the
+singleton classes give the bijection.
 
 **Why the previous approach failed**: The deleted `eval_algebra_span_full` claimed that
 1-labeled rootedEval functions span ℝ^T for any twin-free matrix. This is false:
@@ -12042,14 +12324,13 @@ rowProfile, joint classes) produce automorphism-invariant quantities and cannot
 separate vertices in the same (B,W)-orbit. The collapsed matrix from row collapse
 can have non-trivial automorphisms, so this bug is reachable at the call site.
 
-**Correct proof direction**: Lovász [2012] §5.2 proves the result via the connection
-matrix M(W,k) for k-labeled graphs. The k=1 case fails when Aut(B,W) is non-trivial,
-but k≥2 can probe individual entries B(i,j) by fixing both endpoints. The exact
-formalization requires careful design. The existing `rootedEval_rootAttach` remains
-available for the entry-matching step once a correct transfer permutation is
-established by orbit-breaking means.
+**Proof direction realized**: Lovász [2012] §5.2 proves the result via the connection
+matrix M(W,k) for k-labeled graphs; the k=1 case fails when Aut(B,W) is non-trivial.
+The formalization here probes with a SUPER-SURJECTIVE label tuple instead of k=2
+endpoint-pinning: profile matching + the CrossSuper partition machinery replace the
+k≥2 entry probe, and the entries fall out of the singleton-collapsed edge relation.
 
-**Sorry traces to**: algebraic graph theory (connection matrix rank, Lovász §5.2) -/
+**Axioms**: `propext`, `Classical.choice`, `Quot.sound` only (no `sorryAx`). -/
 private theorem twinfree_bijection_of_weightedHomSum_eq {T T' : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
@@ -12063,7 +12344,90 @@ private theorem twinfree_bijection_of_weightedHomSum_eq {T T' : ℕ}
     ∃ π : Fin T ≃ Fin T',
       (∀ i, W i = W' (π i)) ∧
       (∀ i j, B i j = B' (π i) (π j)) := by
-  sorry
+  classical
+  -- Total weights agree (single-vertex test graph).
+  have hsum := h_eq 1 (starGraph 0)
+  rw [weightedHomSum_starGraph 0 B hB_symm W,
+    weightedHomSum_starGraph 0 B' hB'_symm W'] at hsum
+  simp only [pow_zero, mul_one] at hsum
+  -- Degenerate sides: an empty matrix forces the other side empty.
+  rcases Nat.eq_zero_or_pos T with hT0 | hT
+  · have hT'0 : T' = 0 := by
+      by_contra hne
+      have hpos : 0 < ∑ i : Fin T', W' i :=
+        Finset.sum_pos (fun i _ ↦ hW'_pos i)
+          (Finset.univ_nonempty_iff.mpr (Fin.pos_iff_nonempty.mp (Nat.pos_of_ne_zero hne)))
+      subst hT0
+      rw [Finset.univ_eq_empty, Finset.sum_empty] at hsum
+      exact absurd hsum.symm (ne_of_gt hpos)
+    subst hT0; subst hT'0
+    exact ⟨Equiv.refl (Fin 0), fun i ↦ i.elim0, fun i ↦ i.elim0⟩
+  rcases Nat.eq_zero_or_pos T' with hT'0 | hT'
+  · exfalso
+    have hpos : 0 < ∑ i : Fin T, W i :=
+      Finset.sum_pos (fun i _ ↦ hW_pos i)
+        (Finset.univ_nonempty_iff.mpr (Fin.pos_iff_nonempty.mp hT))
+    subst hT'0
+    rw [Finset.univ_eq_empty (α := Fin 0), Finset.sum_empty] at hsum
+    exact absurd hsum (ne_of_gt hpos)
+  -- Main case: match super-surjective tuples both ways, combine the two partitions.
+  obtain ⟨K₀, ξ₀, hsup⟩ := exists_superSurjective_tuple T (T' * (2 * (T + T'))) hT
+  obtain ⟨ψ, hψ⟩ := cross_matched_tuple_exists B W B' W' hB_symm hB'_symm hW_pos hW'_pos
+    h_eq ξ₀
+  obtain ⟨C, hCne, hCdisj, hCcov, hCW, hCB⟩ :=
+    Graphon.CrossSuper.cross_super_partition B W B' W' hB_symm hW_pos hW'_pos htwin hT'
+      ξ₀ ψ hsup hψ
+  obtain ⟨K₀', ξ₀', hsup'⟩ := exists_superSurjective_tuple T' (T * (2 * (T' + T))) hT'
+  obtain ⟨ψ', hψ'⟩ := cross_matched_tuple_exists B' W' B W hB'_symm hB_symm hW'_pos hW_pos
+    (fun n F _ ↦ (h_eq n F).symm) ξ₀'
+  obtain ⟨D, hDne, hDdisj, _, _, _⟩ :=
+    Graphon.CrossSuper.cross_super_partition B' W' B W hB'_symm hW'_pos hW_pos htwin' hT
+      ξ₀' ψ' hsup' hψ'
+  -- Counting: the two partitions force `T = T'`, so every class is a singleton.
+  have hTT' : T = T' :=
+    le_antisymm (card_le_of_nonempty_disjoint C hCne hCdisj)
+      (card_le_of_nonempty_disjoint D hDne hDdisj)
+  have hcards : ∑ t, (C t).card = T' := by
+    have hUcov : Finset.univ.biUnion C = Finset.univ := by
+      ext t'
+      simp only [Finset.mem_biUnion, Finset.mem_univ, iff_true]
+      obtain ⟨t, ht⟩ := hCcov t'
+      exact ⟨t, trivial, ht⟩
+    calc ∑ t, (C t).card = (Finset.univ.biUnion C).card :=
+          (Finset.card_biUnion (fun t _ u _ htu ↦ hCdisj t u htu)).symm
+      _ = T' := by rw [hUcov]; simp
+  have hone : ∀ t, (C t).card = 1 := by
+    by_contra hcon
+    push Not at hcon
+    obtain ⟨t₀, ht₀⟩ := hcon
+    have hlt : ∑ _t : Fin T, (1 : ℕ) < ∑ t, (C t).card :=
+      Finset.sum_lt_sum (fun t _ ↦ Finset.card_pos.mpr (hCne t))
+        ⟨t₀, Finset.mem_univ _, by
+          have := Finset.card_pos.mpr (hCne t₀); omega⟩
+    rw [hcards] at hlt
+    simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin, smul_eq_mul,
+      mul_one] at hlt
+    omega
+  -- The unique member of each class is the bijection.
+  choose f hf using fun t ↦ Finset.card_eq_one.mp (hone t)
+  have hW_eq : ∀ t, W t = W' (f t) := fun t ↦ by
+    have := hCW t
+    rwa [hf t, Finset.sum_singleton] at this
+  have hB_eq : ∀ t u, B t u = B' (f t) (f u) := by
+    intro t u
+    have h1 := hCB t u
+    rw [hf t, hf u, Finset.sum_singleton, Finset.sum_singleton,
+      ← hW_eq t, ← hW_eq u] at h1
+    exact mul_left_cancel₀ (mul_pos (hW_pos t) (hW_pos u)).ne' h1
+  have hf_inj : Function.Injective f := by
+    intro t u htu
+    by_contra hne
+    exact Finset.disjoint_left.mp (hCdisj t u hne)
+      (by rw [hf t]; exact Finset.mem_singleton_self _)
+      (by rw [htu, hf u]; exact Finset.mem_singleton_self _)
+  have hf_bij : Function.Bijective f :=
+    (Fintype.bijective_iff_injective_and_card f).mpr ⟨hf_inj, by simp [hTT']⟩
+  exact ⟨Equiv.ofBijective f hf_bij, fun i ↦ hW_eq i, fun i j ↦ hB_eq i j⟩
 
 private theorem matrix_quotient_of_weightedHomSum_eq_pos {k : ℕ}
     (c c' : Fin k → Fin k → ℝ)

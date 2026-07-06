@@ -19,6 +19,7 @@ import Graphon.Compactness
 import Graphon.Sampling
 import Graphon.CaiGovorov
 import Graphon.Lovasz
+import Graphon.CrossSuper
 import Graphon.SimpleRank
 import Graphon.CycleKrylov
 import Graphon.MatrixDetermination
@@ -45,6 +46,7 @@ in Lean 4 using Mathlib.
 * `Graphon.Compactness` — Total boundedness, completeness
 * `Graphon.CaiGovorov` — Graph-free Vandermonde argument (Cai–Govorov §4), for #70 orbit separation
 * `Graphon.Lovasz` — Connection-matrix algebra scaffolding (Lovász §3), incl. the Cai–Govorov #70 orbit theorem and rank theorem
+* `Graphon.CrossSuper` — Cross-matrix super-surjective transfer (Cai–Govorov Lemma 5.1, two-matrix partition form)
 * `Graphon.SimpleRank` — K=1 simple-graph rank theorem, algebra-atom framing (#70)
 * `Graphon.CycleKrylov` — spectral slice of the cycle–Krylov square-moment proof (#70)
 * `Graphon.MatrixDetermination` — Algebraic determination of step graphons

@@ -26,15 +26,16 @@ The formalization covers:
 
 ## Proof Status
 
-Three remaining `sorry` declarations, driven by two main missing mathematical inputs: a Rokhlin-style alignment theorem and the positive-weight algebraic determination core. No custom axioms are introduced; these are `sorry`s that will be replaced with proofs.
+Two live `sorry` blockers remain, both driven by one missing mathematical input: a Rokhlin-style alignment theorem. No custom axioms are introduced; these are `sorry`s that will be replaced with proofs.
 
 | Pending result | `sorry` location | Used by | Progress |
 |----------------|-----------------|---------|----------|
 | **Rokhlin's theorem** (isomorphism of standard Borel probability spaces) | `exists_common_extension` | Cut distance triangle inequality, partition alignment, compactness | Mathlib has `PolishSpace.measurableEquiv` but not the measure-preserving version; proving this is in progress |
-| **Algebraic determination** (Lov&aacute;sz Theorem 5.30, k&ge;2) | `matrix_quotient_of_weightedHomSum_eq` (positive-weight case) | Inverse counting lemma core | The k=1 case is fully proved; the k&ge;2 case requires graph algebra separation arguments that are partially built |
-| **Determination pending theorem** (depends on the above two) | `cutDistance_zero_of_homDensity_eq` | Convergence equivalence | Proved modulo Rokhlin + algebraic determination |
+| **Determination pending theorem** | `cutDistance_zero_of_homDensity_eq` | Convergence equivalence | Awaits Rokhlin, plus its own uniform-regularity assembly |
 
-All other declarations contain no additional `sorry`s.
+**Algebraic determination is PROVED** (2026-07-06): `matrix_quotient_of_weightedHomSum_eq` (Lov&aacute;sz Theorem 5.30, k&ge;2 positive-weight case) is axiom-clean, via the twin-free bijection and the cross-matrix super-surjective transfer (`Graphon/CrossSuper.lean`).
+
+Seven further `sorry` statements are deliberately retained as documentation of refuted conjectures (each marked FALSE/REFUTED in its docstring); no live or public theorem depends on them (a few private off-axis helpers still do &mdash; they are quarantined with their roots). Only the two above are live. All other declarations contain no additional `sorry`s.
 
 ## Components
 
@@ -50,12 +51,18 @@ All other declarations contain no additional `sorry`s.
 | `Graphon/Regularity.lean` | Core | Energy, energy increment, Frieze&ndash;Kannan weak regularity lemma |
 | `Graphon/Counting.lean` | Core | Homomorphism density, counting lemma |
 | `Graphon/Compactness.lean` | Core | Total boundedness, completeness, limit construction |
+| `Graphon/CaiGovorov.lean` | Core | Graph-free Vandermonde argument (Cai&ndash;Govorov &sect;4) |
+| `Graphon/Lovasz.lean` | Core | Connection-matrix algebra (Lov&aacute;sz &sect;3), orbit separation, rank theorem |
+| `Graphon/CrossSuper.lean` | Core | Cross-matrix super-surjective transfer (Cai&ndash;Govorov Lemma 5.1, partition form) |
+| `Graphon/SimpleRank.lean` | Core | K=1 simple-graph rank theorem, algebra-atom framing |
+| `Graphon/CycleKrylov.lean` | Core | Cycle&ndash;Krylov spectral slice of the square-moment descent |
 | `Graphon/MatrixDetermination.lean` | Core | Algebraic determination of step graphons |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
 | `Graphon/Operator.lean` | Experimental | Kernel operator (pointwise definition) |
 | `Graphon/Sampling.lean` | Experimental | Expected edge density |
+| `Graphon/Spectral.lean` | Frozen | Refuted closed-walk conjectures (#77), retained as documentation; outside the root import tree |
 
 ## Resources
 

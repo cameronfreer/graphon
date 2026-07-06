@@ -744,9 +744,9 @@ The proof decomposes into three steps, each depending on a sorry'd axiom:
    across type classes, the pullback `pullback (mkStepGraphon P c') e` then
    equals `mkStepGraphon P c` a.e.
 
-**Sorry traces to**: `matrix_quotient_of_weightedHomSum_eq` (algebraic core,
-Lovász [2012] Theorem 5.30) + `MeasurePreserving.exists_common_extension`
-(Rokhlin's theorem). -/
+**Sorry traces to**: `MeasurePreserving.exists_common_extension` (Rokhlin's theorem)
+only — the algebraic core `matrix_quotient_of_weightedHomSum_eq` (Lovász [2012]
+Theorem 5.30) is PROVED as of 2026-07-06 (axiom-clean). -/
 private theorem exists_pullback_eq_of_step_homDensity_eq
     (P : MeasurablePartition α μ) (c c' : Set α → Set α → ℝ)
     (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
@@ -973,8 +973,8 @@ measure-preserving bijection `e` with `pullback (mkStepGraphon P c') e = mkStepG
 Then `cutDistance_pullback_eq_zero` gives `cutDistance W' (pullback W' e) = 0`,
 and substituting the pullback equality yields the result.
 
-**Sorry traces to**: `matrix_quotient_of_weightedHomSum_eq` (algebraic core) +
-`MeasurePreserving.exists_common_extension` (Rokhlin). -/
+**Sorry traces to**: `MeasurePreserving.exists_common_extension` (Rokhlin) only —
+the algebraic core is PROVED as of 2026-07-06. -/
 private theorem cutDistance_zero_of_step_homDensity_eq
     (P : MeasurablePartition α μ) (c c' : Set α → Set α → ℝ)
     (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
@@ -1038,11 +1038,11 @@ For partitions with at most K cells, the quantitative step ICL gives parameters
 as delta decreases, this constrains delta from below. A solution always exists
 because for fixed K, the step ICL gives fixed positive delta_step.
 
-**Sorry traces to**: `matrix_quotient_of_weightedHomSum_eq` (algebraic core,
-Lovasz [2012] Theorem 5.30) + `MeasurePreserving.exists_common_extension`
-(Rokhlin's theorem), via `cutDistance_zero_of_step_homDensity_eq`. The
-simultaneous regularity is a standard extension of Frieze-Kannan and
-does not introduce any new axiom. -/
+**Sorry traces to**: `MeasurePreserving.exists_common_extension` (Rokhlin's theorem)
+only, via `cutDistance_zero_of_step_homDensity_eq` — the algebraic core
+`matrix_quotient_of_weightedHomSum_eq` (Lovasz [2012] Theorem 5.30) is PROVED as of
+2026-07-06 (axiom-clean). The simultaneous regularity is a standard extension of
+Frieze-Kannan and does not introduce any new axiom. -/
 /-- Simultaneous weak regularity lemma for a pair of graphons.
 
 For any δ > 0, there exists a partition P with at most `4 ^ (2 * (⌈1/δ²⌉ + 1))` parts
