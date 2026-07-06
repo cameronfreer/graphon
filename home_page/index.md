@@ -26,15 +26,15 @@ The formalization covers:
 
 ## Proof Status
 
-Three remaining `sorry` declarations, driven by two main missing mathematical inputs: a Rokhlin-style alignment theorem and the positive-weight algebraic determination core. No custom axioms are introduced; these are `sorry`s that will be replaced with proofs.
+Three live `sorry` blockers remain, driven by two main missing mathematical inputs: a Rokhlin-style alignment theorem and the twin-free bijection at the core of algebraic determination. No custom axioms are introduced; these are `sorry`s that will be replaced with proofs.
 
 | Pending result | `sorry` location | Used by | Progress |
 |----------------|-----------------|---------|----------|
 | **Rokhlin's theorem** (isomorphism of standard Borel probability spaces) | `exists_common_extension` | Cut distance triangle inequality, partition alignment, compactness | Mathlib has `PolishSpace.measurableEquiv` but not the measure-preserving version; proving this is in progress |
-| **Algebraic determination** (Lov&aacute;sz Theorem 5.30, k&ge;2) | `matrix_quotient_of_weightedHomSum_eq` (positive-weight case) | Inverse counting lemma core | The k=1 case is fully proved; the k&ge;2 case requires graph algebra separation arguments that are partially built |
-| **Determination pending theorem** (depends on the above two) | `cutDistance_zero_of_homDensity_eq` | Convergence equivalence | Proved modulo Rokhlin + algebraic determination |
+| **Twin-free bijection** (Lov&aacute;sz Theorem 5.30 core) | `twinfree_bijection_of_weightedHomSum_eq` | Inverse counting lemma core, via the `matrix_quotient_of_weightedHomSum_eq` dispatchers (which contain no local `sorry` but remain sorry-dependent on this theorem) | The single-matrix Lov&aacute;sz rank/orbit machinery (`Graphon/Lovasz.lean`) is fully proved; the remaining work is the cross-matrix connection-matrix bridge |
+| **Determination pending theorem** (depends on the above two) | `cutDistance_zero_of_homDensity_eq` | Convergence equivalence | Awaits Rokhlin + the twin-free bijection, plus its own uniform-regularity assembly |
 
-All other declarations contain no additional `sorry`s.
+Seven further `sorry` statements are deliberately retained as documentation of refuted conjectures (each marked FALSE/REFUTED in its docstring, with nothing depending on it); only the three above are live. All other declarations contain no additional `sorry`s.
 
 ## Components
 
@@ -50,12 +50,17 @@ All other declarations contain no additional `sorry`s.
 | `Graphon/Regularity.lean` | Core | Energy, energy increment, Frieze&ndash;Kannan weak regularity lemma |
 | `Graphon/Counting.lean` | Core | Homomorphism density, counting lemma |
 | `Graphon/Compactness.lean` | Core | Total boundedness, completeness, limit construction |
+| `Graphon/CaiGovorov.lean` | Core | Graph-free Vandermonde argument (Cai&ndash;Govorov &sect;4) |
+| `Graphon/Lovasz.lean` | Core | Connection-matrix algebra (Lov&aacute;sz &sect;3), orbit separation, rank theorem |
+| `Graphon/SimpleRank.lean` | Core | K=1 simple-graph rank theorem, algebra-atom framing |
+| `Graphon/CycleKrylov.lean` | Core | Cycle&ndash;Krylov spectral slice of the square-moment descent |
 | `Graphon/MatrixDetermination.lean` | Core | Algebraic determination of step graphons |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
 | `Graphon/Operator.lean` | Experimental | Kernel operator (pointwise definition) |
 | `Graphon/Sampling.lean` | Experimental | Expected edge density |
+| `Graphon/Spectral.lean` | Frozen | Refuted closed-walk conjectures (#77), retained as documentation; outside the root import tree |
 
 ## Resources
 
