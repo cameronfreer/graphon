@@ -57,7 +57,7 @@ In addition, seven `sorry` statements are deliberately retained as **documentati
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
 | `Graphon/Operator.lean` | Experimental | Kernel operator (pointwise definition) |
-| `Graphon/Sampling.lean` | Experimental | Expected edge density |
+| `Graphon/Sampling.lean` | Core | W-random graph distribution (`sampleMass`: nonneg, sums to 1, hom-density expansion, TV closeness), expected edge density |
 | `Graphon/Spectral.lean` | Frozen | Refuted closed-walk conjectures (#77), retained as documentation; outside the root import tree |
 
 ## Design Decisions
