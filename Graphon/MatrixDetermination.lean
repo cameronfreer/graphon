@@ -12147,11 +12147,31 @@ private theorem labeledEvalK_eq_of_weightedHomSum_eq {T T' : ℕ}
     ∑ ψ : Fin k → Fin T', (∏ i, W' (ψ i)) * labeledEvalK k n F B' W' ψ := by
   rw [labeledEvalK_weighted_sum, h_eq, ← labeledEvalK_weighted_sum]
 
+/-- **Moment power-products unlabel to hom sums**: the W-weighted sum of a mixed
+power-product of test moments is the weighted hom sum of the (unlabeled) exponent test
+graph. Combines `Lovasz.simpleEvalAt_expTestGraph` with L1 (`simpleEvalAt` is
+definitionally `labeledEvalK`). -/
+private theorem momentProd_weighted_sum {T : ℕ}
+    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
+    {K : ℕ} (m : Graphon.Lovasz.TestCoord K → ℕ) :
+    ∑ φ : Fin K → Fin T,
+        (∏ i, W (φ i)) * ∏ c, Graphon.Lovasz.testMoment B W c φ ^ m c =
+      weightedHomSum ((Graphon.Lovasz.expGraph m).1 + K)
+        (Graphon.Lovasz.expTestGraph m) B W := by
+  rw [← labeledEvalK_weighted_sum K (Graphon.Lovasz.expGraph m).1
+    (Graphon.Lovasz.expTestGraph m) B W]
+  refine Finset.sum_congr rfl fun φ _ ↦ ?_
+  congr 1
+  exact ((show labeledEvalK K (Graphon.Lovasz.expGraph m).1
+      (Graphon.Lovasz.expTestGraph m) B W φ =
+    Graphon.Lovasz.simpleEvalAt B W (Graphon.Lovasz.expTestGraph m) φ from rfl).trans
+    (Graphon.Lovasz.simpleEvalAt_expTestGraph B hB W m φ)).symm
+
 /-- **L3 — cross profile-pushforward matching.** The W-weighted pushforward of the
 test-moment profile map agrees across the two matrices against every functional `h`.
 Engine: `Lovasz.simpleEvalAt_expTestGraph` realizes mixed moment power-products as simple
-evaluations (transported by L2), then Cai–Govorov multivariate Vandermonde + Lagrange
-interpolation on the finite joint profile value set. -/
+evaluations (transported by L2 / `momentProd_weighted_sum`), then the Cai–Govorov
+multivariate Vandermonde (`∀ f` form) on the joint two-sided cloud. -/
 private theorem cross_testProfile_pushforward_eq {T T' : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
@@ -12163,7 +12183,48 @@ private theorem cross_testProfile_pushforward_eq {T T' : ℕ}
         (∏ i, W (φ i)) * h (fun c ↦ Graphon.Lovasz.testMoment B W c φ) =
     ∑ ψ : Fin K → Fin T',
         (∏ i, W' (ψ i)) * h (fun c ↦ Graphon.Lovasz.testMoment B' W' c ψ) := by
-  sorry
+  classical
+  set s := Fintype.card (Graphon.Lovasz.TestCoord K) with hs
+  let eqv : Graphon.Lovasz.TestCoord K ≃ Fin s := Fintype.equivFin _
+  let b : ((Fin K → Fin T) ⊕ (Fin K → Fin T')) → Fin s → ℝ := Sum.elim
+    (fun φ j ↦ Graphon.Lovasz.testMoment B W (eqv.symm j) φ)
+    (fun ψ j ↦ Graphon.Lovasz.testMoment B' W' (eqv.symm j) ψ)
+  let a : ((Fin K → Fin T) ⊕ (Fin K → Fin T')) → ℝ := Sum.elim
+    (fun φ ↦ ∏ i, W (φ i)) (fun ψ ↦ -(∏ i, W' (ψ i)))
+  have hmono : ∀ ℓ : Fin s → ℕ, ∑ i, a i * ∏ j, b i j ^ ℓ j = 0 := by
+    intro ℓ
+    rw [Fintype.sum_sum_type]
+    have hb : ∀ (φ : Fin K → Fin T),
+        ∏ j, b (Sum.inl φ) j ^ ℓ j =
+          ∏ c, Graphon.Lovasz.testMoment B W c φ ^ (ℓ (eqv c)) := fun φ ↦ by
+      rw [← Equiv.prod_comp eqv (fun j ↦ b (Sum.inl φ) j ^ ℓ j)]
+      exact Finset.prod_congr rfl fun c _ ↦ by
+        simp [b, Equiv.symm_apply_apply]
+    have hb' : ∀ (ψ : Fin K → Fin T'),
+        ∏ j, b (Sum.inr ψ) j ^ ℓ j =
+          ∏ c, Graphon.Lovasz.testMoment B' W' c ψ ^ (ℓ (eqv c)) := fun ψ ↦ by
+      rw [← Equiv.prod_comp eqv (fun j ↦ b (Sum.inr ψ) j ^ ℓ j)]
+      exact Finset.prod_congr rfl fun c _ ↦ by
+        simp [b, Equiv.symm_apply_apply]
+    have h1 : ∑ φ : Fin K → Fin T, (∏ i, W (φ i)) * ∏ j, b (Sum.inl φ) j ^ ℓ j =
+        weightedHomSum ((Graphon.Lovasz.expGraph fun c ↦ ℓ (eqv c)).1 + K)
+          (Graphon.Lovasz.expTestGraph fun c ↦ ℓ (eqv c)) B W := by
+      rw [← momentProd_weighted_sum B hB_symm W (fun c ↦ ℓ (eqv c))]
+      exact Finset.sum_congr rfl fun φ _ ↦ by rw [hb φ]
+    have h2 : ∑ ψ : Fin K → Fin T', (∏ i, W' (ψ i)) * ∏ j, b (Sum.inr ψ) j ^ ℓ j =
+        weightedHomSum ((Graphon.Lovasz.expGraph fun c ↦ ℓ (eqv c)).1 + K)
+          (Graphon.Lovasz.expTestGraph fun c ↦ ℓ (eqv c)) B' W' := by
+      rw [← momentProd_weighted_sum B' hB'_symm W' (fun c ↦ ℓ (eqv c))]
+      exact Finset.sum_congr rfl fun ψ _ ↦ by rw [hb' ψ]
+    simp only [a, Sum.elim_inl, Sum.elim_inr, neg_mul, Finset.sum_neg_distrib]
+    rw [h1, h2, h_eq]
+    ring
+  have key := Graphon.CaiGovorov.multivariate_vandermonde_apply_eq_zero s b a
+    (fun ℓ _ ↦ hmono ℓ) (fun p ↦ h (fun c ↦ p (eqv c)))
+  rw [Fintype.sum_sum_type] at key
+  simp only [a, b, Sum.elim_inl, Sum.elim_inr, neg_mul,
+    Finset.sum_neg_distrib, Equiv.symm_apply_apply] at key
+  linarith [key]
 
 /-- **L3-existence — matched right tuple.** Every left tuple has a right tuple with an
 identical test-moment profile: its profile class has positive left weight (the tuple
@@ -12173,12 +12234,78 @@ private theorem cross_matched_tuple_exists {T T' : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
     (hB_symm : ∀ i j, B i j = B j i) (hB'_symm : ∀ i j, B' i j = B' j i)
-    (hW_pos : ∀ i, 0 < W i) (hW'_pos : ∀ i, 0 < W' i)
+    (hW_pos : ∀ i, 0 < W i) (_hW'_pos : ∀ i, 0 < W' i)
     (h_eq : ∀ (n : ℕ) (F : SimpleGraph (Fin n)) [DecidableRel F.Adj],
       weightedHomSum n F B W = weightedHomSum n F B' W')
     {K : ℕ} (φ₀ : Fin K → Fin T) :
     ∃ ψ : Fin K → Fin T', ∀ c : Graphon.Lovasz.TestCoord K,
       Graphon.Lovasz.testMoment B W c φ₀ = Graphon.Lovasz.testMoment B' W' c ψ := by
+  classical
+  by_contra hcon
+  push Not at hcon
+  have key := cross_testProfile_pushforward_eq B W B' W' hB_symm hB'_symm h_eq K
+    (fun p ↦ if p = (fun c ↦ Graphon.Lovasz.testMoment B W c φ₀) then (1 : ℝ) else 0)
+  have hR : ∑ ψ : Fin K → Fin T', (∏ i, W' (ψ i)) *
+      (if (fun c ↦ Graphon.Lovasz.testMoment B' W' c ψ) =
+          (fun c ↦ Graphon.Lovasz.testMoment B W c φ₀) then (1 : ℝ) else 0) = 0 := by
+    refine Finset.sum_eq_zero fun ψ _ ↦ ?_
+    rw [if_neg, mul_zero]
+    intro hfun
+    obtain ⟨c, hc⟩ := hcon ψ
+    exact hc (congrFun hfun c).symm
+  have hL : 0 < ∑ φ : Fin K → Fin T, (∏ i, W (φ i)) *
+      (if (fun c ↦ Graphon.Lovasz.testMoment B W c φ) =
+          (fun c ↦ Graphon.Lovasz.testMoment B W c φ₀) then (1 : ℝ) else 0) := by
+    refine Finset.sum_pos' (fun φ _ ↦ mul_nonneg
+      (Finset.prod_nonneg fun i _ ↦ (hW_pos (φ i)).le) (by split_ifs <;> norm_num))
+      ⟨φ₀, Finset.mem_univ _, ?_⟩
+    rw [if_pos rfl, mul_one]
+    exact Finset.prod_pos fun i _ ↦ hW_pos (φ₀ i)
+  rw [key, hR] at hL
+  exact lt_irrefl 0 hL
+
+/-- **L5 — super-surjective tuples exist**: for positive `T` and any demanded fiber size
+`M`, some tuple `Fin K₀ → Fin T` hits every vertex at least `M` times (concretely the
+second projection of `Fin M × Fin T`, transported along `finProdFinEquiv`). -/
+private theorem exists_superSurjective_tuple (T M : ℕ) (_hT : 0 < T) :
+    ∃ (K₀ : ℕ) (ξ₀ : Fin K₀ → Fin T),
+      ∀ v : Fin T, M ≤ (Finset.univ.filter (fun i ↦ ξ₀ i = v)).card := by
+  classical
+  refine ⟨M * T, fun i ↦ (finProdFinEquiv.symm i).2, fun v ↦ ?_⟩
+  have e2 : {p : Fin M × Fin T // p.2 = v} ≃ Fin M :=
+    { toFun := fun p ↦ p.1.1
+      invFun := fun a ↦ ⟨(a, v), rfl⟩
+      left_inv := fun ⟨⟨a, t⟩, ht⟩ ↦ by subst ht; rfl
+      right_inv := fun _ ↦ rfl }
+  refine le_of_eq ?_
+  calc M = Fintype.card {p : Fin M × Fin T // p.2 = v} := by
+        rw [Fintype.card_congr e2, Fintype.card_fin]
+    _ = Fintype.card {i : Fin (M * T) // (finProdFinEquiv.symm i).2 = v} :=
+        Fintype.card_congr (finProdFinEquiv.subtypeEquiv fun p ↦ by simp)
+    _ = (Finset.univ.filter
+          (fun i : Fin (M * T) ↦ (finProdFinEquiv.symm i).2 = v)).card :=
+        Fintype.card_subtype _
+
+/-- **L4 — the cross-matrix super transfer** (Cai–Govorov Lemma 5.1, two-matrix form).
+Given a tuple `ξ₀` whose every fiber has at least `2·(T+T')²` labels and a right tuple `ψ`
+with an identical test-moment profile, there is a vertex map `g : Fin T → Fin T'`
+preserving weights and entries. Cross-matrix port of the proved single-matrix chunk 3A
+(`Lovasz.testEvalEq_implies_orbit_super` / `superMap`): pigeonhole a `ψ`-constant subset
+of size `≥ 2·(T+T')` inside each `ξ₀`-fiber, set `g v :=` that constant value, and force
+row and weight transport from the star/edge moment equalities via exponent alignment. -/
+private theorem cross_super_row_transfer {T T' : ℕ}
+    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
+    (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
+    (hB_symm : ∀ i j, B i j = B j i) (hB'_symm : ∀ i j, B' i j = B' j i)
+    (hW_pos : ∀ i, 0 < W i) (hW'_pos : ∀ i, 0 < W' i)
+    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
+    (htwin' : ∀ i j : Fin T', i ≠ j → B' i ≠ B' j)
+    {K : ℕ} (ξ₀ : Fin K → Fin T) (ψ : Fin K → Fin T')
+    (hsup : ∀ v : Fin T,
+      2 * (T + T') * (T + T') ≤ (Finset.univ.filter (fun i ↦ ξ₀ i = v)).card)
+    (hmatch : ∀ c : Graphon.Lovasz.TestCoord K,
+      Graphon.Lovasz.testMoment B W c ξ₀ = Graphon.Lovasz.testMoment B' W' c ψ) :
+    ∃ g : Fin T → Fin T', (∀ v, W v = W' (g v)) ∧ (∀ u v, B u v = B' (g u) (g v)) := by
   sorry
 
 /-! ### Twin-free bijection -/
@@ -12187,7 +12314,11 @@ private theorem cross_matched_tuple_exists {T T' : ℕ}
 have equal weighted hom sums for all graphs, there is a permutation matching weights and
 entries. This is Lovász [2012] Theorem 5.30 for the twin-free case.
 
-**Status**: Sorry. Needs an orbit-breaking proof ingredient.
+**Status**: Assembled (2026-07-06) from the cross-matrix transport chain (L1–L3 PROVED:
+`labeledEvalK_weighted_sum`, `cross_testProfile_pushforward_eq`,
+`cross_matched_tuple_exists`); the remaining sorries are the two feeder stubs
+`exists_superSurjective_tuple` (elementary) and `cross_super_row_transfer` (the
+cross-matrix port of the proved single-matrix chunk 3A `superMap` construction).
 
 **Why the previous approach failed**: The deleted `eval_algebra_span_full` claimed that
 1-labeled rootedEval functions span ℝ^T for any twin-free matrix. This is false:
@@ -12222,7 +12353,58 @@ private theorem twinfree_bijection_of_weightedHomSum_eq {T T' : ℕ}
     ∃ π : Fin T ≃ Fin T',
       (∀ i, W i = W' (π i)) ∧
       (∀ i j, B i j = B' (π i) (π j)) := by
-  sorry
+  classical
+  -- Total weights agree (single-vertex test graph).
+  have hsum := h_eq 1 (starGraph 0)
+  rw [weightedHomSum_starGraph 0 B hB_symm W,
+    weightedHomSum_starGraph 0 B' hB'_symm W'] at hsum
+  simp only [pow_zero, mul_one] at hsum
+  -- Degenerate sides: an empty matrix forces the other side empty.
+  rcases Nat.eq_zero_or_pos T with hT0 | hT
+  · have hT'0 : T' = 0 := by
+      by_contra hne
+      have hpos : 0 < ∑ i : Fin T', W' i :=
+        Finset.sum_pos (fun i _ ↦ hW'_pos i)
+          (Finset.univ_nonempty_iff.mpr (Fin.pos_iff_nonempty.mp (Nat.pos_of_ne_zero hne)))
+      subst hT0
+      rw [Finset.univ_eq_empty, Finset.sum_empty] at hsum
+      exact absurd hsum.symm (ne_of_gt hpos)
+    subst hT0; subst hT'0
+    exact ⟨Equiv.refl (Fin 0), fun i ↦ i.elim0, fun i ↦ i.elim0⟩
+  rcases Nat.eq_zero_or_pos T' with hT'0 | hT'
+  · exfalso
+    have hpos : 0 < ∑ i : Fin T, W i :=
+      Finset.sum_pos (fun i _ ↦ hW_pos i)
+        (Finset.univ_nonempty_iff.mpr (Fin.pos_iff_nonempty.mp hT))
+    subst hT'0
+    rw [Finset.univ_eq_empty (α := Fin 0), Finset.sum_empty] at hsum
+    exact absurd hsum (ne_of_gt hpos)
+  -- Main case: match a super-surjective tuple, transfer rows both ways.
+  obtain ⟨K₀, ξ₀, hsup⟩ := exists_superSurjective_tuple T (2 * (T + T') * (T + T')) hT
+  obtain ⟨ψ, hψ⟩ := cross_matched_tuple_exists B W B' W' hB_symm hB'_symm hW_pos hW'_pos
+    h_eq ξ₀
+  obtain ⟨g, hgW, hgB⟩ := cross_super_row_transfer B W B' W' hB_symm hB'_symm hW_pos
+    hW'_pos htwin htwin' ξ₀ ψ hsup hψ
+  obtain ⟨K₀', ξ₀', hsup'⟩ :=
+    exists_superSurjective_tuple T' (2 * (T' + T) * (T' + T)) hT'
+  obtain ⟨ψ', hψ'⟩ := cross_matched_tuple_exists B' W' B W hB'_symm hB_symm hW'_pos hW_pos
+    (fun n F _ ↦ (h_eq n F).symm) ξ₀'
+  obtain ⟨g', _, hg'B⟩ := cross_super_row_transfer B' W' B W hB'_symm hB_symm hW'_pos
+    hW_pos htwin' htwin ξ₀' ψ' hsup' hψ'
+  -- Entry preservation + twin-freeness make both transfer maps injective.
+  have hg_inj : Function.Injective g := by
+    intro u v huv
+    by_contra hne
+    exact htwin u v hne (funext fun w ↦ by rw [hgB u w, hgB v w, huv])
+  have hg'_inj : Function.Injective g' := by
+    intro u v huv
+    by_contra hne
+    exact htwin' u v hne (funext fun w ↦ by rw [hg'B u w, hg'B v w, huv])
+  have hg_bij : Function.Bijective g :=
+    (Fintype.bijective_iff_injective_and_card g).mpr ⟨hg_inj, by
+      simpa using le_antisymm (by simpa using Fintype.card_le_of_injective g hg_inj)
+        (by simpa using Fintype.card_le_of_injective g' hg'_inj)⟩
+  exact ⟨Equiv.ofBijective g hg_bij, fun i ↦ hgW i, fun i j ↦ hgB i j⟩
 
 private theorem matrix_quotient_of_weightedHomSum_eq_pos {k : ℕ}
     (c c' : Fin k → Fin k → ℝ)
