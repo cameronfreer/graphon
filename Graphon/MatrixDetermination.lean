@@ -9,6 +9,7 @@ import Mathlib.LinearAlgebra.Vandermonde
 import Mathlib.LinearAlgebra.Matrix.ToLinearEquiv
 import Mathlib.Tactic.LinearCombination
 import Graphon.Lovasz
+import Graphon.CrossSuper
 
 /-!
 # Algebraic Determination for Finite Matrices
@@ -12286,27 +12287,18 @@ private theorem exists_superSurjective_tuple (T M : ℕ) (_hT : 0 < T) :
           (fun i : Fin (M * T) ↦ (finProdFinEquiv.symm i).2 = v)).card :=
         Fintype.card_subtype _
 
-/-- **L4 — the cross-matrix super transfer** (Cai–Govorov Lemma 5.1, two-matrix form).
-Given a tuple `ξ₀` whose every fiber has at least `2·(T+T')²` labels and a right tuple `ψ`
-with an identical test-moment profile, there is a vertex map `g : Fin T → Fin T'`
-preserving weights and entries. Cross-matrix port of the proved single-matrix chunk 3A
-(`Lovasz.testEvalEq_implies_orbit_super` / `superMap`): pigeonhole a `ψ`-constant subset
-of size `≥ 2·(T+T')` inside each `ξ₀`-fiber, set `g v :=` that constant value, and force
-row and weight transport from the star/edge moment equalities via exponent alignment. -/
-private theorem cross_super_row_transfer {T T' : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)
-    (hB_symm : ∀ i j, B i j = B j i) (hB'_symm : ∀ i j, B' i j = B' j i)
-    (hW_pos : ∀ i, 0 < W i) (hW'_pos : ∀ i, 0 < W' i)
-    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    (htwin' : ∀ i j : Fin T', i ≠ j → B' i ≠ B' j)
-    {K : ℕ} (ξ₀ : Fin K → Fin T) (ψ : Fin K → Fin T')
-    (hsup : ∀ v : Fin T,
-      2 * (T + T') * (T + T') ≤ (Finset.univ.filter (fun i ↦ ξ₀ i = v)).card)
-    (hmatch : ∀ c : Graphon.Lovasz.TestCoord K,
-      Graphon.Lovasz.testMoment B W c ξ₀ = Graphon.Lovasz.testMoment B' W' c ψ) :
-    ∃ g : Fin T → Fin T', (∀ v, W v = W' (g v)) ∧ (∀ u v, B u v = B' (g u) (g v)) := by
-  sorry
+/-- A family of nonempty pairwise-disjoint finsets indexed by `Fin a` inside `Fin b`
+forces `a ≤ b` (choose one member per class; disjointness makes the choice injective). -/
+private theorem card_le_of_nonempty_disjoint {a b : ℕ} (E : Fin a → Finset (Fin b))
+    (hne : ∀ t, (E t).Nonempty) (hdisj : ∀ t u, t ≠ u → Disjoint (E t) (E u)) :
+    a ≤ b := by
+  classical
+  choose f hf using hne
+  have hinj : Function.Injective f := by
+    intro t u htu
+    by_contra hne'
+    exact Finset.disjoint_left.mp (hdisj t u hne') (hf t) (by rw [htu]; exact hf u)
+  simpa using Fintype.card_le_of_injective f hinj
 
 /-! ### Twin-free bijection -/
 
@@ -12379,32 +12371,64 @@ private theorem twinfree_bijection_of_weightedHomSum_eq {T T' : ℕ}
     subst hT'0
     rw [Finset.univ_eq_empty (α := Fin 0), Finset.sum_empty] at hsum
     exact absurd hsum (ne_of_gt hpos)
-  -- Main case: match a super-surjective tuple, transfer rows both ways.
-  obtain ⟨K₀, ξ₀, hsup⟩ := exists_superSurjective_tuple T (2 * (T + T') * (T + T')) hT
+  -- Main case: match super-surjective tuples both ways, combine the two partitions.
+  obtain ⟨K₀, ξ₀, hsup⟩ := exists_superSurjective_tuple T (T' * (2 * (T + T'))) hT
   obtain ⟨ψ, hψ⟩ := cross_matched_tuple_exists B W B' W' hB_symm hB'_symm hW_pos hW'_pos
     h_eq ξ₀
-  obtain ⟨g, hgW, hgB⟩ := cross_super_row_transfer B W B' W' hB_symm hB'_symm hW_pos
-    hW'_pos htwin htwin' ξ₀ ψ hsup hψ
-  obtain ⟨K₀', ξ₀', hsup'⟩ :=
-    exists_superSurjective_tuple T' (2 * (T' + T) * (T' + T)) hT'
+  obtain ⟨C, hCne, hCdisj, hCcov, hCW, hCB⟩ :=
+    Graphon.CrossSuper.cross_super_partition B W B' W' hB_symm hW_pos hW'_pos htwin hT'
+      ξ₀ ψ hsup hψ
+  obtain ⟨K₀', ξ₀', hsup'⟩ := exists_superSurjective_tuple T' (T * (2 * (T' + T))) hT'
   obtain ⟨ψ', hψ'⟩ := cross_matched_tuple_exists B' W' B W hB'_symm hB_symm hW'_pos hW_pos
     (fun n F _ ↦ (h_eq n F).symm) ξ₀'
-  obtain ⟨g', _, hg'B⟩ := cross_super_row_transfer B' W' B W hB'_symm hB_symm hW'_pos
-    hW_pos htwin' htwin ξ₀' ψ' hsup' hψ'
-  -- Entry preservation + twin-freeness make both transfer maps injective.
-  have hg_inj : Function.Injective g := by
-    intro u v huv
+  obtain ⟨D, hDne, hDdisj, _, _, _⟩ :=
+    Graphon.CrossSuper.cross_super_partition B' W' B W hB'_symm hW'_pos hW_pos htwin' hT
+      ξ₀' ψ' hsup' hψ'
+  -- Counting: the two partitions force `T = T'`, so every class is a singleton.
+  have hTT' : T = T' :=
+    le_antisymm (card_le_of_nonempty_disjoint C hCne hCdisj)
+      (card_le_of_nonempty_disjoint D hDne hDdisj)
+  have hcards : ∑ t, (C t).card = T' := by
+    have hUcov : Finset.univ.biUnion C = Finset.univ := by
+      ext t'
+      simp only [Finset.mem_biUnion, Finset.mem_univ, iff_true]
+      obtain ⟨t, ht⟩ := hCcov t'
+      exact ⟨t, trivial, ht⟩
+    calc ∑ t, (C t).card = (Finset.univ.biUnion C).card :=
+          (Finset.card_biUnion (fun t _ u _ htu ↦ hCdisj t u htu)).symm
+      _ = T' := by rw [hUcov]; simp
+  have hone : ∀ t, (C t).card = 1 := by
+    by_contra hcon
+    push Not at hcon
+    obtain ⟨t₀, ht₀⟩ := hcon
+    have hlt : ∑ _t : Fin T, (1 : ℕ) < ∑ t, (C t).card :=
+      Finset.sum_lt_sum (fun t _ ↦ Finset.card_pos.mpr (hCne t))
+        ⟨t₀, Finset.mem_univ _, by
+          have := Finset.card_pos.mpr (hCne t₀); omega⟩
+    rw [hcards] at hlt
+    simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin, smul_eq_mul,
+      mul_one] at hlt
+    omega
+  -- The unique member of each class is the bijection.
+  choose f hf using fun t ↦ Finset.card_eq_one.mp (hone t)
+  have hW_eq : ∀ t, W t = W' (f t) := fun t ↦ by
+    have := hCW t
+    rwa [hf t, Finset.sum_singleton] at this
+  have hB_eq : ∀ t u, B t u = B' (f t) (f u) := by
+    intro t u
+    have h1 := hCB t u
+    rw [hf t, hf u, Finset.sum_singleton, Finset.sum_singleton,
+      ← hW_eq t, ← hW_eq u] at h1
+    exact mul_left_cancel₀ (mul_pos (hW_pos t) (hW_pos u)).ne' h1
+  have hf_inj : Function.Injective f := by
+    intro t u htu
     by_contra hne
-    exact htwin u v hne (funext fun w ↦ by rw [hgB u w, hgB v w, huv])
-  have hg'_inj : Function.Injective g' := by
-    intro u v huv
-    by_contra hne
-    exact htwin' u v hne (funext fun w ↦ by rw [hg'B u w, hg'B v w, huv])
-  have hg_bij : Function.Bijective g :=
-    (Fintype.bijective_iff_injective_and_card g).mpr ⟨hg_inj, by
-      simpa using le_antisymm (by simpa using Fintype.card_le_of_injective g hg_inj)
-        (by simpa using Fintype.card_le_of_injective g' hg'_inj)⟩
-  exact ⟨Equiv.ofBijective g hg_bij, fun i ↦ hgW i, fun i j ↦ hgB i j⟩
+    exact Finset.disjoint_left.mp (hCdisj t u hne)
+      (by rw [hf t]; exact Finset.mem_singleton_self _)
+      (by rw [htu, hf u]; exact Finset.mem_singleton_self _)
+  have hf_bij : Function.Bijective f :=
+    (Fintype.bijective_iff_injective_and_card f).mpr ⟨hf_inj, by simp [hTT']⟩
+  exact ⟨Equiv.ofBijective f hf_bij, fun i ↦ hW_eq i, fun i j ↦ hB_eq i j⟩
 
 private theorem matrix_quotient_of_weightedHomSum_eq_pos {k : ℕ}
     (c c' : Fin k → Fin k → ℝ)
