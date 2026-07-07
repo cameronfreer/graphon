@@ -31,7 +31,7 @@ Two live `sorry` blockers remain, both driven by one missing mathematical input:
 | Pending result | `sorry` location | Used by | Progress |
 |----------------|-----------------|---------|----------|
 | **Rokhlin's theorem** (isomorphism of standard Borel probability spaces) | `exists_common_extension` | Cut distance triangle inequality, partition alignment, compactness | Mathlib has `PolishSpace.measurableEquiv` but not the measure-preserving version; proving this is in progress |
-| **Headline parameter selection** | `headline_parameter_selection` | Determination theorem `cutDistance_zero_of_homDensity_eq` (now fully assembled), hence convergence equivalence | A partition-size-independent step inverse counting parameter choice; classically discharged via the sampling lemmas &mdash; regularity bookkeeping provably cannot break the parameter circularity (see the lemma docstring) |
+| **First Sampling Lemma** (Lov&aacute;sz Lemma 10.16 / BCLSV Thm 4.6) | `first_sampling_lemma` (`Graphon/SamplingICL.lean`) | Quantitative inverse counting (`sampling_quantitative_icl`), headline parameter selection, determination theorem, convergence equivalence | Everything downstream is proved via the event-intersection argument; the remaining content is the analytic concentration bound, uniform in the graphon |
 
 **Algebraic determination is PROVED** (2026-07-06): `matrix_quotient_of_weightedHomSum_eq` (Lov&aacute;sz Theorem 5.30, k&ge;2 positive-weight case) is axiom-clean, via the twin-free bijection and the cross-matrix super-surjective transfer (`Graphon/CrossSuper.lean`).
 
@@ -57,6 +57,7 @@ Seven further `sorry` statements are deliberately retained as documentation of r
 | `Graphon/SimpleRank.lean` | Core | K=1 simple-graph rank theorem, algebra-atom framing |
 | `Graphon/CycleKrylov.lean` | Core | Cycle&ndash;Krylov spectral slice of the square-moment descent |
 | `Graphon/MatrixDetermination.lean` | Core | Algebraic determination of step graphons |
+| `Graphon/SamplingICL.lean` | Core | Sampling route: finite-graph embedding, good mass, First Sampling Lemma interface, K-independent quantitative ICL |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |

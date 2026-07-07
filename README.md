@@ -24,7 +24,7 @@ Two live `sorry` blockers remain, both on the path to the final determination th
 | Pending result | Location | Notes |
 |----------------|----------|-------|
 | **Rokhlin's theorem** | `exists_common_extension` | Mathlib has `PolishSpace.measurableEquiv` but not the measure-preserving version |
-| **Headline parameter selection** | `headline_parameter_selection` | The determination theorem `cutDistance_zero_of_homDensity_eq` is now fully assembled (regularity → counting bridge → step ICL → triangle inequality); this lemma isolates the one remaining input — a partition-size-independent step inverse counting parameter choice, classically discharged via the sampling lemmas (see its docstring for why regularity bookkeeping cannot do it) |
+| **First Sampling Lemma** | `first_sampling_lemma` (`Graphon/SamplingICL.lean`) | For every ε, η some sample size k works for every graphon on the space simultaneously (Lovász Lemma 10.16 / BCLSV Thm 4.6). Everything downstream is proved: sampling ⟹ the partition-size-independent quantitative inverse counting lemma (`sampling_quantitative_icl`, event-intersection argument) ⟹ `headline_parameter_selection` ⟹ the determination theorem `cutDistance_zero_of_homDensity_eq` |
 
 **Algebraic determination is PROVED** (2026-07-06): `matrix_quotient_of_weightedHomSum_eq`
 (Lovász Theorem 5.30, k≥2 positive-weight case) is axiom-clean, via the twin-free bijection
@@ -53,6 +53,7 @@ In addition, seven `sorry` statements are deliberately retained as **documentati
 | `Graphon/SimpleRank.lean` | Core | K=1 simple-graph rank theorem, algebra-atom framing |
 | `Graphon/CycleKrylov.lean` | Core | Cycle–Krylov spectral slice of the square-moment descent |
 | `Graphon/MatrixDetermination.lean` | Core | Algebraic determination of step graphons |
+| `Graphon/SamplingICL.lean` | Core | Sampling route: finite-graph embedding, good mass, First Sampling Lemma interface, K-independent quantitative ICL |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |

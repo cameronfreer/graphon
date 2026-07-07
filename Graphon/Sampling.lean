@@ -5,8 +5,6 @@ Authors: Cameron Freer
 -/
 import Graphon.CutNorm
 import Graphon.HomDensity
-import Graphon.Step
-import Graphon.CutDistance
 
 /-!
 # Sampling Random Graphs from Graphons
@@ -391,80 +389,10 @@ theorem sampleDistribution_tv_close_of_homDensity_close (U W : Graphon α μ) (�
         refine mul_le_mul_of_nonneg_right ?_ (by positivity)
         exact_mod_cast card_simpleGraph_le
 
-end SampleDistribution
-
-/-! ### The good-mass API and the First Sampling Lemma interface
-
-`sampleGoodMass W k ε` is the probability that the sampled graph `G(k, W)` lands within
-cut distance `ε` of `W` (via the step-graphon embedding `ofSimpleGraph`). The First
-Sampling Lemma — the sole analytic gap of the sampling route, isolated here as the one
-named sorry — asserts this probability is uniformly close to 1 for large `k`. -/
-
-section SamplingLemma
-
-open scoped Classical
-
-/-- The mass of "good" sampled graphs: those whose associated step graphon lies within
-cut distance `ε` of `W`. -/
-noncomputable def sampleGoodMass (W : GraphonI) (k : ℕ) [NeZero k] (ε : ℝ) : ℝ :=
-  ∑ G : SimpleGraph (Fin k),
-    if cutDistance W (ofSimpleGraph G) < ε then sampleMass W G else 0
-
-/-- The good mass is nonnegative. -/
-theorem sampleGoodMass_nonneg (W : GraphonI) (k : ℕ) [NeZero k] (ε : ℝ) :
-    0 ≤ sampleGoodMass W k ε :=
-  Finset.sum_nonneg fun G _ ↦ by
-    split_ifs
-    · exact sampleMass_nonneg W G
-    · exact le_refl 0
-
-/-- The good mass is at most 1. -/
-theorem sampleGoodMass_le_one (W : GraphonI) (k : ℕ) [NeZero k] (ε : ℝ) :
-    sampleGoodMass W k ε ≤ 1 := by
-  calc sampleGoodMass W k ε
-      ≤ ∑ G : SimpleGraph (Fin k), sampleMass W G :=
-        Finset.sum_le_sum fun G _ ↦ by
-          split_ifs
-          · exact le_refl _
-          · exact sampleMass_nonneg W G
-    _ = 1 := sampleMass_sum_eq_one W
-
-/-- The good mass is monotone in the accuracy `ε`. -/
-theorem sampleGoodMass_mono (W : GraphonI) (k : ℕ) [NeZero k] {ε₁ ε₂ : ℝ} (h : ε₁ ≤ ε₂) :
-    sampleGoodMass W k ε₁ ≤ sampleGoodMass W k ε₂ := by
-  refine Finset.sum_le_sum fun G _ ↦ ?_
-  by_cases h1 : cutDistance W (ofSimpleGraph G) < ε₁
-  · rw [if_pos h1, if_pos (lt_of_lt_of_le h1 h)]
-  · rw [if_neg h1]
-    split_ifs
-    · exact sampleMass_nonneg W G
-    · exact le_refl 0
-
-/-- **Complement form**: the bad mass is `1` minus the good mass. -/
-theorem one_sub_sampleGoodMass (W : GraphonI) (k : ℕ) [NeZero k] (ε : ℝ) :
-    1 - sampleGoodMass W k ε =
-      ∑ G : SimpleGraph (Fin k),
-        if ε ≤ cutDistance W (ofSimpleGraph G) then sampleMass W G else 0 := by
-  have hsplit : ∀ G : SimpleGraph (Fin k),
-      sampleMass W G =
-        (if cutDistance W (ofSimpleGraph G) < ε then sampleMass W G else 0) +
-          (if ε ≤ cutDistance W (ofSimpleGraph G) then sampleMass W G else 0) := by
-    intro G
-    by_cases h : cutDistance W (ofSimpleGraph G) < ε
-    · rw [if_pos h, if_neg (not_le.mpr h), add_zero]
-    · rw [if_neg h, if_pos (not_lt.mp h), zero_add]
-  calc 1 - sampleGoodMass W k ε
-      = (∑ G : SimpleGraph (Fin k), sampleMass W G) - sampleGoodMass W k ε := by
-        rw [sampleMass_sum_eq_one]
-    _ = ∑ G : SimpleGraph (Fin k),
-          if ε ≤ cutDistance W (ofSimpleGraph G) then sampleMass W G else 0 := by
-        rw [Finset.sum_congr rfl fun G _ ↦ hsplit G, Finset.sum_add_distrib]
-        unfold sampleGoodMass
-        ring
-
+omit [IsProbabilityMeasure μ] in
 /-- **Event extraction from total variation**: any event's probabilities under the two
 sampled distributions differ by at most the (summed) total variation distance. -/
-theorem sum_sampleMass_event_sub_le {k : ℕ} (U W : GraphonI)
+theorem sum_sampleMass_event_sub_le (U W : Graphon α μ)
     (A : Finset (SimpleGraph (Fin k))) (tv : ℝ)
     (htv : ∑ G : SimpleGraph (Fin k), |sampleMass U G - sampleMass W G| ≤ tv) :
     ∑ G ∈ A, sampleMass U G - ∑ G ∈ A, sampleMass W G ≤ tv := by
@@ -477,63 +405,7 @@ theorem sum_sampleMass_event_sub_le {k : ℕ} (U W : GraphonI)
           (fun G _ _ ↦ abs_nonneg _)
     _ ≤ tv := htv
 
-/-- **Good-mass extraction** — the coupling bridge from PR #6's TV bound to the sampling
-route. If `U` and `W` are within cut distance `ρ` and their sampled distributions are
-within total variation `tv`, then a `(1−η)`-good mass for `U` at accuracy `ε` yields a
-`(1−η−tv)`-good mass for `W` at the slackened accuracy `ε + ρ`.
+end SampleDistribution
 
-The slack `ρ` is unavoidable: the good EVENTS for `U` and `W` differ, and the triangle
-inequality `d(W, K_G) ≤ d(W, U) + d(U, K_G)` is what places `U`'s good event inside
-`W`'s `ε + ρ`-good event; the naive same-`ε` form is false. -/
-theorem sampleGoodMass_extract {k : ℕ} [NeZero k] (U W : GraphonI) (ε η ρ tv : ℝ)
-    (hUW : cutDistance U W ≤ ρ)
-    (htv : ∑ G : SimpleGraph (Fin k), |sampleMass U G - sampleMass W G| ≤ tv)
-    (hU : 1 - η < sampleGoodMass U k ε) :
-    1 - η - tv < sampleGoodMass W k (ε + ρ) := by
-  set A : Finset (SimpleGraph (Fin k)) :=
-    Finset.univ.filter (fun G ↦ cutDistance U (ofSimpleGraph G) < ε) with hA
-  have hgoodU : sampleGoodMass U k ε = ∑ G ∈ A, sampleMass U G := by
-    rw [hA, Finset.sum_filter]; rfl
-  have hsubset : ∀ G ∈ A, cutDistance W (ofSimpleGraph G) < ε + ρ := by
-    intro G hG
-    rw [hA, Finset.mem_filter] at hG
-    calc cutDistance W (ofSimpleGraph G)
-        ≤ cutDistance W U + cutDistance U (ofSimpleGraph G) := cutDistance_triangle _ _ _
-      _ < ρ + ε := by
-          rw [cutDistance_symm] at hUW ⊢
-          exact add_lt_add_of_le_of_lt (by rwa [cutDistance_symm]) hG.2
-      _ = ε + ρ := by ring
-  have hWA : ∑ G ∈ A, sampleMass W G ≤ sampleGoodMass W k (ε + ρ) := by
-    rw [show sampleGoodMass W k (ε + ρ) =
-        ∑ G ∈ Finset.univ.filter
-          (fun G : SimpleGraph (Fin k) ↦ cutDistance W (ofSimpleGraph G) < ε + ρ),
-          sampleMass W G from by rw [Finset.sum_filter]; rfl]
-    refine Finset.sum_le_sum_of_subset_of_nonneg ?_ (fun G _ _ ↦ sampleMass_nonneg W G)
-    intro G hG
-    rw [Finset.mem_filter]
-    exact ⟨Finset.mem_univ G, hsubset G hG⟩
-  have hextract := sum_sampleMass_event_sub_le U W A tv htv
-  linarith [hgoodU ▸ hU]
-
-/-- **The First Sampling Lemma** (interface) — the sole remaining analytic gap of the
-sampling route to `headline_parameter_selection`.
-
-For every accuracy `ε` and failure probability `η`, some sample size `k` works for
-EVERY graphon simultaneously: the sampled graph `G(k, W)` lies within cut distance `ε`
-of `W` with probability greater than `1 − η`. Crucially the `k` is independent of `W` —
-this `W`-uniformity is what makes the downstream step inverse counting lemma
-partition-size-independent, breaking the circularity documented at
-`headline_parameter_selection`.
-
-Classical proof (PR #9+ target): Lovász, *Large Networks and Graph Limits*,
-Lemma 10.16 (First Sampling Lemma, `δ_□(W, W[x]) ≤ 22/√(log k)` in expectation) via
-Azuma–Hoeffding concentration for the cut norm of samples, or
-Borgs–Chayes–Lovász–Sós–Vesztergombi, "Convergent sequences I", Theorem 4.6. The bound
-is quantitative and `W`-uniform; any form implying this interface suffices. -/
-theorem first_sampling_lemma (ε η : ℝ) (hε : 0 < ε) (hη : 0 < η) :
-    ∃ k : ℕ, ∀ W : GraphonI, 1 - η < sampleGoodMass W (k + 1) ε := by
-  sorry
-
-end SamplingLemma
 
 end Graphon
