@@ -3239,6 +3239,463 @@ private theorem integral_sup'_le_sqrt_two_mul_log_card {Ω : Type*} [MeasurableS
 
 /-! ##### Per-block assembly and rate arithmetic (Layers 2+3+4) -/
 
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- Mean layer, bundled: the sup' over signed rules of the conditional means is a.e. bounded
+by `k²·cutNormDiff + 2|B|k + k`, by combining the finitely many `ae_integral_ruleVal_le`
+(H11c) facts over the rule set. -/
+private theorem ae_sup'_mean_le (W : Graphon α μ) (ε' : ℝ) {k : ℕ} [NeZero k]
+    (B : Finset (Fin k)) {Q Q' : Finset (Fin k)}
+    (hRB : ∀ ρ ∈ signedRules Q Q', ρ.2.1 ⊆ B ∧ ρ.2.2 ⊆ B) :
+    ∀ᵐ y ∂(Measure.pi (fun _ : {l : Fin k // l ∈ B} ↦ μ)),
+      (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ∫ z, ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j)
+            ρ.2.1 ρ.2.2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+        ≤ (k : ℝ) ^ 2 * cutNormDiff W (chosenStep W ε') + 2 * (B.card : ℝ) * k + k := by
+  have hbundle : ∀ᵐ y ∂(Measure.pi (fun _ : {l : Fin k // l ∈ B} ↦ μ)),
+      ∀ ρ ∈ signedRules Q Q',
+        (∫ z, ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+            ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+          ≤ (k : ℝ) ^ 2 * cutNormDiff W (chosenStep W ε') + 2 * (B.card : ℝ) * k + k := by
+    rw [Filter.eventually_all_finset]
+    intro ρ hρ
+    exact ae_integral_ruleVal_le W ε' B ρ.1 (hRB ρ hρ).1 (hRB ρ hρ).2
+  filter_upwards [hbundle] with y hy
+  exact Finset.sup'_le _ _ (fun ρ hρ ↦ hy ρ hρ)
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- Deviation layer, per block assignment `y`: the fresh-sample integral of the sup' over
+signed rules of the centered rule values is bounded by `√(8k³(2q+1)log2)`. McDiarmid MGF
+(H13b) with bounded-difference constant `4k` (H12) feeds the soft-max (H14), and the rule
+count is controlled by H16. -/
+private theorem integral_sup'_dev_le (W : Graphon α μ) (ε' : ℝ) {k : ℕ} [NeZero k]
+    {q : ℕ} (B : Finset (Fin k)) {Q Q' : Finset (Fin k)}
+    (hQ : Q.card ≤ q) (hQ' : Q'.card ≤ q)
+    (hRB : ∀ ρ ∈ signedRules Q Q', ρ.2.1 ⊆ B ∧ ρ.2.2 ⊆ B)
+    (y : {l : Fin k // l ∈ B} → α) :
+    (∫ z, (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+        (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+          - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+              ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+        ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+      ≤ Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * (q : ℝ) + 1) * Real.log 2) := by
+  classical
+  have hkpos : (0 : ℝ) < (k : ℝ) := by exact_mod_cast Nat.pos_of_ne_zero (NeZero.ne k)
+  -- blockGlue is measurable in the fresh coordinate `z`.
+  have hbgm : Measurable (fun w : {l : Fin k // ¬ l ∈ B} → α ↦ blockGlue B y w) := by
+    rw [measurable_pi_iff]; intro l
+    simp only [blockGlue]
+    by_cases hl : l ∈ B
+    · simp only [dif_pos hl]; exact measurable_const
+    · simp only [dif_neg hl]; exact measurable_pi_apply _
+  -- Per-rule measurability, boundedness, and integrability of `z ↦ ruleVal(blockGlue B y z)`.
+  have hZmeas : ∀ ρ : Bool × Finset (Fin k) × Finset (Fin k),
+      Measurable (fun z : {l : Fin k // ¬ l ∈ B} → α ↦
+        ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2) :=
+    fun ρ ↦ (measurable_ruleVal_sample W ε' ρ.1 ρ.2.1 ρ.2.2).comp hbgm
+  have hZbdd : ∀ (ρ : Bool × Finset (Fin k) × Finset (Fin k)) (x : Fin k → α),
+      |ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2| ≤ (k : ℝ) ^ 2 := by
+    intro ρ x
+    refine abs_ruleVal_le _ (fun i j ↦ ?_) _ _
+    rw [abs_mul, abs_sgnR, one_mul]; exact abs_coreDiff_le_one W ε' x i j
+  have hZint : ∀ ρ : Bool × Finset (Fin k) × Finset (Fin k),
+      Integrable (fun z : {l : Fin k // ¬ l ∈ B} → α ↦
+        ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2)
+        (Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)) :=
+    fun ρ ↦ (integrable_const ((k : ℝ) ^ 2)).mono' (hZmeas ρ).aestronglyMeasurable
+      (ae_of_all _ (fun z ↦ by rw [Real.norm_eq_abs]; exact hZbdd ρ _))
+  have hMbdd : ∀ ρ : Bool × Finset (Fin k) × Finset (Fin k),
+      |∫ z, ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+          ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))| ≤ (k : ℝ) ^ 2 := by
+    intro ρ
+    calc |∫ z, ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+            ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))|
+        ≤ ∫ z, |ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2|
+            ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)) := abs_integral_le_integral_abs
+      _ ≤ ∫ _z, (k : ℝ) ^ 2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)) :=
+          integral_mono (hZint ρ).abs (integrable_const _) (fun z ↦ hZbdd ρ _)
+      _ = (k : ℝ) ^ 2 := by rw [integral_const, smul_eq_mul, probReal_univ, one_mul]
+  -- Card of the fresh index set is ≤ k.
+  have hcard_le : (Fintype.card {l : Fin k // ¬ l ∈ B} : ℝ) ≤ (k : ℝ) := by
+    calc (Fintype.card {l : Fin k // ¬ l ∈ B} : ℝ)
+        ≤ (Fintype.card (Fin k) : ℝ) := by exact_mod_cast Fintype.card_subtype_le _
+      _ = (k : ℝ) := by rw [Fintype.card_fin]
+  -- Soft-max (H14), σ² = 4k³, K = 2k².
+  have hmeas : ∀ ρ ∈ signedRules Q Q',
+      Measurable (fun z : {l : Fin k // ¬ l ∈ B} → α ↦
+        ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+          - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+              ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))) :=
+    fun ρ _ ↦ (hZmeas ρ).sub_const _
+  have hbdd : ∀ ρ ∈ signedRules Q Q', ∀ z : {l : Fin k // ¬ l ∈ B} → α,
+      |ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+        - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+            ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))| ≤ 2 * (k : ℝ) ^ 2 := by
+    intro ρ _ z
+    have htri : |ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+        - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+            ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))|
+        ≤ |ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2|
+          + |∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+              ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))| := by
+      have := abs_add_le (ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j)
+          ρ.2.1 ρ.2.2)
+        (-(∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+            ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))))
+      rwa [← sub_eq_add_neg, abs_neg] at this
+    calc |ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+        - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+            ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))|
+        ≤ (k : ℝ) ^ 2 + (k : ℝ) ^ 2 := htri.trans (add_le_add (hZbdd ρ _) (hMbdd ρ))
+      _ = 2 * (k : ℝ) ^ 2 := by ring
+  have hmgf : ∀ ρ ∈ signedRules Q Q', ∀ t : ℝ, 0 < t →
+      ∫ z, Real.exp (t * (ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j)
+              ρ.2.1 ρ.2.2
+            - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+                ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))))
+          ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))
+        ≤ Real.exp (4 * (k : ℝ) ^ 3 * t ^ 2 / 2) := by
+    intro ρ hρ t _
+    have hbd : ∀ (i₀ : {l : Fin k // ¬ l ∈ B}) (x x' : {l : Fin k // ¬ l ∈ B} → α),
+        (∀ l, l ≠ i₀ → x l = x' l) →
+        |ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y x) i j) ρ.2.1 ρ.2.2
+          - ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y x') i j) ρ.2.1 ρ.2.2|
+          ≤ 4 * (k : ℝ) := by
+      intro i₀ x x' hxx'
+      refine abs_ruleVal_update_le W ε' B ρ.1 (hRB ρ hρ).1 (hRB ρ hρ).2 (i₀ := (i₀ : Fin k))
+        i₀.property (fun l hl ↦ ?_)
+      simp only [blockGlue]
+      by_cases hlB : l ∈ B
+      · simp only [dif_pos hlB]
+      · simp only [dif_neg hlB]
+        exact hxx' ⟨l, hlB⟩ (fun hcontra ↦ hl (congrArg Subtype.val hcontra))
+    have h13 := integral_exp_mul_centered_le_pi μ
+      (fun z : {l : Fin k // ¬ l ∈ B} → α ↦
+        ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2)
+      (hZmeas ρ) (show (0 : ℝ) ≤ 4 * (k : ℝ) by positivity) hbd t
+    refine h13.trans (Real.exp_le_exp.mpr ?_)
+    have hcexp : (4 * (k : ℝ) / 2) ^ 2 = 4 * (k : ℝ) ^ 2 := by ring
+    rw [hcexp]
+    have hstep : (Fintype.card {l : Fin k // ¬ l ∈ B} : ℝ) * (4 * (k : ℝ) ^ 2)
+        ≤ 4 * (k : ℝ) ^ 3 := by nlinarith [hcard_le, hkpos.le, sq_nonneg (k : ℝ)]
+    nlinarith [hstep, sq_nonneg t, mul_nonneg (mul_nonneg (by norm_num : (0:ℝ) ≤ 4)
+      (sq_nonneg (k : ℝ))) (sq_nonneg t)]
+  have hdev := integral_sup'_le_sqrt_two_mul_log_card
+    (Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)) (signedRules_nonempty Q Q')
+    (fun ρ z ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+      - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+          ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+    hmeas hbdd (show (0 : ℝ) < 4 * (k : ℝ) ^ 3 by positivity) hmgf
+  refine hdev.trans ?_
+  apply Real.sqrt_le_sqrt
+  have h8 : (0 : ℝ) ≤ 8 * (k : ℝ) ^ 3 := by positivity
+  nlinarith [mul_le_mul_of_nonneg_left (log_signedRules_card_le hQ hQ') h8]
+
+set_option maxHeartbeats 1000000 in
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- Per block assignment `y`, the fresh-sample integral of the rule sup' splits into the sup'
+of the conditional means plus a deviation integral (H12+H13b+H14+H16). -/
+private theorem integral_sup'_blockGlue_le (W : Graphon α μ) (ε' : ℝ) {k : ℕ} [NeZero k]
+    {q : ℕ} (B : Finset (Fin k)) {Q Q' : Finset (Fin k)}
+    (hQ : Q.card ≤ q) (hQ' : Q'.card ≤ q)
+    (hRB : ∀ ρ ∈ signedRules Q Q', ρ.2.1 ⊆ B ∧ ρ.2.2 ⊆ B)
+    (y : {l : Fin k // l ∈ B} → α) :
+    (∫ z, (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+        (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2)
+        ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+      ≤ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ∫ z, ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j)
+            ρ.2.1 ρ.2.2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+        + Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * (q : ℝ) + 1) * Real.log 2) := by
+  classical
+  -- Measurability of `z ↦ ruleVal(blockGlue B y z)`.
+  have hbgm : Measurable (fun w : {l : Fin k // ¬ l ∈ B} → α ↦ blockGlue B y w) := by
+    rw [measurable_pi_iff]; intro l
+    simp only [blockGlue]
+    by_cases hl : l ∈ B
+    · simp only [dif_pos hl]; exact measurable_const
+    · simp only [dif_neg hl]; exact measurable_pi_apply _
+  have hZmeas : ∀ ρ : Bool × Finset (Fin k) × Finset (Fin k),
+      Measurable (fun z : {l : Fin k // ¬ l ∈ B} → α ↦
+        ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2) :=
+    fun ρ ↦ (measurable_ruleVal_sample W ε' ρ.1 ρ.2.1 ρ.2.2).comp hbgm
+  have hZbdd : ∀ (ρ : Bool × Finset (Fin k) × Finset (Fin k)) (x : Fin k → α),
+      |ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2| ≤ (k : ℝ) ^ 2 := by
+    intro ρ x
+    refine abs_ruleVal_le _ (fun i j ↦ ?_) _ _
+    rw [abs_mul, abs_sgnR, one_mul]; exact abs_coreDiff_le_one W ε' x i j
+  -- The rule sup' `z ↦ sup'_ρ ruleVal(blockGlue B y z)` is measurable and bounded by `k²`.
+  have hGmeas : Measurable (fun z : {l : Fin k // ¬ l ∈ B} → α ↦
+      (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+        (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j)
+          ρ.2.1 ρ.2.2)) := by
+    have heq : (fun z : {l : Fin k // ¬ l ∈ B} → α ↦
+        (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j)
+            ρ.2.1 ρ.2.2))
+        = fun z ↦ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ (z : {l : Fin k // ¬ l ∈ B} → α) ↦
+            ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2) z := by
+      funext z; rw [Finset.sup'_apply]
+    rw [heq]
+    exact Finset.measurable_sup' _ (fun ρ _ ↦ hZmeas ρ)
+  have hGbdd : ∀ z : {l : Fin k // ¬ l ∈ B} → α,
+      |(signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j)
+            ρ.2.1 ρ.2.2)| ≤ (k : ℝ) ^ 2 := by
+    intro z
+    rw [abs_le]
+    obtain ⟨ρ0, hρ0⟩ := signedRules_nonempty Q Q'
+    refine ⟨(Finset.le_sup'_iff _).mpr ⟨ρ0, hρ0, ?_⟩,
+      Finset.sup'_le _ _ (fun ρ _ ↦ (abs_le.mp (hZbdd ρ (blockGlue B y z))).2)⟩
+    have hb := hZbdd ρ0 (blockGlue B y z); rw [abs_le] at hb; exact hb.1
+  have hGint : Integrable (fun z ↦ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+      (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2))
+      (Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)) :=
+    (integrable_const ((k : ℝ) ^ 2)).mono' hGmeas.aestronglyMeasurable
+      (ae_of_all _ (fun z ↦ by rw [Real.norm_eq_abs]; exact hGbdd z))
+  -- Deviation sup' `z ↦ sup'_ρ (ruleVal(blockGlue B y z) - mean_ρ)`.
+  have hDmeas : Measurable (fun z : {l : Fin k // ¬ l ∈ B} → α ↦
+      (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+        (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+          - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+              ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))) := by
+    have heq : (fun z : {l : Fin k // ¬ l ∈ B} → α ↦
+        (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+            - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+                ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))))
+        = fun z ↦ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ (z : {l : Fin k // ¬ l ∈ B} → α) ↦
+            ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+            - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+                ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))) z := by
+      funext z; rw [Finset.sup'_apply]
+    rw [heq]
+    exact Finset.measurable_sup' _ (fun ρ _ ↦ (hZmeas ρ).sub_const _)
+  have hMbdd : ∀ ρ : Bool × Finset (Fin k) × Finset (Fin k),
+      |∫ z, ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+          ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))| ≤ (k : ℝ) ^ 2 := by
+    intro ρ
+    have hZint : Integrable (fun z : {l : Fin k // ¬ l ∈ B} → α ↦
+        ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2)
+        (Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)) :=
+      (integrable_const ((k : ℝ) ^ 2)).mono' (hZmeas ρ).aestronglyMeasurable
+        (ae_of_all _ (fun z ↦ by rw [Real.norm_eq_abs]; exact hZbdd ρ _))
+    calc |∫ z, ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+            ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))|
+        ≤ ∫ z, |ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2|
+            ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)) := abs_integral_le_integral_abs
+      _ ≤ ∫ _z, (k : ℝ) ^ 2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)) :=
+          integral_mono hZint.abs (integrable_const _) (fun z ↦ hZbdd ρ _)
+      _ = (k : ℝ) ^ 2 := by rw [integral_const, smul_eq_mul, probReal_univ, one_mul]
+  have hterm : ∀ (ρ : Bool × Finset (Fin k) × Finset (Fin k)) (z : {l : Fin k // ¬ l ∈ B} → α),
+      |ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+        - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+            ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))| ≤ 2 * (k : ℝ) ^ 2 := by
+    intro ρ z
+    have htri := abs_add_le
+      (ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2)
+      (-(∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+          ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))))
+    rw [← sub_eq_add_neg, abs_neg] at htri
+    have := add_le_add (hZbdd ρ (blockGlue B y z)) (hMbdd ρ)
+    linarith
+  have hDbdd : ∀ z : {l : Fin k // ¬ l ∈ B} → α,
+      |(signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+            - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+                ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))| ≤ 2 * (k : ℝ) ^ 2 := by
+    intro z
+    rw [abs_le]
+    obtain ⟨ρ0, hρ0⟩ := signedRules_nonempty Q Q'
+    refine ⟨(Finset.le_sup'_iff _).mpr ⟨ρ0, hρ0, ?_⟩,
+      Finset.sup'_le _ _ (fun ρ _ ↦ (abs_le.mp (hterm ρ z)).2)⟩
+    have hb := hterm ρ0 z; rw [abs_le] at hb; exact hb.1
+  have hDint : Integrable (fun z ↦ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+      (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+        - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+            ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))))
+      (Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)) :=
+    (integrable_const (2 * (k : ℝ) ^ 2)).mono' hDmeas.aestronglyMeasurable
+      (ae_of_all _ (fun z ↦ by rw [Real.norm_eq_abs]; exact hDbdd z))
+  -- Pointwise: rule sup' ≤ mean sup' + deviation sup'.
+  have hpt : ∀ z : {l : Fin k // ¬ l ∈ B} → α,
+      (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2)
+        ≤ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+            (fun ρ ↦ ∫ z, ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j)
+              ρ.2.1 ρ.2.2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+          + (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+            (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+              - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j) ρ.2.1 ρ.2.2
+                  ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))) := by
+    intro z
+    refine Finset.sup'_le _ _ (fun ρ hρ ↦ ?_)
+    have h1 : (∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j)
+          ρ.2.1 ρ.2.2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+        ≤ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+            (fun ρ ↦ ∫ z, ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j)
+              ρ.2.1 ρ.2.2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))) :=
+      (Finset.le_sup'_iff _).mpr ⟨ρ, hρ, le_refl _⟩
+    have h2 : (ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+          - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j)
+              ρ.2.1 ρ.2.2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+        ≤ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+            - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j)
+                ρ.2.1 ρ.2.2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))) :=
+      (Finset.le_sup'_iff _).mpr ⟨ρ, hρ, le_refl _⟩
+    linarith
+  calc (∫ z, (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2)
+          ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+      ≤ ∫ z, ((signedRules Q Q').sup' (signedRules_nonempty Q Q')
+            (fun ρ ↦ ∫ z, ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j)
+              ρ.2.1 ρ.2.2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+          + (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+            (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+              - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j)
+                  ρ.2.1 ρ.2.2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))))
+          ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)) :=
+        integral_mono hGint ((integrable_const _).add hDint) hpt
+    _ = (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ∫ z, ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j)
+            ρ.2.1 ρ.2.2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+        + ∫ z, (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j) ρ.2.1 ρ.2.2
+            - ∫ z', ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z') i j)
+                ρ.2.1 ρ.2.2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+          ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)) := by
+        rw [integral_add (integrable_const _) hDint, integral_const, smul_eq_mul, probReal_univ,
+          one_mul]
+    _ ≤ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ∫ z, ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' (blockGlue B y z) i j)
+            ρ.2.1 ρ.2.2 ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+        + Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * (q : ℝ) + 1) * Real.log 2) := by
+        have hdev := integral_sup'_dev_le W ε' B hQ hQ' hRB y
+        linarith
+
+/-- (H15) **Expected signed-rule sup for one block pair**, normalized. Conditional means by
+H11c, deviations by H12 + H13b + the soft-max H14; only the cardinality bounds
+`|Q|, |Q'| ≤ q` are consumed. -/
+private theorem integral_signedRuleSup_le (W : Graphon α μ) (ε' : ℝ) {k : ℕ} [NeZero k]
+    {q : ℕ} (hq : 0 < q) (Q Q' : Finset (Fin k)) (hQ : Q.card ≤ q) (hQ' : Q'.card ≤ q) :
+    (∫ x, (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+        (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2)
+        ∂Measure.pi (fun _ : Fin k ↦ μ))
+      ≤ cutNormDiff W (chosenStep W ε') + (4 * q * k + k) / (k : ℝ) ^ 2
+        + Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * q + 1) * Real.log 2) / (k : ℝ) ^ 2 := by
+  classical
+  set B := Q ∪ Q' with hB
+  have hkpos : (0 : ℝ) < (k : ℝ) := by exact_mod_cast Nat.pos_of_ne_zero (NeZero.ne k)
+  have hkne : (k : ℝ) ≠ 0 := hkpos.ne'
+  have hk2ne : (k : ℝ) ^ 2 ≠ 0 := pow_ne_zero 2 hkne
+  -- Rule generators sit inside the block `B`.
+  have hRB : ∀ ρ ∈ signedRules Q Q', ρ.2.1 ⊆ B ∧ ρ.2.2 ⊆ B := by
+    intro ρ hρ
+    simp only [signedRules, Finset.mem_product, Finset.mem_univ, Finset.mem_powerset,
+      true_and] at hρ
+    exact ⟨hρ.1.trans Finset.subset_union_left, hρ.2.trans Finset.subset_union_right⟩
+  have hBcard : (B.card : ℝ) ≤ 2 * q := by
+    have h1 : B.card ≤ Q.card + Q'.card := Finset.card_union_le _ _
+    have h2 : Q.card + Q'.card ≤ 2 * q := by omega
+    calc (B.card : ℝ) ≤ ((Q.card + Q'.card : ℕ) : ℝ) := by exact_mod_cast h1
+      _ ≤ ((2 * q : ℕ) : ℝ) := by exact_mod_cast h2
+      _ = 2 * q := by push_cast; ring
+  -- The full-sample rule sup'.
+  set S : (Fin k → α) → ℝ := fun x ↦ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+    (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2) with hS
+  have hZbdd : ∀ (ρ : Bool × Finset (Fin k) × Finset (Fin k)) (x : Fin k → α),
+      |ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2| ≤ (k : ℝ) ^ 2 := by
+    intro ρ x
+    refine abs_ruleVal_le _ (fun i j ↦ ?_) _ _
+    rw [abs_mul, abs_sgnR, one_mul]; exact abs_coreDiff_le_one W ε' x i j
+  have hSmeas : Measurable S := by
+    rw [hS]
+    have heq : (fun x : Fin k → α ↦ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+        (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2))
+        = fun x ↦ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ (x : Fin k → α) ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j)
+            ρ.2.1 ρ.2.2) x := by
+      funext x; rw [Finset.sup'_apply]
+    rw [heq]
+    exact Finset.measurable_sup' _ (fun ρ _ ↦ measurable_ruleVal_sample W ε' ρ.1 ρ.2.1 ρ.2.2)
+  have hSbdd : ∀ x, |S x| ≤ (k : ℝ) ^ 2 := by
+    intro x
+    simp only [hS]
+    rw [abs_le]
+    obtain ⟨ρ0, hρ0⟩ := signedRules_nonempty Q Q'
+    refine ⟨(Finset.le_sup'_iff _).mpr ⟨ρ0, hρ0, ?_⟩,
+      Finset.sup'_le _ _ (fun ρ _ ↦ (abs_le.mp (hZbdd ρ x)).2)⟩
+    have hb := hZbdd ρ0 x; rw [abs_le] at hb; exact hb.1
+  -- Block split via the product decomposition.
+  have mp : MeasurePreserving
+      (⇑(MeasurableEquiv.piEquivPiSubtypeProd (fun _ : Fin k ↦ α) (· ∈ B)))
+      (Measure.pi (fun _ : Fin k ↦ μ))
+      ((Measure.pi (fun _ : {l : Fin k // l ∈ B} ↦ μ)).prod
+        (Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))) := by
+    convert measurePreserving_piEquivPiSubtypeProd (fun _ : Fin k ↦ μ) (· ∈ B) using 3
+  have hGeint : Integrable (fun p : ({l : Fin k // l ∈ B} → α) × ({l : Fin k // ¬ l ∈ B} → α) ↦
+      S ((MeasurableEquiv.piEquivPiSubtypeProd (fun _ : Fin k ↦ α) (· ∈ B)).symm p))
+      ((Measure.pi (fun _ : {l : Fin k // l ∈ B} ↦ μ)).prod
+        (Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))) :=
+    (integrable_const ((k : ℝ) ^ 2)).mono'
+      (hSmeas.comp (MeasurableEquiv.piEquivPiSubtypeProd
+        (fun _ : Fin k ↦ α) (· ∈ B)).symm.measurable).aestronglyMeasurable
+      (ae_of_all _ (fun p ↦ by rw [Real.norm_eq_abs]; exact hSbdd _))
+  have hsplit : (∫ x, S x ∂(Measure.pi (fun _ : Fin k ↦ μ)))
+      = ∫ y, ∫ z, S (blockGlue B y z)
+          ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))
+          ∂(Measure.pi (fun _ : {l : Fin k // l ∈ B} ↦ μ)) := by
+    rw [← mp.symm.integral_comp' S, integral_prod _ hGeint]
+    refine integral_congr_ae (ae_of_all _ fun y ↦ integral_congr_ae (ae_of_all _ fun z ↦ ?_))
+    simp only [piEquivPiSubtypeProd_symm_eq_blockGlue]
+  -- Per block assignment `y`, the inner integral is bounded by the mean + deviation.
+  have hyb : ∀ᵐ y ∂(Measure.pi (fun _ : {l : Fin k // l ∈ B} ↦ μ)),
+      (∫ z, S (blockGlue B y z) ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+        ≤ (k : ℝ) ^ 2 * cutNormDiff W (chosenStep W ε') + 2 * (B.card : ℝ) * k + k
+          + Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * (q : ℝ) + 1) * Real.log 2) := by
+    filter_upwards [ae_sup'_mean_le W ε' B hRB] with y hy
+    have hc := integral_sup'_blockGlue_le W ε' B hQ hQ' hRB y
+    simp only [hS]
+    linarith
+  have hphi_int : Integrable (fun y ↦ ∫ z, S (blockGlue B y z)
+      ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+      (Measure.pi (fun _ : {l : Fin k // l ∈ B} ↦ μ)) := by
+    refine hGeint.integral_prod_left.congr (ae_of_all _ fun y ↦ ?_)
+    refine integral_congr_ae (ae_of_all _ fun z ↦ ?_)
+    simp only [piEquivPiSubtypeProd_symm_eq_blockGlue]
+  have hdbl : (∫ y, ∫ z, S (blockGlue B y z)
+        ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))
+        ∂(Measure.pi (fun _ : {l : Fin k // l ∈ B} ↦ μ)))
+      ≤ (k : ℝ) ^ 2 * cutNormDiff W (chosenStep W ε') + 2 * (B.card : ℝ) * k + k
+        + Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * (q : ℝ) + 1) * Real.log 2) := by
+    calc (∫ y, ∫ z, S (blockGlue B y z)
+            ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))
+            ∂(Measure.pi (fun _ : {l : Fin k // l ∈ B} ↦ μ)))
+        ≤ ∫ _y, ((k : ℝ) ^ 2 * cutNormDiff W (chosenStep W ε') + 2 * (B.card : ℝ) * k + k
+            + Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * (q : ℝ) + 1) * Real.log 2))
+            ∂(Measure.pi (fun _ : {l : Fin k // l ∈ B} ↦ μ)) :=
+          integral_mono_ae hphi_int (integrable_const _) hyb
+      _ = (k : ℝ) ^ 2 * cutNormDiff W (chosenStep W ε') + 2 * (B.card : ℝ) * k + k
+          + Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * (q : ℝ) + 1) * Real.log 2) := by
+          rw [integral_const, smul_eq_mul, probReal_univ, one_mul]
+  -- Normalize by `k⁻²` and absorb `|B| ≤ 2q`.
+  rw [integral_const_mul, hsplit]
+  refine le_trans (mul_le_mul_of_nonneg_left hdbl (by positivity)) ?_
+  have key : (k : ℝ)⁻¹ ^ 2 * ((k : ℝ) ^ 2 * cutNormDiff W (chosenStep W ε') + 2 * (B.card : ℝ) * k
+        + k + Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * (q : ℝ) + 1) * Real.log 2))
+      = cutNormDiff W (chosenStep W ε') + (2 * (B.card : ℝ) * k + k) / (k : ℝ) ^ 2
+        + Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * (q : ℝ) + 1) * Real.log 2) / (k : ℝ) ^ 2 := by
+    rw [inv_pow]; field_simp; ring
+  rw [key]
+  have hk2pos : (0 : ℝ) < (k : ℝ) ^ 2 := by positivity
+  have hnum : 2 * (B.card : ℝ) * k + k ≤ 4 * (q : ℝ) * k + k := by
+    nlinarith [mul_le_mul_of_nonneg_right hBcard hkpos.le]
+  have hdiv : (2 * (B.card : ℝ) * k + k) / (k : ℝ) ^ 2
+      ≤ (4 * (q : ℝ) * k + k) / (k : ℝ) ^ 2 := (div_le_div_iff_of_pos_right hk2pos).mpr hnum
+  linarith
+
 /-- Bridge: `k^{-1/4} = (√√k)⁻¹` for `0 < k`; all rate arithmetic below is phrased through
 `u := √√k`, so only this one `rpow` identity is ever needed. -/
 private theorem rpow_neg_quarter_eq (k : ℕ) (hk : 0 < k) :
@@ -3505,7 +3962,73 @@ private theorem guessBlock_integral_le_cutNormDiff (W : Graphon α μ) (ε' : �
           coreDiff W ε' x i j|) ∂Measure.pi (fun _ : Fin k ↦ μ))
       + 2 * ((guessBlock k).card : ℝ) / k
       ≤ cutNormDiff W (chosenStep W ε') + 8 * ((k : ℝ) ^ (-(1 / 4 : ℝ))) := by
-  sorry
+  by_cases hk : k < 2401
+  · exact guessBlock_integral_le_cutNormDiff_of_small W ε' hk
+  rw [not_lt] at hk
+  have hkpos : (0 : ℝ) < (k : ℝ) := by
+    exact_mod_cast Nat.pos_of_ne_zero (NeZero.ne k)
+  set q : ℕ := ⌈Real.sqrt k⌉₊ with hq_def
+  have hq0 : 0 < q := one_le_natCeil_sqrt k
+  have hqk : q ≤ k := natCeil_sqrt_le_self k
+  have hchoose_pos : (0 : ℝ) < (k.choose q : ℝ) := by exact_mod_cast Nat.choose_pos hqk
+  -- the bridge gate: fixed guessBlock sup ⤳ double average of signed-rule sups
+  have hbridge := guessBlock_sup_integral_le_avg_ruleSup W ε' hq0 hqk
+  -- each block pair's rule-sup integral is uniformly bounded (H15), so the average collapses
+  set cB : ℝ := cutNormDiff W (chosenStep W ε') + (4 * q * k + k) / (k : ℝ) ^ 2
+      + Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * q + 1) * Real.log 2) / (k : ℝ) ^ 2 with hcB_def
+  have hblock : ((k.choose q : ℝ)⁻¹) ^ 2 *
+      (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+       ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+        ∫ x, (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2)
+          ∂Measure.pi (fun _ : Fin k ↦ μ)) ≤ cB := by
+    have hsum : (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+        ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+         ∫ x, (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+           (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2)
+           ∂Measure.pi (fun _ : Fin k ↦ μ))
+        ≤ (k.choose q : ℝ) ^ 2 * cB := by
+      have hbound : ∀ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+          ∀ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+          (∫ x, (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+            (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2)
+            ∂Measure.pi (fun _ : Fin k ↦ μ)) ≤ cB := by
+        intro Q hQ Q' hQ'
+        exact integral_signedRuleSup_le W ε' hq0 Q Q'
+          (le_of_eq (Finset.mem_powersetCard.mp hQ).2)
+          (le_of_eq (Finset.mem_powersetCard.mp hQ').2)
+      calc (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+          ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+           ∫ x, (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+             (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2)
+             ∂Measure.pi (fun _ : Fin k ↦ μ))
+          ≤ ∑ _Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+            ∑ _Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)), cB := by
+            refine Finset.sum_le_sum (fun Q hQ ↦ Finset.sum_le_sum (fun Q' hQ' ↦ ?_))
+            exact hbound Q hQ Q' hQ'
+        _ = (k.choose q : ℝ) ^ 2 * cB := by
+            simp [Finset.sum_const, Finset.card_powersetCard, Finset.card_univ, nsmul_eq_mul]
+            ring
+    calc ((k.choose q : ℝ)⁻¹) ^ 2 *
+        (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+         ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+          ∫ x, (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+            (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2)
+            ∂Measure.pi (fun _ : Fin k ↦ μ))
+        ≤ ((k.choose q : ℝ)⁻¹) ^ 2 * ((k.choose q : ℝ) ^ 2 * cB) := by
+          exact mul_le_mul_of_nonneg_left hsum (by positivity)
+      _ = cB := by field_simp
+  -- the guessBlock cardinality cost
+  have hcost : 2 * ((guessBlock k).card : ℝ) / k ≤ 2 * (q : ℝ) / k := by
+    have hcard : ((guessBlock k).card : ℝ) ≤ (q : ℝ) := by
+      exact_mod_cast guessBlock_card_le k
+    gcongr
+  -- the rate budget
+  have hbudget := afkk_error_budget (k := k) (q := q) hk (sqrt_le_natCeil_sqrt k)
+    (natCeil_sqrt_le_add_one k)
+  have hfinal := add_le_add (hbridge.trans (by linarith : _ ≤ cB + 2 / Real.sqrt q)) hcost
+  rw [hcB_def] at hfinal
+  linarith [hfinal, hbudget]
 
 /-- **Layer 3 core — AFKK cut-norm sampling** (the one deep step; narrowed private
 sorry during development, discharged before this branch ships). The expectation of the
