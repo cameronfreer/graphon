@@ -60,6 +60,38 @@ for both events and close `first_sampling_lemma` via `sampleGoodMassOn_of_events
 3. `uniform tail bound` — the expectation bound (Lovász 10.6 core) + concentration,
    uniform in `W`.
 4. `event packaging` — the measurable witness set for `PointSamplingEvent`.
+
+## PR #11A architecture (settled 2026-07-07, after literature check)
+
+Reference mechanisms: Lovász Lemmas 10.6/10.7 (bounded kernels); the modern
+generalization arXiv:2203.07581 confirms the split into *systematic error*
+(expectation bound; Q-subsample ghost argument, their §6.2) and *dispersion*
+(vertex-exposure martingale + Azuma — deferred to PR #11B).
+
+**Majorant + triangle decomposition.** Fix ε; let `P` be the Frieze–Kannan partition
+of `W` at quality `ε' := ε/8` with `m = m(ε')` parts (uniform in `W` — PROVED
+`regularity`), `U := stepify P W`. Then
+
+  `d_□(W, H_{W,x}) ≤ ε' + d_□(U, H_{U,x}) + maxcut((W−U)[x])`
+
+* **Frequency term** `d_□(U, H_{U,x})`: `H_{U,x}` is the equipartition step graphon
+  with entries `U(xᵢ,xⱼ)`; comparing to `U` is a pure weight-perturbation problem —
+  bounded by `2·∑_cells |empirical frequency − μ(cell)|` (repo tooling:
+  `cutDistance_step_weight_le`-style). Its expectation is elementary:
+  `E|freq − μ| ≤ 1/(2√k)` per cell via Cauchy–Schwarz + the iid variance computation
+  (`E(freq−μ)² = μ(1−μ)/k`) — no concentration inequality needed, `m` cells total.
+* **Core term** `maxcut(D[x])`, `D := W − U`, `‖D‖_□ ≤ ε'`, `|D| ≤ 1`: THE deep step —
+  `E_x[max_{S,T ⊆ [k]} (1/k²)|∑_{i∈S,j∈T} D(xᵢ,xⱼ)|] ≤ ‖D‖_□ + O(k^{−1/4})`.
+  **Mechanism (Q-subsample cut guessing; AFKK / book 10.7)**: naive union over `4^k`
+  cuts fails (only `exp(−cε²k)` per-cut tails). Instead: for the maximizer `(S*,T*)`,
+  the optimal `T` given `S` is the sign set of `r_j := (1/k)∑_{i∈S*} D(xᵢ,xⱼ)`;
+  estimate `r_j` by a random subsample `Q` of size `q` (error `O(1/√q)` per point in
+  expectation), so the near-optimal cut is DETERMINED by `(x_Q, S* ∩ Q)` — only `2^q`
+  selection rules. For each FIXED rule, the cut becomes a genuine measurable set
+  determined by the `Q`-coordinates, independent of the fresh coordinates, so the
+  fresh-sample expectation of the rectangle sum is `≤ ‖D‖_□ + O((q + √k)/k)`.
+  Union over `2^q` rules with second-moment control; `q := ⌈√k⌉` gives `O(k^{−1/4})`.
+  Both `±` directions by applying to `D` and `−D`.
 -/
 
 open MeasureTheory Set Filter Finset
