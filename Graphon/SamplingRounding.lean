@@ -1,0 +1,262 @@
+/-
+Copyright (c) 2026 Cameron Freer. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Cameron Freer
+-/
+import Graphon.SamplingConcentration
+
+/-!
+# The rounding half of the First Sampling Lemma
+
+This file proves `RoundingEvent` for all sufficiently large `k`
+(`rounding_event_of_large_k`): conditionally on a.e. sampled points `x`, the Bernoulli
+edge rounding `G` of the weighted sampled graphon `H_{W,x}` lands within cut distance
+`ε` of `H_{W,x}` with probability `≥ 1 − η`. Together with the reduction
+`sampleGoodMassOn_of_events` this leaves `PointSamplingEvent` as the only analytic
+content of `first_sampling_lemma`.
+
+The proof is finite probability — no measure-theoretic randomness beyond the finite
+weighted sums `sampleMassAt`:
+
+1. **Deterministic cut certificate** (`cutNormDiff_mkStepGraphon_le_of_cuts`): the cut
+   norm of a same-partition step-graphon difference is bounded by the maximum over
+   finitely many vertex cuts `A, B : Finset (Fin k)` of the corresponding weighted cut
+   sums. A rectangle integral decomposes over cell products
+   (`rectIntegralDiff_mkStepGraphon`), and a box-constrained bilinear form is maximized
+   at cuts (`abs_bilinear_box_le`, via the signed-support trick — no induction).
+2. **Bad-event decomposition**: the bad rounding event is contained in the finite union
+   over cut pairs of per-cut deviation events.
+3. **Finite Hoeffding / union bound**: the moment generating function of a cut sum
+   factorizes over independent edges (`sum_graphs_prod`, the powerset bijection), each
+   edge contributing `≤ exp(λ²)` for `|λ| ≤ 1` (`Real.exp_bound`); a Chernoff argument
+   over the finite sum and a union bound over `≤ 4^k` cut pairs finish. Crude constants
+   throughout — only existence of large `k` matters.
+-/
+
+open MeasureTheory Set Filter Finset
+
+open scoped ENNReal
+
+variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
+
+namespace Graphon
+
+/-! ### Layer 1(b): box-constrained bilinear forms are maximized at cuts -/
+
+section BilinearBox
+
+variable {k : ℕ}
+
+/-- **Signed-support trick** (linear case): a linear form with box-constrained
+coefficients is bounded by its values at finite cuts. No induction: the upper bound is
+witnessed by the cut `{i | 0 ≤ φ i}`, the lower one by its complement. -/
+theorem abs_sum_box_le (w φ : Fin k → ℝ) (M : ℝ)
+    (hM : ∀ A : Finset (Fin k), |∑ i ∈ A, w i * φ i| ≤ M)
+    (u : Fin k → ℝ) (hu : ∀ i, u i ∈ Set.Icc 0 (w i)) :
+    |∑ i, u i * φ i| ≤ M := by
+  classical
+  rw [abs_le]
+  constructor
+  · -- Lower bound via the negative-support cut.
+    have h1 : ∑ i ∈ Finset.univ.filter (fun i ↦ φ i < 0), w i * φ i ≤ ∑ i, u i * φ i := by
+      rw [← Finset.sum_filter_add_sum_filter_not Finset.univ (fun i ↦ φ i < 0)
+        (fun i ↦ u i * φ i)]
+      refine le_add_of_le_of_nonneg (Finset.sum_le_sum fun i hi ↦ ?_)
+        (Finset.sum_nonneg fun i hi ↦ ?_)
+      · have hφ : φ i < 0 := by simpa using (Finset.mem_filter.mp hi).2
+        exact mul_le_mul_of_nonpos_right ((hu i).2) hφ.le
+      · have hφ : 0 ≤ φ i := by
+          have := (Finset.mem_filter.mp hi).2
+          simpa [not_lt] using this
+        exact mul_nonneg ((hu i).1) hφ
+    have h2 := hM (Finset.univ.filter (fun i ↦ φ i < 0))
+    rw [abs_le] at h2
+    linarith [h2.1]
+  · -- Upper bound via the nonnegative-support cut.
+    have h1 : ∑ i, u i * φ i ≤ ∑ i ∈ Finset.univ.filter (fun i ↦ 0 ≤ φ i), w i * φ i := by
+      rw [← Finset.sum_filter_add_sum_filter_not Finset.univ (fun i ↦ 0 ≤ φ i)
+        (fun i ↦ u i * φ i)]
+      refine add_le_of_le_of_nonpos (Finset.sum_le_sum fun i hi ↦ ?_)
+        (Finset.sum_nonpos fun i hi ↦ ?_)
+      · have hφ : 0 ≤ φ i := by simpa using (Finset.mem_filter.mp hi).2
+        exact mul_le_mul_of_nonneg_right ((hu i).2) hφ
+      · have hφ : φ i < 0 := by
+          have := (Finset.mem_filter.mp hi).2
+          simpa [not_le] using this
+        exact mul_nonpos_of_nonneg_of_nonpos ((hu i).1) hφ.le
+    have h2 := hM (Finset.univ.filter (fun i ↦ 0 ≤ φ i))
+    rw [abs_le] at h2
+    linarith [h2.2]
+
+/-- **Box-constrained bilinear forms are maximized at cut pairs**: two applications of
+the signed-support trick. -/
+theorem abs_bilinear_box_le (w : Fin k → ℝ) (d : Fin k → Fin k → ℝ) (M : ℝ)
+    (hM : ∀ A B : Finset (Fin k), |∑ i ∈ A, ∑ j ∈ B, (w i * w j) * d i j| ≤ M)
+    (u v : Fin k → ℝ) (hu : ∀ i, u i ∈ Set.Icc 0 (w i))
+    (hv : ∀ j, v j ∈ Set.Icc 0 (w j)) :
+    |∑ i, ∑ j, (u i * v j) * d i j| ≤ M := by
+  have hswap : ∀ (f : Fin k → ℝ) (A : Finset (Fin k)),
+      ∑ i ∈ A, ∑ j, (w i * f j) * d i j = ∑ j, f j * (∑ i ∈ A, w i * d i j) := by
+    intro f A
+    rw [Finset.sum_comm]
+    refine Finset.sum_congr rfl fun j _ ↦ ?_
+    rw [Finset.mul_sum]
+    refine Finset.sum_congr rfl fun i _ ↦ by ring
+  have houter : ∀ A : Finset (Fin k), |∑ i ∈ A, ∑ j, (w i * v j) * d i j| ≤ M := by
+    intro A
+    rw [hswap v A]
+    refine abs_sum_box_le w (fun j ↦ ∑ i ∈ A, w i * d i j) M (fun B ↦ ?_) v hv
+    have : ∑ j ∈ B, w j * (∑ i ∈ A, w i * d i j) = ∑ i ∈ A, ∑ j ∈ B, (w i * w j) * d i j := by
+      rw [Finset.sum_comm]
+      refine Finset.sum_congr rfl fun j _ ↦ ?_
+      rw [Finset.mul_sum]
+      refine Finset.sum_congr rfl fun i _ ↦ by ring
+    rw [this]
+    exact hM A B
+  have hfinal : |∑ i, u i * (∑ j, v j * d i j)| ≤ M := by
+    refine abs_sum_box_le w (fun i ↦ ∑ j, v j * d i j) M (fun A ↦ ?_) u hu
+    have : ∑ i ∈ A, w i * (∑ j, v j * d i j) = ∑ i ∈ A, ∑ j, (w i * v j) * d i j :=
+      Finset.sum_congr rfl fun i _ ↦ by
+        rw [Finset.mul_sum]
+        exact Finset.sum_congr rfl fun j _ ↦ by ring
+    rw [this]
+    exact houter A
+  have : ∑ i, ∑ j, (u i * v j) * d i j = ∑ i, u i * (∑ j, v j * d i j) :=
+    Finset.sum_congr rfl fun i _ ↦ by
+      rw [Finset.mul_sum]
+      exact Finset.sum_congr rfl fun j _ ↦ by ring
+  rw [this]
+  exact hfinal
+
+end BilinearBox
+
+/-! ### Layer 1(a): rectangle integrals of step differences decompose over cells -/
+
+section CutCertificate
+
+variable [IsProbabilityMeasure μ]
+
+omit [IsProbabilityMeasure μ] in
+/-- Step functions are measurable (finite sums of indicators). -/
+private theorem mkStepFun_measurable' (P : MeasurablePartition α μ)
+    (c : Set α → Set α → ℝ) : Measurable (mkStepFun P c) := by
+  unfold mkStepFun
+  refine Finset.measurable_sum _ fun S hS ↦ Finset.measurable_sum _ fun T hT ↦ ?_
+  exact measurable_const.indicator ((P.measurableSet_part hS).prod (P.measurableSet_part hT))
+
+/-- Step functions are integrable (finite sums of indicator-constants). -/
+private theorem mkStepFun_integrable' (P : MeasurablePartition α μ)
+    (c : Set α → Set α → ℝ) : Integrable (mkStepFun P c) (μ.prod μ) := by
+  unfold mkStepFun
+  refine integrable_finsetSum _ fun S hS ↦ integrable_finsetSum _ fun T hT ↦ ?_
+  exact (integrable_const _).indicator ((P.measurableSet_part hS).prod (P.measurableSet_part hT))
+
+/-- Set integral of a step function over a rectangle: the finite sum of indicators
+integrates term by term. -/
+theorem setIntegral_mkStepFun (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
+    (S' T' : Set α) :
+    ∫ p in S' ×ˢ T', mkStepFun P c p ∂(μ.prod μ) =
+      ∑ S ∈ P.parts, ∑ T ∈ P.parts,
+        ((μ (S ∩ S')).toReal * (μ (T ∩ T')).toReal) * c S T := by
+  unfold mkStepFun
+  rw [integral_finsetSum]
+  · refine Finset.sum_congr rfl fun S hS ↦ ?_
+    rw [integral_finsetSum]
+    · refine Finset.sum_congr rfl fun T hT ↦ ?_
+      rw [integral_indicator_const _
+          ((P.measurableSet_part hS).prod (P.measurableSet_part hT)),
+        measureReal_def,
+        Measure.restrict_apply ((P.measurableSet_part hS).prod (P.measurableSet_part hT)),
+        Set.prod_inter_prod, Measure.prod_prod, ENNReal.toReal_mul, smul_eq_mul]
+    · intro T hT
+      exact (Integrable.indicator (integrable_const _)
+        ((P.measurableSet_part hS).prod (P.measurableSet_part hT))).integrableOn
+  · intro S hS
+    refine (integrable_finsetSum _ fun T hT ↦ ?_).integrableOn
+    exact (Integrable.indicator (integrable_const _)
+      ((P.measurableSet_part hS).prod (P.measurableSet_part hT)))
+
+/-- **Rectangle integrals of a same-partition step-graphon difference decompose over
+cell products.** -/
+theorem rectIntegralDiff_mkStepGraphon (P : MeasurablePartition α μ)
+    (c c' : Set α → Set α → ℝ)
+    (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
+    (hc_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T ∈ Set.Icc 0 1)
+    (hc'_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c' S T = c' T S)
+    (hc'_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c' S T ∈ Set.Icc 0 1)
+    (S' T' : Set α) :
+    rectIntegralDiff (mkStepGraphon P c hc_symm hc_mem)
+        (mkStepGraphon P c' hc'_symm hc'_mem) S' T' =
+      ∑ S ∈ P.parts, ∑ T ∈ P.parts,
+        ((μ (S ∩ S')).toReal * (μ (T ∩ T')).toReal) * (c S T - c' S T) := by
+  have hU_eq : ∀ᵐ p ∂(μ.prod μ),
+      (mkStepGraphon P c hc_symm hc_mem).toAEEqFun p = mkStepFun P c p :=
+    AEEqFun.coeFn_mk (mkStepFun P c) (mkStepFun_measurable' P c).aestronglyMeasurable
+  have hW_eq : ∀ᵐ p ∂(μ.prod μ),
+      (mkStepGraphon P c' hc'_symm hc'_mem).toAEEqFun p = mkStepFun P c' p :=
+    AEEqFun.coeFn_mk (mkStepFun P c') (mkStepFun_measurable' P c').aestronglyMeasurable
+  have hcongr : rectIntegralDiff (mkStepGraphon P c hc_symm hc_mem)
+      (mkStepGraphon P c' hc'_symm hc'_mem) S' T' =
+      ∫ p in S' ×ˢ T', (mkStepFun P c p - mkStepFun P c' p) ∂(μ.prod μ) := by
+    unfold rectIntegralDiff
+    refine integral_congr_ae (ae_restrict_of_ae ?_)
+    filter_upwards [hU_eq, hW_eq] with p h1 h2
+    rw [h1, h2]
+  rw [hcongr, integral_sub, setIntegral_mkStepFun P c S' T',
+    setIntegral_mkStepFun P c' S' T', ← Finset.sum_sub_distrib]
+  · refine Finset.sum_congr rfl fun S _ ↦ ?_
+    rw [← Finset.sum_sub_distrib]
+    exact Finset.sum_congr rfl fun T _ ↦ by ring
+  · exact (mkStepFun_integrable' P c).integrableOn
+  · exact (mkStepFun_integrable' P c').integrableOn
+
+/-- **Layer 1 — the deterministic cut certificate**: the cut norm of a same-partition
+step-graphon difference is bounded by the maximum weighted cut sum over finitely many
+vertex cuts `A, B : Finset (Fin k)`. Combines the cell decomposition with the box
+maximum principle (`abs_bilinear_box_le`), the box constraint being
+`μ(cell ∩ S') ≤ μ(cell)`. -/
+theorem cutNormDiff_mkStepGraphon_le_of_cuts {k : ℕ} (P : MeasurablePartition α μ)
+    (ι : Fin k → Set α) (hι_mem : ∀ i, ι i ∈ P.parts)
+    (hι_inj : Function.Injective ι) (hι_surj : ∀ S ∈ P.parts, ∃ i, ι i = S)
+    (c c' : Set α → Set α → ℝ)
+    (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
+    (hc_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T ∈ Set.Icc 0 1)
+    (hc'_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c' S T = c' T S)
+    (hc'_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c' S T ∈ Set.Icc 0 1)
+    (M : ℝ)
+    (hM : ∀ A B : Finset (Fin k),
+      |∑ i ∈ A, ∑ j ∈ B, ((μ (ι i)).toReal * (μ (ι j)).toReal) *
+        (c (ι i) (ι j) - c' (ι i) (ι j))| ≤ M) :
+    cutNormDiff (mkStepGraphon P c hc_symm hc_mem)
+      (mkStepGraphon P c' hc'_symm hc'_mem) ≤ M := by
+  classical
+  have hM0 : 0 ≤ M := le_trans (by simp) (hM ∅ ∅)
+  -- Reindex a parts-sum through the enumeration.
+  have hreindex : ∀ f : Set α → ℝ, ∑ S ∈ P.parts, f S = ∑ i : Fin k, f (ι i) := by
+    intro f
+    exact (Finset.sum_bij (fun i _ ↦ ι i) (fun i _ ↦ hι_mem i)
+      (fun i _ j _ hij ↦ hι_inj hij)
+      (fun S hS ↦ by obtain ⟨i, hi⟩ := hι_surj S hS; exact ⟨i, Finset.mem_univ i, hi⟩)
+      (fun i _ ↦ rfl)).symm
+  unfold cutNormDiff
+  apply Real.iSup_le _ hM0; intro S'
+  apply Real.iSup_le _ hM0; intro _
+  apply Real.iSup_le _ hM0; intro T'
+  apply Real.iSup_le _ hM0; intro _
+  rw [rectIntegralDiff_mkStepGraphon P c c' hc_symm hc_mem hc'_symm hc'_mem S' T']
+  rw [hreindex]
+  rw [show (∑ i : Fin k, ∑ T ∈ P.parts,
+      ((μ (ι i ∩ S')).toReal * (μ (T ∩ T')).toReal) * (c (ι i) T - c' (ι i) T)) =
+    ∑ i : Fin k, ∑ j : Fin k,
+      ((μ (ι i ∩ S')).toReal * (μ (ι j ∩ T')).toReal) * (c (ι i) (ι j) - c' (ι i) (ι j))
+    from Finset.sum_congr rfl fun i _ ↦ hreindex _]
+  refine abs_bilinear_box_le (fun i ↦ (μ (ι i)).toReal)
+    (fun i j ↦ c (ι i) (ι j) - c' (ι i) (ι j)) M hM
+    (fun i ↦ (μ (ι i ∩ S')).toReal) (fun j ↦ (μ (ι j ∩ T')).toReal)
+    (fun i ↦ ⟨ENNReal.toReal_nonneg, ?_⟩) (fun j ↦ ⟨ENNReal.toReal_nonneg, ?_⟩)
+  · exact ENNReal.toReal_mono (measure_ne_top μ _) (measure_mono Set.inter_subset_left)
+  · exact ENNReal.toReal_mono (measure_ne_top μ _) (measure_mono Set.inter_subset_left)
+
+end CutCertificate
+
+end Graphon
