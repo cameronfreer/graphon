@@ -23,6 +23,7 @@ import Graphon.CrossSuper
 import Graphon.SimpleRank
 import Graphon.CycleKrylov
 import Graphon.MatrixDetermination
+import Graphon.SamplingICL
 import Graphon.InverseCounting
 import Graphon.Convergence
 
@@ -50,6 +51,7 @@ in Lean 4 using Mathlib.
 * `Graphon.SimpleRank` — K=1 simple-graph rank theorem, algebra-atom framing (#70)
 * `Graphon.CycleKrylov` — spectral slice of the cycle–Krylov square-moment proof (#70)
 * `Graphon.MatrixDetermination` — Algebraic determination of step graphons
+* `Graphon.SamplingICL` — Sampling route to the partition-size-independent quantitative inverse counting lemma
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 
