@@ -9,6 +9,7 @@ import Mathlib.Probability.Moments.Variance
 import Mathlib.Probability.Moments.SubGaussian
 import Mathlib.Algebra.Order.Chebyshev
 import Mathlib.Analysis.Convex.Integral
+import Mathlib.Analysis.Complex.ExponentialBounds
 
 /-!
 # The point-sampling half of the First Sampling Lemma (scaffold)
@@ -2544,6 +2545,408 @@ private theorem integral_exp_mul_centered_le_pi_fin {β : Type*} [MeasurableSpac
             rw [hgf]; exact ih g hg_meas hg_bd
         _ = Real.exp (((n + 1 : ℕ) : ℝ) * (c / 2) ^ 2 * t ^ 2 / 2) := by
             rw [← Real.exp_add]; congr 1; push_cast; ring
+
+/-- (H13b) Transport of H13a to an arbitrary finite index type (the fresh-coordinate
+subtype), via `Fintype.equivFin` and `measurePreserving_piCongrLeft`. -/
+private theorem integral_exp_mul_centered_le_pi {ι : Type*} [Fintype ι] {β : Type*}
+    [MeasurableSpace β] (ν : Measure β) [IsProbabilityMeasure ν] (f : (ι → β) → ℝ)
+    (hf : Measurable f) {c : ℝ} (hc : 0 ≤ c)
+    (hbd : ∀ (i : ι) (x x' : ι → β), (∀ l, l ≠ i → x l = x' l) → |f x - f x'| ≤ c)
+    (t : ℝ) :
+    ∫ x, Real.exp (t * (f x - ∫ x', f x' ∂Measure.pi (fun _ : ι ↦ ν)))
+        ∂Measure.pi (fun _ : ι ↦ ν)
+      ≤ Real.exp ((Fintype.card ι : ℝ) * (c / 2) ^ 2 * t ^ 2 / 2) := by
+  set N := Fintype.card ι with hN
+  set e := Fintype.equivFin ι with he
+  set φ := MeasurableEquiv.piCongrLeft (fun _ : ι ↦ β) e.symm with hφ
+  have mp : MeasurePreserving φ (Measure.pi (fun _ : Fin N ↦ ν))
+      (Measure.pi (fun _ : ι ↦ ν)) :=
+    measurePreserving_piCongrLeft (α := fun _ : ι ↦ β) (μ := fun _ : ι ↦ ν) e.symm
+  have hcoord : ∀ (w : Fin N → β) (l : ι), φ w l = w (e l) := by
+    intro w l
+    have h := MeasurableEquiv.piCongrLeft_apply_apply (β := fun _ : ι ↦ β) e.symm w (e l)
+    rwa [e.symm_apply_apply] at h
+  have hbdF : ∀ (i : Fin N) (w w' : Fin N → β),
+      (∀ l, l ≠ i → w l = w' l) → |f (φ w) - f (φ w')| ≤ c := by
+    intro i w w' hww'
+    apply hbd (e.symm i)
+    intro l hl
+    rw [hcoord w l, hcoord w' l]
+    refine hww' (e l) (fun hcontra => hl ?_)
+    rw [← e.symm_apply_apply l, hcontra]
+  have key := integral_exp_mul_centered_le_pi_fin ν (fun w ↦ f (φ w)) (hf.comp φ.measurable)
+    hc hbdF t
+  have hI : (∫ x', f x' ∂Measure.pi (fun _ : ι ↦ ν))
+      = ∫ w', f (φ w') ∂Measure.pi (fun _ : Fin N ↦ ν) := (mp.integral_comp' f).symm
+  have hOuter : (∫ x, Real.exp (t * (f x - ∫ x', f x' ∂Measure.pi (fun _ : ι ↦ ν)))
+        ∂Measure.pi (fun _ : ι ↦ ν))
+      = ∫ w, Real.exp (t * (f (φ w) - ∫ x', f x' ∂Measure.pi (fun _ : ι ↦ ν)))
+        ∂Measure.pi (fun _ : Fin N ↦ ν) :=
+    (mp.integral_comp'
+      (fun x ↦ Real.exp (t * (f x - ∫ x', f x' ∂Measure.pi (fun _ : ι ↦ ν))))).symm
+  rw [hOuter, hI]
+  exact key
+
+/-! ##### (III) Finite soft-max -/
+
+/-- (H14) **Soft-max.** If finitely many bounded variables all satisfy the sub-Gaussian MGF
+bound `E[exp(t Z_r)] ≤ exp(σ² t²/2)` for `t > 0`, then
+`E[max_r Z_r] ≤ √(2 σ² log N)`. Via `exp`-Jensen and `max exp ≤ ∑ exp`; no tail bounds and
+no measurable selection. -/
+private theorem integral_sup'_le_sqrt_two_mul_log_card {Ω : Type*} [MeasurableSpace Ω]
+    (ν : Measure Ω) [IsProbabilityMeasure ν] {ι : Type*} {s : Finset ι} (hs : s.Nonempty)
+    (Z : ι → Ω → ℝ) (hmeas : ∀ r ∈ s, Measurable (Z r))
+    {K : ℝ} (hbdd : ∀ r ∈ s, ∀ ω, |Z r ω| ≤ K) {σ2 : ℝ} (hσ2 : 0 < σ2)
+    (hmgf : ∀ r ∈ s, ∀ t : ℝ, 0 < t →
+      ∫ ω, Real.exp (t * Z r ω) ∂ν ≤ Real.exp (σ2 * t ^ 2 / 2)) :
+    ∫ ω, s.sup' hs (fun r ↦ Z r ω) ∂ν ≤ Real.sqrt (2 * σ2 * Real.log s.card) := by
+  have hσ2ne : σ2 ≠ 0 := ne_of_gt hσ2
+  set g : Ω → ℝ := fun ω ↦ s.sup' hs (fun r ↦ Z r ω) with hg
+  have hg_meas : Measurable g := by
+    have hgeq : g = s.sup' hs Z := funext fun ω ↦ (Finset.sup'_apply hs Z ω).symm
+    rw [hgeq]; exact Finset.measurable_sup' hs hmeas
+  have hg_bd : ∀ ω, |g ω| ≤ K := by
+    intro ω
+    rw [abs_le]
+    obtain ⟨r0, hr0⟩ := hs
+    refine ⟨?_, ?_⟩
+    · calc -K ≤ Z r0 ω := by have := hbdd r0 hr0 ω; rw [abs_le] at this; linarith
+        _ ≤ g ω := Finset.le_sup' (fun r ↦ Z r ω) hr0
+    · apply Finset.sup'_le
+      intro r hr
+      have := hbdd r hr ω; rw [abs_le] at this; linarith
+  have hg_int : Integrable g ν :=
+    (integrable_const K).mono' hg_meas.aestronglyMeasurable
+      (ae_of_all _ fun ω ↦ by rw [Real.norm_eq_abs]; exact hg_bd ω)
+  set S : ℝ := ∫ ω, g ω ∂ν with hSdef
+  have main : ∀ t : ℝ, 0 < t → t * S ≤ Real.log s.card + σ2 * t ^ 2 / 2 := by
+    intro t ht
+    have hexpZ_int : ∀ r ∈ s, Integrable (fun ω ↦ Real.exp (t * Z r ω)) ν := by
+      intro r hr
+      refine (integrable_const (Real.exp (|t| * K))).mono'
+        (((hmeas r hr).const_mul t).exp).aestronglyMeasurable (ae_of_all _ fun ω ↦ ?_)
+      rw [Real.norm_eq_abs, Real.abs_exp]
+      apply Real.exp_le_exp.mpr
+      calc t * Z r ω ≤ |t * Z r ω| := le_abs_self _
+        _ = |t| * |Z r ω| := abs_mul _ _
+        _ ≤ |t| * K := mul_le_mul_of_nonneg_left (hbdd r hr ω) (abs_nonneg t)
+    have hexpg_int : Integrable (fun ω ↦ Real.exp (t * g ω)) ν := by
+      refine (integrable_const (Real.exp (|t| * K))).mono'
+        ((hg_meas.const_mul t).exp).aestronglyMeasurable (ae_of_all _ fun ω ↦ ?_)
+      rw [Real.norm_eq_abs, Real.abs_exp]
+      apply Real.exp_le_exp.mpr
+      calc t * g ω ≤ |t * g ω| := le_abs_self _
+        _ = |t| * |g ω| := abs_mul _ _
+        _ ≤ |t| * K := mul_le_mul_of_nonneg_left (hg_bd ω) (abs_nonneg t)
+    have hjensen : Real.exp (∫ ω, t * g ω ∂ν) ≤ ∫ ω, Real.exp (t * g ω) ∂ν := by
+      have h := convexOn_exp.map_integral_le (μ := ν) (f := fun ω ↦ t * g ω)
+        Real.continuous_exp.continuousOn isClosed_univ (ae_of_all _ fun ω ↦ Set.mem_univ _)
+        (hg_int.const_mul t) hexpg_int
+      simpa using h
+    have hmono : Monotone (fun x : ℝ ↦ Real.exp (t * x)) := by
+      intro a b hab
+      exact Real.exp_le_exp.mpr (mul_le_mul_of_nonneg_left hab ht.le)
+    have hstep : ∀ ω, Real.exp (t * g ω) ≤ ∑ r ∈ s, Real.exp (t * Z r ω) := by
+      intro ω
+      have h1 : Real.exp (t * g ω) = s.sup' hs (fun r ↦ Real.exp (t * Z r ω)) := by
+        rw [hg, Finset.apply_sup'_eq_sup'_comp hs (fun x ↦ Real.exp (t * x))
+          (fun x y ↦ hmono.map_max)]
+        rfl
+      rw [h1]
+      apply Finset.sup'_le
+      intro r hr
+      exact Finset.single_le_sum (f := fun r ↦ Real.exp (t * Z r ω))
+        (fun r' _ ↦ Real.exp_nonneg _) hr
+    have hint_sup : (∫ ω, Real.exp (t * g ω) ∂ν)
+        ≤ ∫ ω, ∑ r ∈ s, Real.exp (t * Z r ω) ∂ν :=
+      integral_mono hexpg_int (integrable_finset_sum s hexpZ_int) hstep
+    have hsum_int : (∫ ω, ∑ r ∈ s, Real.exp (t * Z r ω) ∂ν)
+        = ∑ r ∈ s, ∫ ω, Real.exp (t * Z r ω) ∂ν := integral_finset_sum s hexpZ_int
+    have hsum_bd : (∑ r ∈ s, ∫ ω, Real.exp (t * Z r ω) ∂ν)
+        ≤ s.card * Real.exp (σ2 * t ^ 2 / 2) := by
+      calc ∑ r ∈ s, ∫ ω, Real.exp (t * Z r ω) ∂ν
+          ≤ ∑ _r ∈ s, Real.exp (σ2 * t ^ 2 / 2) :=
+            Finset.sum_le_sum (fun r hr ↦ hmgf r hr t ht)
+        _ = s.card * Real.exp (σ2 * t ^ 2 / 2) := by rw [Finset.sum_const, nsmul_eq_mul]
+    have hexpbound : Real.exp (t * S) ≤ s.card * Real.exp (σ2 * t ^ 2 / 2) := by
+      have hintcm : (∫ ω, t * g ω ∂ν) = t * S := by rw [hSdef, integral_const_mul]
+      calc Real.exp (t * S) = Real.exp (∫ ω, t * g ω ∂ν) := by rw [hintcm]
+        _ ≤ ∫ ω, Real.exp (t * g ω) ∂ν := hjensen
+        _ ≤ ∑ r ∈ s, ∫ ω, Real.exp (t * Z r ω) ∂ν := hint_sup.trans_eq hsum_int
+        _ ≤ s.card * Real.exp (σ2 * t ^ 2 / 2) := hsum_bd
+    have hcard_pos : (0 : ℝ) < s.card := by exact_mod_cast Finset.card_pos.mpr hs
+    have hlog := Real.log_le_log (Real.exp_pos _) hexpbound
+    rwa [Real.log_exp, Real.log_mul (ne_of_gt hcard_pos) (ne_of_gt (Real.exp_pos _)),
+      Real.log_exp] at hlog
+  by_cases hL : Real.log s.card = 0
+  · rw [hL, mul_zero, Real.sqrt_zero]
+    by_contra hSneg
+    push_neg at hSneg
+    have h2 := main (S / σ2) (div_pos hSneg hσ2)
+    rw [hL, zero_add] at h2
+    have hcontra : S * S / σ2 ≤ S * S / σ2 / 2 := by
+      have e1 : S / σ2 * S = S * S / σ2 := by ring
+      have e2 : σ2 * (S / σ2) ^ 2 / 2 = S * S / σ2 / 2 := by field_simp
+      rw [e1, e2] at h2; exact h2
+    have hpos : (0 : ℝ) < S * S / σ2 := div_pos (mul_pos hSneg hSneg) hσ2
+    linarith
+  · have hLnn : 0 ≤ Real.log s.card :=
+      Real.log_nonneg (by exact_mod_cast Finset.one_le_card.mpr hs)
+    have hLpos : 0 < Real.log s.card := lt_of_le_of_ne hLnn (Ne.symm hL)
+    set L := Real.log s.card with hLdef
+    set t := Real.sqrt (2 * L / σ2) with htdef
+    have ht : 0 < t := Real.sqrt_pos.mpr (div_pos (by linarith) hσ2)
+    have ht2 : t ^ 2 = 2 * L / σ2 := Real.sq_sqrt (div_pos (by linarith) hσ2).le
+    have hmain := main t ht
+    have hbound : t * S ≤ 2 * L := by
+      have heq : σ2 * t ^ 2 / 2 = L := by rw [ht2]; field_simp
+      rw [heq] at hmain; linarith
+    have hprod : t * Real.sqrt (2 * σ2 * L) = 2 * L := by
+      rw [htdef, ← Real.sqrt_mul (div_pos (by linarith) hσ2).le,
+        show (2 * L / σ2) * (2 * σ2 * L) = (2 * L) ^ 2 by field_simp,
+        Real.sqrt_sq (by linarith)]
+    have hfinal : t * S ≤ t * Real.sqrt (2 * σ2 * L) := by rw [hprod]; exact hbound
+    exact le_of_mul_le_mul_left hfinal ht
+
+/-! ##### Per-block assembly and rate arithmetic (Layers 2+3+4) -/
+
+/-- Bridge: `k^{-1/4} = (√√k)⁻¹` for `0 < k`; all rate arithmetic below is phrased through
+`u := √√k`, so only this one `rpow` identity is ever needed. -/
+private theorem rpow_neg_quarter_eq (k : ℕ) (hk : 0 < k) :
+    (k : ℝ) ^ (-(1 / 4 : ℝ)) = (Real.sqrt (Real.sqrt k))⁻¹ := by
+  have hk0 : (0 : ℝ) ≤ (k : ℝ) := by positivity
+  rw [Real.rpow_neg hk0]
+  congr 1
+  rw [show (1 / 4 : ℝ) = (1 / 2) * (1 / 2) by norm_num, Real.rpow_mul hk0,
+    ← Real.sqrt_eq_rpow, ← Real.sqrt_eq_rpow]
+
+/-- The basic `u := √√k` facts, packaged: positivity, `u² = √k`, `u⁴ = k`. -/
+private theorem sqrt_sqrt_facts (k : ℕ) (hk : 0 < k) :
+    0 < Real.sqrt (Real.sqrt k) ∧ (Real.sqrt (Real.sqrt k)) ^ 2 = Real.sqrt k ∧
+      (Real.sqrt (Real.sqrt k)) ^ 4 = k := by
+  have hk0 : (0 : ℝ) < (k : ℝ) := by exact_mod_cast hk
+  have hs : (0 : ℝ) < Real.sqrt k := Real.sqrt_pos.mpr hk0
+  have hu : (0 : ℝ) < Real.sqrt (Real.sqrt k) := Real.sqrt_pos.mpr hs
+  have hu2 : (Real.sqrt (Real.sqrt k)) ^ 2 = Real.sqrt k := Real.sq_sqrt hs.le
+  refine ⟨hu, hu2, ?_⟩
+  have h22 : ((Real.sqrt (Real.sqrt k)) ^ 2) ^ 2 = (Real.sqrt k) ^ 2 := by rw [hu2]
+  rw [Real.sq_sqrt hk0.le] at h22
+  rw [show (4 : ℕ) = 2 * 2 from rfl, pow_mul]
+  exact h22
+
+/-- (H17) **The error budget** (`k ≥ 2401`, `√k ≤ q ≤ √k + 1`): the four error terms sum to
+at most `8·k^{−1/4}`. Numerically verified in `docs/afkk-cut-guessing.md` (worst coefficient
+≈ 6.24 at `k` near `k₀ = 2401`; asymptotic ≈ 5.33); the per-term budget proved here is
+`3/10 + 2 + 3/5 + 7/2 = 32/5 ≤ 8` in units of `k^{−1/4}`. -/
+private theorem afkk_error_budget {k q : ℕ} (hk : 2401 ≤ k)
+    (hq₁ : Real.sqrt k ≤ q) (hq₂ : (q : ℝ) ≤ Real.sqrt k + 1) :
+    2 * (q : ℝ) / k + 2 / Real.sqrt q + (4 * q * k + k) / (k : ℝ) ^ 2
+      + Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * q + 1) * Real.log 2) / (k : ℝ) ^ 2
+    ≤ 8 * (k : ℝ) ^ (-(1 / 4 : ℝ)) := by
+  have hk1 : 0 < k := by omega
+  obtain ⟨hu, hu2, hu4⟩ := sqrt_sqrt_facts k hk1
+  set u : ℝ := Real.sqrt (Real.sqrt k) with hu_def
+  have hk0 : (0 : ℝ) < (k : ℝ) := by exact_mod_cast hk1
+  -- u ≥ 7 from k ≥ 2401 = 7⁴
+  have h7 : 7 ≤ u := by
+    by_contra h
+    rw [not_le] at h
+    have h4 : u ^ 4 < 7 ^ 4 := pow_lt_pow_left₀ h hu.le (by norm_num)
+    rw [hu4] at h4
+    have hklt : (k : ℝ) < 2401 := by norm_num at h4; linarith
+    have : (2401 : ℝ) ≤ (k : ℝ) := by exact_mod_cast hk
+    linarith
+  have hu1 : (1 : ℝ) ≤ u := by linarith
+  -- q bounds in terms of u
+  have hq_lo : u ^ 2 ≤ (q : ℝ) := hu2 ▸ hq₁
+  have hq_up : (q : ℝ) ≤ u ^ 2 + 1 := by rw [hu2]; exact hq₂
+  have hq0 : (0 : ℝ) ≤ (q : ℝ) := by positivity
+  -- rewrite the RHS through the bridge
+  rw [rpow_neg_quarter_eq k hk1, ← hu_def]
+  -- log 2 bounds
+  have hL_up : Real.log 2 ≤ 0.6931472 := by
+    have := Real.log_two_lt_d9
+    norm_num at this ⊢
+    linarith
+  have hL_lo : (0 : ℝ) ≤ Real.log 2 := Real.log_nonneg one_le_two
+  -- Term 1: 2q/k ≤ (3/10)/u  [2u³ + 2u ≤ (100/49)u³ ≤ (3/10)u⁴ at u ≥ 7]
+  have hT1 : 2 * (q : ℝ) / k ≤ (3 / 10) / u := by
+    rw [div_le_div_iff₀ hk0 hu, ← hu4]
+    have e1 : 2 * (q : ℝ) * u ≤ 2 * (u ^ 2 + 1) * u :=
+      mul_le_mul_of_nonneg_right (by linarith) hu.le
+    have e2 : 2 * (u ^ 2 + 1) * u ≤ (100 / 49) * u ^ 3 := by nlinarith [h7, hu]
+    have e3 : (100 / 49) * u ^ 3 ≤ (3 / 10) * u ^ 4 := by nlinarith [h7, hu, pow_pos hu 3]
+    linarith
+  -- Term 2: 2/√q ≤ 2/u
+  have hT2 : 2 / Real.sqrt q ≤ 2 / u := by
+    have hsq : u ≤ Real.sqrt q := by
+      have h := Real.sqrt_le_sqrt hq_lo
+      rwa [Real.sqrt_sq hu.le] at h
+    gcongr
+  -- Term 3: (4qk + k)/k² ≤ (3/5)/u  [(4q+1)u⁵ ≤ (3/5)u⁸ ⟸ 4u² + 5 ≤ (3/5)u³]
+  have hT3 : (4 * (q : ℝ) * k + k) / (k : ℝ) ^ 2 ≤ (3 / 5) / u := by
+    rw [div_le_div_iff₀ (by positivity) hu, ← hu4]
+    have e1 : (4 * (q : ℝ) * u ^ 4 + u ^ 4) * u ≤ (4 * (u ^ 2 + 1) + 1) * u ^ 5 := by
+      nlinarith [hq_up, pow_pos hu 5, pow_pos hu 4, hu]
+    have e2 : (4 * (u ^ 2 + 1) + 1) * u ^ 5 ≤ (3 / 5) * (u ^ 4) ^ 2 := by
+      have h1 : (1 : ℝ) ≤ 3 * u - 20 := by linarith
+      have h2 : 4 * u ^ 2 + 5 ≤ (3 / 5) * u ^ 3 := by nlinarith [h7, hu, sq_nonneg u]
+      nlinarith [h2, pow_pos hu 5]
+    linarith
+  -- Term 4: √(8k³(2q+1)·log2)/k² ≤ (7/2)/u
+  have hT4 : Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * q + 1) * Real.log 2) / (k : ℝ) ^ 2
+      ≤ (7 / 2) / u := by
+    have haux : 8 * (2 * (q : ℝ) + 1) * Real.log 2 ≤ (49 / 4) * u ^ 2 := by
+      have h1 : 8 * (2 * (q : ℝ) + 1) * Real.log 2
+          ≤ 8 * (2 * (u ^ 2 + 1) + 1) * 0.6931472 := by
+        have hq1 : (0 : ℝ) ≤ 2 * (q : ℝ) + 1 := by positivity
+        nlinarith [hL_up, hL_lo, hq_up, hq1]
+      nlinarith [h7, hu, h1]
+    have hbound : 8 * (k : ℝ) ^ 3 * (2 * q + 1) * Real.log 2 ≤ ((7 / 2) * u ^ 7) ^ 2 := by
+      have hfac : 8 * (k : ℝ) ^ 3 * (2 * q + 1) * Real.log 2
+          = u ^ 12 * (8 * (2 * (q : ℝ) + 1) * Real.log 2) := by
+        rw [← hu4]; ring
+      have h12 : (0 : ℝ) ≤ u ^ 12 := by positivity
+      calc 8 * (k : ℝ) ^ 3 * (2 * q + 1) * Real.log 2
+          = u ^ 12 * (8 * (2 * (q : ℝ) + 1) * Real.log 2) := hfac
+        _ ≤ u ^ 12 * ((49 / 4) * u ^ 2) := mul_le_mul_of_nonneg_left haux h12
+        _ = ((7 / 2) * u ^ 7) ^ 2 := by ring
+    have hsqrt : Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * q + 1) * Real.log 2)
+        ≤ (7 / 2) * u ^ 7 := by
+      have h1 := Real.sqrt_le_sqrt hbound
+      rwa [Real.sqrt_sq (by positivity)] at h1
+    rw [div_le_div_iff₀ (by positivity) hu]
+    calc Real.sqrt (8 * (k : ℝ) ^ 3 * (2 * q + 1) * Real.log 2) * u
+        ≤ ((7 / 2) * u ^ 7) * u := mul_le_mul_of_nonneg_right hsqrt hu.le
+      _ = (7 / 2) * u ^ 8 := by ring
+      _ = 7 / 2 * (k : ℝ) ^ 2 := by rw [← hu4]; ring
+  -- total: (3/10 + 2 + 3/5 + 7/2)/u = (32/5)/u ≤ 8/u
+  have htotal : (3 / 10 : ℝ) / u + 2 / u + (3 / 5) / u + (7 / 2) / u ≤ 8 * u⁻¹ := by
+    have hsum : (3 / 10 : ℝ) / u + 2 / u + (3 / 5) / u + (7 / 2) / u = (32 / 5) / u := by
+      ring
+    rw [hsum, show (8 : ℝ) * u⁻¹ = 8 / u by rw [div_eq_mul_inv]]
+    gcongr
+    norm_num
+  linarith [hT1, hT2, hT3, hT4, htotal]
+
+/-- (H18 arithmetic core) For `1 ≤ k < 2401`: `1 + 2⌈√k⌉₊/k ≤ 8·k^{−1/4}` — the polynomial
+`u⁴ + 2u² + 2 ≤ 8u³` on `u = k^{1/4} ∈ [1,7]` (minimum slack `3` at `u = 1`). -/
+private theorem small_k_arith {k : ℕ} (hk1 : 1 ≤ k) (hk : k < 2401) :
+    1 + 2 * ((⌈Real.sqrt k⌉₊ : ℝ)) / k ≤ 8 * (k : ℝ) ^ (-(1 / 4 : ℝ)) := by
+  have hk0 : 0 < k := hk1
+  obtain ⟨hu, hu2, hu4⟩ := sqrt_sqrt_facts k hk0
+  set u : ℝ := Real.sqrt (Real.sqrt k) with hu_def
+  have hkR : (0 : ℝ) < (k : ℝ) := by exact_mod_cast hk0
+  -- 1 ≤ u < 7
+  have hu1 : 1 ≤ u := by
+    by_contra h
+    rw [not_le] at h
+    have h4 : u ^ 4 < 1 ^ 4 := pow_lt_pow_left₀ h hu.le (by norm_num)
+    rw [hu4] at h4
+    have : (1 : ℝ) ≤ (k : ℝ) := by exact_mod_cast hk1
+    norm_num at h4
+    linarith
+  have hu7 : u < 7 := by
+    by_contra h
+    rw [not_lt] at h
+    have h4 : (7 : ℝ) ^ 4 ≤ u ^ 4 := pow_le_pow_left₀ (by norm_num) h 4
+    rw [hu4] at h4
+    have : (k : ℝ) < 2401 := by exact_mod_cast hk
+    norm_num at h4
+    linarith
+  -- ⌈√k⌉ ≤ √k + 1 = u² + 1
+  have hceil : ((⌈Real.sqrt k⌉₊ : ℝ)) ≤ u ^ 2 + 1 := by
+    rw [hu2]
+    exact (Nat.ceil_lt_add_one (Real.sqrt_nonneg _)).le
+  rw [rpow_neg_quarter_eq k hk0, ← hu_def]
+  -- the polynomial u⁴ + 2u² + 2 ≤ 8u³ on [1,7]
+  have hpoly : u ^ 4 + 2 * u ^ 2 + 2 ≤ 8 * u ^ 3 := by
+    nlinarith [hu1, hu7, sq_nonneg (u - 1), sq_nonneg (u - 3),
+      mul_nonneg (sub_nonneg.mpr hu1) (sub_nonneg.mpr hu7.le),
+      mul_nonneg (mul_nonneg (sub_nonneg.mpr hu1) (sub_nonneg.mpr hu7.le)) hu.le]
+  have hstep : 1 + 2 * ((⌈Real.sqrt k⌉₊ : ℝ)) / k ≤ 1 + 2 * (u ^ 2 + 1) / u ^ 4 := by
+    calc 1 + 2 * ((⌈Real.sqrt k⌉₊ : ℝ)) / k ≤ 1 + 2 * (u ^ 2 + 1) / (k : ℝ) := by gcongr
+      _ = 1 + 2 * (u ^ 2 + 1) / u ^ 4 := by rw [hu4]
+  refine hstep.trans ?_
+  have h4 : (0 : ℝ) < u ^ 4 := pow_pos hu 4
+  rw [show (8 : ℝ) * u⁻¹ = 8 / u by rw [div_eq_mul_inv]]
+  rw [add_div' _ _ _ h4.ne', div_le_div_iff₀ h4 hu]
+  nlinarith [mul_le_mul_of_nonneg_right hpoly hu.le]
+
+/-- (H18) **Small-`k` branch** (`k < 2401 = 7⁴`): the whole statement is trivial from the
+normalized sup being ≤ 1 and `1 + 2⌈√k⌉/k ≤ 8k^{−1/4}` on this range (in polynomial form
+`t⁴ + 2t² + 2 ≤ 8t³` for `t = k^{1/4} ∈ [1,7]`). -/
+private theorem guessBlock_integral_le_cutNormDiff_of_small (W : Graphon α μ) (ε' : ℝ)
+    {k : ℕ} [NeZero k] (hk : k < 2401) :
+    (∫ x, (k : ℝ)⁻¹ ^ 2 * (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup'
+        Finset.univ_nonempty (fun AB ↦ |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k,
+          coreDiff W ε' x i j|) ∂Measure.pi (fun _ : Fin k ↦ μ))
+      + 2 * ((guessBlock k).card : ℝ) / k
+      ≤ cutNormDiff W (chosenStep W ε') + 8 * ((k : ℝ) ^ (-(1 / 4 : ℝ))) := by
+  have hk1 : 1 ≤ k := Nat.pos_of_ne_zero (NeZero.ne k)
+  set π : Measure (Fin k → α) := Measure.pi (fun _ : Fin k ↦ μ) with hπ
+  set g : (Fin k → α) → ℝ := fun x ↦ (k : ℝ)⁻¹ ^ 2 *
+      (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup' Finset.univ_nonempty
+        (fun AB ↦ |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k,
+          coreDiff W ε' x i j|) with hg
+  -- `g` is measurable and `g ∈ [0,1]` (the `hg_meas`/`hg_le` pattern of the consumer)
+  have hg_meas : Measurable g := by
+    have heq : g = fun x ↦ (k : ℝ)⁻¹ ^ 2 * Finset.univ.sup' Finset.univ_nonempty
+        (fun (AB : Finset (Fin k) × Finset (Fin k)) (x : Fin k → α) ↦
+          |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k, coreDiff W ε' x i j|) x := by
+      funext x; rw [hg, Finset.sup'_apply]
+    rw [heq]
+    refine measurable_const.mul (Finset.measurable_sup' _ (fun AB _ ↦ ?_))
+    refine continuous_abs.measurable.comp
+      (Finset.measurable_sum _ (fun i _ ↦ Finset.measurable_sum _ (fun j _ ↦ ?_)))
+    simp only [coreDiff]
+    exact (measurable_clampEval W i j).sub (measurable_clampEval (chosenStep W ε') i j)
+  have hg_nn : ∀ x, 0 ≤ g x := by
+    intro x
+    rw [hg]
+    refine mul_nonneg (by positivity) (le_trans ?_
+      (Finset.le_sup' (fun AB : Finset (Fin k) × Finset (Fin k) ↦
+          |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k, coreDiff W ε' x i j|)
+        (Finset.mem_univ ((∅, ∅) : Finset (Fin k) × Finset (Fin k)))))
+    exact abs_nonneg _
+  have hg_le : ∀ x, g x ≤ 1 := by
+    intro x
+    rw [hg]
+    have hsup : Finset.univ.sup' Finset.univ_nonempty
+        (fun AB : Finset (Fin k) × Finset (Fin k) ↦
+          |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k, coreDiff W ε' x i j|)
+        ≤ (k : ℝ) ^ 2 := by
+      refine Finset.sup'_le _ _ (fun AB _ ↦ ?_)
+      refine (abs_coreDiff_rect_le W ε' x _ _).trans ?_
+      have hc : ∀ S : Finset (Fin k), ((S \ guessBlock k).card : ℝ) ≤ k := by
+        intro S
+        calc ((S \ guessBlock k).card : ℝ)
+            ≤ ((Finset.univ : Finset (Fin k)).card : ℝ) := by
+              exact_mod_cast Finset.card_le_card (Finset.subset_univ _)
+          _ = k := by rw [Finset.card_univ, Fintype.card_fin]
+      calc ((AB.1 \ guessBlock k).card : ℝ) * ((AB.2 \ guessBlock k).card : ℝ)
+          ≤ (k : ℝ) * k := mul_le_mul (hc _) (hc _) (by positivity) (by positivity)
+        _ = (k : ℝ) ^ 2 := by ring
+    calc (k : ℝ)⁻¹ ^ 2 * _
+        ≤ (k : ℝ)⁻¹ ^ 2 * (k : ℝ) ^ 2 := mul_le_mul_of_nonneg_left hsup (by positivity)
+      _ = 1 := by field_simp
+  have hg_int : Integrable g π :=
+    (integrable_const (1 : ℝ)).mono' hg_meas.aestronglyMeasurable
+      (ae_of_all _ (fun x ↦ by rw [Real.norm_eq_abs, abs_of_nonneg (hg_nn x)]; exact hg_le x))
+  -- ∫ g ≤ 1 on the probability measure
+  have hint_le : ∫ x, g x ∂π ≤ 1 := by
+    have h := integral_mono hg_int (integrable_const (1 : ℝ)) hg_le
+    rwa [integral_const, smul_eq_mul, probReal_univ, one_mul] at h
+  -- cardinality cost and the arithmetic core
+  have hcard : 2 * ((guessBlock k).card : ℝ) / k ≤ 2 * ((⌈Real.sqrt k⌉₊ : ℝ)) / k := by
+    gcongr
+    exact_mod_cast guessBlock_card_le k
+  have harith := small_k_arith hk1 hk
+  have hcn : 0 ≤ cutNormDiff W (chosenStep W ε') := cutNormDiff_nonneg _ _
+  calc (∫ x, g x ∂π) + 2 * ((guessBlock k).card : ℝ) / k
+      ≤ 1 + 2 * ((⌈Real.sqrt k⌉₊ : ℝ)) / k := add_le_add hint_le hcard
+    _ ≤ 8 * (k : ℝ) ^ (-(1 / 4 : ℝ)) := harith
+    _ ≤ cutNormDiff W (chosenStep W ε') + 8 * ((k : ℝ) ^ (-(1 / 4 : ℝ))) := by linarith
 
 /-- **Crux — AFKK / Lovász-10.7 Q-subsample cut-guessing** (the single remaining narrowed
 `sorry`). After the block-split reduction `coreTerm_restrict_fresh_block`, what remains is to
