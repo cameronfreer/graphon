@@ -3068,45 +3068,162 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
   rw [h_cd_lim, cutDistance_symm V_W (stepify (P_seq (ψ m)) (W_seq (ψ m)))] at h_tri
   linarith [h_far (ψ m), h_cd_U, h_cd_W]
 
+/-! ### Headline assembly: equal densities ⟹ cut distance zero
+
+The assembly below wires `simultaneous_regularity` → counting bridge →
+step inverse counting → triangle inequality. Everything is proved except one
+named parameter-selection lemma (`headline_parameter_selection`), which isolates
+the genuine mathematical gap; see its docstring for the circularity analysis. -/
+
+/-- Crude uniform edge-count bound: a simple graph on `m` vertices has at most `m·m`
+edges (via `|E| ≤ |Sym2 (Fin m)| = m(m+1)/2 ≤ m·m`). -/
+private theorem edgeFinset_card_le_sq {m : ℕ} (F : SimpleGraph (Fin m))
+    [DecidableRel F.Adj] : F.edgeFinset.card ≤ m * m := by
+  calc F.edgeFinset.card ≤ Fintype.card (Sym2 (Fin m)) := Finset.card_le_univ _
+    _ = (m + 1).choose 2 := by rw [Sym2.card, Fintype.card_fin]
+    _ ≤ m * m := by
+        rw [Nat.choose_two_right]
+        simp only [Nat.add_sub_cancel]
+        rcases Nat.eq_zero_or_pos m with hm | hm
+        · simp [hm]
+        · refine Nat.div_le_of_le_mul ?_
+          calc (m + 1) * m ≤ 2 * m * m :=
+                Nat.mul_le_mul_right m (by omega : m + 1 ≤ 2 * m)
+            _ = 2 * (m * m) := by ring
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- **Counting bridge for stepifications**: if both stepifications are `δ`-close to their
+originals in cut norm and the originals have exactly equal hom densities, then the
+stepifications' hom densities differ by at most `2·(m·m)·δ` for every graph on `m`
+vertices. -/
+private theorem stepify_homDensity_transfer
+    (U W : Graphon α μ)
+    (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
+         homDensity F U = homDensity F W)
+    (P : MeasurablePartition α μ) (δ : ℝ)
+    (hU : cutNormDiff U (stepify P U) ≤ δ) (hW : cutNormDiff W (stepify P W) ≤ δ)
+    {m : ℕ} (F : SimpleGraph (Fin m)) [DecidableRel F.Adj] :
+    |homDensity F (stepify P U) - homDensity F (stepify P W)| ≤ 2 * (m * m : ℝ) * δ := by
+  have hcard : (F.edgeFinset.card : ℝ) ≤ (m * m : ℝ) := by
+    exact_mod_cast edgeFinset_card_le_sq F
+  have hUside : |homDensity F (stepify P U) - homDensity F U| ≤ (m * m : ℝ) * δ := by
+    rw [abs_sub_comm]
+    calc |homDensity F U - homDensity F (stepify P U)|
+        ≤ F.edgeFinset.card * cutNormDiff U (stepify P U) := homDensity_sub_le F _ _
+      _ ≤ (m * m : ℝ) * δ :=
+          mul_le_mul hcard hU (cutNormDiff_nonneg _ _) (by positivity)
+  have hWside : |homDensity F W - homDensity F (stepify P W)| ≤ (m * m : ℝ) * δ :=
+    calc |homDensity F W - homDensity F (stepify P W)|
+        ≤ F.edgeFinset.card * cutNormDiff W (stepify P W) := homDensity_sub_le F _ _
+      _ ≤ (m * m : ℝ) * δ :=
+          mul_le_mul hcard hW (cutNormDiff_nonneg _ _) (by positivity)
+  calc |homDensity F (stepify P U) - homDensity F (stepify P W)|
+      = |(homDensity F (stepify P U) - homDensity F U) +
+          (homDensity F U - homDensity F W) +
+          (homDensity F W - homDensity F (stepify P W))| := by ring_nf
+    _ ≤ |homDensity F (stepify P U) - homDensity F U| +
+          |homDensity F U - homDensity F W| +
+          |homDensity F W - homDensity F (stepify P W)| := abs_add_three _ _ _
+    _ = |homDensity F (stepify P U) - homDensity F U| +
+          |homDensity F W - homDensity F (stepify P W)| := by rw [h m F]; simp
+    _ ≤ (m * m : ℝ) * δ + (m * m : ℝ) * δ := add_le_add hUside hWside
+    _ = 2 * (m * m : ℝ) * δ := by ring
+
+/-- **THE headline parameter selection** — the single remaining gap in the assembly of
+`cutDistance_zero_of_homDensity_eq`.
+
+It demands, for each accuracy `ε`, a regularity quality `δ`, a density tolerance
+`δ_step`, and a graph size `m` such that (a) `δ ≤ ε/3`, (b) the counting-bridge
+transfer error `2·(m·m)·δ` beats `δ_step`, and (c) the step inverse counting lemma at
+tolerance `(δ_step, m)` covers every partition of size up to the `simultaneous_regularity`
+bound `K(δ) = 4^(2(⌈1/δ²⌉+1))`.
+
+**Why this does not follow from `step_quantitative_icl_bounded` by parameter
+bookkeeping** (the doc comment previously attached to the headline claimed it does; the
+claim was circular): `step_quantitative_icl_bounded K (ε/3)` produces `(δ_step, m)`
+depending on `K`, but requirement (c) forces `K ≥ K(δ)` while requirement (b) forces
+`δ < δ_step(K)/(2m(K)²)` — a fixed point `δ < φ(δ)` for the composite
+`φ(δ) := δ_step(K(δ))/(2·m(K(δ))² )`. Since `(δ_step, m)` come from a compactness
+contradiction (nonconstructive) and `φ` may decay arbitrarily fast, no such fixed point
+is guaranteed; even explicit tower-type bounds `δ_step(K) ~ tower(K)⁻¹` decay faster
+than `δ ↦ δ` and admit no fixed point. The circularity is genuine, not an artifact.
+
+**Honest discharge routes** (in the classical literature the inverse counting lemma is
+NOT proved by regularity bookkeeping for exactly this reason):
+1. **Sampling** (Borgs–Chayes–Lovász–Sós–Vesztergombi, "Convergent sequences I",
+   Thm 3.7(a); Lovász book §10.5–10.6): the First/Second Sampling Lemmas give
+   `δ_□(U, G(k,U)) → 0` with `K`-INDEPENDENT rates; density closeness at level `k`
+   couples the sampled graphs. This yields a partition-size-independent step ICL, from
+   which this lemma follows by taking `δ := min(ε/3, δ_step/(2m²+1))` — condition (c)
+   is then vacuous. This is the canonical route and needs the sampling infrastructure
+   (`Graphon/Sampling.lean` is currently only a stub).
+2. **A `K`-independent uniform step ICL** proved by any other means (it is exactly the
+   restriction of the full quantitative ICL to step graphons; no regularity-only proof
+   is known).
+
+Until discharged, this sorry is the precise mathematical content separating the project
+from "only Rokhlin remains". -/
+private theorem headline_parameter_selection (ε : ℝ) (hε : 0 < ε) :
+    ∃ (δ : ℝ) (_ : 0 < δ) (δ_step : ℝ) (_ : 0 < δ_step) (m : ℕ),
+      δ ≤ ε / 3 ∧ 2 * (m * m : ℝ) * δ < δ_step ∧
+      ∀ (P : MeasurablePartition α μ),
+        P.parts.card ≤ 4 ^ (2 * (Nat.ceil (1 / δ ^ 2) + 1)) →
+        ∀ (U W : Graphon α μ),
+          (∀ (F : SimpleGraph (Fin m)) [DecidableRel F.Adj],
+            |homDensity F (stepify P U) - homDensity F (stepify P W)| < δ_step) →
+          cutDistance (stepify P U) (stepify P W) < ε / 3 := by
+  sorry
+
 /-- **Algebraic determination**: two graphons with equal homomorphism densities
 for all finite graphs have cut distance zero (are weakly isomorphic).
 
-The proof combines `simultaneous_regularity` (which gives a cardinality bound
-`K = 4 ^ (2 * (⌈1/δ²⌉ + 1))`) with `step_quantitative_icl_bounded K (ε/3)`
-(uniform compactness over all partitions with ≤ K parts) and the counting lemma.
-For any ε > 0:
+FULLY ASSEMBLED (2026-07-06) modulo the single named parameter-selection lemma
+`headline_parameter_selection`. For any ε > 0: obtain `(δ, δ_step, m)` from the
+selection lemma; apply `simultaneous_regularity U W δ` to get a partition `P` within
+its cardinality bound with both stepifications `δ`-close in cut norm; the counting
+bridge `stepify_homDensity_transfer` converts the EXACT density equality of `U, W`
+into `2(m·m)δ < δ_step` density closeness of the stepifications; the selection lemma's
+step ICL gives `cutDistance(stepify P U, stepify P W) < ε/3`; two triangle inequalities
+with `cutDistance_le_cutNormDiff` finish `cutDistance U W < ε`. Nonnegativity converts
+`∀ ε > 0, < ε` into `= 0`.
 
-1. Apply `step_quantitative_icl_bounded K (ε/3)` to get (δ_step, m) uniform over
-   all partitions with ≤ K parts
-2. Choose δ so that (a) δ ≤ ε/3 and (b) the counting lemma converts cutNormDiff ≤ δ
-   into hom density differences < δ_step for all graphs on ≤ m vertices
-3. Apply `simultaneous_regularity U W δ` to get partition P with P.parts.card ≤ K,
-   cutNormDiff U (stepify P U) ≤ δ, cutNormDiff W (stepify P W) ≤ δ
-4. By the counting lemma (step 2b), step graphons on P satisfy the δ_step condition,
-   so `step_quantitative_icl_bounded` gives cutDistance(stepify P U, stepify P W) < ε/3
-5. Triangle inequality: cutDistance(U, W) ≤ cutNormDiff(U, stepify P U) +
-   cutDistance(stepify P U, stepify P W) + cutNormDiff(W, stepify P W) < ε
-
-The key insight is that `step_quantitative_icl_bounded` eliminates the circular
-dependency: δ_step and m depend only on K and ε, not on the specific partition P.
-The cardinality bound K from `simultaneous_regularity` depends only on the
-regularity parameter δ, which is chosen AFTER obtaining (δ_step, m).
-
-**Sorry traces to**: `step_quantitative_icl_bounded` (compactness over bounded partitions)
-→ `step_quantitative_icl` → `cutDistance_zero_of_step_homDensity_eq`
-→ `matrix_quotient_of_weightedHomSum_eq` (algebraic core) +
-`MeasurePreserving.exists_common_extension` (Rokhlin). -/
+**Sorry traces to**: `headline_parameter_selection` (see its docstring — sampling route)
++ `MeasurePreserving.exists_common_extension` (Rokhlin, through
+`step_quantitative_icl_bounded` if the selection lemma is discharged through it). -/
 theorem cutDistance_zero_of_homDensity_eq [StandardBorelSpace α] [NoAtoms μ]
     (U W : Graphon α μ)
     (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
          homDensity F U = homDensity F W) :
     cutDistance U W = 0 := by
-  -- The proof requires a uniform version of step_quantitative_icl over all partitions
-  -- with bounded card, combined with simultaneous_regularity and the counting lemma.
-  -- This traces to matrix_quotient_of_weightedHomSum_eq (algebraic core) +
-  -- MeasurePreserving.exists_common_extension (Rokhlin) through
-  -- step_quantitative_icl → cutDistance_zero_of_step_homDensity_eq.
-  sorry
+  have key : ∀ ε : ℝ, 0 < ε → cutDistance U W < ε := by
+    intro ε hε
+    obtain ⟨δ, hδ_pos, δ_step, hδs_pos, m, hδ_le, htrans, hicl⟩ :=
+      headline_parameter_selection (α := α) (μ := μ) ε hε
+    obtain ⟨P, hP_card, hPU, hPW⟩ := simultaneous_regularity U W δ hδ_pos
+    have hstep : cutDistance (stepify P U) (stepify P W) < ε / 3 := by
+      refine hicl P hP_card U W ?_
+      intro F _
+      calc |homDensity F (stepify P U) - homDensity F (stepify P W)|
+          ≤ 2 * (m * m : ℝ) * δ := stepify_homDensity_transfer U W h P δ hPU hPW F
+        _ < δ_step := htrans
+    have hU_close : cutDistance U (stepify P U) ≤ δ :=
+      (cutDistance_le_cutNormDiff U (stepify P U)).trans hPU
+    have hW_close : cutDistance (stepify P W) W ≤ δ := by
+      rw [cutDistance_symm]
+      exact (cutDistance_le_cutNormDiff W (stepify P W)).trans hPW
+    calc cutDistance U W
+        ≤ cutDistance U (stepify P U) + cutDistance (stepify P U) W :=
+          cutDistance_triangle _ _ _
+      _ ≤ cutDistance U (stepify P U) +
+            (cutDistance (stepify P U) (stepify P W) + cutDistance (stepify P W) W) := by
+          linarith [cutDistance_triangle (stepify P U) (stepify P W) W]
+      _ < δ + (ε / 3 + δ) := by linarith
+      _ ≤ ε / 3 + (ε / 3 + ε / 3) := by linarith
+      _ = ε := by ring
+  have h0 := cutDistance_nonneg U W
+  by_contra hne
+  exact absurd (key (cutDistance U W) (lt_of_le_of_ne h0 (Ne.symm hne)))
+    (lt_irrefl _)
 
 /-- The inverse counting lemma: similar homomorphism densities imply
     small cut distance.
