@@ -544,6 +544,230 @@ private theorem ae_clampEval_chosenStep_eq (W : Graphon α μ) (ε' : ℝ) {k : 
     ((chosenPartition W ε').measurableSet_part hT)
   rw [clampEval, hx, heval, max_eq_right havg.1, min_eq_right havg.2]
 
+/-- A step-graphon coefficient function built from a symmetric matrix `M` indexed through an
+injective enumeration `ι : Fin n → Set α` (matching the `dite`-shape of
+`sampleWeightedGraphonOn`). -/
+noncomputable def coeffOfMatrix {n : ℕ} (ι : Fin n → Set α) (M : Fin n → Fin n → ℝ) :
+    Set α → Set α → ℝ :=
+  fun A B ↦ if h : (∃ i, ι i = A) ∧ (∃ j, ι j = B) then M h.1.choose h.2.choose else 0
+
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+theorem coeffOfMatrix_symm {n : ℕ} (ι : Fin n → Set α) (M : Fin n → Fin n → ℝ)
+    (hM : ∀ i j, M i j = M j i) (A B : Set α) :
+    coeffOfMatrix ι M A B = coeffOfMatrix ι M B A := by
+  unfold coeffOfMatrix
+  by_cases h : (∃ i, ι i = A) ∧ (∃ j, ι j = B)
+  · rw [dif_pos h, dif_pos ⟨h.2, h.1⟩]; exact hM _ _
+  · rw [dif_neg h, dif_neg (fun hc ↦ h ⟨hc.2, hc.1⟩)]
+
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+theorem coeffOfMatrix_mem {n : ℕ} (ι : Fin n → Set α) (M : Fin n → Fin n → ℝ)
+    (hM : ∀ i j, M i j ∈ Set.Icc (0 : ℝ) 1) (A B : Set α) :
+    coeffOfMatrix ι M A B ∈ Set.Icc (0 : ℝ) 1 := by
+  unfold coeffOfMatrix
+  by_cases h : (∃ i, ι i = A) ∧ (∃ j, ι j = B)
+  · rw [dif_pos h]; exact hM _ _
+  · rw [dif_neg h]; exact ⟨le_refl 0, zero_le_one⟩
+
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+theorem coeffOfMatrix_eq {n : ℕ} (ι : Fin n → Set α) (M : Fin n → Fin n → ℝ)
+    (hι : Function.Injective ι) (a b : Fin n) :
+    coeffOfMatrix ι M (ι a) (ι b) = M a b := by
+  unfold coeffOfMatrix
+  have h : (∃ i, ι i = ι a) ∧ (∃ j, ι j = ι b) := ⟨⟨a, rfl⟩, ⟨b, rfl⟩⟩
+  rw [dif_pos h]
+  exact congr_arg₂ M (hι h.1.choose_spec) (hι h.2.choose_spec)
+
+/-- **The coarsened partition** (part c1): for a.e.-good sampled `x` (each sample lies in a
+`P`-cell, recorded by the slot map `g`), the equicells grouped by the `P`-slot of their
+sample assemble into a `MeasurablePartition` `Q` whose cells (enumerated by `ιQ`, matched
+slot-by-slot to `ιP`) have measure equal to the empirical frequency of the corresponding
+`P`-cell, and each equicell lies (a.e.) inside its group's `Q`-cell. Empty groups are padded
+by distinct measure-zero points extracted from a positive-measure group. Isolated construction
+step; part of the `first_sampling_lemma` accounting, NOT a new live input. -/
+private theorem exists_coarsened_partition {k : ℕ} [NeZero k] (P : MeasurablePartition α μ)
+    (ιP : Fin P.parts.card → Set α) (hιP_mem : ∀ i, ιP i ∈ P.parts)
+    (hιP_inj : Function.Injective ιP)
+    (x : Fin k → α) (g : Fin k → Fin P.parts.card) (hg : ∀ i, x i ∈ ιP (g i)) :
+    ∃ (Q : MeasurablePartition α μ) (ιQ : Fin P.parts.card → Set α),
+      (∀ i, ιQ i ∈ Q.parts) ∧ Function.Injective ιQ ∧
+      (∀ S ∈ Q.parts, ∃ i, ιQ i = S) ∧
+      (∀ s, (μ (ιQ s)).toReal = empFreq (ιP s) x) ∧
+      (∀ i : Fin k, μ (equipartitionCell (α := α) (μ := μ) k i \ ιQ (g i)) = 0) := by
+  classical
+  have hkpos : (0 : ℝ) < (k : ℝ) := by exact_mod_cast Nat.pos_of_ne_zero (NeZero.ne k)
+  -- distinct equicells are disjoint
+  have hcell_disj : ∀ i j : Fin k, i ≠ j →
+      Disjoint (equipartitionCell (α := α) (μ := μ) k i)
+        (equipartitionCell (α := α) (μ := μ) k j) := fun i j hij ↦
+    (equipartition k).pairwiseDisjoint (Finset.mem_coe.mpr (equipartitionCell_mem k i))
+      (Finset.mem_coe.mpr (equipartitionCell_mem k j))
+      (fun h ↦ hij (equipartitionCell_injective k h))
+  -- slot membership ↔ sample membership
+  have hgiff : ∀ (i : Fin k) (s : Fin P.parts.card), g i = s ↔ x i ∈ ιP s := by
+    intro i s
+    refine ⟨fun h ↦ h ▸ hg i, fun hxs ↦ ?_⟩
+    by_contra hne
+    have hd : Disjoint (ιP (g i)) (ιP s) := P.pairwiseDisjoint
+      (Finset.mem_coe.mpr (hιP_mem (g i))) (Finset.mem_coe.mpr (hιP_mem s))
+      (fun h ↦ hne (hιP_inj h))
+    exact Set.disjoint_left.mp hd (hg i) hxs
+  have hfilter : ∀ s : Fin P.parts.card, Finset.univ.filter (fun i ↦ g i = s)
+      = Finset.univ.filter (fun i ↦ x i ∈ ιP s) := by
+    intro s; ext i; simp only [Finset.mem_filter, Finset.mem_univ, true_and]; exact hgiff i s
+  -- the equicell groups
+  set Grp : Fin P.parts.card → Set α := fun s ↦ ⋃ i ∈ Finset.univ.filter (fun i ↦ g i = s),
+    equipartitionCell (α := α) (μ := μ) k i with hGrp_def
+  have hGrp_meas : ∀ s, MeasurableSet (Grp s) := fun s ↦
+    Finset.measurableSet_biUnion _ (fun i _ ↦
+      (equipartition k).measurableSet_part (equipartitionCell_mem k i))
+  have hGrp_toReal : ∀ s, (μ (Grp s)).toReal
+      = ((Finset.univ.filter (fun i ↦ g i = s)).card : ℝ) / k := by
+    intro s
+    rw [hGrp_def, measure_biUnion_finset
+      (fun i _ j _ hij ↦ hcell_disj i j hij)
+      (fun i _ ↦ (equipartition k).measurableSet_part (equipartitionCell_mem k i)),
+      ENNReal.toReal_sum (fun i _ ↦ measure_ne_top μ _),
+      Finset.sum_congr rfl (fun i _ ↦ equipartitionCell_measure k i),
+      Finset.sum_const, nsmul_eq_mul, ← div_eq_mul_inv]
+  have hGrp_disj : ∀ s t, s ≠ t → Disjoint (Grp s) (Grp t) := by
+    intro s t hst
+    rw [Set.disjoint_left]
+    intro a ha hb
+    rw [hGrp_def, Set.mem_iUnion₂] at ha hb
+    obtain ⟨i, hi, hai⟩ := ha
+    obtain ⟨i', hi', hai'⟩ := hb
+    rw [Finset.mem_filter] at hi hi'
+    exact Set.disjoint_left.mp
+      (hcell_disj i i' (by rintro rfl; exact hst (hi.2 ▸ hi'.2))) hai hai'
+  -- donor group and its distinct padding points
+  set i0 : Fin k := (0 : Fin k) with hi0_def
+  set s0 : Fin P.parts.card := g i0 with hs0_def
+  have hsub0 : equipartitionCell (α := α) (μ := μ) k i0 ⊆ Grp s0 := by
+    rw [hGrp_def]
+    exact Set.subset_biUnion_of_mem (Finset.mem_filter.mpr ⟨Finset.mem_univ _, rfl⟩)
+  have hcell0_ne : μ (equipartitionCell (α := α) (μ := μ) k i0) ≠ 0 := by
+    intro h
+    have hh := equipartitionCell_measure (α := α) (μ := μ) k i0
+    rw [h, ENNReal.toReal_zero] at hh
+    exact (inv_pos.mpr hkpos).ne' hh.symm
+  have hμ0 : μ (Grp s0) ≠ 0 := fun h ↦
+    hcell0_ne (nonpos_iff_eq_zero.mp (le_trans (measure_mono hsub0) h.le))
+  have hInf : (Grp s0).Infinite := fun hfin ↦ hμ0 (hfin.measure_zero μ)
+  set emb : ℕ ↪ ↥(Grp s0) := Set.Infinite.natEmbedding (Grp s0) hInf with hemb_def
+  set ζ : Fin P.parts.card → α := fun s ↦ (emb s.val).1 with hζ_def
+  have hζ_inj : Function.Injective ζ := fun s t h ↦
+    Fin.val_injective (emb.injective (Subtype.val_injective h))
+  have hζ_mem : ∀ s, ζ s ∈ Grp s0 := fun s ↦ (emb s.val).2
+  set D : Finset (Fin P.parts.card) :=
+    Finset.univ.filter (fun s ↦ (Finset.univ.filter (fun i ↦ g i = s)).card = 0) with hD_def
+  set Remove : Set α := ζ '' ↑D with hRemove_def
+  have hRemove_null : μ Remove = 0 := (D.finite_toSet.image ζ).measure_zero μ
+  -- the coarsened cells
+  set ιQ : Fin P.parts.card → Set α :=
+    fun s ↦ (Grp s \ Remove) ∪ (if s ∈ D then ({ζ s} : Set α) else ∅) with hιQ_def
+  have hιQ_measure_eq : ∀ s, μ (ιQ s) = μ (Grp s) := by
+    intro s
+    have hpad : μ (if s ∈ D then ({ζ s} : Set α) else ∅) = 0 := by
+      split_ifs with h
+      · exact measure_singleton _
+      · exact measure_empty
+    refine le_antisymm ?_ ?_
+    · calc μ (ιQ s) ≤ μ (Grp s \ Remove) + μ (if s ∈ D then ({ζ s} : Set α) else ∅) :=
+            measure_union_le _ _
+        _ = μ (Grp s) := by rw [measure_sdiff_null hRemove_null, hpad, add_zero]
+    · rw [hιQ_def, ← measure_sdiff_null (s := Grp s) hRemove_null]
+      exact measure_mono Set.subset_union_left
+  have hmeasure_final : ∀ s, (μ (ιQ s)).toReal = empFreq (ιP s) x := by
+    intro s
+    rw [hιQ_measure_eq s, hGrp_toReal s, hfilter s]; rfl
+  -- disjointness of the coarsened cells
+  have hιQ_disj : ∀ s t, s ≠ t → Disjoint (ιQ s) (ιQ t) := by
+    intro s t hst
+    rw [Set.disjoint_left]
+    rintro a ha hb
+    rw [hιQ_def] at ha hb
+    rcases ha with haGs | haPs
+    · rcases hb with hbGt | hbPt
+      · exact Set.disjoint_left.mp (hGrp_disj s t hst) haGs.1 hbGt.1
+      · by_cases htd : t ∈ D
+        · rw [if_pos htd, Set.mem_singleton_iff] at hbPt
+          exact haGs.2 (by rw [hbPt]; exact Set.mem_image_of_mem ζ (Finset.mem_coe.mpr htd))
+        · rw [if_neg htd] at hbPt; exact hbPt
+    · by_cases hsd : s ∈ D
+      · rw [if_pos hsd, Set.mem_singleton_iff] at haPs
+        rcases hb with hbGt | hbPt
+        · exact hbGt.2 (by rw [haPs]; exact Set.mem_image_of_mem ζ (Finset.mem_coe.mpr hsd))
+        · by_cases htd : t ∈ D
+          · rw [if_pos htd, Set.mem_singleton_iff] at hbPt
+            exact hst (hζ_inj (haPs.symm.trans hbPt))
+          · rw [if_neg htd] at hbPt; exact hbPt
+      · rw [if_neg hsd] at haPs; exact haPs
+  have hιQ_ne : ∀ s, (ιQ s).Nonempty := by
+    intro s
+    by_cases hsd : s ∈ D
+    · exact ⟨ζ s, Set.mem_union_right _ (by rw [if_pos hsd]; exact Set.mem_singleton _)⟩
+    · have hcardpos : 0 < (Finset.univ.filter (fun i ↦ g i = s)).card :=
+        Nat.pos_of_ne_zero (fun hc ↦ hsd (Finset.mem_filter.mpr ⟨Finset.mem_univ _, hc⟩))
+      have hpos : μ (ιQ s) ≠ 0 := by
+        rw [hιQ_measure_eq s]
+        intro h
+        have hh := hGrp_toReal s
+        rw [h, ENNReal.toReal_zero] at hh
+        have hposr : (0 : ℝ) < ((Finset.univ.filter (fun i ↦ g i = s)).card : ℝ) / k :=
+          div_pos (by exact_mod_cast hcardpos) hkpos
+        linarith
+      exact nonempty_of_measure_ne_zero hpos
+  have hιQ_inj : Function.Injective ιQ := by
+    intro s t hst
+    by_contra hne
+    have hd := hιQ_disj s t hne
+    rw [hst] at hd
+    refine (hιQ_ne t).ne_empty ?_
+    have := Set.disjoint_iff_inter_eq_empty.mp hd
+    rwa [Set.inter_self] at this
+  -- each equicell sits (a.e.) inside its group's coarsened cell
+  have hsubset : ∀ i : Fin k, μ (equipartitionCell (α := α) (μ := μ) k i \ ιQ (g i)) = 0 := by
+    intro i
+    refine measure_mono_null ?_ hRemove_null
+    intro a ⟨hai, hani⟩
+    by_contra haR
+    refine hani ?_
+    rw [hιQ_def]
+    refine Set.mem_union_left _ ⟨?_, haR⟩
+    rw [hGrp_def]
+    exact Set.mem_biUnion (Finset.mem_filter.mpr ⟨Finset.mem_univ _, rfl⟩) hai
+  -- assemble the partition
+  have hpairwise : (↑(Finset.image ιQ Finset.univ) : Set (Set α)).PairwiseDisjoint id := by
+    intro S hS T hT hST
+    simp only [Finset.coe_image, Set.mem_image, Finset.mem_coe, Finset.mem_univ, true_and] at hS hT
+    obtain ⟨s, rfl⟩ := hS; obtain ⟨t, rfl⟩ := hT
+    exact hιQ_disj s t (fun h ↦ hST (congrArg ιQ h))
+  have hcover_cells : ∀ᵐ y ∂μ, ∃ i, y ∈ equipartitionCell (α := α) (μ := μ) k i := by
+    filter_upwards [(equipartition k).ae_covers] with y ⟨S, hS, hyS⟩
+    obtain ⟨i, rfl⟩ := equipartitionCell_surjOn k S hS
+    exact ⟨i, hyS⟩
+  have hnotRemove : ∀ᵐ y ∂μ, y ∉ Remove := by
+    rw [ae_iff]; simp only [not_not, Set.setOf_mem_eq]; exact hRemove_null
+  have hae_covers : ∀ᵐ y ∂μ, ∃ S ∈ Finset.image ιQ Finset.univ, y ∈ S := by
+    filter_upwards [hcover_cells, hnotRemove] with y ⟨i, hyi⟩ hyR
+    refine ⟨ιQ (g i), Finset.mem_image.mpr ⟨g i, Finset.mem_univ _, rfl⟩, ?_⟩
+    rw [hιQ_def]
+    refine Set.mem_union_left _ ⟨?_, hyR⟩
+    rw [hGrp_def]
+    exact Set.mem_biUnion (Finset.mem_filter.mpr ⟨Finset.mem_univ _, rfl⟩) hyi
+  refine ⟨⟨Finset.image ιQ Finset.univ, ?_, hpairwise, hae_covers⟩, ιQ,
+    fun i ↦ Finset.mem_image.mpr ⟨i, Finset.mem_univ _, rfl⟩, hιQ_inj,
+    ?_, hmeasure_final, hsubset⟩
+  · intro S hS
+    obtain ⟨s, _, rfl⟩ := Finset.mem_image.mp hS
+    rw [hιQ_def]
+    exact ((hGrp_meas s).diff (D.finite_toSet.image ζ).measurableSet).union
+      (by split_ifs <;> [exact measurableSet_singleton _; exact MeasurableSet.empty])
+  · intro S hS
+    obtain ⟨s, _, rfl⟩ := Finset.mem_image.mp hS
+    exact ⟨s, rfl⟩
+
 /-- **Part c — the frequency layer** (the weight-perturbation construction). The chosen step
 graphon is `freqTerm`-close to its own weighted sample. This is the main construction cost of
 the point-sampling majorant: the equicells grouped by the `P`-cell of their sample point form
@@ -556,7 +780,215 @@ private theorem cutDistance_chosenStep_sampleWeighted_le_freqTerm (W : Graphon �
     ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ),
       cutDistance (chosenStep W ε') (sampleWeightedGraphonOn (chosenStep W ε') x)
         ≤ freqTerm W ε' k x := by
-  sorry
+  classical
+  set P := chosenPartition W ε' with hP
+  set m := P.parts.card with hm_def
+  -- enumeration of `P.parts`
+  set ιP : Fin m → Set α := fun s ↦ ((P.parts.equivFin).symm s : Set α) with hιP_def
+  have hιP_mem : ∀ s, ιP s ∈ P.parts := fun s ↦ Finset.coe_mem _
+  have hιP_inj : Function.Injective ιP := fun s t h ↦
+    (P.parts.equivFin.symm).injective (Subtype.ext h)
+  have hιP_surj : ∀ S ∈ P.parts, ∃ s, ιP s = S := by
+    intro S hS; exact ⟨P.parts.equivFin ⟨S, hS⟩, by simp [hιP_def]⟩
+  -- a.e. coefficient alignment over all off-diagonal pairs
+  have halign_ae : ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ), ∀ i j : Fin k, i ≠ j →
+      ∀ S ∈ P.parts, ∀ T ∈ P.parts, x (min i j) ∈ S → x (max i j) ∈ T →
+        clampEval (chosenStep W ε') x i j = rectAverage W S T := by
+    rw [ae_all_iff]; intro i; rw [ae_all_iff]; intro j
+    by_cases hij : i = j
+    · exact Filter.Eventually.of_forall (fun x h ↦ absurd hij h)
+    · filter_upwards [ae_clampEval_chosenStep_eq W ε' hij] with x hx; intro _; exact hx
+  filter_upwards [ae_forall_sample_mem_part P, halign_ae] with x hcov halign
+  -- the slot map `g`: which `P`-cell each sample lands in
+  have hcov' : ∀ i, ∃ s, x i ∈ ιP s := by
+    intro i; obtain ⟨S, hS, hxS⟩ := hcov i; obtain ⟨s, hs⟩ := hιP_surj S hS
+    exact ⟨s, hs ▸ hxS⟩
+  set g : Fin k → Fin m := fun i ↦ (hcov' i).choose with hg_def
+  have hg : ∀ i, x i ∈ ιP (g i) := fun i ↦ (hcov' i).choose_spec
+  -- coarsened partition
+  obtain ⟨Q, ιQ, hιQ_mem, hιQ_inj, hιQ_surj, hιQ_measure, hιQ_subset⟩ :=
+    exists_coarsened_partition P ιP hιP_mem hιP_inj x g hg
+  -- coefficient matrices
+  set MQ : Fin m → Fin m → ℝ := fun i j ↦ rectAverage W (ιP i) (ιP j) with hMQ_def
+  set Mmid : Fin k → Fin k → ℝ := fun i j ↦ rectAverage W (ιP (g i)) (ιP (g j)) with hMmid_def
+  set Msample : Fin k → Fin k → ℝ := fun i j ↦ clampEval (chosenStep W ε') x i j with hMsample_def
+  have hMQ_symm : ∀ i j, MQ i j = MQ j i := fun i j ↦
+    rectAverage_symm W _ _ (P.measurableSet_part (hιP_mem i)) (P.measurableSet_part (hιP_mem j))
+  have hMQ_mem : ∀ i j, MQ i j ∈ Set.Icc (0 : ℝ) 1 := fun i j ↦
+    rectAverage_mem_Icc W _ _ (P.measurableSet_part (hιP_mem i)) (P.measurableSet_part (hιP_mem j))
+  have hMmid_symm : ∀ i j, Mmid i j = Mmid j i := fun i j ↦
+    rectAverage_symm W _ _ (P.measurableSet_part (hιP_mem (g i)))
+      (P.measurableSet_part (hιP_mem (g j)))
+  have hMmid_mem : ∀ i j, Mmid i j ∈ Set.Icc (0 : ℝ) 1 := fun i j ↦
+    rectAverage_mem_Icc W _ _ (P.measurableSet_part (hιP_mem (g i)))
+      (P.measurableSet_part (hιP_mem (g j)))
+  have hMsample_symm : ∀ i j, Msample i j = Msample j i := by
+    intro i j; simp only [hMsample_def, clampEval, min_comm i j, max_comm i j]
+  have hMsample_mem : ∀ i j, Msample i j ∈ Set.Icc (0 : ℝ) 1 := fun i j ↦
+    ⟨clampEval_nonneg _ x i j, clampEval_le_one _ x i j⟩
+  -- coefficient functions and their symm/mem proofs
+  have hcQ_symm : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts,
+      coeffOfMatrix ιQ MQ S T = coeffOfMatrix ιQ MQ T S :=
+    fun S _ T _ ↦ coeffOfMatrix_symm ιQ MQ hMQ_symm S T
+  have hcQ_mem : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts,
+      coeffOfMatrix ιQ MQ S T ∈ Set.Icc (0 : ℝ) 1 :=
+    fun S _ T _ ↦ coeffOfMatrix_mem ιQ MQ hMQ_mem S T
+  have hcMid_symm : ∀ S ∈ (equipartition (α := α) (μ := μ) k).parts,
+      ∀ T ∈ (equipartition (α := α) (μ := μ) k).parts,
+      coeffOfMatrix (equipartitionCell (α := α) (μ := μ) k) Mmid S T
+        = coeffOfMatrix (equipartitionCell (α := α) (μ := μ) k) Mmid T S :=
+    fun S _ T _ ↦ coeffOfMatrix_symm _ Mmid hMmid_symm S T
+  have hcMid_mem : ∀ S ∈ (equipartition (α := α) (μ := μ) k).parts,
+      ∀ T ∈ (equipartition (α := α) (μ := μ) k).parts,
+      coeffOfMatrix (equipartitionCell (α := α) (μ := μ) k) Mmid S T ∈ Set.Icc (0 : ℝ) 1 :=
+    fun S _ T _ ↦ coeffOfMatrix_mem _ Mmid hMmid_mem S T
+  have hcSamp_symm : ∀ S ∈ (equipartition (α := α) (μ := μ) k).parts,
+      ∀ T ∈ (equipartition (α := α) (μ := μ) k).parts,
+      coeffOfMatrix (equipartitionCell (α := α) (μ := μ) k) Msample S T
+        = coeffOfMatrix (equipartitionCell (α := α) (μ := μ) k) Msample T S :=
+    fun S _ T _ ↦ coeffOfMatrix_symm _ Msample hMsample_symm S T
+  have hcSamp_mem : ∀ S ∈ (equipartition (α := α) (μ := μ) k).parts,
+      ∀ T ∈ (equipartition (α := α) (μ := μ) k).parts,
+      coeffOfMatrix (equipartitionCell (α := α) (μ := μ) k) Msample S T ∈ Set.Icc (0 : ℝ) 1 :=
+    fun S _ T _ ↦ coeffOfMatrix_mem _ Msample hMsample_mem S T
+  -- the three comparison graphons
+  set Qg := mkStepGraphon Q (coeffOfMatrix ιQ MQ) hcQ_symm hcQ_mem with hQg_def
+  set Hmid := mkStepGraphon (equipartition k) (coeffOfMatrix (equipartitionCell k) Mmid)
+    hcMid_symm hcMid_mem with hHmid_def
+  have hsample_eq : sampleWeightedGraphonOn (chosenStep W ε') x
+      = mkStepGraphon (equipartition k) (coeffOfMatrix (equipartitionCell k) Msample)
+        hcSamp_symm hcSamp_mem := rfl
+  -- (c2) weight bound
+  have hc2 : cutDistance (chosenStep W ε') Qg
+      ≤ 2 * ∑ s : Fin m, |(μ (ιP s)).toReal - empFreq (ιP s) x| := by
+    rw [hQg_def, chosenStep_eq_mkStepGraphon]
+    have hkey := cutDistance_step_weight_le P Q (rectAverage W) (coeffOfMatrix ιQ MQ)
+      (fun S hS T hT ↦ rectAverage_symm W S T (P.measurableSet_part hS) (P.measurableSet_part hT))
+      (fun S hS T hT ↦ rectAverage_mem_Icc W S T (P.measurableSet_part hS)
+        (P.measurableSet_part hT))
+      hcQ_symm hcQ_mem ιP ιQ hιP_mem hιQ_mem hιP_inj hιQ_inj hιP_surj hιQ_surj
+      (fun i j ↦ (coeffOfMatrix_eq ιQ MQ hιQ_inj i j).symm)
+    refine hkey.trans (le_of_eq ?_)
+    simp only [hιQ_measure]
+  -- (c3) coarsened vs. equipartition-refined: identical a.e., zero cut distance
+  have hc3 : cutDistance Qg Hmid ≤ 0 := by
+    refine (cutDistance_le_cutNormDiff _ _).trans (le_of_eq ?_)
+    rw [hQg_def, hHmid_def]
+    apply cutNormDiff_eq_zero_of_ae_eq
+    have hcoeQ : ∀ᵐ p ∂(μ.prod μ),
+        (mkStepGraphon Q (coeffOfMatrix ιQ MQ) hcQ_symm hcQ_mem).toAEEqFun p
+          = mkStepFun Q (coeffOfMatrix ιQ MQ) p :=
+      AEEqFun.coeFn_mk _ (mkStepFun_measurable Q (coeffOfMatrix ιQ MQ)).aestronglyMeasurable
+    have hcoeM : ∀ᵐ p ∂(μ.prod μ),
+        (mkStepGraphon (equipartition k) (coeffOfMatrix (equipartitionCell k) Mmid)
+            hcMid_symm hcMid_mem).toAEEqFun p
+          = mkStepFun (equipartition k) (coeffOfMatrix (equipartitionCell k) Mmid) p :=
+      AEEqFun.coeFn_mk _ (mkStepFun_measurable _ _).aestronglyMeasurable
+    have hBad : μ (⋃ i, equipartitionCell (α := α) (μ := μ) k i \ ιQ (g i)) = 0 :=
+      measure_iUnion_null_iff.mpr hιQ_subset
+    have hcover_cells : ∀ᵐ y ∂μ, ∃ i, y ∈ equipartitionCell (α := α) (μ := μ) k i := by
+      filter_upwards [(equipartition k).ae_covers] with y ⟨S, hS, hyS⟩
+      obtain ⟨i, rfl⟩ := equipartitionCell_surjOn k S hS
+      exact ⟨i, hyS⟩
+    have hnotbad : ∀ᵐ y ∂μ, y ∉ ⋃ i, equipartitionCell (α := α) (μ := μ) k i \ ιQ (g i) := by
+      rw [ae_iff]; simp only [not_not, Set.setOf_mem_eq]; exact hBad
+    have hf1 : ∀ᵐ p ∂(μ.prod μ), ∃ i, p.1 ∈ equipartitionCell (α := α) (μ := μ) k i :=
+      Measure.quasiMeasurePreserving_fst.ae hcover_cells
+    have hf2 : ∀ᵐ p ∂(μ.prod μ), ∃ j, p.2 ∈ equipartitionCell (α := α) (μ := μ) k j :=
+      Measure.quasiMeasurePreserving_snd.ae hcover_cells
+    have hb1 : ∀ᵐ p ∂(μ.prod μ), p.1 ∉ ⋃ i, equipartitionCell (α := α) (μ := μ) k i \ ιQ (g i) :=
+      Measure.quasiMeasurePreserving_fst.ae hnotbad
+    have hb2 : ∀ᵐ p ∂(μ.prod μ), p.2 ∉ ⋃ i, equipartitionCell (α := α) (μ := μ) k i \ ιQ (g i) :=
+      Measure.quasiMeasurePreserving_snd.ae hnotbad
+    filter_upwards [hcoeQ, hcoeM, hf1, hf2, hb1, hb2] with p hpQ hpM ⟨i, hpi⟩ ⟨j, hpj⟩ hbp1 hbp2
+    have ha : p.1 ∈ ιQ (g i) := by
+      by_contra hc; exact hbp1 (Set.mem_iUnion.mpr ⟨i, hpi, hc⟩)
+    have hb : p.2 ∈ ιQ (g j) := by
+      by_contra hc; exact hbp2 (Set.mem_iUnion.mpr ⟨j, hpj, hc⟩)
+    rw [hpQ, hpM,
+      mkStepFun_eq_at Q (coeffOfMatrix ιQ MQ) (hιQ_mem (g i)) (hιQ_mem (g j))
+        (Set.mk_mem_prod ha hb),
+      mkStepFun_eq_at (equipartition k) (coeffOfMatrix (equipartitionCell k) Mmid)
+        (equipartitionCell_mem k i) (equipartitionCell_mem k j) (Set.mk_mem_prod hpi hpj),
+      coeffOfMatrix_eq ιQ MQ hιQ_inj (g i) (g j),
+      coeffOfMatrix_eq (equipartitionCell k) Mmid (equipartitionCell_injective k) i j]
+  -- (c4) diagonal bound
+  have halign2 : ∀ i j : Fin k, i ≠ j →
+      clampEval (chosenStep W ε') x i j = rectAverage W (ιP (g i)) (ιP (g j)) := by
+    intro i j hij
+    have h := halign i j hij (ιP (g (min i j))) (hιP_mem _) (ιP (g (max i j))) (hιP_mem _)
+      (hg (min i j)) (hg (max i j))
+    rw [h]
+    rcases le_total i j with hle | hle
+    · rw [min_eq_left hle, max_eq_right hle]
+    · rw [min_eq_right hle, max_eq_left hle]
+      exact rectAverage_symm W _ _ (P.measurableSet_part (hιP_mem _))
+        (P.measurableSet_part (hιP_mem _))
+  have hoff : ∀ i j : Fin k, i ≠ j → Msample i j = Mmid i j := fun i j hij ↦
+    halign2 i j hij
+  have hc4 : cutDistance Hmid (sampleWeightedGraphonOn (chosenStep W ε') x) ≤ (k : ℝ)⁻¹ := by
+    rw [hHmid_def, hsample_eq]
+    refine (cutDistance_le_cutNormDiff _ _).trans ?_
+    apply cutNormDiff_mkStepGraphon_le_of_cuts (equipartition k)
+      (equipartitionCell (α := α) (μ := μ) k) (equipartitionCell_mem k)
+      (equipartitionCell_injective k) (equipartitionCell_surjOn k)
+      (coeffOfMatrix (equipartitionCell k) Mmid) (coeffOfMatrix (equipartitionCell k) Msample)
+      hcMid_symm hcMid_mem hcSamp_symm hcSamp_mem (k : ℝ)⁻¹
+    intro A B
+    calc |∑ i ∈ A, ∑ j ∈ B,
+            ((μ (equipartitionCell (α := α) (μ := μ) k i)).toReal *
+              (μ (equipartitionCell (α := α) (μ := μ) k j)).toReal) *
+            (coeffOfMatrix (equipartitionCell k) Mmid (equipartitionCell k i)
+                (equipartitionCell k j) -
+              coeffOfMatrix (equipartitionCell k) Msample (equipartitionCell k i)
+                (equipartitionCell k j))|
+        ≤ ∑ i ∈ A, ∑ j ∈ B, (if i = j then (k : ℝ)⁻¹ * (k : ℝ)⁻¹ else 0) := by
+          refine (Finset.abs_sum_le_sum_abs _ _).trans (Finset.sum_le_sum fun i _ ↦ ?_)
+          refine (Finset.abs_sum_le_sum_abs _ _).trans (Finset.sum_le_sum fun j _ ↦ ?_)
+          rw [equipartitionCell_measure, equipartitionCell_measure,
+            coeffOfMatrix_eq (equipartitionCell k) Mmid (equipartitionCell_injective k) i j,
+            coeffOfMatrix_eq (equipartitionCell k) Msample (equipartitionCell_injective k) i j]
+          by_cases hij : i = j
+          · rw [if_pos hij, abs_mul,
+              abs_of_nonneg (by positivity : (0 : ℝ) ≤ (k : ℝ)⁻¹ * (k : ℝ)⁻¹)]
+            have h1 : |Mmid i j - Msample i j| ≤ 1 := by
+              rw [abs_le]
+              obtain ⟨a0, a1⟩ := hMmid_mem i j; obtain ⟨b0, b1⟩ := hMsample_mem i j
+              constructor <;> linarith
+            calc (k : ℝ)⁻¹ * (k : ℝ)⁻¹ * |Mmid i j - Msample i j|
+                ≤ (k : ℝ)⁻¹ * (k : ℝ)⁻¹ * 1 := by gcongr
+              _ = (k : ℝ)⁻¹ * (k : ℝ)⁻¹ := mul_one _
+          · rw [if_neg hij, hoff i j hij, sub_self, mul_zero, abs_zero]
+      _ ≤ ∑ i ∈ (Finset.univ : Finset (Fin k)), ∑ j ∈ (Finset.univ : Finset (Fin k)),
+            (if i = j then (k : ℝ)⁻¹ * (k : ℝ)⁻¹ else 0) := by
+          refine (Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ A)
+            (fun i _ _ ↦ Finset.sum_nonneg fun j _ ↦ by split_ifs <;> positivity)).trans ?_
+          refine Finset.sum_le_sum fun i _ ↦
+            Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ B)
+              (fun j _ _ ↦ by split_ifs <;> positivity)
+      _ = (k : ℝ)⁻¹ := by
+          have hsingle : ∀ i : Fin k,
+              (∑ j ∈ (Finset.univ : Finset (Fin k)), if i = j then (k : ℝ)⁻¹ * (k : ℝ)⁻¹ else 0)
+                = (k : ℝ)⁻¹ * (k : ℝ)⁻¹ := by
+            intro i; rw [Finset.sum_ite_eq univ i (fun _ ↦ (k : ℝ)⁻¹ * (k : ℝ)⁻¹)]
+            simp
+          rw [Finset.sum_congr rfl (fun i _ ↦ hsingle i), Finset.sum_const, Finset.card_univ,
+            Fintype.card_fin, nsmul_eq_mul]
+          have hk : (k : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr (NeZero.ne k)
+          field_simp
+  -- assemble
+  have htri1 := cutDistance_triangle (chosenStep W ε') Qg
+    (sampleWeightedGraphonOn (chosenStep W ε') x)
+  have htri2 := cutDistance_triangle Qg Hmid (sampleWeightedGraphonOn (chosenStep W ε') x)
+  have hreindex : ∑ s : Fin m, |(μ (ιP s)).toReal - empFreq (ιP s) x|
+      = ∑ S ∈ P.parts, |empFreq S x - (μ S).toReal| :=
+    Finset.sum_bij (fun s _ ↦ ιP s) (fun s _ ↦ hιP_mem s) (fun s _ t _ h ↦ hιP_inj h)
+      (fun S hS ↦ by obtain ⟨s, hs⟩ := hιP_surj S hS; exact ⟨s, Finset.mem_univ s, hs⟩)
+      (fun s _ ↦ abs_sub_comm _ _)
+  have hfreq : freqTerm W ε' k x = 2 * ∑ S ∈ P.parts, |empFreq S x - (μ S).toReal| + (k : ℝ)⁻¹ := by
+    rw [freqTerm, ← hP]
+  rw [hfreq, ← hreindex]
+  linarith [htri1, htri2, hc2, hc3, hc4]
 
 /-- **A.e. domination of the cut distance by the point-sampling majorant.** Assembles the
 triangle `d_□(W, H_{W,x}) ≤ d_□(W, U) + d_□(U, H_{U,x}) + d_□(H_{U,x}, H_{W,x})` from parts
