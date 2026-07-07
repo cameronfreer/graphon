@@ -2307,6 +2307,535 @@ private theorem guessBlock_sup_integral_le_avg_ruleSup (W : Graphon α μ) (ε' 
         exact Finset.sum_congr rfl (fun Q _ ↦
           integral_finsetSum _ (fun Q' _ ↦ hint_rule Q Q'))
 
+/-! ##### Conditioning on a block (Layer 2) -/
+
+/-- Glue a block assignment `y` and a fresh assignment `z` into a full sample; this is
+`(MeasurableEquiv.piEquivPiSubtypeProd _ (· ∈ B)).symm (y, z)` in explicit form (H11a). -/
+private noncomputable def blockGlue {k : ℕ} (B : Finset (Fin k))
+    (y : {l : Fin k // l ∈ B} → α) (z : {l : Fin k // ¬ l ∈ B} → α) : Fin k → α :=
+  fun i ↦ if h : i ∈ B then y ⟨i, h⟩ else z ⟨i, h⟩
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- (H11a) The block-splitting equivalence, coordinatewise. -/
+private theorem piEquivPiSubtypeProd_symm_eq_blockGlue {k : ℕ} (B : Finset (Fin k))
+    (y : {l : Fin k // l ∈ B} → α) (z : {l : Fin k // ¬ l ∈ B} → α) :
+    (MeasurableEquiv.piEquivPiSubtypeProd (fun _ : Fin k ↦ α) (· ∈ B)).symm (y, z)
+      = blockGlue B y z := by
+  funext i
+  simp only [blockGlue, MeasurableEquiv.piEquivPiSubtypeProd, MeasurableEquiv.symm_mk,
+    MeasurableEquiv.coe_mk, Equiv.piEquivPiSubtypeProd_symm_apply]
+
+/-- (H10) The rule value as a double sum of indicator-weighted entries — the form whose
+conditional expectation Layer 2 computes. -/
+private theorem ruleVal_eq_sum_ite {k : ℕ} (m : Fin k → Fin k → ℝ) (R R' : Finset (Fin k)) :
+    ruleVal m R R' = ∑ i, ∑ j,
+      (if 0 < ∑ j' ∈ R', m i j' then (1 : ℝ) else 0) *
+      (if 0 < ∑ j' ∈ R, m j j' then (1 : ℝ) else 0) * m i j := by
+  simp only [ruleVal, signSet, Finset.sum_filter]
+  refine Finset.sum_congr rfl fun i _ ↦ ?_
+  by_cases hP : 0 < ∑ j' ∈ R', m i j'
+  · simp only [hP, if_true, one_mul]
+    refine Finset.sum_congr rfl fun j _ ↦ ?_
+    by_cases hQ : 0 < ∑ j' ∈ R, m j j' <;> simp [hQ]
+  · simp [hP]
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- The pushforward of a product measure under the two-coordinate evaluation map at distinct
+indices `a ≠ b` (over an arbitrary finite index type) is `μ.prod μ`. Generalizes the map
+computation inside `ae_pairMap_of_prod` to an arbitrary `Fintype` index. -/
+private theorem pairMap_map_prod {ι : Type*} [Fintype ι] {a b : ι} (hab : a ≠ b) :
+    Measure.map (fun x : ι → α ↦ (x a, x b)) (Measure.pi (fun _ : ι ↦ μ)) = μ.prod μ := by
+  have h_indep : ProbabilityTheory.iIndepFun (fun l (x : ι → α) ↦ x l)
+      (Measure.pi (fun _ : ι ↦ μ)) :=
+    ProbabilityTheory.iIndepFun_pi (fun _ ↦ aemeasurable_id)
+  have h_indep_pair := h_indep.indepFun hab
+  rw [ProbabilityTheory.indepFun_iff_map_prod_eq_prod_map_map
+    (measurable_pi_apply _).aemeasurable (measurable_pi_apply _).aemeasurable] at h_indep_pair
+  rw [show (fun x : ι → α ↦ (x a, x b))
+        = fun x ↦ ((fun x : ι → α ↦ x a) x, (fun x : ι → α ↦ x b) x) from rfl,
+    h_indep_pair, (MeasureTheory.measurePreserving_eval (fun _ : ι ↦ μ) a).map_eq,
+    (MeasureTheory.measurePreserving_eval (fun _ : ι ↦ μ) b).map_eq]
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- (H11b, absolute version) **Fresh-pair section bound.** For a fixed signed rule generated
+inside the block `B` and a fresh ordered pair `i ≠ j`, the fresh-sample average of the
+indicator-weighted entry is a rectangle integral of `W − chosenStep W ε'` over measurable
+rule sets, hence at most `cutNormDiff` in absolute value, for a.e. block assignment. -/
+private theorem abs_integral_pairRule_le (W : Graphon α μ) (ε' : ℝ) {k : ℕ}
+    (B : Finset (Fin k)) (s : Bool) {R R' : Finset (Fin k)} (hR : R ⊆ B) (hR' : R' ⊆ B)
+    {i j : Fin k} (hi : ¬ i ∈ B) (hj : ¬ j ∈ B) (hij : i ≠ j) :
+    ∀ᵐ y ∂(Measure.pi (fun _ : {l : Fin k // l ∈ B} ↦ μ)),
+      |∫ z, (if 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' (blockGlue B y z) i j' then (1 : ℝ)
+              else 0)
+          * (if 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' (blockGlue B y z) j j' then (1 : ℝ)
+              else 0)
+          * coreDiff W ε' (blockGlue B y z) i j
+          ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))|
+        ≤ cutNormDiff W (chosenStep W ε') := by
+  classical
+  refine ae_of_all _ (fun y ↦ ?_)
+  haveI : Nonempty α := by
+    by_contra h; rw [not_nonempty_iff] at h
+    exact absurd (Measure.eq_zero_of_isEmpty μ) (IsProbabilityMeasure.ne_zero μ)
+  set b₀ : α := Classical.arbitrary α with hb₀
+  set z₀ : {l : Fin k // ¬ l ∈ B} → α := fun _ ↦ b₀ with hz₀
+  set glue : α → α → ({l : Fin k // ¬ l ∈ B} → α) :=
+    fun a b ↦ Function.update (Function.update z₀ ⟨i, hi⟩ a) ⟨j, hj⟩ b with hglue_def
+  have hne : (⟨i, hi⟩ : {l : Fin k // ¬ l ∈ B}) ≠ ⟨j, hj⟩ := by
+    intro h; exact hij (congr_arg Subtype.val h)
+  have hglue_i : ∀ a b, glue a b ⟨i, hi⟩ = a := by
+    intro a b; simp only [hglue_def, Function.update_of_ne hne, Function.update_self]
+  have hglue_j : ∀ a b, glue a b ⟨j, hj⟩ = b := by
+    intro a b; simp only [hglue_def, Function.update_self]
+  -- Measurability toolkit
+  have hcoreM : ∀ (a b : Fin k), Measurable (fun x : Fin k → α ↦ coreDiff W ε' x a b) := by
+    intro a b; simp only [coreDiff]
+    exact (measurable_clampEval W a b).sub (measurable_clampEval (chosenStep W ε') a b)
+  have hbgm : Measurable (fun w : {l : Fin k // ¬ l ∈ B} → α ↦ blockGlue B y w) := by
+    rw [measurable_pi_iff]; intro l
+    simp only [blockGlue]
+    by_cases hl : l ∈ B
+    · simp only [dif_pos hl]; exact measurable_const
+    · simp only [dif_neg hl]; exact measurable_pi_apply _
+  -- Locality of `blockGlue ∘ glue` vs `blockGlue B y z` at the read coordinates
+  have hbi : ∀ z : {l // ¬ l ∈ B} → α,
+      blockGlue B y (glue (z ⟨i, hi⟩) (z ⟨j, hj⟩)) i = blockGlue B y z i := by
+    intro z; simp only [blockGlue, dif_neg hi, hglue_i]
+  have hbj : ∀ z : {l // ¬ l ∈ B} → α,
+      blockGlue B y (glue (z ⟨i, hi⟩) (z ⟨j, hj⟩)) j = blockGlue B y z j := by
+    intro z; simp only [blockGlue, dif_neg hj, hglue_j]
+  have hbblock : ∀ (z : {l // ¬ l ∈ B} → α) (l : Fin k), l ∈ B →
+      blockGlue B y (glue (z ⟨i, hi⟩) (z ⟨j, hj⟩)) l = blockGlue B y z l := by
+    intro z l hl; simp only [blockGlue, dif_pos hl]
+  -- The two-coordinate reduction of the integrand
+  set Ψ : α × α → ℝ := fun p ↦
+    (if 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' (blockGlue B y (glue p.1 p.2)) i j' then (1 : ℝ)
+        else 0)
+    * (if 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' (blockGlue B y (glue p.1 p.2)) j j' then (1 : ℝ)
+        else 0)
+    * coreDiff W ε' (blockGlue B y (glue p.1 p.2)) i j with hΨ_def
+  have hΦ : ∀ z : {l // ¬ l ∈ B} → α,
+      (if 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' (blockGlue B y z) i j' then (1 : ℝ) else 0)
+      * (if 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' (blockGlue B y z) j j' then (1 : ℝ) else 0)
+      * coreDiff W ε' (blockGlue B y z) i j
+      = Ψ (z ⟨i, hi⟩, z ⟨j, hj⟩) := by
+    intro z
+    have erow_sum : (∑ j' ∈ R', sgnR s * coreDiff W ε' (blockGlue B y z) i j')
+        = ∑ j' ∈ R', sgnR s
+            * coreDiff W ε' (blockGlue B y (glue (z ⟨i, hi⟩) (z ⟨j, hj⟩))) i j' :=
+      Finset.sum_congr rfl (fun j' hj' ↦ by
+        rw [coreDiff_congr W ε' (hbi z).symm (hbblock z j' (hR' hj')).symm])
+    have ecol_sum : (∑ j' ∈ R, sgnR s * coreDiff W ε' (blockGlue B y z) j j')
+        = ∑ j' ∈ R, sgnR s
+            * coreDiff W ε' (blockGlue B y (glue (z ⟨i, hi⟩) (z ⟨j, hj⟩))) j j' :=
+      Finset.sum_congr rfl (fun j' hj' ↦ by
+        rw [coreDiff_congr W ε' (hbj z).symm (hbblock z j' (hR hj')).symm])
+    have eentry : coreDiff W ε' (blockGlue B y z) i j
+        = coreDiff W ε' (blockGlue B y (glue (z ⟨i, hi⟩) (z ⟨j, hj⟩))) i j :=
+      coreDiff_congr W ε' (hbi z).symm (hbj z).symm
+    simp only [hΨ_def]
+    rw [erow_sum, ecol_sum, eentry]
+  -- Ψ is measurable
+  have hgluepM : Measurable (fun p : α × α ↦ glue p.1 p.2) := by
+    simp only [hglue_def]
+    exact (measurable_update' (a := (⟨j, hj⟩ : {l // ¬ l ∈ B}))).comp
+      (((measurable_update z₀ (a := (⟨i, hi⟩ : {l // ¬ l ∈ B}))).comp measurable_fst).prodMk
+        measurable_snd)
+  have hΨ_meas : Measurable Ψ := by
+    simp only [hΨ_def]
+    refine Measurable.mul (Measurable.mul ?_ ?_) ((hcoreM i j).comp (hbgm.comp hgluepM))
+    · refine Measurable.ite (measurableSet_lt measurable_const ?_) measurable_const measurable_const
+      exact Finset.measurable_sum _
+        (fun j' _ ↦ ((hcoreM i j').comp (hbgm.comp hgluepM)).const_mul _)
+    · refine Measurable.ite (measurableSet_lt measurable_const ?_) measurable_const measurable_const
+      exact Finset.measurable_sum _
+        (fun j' _ ↦ ((hcoreM j j').comp (hbgm.comp hgluepM)).const_mul _)
+  -- Rewrite the integral: integrand → Ψ(z i, z j) → pushforward to μ.prod μ
+  have hmap : Measure.map (fun z : {l // ¬ l ∈ B} → α ↦ (z ⟨i, hi⟩, z ⟨j, hj⟩))
+      (Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)) = μ.prod μ := pairMap_map_prod hne
+  have hpush : (∫ z, Ψ (z ⟨i, hi⟩, z ⟨j, hj⟩)
+        ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+      = ∫ p, Ψ p ∂(μ.prod μ) := by
+    have hmm := MeasureTheory.integral_map
+      (μ := Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ))
+      (φ := fun z : {l // ¬ l ∈ B} → α ↦ (z ⟨i, hi⟩, z ⟨j, hj⟩))
+      (f := Ψ)
+      ((measurable_pi_apply _).prodMk (measurable_pi_apply _)).aemeasurable
+      hΨ_meas.aestronglyMeasurable
+    rw [hmap] at hmm
+    exact hmm.symm
+  rw [integral_congr_ae (ae_of_all _ hΦ), hpush]
+  -- Measurable rule sets
+  set S₁ : Set α :=
+    {a | 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' (blockGlue B y (glue a b₀)) i j'} with hS₁_def
+  set S₂ : Set α :=
+    {b | 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' (blockGlue B y (glue b₀ b)) j j'} with hS₂_def
+  have hgluecolM : Measurable (fun a : α ↦ glue a b₀) := by
+    simp only [hglue_def]
+    exact (measurable_update_left (a := (⟨j, hj⟩ : {l // ¬ l ∈ B})) (x := b₀)).comp
+      (measurable_update z₀ (a := (⟨i, hi⟩ : {l // ¬ l ∈ B})))
+  have hgluerowM : Measurable (fun b : α ↦ glue b₀ b) := by
+    simp only [hglue_def]
+    exact measurable_update (Function.update z₀ ⟨i, hi⟩ b₀) (a := (⟨j, hj⟩ : {l // ¬ l ∈ B}))
+  have hS₁ : MeasurableSet S₁ := by
+    apply measurableSet_lt measurable_const
+    exact Finset.measurable_sum _
+      (fun j' _ ↦ ((hcoreM i j').comp (hbgm.comp hgluecolM)).const_mul _)
+  have hS₂ : MeasurableSet S₂ := by
+    apply measurableSet_lt measurable_const
+    exact Finset.measurable_sum _
+      (fun j' _ ↦ ((hcoreM j j').comp (hbgm.comp hgluerowM)).const_mul _)
+  -- The indicator conditions read only the relevant coordinate
+  have hg₁eq : ∀ p : α × α,
+      (0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' (blockGlue B y (glue p.1 p.2)) i j') ↔ p.1 ∈ S₁ := by
+    intro p
+    simp only [hS₁_def, Set.mem_setOf_eq]
+    rw [Finset.sum_congr rfl (fun j' hj' ↦ by
+      rw [coreDiff_congr W ε'
+        (show blockGlue B y (glue p.1 p.2) i = blockGlue B y (glue p.1 b₀) i by
+          simp only [blockGlue, dif_neg hi, hglue_i])
+        (show blockGlue B y (glue p.1 p.2) j' = blockGlue B y (glue p.1 b₀) j' by
+          simp only [blockGlue, dif_pos (hR' hj')])])]
+  have hg₂eq : ∀ p : α × α,
+      (0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' (blockGlue B y (glue p.1 p.2)) j j') ↔ p.2 ∈ S₂ := by
+    intro p
+    simp only [hS₂_def, Set.mem_setOf_eq]
+    rw [Finset.sum_congr rfl (fun j' hj' ↦ by
+      rw [coreDiff_congr W ε'
+        (show blockGlue B y (glue p.1 p.2) j = blockGlue B y (glue b₀ p.2) j by
+          simp only [blockGlue, dif_neg hj, hglue_j])
+        (show blockGlue B y (glue p.1 p.2) j' = blockGlue B y (glue b₀ p.2) j' by
+          simp only [blockGlue, dif_pos (hR hj')])])]
+  -- A.e. clamp transparency over `μ.prod μ`
+  have hclampW : ∀ᵐ p ∂(μ.prod μ), min 1 (max 0 (W.toAEEqFun p)) = W.toAEEqFun p := by
+    filter_upwards [W.ae_mem_Icc] with p hp; rw [max_eq_right hp.1, min_eq_right hp.2]
+  have hclampU : ∀ᵐ p ∂(μ.prod μ),
+      min 1 (max 0 ((chosenStep W ε').toAEEqFun p)) = (chosenStep W ε').toAEEqFun p := by
+    filter_upwards [(chosenStep W ε').ae_mem_Icc] with p hp
+    rw [max_eq_right hp.1, min_eq_right hp.2]
+  rcases lt_or_gt_of_ne hij with hlt | hgt
+  · -- i < j : identity orientation
+    have hΨrep : ∀ᵐ p ∂(μ.prod μ), Ψ p =
+        (S₁ ×ˢ S₂).indicator
+          (fun q ↦ W.toAEEqFun q - (chosenStep W ε').toAEEqFun q) p := by
+      filter_upwards [hclampW, hclampU] with p hW hU
+      have hbgi : blockGlue B y (glue p.1 p.2) i = p.1 := by
+        simp only [blockGlue, dif_neg hi, hglue_i]
+      have hbgj : blockGlue B y (glue p.1 p.2) j = p.2 := by
+        simp only [blockGlue, dif_neg hj, hglue_j]
+      have hentry : coreDiff W ε' (blockGlue B y (glue p.1 p.2)) i j
+          = W.toAEEqFun p - (chosenStep W ε').toAEEqFun p := by
+        simp only [coreDiff, clampEval, min_eq_left hlt.le, max_eq_right hlt.le, hbgi, hbgj,
+          Prod.mk.eta]
+        rw [hW, hU]
+      simp only [hΨ_def]
+      rw [hentry]
+      by_cases h1 : p.1 ∈ S₁ <;> by_cases h2 : p.2 ∈ S₂ <;>
+        simp [Set.mem_prod, hg₁eq p, hg₂eq p, h1, h2]
+    calc |∫ p, Ψ p ∂(μ.prod μ)|
+        = |∫ p, (S₁ ×ˢ S₂).indicator
+              (fun q ↦ W.toAEEqFun q - (chosenStep W ε').toAEEqFun q) p ∂(μ.prod μ)| := by
+          rw [integral_congr_ae hΨrep]
+      _ = |rectIntegralDiff W (chosenStep W ε') S₁ S₂| := by
+          rw [integral_indicator (hS₁.prod hS₂)]; rfl
+      _ ≤ cutNormDiff W (chosenStep W ε') := abs_rectIntegralDiff_le W _ hS₁ hS₂
+  · -- j < i : swapped orientation
+    have hclampW_swap : ∀ᵐ p ∂(μ.prod μ),
+        min 1 (max 0 (W.toAEEqFun (p.2, p.1))) = W.toAEEqFun (p.2, p.1) :=
+      (Measure.measurePreserving_swap (μ := μ) (ν := μ)).quasiMeasurePreserving.ae hclampW
+    have hclampU_swap : ∀ᵐ p ∂(μ.prod μ),
+        min 1 (max 0 ((chosenStep W ε').toAEEqFun (p.2, p.1)))
+          = (chosenStep W ε').toAEEqFun (p.2, p.1) :=
+      (Measure.measurePreserving_swap (μ := μ) (ν := μ)).quasiMeasurePreserving.ae hclampU
+    have hΨrep : ∀ᵐ p ∂(μ.prod μ), Ψ p =
+        (S₂ ×ˢ S₁).indicator
+          (fun q ↦ W.toAEEqFun q - (chosenStep W ε').toAEEqFun q) (Prod.swap p) := by
+      filter_upwards [hclampW_swap, hclampU_swap] with p hW hU
+      have hbgi : blockGlue B y (glue p.1 p.2) i = p.1 := by
+        simp only [blockGlue, dif_neg hi, hglue_i]
+      have hbgj : blockGlue B y (glue p.1 p.2) j = p.2 := by
+        simp only [blockGlue, dif_neg hj, hglue_j]
+      have hentry : coreDiff W ε' (blockGlue B y (glue p.1 p.2)) i j
+          = W.toAEEqFun (p.2, p.1) - (chosenStep W ε').toAEEqFun (p.2, p.1) := by
+        simp only [coreDiff, clampEval, min_eq_right hgt.le, max_eq_left hgt.le, hbgi, hbgj]
+        rw [hW, hU]
+      have hsw : Prod.swap p = (p.2, p.1) := rfl
+      simp only [hΨ_def]
+      rw [hentry]
+      by_cases h1 : p.1 ∈ S₁ <;> by_cases h2 : p.2 ∈ S₂ <;>
+        simp [Set.mem_prod, hsw, hg₁eq p, hg₂eq p, h1, h2]
+    calc |∫ p, Ψ p ∂(μ.prod μ)|
+        = |∫ p, (S₂ ×ˢ S₁).indicator
+              (fun q ↦ W.toAEEqFun q - (chosenStep W ε').toAEEqFun q) (Prod.swap p)
+              ∂(μ.prod μ)| := by rw [integral_congr_ae hΨrep]
+      _ = |∫ p, (S₂ ×ˢ S₁).indicator
+              (fun q ↦ W.toAEEqFun q - (chosenStep W ε').toAEEqFun q) p ∂(μ.prod μ)| := by
+          rw [MeasureTheory.integral_prod_swap]
+      _ = |rectIntegralDiff W (chosenStep W ε') S₂ S₁| := by
+          rw [integral_indicator (hS₂.prod hS₁)]; rfl
+      _ ≤ cutNormDiff W (chosenStep W ε') := abs_rectIntegralDiff_le W _ hS₂ hS₁
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- (H11c) **Conditional mean of a fixed rule.** Classifying entries as fresh off-diagonal
+(≤ `k²`, each ≤ `cutNormDiff` by H11b), block-touching (≤ `2|B|k`, each ≤ 1), and diagonal
+(≤ `k`, each ≤ 1). -/
+private theorem ae_integral_ruleVal_le (W : Graphon α μ) (ε' : ℝ) {k : ℕ} [NeZero k]
+    (B : Finset (Fin k)) (s : Bool) {R R' : Finset (Fin k)} (hR : R ⊆ B) (hR' : R' ⊆ B) :
+    ∀ᵐ y ∂(Measure.pi (fun _ : {l : Fin k // l ∈ B} ↦ μ)),
+      (∫ z, ruleVal (fun i j ↦ sgnR s * coreDiff W ε' (blockGlue B y z) i j) R R'
+          ∂(Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ)))
+        ≤ (k : ℝ) ^ 2 * cutNormDiff W (chosenStep W ε') + 2 * (B.card : ℝ) * k + k := by
+  classical
+  set πF := Measure.pi (fun _ : {l : Fin k // ¬ l ∈ B} ↦ μ) with hπF
+  -- Gather the fresh off-diagonal bounds (H11b) into a single a.e. statement over `y`.
+  have hpair : ∀ᵐ y ∂(Measure.pi (fun _ : {l : Fin k // l ∈ B} ↦ μ)),
+      ∀ q : Fin k × Fin k, q.1 ∉ B → q.2 ∉ B → q.1 ≠ q.2 →
+        |∫ z, (if 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' (blockGlue B y z) q.1 j' then (1 : ℝ)
+                else 0)
+            * (if 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' (blockGlue B y z) q.2 j' then (1 : ℝ)
+                else 0)
+            * coreDiff W ε' (blockGlue B y z) q.1 q.2 ∂πF|
+          ≤ cutNormDiff W (chosenStep W ε') := by
+    rw [ae_all_iff]
+    rintro ⟨i, j⟩
+    by_cases hcond : i ∉ B ∧ j ∉ B ∧ i ≠ j
+    · filter_upwards [abs_integral_pairRule_le W ε' B s hR hR' hcond.1 hcond.2.1 hcond.2.2]
+        with y hy _ _ _
+      exact hy
+    · exact ae_of_all _ (fun y hi hj hij ↦ absurd ⟨hi, hj, hij⟩ hcond)
+  filter_upwards [hpair] with y hy
+  -- Measurability toolkit (y fixed)
+  have hbgm : Measurable (fun w : {l : Fin k // ¬ l ∈ B} → α ↦ blockGlue B y w) := by
+    rw [measurable_pi_iff]; intro l
+    simp only [blockGlue]
+    by_cases hl : l ∈ B
+    · simp only [dif_pos hl]; exact measurable_const
+    · simp only [dif_neg hl]; exact measurable_pi_apply _
+  have hcz : ∀ (a b : Fin k), Measurable (fun z ↦ coreDiff W ε' (blockGlue B y z) a b) := by
+    intro a b
+    simp only [coreDiff]
+    exact ((measurable_clampEval W a b).sub (measurable_clampEval (chosenStep W ε') a b)).comp hbgm
+  -- The double-sum term
+  set term : ({l : Fin k // ¬ l ∈ B} → α) → Fin k → Fin k → ℝ := fun z i j ↦
+    (if 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' (blockGlue B y z) i j' then (1 : ℝ) else 0)
+    * (if 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' (blockGlue B y z) j j' then (1 : ℝ) else 0)
+    * (sgnR s * coreDiff W ε' (blockGlue B y z) i j) with hterm_def
+  have habs_term : ∀ z i j, |term z i j| ≤ 1 := by
+    intro z i j
+    simp only [hterm_def]
+    rw [abs_mul, abs_mul, abs_mul, abs_sgnR, one_mul]
+    have hA : |(if 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' (blockGlue B y z) i j' then (1 : ℝ)
+        else 0)| ≤ 1 := by split_ifs <;> simp
+    have hB : |(if 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' (blockGlue B y z) j j' then (1 : ℝ)
+        else 0)| ≤ 1 := by split_ifs <;> simp
+    exact mul_le_one₀ (mul_le_one₀ hA (abs_nonneg _) hB) (abs_nonneg _)
+      (abs_coreDiff_le_one W ε' _ i j)
+  have hterm_meas : ∀ i j, Measurable (fun z ↦ term z i j) := by
+    intro i j
+    simp only [hterm_def]
+    refine Measurable.mul (Measurable.mul ?_ ?_) ((hcz i j).const_mul _)
+    · exact Measurable.ite (measurableSet_lt measurable_const
+        (Finset.measurable_sum _ (fun j' _ ↦ (hcz i j').const_mul _))) measurable_const
+        measurable_const
+    · exact Measurable.ite (measurableSet_lt measurable_const
+        (Finset.measurable_sum _ (fun j' _ ↦ (hcz j j').const_mul _))) measurable_const
+        measurable_const
+  have hterm_int : ∀ i j, Integrable (fun z ↦ term z i j) πF := fun i j ↦
+    (integrable_const 1).mono' (hterm_meas i j).aestronglyMeasurable
+      (ae_of_all _ (fun z ↦ by rw [Real.norm_eq_abs]; exact habs_term z i j))
+  -- ∫ ruleVal = ∑∑ ∫ term
+  have hswap : (∫ z, ruleVal (fun i j ↦ sgnR s * coreDiff W ε' (blockGlue B y z) i j) R R' ∂πF)
+      = ∑ i, ∑ j, ∫ z, term z i j ∂πF := by
+    have hpt : ∀ z, ruleVal (fun i j ↦ sgnR s * coreDiff W ε' (blockGlue B y z) i j) R R'
+        = ∑ i, ∑ j, term z i j := by
+      intro z; rw [ruleVal_eq_sum_ite]
+    simp_rw [hpt]
+    rw [integral_finsetSum _ (fun i _ ↦ integrable_finsetSum _ (fun j _ ↦ hterm_int i j))]
+    exact Finset.sum_congr rfl (fun i _ ↦ integral_finsetSum _ (fun j _ ↦ hterm_int i j))
+  rw [hswap]
+  -- Per-pair upper bound
+  set RP : Fin k → Fin k → ℝ := fun i j ↦
+    (if i ∉ B ∧ j ∉ B ∧ i ≠ j then cutNormDiff W (chosenStep W ε') else 0)
+    + (if i ∈ B then (1 : ℝ) else 0) + (if j ∈ B then (1 : ℝ) else 0)
+    + (if i = j then (1 : ℝ) else 0) with hRP
+  have hpp : ∀ i j : Fin k, (∫ z, term z i j ∂πF) ≤ RP i j := by
+    intro i j
+    have hb1 : |∫ z, term z i j ∂πF| ≤ 1 := by
+      calc |∫ z, term z i j ∂πF| ≤ ∫ z, |term z i j| ∂πF := abs_integral_le_integral_abs
+        _ ≤ ∫ _z, (1 : ℝ) ∂πF :=
+            integral_mono (hterm_int i j).abs (integrable_const 1) (fun z ↦ habs_term z i j)
+        _ = 1 := by simp
+    by_cases hcond : i ∉ B ∧ j ∉ B ∧ i ≠ j
+    · have hterm_eq : (fun z ↦ term z i j) = fun z ↦ sgnR s *
+          ((if 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' (blockGlue B y z) i j' then (1 : ℝ) else 0)
+            * (if 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' (blockGlue B y z) j j' then (1 : ℝ) else 0)
+            * coreDiff W ε' (blockGlue B y z) i j) := by
+        funext z; simp only [hterm_def]; ring
+      have hle : (∫ z, term z i j ∂πF) ≤ cutNormDiff W (chosenStep W ε') := by
+        rw [show (∫ z, term z i j ∂πF)
+              = sgnR s * ∫ z, (if 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' (blockGlue B y z) i j'
+                    then (1 : ℝ) else 0)
+                * (if 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' (blockGlue B y z) j j' then (1 : ℝ)
+                    else 0)
+                * coreDiff W ε' (blockGlue B y z) i j ∂πF from by
+            rw [hterm_eq]; exact integral_const_mul _ _]
+        calc sgnR s * ∫ z, _ ∂πF ≤ |sgnR s * ∫ z, _ ∂πF| := le_abs_self _
+          _ = |∫ z, _ ∂πF| := by rw [abs_mul, abs_sgnR, one_mul]
+          _ ≤ cutNormDiff W (chosenStep W ε') := hy (i, j) hcond.1 hcond.2.1 hcond.2.2
+      simp only [hRP, if_pos hcond, if_neg hcond.1, if_neg hcond.2.1, if_neg hcond.2.2, add_zero]
+      exact hle
+    · have hb1' : (∫ z, term z i j ∂πF) ≤ 1 := (le_abs_self _).trans hb1
+      have hor : i ∈ B ∨ j ∈ B ∨ i = j := by
+        by_contra h; rw [not_or, not_or] at h; exact hcond ⟨h.1, h.2.1, h.2.2⟩
+      have hge : (1 : ℝ) ≤ (if i ∈ B then (1 : ℝ) else 0) + (if j ∈ B then (1 : ℝ) else 0)
+          + (if i = j then (1 : ℝ) else 0) := by
+        rcases hor with h | h | h
+        · rw [if_pos h]
+          have : (0 : ℝ) ≤ (if j ∈ B then (1 : ℝ) else 0) + (if i = j then (1 : ℝ) else 0) := by
+            positivity
+          linarith
+        · rw [if_pos h]
+          have : (0 : ℝ) ≤ (if i ∈ B then (1 : ℝ) else 0) + (if i = j then (1 : ℝ) else 0) := by
+            positivity
+          linarith
+        · rw [if_pos h]
+          have : (0 : ℝ) ≤ (if i ∈ B then (1 : ℝ) else 0) + (if j ∈ B then (1 : ℝ) else 0) := by
+            positivity
+          linarith
+      simp only [hRP, if_neg hcond, zero_add]
+      linarith
+  calc ∑ i, ∑ j, ∫ z, term z i j ∂πF
+      ≤ ∑ i, ∑ j, RP i j :=
+        Finset.sum_le_sum (fun i _ ↦ Finset.sum_le_sum (fun j _ ↦ hpp i j))
+    _ ≤ (k : ℝ) ^ 2 * cutNormDiff W (chosenStep W ε') + 2 * (B.card : ℝ) * k + k := by
+        have hcN : 0 ≤ cutNormDiff W (chosenStep W ε') := cutNormDiff_nonneg _ _
+        have e1 : (∑ i : Fin k, ∑ j : Fin k,
+            (if i ∉ B ∧ j ∉ B ∧ i ≠ j then cutNormDiff W (chosenStep W ε') else 0))
+            ≤ (k : ℝ) ^ 2 * cutNormDiff W (chosenStep W ε') := by
+          have hb : ∀ i j : Fin k,
+              (if i ∉ B ∧ j ∉ B ∧ i ≠ j then cutNormDiff W (chosenStep W ε') else 0)
+                ≤ cutNormDiff W (chosenStep W ε') := by
+            intro i j; split_ifs with h
+            · exact le_refl _
+            · exact hcN
+          calc (∑ i : Fin k, ∑ j : Fin k,
+                (if i ∉ B ∧ j ∉ B ∧ i ≠ j then cutNormDiff W (chosenStep W ε') else 0))
+              ≤ ∑ _i : Fin k, ∑ _j : Fin k, cutNormDiff W (chosenStep W ε') :=
+                Finset.sum_le_sum (fun i _ ↦ Finset.sum_le_sum (fun j _ ↦ hb i j))
+            _ = (k : ℝ) ^ 2 * cutNormDiff W (chosenStep W ε') := by
+                simp only [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
+                ring
+        have ecard : (∑ i : Fin k, (if i ∈ B then (1 : ℝ) else 0)) = B.card := by
+          rw [Finset.sum_ite_mem, Finset.univ_inter, Finset.sum_const, nsmul_eq_mul, mul_one]
+        have e2 : (∑ i : Fin k, ∑ j : Fin k, (if i ∈ B then (1 : ℝ) else 0))
+            = (k : ℝ) * B.card := by
+          simp_rw [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
+          rw [← Finset.mul_sum, ecard, mul_comm]
+        have e3 : (∑ i : Fin k, ∑ j : Fin k, (if j ∈ B then (1 : ℝ) else 0))
+            = (k : ℝ) * B.card := by
+          rw [Finset.sum_comm]
+          simp_rw [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
+          rw [← Finset.mul_sum, ecard, mul_comm]
+        have e4 : (∑ i : Fin k, ∑ j : Fin k, (if i = j then (1 : ℝ) else 0)) = (k : ℝ) := by
+          simp_rw [Finset.sum_ite_eq, Finset.mem_univ, if_true]
+          rw [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul, mul_one]
+        simp only [hRP, Finset.sum_add_distrib]
+        rw [e2, e3, e4]
+        linarith
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- (H12) **Bounded differences.** Changing one fresh coordinate changes the rule value by at
+most `4k`: rule memberships of other coordinates are unchanged (their sign sums read only the
+block and their own coordinate), and the changed row and column each move by at most `2k`.
+The constant `4k` is load-bearing for the §6 budget. -/
+private theorem abs_ruleVal_update_le (W : Graphon α μ) (ε' : ℝ) {k : ℕ}
+    (B : Finset (Fin k)) (s : Bool) {R R' : Finset (Fin k)} (hR : R ⊆ B) (hR' : R' ⊆ B)
+    {i₀ : Fin k} (hi₀ : ¬ i₀ ∈ B) {x x' : Fin k → α}
+    (hagree : ∀ l, l ≠ i₀ → x l = x' l) :
+    |ruleVal (fun i j ↦ sgnR s * coreDiff W ε' x i j) R R'
+      - ruleVal (fun i j ↦ sgnR s * coreDiff W ε' x' i j) R R'| ≤ 4 * k := by
+  classical
+  set term : (Fin k → α) → Fin k → Fin k → ℝ := fun y i j ↦
+    (if 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' y i j' then (1 : ℝ) else 0) *
+    (if 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' y j j' then (1 : ℝ) else 0) *
+    (sgnR s * coreDiff W ε' y i j) with hterm
+  -- Membership in `B` forces `≠ i₀` (since `i₀ ∉ B`).
+  have hmem_ne : ∀ l ∈ B, l ≠ i₀ := fun l hl heq ↦ hi₀ (heq ▸ hl)
+  -- Row/column sign sums over subsets of `B` are unchanged for rows `≠ i₀`.
+  have hsum_eq : ∀ (S : Finset (Fin k)), S ⊆ B → ∀ i : Fin k, i ≠ i₀ →
+      (∑ j' ∈ S, sgnR s * coreDiff W ε' x i j') = ∑ j' ∈ S, sgnR s * coreDiff W ε' x' i j' := by
+    intro S hS i hi
+    refine Finset.sum_congr rfl fun j' hj' ↦ ?_
+    rw [coreDiff_congr W ε' (hagree i hi) (hagree j' (hmem_ne j' (hS hj')))]
+  -- Each single term has absolute value at most `1`.
+  have habs_term : ∀ (y : Fin k → α) (i j : Fin k), |term y i j| ≤ 1 := by
+    intro y i j
+    simp only [hterm]
+    rw [abs_mul, abs_mul, abs_mul, abs_sgnR, one_mul]
+    have hA : |(if 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' y i j' then (1 : ℝ) else 0)| ≤ 1 := by
+      split_ifs <;> simp
+    have hB : |(if 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' y j j' then (1 : ℝ) else 0)| ≤ 1 := by
+      split_ifs <;> simp
+    exact mul_le_one₀ (mul_le_one₀ hA (abs_nonneg _) hB) (abs_nonneg _)
+      (abs_coreDiff_le_one W ε' y i j)
+  -- Terms with both indices `≠ i₀` are unchanged.
+  have hterm_eq : ∀ i j : Fin k, i ≠ i₀ → j ≠ i₀ → term x i j = term x' i j := by
+    intro i j hi hj
+    simp only [hterm]
+    rw [hsum_eq R' hR' i hi, hsum_eq R hR j hj, coreDiff_congr W ε' (hagree i hi) (hagree j hj)]
+  -- Pointwise bound on the term difference.
+  have hpt : ∀ i j : Fin k,
+      |term x i j - term x' i j| ≤ if i = i₀ ∨ j = i₀ then (2 : ℝ) else 0 := by
+    intro i j
+    by_cases hc : i = i₀ ∨ j = i₀
+    · rw [if_pos hc]
+      have htri : |term x i j - term x' i j| ≤ |term x i j| + |term x' i j| := by
+        have := abs_add_le (term x i j) (-(term x' i j))
+        rwa [← sub_eq_add_neg, abs_neg] at this
+      calc |term x i j - term x' i j| ≤ |term x i j| + |term x' i j| := htri
+        _ ≤ 1 + 1 := add_le_add (habs_term x i j) (habs_term x' i j)
+        _ = 2 := by norm_num
+    · rw [if_neg hc]
+      obtain ⟨hci, hcj⟩ := not_or.mp hc
+      rw [hterm_eq i j hci hcj, sub_self, abs_zero]
+  -- Count of pairs touching `i₀`.
+  have hcount : (∑ i : Fin k, ∑ j : Fin k, (if i = i₀ ∨ j = i₀ then (2 : ℝ) else 0)) ≤ 4 * k := by
+    have key : ∀ i : Fin k, (∑ j : Fin k, (if i = i₀ ∨ j = i₀ then (2 : ℝ) else 0))
+        = (if i = i₀ then (2 * (k : ℝ)) else 2) := by
+      intro i
+      by_cases hi : i = i₀
+      · simp only [hi, true_or, if_true, Finset.sum_const, Finset.card_univ, Fintype.card_fin,
+          nsmul_eq_mul]
+        ring
+      · simp only [hi, false_or, Finset.sum_ite_eq', Finset.mem_univ, if_true, if_false]
+    have hrw : ∀ i : Fin k, (if i = i₀ then (2 * (k : ℝ)) else 2)
+        = 2 + (if i = i₀ then (2 * (k : ℝ) - 2) else 0) := by
+      intro i; by_cases hi : i = i₀ <;> simp [hi]
+    calc (∑ i : Fin k, ∑ j : Fin k, (if i = i₀ ∨ j = i₀ then (2 : ℝ) else 0))
+        = ∑ i : Fin k, (if i = i₀ then (2 * (k : ℝ)) else 2) := Finset.sum_congr rfl fun i _ ↦ key i
+      _ = ∑ i : Fin k, (2 + (if i = i₀ then (2 * (k : ℝ) - 2) else 0)) :=
+          Finset.sum_congr rfl fun i _ ↦ hrw i
+      _ = (k : ℝ) * 2 + (2 * (k : ℝ) - 2) := by
+          rw [Finset.sum_add_distrib, Finset.sum_const, Finset.sum_ite_eq']
+          simp only [Finset.card_univ, Fintype.card_fin, nsmul_eq_mul, Finset.mem_univ, if_true]
+      _ ≤ 4 * k := by linarith
+  -- Assemble.
+  rw [show (fun i j ↦ sgnR s * coreDiff W ε' x i j) = fun i j ↦ sgnR s * coreDiff W ε' x i j from rfl]
+  rw [ruleVal_eq_sum_ite, ruleVal_eq_sum_ite]
+  have hlx : (∑ i, ∑ j,
+      (if 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' x i j' then (1 : ℝ) else 0) *
+      (if 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' x j j' then (1 : ℝ) else 0) *
+      (sgnR s * coreDiff W ε' x i j)) = ∑ i, ∑ j, term x i j := by simp only [hterm]
+  have hlx' : (∑ i, ∑ j,
+      (if 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' x' i j' then (1 : ℝ) else 0) *
+      (if 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' x' j j' then (1 : ℝ) else 0) *
+      (sgnR s * coreDiff W ε' x' i j)) = ∑ i, ∑ j, term x' i j := by simp only [hterm]
+  rw [hlx, hlx', ← Finset.sum_sub_distrib]
+  simp_rw [← Finset.sum_sub_distrib]
+  refine le_trans (Finset.abs_sum_le_sum_abs _ _) ?_
+  refine le_trans (Finset.sum_le_sum fun i _ ↦ Finset.abs_sum_le_sum_abs _ _) ?_
+  refine le_trans (Finset.sum_le_sum fun i _ ↦ Finset.sum_le_sum fun j _ ↦ hpt i j) hcount
+
 /-! ##### (II) McDiarmid at MGF level on finite product measures
 
 Mathlib has Hoeffding's LEMMA (`ProbabilityTheory.hasSubgaussianMGF_of_mem_Icc`) but no
