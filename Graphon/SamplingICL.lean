@@ -235,23 +235,59 @@ section GoodMass
 
 open scoped Classical
 
-/-- **The finite-graph embedding on an arbitrary atomless standard Borel space**: the
-step graphon of `G` over a chosen equal-measure `k`-cell partition, with `0/1`
-coefficients given by adjacency. The generic analogue of `ofSimpleGraph` (which is the
-`[0,1]`-interval presentation). Downstream uses treat this as opaque. -/
-noncomputable def ofSimpleGraphOn {k : ℕ} [NeZero k] (G : SimpleGraph (Fin k)) :
-    Graphon α μ :=
-  let h := exists_partition_with_measures (α := α) (μ := μ) (fun _ : Fin k ↦ (k : ℝ)⁻¹)
+/-- The existence package for a chosen equal-measure `k`-cell partition. -/
+private theorem equipartition_exists (k : ℕ) [NeZero k] :
+    ∃ (P : MeasurablePartition α μ) (ι : Fin k → Set α),
+      (∀ i, ι i ∈ P.parts) ∧ Function.Injective ι ∧ (∀ S ∈ P.parts, ∃ i, ι i = S) ∧
+      P.parts.card = k ∧ ∀ i, (μ (ι i)).toReal = (k : ℝ)⁻¹ :=
+  exists_partition_with_measures (α := α) (μ := μ) (fun _ : Fin k ↦ (k : ℝ)⁻¹)
     (fun _ ↦ by positivity)
     (by
       rw [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
       exact mul_inv_cancel₀ (Nat.cast_ne_zero.mpr (NeZero.ne k)))
-  mkStepGraphon h.choose
+
+/-- A chosen equal-measure `k`-cell partition (shared by every finite-graph and
+weighted-sample embedding at level `k`, so their step graphons live on the SAME
+partition). -/
+noncomputable def equipartition (k : ℕ) [NeZero k] : MeasurablePartition α μ :=
+  (equipartition_exists (α := α) (μ := μ) k).choose
+
+/-- The chosen enumeration of the cells of `equipartition k`. -/
+noncomputable def equipartitionCell (k : ℕ) [NeZero k] : Fin k → Set α :=
+  (equipartition_exists (α := α) (μ := μ) k).choose_spec.choose
+
+theorem equipartitionCell_mem (k : ℕ) [NeZero k] (i : Fin k) :
+    equipartitionCell (α := α) (μ := μ) k i ∈ (equipartition (α := α) (μ := μ) k).parts :=
+  (equipartition_exists (α := α) (μ := μ) k).choose_spec.choose_spec.1 i
+
+theorem equipartitionCell_injective (k : ℕ) [NeZero k] :
+    Function.Injective (equipartitionCell (α := α) (μ := μ) k) :=
+  (equipartition_exists (α := α) (μ := μ) k).choose_spec.choose_spec.2.1
+
+theorem equipartitionCell_surjOn (k : ℕ) [NeZero k] :
+    ∀ S ∈ (equipartition (α := α) (μ := μ) k).parts,
+      ∃ i, equipartitionCell (α := α) (μ := μ) k i = S :=
+  (equipartition_exists (α := α) (μ := μ) k).choose_spec.choose_spec.2.2.1
+
+theorem equipartitionCell_measure (k : ℕ) [NeZero k] (i : Fin k) :
+    (μ (equipartitionCell (α := α) (μ := μ) k i)).toReal = (k : ℝ)⁻¹ :=
+  (equipartition_exists (α := α) (μ := μ) k).choose_spec.choose_spec.2.2.2.2 i
+
+/-- **The finite-graph embedding on an arbitrary atomless standard Borel space**: the
+step graphon of `G` over the chosen equal-measure `k`-cell partition
+(`equipartition k`), with `0/1` coefficients given by adjacency. The generic analogue
+of `ofSimpleGraph` (which is the `[0,1]`-interval presentation). Downstream uses treat
+this as opaque. -/
+noncomputable def ofSimpleGraphOn {k : ℕ} [NeZero k] (G : SimpleGraph (Fin k)) :
+    Graphon α μ :=
+  mkStepGraphon (equipartition k)
     (fun S T ↦
-      if hST : (∃ i, h.choose_spec.choose i = S) ∧ (∃ j, h.choose_spec.choose j = T)
+      if hST : (∃ i, equipartitionCell (α := α) (μ := μ) k i = S) ∧
+          (∃ j, equipartitionCell (α := α) (μ := μ) k j = T)
       then (if G.Adj hST.1.choose hST.2.choose then 1 else 0) else 0)
     (fun S _ T _ ↦ by
-      by_cases h1 : (∃ i, h.choose_spec.choose i = S) ∧ (∃ j, h.choose_spec.choose j = T)
+      by_cases h1 : (∃ i, equipartitionCell (α := α) (μ := μ) k i = S) ∧
+          (∃ j, equipartitionCell (α := α) (μ := μ) k j = T)
       · rw [dif_pos h1, dif_pos ⟨h1.2, h1.1⟩]
         by_cases hadj : G.Adj h1.1.choose h1.2.choose
         · rw [if_pos hadj, if_pos (G.adj_symm hadj)]
