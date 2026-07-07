@@ -591,4 +591,150 @@ theorem mass_bad_family_le {ι : Type*} [Fintype ι] (p : Sym2 (Fin k) → ℝ)
 
 end ChernoffEngine
 
+/-! ### Layer 2(i): almost-everywhere alignment of edge parameters -/
+
+section AeAlignment
+
+variable [IsProbabilityMeasure μ] {k : ℕ}
+
+/-- A.e. symmetry at a pair of coordinates (mirror of `graphonEval_mem_Icc_ae`):
+the graphon's a.e. symmetry transfers along the pair evaluation map. -/
+theorem graphonEval_symm_ae (W : Graphon α μ) {i j : Fin k} (hij : i ≠ j) :
+    ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ),
+      W.toAEEqFun (x j, x i) = W.toAEEqFun (x i, x j) := by
+  have h_meas : Measurable (fun x : Fin k → α ↦ (x i, x j)) :=
+    Measurable.prodMk (measurable_pi_apply _) (measurable_pi_apply _)
+  have h_indep : ProbabilityTheory.iIndepFun (fun l (x : Fin k → α) ↦ x l)
+      (Measure.pi (fun _ : Fin k ↦ μ)) :=
+    ProbabilityTheory.iIndepFun_pi (fun _ ↦ aemeasurable_id)
+  have h_indep_pair := h_indep.indepFun hij
+  have h_map : Measure.map (fun x ↦ (x i, x j)) (Measure.pi (fun _ : Fin k ↦ μ)) =
+      (Measure.map (fun x ↦ x i) (Measure.pi (fun _ : Fin k ↦ μ))).prod
+      (Measure.map (fun x ↦ x j) (Measure.pi (fun _ : Fin k ↦ μ))) := by
+    rw [ProbabilityTheory.indepFun_iff_map_prod_eq_prod_map_map
+      (measurable_pi_apply _).aemeasurable (measurable_pi_apply _).aemeasurable]
+      at h_indep_pair
+    exact h_indep_pair
+  have h_map_eq : Measure.map (fun x ↦ (x i, x j)) (Measure.pi (fun _ : Fin k ↦ μ)) =
+      μ.prod μ := by
+    rw [h_map, (MeasureTheory.measurePreserving_eval (fun _ : Fin k ↦ μ) i).map_eq,
+      (MeasureTheory.measurePreserving_eval (fun _ : Fin k ↦ μ) j).map_eq]
+  have h_qmp : Measure.QuasiMeasurePreserving (fun x : Fin k → α ↦ (x i, x j))
+      (Measure.pi (fun _ : Fin k ↦ μ)) (μ.prod μ) := by
+    constructor
+    · exact h_meas
+    · rw [h_map_eq]
+  exact h_qmp.ae W.toSymmKernel.symm'
+
+omit [IsProbabilityMeasure μ] in
+/-- Finite a.e. conjunction over a finset (the standard induction, packaged). -/
+theorem ae_all_finset {β : Type*} (s : Finset β) (Φ : β → (Fin k → α) → Prop)
+    (h : ∀ b ∈ s, ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ), Φ b x) :
+    ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ), ∀ b ∈ s, Φ b x := by
+  classical
+  revert h
+  refine Finset.induction_on s ?_ ?_
+  · simp
+  · intro a s' _ ih hs
+    simp only [Finset.mem_insert, forall_eq_or_imp] at hs ⊢
+    filter_upwards [hs.1, ih hs.2] with x hx1 hx2
+    exact ⟨hx1, hx2⟩
+
+/-- **The aligned edge-parameter event**: for a.e. sampled points, every edge parameter
+is in `[0,1]` and agrees with the clamped `(min, max)`-ordered evaluation used by the
+weighted sampled graphon. -/
+theorem ae_edge_params_aligned (W : Graphon α μ) :
+    ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ),
+      ∀ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset,
+        W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc (0 : ℝ) 1 ∧
+        min 1 (max 0 (W.toAEEqFun
+            (x (min (Quot.out e).1 (Quot.out e).2), x (max (Quot.out e).1 (Quot.out e).2))))
+          = W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) := by
+  refine ae_all_finset _ _ fun e he ↦ ?_
+  have hne : (Quot.out e).1 ≠ (Quot.out e).2 :=
+    edge_out_ne (SimpleGraph.mem_edgeFinset.mp he)
+  have hIcc := graphonEval_mem_Icc_ae (V := Fin k) W hne
+  rcases le_or_gt (Quot.out e).1 (Quot.out e).2 with hle | hgt
+  · -- out-pair already (min, max)-ordered
+    have hmin : min (Quot.out e).1 (Quot.out e).2 = (Quot.out e).1 := min_eq_left hle
+    have hmax : max (Quot.out e).1 (Quot.out e).2 = (Quot.out e).2 := max_eq_right hle
+    filter_upwards [hIcc] with x hx
+    refine ⟨hx, ?_⟩
+    rw [hmin, hmax, max_eq_right hx.1, min_eq_right hx.2]
+  · -- out-pair reversed: use a.e. symmetry
+    have hle' := le_of_lt hgt
+    have hmin : min (Quot.out e).1 (Quot.out e).2 = (Quot.out e).2 := min_eq_right hle'
+    have hmax : max (Quot.out e).1 (Quot.out e).2 = (Quot.out e).1 := max_eq_left hle'
+    have hsymm := graphonEval_symm_ae W (i := (Quot.out e).2) (j := (Quot.out e).1) hne.symm
+    filter_upwards [hIcc, hsymm] with x hx hsx
+    refine ⟨hx, ?_⟩
+    rw [hmin, hmax, hsx]
+    have hx' : W.toAEEqFun (x (Quot.out e).2, x (Quot.out e).1) ∈ Set.Icc (0 : ℝ) 1 :=
+      hsx ▸ hx
+    rw [max_eq_right hx'.1, min_eq_right hx'.2]
+
+end AeAlignment
+
+/-! ### Layer 2(ii): cut coefficients and the edge regrouping -/
+
+section CutCoeff
+
+open scoped Classical
+
+variable {k : ℕ}
+
+/-- The number of ordered off-diagonal pairs of the cut `A × B` mapping to the edge
+`e`. -/
+noncomputable def cutCoeff (A B : Finset (Fin k)) (e : Sym2 (Fin k)) : ℝ :=
+  (((A ×ˢ B).filter (fun ij : Fin k × Fin k ↦ ij.1 ≠ ij.2 ∧ s(ij.1, ij.2) = e)).card : ℝ)
+
+/-- Each edge collects at most its two orientations. -/
+theorem cutCoeff_le_two (A B : Finset (Fin k)) (e : Sym2 (Fin k)) : |cutCoeff A B e| ≤ 2 := by
+  rw [cutCoeff, abs_of_nonneg (by positivity)]
+  have hsub : ((A ×ˢ B).filter
+      (fun ij : Fin k × Fin k ↦ ij.1 ≠ ij.2 ∧ s(ij.1, ij.2) = e)) ⊆
+      {((Quot.out e).1, (Quot.out e).2), ((Quot.out e).2, (Quot.out e).1)} := by
+    intro ij hij
+    have h2 := (Finset.mem_filter.mp hij).2.2
+    have hout : s((Quot.out e).1, (Quot.out e).2) = e := Quot.out_eq e
+    rw [← hout, Sym2.eq_iff] at h2
+    rcases h2 with ⟨h1, h2⟩ | ⟨h1, h2⟩
+    · exact Finset.mem_insert.mpr (Or.inl (Prod.ext h1 h2))
+    · exact Finset.mem_insert.mpr (Or.inr (Finset.mem_singleton.mpr (Prod.ext h1 h2)))
+  calc ((((A ×ˢ B).filter
+        (fun ij : Fin k × Fin k ↦ ij.1 ≠ ij.2 ∧ s(ij.1, ij.2) = e)).card : ℝ))
+      ≤ (({((Quot.out e).1, (Quot.out e).2),
+          ((Quot.out e).2, (Quot.out e).1)} : Finset (Fin k × Fin k)).card : ℝ) := by
+        exact_mod_cast Finset.card_le_card hsub
+    _ ≤ 2 := by
+        exact_mod_cast Finset.card_insert_le _ _ |>.trans (by simp)
+
+/-- **Edge regrouping**: a sum of an edge functional over the off-diagonal ordered pairs
+of a cut equals the `cutCoeff`-weighted sum over edges. -/
+theorem sum_pairs_eq_sum_edges (A B : Finset (Fin k)) (f : Sym2 (Fin k) → ℝ) :
+    ∑ ij ∈ (A ×ˢ B).filter (fun ij : Fin k × Fin k ↦ ij.1 ≠ ij.2), f s(ij.1, ij.2) =
+      ∑ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset, cutCoeff A B e * f e := by
+  have hmaps : ∀ ij ∈ (A ×ˢ B).filter (fun ij : Fin k × Fin k ↦ ij.1 ≠ ij.2),
+      s(ij.1, ij.2) ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset := by
+    intro ij hij
+    rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
+    exact (Finset.mem_filter.mp hij).2
+  rw [← Finset.sum_fiberwise_of_maps_to hmaps (fun ij ↦ f s(ij.1, ij.2))]
+  refine Finset.sum_congr rfl fun e _ ↦ ?_
+  have hfil : ((A ×ˢ B).filter (fun ij : Fin k × Fin k ↦ ij.1 ≠ ij.2)).filter
+      (fun ij ↦ s(ij.1, ij.2) = e) =
+      (A ×ˢ B).filter (fun ij : Fin k × Fin k ↦ ij.1 ≠ ij.2 ∧ s(ij.1, ij.2) = e) := by
+    rw [Finset.filter_filter]
+  rw [hfil]
+  calc ∑ ij ∈ (A ×ˢ B).filter
+        (fun ij : Fin k × Fin k ↦ ij.1 ≠ ij.2 ∧ s(ij.1, ij.2) = e), f s(ij.1, ij.2)
+      = ∑ _ij ∈ (A ×ˢ B).filter
+          (fun ij : Fin k × Fin k ↦ ij.1 ≠ ij.2 ∧ s(ij.1, ij.2) = e), f e := by
+        refine Finset.sum_congr rfl fun ij hij ↦ ?_
+        rw [(Finset.mem_filter.mp hij).2.2]
+    _ = cutCoeff A B e * f e := by
+        rw [Finset.sum_const, nsmul_eq_mul, cutCoeff]
+
+end CutCoeff
+
 end Graphon
