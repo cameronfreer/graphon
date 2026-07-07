@@ -495,6 +495,55 @@ theorem ae_forall_sample_mem_part (P : MeasurablePartition α μ) {k : ℕ} [NeZ
   exact (MeasureTheory.measurePreserving_eval (fun _ : Fin k ↦ μ) i).quasiMeasurePreserving.ae
     P.ae_covers
 
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- Graphons with a.e.-equal kernels are at cut-norm difference zero (every rectangle
+integral of the difference vanishes). -/
+theorem cutNormDiff_eq_zero_of_ae_eq (V₁ V₂ : Graphon α μ)
+    (h : ∀ᵐ p ∂(μ.prod μ), V₁.toAEEqFun p = V₂.toAEEqFun p) :
+    cutNormDiff V₁ V₂ = 0 := by
+  have hzero : ∀ S T : Set α, rectIntegralDiff V₁ V₂ S T = 0 := by
+    intro S T
+    unfold rectIntegralDiff
+    rw [show (∫ p in S ×ˢ T, (V₁.toAEEqFun p - V₂.toAEEqFun p) ∂(μ.prod μ)) =
+        ∫ _p in S ×ˢ T, (0 : ℝ) ∂(μ.prod μ) from
+      integral_congr_ae (ae_restrict_of_ae (by
+        filter_upwards [h] with p hp
+        rw [hp, sub_self]))]
+    simp
+  refine le_antisymm ?_ (cutNormDiff_nonneg V₁ V₂)
+  unfold cutNormDiff
+  refine Real.iSup_le (fun S ↦ Real.iSup_le (fun _ ↦ Real.iSup_le (fun T ↦
+    Real.iSup_le (fun _ ↦ ?_) le_rfl) le_rfl) le_rfl) le_rfl
+  rw [hzero S T]
+  simp
+
+/-- **A.e. coefficient alignment at sampled pairs** (part c5): off the diagonal, the
+clamped evaluation of the chosen step graphon at a sampled pair equals the rectangle
+average of the two cells containing the samples. -/
+private theorem ae_clampEval_chosenStep_eq (W : Graphon α μ) (ε' : ℝ) {k : ℕ} [NeZero k]
+    {i j : Fin k} (hij : i ≠ j) :
+    ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ),
+      ∀ S ∈ (chosenPartition W ε').parts, ∀ T ∈ (chosenPartition W ε').parts,
+        x (min i j) ∈ S → x (max i j) ∈ T →
+          clampEval (chosenStep W ε') x i j = rectAverage W S T := by
+  have hker : ∀ᵐ p ∂(μ.prod μ),
+      (chosenStep W ε').toAEEqFun p
+        = mkStepFun (chosenPartition W ε') (rectAverage W) p := by
+    rw [chosenStep_eq_mkStepGraphon]
+    exact AEEqFun.coeFn_mk _ _
+  have hmm : min i j ≠ max i j := by
+    rcases lt_or_gt_of_ne hij with h | h
+    · rw [min_eq_left h.le, max_eq_right h.le]; exact hij
+    · rw [min_eq_right h.le, max_eq_left h.le]; exact hij.symm
+  filter_upwards [ae_pairMap_of_prod (min i j) (max i j) hmm hker]
+    with x hx S hS T hT hxS hxT
+  have heval := mkStepFun_eq_at (chosenPartition W ε') (rectAverage W) hS hT
+    (Set.mk_mem_prod hxS hxT)
+  have havg := rectAverage_mem_Icc W S T
+    ((chosenPartition W ε').measurableSet_part hS)
+    ((chosenPartition W ε').measurableSet_part hT)
+  rw [clampEval, hx, heval, max_eq_right havg.1, min_eq_right havg.2]
+
 /-- **Part c — the frequency layer** (the weight-perturbation construction). The chosen step
 graphon is `freqTerm`-close to its own weighted sample. This is the main construction cost of
 the point-sampling majorant: the equicells grouped by the `P`-cell of their sample point form
