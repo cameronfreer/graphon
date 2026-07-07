@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.SamplingRounding
 import Graphon.Regularity
+import Mathlib.Probability.Moments.Variance
 
 /-!
 # The point-sampling half of the First Sampling Lemma (scaffold)
@@ -134,7 +135,7 @@ of `W` at quality `ε' := ε/8` with `m = m(ε')` parts (uniform in `W` — PROV
 
 open MeasureTheory Set Filter Finset
 
-open scoped ENNReal
+open scoped ENNReal ProbabilityTheory
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
 
@@ -510,6 +511,21 @@ theorem integrable_abs_empFreq_sub {k : ℕ} [NeZero k] {S : Set α} (hS : Measu
       (by rw [← measure_univ (μ := μ)]; exact measure_mono (Set.subset_univ _))
   exact abs_empFreq_sub_le_one S x hle1
 
+/-- **Cauchy–Schwarz on a probability space**: `(∫|g|)² ≤ ∫ g²`. Proved from
+`0 ≤ Var[|g|] = 𝔼[|g|²] − 𝔼[|g|]²`. -/
+private theorem sq_integral_abs_le {Ω : Type*} [MeasurableSpace Ω] {ν : Measure Ω}
+    [IsProbabilityMeasure ν] {g : Ω → ℝ} (hmem : MemLp g 2 ν) :
+    (∫ ω, |g ω| ∂ν) ^ 2 ≤ ∫ ω, g ω ^ 2 ∂ν := by
+  have habs : MemLp (fun ω ↦ |g ω|) 2 ν := hmem.abs
+  have hv := ProbabilityTheory.variance_nonneg (fun ω ↦ |g ω|) ν
+  rw [ProbabilityTheory.variance_eq_sub habs] at hv
+  have e1 : ν[(fun ω ↦ |g ω|) ^ 2] = ∫ ω, g ω ^ 2 ∂ν := by
+    simp [Pi.pow_apply, sq_abs]
+  have e2 : ν[fun ω ↦ |g ω|] = ∫ ω, |g ω| ∂ν := rfl
+  rw [e1, e2] at hv
+  linarith
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
 /-- **Per-cell frequency bound** (iid variance + Cauchy–Schwarz): the mean absolute deviation
 of the empirical cell frequency from the true measure is `O(1/√k)`, uniformly over cells. The
 variance identity `E(empFreq − μS)² = μS(1−μS)/k ≤ 1/(4k)` (cross terms vanish by coordinate
@@ -519,7 +535,108 @@ private theorem integral_abs_empFreq_sub_le {k : ℕ} [NeZero k] {S : Set α}
     (hS : MeasurableSet S) :
     ∫ x, |empFreq S x - (μ S).toReal| ∂Measure.pi (fun _ : Fin k ↦ μ)
       ≤ 1 / (2 * Real.sqrt k) := by
-  sorry
+  classical
+  set π : Measure (Fin k → α) := Measure.pi (fun _ : Fin k ↦ μ) with hπ
+  set p : ℝ := (μ S).toReal with hp
+  set χ : α → ℝ := S.indicator (fun _ ↦ (1 : ℝ)) with hχ
+  have hkpos : (0 : ℝ) < (k : ℝ) := by exact_mod_cast Nat.pos_of_ne_zero (NeZero.ne k)
+  have hkne : (k : ℝ) ≠ 0 := ne_of_gt hkpos
+  -- basic facts about χ
+  have hχ_meas : Measurable χ := measurable_const.indicator hS
+  have hχ_Icc : ∀ y, χ y ∈ Set.Icc (0 : ℝ) 1 := by
+    intro y; rw [hχ]; by_cases h : y ∈ S <;> simp [h]
+  have hχ_memLp : MemLp χ 2 μ :=
+    memLp_of_bounded (ae_of_all _ hχ_Icc) hχ_meas.aestronglyMeasurable 2
+  have hχ_int : ∫ y, χ y ∂μ = p := by
+    rw [hχ, integral_indicator_const _ hS, smul_eq_mul, mul_one]; rfl
+  -- empFreq as a scaled sum of coordinate indicators
+  have hfreq : ∀ x : Fin k → α, empFreq S x = (k : ℝ)⁻¹ * ∑ i, χ (x i) := by
+    intro x
+    unfold empFreq
+    rw [Finset.card_filter, Nat.cast_sum, div_eq_inv_mul]
+    congr 1
+    refine Finset.sum_congr rfl (fun i _ ↦ ?_)
+    by_cases h : x i ∈ S <;> simp [hχ, h]
+  have hfreq_fun : (fun x : Fin k → α ↦ empFreq S x)
+      = fun x ↦ (k : ℝ)⁻¹ * ∑ i, χ (x i) := funext hfreq
+  -- coordinate integrability and single-coordinate mean transfer
+  have hcoord_int : ∀ i : Fin k, Integrable (fun x : Fin k → α ↦ χ (x i)) π :=
+    fun i ↦ (hχ_memLp.comp_measurePreserving
+      (MeasureTheory.measurePreserving_eval (fun _ : Fin k ↦ μ) i)).integrable one_le_two
+  have hcoord : ∀ i : Fin k, ∫ x, χ (x i) ∂π = p := by
+    intro i
+    have hmp := MeasureTheory.measurePreserving_eval (fun _ : Fin k ↦ μ) i
+    have hmap : Measure.map (fun x : Fin k → α ↦ x i) π = μ := by rw [hπ]; exact hmp.map_eq
+    have hfm : AEStronglyMeasurable χ (Measure.map (fun x : Fin k → α ↦ x i) π) := by
+      rw [hmap]; exact hχ_meas.aestronglyMeasurable
+    calc ∫ x, χ (x i) ∂π
+        = ∫ y, χ y ∂(Measure.map (fun x : Fin k → α ↦ x i) π) :=
+          (integral_map (measurable_pi_apply i).aemeasurable hfm).symm
+      _ = ∫ y, χ y ∂μ := by rw [hmap]
+      _ = p := hχ_int
+  -- E[empFreq] = p
+  have hmean : ∫ x, empFreq S x ∂π = p := by
+    simp_rw [hfreq]
+    rw [integral_const_mul, integral_finsetSum _ (fun i _ ↦ hcoord_int i)]
+    simp_rw [hcoord]
+    rw [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
+    field_simp
+  -- variance of the empirical frequency
+  set Y : (Fin k → α) → ℝ := fun x ↦ ∑ i, χ (x i) with hY
+  have hYsum : Y = ∑ i : Fin k, fun x : Fin k → α ↦ χ (x i) := by
+    funext x; rw [hY, Finset.sum_apply]
+  have hvarY : Var[Y; π] = (k : ℝ) * Var[χ; μ] := by
+    rw [hYsum, ProbabilityTheory.variance_sum_pi (fun _ ↦ hχ_memLp),
+      Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]
+  have hvarχ : Var[χ; μ] ≤ 1 / 4 := by
+    have h := ProbabilityTheory.variance_le_sq_of_bounded (a := 0) (b := 1)
+      (ae_of_all μ hχ_Icc) hχ_meas.aemeasurable
+    norm_num at h ⊢
+    linarith
+  have hvarnn : 0 ≤ Var[χ; μ] := ProbabilityTheory.variance_nonneg _ _
+  have hvarfreq : Var[fun x ↦ empFreq S x; π] ≤ 1 / (4 * (k : ℝ)) := by
+    rw [hfreq_fun, show (fun x : Fin k → α ↦ (k : ℝ)⁻¹ * ∑ i, χ (x i))
+        = fun x ↦ (k : ℝ)⁻¹ * Y x from rfl,
+      ProbabilityTheory.variance_const_mul, hvarY]
+    calc ((k : ℝ)⁻¹) ^ 2 * ((k : ℝ) * Var[χ; μ])
+        ≤ ((k : ℝ)⁻¹) ^ 2 * ((k : ℝ) * (1 / 4)) := by
+          refine mul_le_mul_of_nonneg_left ?_ (by positivity)
+          exact mul_le_mul_of_nonneg_left hvarχ (le_of_lt hkpos)
+      _ = 1 / (4 * (k : ℝ)) := by field_simp
+  -- ∫ (empFreq − p)² = Var[empFreq]
+  have hae : AEMeasurable (fun x ↦ empFreq S x) π := (measurable_empFreq hS).aemeasurable
+  have hvar_int : ∫ x, (empFreq S x - p) ^ 2 ∂π = Var[fun x ↦ empFreq S x; π] := by
+    rw [ProbabilityTheory.variance_eq_integral hae, hmean]
+  -- Cauchy–Schwarz through the L² memLp of the centered frequency
+  have hg_Icc : ∀ x : Fin k → α, empFreq S x - p ∈ Set.Icc (-1 : ℝ) 1 := by
+    intro x
+    have h0 := empFreq_nonneg S x
+    have h1 := empFreq_le_one S x
+    have hp0 : 0 ≤ p := ENNReal.toReal_nonneg
+    have hp1 : p ≤ 1 := by
+      rw [hp, ← ENNReal.toReal_one]
+      exact ENNReal.toReal_mono (by simp)
+        (by rw [← measure_univ (μ := μ)]; exact measure_mono (Set.subset_univ _))
+    exact ⟨by linarith, by linarith⟩
+  have hg_memLp : MemLp (fun x ↦ empFreq S x - p) 2 π :=
+    memLp_of_bounded (ae_of_all _ hg_Icc)
+      ((measurable_empFreq hS).sub_const _).aestronglyMeasurable 2
+  have hCS := sq_integral_abs_le hg_memLp
+  -- conclude
+  set c : ℝ := ∫ x, |empFreq S x - p| ∂π with hc
+  have hc_nn : 0 ≤ c := integral_nonneg (fun x ↦ abs_nonneg _)
+  have hc_sq : c ^ 2 ≤ 1 / (4 * (k : ℝ)) := by
+    refine le_trans hCS ?_
+    rw [hvar_int]
+    exact hvarfreq
+  have hsqrt4k : Real.sqrt (1 / (4 * (k : ℝ))) = 1 / (2 * Real.sqrt k) := by
+    rw [one_div, one_div, Real.sqrt_inv]
+    congr 1
+    rw [show (4 * (k : ℝ)) = 2 ^ 2 * k by ring, Real.sqrt_mul (by positivity),
+      Real.sqrt_sq (by norm_num)]
+  calc c = Real.sqrt (c ^ 2) := (Real.sqrt_sq hc_nn).symm
+    _ ≤ Real.sqrt (1 / (4 * (k : ℝ))) := Real.sqrt_le_sqrt hc_sq
+    _ = 1 / (2 * Real.sqrt k) := hsqrt4k
 
 /-- **Layer 2 — the frequency expectation bound.** The expectation of the frequency term is at
 most `m/√k + 1/k`, where `m` is the number of Frieze–Kannan cells; both terms vanish as
