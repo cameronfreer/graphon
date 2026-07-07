@@ -6,6 +6,9 @@ Authors: Cameron Freer
 import Graphon.SamplingRounding
 import Graphon.Regularity
 import Mathlib.Probability.Moments.Variance
+import Mathlib.Probability.Moments.SubGaussian
+import Mathlib.Algebra.Order.Chebyshev
+import Mathlib.Analysis.Convex.Integral
 
 /-!
 # The point-sampling half of the First Sampling Lemma (scaffold)
@@ -1380,6 +1383,928 @@ argument: the first `⌈√k⌉` coordinates. Because coordinates are iid under 
 moment is needed. Its cardinality is `⌈√k⌉` (as `⌈√k⌉ ≤ k`). -/
 private noncomputable def guessBlock (k : ℕ) : Finset (Fin k) :=
   Finset.univ.filter (fun i : Fin k ↦ (i : ℕ) < Nat.ceil (Real.sqrt k))
+
+/-! #### AFKK cut-guessing apparatus (private)
+
+The proof of `guessBlock_integral_le_cutNormDiff` follows `docs/afkk-cut-guessing.md`
+(= arXiv:2203.07581 §6.2 + Appendix §10; AFKK, JCSS 67 (2003), Lemma 3; Lovász,
+*Large Networks*, Lemma 10.7). Everything here is private. The subsections marked
+**(I) hypergeometric moments**, **(II) product-space McDiarmid MGF**, and
+**(III) finite soft-max** are self-contained infrastructure, candidates for later
+extraction. -/
+
+/-- Sign as a real number: `sgnR true = 1`, `sgnR false = -1`. -/
+private def sgnR (s : Bool) : ℝ := if s then 1 else -1
+
+private theorem abs_sgnR (s : Bool) : |sgnR s| = 1 := by
+  cases s <;> simp [sgnR]
+
+/-- The **sign set** of the subsample row sums: `{i : 0 < ∑_{j ∈ R} m i j}`. Applied to
+`R ⊆ Q` (the guessing block) this is the AFKK "rule" reconstruction of a near-optimal cut
+side from the subsample. -/
+private noncomputable def signSet {k : ℕ} (m : Fin k → Fin k → ℝ) (R : Finset (Fin k)) :
+    Finset (Fin k) :=
+  Finset.univ.filter (fun i ↦ 0 < ∑ j ∈ R, m i j)
+
+/-- The value of the **guessed rectangle**: rows from `signSet m R'`, columns from
+`signSet m R`. -/
+private noncomputable def ruleVal {k : ℕ} (m : Fin k → Fin k → ℝ) (R R' : Finset (Fin k)) :
+    ℝ :=
+  ∑ i ∈ signSet m R', ∑ j ∈ signSet m R, m i j
+
+/-- The **signed rule index set**: a sign bit (for the two directions of `|·|`) and a pair of
+generating subsets `R ⊆ Q`, `R' ⊆ Q'`. Its cardinality is `2 · 2^{|Q|} · 2^{|Q'|}`. -/
+private def signedRules {k : ℕ} (Q Q' : Finset (Fin k)) :
+    Finset (Bool × Finset (Fin k) × Finset (Fin k)) :=
+  (Finset.univ : Finset Bool) ×ˢ (Q.powerset ×ˢ Q'.powerset)
+
+private theorem signedRules_nonempty {k : ℕ} (Q Q' : Finset (Fin k)) :
+    (signedRules Q Q').Nonempty :=
+  ⟨(true, ∅, ∅), by
+    simp only [signedRules, Finset.mem_product, Finset.mem_univ, Finset.mem_powerset,
+      Finset.empty_subset, and_self]⟩
+
+private theorem signedRules_card {k : ℕ} (Q Q' : Finset (Fin k)) :
+    (signedRules Q Q').card = 2 * 2 ^ Q.card * 2 ^ Q'.card := by
+  rw [signedRules, Finset.card_product, Finset.card_product, Finset.card_powerset,
+    Finset.card_powerset, Finset.card_univ, Fintype.card_bool]
+  ring
+
+/-- (H16) Logarithmic size of the signed rule set, in the inequality form the assembly
+consumes: `log |signedRules Q Q'| ≤ (2q+1)·log 2` whenever `|Q|, |Q'| ≤ q`. -/
+private theorem log_signedRules_card_le {k q : ℕ} {Q Q' : Finset (Fin k)}
+    (hQ : Q.card ≤ q) (hQ' : Q'.card ≤ q) :
+    Real.log ((signedRules Q Q').card) ≤ (2 * q + 1) * Real.log 2 := by
+  rw [signedRules_card]
+  have hpow : ((2 * 2 ^ Q.card * 2 ^ Q'.card : ℕ) : ℝ) = (2 : ℝ) ^ (Q.card + Q'.card + 1) := by
+    push_cast; rw [pow_add, pow_add, pow_one]; ring
+  rw [hpow, Real.log_pow]
+  refine mul_le_mul_of_nonneg_right ?_ (Real.log_nonneg one_le_two)
+  have hn : Q.card + Q'.card + 1 ≤ 2 * q + 1 := by omega
+  exact_mod_cast hn
+
+/-- (H1) Restricting the cuts of the fresh-block sup to any fixed block only shrinks the full
+sup: each pair `(A \ Q, B \ Q)` is itself a cut. This is the ONLY place the deterministic
+`guessBlock` interacts with the cut structure. -/
+private theorem sup'_sdiff_le_sup' {k : ℕ} [NeZero k] (m : Fin k → Fin k → ℝ)
+    (Q : Finset (Fin k)) :
+    (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup' Finset.univ_nonempty
+        (fun AB ↦ |∑ i ∈ AB.1 \ Q, ∑ j ∈ AB.2 \ Q, m i j|)
+      ≤ (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup' Finset.univ_nonempty
+        (fun AB ↦ |∑ i ∈ AB.1, ∑ j ∈ AB.2, m i j|) := by
+  refine Finset.sup'_le _ _ (fun AB _ ↦ ?_)
+  exact Finset.le_sup' (fun AB ↦ |∑ i ∈ AB.1, ∑ j ∈ AB.2, m i j|)
+    (Finset.mem_univ (AB.1 \ Q, AB.2 \ Q))
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- (H2a) The sampled difference matrix is symmetric POINTWISE (not just a.e.), by the
+`(min,max)` index normalization inside `clampEval`. -/
+private theorem coreDiff_symm (W : Graphon α μ) (ε' : ℝ) {k : ℕ} (x : Fin k → α)
+    (i j : Fin k) : coreDiff W ε' x i j = coreDiff W ε' x j i := by
+  simp only [coreDiff, clampEval, min_comm i j, max_comm i j]
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- (H2b) Locality: `coreDiff W ε' x i j` depends on the sample only through `x i` and
+`x j`. -/
+private theorem coreDiff_congr (W : Graphon α μ) (ε' : ℝ) {k : ℕ} {x x' : Fin k → α}
+    {i j : Fin k} (hi : x i = x' i) (hj : x j = x' j) :
+    coreDiff W ε' x i j = coreDiff W ε' x' i j := by
+  have hmin : x (min i j) = x' (min i j) := by
+    rcases le_total i j with h | h
+    · rw [min_eq_left h]; exact hi
+    · rw [min_eq_right h]; exact hj
+  have hmax : x (max i j) = x' (max i j) := by
+    rcases le_total i j with h | h
+    · rw [max_eq_right h]; exact hj
+    · rw [max_eq_left h]; exact hi
+  simp only [coreDiff, clampEval, hmin, hmax]
+
+/-- (H3) Crude bound `|ruleVal m R R'| ≤ k²` for entrywise-bounded matrices; supplies
+integrability and the soft-max boundedness side conditions. -/
+private theorem abs_ruleVal_le {k : ℕ} (m : Fin k → Fin k → ℝ) (hm : ∀ i j, |m i j| ≤ 1)
+    (R R' : Finset (Fin k)) : |ruleVal m R R'| ≤ (k : ℝ) ^ 2 := by
+  have hcard : ∀ S : Finset (Fin k), (S.card : ℝ) ≤ k := by
+    intro S
+    calc (S.card : ℝ) ≤ ((Finset.univ : Finset (Fin k)).card : ℝ) := by
+          exact_mod_cast Finset.card_le_univ S
+      _ = k := by rw [Finset.card_univ, Fintype.card_fin]
+  rw [ruleVal]
+  calc |∑ i ∈ signSet m R', ∑ j ∈ signSet m R, m i j|
+      ≤ ∑ i ∈ signSet m R', |∑ j ∈ signSet m R, m i j| := Finset.abs_sum_le_sum_abs _ _
+    _ ≤ ∑ _i ∈ signSet m R', ∑ _j ∈ signSet m R, (1 : ℝ) := by
+        refine Finset.sum_le_sum (fun i _ ↦ ?_)
+        refine (Finset.abs_sum_le_sum_abs _ _).trans (Finset.sum_le_sum (fun j _ ↦ ?_))
+        exact hm i j
+    _ = ((signSet m R').card : ℝ) * ((signSet m R).card : ℝ) := by
+        simp [Finset.sum_const, nsmul_eq_mul]
+    _ ≤ (k : ℝ) ^ 2 := by
+        rw [sq]
+        exact mul_le_mul (hcard _) (hcard _) (by positivity) (by positivity)
+
+/-! ##### (H4) `⌈√k⌉₊` arithmetic -/
+
+private theorem guessBlock_card_le (k : ℕ) [NeZero k] :
+    (guessBlock k).card ≤ ⌈Real.sqrt k⌉₊ := by
+  rw [guessBlock]
+  calc (Finset.univ.filter (fun i : Fin k ↦ (i : ℕ) < ⌈Real.sqrt k⌉₊)).card
+      ≤ (Finset.range ⌈Real.sqrt k⌉₊).card := by
+        refine Finset.card_le_card_of_injOn (fun i ↦ (i : ℕ)) ?_ Fin.val_injective.injOn
+        intro i hi
+        simp only [Finset.mem_coe, Finset.mem_range]
+        simp only [Finset.mem_coe, Finset.mem_filter, Finset.mem_univ, true_and] at hi
+        exact hi
+    _ = ⌈Real.sqrt k⌉₊ := Finset.card_range _
+
+private theorem sqrt_le_natCeil_sqrt (k : ℕ) : Real.sqrt k ≤ (⌈Real.sqrt k⌉₊ : ℝ) :=
+  Nat.le_ceil _
+
+private theorem natCeil_sqrt_le_add_one (k : ℕ) :
+    (⌈Real.sqrt k⌉₊ : ℝ) ≤ Real.sqrt k + 1 := by
+  exact (Nat.ceil_lt_add_one (Real.sqrt_nonneg k)).le
+
+private theorem one_le_natCeil_sqrt (k : ℕ) [NeZero k] : 1 ≤ ⌈Real.sqrt k⌉₊ := by
+  have h : (0 : ℝ) < Real.sqrt k :=
+    Real.sqrt_pos.mpr (by exact_mod_cast Nat.pos_of_ne_zero (NeZero.ne k))
+  exact Nat.lt_ceil.mpr (by simpa using h)
+
+private theorem natCeil_sqrt_le_self (k : ℕ) [NeZero k] : ⌈Real.sqrt k⌉₊ ≤ k := by
+  rw [Nat.ceil_le]
+  refine (Real.sqrt_le_left (by positivity)).mpr ?_
+  have hk : (1 : ℝ) ≤ (k : ℝ) := by exact_mod_cast Nat.one_le_iff_ne_zero.mpr (NeZero.ne k)
+  nlinarith [hk]
+
+/-! ##### (I) Hypergeometric moments of the subsample estimator
+
+Purely finite averages over `Finset.powersetCard q Finset.univ` — sampling `q` of `k`
+fixed real numbers without replacement. Reusable infrastructure. -/
+
+/-- (H5) Enlarging a sum to its positive part over the whole index set. -/
+private theorem sum_le_sum_filter_pos {k : ℕ} (c : Fin k → ℝ) (B : Finset (Fin k)) :
+    ∑ j ∈ B, c j ≤ ∑ j ∈ Finset.univ.filter (fun j ↦ 0 < c j), c j := by
+  rw [← Finset.sum_filter_add_sum_filter_not B (fun j ↦ 0 < c j)]
+  have h2 : ∑ j ∈ B.filter (fun j ↦ ¬ 0 < c j), c j ≤ 0 := by
+    refine Finset.sum_nonpos (fun j hj ↦ ?_)
+    exact not_lt.mp (Finset.mem_filter.mp hj).2
+  have h1 : ∑ j ∈ B.filter (fun j ↦ 0 < c j), c j
+      ≤ ∑ j ∈ Finset.univ.filter (fun j ↦ 0 < c j), c j := by
+    refine Finset.sum_le_sum_of_subset_of_nonneg
+      (Finset.filter_subset_filter _ (Finset.subset_univ B)) (fun j hj _ ↦ ?_)
+    exact (Finset.mem_filter.mp hj).2.le
+  linarith
+
+/-- (H6) Sign-mismatch loss: replacing the true positive set by the estimated one costs at
+most the `ℓ¹` estimation error. -/
+private theorem sum_filter_pos_le_add_dist {k : ℕ} (c chat : Fin k → ℝ) :
+    ∑ j ∈ Finset.univ.filter (fun j ↦ 0 < c j), c j
+      ≤ ∑ j ∈ Finset.univ.filter (fun j ↦ 0 < chat j), c j + ∑ j, |c j - chat j| := by
+  rw [Finset.sum_filter, Finset.sum_filter, ← Finset.sum_add_distrib]
+  refine Finset.sum_le_sum (fun j _ ↦ ?_)
+  have h1 : c j - chat j ≤ |c j - chat j| := le_abs_self _
+  have h2 : -(c j - chat j) ≤ |c j - chat j| := neg_le_abs _
+  have h3 : 0 ≤ |c j - chat j| := abs_nonneg _
+  by_cases hc : 0 < c j <;> by_cases hch : 0 < chat j
+  · rw [if_pos hc, if_pos hch]; linarith
+  · rw [if_pos hc, if_neg hch]
+    have hch' : chat j ≤ 0 := not_lt.mp hch
+    linarith
+  · rw [if_neg hc, if_pos hch]; linarith
+  · rw [if_neg hc, if_neg hch]; linarith
+
+/-- (H7a) First moment: every index lies in `C(k−1,q−1)` of the `q`-subsets. -/
+private theorem sum_powersetCard_sum {k q : ℕ} (hq : 0 < q) (f : Fin k → ℝ) :
+    ∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)), ∑ j ∈ Q, f j
+      = ((k - 1).choose (q - 1) : ℝ) * ∑ j, f j := by
+  have key : ∀ Q : Finset (Fin k), ∑ j ∈ Q, f j
+      = ∑ j : Fin k, if j ∈ Q then f j else 0 := by
+    intro Q; rw [Finset.sum_ite_mem, Finset.univ_inter]
+  rw [Finset.sum_congr rfl (fun Q _ ↦ key Q), Finset.sum_comm, Finset.mul_sum]
+  refine Finset.sum_congr rfl (fun j _ ↦ ?_)
+  rw [← Finset.sum_filter, Finset.sum_const, nsmul_eq_mul]
+  congr 1
+  have h1 : ({j} : Finset (Fin k)) ⊆ Finset.univ := Finset.subset_univ _
+  have h2 : ({j} : Finset (Fin k)).card ≤ q := by rw [Finset.card_singleton]; omega
+  have hc := Finset.card_filter_powersetCard_subset ({j} : Finset (Fin k)) Finset.univ q h1 h2
+  rw [Finset.card_univ, Fintype.card_fin, Finset.card_singleton] at hc
+  have heq : ((Finset.powersetCard q (Finset.univ : Finset (Fin k))).filter (fun Q ↦ j ∈ Q))
+      = (Finset.powersetCard q (Finset.univ : Finset (Fin k))).filter (fun x ↦ {j} ⊆ x) := by
+    apply Finset.filter_congr; intro Q _; simp [Finset.singleton_subset_iff]
+  rw [heq, hc]
+
+/-- (H7b) Second moment: diagonal pairs lie in `C(k−1,q−1)` subsets, off-diagonal pairs in
+`C(k−2,q−2)`. -/
+private theorem sum_powersetCard_sq_sum {k q : ℕ} (hq : 2 ≤ q) (f : Fin k → ℝ) :
+    ∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)), (∑ j ∈ Q, f j) ^ 2
+      = ((k - 1).choose (q - 1) : ℝ) * ∑ j, f j ^ 2
+        + ((k - 2).choose (q - 2) : ℝ) * ∑ j, ∑ l ∈ Finset.univ.erase j, f j * f l := by
+  have hexp : ∀ Q : Finset (Fin k), (∑ j ∈ Q, f j) ^ 2
+      = ∑ j ∈ Q, f j ^ 2 + ∑ j ∈ Q, ∑ l ∈ Q.erase j, f j * f l := by
+    intro Q
+    rw [sq, Finset.sum_mul_sum, ← Finset.sum_add_distrib]
+    refine Finset.sum_congr rfl (fun j hj ↦ ?_)
+    rw [← Finset.add_sum_erase Q (fun l ↦ f j * f l) hj, sq]
+  rw [Finset.sum_congr rfl (fun Q _ ↦ hexp Q), Finset.sum_add_distrib]
+  rw [sum_powersetCard_sum (by omega : 0 < q) (fun j ↦ f j ^ 2)]
+  congr 1
+  have hperQ : ∀ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+      ∑ j ∈ Q, ∑ l ∈ Q.erase j, f j * f l
+        = ∑ j : Fin k, ∑ l ∈ Finset.univ.erase j,
+            if (j ∈ Q ∧ l ∈ Q) then f j * f l else 0 := by
+    intro Q _
+    have hR : ∀ j, (∑ l ∈ Finset.univ.erase j, if j ∈ Q ∧ l ∈ Q then f j * f l else 0)
+        = if j ∈ Q then (∑ l ∈ Q.erase j, f j * f l) else 0 := by
+      intro j
+      by_cases hjQ : j ∈ Q
+      · simp only [hjQ, true_and, if_true]
+        rw [Finset.sum_ite_mem]
+        congr 1
+        ext l
+        simp only [Finset.mem_inter, Finset.mem_erase, Finset.mem_univ]
+        tauto
+      · simp [hjQ]
+    rw [Finset.sum_congr rfl (fun j _ ↦ hR j), Finset.sum_ite_mem, Finset.univ_inter]
+  rw [Finset.sum_congr rfl hperQ, Finset.sum_comm, Finset.mul_sum]
+  refine Finset.sum_congr rfl (fun j _ ↦ ?_)
+  rw [Finset.sum_comm, Finset.mul_sum]
+  refine Finset.sum_congr rfl (fun l hl ↦ ?_)
+  rw [← Finset.sum_filter, Finset.sum_const, nsmul_eq_mul]
+  have hcount : ((Finset.powersetCard q (Finset.univ : Finset (Fin k))).filter
+      (fun Q ↦ j ∈ Q ∧ l ∈ Q)).card = (k - 2).choose (q - 2) := by
+    have hlj : l ≠ j := (Finset.mem_erase.mp hl).1
+    have hjl : j ≠ l := hlj.symm
+    have hins : ({j, l} : Finset (Fin k)).card = 2 := by
+      rw [Finset.card_insert_of_notMem (by simp [hjl]), Finset.card_singleton]
+    have h1 : ({j, l} : Finset (Fin k)) ⊆ Finset.univ := Finset.subset_univ _
+    have h2 : ({j, l} : Finset (Fin k)).card ≤ q := by rw [hins]; omega
+    have hc := Finset.card_filter_powersetCard_subset ({j, l} : Finset (Fin k))
+      Finset.univ q h1 h2
+    rw [Finset.card_univ, Fintype.card_fin, hins] at hc
+    have hfeq : (Finset.powersetCard q (Finset.univ : Finset (Fin k))).filter
+          (fun Q ↦ j ∈ Q ∧ l ∈ Q)
+        = (Finset.powersetCard q (Finset.univ : Finset (Fin k))).filter (fun x ↦ {j, l} ⊆ x) := by
+      apply Finset.filter_congr
+      intro Q _
+      simp [Finset.insert_subset_iff, Finset.singleton_subset_iff]
+    rw [hfeq, hc]
+  rw [hcount]
+
+/-- Falling-factorial identity for binomial coefficients: `(b+1)·C(a+1,b+1) = (a+1)·C(a,b)`. -/
+private theorem choose_mul_aux (a b : ℕ) :
+    (b + 1) * (a + 1).choose (b + 1) = (a + 1) * a.choose b := by
+  rw [Nat.add_one_mul_choose_eq a b]; ring
+
+/-- Abstract variance bound: given the first and second hypergeometric moments (`e1`, `e2`),
+the binomial identity `k·D1 = q·N` and the pair bound `k²·D2 ≤ q²·N`, the average of
+`(k/q·T − S₁)²` is at most `N·k²/q`. Used with `T Q = ∑_{j∈Q} f`, `S₁ = ∑ f`, `S₂ = ∑ f²`. -/
+private theorem var_bound_core (k q : ℕ) (psc : Finset (Finset (Fin k)))
+    (T : Finset (Fin k) → ℝ) (S₁ S₂ N D1 D2 : ℝ)
+    (hS2le : S₂ ≤ k) (hS2nn : 0 ≤ S₂) (hcardR : (psc.card : ℝ) = N) (hNnn : 0 ≤ N)
+    (e1 : ∑ Q ∈ psc, T Q = D1 * S₁)
+    (e2 : ∑ Q ∈ psc, T Q ^ 2 = D1 * S₂ + D2 * (S₁ ^ 2 - S₂))
+    (id1R : (k : ℝ) * D1 = q * N)
+    (hD2nn : 0 ≤ D2) (hD2 : (k : ℝ) ^ 2 * D2 ≤ (q : ℝ) ^ 2 * N)
+    (hq0 : (0 : ℝ) < q) (hk0 : (0 : ℝ) ≤ k) :
+    ∑ Q ∈ psc, ((k : ℝ) / q * T Q - S₁) ^ 2 ≤ N * (k : ℝ) ^ 2 / q := by
+  have hexp : ∑ Q ∈ psc, ((k : ℝ) / q * T Q - S₁) ^ 2
+      = ((k : ℝ) / q) ^ 2 * (∑ Q ∈ psc, T Q ^ 2) - 2 * ((k : ℝ) / q) * S₁ * (∑ Q ∈ psc, T Q)
+        + S₁ ^ 2 * (psc.card : ℝ) := by
+    rw [Finset.sum_congr rfl (fun Q _ ↦ (by ring : ((k : ℝ) / q * T Q - S₁) ^ 2
+        = ((k : ℝ) / q) ^ 2 * T Q ^ 2 - 2 * ((k : ℝ) / q) * S₁ * T Q + S₁ ^ 2))]
+    rw [Finset.sum_add_distrib, Finset.sum_sub_distrib, ← Finset.mul_sum, ← Finset.mul_sum,
+        Finset.sum_const, nsmul_eq_mul, mul_comm ((psc.card : ℝ)) (S₁ ^ 2)]
+  rw [hexp, e1, e2, hcardR, ← sub_nonneg]
+  have h2 : (k : ℝ) ^ 2 * D1 * S₂ = k * q * N * S₂ := by linear_combination (k * S₂) * id1R
+  have h3 : (k : ℝ) * q * S₁ ^ 2 * D1 = q ^ 2 * S₁ ^ 2 * N := by
+    linear_combination (q * S₁ ^ 2) * id1R
+  have hA : 0 ≤ q * N * k * (k - S₂) :=
+    mul_nonneg (mul_nonneg (mul_nonneg hq0.le hNnn) hk0) (by linarith)
+  have hB : 0 ≤ (k : ℝ) ^ 2 * D2 * S₂ := mul_nonneg (mul_nonneg (sq_nonneg _) hD2nn) hS2nn
+  have hC : 0 ≤ S₁ ^ 2 * ((q : ℝ) ^ 2 * N - k ^ 2 * D2) := mul_nonneg (sq_nonneg _) (by linarith)
+  have hexp2 : N * (k : ℝ) ^ 2 / q - (((k : ℝ) / q) ^ 2 * (D1 * S₂ + D2 * (S₁ ^ 2 - S₂))
+      - 2 * ((k : ℝ) / q) * S₁ * (D1 * S₁) + S₁ ^ 2 * N)
+      = (1 / q ^ 2) * (q * N * k ^ 2 - ((k : ℝ) ^ 2 * (D1 * S₂ + D2 * (S₁ ^ 2 - S₂))
+          - 2 * k * q * S₁ * (D1 * S₁) + q ^ 2 * S₁ ^ 2 * N)) := by
+    field_simp
+  rw [hexp2]
+  apply mul_nonneg (by positivity)
+  nlinarith [h2, h3, hA, hB, hC]
+
+/-- Variance bound for the without-replacement estimator: for `|f| ≤ 1`, the average of
+`(k/q·∑_{j∈Q} f − ∑ f)²` over `q`-subsets is at most `C(k,q)·k²/q`. -/
+private theorem sum_powersetCard_var_bound {k q : ℕ} (hq : 0 < q) (hqk : q ≤ k)
+    (f : Fin k → ℝ) (hf : ∀ j, |f j| ≤ 1) :
+    ∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+        ((k : ℝ) / q * ∑ j ∈ Q, f j - ∑ j, f j) ^ 2 ≤ (k.choose q : ℝ) * (k : ℝ) ^ 2 / q := by
+  have hq0 : (0 : ℝ) < q := by exact_mod_cast hq
+  have hk0 : (0 : ℝ) ≤ k := by positivity
+  have hqkr : (q : ℝ) ≤ k := by exact_mod_cast hqk
+  have hS2nn : 0 ≤ ∑ j, f j ^ 2 := Finset.sum_nonneg (fun j _ ↦ sq_nonneg _)
+  have hS2le : (∑ j, f j ^ 2) ≤ k := by
+    calc ∑ j, f j ^ 2 ≤ ∑ _j : Fin k, (1 : ℝ) :=
+          Finset.sum_le_sum (fun j _ ↦ by nlinarith [hf j, abs_nonneg (f j), sq_abs (f j)])
+      _ = k := by simp
+  have hcardR : ((Finset.powersetCard q (Finset.univ : Finset (Fin k))).card : ℝ)
+      = (k.choose q : ℝ) := by
+    rw [Finset.card_powersetCard, Finset.card_univ, Fintype.card_fin]
+  have hNnn : 0 ≤ (k.choose q : ℝ) := by positivity
+  have e1 : ∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)), ∑ j ∈ Q, f j
+      = ((k - 1).choose (q - 1) : ℝ) * ∑ j, f j := sum_powersetCard_sum hq f
+  have id1R : (k : ℝ) * ((k - 1).choose (q - 1) : ℝ) = q * (k.choose q : ℝ) := by
+    have id1 : q * k.choose q = k * (k - 1).choose (q - 1) := by
+      have h := choose_mul_aux (k - 1) (q - 1)
+      rwa [Nat.sub_add_cancel (by omega : 1 ≤ k), Nat.sub_add_cancel (by omega : 1 ≤ q)] at h
+    exact_mod_cast id1.symm
+  by_cases hq2 : 2 ≤ q
+  · have hq2r : (2 : ℝ) ≤ q := by exact_mod_cast hq2
+    have e2 : ∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)), (∑ j ∈ Q, f j) ^ 2
+        = ((k - 1).choose (q - 1) : ℝ) * (∑ j, f j ^ 2)
+          + ((k - 2).choose (q - 2) : ℝ) * ((∑ j, f j) ^ 2 - ∑ j, f j ^ 2) := by
+      rw [sum_powersetCard_sq_sum hq2 f]
+      congr 1
+      have hP : ∀ j, ∑ l ∈ Finset.univ.erase j, f j * f l = f j * ((∑ l, f l) - f j) := by
+        intro j
+        rw [← Finset.mul_sum]; congr 1
+        have hh := Finset.add_sum_erase Finset.univ f (Finset.mem_univ j); linarith [hh]
+      rw [Finset.sum_congr rfl (fun j _ ↦ hP j)]
+      rw [Finset.sum_congr rfl (fun j _ ↦ (by ring :
+        f j * ((∑ l, f l) - f j) = f j * (∑ l, f l) - f j ^ 2))]
+      rw [Finset.sum_sub_distrib, ← Finset.sum_mul]; ring
+    have hD2 : (k : ℝ) ^ 2 * ((k - 2).choose (q - 2) : ℝ) ≤ (q : ℝ) ^ 2 * (k.choose q : ℝ) := by
+      have id2 : (q * (q - 1)) * k.choose q = (k * (k - 1)) * (k - 2).choose (q - 2) := by
+        have id1 : q * k.choose q = k * (k - 1).choose (q - 1) := by
+          have h := choose_mul_aux (k - 1) (q - 1)
+          rwa [Nat.sub_add_cancel (by omega : 1 ≤ k), Nat.sub_add_cancel (by omega : 1 ≤ q)] at h
+        have id1' : (q - 1) * (k - 1).choose (q - 1) = (k - 1) * (k - 2).choose (q - 2) := by
+          have h := choose_mul_aux (k - 2) (q - 2)
+          rw [show q - 2 + 1 = q - 1 from by omega, show k - 2 + 1 = k - 1 from by omega] at h
+          exact h
+        calc (q * (q - 1)) * k.choose q
+            = (q - 1) * (q * k.choose q) := by ring
+          _ = (q - 1) * (k * (k - 1).choose (q - 1)) := by rw [id1]
+          _ = k * ((q - 1) * (k - 1).choose (q - 1)) := by ring
+          _ = k * ((k - 1) * (k - 2).choose (q - 2)) := by rw [id1']
+          _ = (k * (k - 1)) * (k - 2).choose (q - 2) := by ring
+      have id2R : ((q * (q - 1) : ℕ) : ℝ) * (k.choose q : ℝ)
+          = ((k * (k - 1) : ℕ) : ℝ) * ((k - 2).choose (q - 2) : ℝ) := by exact_mod_cast id2
+      have hApos : ((q * (q - 1) : ℕ) : ℝ) = (q : ℝ) * ((q : ℝ) - 1) := by
+        push_cast [Nat.cast_sub (show 1 ≤ q by omega)]; ring
+      have hBval : ((k * (k - 1) : ℕ) : ℝ) = (k : ℝ) * ((k : ℝ) - 1) := by
+        push_cast [Nat.cast_sub (show 1 ≤ k by omega)]; ring
+      rw [hApos, hBval] at id2R
+      have hBpos : (0 : ℝ) < (k : ℝ) * ((k : ℝ) - 1) := by nlinarith [hq2r, hqkr]
+      have hk2A : (k : ℝ) ^ 2 * ((q : ℝ) * ((q : ℝ) - 1))
+          ≤ (q : ℝ) ^ 2 * ((k : ℝ) * ((k : ℝ) - 1)) := by
+        nlinarith [hqkr, hq0, hk0, mul_nonneg hq0.le hk0]
+      have hkey : (k : ℝ) ^ 2 * ((k - 2).choose (q - 2) : ℝ) * ((k : ℝ) * ((k : ℝ) - 1))
+          ≤ (q : ℝ) ^ 2 * (k.choose q : ℝ) * ((k : ℝ) * ((k : ℝ) - 1)) := by
+        have hrw : (k : ℝ) ^ 2 * ((k - 2).choose (q - 2) : ℝ) * ((k : ℝ) * ((k : ℝ) - 1))
+            = (k : ℝ) ^ 2 * ((q : ℝ) * ((q : ℝ) - 1)) * (k.choose q : ℝ) := by
+          linear_combination (-(k : ℝ) ^ 2) * id2R
+        rw [hrw]; nlinarith [hk2A, hNnn]
+      exact le_of_mul_le_mul_right hkey hBpos
+    exact var_bound_core k q (Finset.powersetCard q Finset.univ) (fun Q ↦ ∑ j ∈ Q, f j)
+      (∑ j, f j) (∑ j, f j ^ 2) (k.choose q : ℝ) ((k - 1).choose (q - 1) : ℝ)
+      ((k - 2).choose (q - 2) : ℝ) hS2le hS2nn hcardR hNnn e1 e2 id1R (by positivity) hD2 hq0 hk0
+  · have hq1 : q = 1 := by omega
+    subst hq1
+    have e2 : ∑ Q ∈ Finset.powersetCard 1 (Finset.univ : Finset (Fin k)), (∑ j ∈ Q, f j) ^ 2
+        = ((k - 1).choose (1 - 1) : ℝ) * (∑ j, f j ^ 2)
+          + (0 : ℝ) * ((∑ j, f j) ^ 2 - ∑ j, f j ^ 2) := by
+      rw [Finset.powersetCard_one, Finset.sum_map]
+      simp only [Function.Embedding.coeFn_mk, Finset.sum_singleton]; simp
+    exact var_bound_core k 1 (Finset.powersetCard 1 Finset.univ) (fun Q ↦ ∑ j ∈ Q, f j)
+      (∑ j, f j) (∑ j, f j ^ 2) (k.choose 1 : ℝ) ((k - 1).choose (1 - 1) : ℝ) 0
+      hS2le hS2nn hcardR hNnn e1 e2 id1R (le_refl 0) (by rw [mul_zero]; positivity) hq0 hk0
+
+/-- (H7c) `ℓ¹` estimation error of the without-replacement subsample estimator: for
+`|f| ≤ 1`, the average over all `q`-subsets of `|(k/q)·∑_{j∈Q} f − ∑ f|` is at most
+`k/√q`. Stated unnormalized (both sides times `C(k,q)`). -/
+private theorem sum_powersetCard_abs_sub_le {k q : ℕ} (hq : 0 < q) (hqk : q ≤ k)
+    (f : Fin k → ℝ) (hf : ∀ j, |f j| ≤ 1) :
+    ∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+        |(k : ℝ) / q * ∑ j ∈ Q, f j - ∑ j, f j|
+      ≤ (k.choose q : ℝ) * ((k : ℝ) / Real.sqrt q) := by
+  have hq0 : (0 : ℝ) < q := by exact_mod_cast hq
+  have hNnn : 0 ≤ (k.choose q : ℝ) := by positivity
+  have hvar := sum_powersetCard_var_bound hq hqk f hf
+  have hWnonneg : 0 ≤ ∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+      |(k : ℝ) / q * ∑ j ∈ Q, f j - ∑ j, f j| := Finset.sum_nonneg (fun Q _ ↦ abs_nonneg _)
+  have hcardR : ((Finset.powersetCard q (Finset.univ : Finset (Fin k))).card : ℝ)
+      = (k.choose q : ℝ) := by
+    rw [Finset.card_powersetCard, Finset.card_univ, Fintype.card_fin]
+  have hcs := sq_sum_le_card_mul_sum_sq
+    (s := Finset.powersetCard q (Finset.univ : Finset (Fin k)))
+    (f := fun Q ↦ |(k : ℝ) / q * ∑ j ∈ Q, f j - ∑ j, f j|)
+  simp only [sq_abs] at hcs
+  rw [hcardR] at hcs
+  have hWsq : (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+        |(k : ℝ) / q * ∑ j ∈ Q, f j - ∑ j, f j|) ^ 2
+      ≤ (k.choose q : ℝ) ^ 2 * (k : ℝ) ^ 2 / q := by
+    calc (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+            |(k : ℝ) / q * ∑ j ∈ Q, f j - ∑ j, f j|) ^ 2
+        ≤ (k.choose q : ℝ) * ∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+            ((k : ℝ) / q * ∑ j ∈ Q, f j - ∑ j, f j) ^ 2 := hcs
+      _ ≤ (k.choose q : ℝ) * ((k.choose q : ℝ) * (k : ℝ) ^ 2 / q) :=
+          mul_le_mul_of_nonneg_left hvar hNnn
+      _ = (k.choose q : ℝ) ^ 2 * (k : ℝ) ^ 2 / q := by ring
+  have hsqrtq : Real.sqrt q ^ 2 = q := Real.sq_sqrt hq0.le
+  have hrhs_nonneg : 0 ≤ (k.choose q : ℝ) * ((k : ℝ) / Real.sqrt q) := by positivity
+  have hrhs_sq : ((k.choose q : ℝ) * ((k : ℝ) / Real.sqrt q)) ^ 2
+      = (k.choose q : ℝ) ^ 2 * (k : ℝ) ^ 2 / q := by
+    rw [mul_pow, div_pow, hsqrtq]; ring
+  calc ∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+        |(k : ℝ) / q * ∑ j ∈ Q, f j - ∑ j, f j|
+      = Real.sqrt ((∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+          |(k : ℝ) / q * ∑ j ∈ Q, f j - ∑ j, f j|) ^ 2) := (Real.sqrt_sq hWnonneg).symm
+    _ ≤ Real.sqrt (((k.choose q : ℝ) * ((k : ℝ) / Real.sqrt q)) ^ 2) := by
+        apply Real.sqrt_le_sqrt; rw [hrhs_sq]; exact hWsq
+    _ = (k.choose q : ℝ) * ((k : ℝ) / Real.sqrt q) := Real.sqrt_sq hrhs_nonneg
+
+/-- (H8) **One guessing step.** For a fixed cut `(A, B)` of a symmetric, entrywise-bounded
+matrix, replacing `B` by the sign set guessed from `Q ∩ A` and averaging over the `q`-subsets
+`Q` costs at most `k²/√q`. -/
+private theorem cut_le_avg_signSet_step {k q : ℕ} (hq : 0 < q) (hqk : q ≤ k)
+    (m : Fin k → Fin k → ℝ) (hsymm : ∀ i j, m i j = m j i) (hm : ∀ i j, |m i j| ≤ 1)
+    (A B : Finset (Fin k)) :
+    ∑ i ∈ A, ∑ j ∈ B, m i j
+      ≤ (k.choose q : ℝ)⁻¹ * (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+          ∑ i ∈ A, ∑ j ∈ signSet m (Q ∩ A), m i j)
+        + (k : ℝ) ^ 2 / Real.sqrt q := by
+  have hq0 : (0 : ℝ) < q := by exact_mod_cast hq
+  have hkq : (q : ℝ) ≤ k := by exact_mod_cast hqk
+  have hk0 : (0 : ℝ) < k := lt_of_lt_of_le hq0 hkq
+  have hkqpos : (0 : ℝ) < (k : ℝ) / q := div_pos hk0 hq0
+  set psc := Finset.powersetCard q (Finset.univ : Finset (Fin k)) with hpsc
+  set N := (k.choose q : ℝ) with hN
+  set c : Fin k → ℝ := fun j ↦ ∑ i ∈ A, m i j with hc
+  have hN0 : (0 : ℝ) < N := by rw [hN]; exact_mod_cast Nat.choose_pos hqk
+  have hcard : (psc.card : ℝ) = N := by
+    rw [hpsc, hN, Finset.card_powersetCard, Finset.card_univ, Fintype.card_fin]
+  rw [show ∑ i ∈ A, ∑ j ∈ B, m i j = ∑ j ∈ B, c j from by
+    simp only [hc]; rw [Finset.sum_comm]]
+  -- H5: enlarge to the positive part
+  have h5 : ∑ j ∈ B, c j ≤ ∑ j ∈ Finset.univ.filter (fun j ↦ 0 < c j), c j :=
+    sum_le_sum_filter_pos c B
+  -- the estimated positive set is exactly the sign set of `Q ∩ A`
+  have hsign : ∀ Q, Finset.univ.filter (fun j ↦ 0 < (k : ℝ) / q * ∑ i ∈ Q ∩ A, m i j)
+      = signSet m (Q ∩ A) := by
+    intro Q
+    rw [signSet]
+    apply Finset.filter_congr
+    intro j _
+    rw [mul_pos_iff_of_pos_left hkqpos,
+      Finset.sum_congr rfl (fun i (_ : i ∈ Q ∩ A) ↦ hsymm i j)]
+  -- transpose the sign-set column sum back to the guessed rectangle
+  have hswap : ∀ Q, ∑ j ∈ signSet m (Q ∩ A), c j
+      = ∑ i ∈ A, ∑ j ∈ signSet m (Q ∩ A), m i j := by
+    intro Q
+    simp only [hc]; rw [Finset.sum_comm]
+  -- one estimator instance per subset `Q`
+  have hper : ∀ Q ∈ psc, ∑ j ∈ Finset.univ.filter (fun j ↦ 0 < c j), c j
+      ≤ (∑ i ∈ A, ∑ j ∈ signSet m (Q ∩ A), m i j)
+        + ∑ j, |c j - (k : ℝ) / q * ∑ i ∈ Q ∩ A, m i j| := by
+    intro Q _
+    have h6 := sum_filter_pos_le_add_dist c (fun j ↦ (k : ℝ) / q * ∑ i ∈ Q ∩ A, m i j)
+    simp only [hsign Q, hswap Q] at h6
+    exact h6
+  -- average over `Q`: the constant left side becomes `N ·`
+  have havg : N * ∑ j ∈ Finset.univ.filter (fun j ↦ 0 < c j), c j
+      ≤ (∑ Q ∈ psc, ∑ i ∈ A, ∑ j ∈ signSet m (Q ∩ A), m i j)
+        + ∑ Q ∈ psc, ∑ j, |c j - (k : ℝ) / q * ∑ i ∈ Q ∩ A, m i j| := by
+    have hsum := Finset.sum_le_sum hper
+    rw [Finset.sum_const, nsmul_eq_mul, hcard, Finset.sum_add_distrib] at hsum
+    exact hsum
+  -- the estimation error, averaged, is at most `N · k²/√q`
+  have herr : ∑ Q ∈ psc, ∑ j, |c j - (k : ℝ) / q * ∑ i ∈ Q ∩ A, m i j|
+      ≤ N * ((k : ℝ) ^ 2 / Real.sqrt q) := by
+    rw [Finset.sum_comm]
+    have hbound : ∀ j : Fin k, ∑ Q ∈ psc, |c j - (k : ℝ) / q * ∑ i ∈ Q ∩ A, m i j|
+        ≤ N * ((k : ℝ) / Real.sqrt q) := by
+      intro j
+      set f : Fin k → ℝ := fun i ↦ if i ∈ A then m i j else 0 with hf
+      have hfle : ∀ i, |f i| ≤ 1 := by
+        intro i
+        simp only [hf]
+        by_cases hi : i ∈ A
+        · rw [if_pos hi]; exact hm i j
+        · rw [if_neg hi, abs_zero]; exact zero_le_one
+      have hsub : ∀ Q, ∑ i ∈ Q, f i = ∑ i ∈ Q ∩ A, m i j := by
+        intro Q; simp only [hf, Finset.sum_ite_mem]
+      have htot : ∑ i, f i = c j := by
+        simp only [hf, Finset.sum_ite_mem, Finset.univ_inter, hc]
+      have hH7 := sum_powersetCard_abs_sub_le hq hqk f hfle
+      have hrw : ∀ Q, |c j - (k : ℝ) / q * ∑ i ∈ Q ∩ A, m i j|
+          = |(k : ℝ) / q * ∑ i ∈ Q, f i - ∑ i, f i| := by
+        intro Q; rw [hsub Q, htot, abs_sub_comm]
+      calc ∑ Q ∈ psc, |c j - (k : ℝ) / q * ∑ i ∈ Q ∩ A, m i j|
+          = ∑ Q ∈ psc, |(k : ℝ) / q * ∑ i ∈ Q, f i - ∑ i, f i| :=
+            Finset.sum_congr rfl (fun Q _ ↦ hrw Q)
+        _ ≤ N * ((k : ℝ) / Real.sqrt q) := by rw [hpsc, hN]; exact hH7
+    calc ∑ j, ∑ Q ∈ psc, |c j - (k : ℝ) / q * ∑ i ∈ Q ∩ A, m i j|
+        ≤ ∑ _j : Fin k, N * ((k : ℝ) / Real.sqrt q) :=
+          Finset.sum_le_sum (fun j _ ↦ hbound j)
+      _ = N * ((k : ℝ) ^ 2 / Real.sqrt q) := by
+          rw [Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul]; ring
+  -- assemble
+  have hkey : N * (∑ j ∈ B, c j)
+      ≤ (∑ Q ∈ psc, ∑ i ∈ A, ∑ j ∈ signSet m (Q ∩ A), m i j)
+        + N * ((k : ℝ) ^ 2 / Real.sqrt q) := by
+    calc N * (∑ j ∈ B, c j)
+        ≤ N * ∑ j ∈ Finset.univ.filter (fun j ↦ 0 < c j), c j :=
+          mul_le_mul_of_nonneg_left h5 hN0.le
+      _ ≤ (∑ Q ∈ psc, ∑ i ∈ A, ∑ j ∈ signSet m (Q ∩ A), m i j)
+          + ∑ Q ∈ psc, ∑ j, |c j - (k : ℝ) / q * ∑ i ∈ Q ∩ A, m i j| := havg
+      _ ≤ (∑ Q ∈ psc, ∑ i ∈ A, ∑ j ∈ signSet m (Q ∩ A), m i j)
+          + N * ((k : ℝ) ^ 2 / Real.sqrt q) := by linarith [herr]
+  apply le_of_mul_le_mul_left (a := N) _ hN0
+  rw [mul_add, ← mul_assoc, mul_inv_cancel₀ hN0.ne', one_mul]
+  exact hkey
+
+/-- (H9a) **The two-sided guessing chain**: the full cut sup is dominated by the double
+average, over independent `q`-subsets `(Q, Q')`, of the best UNSIGNED rule rectangle, plus
+`2k²/√q`. -/
+private theorem sup'_cut_le_avg_ruleSup {k q : ℕ} [NeZero k] (hq : 0 < q) (hqk : q ≤ k)
+    (m : Fin k → Fin k → ℝ) (hsymm : ∀ i j, m i j = m j i) (hm : ∀ i j, |m i j| ≤ 1) :
+    (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup' Finset.univ_nonempty
+        (fun AB ↦ ∑ i ∈ AB.1, ∑ j ∈ AB.2, m i j)
+      ≤ ((k.choose q : ℝ)⁻¹) ^ 2 *
+          (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+           ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+            (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+              (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * m i j) ρ.2.1 ρ.2.2))
+        + 2 * (k : ℝ) ^ 2 / Real.sqrt q := by
+  set psc := Finset.powersetCard q (Finset.univ : Finset (Fin k)) with hpsc
+  set N := (k.choose q : ℝ) with hN
+  have hN0 : (0 : ℝ) < N := by rw [hN]; exact_mod_cast Nat.choose_pos hqk
+  have hNinv_nn : (0 : ℝ) ≤ N⁻¹ := (inv_pos.mpr hN0).le
+  have hcard : (psc.card : ℝ) = N := by
+    rw [hpsc, hN, Finset.card_powersetCard, Finset.card_univ, Fintype.card_fin]
+  refine Finset.sup'_le _ _ (fun AB _ ↦ ?_)
+  obtain ⟨A, B⟩ := AB
+  -- transpose a guessed rectangle: rows in `A`, columns in a sign set
+  have htrans : ∀ Q, ∑ i ∈ A, ∑ j ∈ signSet m (Q ∩ A), m i j
+      = ∑ i ∈ signSet m (Q ∩ A), ∑ j ∈ A, m i j := by
+    intro Q
+    rw [Finset.sum_comm]
+    exact Finset.sum_congr rfl (fun b _ ↦ Finset.sum_congr rfl (fun a _ ↦ hsymm a b))
+  -- the doubly-guessed rectangle is exactly `ruleVal`, up to a transpose
+  have hback : ∀ Q Q', ∑ i ∈ signSet m (Q ∩ A),
+        ∑ j ∈ signSet m (Q' ∩ signSet m (Q ∩ A)), m i j
+      = ruleVal m (Q ∩ A) (Q' ∩ signSet m (Q ∩ A)) := by
+    intro Q Q'
+    simp only [ruleVal]
+    rw [Finset.sum_comm]
+    exact Finset.sum_congr rfl (fun b _ ↦ Finset.sum_congr rfl (fun a _ ↦ hsymm a b))
+  -- `ruleVal m` embeds in the signed rule sup at the `true` sign bit
+  have hle_sup : ∀ Q Q', ruleVal m (Q ∩ A) (Q' ∩ signSet m (Q ∩ A))
+      ≤ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * m i j) ρ.2.1 ρ.2.2) := by
+    intro Q Q'
+    have hone : (fun i j ↦ sgnR true * m i j) = m := by funext i j; simp [sgnR]
+    have hmem : (true, Q ∩ A, Q' ∩ signSet m (Q ∩ A)) ∈ signedRules Q Q' := by
+      simp only [signedRules, Finset.mem_product, Finset.mem_univ, Finset.mem_powerset,
+        true_and]
+      exact ⟨Finset.inter_subset_left, Finset.inter_subset_left⟩
+    rw [show ruleVal m (Q ∩ A) (Q' ∩ signSet m (Q ∩ A))
+        = ruleVal (fun i j ↦ sgnR true * m i j) (Q ∩ A) (Q' ∩ signSet m (Q ∩ A)) from by
+      rw [hone]]
+    exact Finset.le_sup' (fun ρ : Bool × Finset (Fin k) × Finset (Fin k) ↦
+      ruleVal (fun i j ↦ sgnR ρ.1 * m i j) ρ.2.1 ρ.2.2) hmem
+  -- per-`Q` bound: apply H8 to the transposed cut `(signSet m (Q ∩ A), A)`
+  have hmainQ : ∀ Q ∈ psc, ∑ i ∈ A, ∑ j ∈ signSet m (Q ∩ A), m i j
+      ≤ N⁻¹ * (∑ Q' ∈ psc, (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * m i j) ρ.2.1 ρ.2.2))
+        + (k : ℝ) ^ 2 / Real.sqrt q := by
+    intro Q _
+    rw [htrans Q]
+    have hH8 := cut_le_avg_signSet_step hq hqk m hsymm hm (signSet m (Q ∩ A)) A
+    rw [← hpsc, ← hN] at hH8
+    refine hH8.trans ?_
+    have hstep : ∀ Q', ∑ i ∈ signSet m (Q ∩ A),
+          ∑ j ∈ signSet m (Q' ∩ signSet m (Q ∩ A)), m i j
+        ≤ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+            (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * m i j) ρ.2.1 ρ.2.2) := by
+      intro Q'
+      rw [hback Q Q']
+      exact hle_sup Q Q'
+    have hmul := mul_le_mul_of_nonneg_left
+      (Finset.sum_le_sum (s := psc) (fun Q' _ ↦ hstep Q')) hNinv_nn
+    linarith [hmul]
+  -- assemble the two-sided chain
+  have hAB := cut_le_avg_signSet_step hq hqk m hsymm hm A B
+  rw [← hpsc, ← hN] at hAB
+  calc ∑ i ∈ A, ∑ j ∈ B, m i j
+      ≤ N⁻¹ * (∑ Q ∈ psc, ∑ i ∈ A, ∑ j ∈ signSet m (Q ∩ A), m i j)
+          + (k : ℝ) ^ 2 / Real.sqrt q := hAB
+    _ ≤ N⁻¹ * (∑ Q ∈ psc, (N⁻¹ * (∑ Q' ∈ psc,
+          (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+            (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * m i j) ρ.2.1 ρ.2.2))
+          + (k : ℝ) ^ 2 / Real.sqrt q)) + (k : ℝ) ^ 2 / Real.sqrt q := by
+        have hmono := mul_le_mul_of_nonneg_left (Finset.sum_le_sum hmainQ) hNinv_nn
+        linarith [hmono]
+    _ = (N⁻¹) ^ 2 * (∑ Q ∈ psc, ∑ Q' ∈ psc,
+          (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+            (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * m i j) ρ.2.1 ρ.2.2))
+        + 2 * (k : ℝ) ^ 2 / Real.sqrt q := by
+        have hNN : N⁻¹ * N = 1 := inv_mul_cancel₀ hN0.ne'
+        rw [Finset.sum_add_distrib, ← Finset.mul_sum, Finset.sum_const, nsmul_eq_mul, hcard]
+        linear_combination ((k : ℝ) ^ 2 / Real.sqrt q) * hNN
+
+/-- (H9b) **Absolute values via the sign bit**: apply the chain to `m` and `−m`; the two
+one-sided rule sups embed in the signed rule sup. -/
+private theorem sup'_abs_cut_le_avg_signedRuleSup {k q : ℕ} [NeZero k] (hq : 0 < q)
+    (hqk : q ≤ k) (m : Fin k → Fin k → ℝ) (hsymm : ∀ i j, m i j = m j i)
+    (hm : ∀ i j, |m i j| ≤ 1) :
+    (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup' Finset.univ_nonempty
+        (fun AB ↦ |∑ i ∈ AB.1, ∑ j ∈ AB.2, m i j|)
+      ≤ ((k.choose q : ℝ)⁻¹) ^ 2 *
+          (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+           ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+            (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+              (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * m i j) ρ.2.1 ρ.2.2))
+        + 2 * (k : ℝ) ^ 2 / Real.sqrt q := by
+  -- the reflected matrix `m' = -m`
+  set m' : Fin k → Fin k → ℝ := fun i j ↦ -m i j with hm'def
+  have hsymm' : ∀ i j, m' i j = m' j i := fun i j ↦ by simp only [hm'def]; rw [hsymm i j]
+  have hm'le : ∀ i j, |m' i j| ≤ 1 := fun i j ↦ by simp only [hm'def, abs_neg]; exact hm i j
+  have hnegsum : ∀ A B : Finset (Fin k),
+      -(∑ i ∈ A, ∑ j ∈ B, m i j) = ∑ i ∈ A, ∑ j ∈ B, m' i j := by
+    intro A B
+    simp only [hm'def]
+    rw [← Finset.sum_neg_distrib]
+    refine Finset.sum_congr rfl (fun i _ ↦ ?_)
+    rw [← Finset.sum_neg_distrib]
+  -- `sgnR s · (−x) = sgnR (¬s) · x`
+  have hsgn : ∀ (s : Bool) (x : ℝ), sgnR s * (-x) = sgnR (!s) * x := by
+    intro s x; cases s <;> simp [sgnR]
+  -- the sign bit turns the `m'` signed-rule sup into the `m` signed-rule sup
+  have hflip : ∀ Q Q',
+      (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * m' i j) ρ.2.1 ρ.2.2)
+      = (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * m i j) ρ.2.1 ρ.2.2) := by
+    intro Q Q'
+    have hmem : ∀ ρ : Bool × Finset (Fin k) × Finset (Fin k), ρ ∈ signedRules Q Q' →
+        (!ρ.1, ρ.2.1, ρ.2.2) ∈ signedRules Q Q' := by
+      intro ρ hρ
+      simp only [signedRules, Finset.mem_product, Finset.mem_univ, Finset.mem_powerset,
+        true_and] at hρ ⊢
+      exact hρ
+    apply le_antisymm
+    · refine Finset.sup'_le _ _ (fun ρ hρ ↦ ?_)
+      rw [show ruleVal (fun i j ↦ sgnR ρ.1 * m' i j) ρ.2.1 ρ.2.2
+          = ruleVal (fun i j ↦ sgnR (!ρ.1) * m i j) ρ.2.1 ρ.2.2 from by
+        rw [show (fun i j ↦ sgnR ρ.1 * m' i j) = (fun i j ↦ sgnR (!ρ.1) * m i j) from by
+          funext i j; simp only [hm'def]; exact hsgn ρ.1 (m i j)]]
+      exact Finset.le_sup' (fun ρ : Bool × Finset (Fin k) × Finset (Fin k) ↦
+        ruleVal (fun i j ↦ sgnR ρ.1 * m i j) ρ.2.1 ρ.2.2) (hmem ρ hρ)
+    · refine Finset.sup'_le _ _ (fun ρ hρ ↦ ?_)
+      rw [show ruleVal (fun i j ↦ sgnR ρ.1 * m i j) ρ.2.1 ρ.2.2
+          = ruleVal (fun i j ↦ sgnR (!ρ.1) * m' i j) ρ.2.1 ρ.2.2 from by
+        rw [show (fun i j ↦ sgnR ρ.1 * m i j) = (fun i j ↦ sgnR (!ρ.1) * m' i j) from by
+          funext i j; simp only [hm'def]; rw [hsgn (!ρ.1) (m i j), Bool.not_not]]]
+      exact Finset.le_sup' (fun ρ : Bool × Finset (Fin k) × Finset (Fin k) ↦
+        ruleVal (fun i j ↦ sgnR ρ.1 * m' i j) ρ.2.1 ρ.2.2) (hmem ρ hρ)
+  -- the two one-sided chains
+  have h9a_m := sup'_cut_le_avg_ruleSup hq hqk m hsymm hm
+  have h9a_m' := sup'_cut_le_avg_ruleSup hq hqk m' hsymm' hm'le
+  rw [Finset.sum_congr rfl (fun Q _ ↦ Finset.sum_congr rfl (fun Q' _ ↦ hflip Q Q'))]
+    at h9a_m'
+  -- combine via `|·| ≤` two-sidedly
+  refine Finset.sup'_le _ _ (fun AB _ ↦ ?_)
+  obtain ⟨A, B⟩ := AB
+  rw [abs_le]
+  refine ⟨?_, ?_⟩
+  · rw [neg_le, hnegsum A B]
+    exact (Finset.le_sup' (fun AB : Finset (Fin k) × Finset (Fin k) ↦
+      ∑ i ∈ AB.1, ∑ j ∈ AB.2, m' i j) (Finset.mem_univ (A, B))).trans h9a_m'
+  · exact (Finset.le_sup' (fun AB : Finset (Fin k) × Finset (Fin k) ↦
+      ∑ i ∈ AB.1, ∑ j ∈ AB.2, m i j) (Finset.mem_univ (A, B))).trans h9a_m
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- Measurability of the sample rule value, for the integrability side conditions. -/
+private theorem measurable_ruleVal_sample (W : Graphon α μ) (ε' : ℝ) {k : ℕ}
+    (s : Bool) (R R' : Finset (Fin k)) :
+    Measurable (fun x : Fin k → α ↦
+      ruleVal (fun i j ↦ sgnR s * coreDiff W ε' x i j) R R') := by
+  have hcd : ∀ (a b : Fin k), Measurable (fun x : Fin k → α ↦ coreDiff W ε' x a b) := by
+    intro a b
+    simp only [coreDiff]
+    exact (measurable_clampEval W a b).sub (measurable_clampEval (chosenStep W ε') a b)
+  have hm : ∀ (a b : Fin k),
+      Measurable (fun x : Fin k → α ↦ sgnR s * coreDiff W ε' x a b) :=
+    fun a b ↦ (hcd a b).const_mul _
+  have hsum : ∀ (a : Fin k) (S : Finset (Fin k)),
+      Measurable (fun x : Fin k → α ↦ ∑ b ∈ S, sgnR s * coreDiff W ε' x a b) :=
+    fun a S ↦ Finset.measurable_sum _ (fun b _ ↦ hm a b)
+  have hrw : ∀ x : Fin k → α,
+      ruleVal (fun i j ↦ sgnR s * coreDiff W ε' x i j) R R'
+        = ∑ i, ∑ j,
+          (if 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' x i j' then (1 : ℝ) else 0) *
+          (if 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' x j j' then (1 : ℝ) else 0) *
+          (sgnR s * coreDiff W ε' x i j) := by
+    intro x
+    simp only [ruleVal, signSet, Finset.sum_filter]
+    refine Finset.sum_congr rfl fun i _ ↦ ?_
+    by_cases hP : 0 < ∑ j' ∈ R', sgnR s * coreDiff W ε' x i j'
+    · simp only [hP, if_true, one_mul]
+      refine Finset.sum_congr rfl fun j _ ↦ ?_
+      by_cases hQ : 0 < ∑ j' ∈ R, sgnR s * coreDiff W ε' x j j' <;> simp [hQ]
+    · simp [hP]
+  simp only [hrw]
+  refine Finset.measurable_sum _ (fun i _ ↦ Finset.measurable_sum _ (fun j _ ↦ ?_))
+  refine Measurable.mul (Measurable.mul ?_ ?_) (hm i j)
+  · exact Measurable.ite (measurableSet_lt measurable_const (hsum i R')) measurable_const
+      measurable_const
+  · exact Measurable.ite (measurableSet_lt measurable_const (hsum j R)) measurable_const
+      measurable_const
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- (H9c) **BRIDGE GATE** — the exact integrated, normalized inequality the master proof
+consumes: the fixed `guessBlock` sup integral is dominated by the double average over
+`q`-subsets of the signed-rule sup integrals, plus `2/√q`. The deterministic block is gone
+after this point; everything downstream is uniform in `(Q, Q')`. -/
+private theorem guessBlock_sup_integral_le_avg_ruleSup (W : Graphon α μ) (ε' : ℝ) {k : ℕ}
+    [NeZero k] {q : ℕ} (hq : 0 < q) (hqk : q ≤ k) :
+    (∫ x, (k : ℝ)⁻¹ ^ 2 * (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup'
+        Finset.univ_nonempty (fun AB ↦ |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k,
+          coreDiff W ε' x i j|) ∂Measure.pi (fun _ : Fin k ↦ μ))
+      ≤ ((k.choose q : ℝ)⁻¹) ^ 2 *
+          (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+           ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+            ∫ x, (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+              (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2)
+              ∂Measure.pi (fun _ : Fin k ↦ μ))
+        + 2 / Real.sqrt q := by
+  have hkpos : (0 : ℝ) < (k : ℝ) := by exact_mod_cast Nat.pos_of_ne_zero (NeZero.ne k)
+  have hkne : (k : ℝ) ≠ 0 := hkpos.ne'
+  set π : Measure (Fin k → α) := Measure.pi (fun _ : Fin k ↦ μ) with hπ
+  -- pointwise: H1 then H9b, normalized by `k⁻²`
+  have hpt : ∀ x, (k : ℝ)⁻¹ ^ 2 * (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup'
+        Finset.univ_nonempty (fun AB ↦ |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k,
+          coreDiff W ε' x i j|)
+      ≤ ((k.choose q : ℝ)⁻¹) ^ 2 *
+          (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+           ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+            (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+              (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2))
+        + 2 / Real.sqrt q := by
+    intro x
+    have h1 := sup'_sdiff_le_sup' (coreDiff W ε' x) (guessBlock k)
+    have h2 := sup'_abs_cut_le_avg_signedRuleSup hq hqk (coreDiff W ε' x)
+      (coreDiff_symm W ε' x) (abs_coreDiff_le_one W ε' x)
+    have hfresh := h1.trans h2
+    have hmul := mul_le_mul_of_nonneg_left hfresh (by positivity : (0 : ℝ) ≤ (k : ℝ)⁻¹ ^ 2)
+    refine hmul.trans_eq ?_
+    have hSdist : (k : ℝ)⁻¹ ^ 2 * (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+          ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+            (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+              (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2))
+        = ∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+          ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+            (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+              (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2) := by
+      rw [Finset.mul_sum]
+      exact Finset.sum_congr rfl (fun Q _ ↦ Finset.mul_sum _ _ _)
+    have hk2 : (k : ℝ)⁻¹ ^ 2 * (2 * (k : ℝ) ^ 2 / Real.sqrt q) = 2 / Real.sqrt q := by
+      have hcancel : (k : ℝ)⁻¹ ^ 2 * (k : ℝ) ^ 2 = 1 := by
+        rw [inv_pow]; exact inv_mul_cancel₀ (pow_ne_zero 2 hkne)
+      calc (k : ℝ)⁻¹ ^ 2 * (2 * (k : ℝ) ^ 2 / Real.sqrt q)
+          = ((k : ℝ)⁻¹ ^ 2 * (k : ℝ) ^ 2) * (2 / Real.sqrt q) := by ring
+        _ = 2 / Real.sqrt q := by rw [hcancel, one_mul]
+    rw [← hSdist, mul_add, hk2]
+    ring
+  -- LHS integrability (the same normalized fresh-block sup as in the master proof)
+  have hlhs_meas : Measurable (fun x ↦ (k : ℝ)⁻¹ ^ 2 *
+      (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup' Finset.univ_nonempty
+        (fun AB ↦ |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k,
+          coreDiff W ε' x i j|)) := by
+    have heq : (fun x ↦ (k : ℝ)⁻¹ ^ 2 * Finset.univ.sup' Finset.univ_nonempty
+        (fun AB : Finset (Fin k) × Finset (Fin k) ↦ |∑ i ∈ AB.1 \ guessBlock k,
+          ∑ j ∈ AB.2 \ guessBlock k, coreDiff W ε' x i j|))
+        = fun x ↦ (k : ℝ)⁻¹ ^ 2 * Finset.univ.sup' Finset.univ_nonempty
+          (fun (AB : Finset (Fin k) × Finset (Fin k)) (x : Fin k → α) ↦
+            |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k, coreDiff W ε' x i j|) x := by
+      funext x; rw [Finset.sup'_apply]
+    rw [heq]
+    refine measurable_const.mul (Finset.measurable_sup' _ (fun AB _ ↦ ?_))
+    refine continuous_abs.measurable.comp
+      (Finset.measurable_sum _ (fun i _ ↦ Finset.measurable_sum _ (fun j _ ↦ ?_)))
+    simp only [coreDiff]
+    exact (measurable_clampEval W i j).sub (measurable_clampEval (chosenStep W ε') i j)
+  have hlhs_nn : ∀ x, 0 ≤ (k : ℝ)⁻¹ ^ 2 * Finset.univ.sup' Finset.univ_nonempty
+      (fun AB : Finset (Fin k) × Finset (Fin k) ↦ |∑ i ∈ AB.1 \ guessBlock k,
+        ∑ j ∈ AB.2 \ guessBlock k, coreDiff W ε' x i j|) := by
+    intro x
+    refine mul_nonneg (by positivity) (le_trans (abs_nonneg _)
+      (Finset.le_sup' (fun AB : Finset (Fin k) × Finset (Fin k) ↦
+        |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k, coreDiff W ε' x i j|)
+        (Finset.mem_univ ((∅, ∅) : Finset (Fin k) × Finset (Fin k)))))
+  have hlhs_le : ∀ x, (k : ℝ)⁻¹ ^ 2 * Finset.univ.sup' Finset.univ_nonempty
+      (fun AB : Finset (Fin k) × Finset (Fin k) ↦ |∑ i ∈ AB.1 \ guessBlock k,
+        ∑ j ∈ AB.2 \ guessBlock k, coreDiff W ε' x i j|) ≤ 1 := by
+    intro x
+    have hsup : Finset.univ.sup' Finset.univ_nonempty
+        (fun AB : Finset (Fin k) × Finset (Fin k) ↦ |∑ i ∈ AB.1 \ guessBlock k,
+          ∑ j ∈ AB.2 \ guessBlock k, coreDiff W ε' x i j|) ≤ (k : ℝ) ^ 2 := by
+      refine Finset.sup'_le _ _ (fun AB _ ↦ ?_)
+      refine (abs_coreDiff_rect_le W ε' x _ _).trans ?_
+      have hc : ∀ S : Finset (Fin k), ((S \ guessBlock k).card : ℝ) ≤ k := by
+        intro S
+        calc ((S \ guessBlock k).card : ℝ)
+            ≤ ((Finset.univ : Finset (Fin k)).card : ℝ) := by
+              exact_mod_cast Finset.card_le_card (Finset.subset_univ _)
+          _ = k := by rw [Finset.card_univ, Fintype.card_fin]
+      calc ((AB.1 \ guessBlock k).card : ℝ) * ((AB.2 \ guessBlock k).card : ℝ)
+          ≤ (k : ℝ) * k := mul_le_mul (hc _) (hc _) (by positivity) (by positivity)
+        _ = (k : ℝ) ^ 2 := by ring
+    calc (k : ℝ)⁻¹ ^ 2 * _
+        ≤ (k : ℝ)⁻¹ ^ 2 * (k : ℝ) ^ 2 := mul_le_mul_of_nonneg_left hsup (by positivity)
+      _ = 1 := by field_simp
+  have hint_lhs : Integrable (fun x ↦ (k : ℝ)⁻¹ ^ 2 *
+      (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup' Finset.univ_nonempty
+        (fun AB ↦ |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k,
+          coreDiff W ε' x i j|)) π :=
+    (integrable_const (1 : ℝ)).mono' hlhs_meas.aestronglyMeasurable
+      (ae_of_all _ (fun x ↦ by rw [Real.norm_eq_abs, abs_of_nonneg (hlhs_nn x)]; exact hlhs_le x))
+  -- rule-sup integrability, uniformly bounded by `1`
+  have hrule_meas : ∀ Q Q' : Finset (Fin k), Measurable (fun x ↦ (k : ℝ)⁻¹ ^ 2 *
+      (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+        (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2)) := by
+    intro Q Q'
+    have heq : (fun x ↦ (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2))
+        = fun x ↦ (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun (ρ : Bool × Finset (Fin k) × Finset (Fin k)) (x : Fin k → α) ↦
+            ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2) x := by
+      funext x; rw [Finset.sup'_apply]
+    rw [heq]
+    exact measurable_const.mul (Finset.measurable_sup' _
+      (fun ρ _ ↦ measurable_ruleVal_sample W ε' ρ.1 ρ.2.1 ρ.2.2))
+  have hrule_bound : ∀ (Q Q' : Finset (Fin k)) (x : Fin k → α),
+      |(k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+        (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2)| ≤ 1 := by
+    intro Q Q' x
+    have habs : ∀ ρ : Bool × Finset (Fin k) × Finset (Fin k),
+        |ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2| ≤ (k : ℝ) ^ 2 := by
+      intro ρ
+      refine abs_ruleVal_le _ (fun i j ↦ ?_) _ _
+      rw [abs_mul, abs_sgnR, one_mul]
+      exact abs_coreDiff_le_one W ε' x i j
+    have hup : (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+        (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2) ≤ (k : ℝ) ^ 2 :=
+      Finset.sup'_le _ _ (fun ρ _ ↦ (le_abs_self _).trans (habs ρ))
+    have hlow : -(k : ℝ) ^ 2 ≤ (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+        (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2) := by
+      obtain ⟨ρ₀, hρ₀⟩ := signedRules_nonempty Q Q'
+      refine le_trans ?_ (Finset.le_sup' _ hρ₀)
+      exact (neg_le_neg (habs ρ₀)).trans (neg_abs_le _)
+    rw [abs_mul, abs_of_nonneg (by positivity : (0 : ℝ) ≤ (k : ℝ)⁻¹ ^ 2)]
+    calc (k : ℝ)⁻¹ ^ 2 * |(signedRules Q Q').sup' (signedRules_nonempty Q Q')
+            (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2)|
+        ≤ (k : ℝ)⁻¹ ^ 2 * (k : ℝ) ^ 2 :=
+          mul_le_mul_of_nonneg_left (abs_le.mpr ⟨hlow, hup⟩) (by positivity)
+      _ = 1 := by field_simp
+  have hint_rule : ∀ Q Q' : Finset (Fin k), Integrable (fun x ↦ (k : ℝ)⁻¹ ^ 2 *
+      (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+        (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2)) π := by
+    intro Q Q'
+    exact (integrable_const (1 : ℝ)).mono' (hrule_meas Q Q').aestronglyMeasurable
+      (ae_of_all _ (fun x ↦ by rw [Real.norm_eq_abs]; exact hrule_bound Q Q' x))
+  -- integrate the pointwise bound and evaluate the constant/sum integrals
+  have hsum_int : Integrable (fun x ↦
+      ∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+      ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+        (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2)) π :=
+    integrable_finsetSum _ (fun Q _ ↦ integrable_finsetSum _ (fun Q' _ ↦ hint_rule Q Q'))
+  have hint_rhs : Integrable (fun x ↦ ((k.choose q : ℝ)⁻¹) ^ 2 *
+      (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+       ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+        (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+          (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2))
+      + 2 / Real.sqrt q) π :=
+    (hsum_int.const_mul _).add (integrable_const _)
+  calc ∫ x, (k : ℝ)⁻¹ ^ 2 * (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup'
+        Finset.univ_nonempty (fun AB ↦ |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k,
+          coreDiff W ε' x i j|) ∂π
+      ≤ ∫ x, (((k.choose q : ℝ)⁻¹) ^ 2 *
+          (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+           ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+            (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+              (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2))
+          + 2 / Real.sqrt q) ∂π := integral_mono hint_lhs hint_rhs hpt
+    _ = ((k.choose q : ℝ)⁻¹) ^ 2 *
+          (∑ Q ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+           ∑ Q' ∈ Finset.powersetCard q (Finset.univ : Finset (Fin k)),
+            ∫ x, (k : ℝ)⁻¹ ^ 2 * (signedRules Q Q').sup' (signedRules_nonempty Q Q')
+              (fun ρ ↦ ruleVal (fun i j ↦ sgnR ρ.1 * coreDiff W ε' x i j) ρ.2.1 ρ.2.2) ∂π)
+        + 2 / Real.sqrt q := by
+        rw [integral_add (hsum_int.const_mul _) (integrable_const _), integral_const_mul,
+          integral_const, smul_eq_mul, probReal_univ, one_mul,
+          integral_finsetSum _ (fun Q _ ↦ integrable_finsetSum _ (fun Q' _ ↦ hint_rule Q Q'))]
+        refine congrArg (fun t ↦ ((k.choose q : ℝ)⁻¹) ^ 2 * t + 2 / Real.sqrt q) ?_
+        exact Finset.sum_congr rfl (fun Q _ ↦
+          integral_finsetSum _ (fun Q' _ ↦ hint_rule Q Q'))
 
 /-- **Crux — AFKK / Lovász-10.7 Q-subsample cut-guessing** (the single remaining narrowed
 `sorry`). After the block-split reduction `coreTerm_restrict_fresh_block`, what remains is to
