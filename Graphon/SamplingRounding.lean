@@ -259,4 +259,172 @@ theorem cutNormDiff_mkStepGraphon_le_of_cuts {k : ℕ} (P : MeasurablePartition 
 
 end CutCertificate
 
+/-! ### Layer 3: the finite Chernoff engine
+
+Everything here is graphon-free: `massOf p G` is the Bernoulli graph distribution with
+abstract edge probabilities `p`, matching `sampleMassAt W x` definitionally when
+`p e := W(x_i, x_j)`. -/
+
+section ChernoffEngine
+
+open scoped Classical
+
+variable {k : ℕ}
+
+/-- The Bernoulli graph mass with abstract edge probabilities. -/
+noncomputable def massOf (p : Sym2 (Fin k) → ℝ) (G : SimpleGraph (Fin k)) : ℝ :=
+  (∏ e ∈ G.edgeFinset, p e) *
+    ∏ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset \ G.edgeFinset, (1 - p e)
+
+/-- **Independence as algebra**: a product functional of the edge states sums over all
+graphs to the product of per-edge sums (the powerset bijection + `Finset.prod_add`). -/
+theorem sum_graphs_prod (F F' : Sym2 (Fin k) → ℝ) :
+    ∑ G : SimpleGraph (Fin k),
+      (∏ e ∈ G.edgeFinset, F e) *
+        ∏ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset \ G.edgeFinset, F' e
+      = ∏ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset, (F e + F' e) := by
+  have hbij : ∑ G : SimpleGraph (Fin k),
+      (∏ e ∈ G.edgeFinset, F e) *
+        ∏ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset \ G.edgeFinset, F' e =
+      ∑ S ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset.powerset,
+        (∏ e ∈ S, F e) * ∏ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset \ S, F' e := by
+    refine Finset.sum_nbij' (fun G ↦ G.edgeFinset)
+      (fun S ↦ SimpleGraph.fromEdgeSet (↑S : Set (Sym2 (Fin k)))) ?_ ?_ ?_ ?_ ?_
+    · exact fun G _ ↦ Finset.mem_powerset.mpr (SimpleGraph.edgeFinset_mono le_top)
+    · exact fun S _ ↦ Finset.mem_univ _
+    · intro G _
+      rw [SimpleGraph.coe_edgeFinset, SimpleGraph.fromEdgeSet_edgeSet]
+    · intro S hS
+      ext e
+      simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.edgeSet_fromEdgeSet,
+        Set.mem_sdiff, Finset.mem_coe, Sym2.mem_diagSet]
+      refine ⟨fun h ↦ h.1, fun h ↦ ⟨h, fun hdiag ↦ ?_⟩⟩
+      exact (⊤ : SimpleGraph (Fin k)).not_isDiag_of_mem_edgeSet
+        (SimpleGraph.mem_edgeFinset.mp ((Finset.mem_powerset.mp hS) h)) hdiag
+    · exact fun G _ ↦ rfl
+  rw [hbij, ← Finset.prod_add]
+
+/-- Elementary quadratic exponential bound: `e^s ≤ 1 + s + s²` for `|s| ≤ 1`
+(from `Real.exp_bound` at order 3). -/
+theorem exp_le_one_add_add_sq {s : ℝ} (hs : |s| ≤ 1) :
+    Real.exp s ≤ 1 + s + s ^ 2 := by
+  have h := Real.exp_bound hs (by norm_num : 0 < 3)
+  have hsum : ∑ i ∈ Finset.range 3, s ^ i / (Nat.factorial i : ℝ)
+      = 1 + s + s ^ 2 / 2 := by
+    rw [Finset.sum_range_succ, Finset.sum_range_succ, Finset.sum_range_one]
+    norm_num [Nat.factorial]
+  rw [hsum] at h
+  norm_num [Nat.factorial] at h
+  have h3 : |s| ^ 3 ≤ s ^ 2 := by
+    calc |s| ^ 3 ≤ |s| ^ 2 := pow_le_pow_of_le_one (abs_nonneg s) hs (by norm_num)
+      _ = s ^ 2 := sq_abs s
+  have h2 := abs_le.mp h
+  nlinarith [h2.2, h3, sq_nonneg s]
+
+/-- **Bernoulli MGF bound** (crude Hoeffding-lemma substitute): for `p ∈ [0,1]` and
+`|t| ≤ 1`, the centered Bernoulli MGF satisfies
+`p·e^{t(1−p)} + (1−p)·e^{−tp} ≤ e^{t²}`. -/
+theorem bernoulli_mgf_le {p t : ℝ} (hp : p ∈ Set.Icc (0 : ℝ) 1) (ht : |t| ≤ 1) :
+    p * Real.exp (t * (1 - p)) + (1 - p) * Real.exp (-(t * p)) ≤ Real.exp (t ^ 2) := by
+  obtain ⟨hp0, hp1⟩ := hp
+  have habs_t : |t| ≤ 1 := ht
+  have h1 : |t * (1 - p)| ≤ 1 := by
+    rw [abs_mul]
+    calc |t| * |1 - p| ≤ 1 * 1 := by
+          refine mul_le_mul habs_t ?_ (abs_nonneg _) zero_le_one
+          rw [abs_le]; constructor <;> linarith
+      _ = 1 := one_mul 1
+  have h2 : |-(t * p)| ≤ 1 := by
+    rw [abs_neg, abs_mul]
+    calc |t| * |p| ≤ 1 * 1 := by
+          refine mul_le_mul habs_t ?_ (abs_nonneg _) zero_le_one
+          rw [abs_le]; constructor <;> linarith
+      _ = 1 := one_mul 1
+  have e1 := exp_le_one_add_add_sq h1
+  have e2 := exp_le_one_add_add_sq h2
+  have hcomb : p * Real.exp (t * (1 - p)) + (1 - p) * Real.exp (-(t * p)) ≤
+      1 + t ^ 2 * (p * (1 - p) ^ 2 + (1 - p) * p ^ 2) := by
+    have hb1 : p * Real.exp (t * (1 - p)) ≤ p * (1 + t * (1 - p) + (t * (1 - p)) ^ 2) :=
+      mul_le_mul_of_nonneg_left e1 hp0
+    have hb2 : (1 - p) * Real.exp (-(t * p)) ≤ (1 - p) * (1 + (-(t * p)) + (-(t * p)) ^ 2) :=
+      mul_le_mul_of_nonneg_left e2 (by linarith)
+    nlinarith [hb1, hb2]
+  have hvar : p * (1 - p) ^ 2 + (1 - p) * p ^ 2 ≤ 1 := by nlinarith
+  calc p * Real.exp (t * (1 - p)) + (1 - p) * Real.exp (-(t * p))
+      ≤ 1 + t ^ 2 * (p * (1 - p) ^ 2 + (1 - p) * p ^ 2) := hcomb
+    _ ≤ 1 + t ^ 2 := by nlinarith [sq_nonneg t]
+    _ ≤ Real.exp (t ^ 2) := by
+        have := Real.add_one_le_exp (t ^ 2)
+        linarith
+
+/-- The centered cut statistic of a graph: `Z(G) = ∑_e κ_e (χ_e(G) − p_e)`. -/
+noncomputable def cutStat (p κ : Sym2 (Fin k) → ℝ) (G : SimpleGraph (Fin k)) : ℝ :=
+  ∑ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset,
+    κ e * ((if e ∈ G.edgeFinset then (1 : ℝ) else 0) - p e)
+
+/-- **MGF factorization + per-edge bound**: the exponential moment of a cut statistic is
+at most `exp(λ²·4·|E(⊤)|)` for `|λ| ≤ 1/2` and `|κ| ≤ 2`. -/
+theorem sum_massOf_exp_cutStat_le (p κ : Sym2 (Fin k) → ℝ)
+    (hp : ∀ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset, p e ∈ Set.Icc (0 : ℝ) 1)
+    (hκ : ∀ e, |κ e| ≤ 2) {lam : ℝ} (hlam : |lam| ≤ 1 / 2) :
+    ∑ G : SimpleGraph (Fin k), massOf p G * Real.exp (lam * cutStat p κ G) ≤
+      Real.exp (lam ^ 2 * 4 * (⊤ : SimpleGraph (Fin k)).edgeFinset.card) := by
+  -- Rearrange each summand into per-edge product form.
+  have hterm : ∀ G : SimpleGraph (Fin k),
+      massOf p G * Real.exp (lam * cutStat p κ G) =
+      (∏ e ∈ G.edgeFinset, p e * Real.exp (lam * κ e * (1 - p e))) *
+        ∏ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset \ G.edgeFinset,
+          (1 - p e) * Real.exp (-(lam * κ e * p e)) := by
+    intro G
+    have hsplit : (⊤ : SimpleGraph (Fin k)).edgeFinset =
+        G.edgeFinset ∪ ((⊤ : SimpleGraph (Fin k)).edgeFinset \ G.edgeFinset) :=
+      (Finset.union_sdiff_of_subset (SimpleGraph.edgeFinset_mono le_top)).symm
+    have hsum : lam * cutStat p κ G =
+        (∑ e ∈ G.edgeFinset, lam * κ e * (1 - p e)) +
+          ∑ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset \ G.edgeFinset,
+            -(lam * κ e * p e) := by
+      rw [cutStat, Finset.mul_sum]
+      nth_rewrite 1 [hsplit]
+      rw [Finset.sum_union Finset.sdiff_disjoint.symm]
+      congr 1
+      · exact Finset.sum_congr rfl fun e he ↦ by rw [if_pos he]; ring
+      · exact Finset.sum_congr rfl fun e he ↦ by
+          rw [if_neg (Finset.mem_sdiff.mp he).2]; ring
+    rw [hsum, Real.exp_add, massOf, Finset.prod_mul_distrib, Finset.prod_mul_distrib,
+      ← Real.exp_sum, ← Real.exp_sum]
+    ring
+  rw [Finset.sum_congr rfl fun G _ ↦ hterm G, sum_graphs_prod]
+  -- Per-edge MGF bound.
+  calc ∏ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset,
+        (p e * Real.exp (lam * κ e * (1 - p e)) +
+          (1 - p e) * Real.exp (-(lam * κ e * p e)))
+      ≤ ∏ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset, Real.exp ((lam * κ e) ^ 2) := by
+        refine Finset.prod_le_prod (fun e he ↦ ?_) (fun e he ↦ ?_)
+        · have hpe := hp e he
+          exact add_nonneg (mul_nonneg hpe.1 (Real.exp_nonneg _))
+            (mul_nonneg (by linarith [hpe.2]) (Real.exp_nonneg _))
+        · have habs : |lam * κ e| ≤ 1 := by
+            rw [abs_mul]
+            calc |lam| * |κ e| ≤ (1 / 2) * 2 := by
+                  refine mul_le_mul hlam (hκ e) (abs_nonneg _) (by norm_num)
+              _ = 1 := by norm_num
+          exact bernoulli_mgf_le (hp e he) habs
+    _ ≤ Real.exp (lam ^ 2 * 4 * (⊤ : SimpleGraph (Fin k)).edgeFinset.card) := by
+        rw [← Real.exp_sum]
+        refine Real.exp_le_exp.mpr ?_
+        calc ∑ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset, (lam * κ e) ^ 2
+            ≤ ∑ _e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset, lam ^ 2 * 4 := by
+              refine Finset.sum_le_sum fun e _ ↦ ?_
+              have h1 : (lam * κ e) ^ 2 = lam ^ 2 * (κ e) ^ 2 := by ring
+              have h2 : (κ e) ^ 2 ≤ 4 := by
+                have := abs_le.mp (hκ e)
+                nlinarith [this.1, this.2]
+              rw [h1]
+              exact mul_le_mul_of_nonneg_left h2 (sq_nonneg lam)
+          _ = lam ^ 2 * 4 * (⊤ : SimpleGraph (Fin k)).edgeFinset.card := by
+              rw [Finset.sum_const, nsmul_eq_mul]
+              ring
+
+end ChernoffEngine
+
 end Graphon
