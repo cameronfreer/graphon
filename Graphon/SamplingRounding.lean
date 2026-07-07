@@ -747,9 +747,7 @@ variable {k : ℕ}
 theorem minmax_out {i j : Fin k} :
     min (Quot.out s(i, j)).1 (Quot.out s(i, j)).2 = min i j ∧
       max (Quot.out s(i, j)).1 (Quot.out s(i, j)).2 = max i j := by
-  have hout := Quot.out_eq s(i, j)
-  rw [show (⟦Quot.out s(i, j)⟧ : Sym2 (Fin k)) =
-    s((Quot.out s(i, j)).1, (Quot.out s(i, j)).2) from rfl] at hout
+  have hout : s((Quot.out s(i, j)).1, (Quot.out s(i, j)).2) = s(i, j) := Quot.out_eq _
   rcases Sym2.eq_iff.mp hout with ⟨h1, h2⟩ | ⟨h1, h2⟩
   · rw [h1, h2]; exact ⟨rfl, rfl⟩
   · rw [h1, h2]; exact ⟨min_comm _ _, max_comm _ _⟩
@@ -763,7 +761,7 @@ theorem card_diag_pairs_le (A B : Finset (Fin k)) :
         refine Finset.card_le_card fun ij hij ↦ ?_
         have h := (Finset.mem_filter.mp hij).2
         exact Finset.mem_image.mpr ⟨ij.1, Finset.mem_univ _, by
-          exact Prod.ext rfl h.symm⟩
+          exact Prod.ext rfl h⟩
     _ ≤ (Finset.univ : Finset (Fin k)).card := Finset.card_image_le
     _ = k := by rw [Finset.card_univ, Fintype.card_fin]
 
@@ -800,7 +798,7 @@ theorem eventually_union_bound_small (c η : ℝ) (hc : 0 < c) (hη : 0 < η) :
     le_trans hK₂ (by
       exact_mod_cast le_trans (le_max_right K₁ K₂) (le_trans (le_max_left _ 1) hk))
   have h4k : (4 : ℝ) ^ k = Real.exp ((k : ℝ) * Real.log 4) := by
-    rw [← Real.exp_log (by norm_num : (0 : ℝ) < 4), ← Real.exp_nat_mul]
+    rw [Real.exp_nat_mul, Real.exp_log (by norm_num : (0 : ℝ) < 4)]
   have hlog4 : 0 < Real.log 4 := Real.log_pos (by norm_num)
   -- Exponent chain: k·log4 − ck² ≤ −(c/2)k² ≤ −log(2/η).
   have hexp1 : (k : ℝ) * Real.log 4 ≤ (c / 2) * (k : ℝ) ^ 2 := by
@@ -910,11 +908,8 @@ theorem rounding_event_of_large_k (ε η : ℝ) (hε : 0 < ε) (hη : 0 < η) :
             ((min 1 (max 0 (W.toAEEqFun (x (min ij.1 ij.2), x (max ij.1 ij.2)))) -
               (if G.Adj ij.1 ij.2 then (1 : ℝ) else 0))) := by
         rw [Finset.mul_sum, Finset.sum_product]
-        refine Finset.sum_congr rfl fun i _ ↦ ?_
-        rw [Finset.mul_sum]
-        refine Finset.sum_congr rfl fun j _ ↦ ?_
+        refine Finset.sum_congr rfl fun i _ ↦ Finset.sum_congr rfl fun j _ ↦ ?_
         rw [hw i, hw j]
-        ring
       rw [hpull, abs_mul, abs_of_nonneg (by positivity :
         (0 : ℝ) ≤ ((k : ℝ))⁻¹ * ((k : ℝ))⁻¹)]
       -- Split the pair sum into off-diagonal (the cut statistic) and diagonal (≤ k).
@@ -931,7 +926,7 @@ theorem rounding_event_of_large_k (ε η : ℝ) (hε : 0 < ε) (hη : 0 < η) :
           (fun ij : Fin k × Fin k ↦ ij.1 ≠ ij.2)]
         congr 1
         refine Finset.sum_congr (Finset.filter_congr fun ij _ ↦ ?_) fun _ _ ↦ rfl
-        simp [not_not]
+        simp
       -- Off-diagonal part: each summand is the edge functional at `s(i,j)`.
       have hoff : ∑ ij ∈ (A ×ˢ B).filter (fun ij : Fin k × Fin k ↦ ij.1 ≠ ij.2),
           ((min 1 (max 0 (W.toAEEqFun (x (min ij.1 ij.2), x (max ij.1 ij.2)))) -
@@ -949,7 +944,8 @@ theorem rounding_event_of_large_k (ε η : ℝ) (hε : 0 < ε) (hη : 0 < η) :
           have hmm := minmax_out (i := ij.1) (j := ij.2)
           have halign := (hx _ he).2
           congr 1
-          · rw [← halign, hmm.1, hmm.2]
+          · simp only [hp_def]
+            rw [← halign, hmm.1, hmm.2]
           · congr 1
             rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet]
         rw [Finset.sum_congr rfl hstep,
@@ -970,19 +966,71 @@ theorem rounding_event_of_large_k (ε η : ℝ) (hε : 0 < ε) (hη : 0 < η) :
           _ ≤ ∑ _ij ∈ (A ×ˢ B).filter (fun ij : Fin k × Fin k ↦ ij.1 = ij.2), (1 : ℝ) := by
               refine Finset.sum_le_sum fun ij hij ↦ ?_
               have hdd := (Finset.mem_filter.mp hij).2
-              rw [show G.Adj ij.1 ij.2 = False from by
-                simp [hdd ▸ (SimpleGraph.irrefl G (v := ij.2))]
-                rw [hdd]; exact fun h ↦ SimpleGraph.irrefl G h]
-              simp only [if_false]
-              rw [sub_zero, abs_of_nonneg (le_min_iff.mp (le_refl _) |>.1 |> fun _ ↦
-                le_min (by norm_num) (le_max_left 0 _) |> fun h ↦ le_trans (by norm_num) (le_refl _))]
-              sorry
+              have hadj : ¬ G.Adj ij.1 ij.2 := by rw [hdd]; exact G.irrefl
+              rw [if_neg hadj, sub_zero,
+                abs_of_nonneg (le_min zero_le_one (le_max_left 0 _))]
+              exact min_le_left _ _
           _ = (((A ×ˢ B).filter (fun ij : Fin k × Fin k ↦ ij.1 = ij.2)).card : ℝ) := by
               rw [Finset.sum_const, nsmul_eq_mul, mul_one]
           _ ≤ (k : ℝ) := by exact_mod_cast card_diag_pairs_le A B
-      sorry
-    sorry
-  sorry
+      rw [hsplit_sum]
+      refine le_trans (mul_le_mul_of_nonneg_left (abs_add_le _ _) (by positivity)) ?_
+      rw [hoff, abs_neg]
+      refine le_trans (mul_le_mul_of_nonneg_left
+        (add_le_add (hcon (A, B)).le hdiag) (by positivity)) ?_
+      have hk4 : (4 : ℝ) ≤ ε * (k : ℝ) := by rw [div_le_iff₀ hε] at hk4ε; linarith
+      have hkk : (0 : ℝ) < (k : ℝ) * (k : ℝ) := by positivity
+      rw [show ((k : ℝ))⁻¹ * ((k : ℝ))⁻¹ = ((k : ℝ) * (k : ℝ))⁻¹ from (mul_inv _ _).symm,
+        ← div_eq_inv_mul, div_le_iff₀ hkk, ht_def]
+      nlinarith [hk4, hk_pos]
+    refine lt_of_le_of_lt (cutDistance_le_cutNormDiff _ _)
+      (lt_of_le_of_lt ?_ (by linarith : ε / 2 < ε))
+    unfold sampleWeightedGraphonOn ofSimpleGraphOn
+    apply cutNormDiff_mkStepGraphon_le_of_cuts (equipartition k)
+      (equipartitionCell (α := α) (μ := μ) k) (equipartitionCell_mem k)
+      (equipartitionCell_injective k) (equipartitionCell_surjOn k)
+    intro A B
+    refine le_of_eq_of_le (congrArg abs (Finset.sum_congr rfl fun i _ ↦
+      Finset.sum_congr rfl fun j _ ↦ ?_)) (hM A B)
+    have h₀ : (∃ i', equipartitionCell (α := α) (μ := μ) k i' = equipartitionCell k i) ∧
+        (∃ j', equipartitionCell (α := α) (μ := μ) k j' = equipartitionCell k j) :=
+      ⟨⟨i, rfl⟩, ⟨j, rfl⟩⟩
+    rw [dif_pos h₀, dif_pos h₀, choose_cell_eq h₀.1, choose_cell_eq h₀.2]
+  -- Good mass ≥ 1 − η, via good + bad = 1 and bad ≤ η.
+  have hone : (∑ G ∈ Finset.univ.filter (fun G : SimpleGraph (Fin k) ↦
+        cutDistance (sampleWeightedGraphonOn W x) (ofSimpleGraphOn G) < ε),
+        sampleMassAt W x G) +
+      (∑ G ∈ Finset.univ.filter (fun G : SimpleGraph (Fin k) ↦
+        ¬ cutDistance (sampleWeightedGraphonOn W x) (ofSimpleGraphOn G) < ε),
+        sampleMassAt W x G) = 1 := by
+    rw [Finset.sum_filter_add_sum_filter_not]
+    exact sampleMassAt_sum_eq_one W x
+  have hbad_le : (∑ G ∈ Finset.univ.filter (fun G : SimpleGraph (Fin k) ↦
+        ¬ cutDistance (sampleWeightedGraphonOn W x) (ofSimpleGraphOn G) < ε),
+        sampleMassAt W x G) ≤ η := by
+    simp only [hmass_eq]
+    refine le_trans (Finset.sum_le_sum_of_subset_of_nonneg hbad_subset
+      (fun G _ _ ↦ massOf_nonneg hp G)) ?_
+    refine le_trans (mass_bad_family_le p
+      (fun AB : Finset (Fin k) × Finset (Fin k) ↦ cutCoeff AB.1 AB.2) hp
+      (fun i e ↦ cutCoeff_le_two i.1 i.2 e) hlam_pos.le hlam_half) ?_
+    have hcard : (Fintype.card (Finset (Fin k) × Finset (Fin k)) : ℝ) = (4 : ℝ) ^ k := by
+      rw [Fintype.card_prod, Fintype.card_finset, Fintype.card_fin]
+      push_cast
+      rw [← mul_pow]; norm_num
+    rw [hcard]
+    refine le_trans ?_ (hK₀ k hkK₀)
+    have hlam_le : lam ≤ ε / 32 := by rw [hlam_def]; exact min_le_left _ _
+    have hE : ((⊤ : SimpleGraph (Fin k)).edgeFinset.card : ℝ) ≤ (k : ℝ) * (k : ℝ) := by
+      exact_mod_cast top_card_le_sq
+    refine mul_le_mul_of_nonneg_left ?_ (by positivity)
+    refine mul_le_mul_of_nonneg_left ?_ (by norm_num : (0 : ℝ) ≤ 2)
+    refine Real.exp_le_exp.mpr ?_
+    rw [hc_def, ht_def]
+    nlinarith [mul_nonneg (sq_nonneg lam) (sub_nonneg.mpr hE),
+      mul_nonneg (mul_nonneg (sub_nonneg.mpr hlam_le) hlam_pos.le)
+        (mul_pos hk_pos hk_pos).le, hlam_pos, hk_pos]
+  linarith [hone, hbad_le]
 
 end RoundingTheorem
 
