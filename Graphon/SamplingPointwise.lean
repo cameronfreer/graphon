@@ -3934,27 +3934,27 @@ private theorem guessBlock_integral_le_cutNormDiff_of_small (W : Graphon α μ) 
     _ ≤ 8 * (k : ℝ) ^ (-(1 / 4 : ℝ)) := harith
     _ ≤ cutNormDiff W (chosenStep W ε') + 8 * ((k : ℝ) ^ (-(1 / 4 : ℝ))) := by linarith
 
-/-- **Crux — AFKK / Lovász-10.7 Q-subsample cut-guessing** (the single remaining narrowed
-`sorry`). After the block-split reduction `coreTerm_restrict_fresh_block`, what remains is to
-bound the `1/k²`-normalized expectation of the fresh-block discrete cut norm, plus the
-block-split cost `2|Q|/k`, by the continuous cut norm `cutNormDiff W (chosenStep W ε')` up to
-`8·k^{-1/4}`.
+/-- **Crux — AFKK / Lovász-10.7 Q-subsample cut-guessing.** After the block-split reduction
+`coreTerm_restrict_fresh_block`, the `1/k²`-normalized expectation of the fresh-block discrete
+cut norm, plus the block-split cost `2|Q₀|/k`, is at most the continuous cut norm
+`cutNormDiff W (chosenStep W ε')` plus `8·k^{-1/4}`.
 
-Proof obligation (NOT yet formalized — this is the deep analytic content):
-* For the maximizing fresh cut `(A*,B*) ⊆ F`, `A*` is the sign set of the row sums
-  `ρᵢ = ∑_{j∈B*} D(xᵢ,·)`. Estimate `ρᵢ` from the `Q`-block via `(k/|Q|)∑_{j∈B*∩Q} D`; the
-  near-optimal cut is a measurable function of `(x_Q, A*∩Q, B*∩Q)` — only `4^{|Q|}` *rules*.
-* For each FIXED rule the cut membership of a fresh coordinate `i ∈ F` depends only on `xᵢ`
-  and `x_Q`; conditioning on `x_Q` (`Measure.pi` block factorization), the fresh-sample
-  expectation of the normalized rectangle sum is a genuine measurable-rectangle integral of
-  `W − U`, hence `≤ cutNormDiff W (chosenStep W ε')` (uses `ae_coreDiff_eq`).
-* The sign-mismatch loss between the true optimal fresh cut and the best rule-reconstructed
-  cut is `≤ ∑ᵢ|ρᵢ − ρ̂ᵢ|`, an `L¹` estimation error `O(k/√|Q|)`; after `1/k²` normalization
-  this and the block-split `2|Q|/k` are both `O(k^{-1/4})` at `|Q| = ⌈√k⌉` (mirror the
-  `integral_abs_empFreq_sub_le` / `variance_sum_pi` variance computation in this file).
-* Both `±` directions by applying the argument to `D` and `−D` (the `sup'` is of `|·|`).
+Proof (see `docs/afkk-cut-guessing.md`): the deterministic block `Q₀ = guessBlock k` enters
+only through `sup'_sdiff_le_sup'` and its cardinality. The free cut sup is bounded pointwise
+by the average over pairs of `q`-subsets `(Q,Q')` of the best of `2·4^q` sign-set rules plus
+`2k²/√q` (`sup'_abs_cut_le_avg_signedRuleSup`, via the finite sampling-without-replacement
+second moment `sum_powersetCard_abs_sub_le` — elementary `powersetCard` combinatorics, not a
+probabilistic ingredient). For each block pair, conditioning on `x_{Q∪Q'}` makes every fixed
+rule a pointwise rule whose conditional mean is a rectangle integral of `W − U`, hence
+`≤ cutNormDiff` (`ae_integral_ruleVal_le`); the deviations are controlled by a McDiarmid-type
+MGF bound (`integral_exp_mul_centered_le_pi`, bounded differences `4k`) and a soft-max over
+the rules (`integral_sup'_le_sqrt_two_mul_log_card`), giving `√(8k³(2q+1)·log 2)`
+(`integral_signedRuleSup_le`). At `q = ⌈√k⌉` the budget `afkk_error_budget` sums to
+`≤ 8·k^{-1/4}` for `k ≥ 2401`; smaller `k` are trivial
+(`guessBlock_integral_le_cutNormDiff_of_small`).
 
-References: Lovász, *Large Networks*, Lemma 10.7; AFKK, JCSS 67 (2003); arXiv:2203.07581 §6.2. -/
+References: Lovász, *Large Networks*, Lemma 10.7; AFKK, JCSS 67 (2003), Lemma 3;
+arXiv:2203.07581 §6.2 + Appendix §10. -/
 private theorem guessBlock_integral_le_cutNormDiff (W : Graphon α μ) (ε' : ℝ) (hε' : 0 < ε')
     {k : ℕ} [NeZero k] :
     (∫ x, (k : ℝ)⁻¹ ^ 2 * (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup'
@@ -4030,33 +4030,35 @@ private theorem guessBlock_integral_le_cutNormDiff (W : Graphon α μ) (ε' : �
   rw [hcB_def] at hfinal
   linarith [hfinal, hbudget]
 
-/-- **Layer 3 core — AFKK cut-norm sampling** (the one deep step; narrowed private
-sorry during development, discharged before this branch ships). The expectation of the
-empirical (normalized, `1/k²`-weighted) discrete cut norm of the sampled difference matrix
-`D(x)ᵢⱼ = clampEval W x i j − clampEval (chosenStep W ε') x i j` is at most the *continuous*
-cut norm `cutNormDiff W (chosenStep W ε')` plus a `k`-vanishing dispersion cost.
+/-- **Layer 3 core — AFKK cut-norm sampling** (the one deep step of PR #11A; PROVED). The
+expectation of the empirical (normalized, `1/k²`-weighted) discrete cut norm of the sampled
+difference matrix `D(x)ᵢⱼ = clampEval W x i j − clampEval (chosenStep W ε') x i j` is at most
+the *continuous* cut norm `cutNormDiff W (chosenStep W ε')` plus a `k`-vanishing dispersion
+cost.
 
 This is the honest content of the point-sampling lemma: a cut `A, B ⊆ [k]` of the sample can
 overfit the `k` random points, so the max over the `4^k` sample cuts can exceed the true cut
 norm; the AFKK / book-10.7 **Q-subsample cut-guessing** mechanism shows the excess is only
-`O(k^{−1/4})` in expectation. Proof strategy (deterministic block split — iid makes the
-`Q`-block independent of the fresh block, so no hypergeometric second moment is needed):
+`O(k^{−1/4})` in expectation. Proof (full details in `docs/afkk-cut-guessing.md`):
 
-* Split `[k] = Q ⊔ F`, `|Q| = q := ⌈√k⌉`. Entries touching `Q` number `≤ 2qk`, contributing
-  `≤ 2q/k = O(k^{−1/2})` to the `1/k²`-normalized sum, so up to that error the max is over
-  cuts `A, B ⊆ F` (`coreTerm_restrict_fresh_block`).
-* For the maximizer `(A*, B*) ⊆ F`, `A*` is the sign set of the row sums `ρᵢ = ∑_{j∈B*}D(xᵢ,·)`.
-  Estimate `ρᵢ` from the `Q`-block via `(k/q)∑_{j∈Q}[j∈B*]D(xᵢ,·)`; the near-optimal cut is then
-  a measurable function of `(x_Q, B*∩Q, A*∩Q)` — only `4^q` *rules*. The sign-mismatch loss is
-  `≤ ∑ᵢ|ρᵢ − ρ̂ᵢ|`, an `L¹` estimation error `O(k/√q)` after normalization (`estimation_error`).
-* For each FIXED rule the cut membership of a fresh coordinate `i ∈ F` depends only on `xᵢ`
-  and `x_Q`, so — conditioning on `x_Q` — the fresh-sample expectation of the rectangle sum is a
-  genuine measurable-rectangle integral, `≤ cutNormDiff W (chosenStep W ε')`
-  (`fresh_rectangle_le_cutNorm`). Union over the `4^q` rules with the estimation error and the
-  block-split error gives the `O(k^{−1/4})` total at `q = ⌈√k⌉`.
-* Both `±` directions by applying the argument to `D` and `−D`.
+* Split `[k] = Q₀ ⊔ F`, `|Q₀| = ⌈√k⌉`: entries touching `Q₀` cost `≤ 2|Q₀|/k` after the
+  `1/k²` normalization (`coreTerm_restrict_fresh_block`), and the fresh-block sup is at most
+  the full cut sup (`sup'_sdiff_le_sup'`).
+* The full cut sup is dominated, pointwise in the sample, by the average over pairs of random
+  `q`-subsets of the best of the `2·4^q` signed sign-set rules, plus `2k²/√q` — the AFKK
+  guessing chain (`sup'_abs_cut_le_avg_signedRuleSup`). The subsample estimator's second
+  moment is a finite `powersetCard` computation (`sum_powersetCard_abs_sub_le`), not a
+  probabilistic ingredient.
+* Fixed rules conditioned on the block are pointwise rules: their conditional means are
+  rectangle integrals of `W − U`, hence `≤ cutNormDiff` (`ae_integral_ruleVal_le`), and their
+  deviations obey a McDiarmid-type MGF bound (bounded differences `4k`) combined with a
+  soft-max over the rules, `√(8k³(2q+1)·log 2)` in total (`integral_signedRuleSup_le`).
+* Both `±` directions ride inside the signed rule index. At `q = ⌈√k⌉` the rate budget is
+  `32/5 · k^{−1/4} ≤ 8·k^{−1/4}` for `k ≥ 2401` (`afkk_error_budget`); smaller `k` are
+  trivial (`guessBlock_integral_le_cutNormDiff_of_small`).
 
-References: Lovász, *Large Networks*, Lemma 10.7; AFKK, JCSS 67 (2003); arXiv:2203.07581 §6.2. -/
+References: Lovász, *Large Networks*, Lemma 10.7; AFKK, JCSS 67 (2003), Lemma 3;
+arXiv:2203.07581 §6.2 + Appendix §10. -/
 private theorem coreTerm_expectation_le_cutNormDiff (W : Graphon α μ) (ε' : ℝ) (hε' : 0 < ε')
     {k : ℕ} [NeZero k] :
     ∫ x, coreTerm W ε' k x ∂Measure.pi (fun _ : Fin k ↦ μ) ≤
