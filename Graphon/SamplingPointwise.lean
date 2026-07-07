@@ -92,6 +92,44 @@ of `W` at quality `ε' := ε/8` with `m = m(ε')` parts (uniform in `W` — PROV
   fresh-sample expectation of the rectangle sum is `≤ ‖D‖_□ + O((q + √k)/k)`.
   Union over `2^q` rules with second-moment control; `q := ⌈√k⌉` gives `O(k^{−1/4})`.
   Both `±` directions by applying to `D` and `−D`.
+
+## PR #11A execution notes (2026-07-07 survey of repo APIs)
+
+* **Deliverable shape** (`point_sampling_expectation_bound`): ∃K, ∀ k ≥ K, ∀ W, ∃ a
+  measurable nonnegative integrable majorant `M` with
+  `∀ᵐ x, cutDistance W (sampleWeightedGraphonOn W x) ≤ M x` and `∫ M < ε`.
+* **KEY SIMPLIFICATION — PR #11B is just Markov.** Given the expectation bound at
+  accuracy `ε·η`, Markov's inequality on the nonnegative majorant gives
+  `π{M ≥ ε} ≤ η`, and `X := {M < ε} \ N` (N a measurable null superset of the
+  domination-failure set) is the measurable witness for
+  `PointSamplingEvent W k ε η`. NO Azuma / bounded differences needed for the
+  qualitative statement — concentration would only improve η-rates.
+* `regularity W ε hε : ∃ P, P.parts.card ≤ regularityBound ε ∧
+  cutNormDiff W (stepify P W) ≤ ε` (proved) — the `m(ε)` source.
+* `cutDistance_step_weight_le` (InverseCounting, PRIVATE — de-privatize like
+  `exists_partition_with_measures`; carries the Rokhlin trace, acceptable): needs the
+  SAME cell count on both sides via injective enumerations. For the frequency term
+  (`d(U, H_{U,x})`), the coarsened partition (equicells grouped by the P-cell of their
+  sample point) can have EMPTY groups, which break enumeration injectivity — pad empty
+  groups with distinct measure-zero decorated cells (singleton-point technique from
+  `exists_partition_with_measures`'s proof). This is the main construction cost of
+  the frequency layer.
+* The coefficient alignment (`U(xᵢ,xⱼ) = c_P(cell of xᵢ, cell of xⱼ)` at sampled
+  points, clamps invisible) is a.e.-x, via the `graphonEval` transfer machinery
+  (as in `ae_edge_params_aligned`) applied to BOTH `W` and `U := stepify P W`.
+
+## References
+
+* L. Lovász, *Large Networks and Graph Limits*, AMS Colloq. Publ. 60 (2012),
+  Lemmas 10.6, 10.7, 10.16 (First Sampling Lemma).
+* C. Borgs, J.T. Chayes, L. Lovász, V.T. Sós, K. Vesztergombi, *Convergent sequences
+  of dense graphs I*, Adv. Math. 219 (2008), §4.3.
+* N. Alon, W. Fernandez de la Vega, R. Kannan, M. Karpinski, *Random sampling and
+  approximation of MAX-CSPs*, J. Comput. Syst. Sci. 67 (2003) — the Q-subsample
+  cut-guessing mechanism.
+* M. Borbényi, B. Ráth, S. Rokob, *The cut norm and sampling lemmas for unbounded
+  kernels*, arXiv:2203.07581 — modern treatment; confirms the systematic-error /
+  dispersion split.
 -/
 
 open MeasureTheory Set Filter Finset
