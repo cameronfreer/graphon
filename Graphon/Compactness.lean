@@ -132,7 +132,8 @@ noncomputable def mkStepFun (P : MeasurablePartition α μ) (c : Set α → Set 
     (S ×ˢ T).indicator (fun _ => c S T) p
 
 omit [StandardBorelSpace α] in
-private theorem mkStepFun_measurable (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ) :
+/-- (de-privatized 2026-07-07 for the sampling layer) -/
+theorem mkStepFun_measurable (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ) :
     Measurable (mkStepFun P c) := by
   unfold mkStepFun
   apply Finset.measurable_sum; intro S hS
@@ -140,7 +141,8 @@ private theorem mkStepFun_measurable (P : MeasurablePartition α μ) (c : Set α
   exact measurable_const.indicator ((P.measurableSet_part hS).prod (P.measurableSet_part hT))
 
 omit [StandardBorelSpace α] in
-private theorem mkStepFun_eq_at (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
+/-- (de-privatized 2026-07-07 for the sampling layer) -/
+theorem mkStepFun_eq_at (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
     {p : α × α} {S : Set α} (hS : S ∈ P.parts) {T : Set α} (hT : T ∈ P.parts)
     (hp : p ∈ S ×ˢ T) : mkStepFun P c p = c S T := by
   unfold mkStepFun
