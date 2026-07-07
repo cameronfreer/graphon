@@ -57,5 +57,5 @@ in Lean 4 using Mathlib.
 
 * `Graphon.Operations` — Pointwise product (direct sum and operator product are future work)
 * `Graphon.Operator` — Kernel operator pointwise definition (full L² API is future work)
-* `Graphon.Sampling` — Expected edge density (concentration bounds are future work)
+* `Graphon.Sampling` — W-random graph distribution (`sampleMass`) and expected edge density (concentration bounds are future work)
 -/
