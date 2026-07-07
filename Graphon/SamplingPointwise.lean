@@ -1209,6 +1209,208 @@ theorem chosenStep_cutNormDiff_le (W : Graphon α μ) {ε' : ℝ} (hε' : 0 < ε
   rw [dif_pos hε']
   exact (regularity W ε' hε').choose_spec.2
 
+/-- The sampled difference-matrix entry `D(x)ᵢⱼ = clampEval W x i j − clampEval U x i j`,
+where `U = chosenStep W ε'`. Both clamps lie in `[0,1]`, so `D ∈ [-1,1]`. Introduced only to
+compress the AFKK core proof; a private abbreviation for the summand of `coreTerm`. -/
+private noncomputable def coreDiff (W : Graphon α μ) (ε' : ℝ) {k : ℕ} (x : Fin k → α)
+    (i j : Fin k) : ℝ :=
+  clampEval W x i j - clampEval (chosenStep W ε') x i j
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- Each sampled difference entry has absolute value at most `1`. -/
+private theorem abs_coreDiff_le_one (W : Graphon α μ) (ε' : ℝ) {k : ℕ} (x : Fin k → α)
+    (i j : Fin k) : |coreDiff W ε' x i j| ≤ 1 := by
+  rw [coreDiff, abs_le]
+  have h1 := clampEval_le_one W x i j
+  have h2 := clampEval_nonneg W x i j
+  have h3 := clampEval_le_one (chosenStep W ε') x i j
+  have h4 := clampEval_nonneg (chosenStep W ε') x i j
+  constructor <;> linarith
+
+/-- **Step 0 — normal form of the core term.** Each equipartition cell has measure `1/k`
+(`equipartitionCell_measure`), so the `(μ cell)·(μ cell)` weights are the constant `1/k²`,
+which factors out of the `sup'` of `|·|`:
+`coreTerm W ε' k x = k⁻² · sup'_{A,B ⊆ [k]} |∑_{i∈A} ∑_{j∈B} D(x)ᵢⱼ|`. -/
+private theorem coreTerm_eq_normalForm (W : Graphon α μ) (ε' : ℝ) {k : ℕ} [NeZero k]
+    (x : Fin k → α) :
+    coreTerm W ε' k x = (k : ℝ)⁻¹ ^ 2 *
+      (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup' Finset.univ_nonempty
+        (fun AB ↦ |∑ i ∈ AB.1, ∑ j ∈ AB.2, coreDiff W ε' x i j|) := by
+  rw [Finset.mul₀_sup' (by positivity) _ _ Finset.univ_nonempty]
+  unfold coreTerm
+  refine Finset.sup'_congr _ rfl (fun AB _ ↦ ?_)
+  have hμ : ∀ i : Fin k, (μ (equipartitionCell (α := α) (μ := μ) k i)).toReal = (k : ℝ)⁻¹ :=
+    equipartitionCell_measure k
+  simp only [hμ, coreDiff]
+  rw [← abs_of_nonneg (show (0 : ℝ) ≤ (k : ℝ)⁻¹ ^ 2 by positivity), ← abs_mul]
+  congr 1
+  rw [Finset.mul_sum]
+  refine Finset.sum_congr rfl (fun i _ ↦ ?_)
+  rw [Finset.mul_sum]
+  refine Finset.sum_congr rfl (fun j _ ↦ ?_)
+  ring
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- Rectangle bound for the difference matrix: `|∑_{i∈S} ∑_{j∈T} D| ≤ |S|·|T|`, since each
+entry has `|D| ≤ 1`. Shared by the block-split reduction and the integrability of the
+fresh-block sup. -/
+private theorem abs_coreDiff_rect_le (W : Graphon α μ) (ε' : ℝ) {k : ℕ} (x : Fin k → α)
+    (S T : Finset (Fin k)) :
+    |∑ i ∈ S, ∑ j ∈ T, coreDiff W ε' x i j| ≤ (S.card : ℝ) * (T.card : ℝ) := by
+  calc |∑ i ∈ S, ∑ j ∈ T, coreDiff W ε' x i j|
+      ≤ ∑ i ∈ S, |∑ j ∈ T, coreDiff W ε' x i j| := Finset.abs_sum_le_sum_abs _ _
+    _ ≤ ∑ _i ∈ S, ∑ _j ∈ T, (1 : ℝ) := by
+        refine Finset.sum_le_sum (fun i _ ↦ ?_)
+        refine (Finset.abs_sum_le_sum_abs _ _).trans (Finset.sum_le_sum (fun j _ ↦ ?_))
+        exact abs_coreDiff_le_one W ε' x i j
+    _ = (S.card : ℝ) * (T.card : ℝ) := by
+        simp [Finset.sum_const, nsmul_eq_mul]
+
+/-- **Sub-lemma 1 — restriction to the fresh block** (pure finite combinatorics, no
+probability, no cut norm). For any block `Q ⊆ [k]` with fresh complement `F = Qᶜ`, the
+entries of the double cut sum that touch `Q` number at most `2·|Q|·k` and each has `|D| ≤ 1`,
+so replacing every cut `(A,B)` by its fresh restriction `(A\Q, B\Q)` costs at most `2|Q|k`
+inside the `sup'`. After the `1/k²` normalization this is the block-split error `2|Q|/k`:
+`coreTerm ≤ k⁻² · sup'_{A,B} |∑_{i∈A\Q} ∑_{j∈B\Q} D| + 2|Q|/k`. -/
+private theorem coreTerm_restrict_fresh_block (W : Graphon α μ) (ε' : ℝ) {k : ℕ} [NeZero k]
+    (x : Fin k → α) (Q : Finset (Fin k)) :
+    coreTerm W ε' k x ≤ (k : ℝ)⁻¹ ^ 2 *
+      (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup' Finset.univ_nonempty
+        (fun AB ↦ |∑ i ∈ AB.1 \ Q, ∑ j ∈ AB.2 \ Q, coreDiff W ε' x i j|)
+      + 2 * (Q.card : ℝ) / k := by
+  have hkpos : (0 : ℝ) < (k : ℝ) := by exact_mod_cast Nat.pos_of_ne_zero (NeZero.ne k)
+  have hkne : (k : ℝ) ≠ 0 := ne_of_gt hkpos
+  have hcard : ∀ S : Finset (Fin k), (S.card : ℝ) ≤ k := by
+    intro S
+    calc (S.card : ℝ) ≤ ((Finset.univ : Finset (Fin k)).card : ℝ) := by
+          exact_mod_cast Finset.card_le_card (Finset.subset_univ S)
+      _ = k := by rw [Finset.card_univ, Fintype.card_fin]
+  have hrect : ∀ S T : Finset (Fin k),
+      |∑ i ∈ S, ∑ j ∈ T, coreDiff W ε' x i j| ≤ (S.card : ℝ) * (T.card : ℝ) :=
+    abs_coreDiff_rect_le W ε' x
+  set fresh : Finset (Fin k) × Finset (Fin k) → ℝ :=
+    fun AB ↦ |∑ i ∈ AB.1 \ Q, ∑ j ∈ AB.2 \ Q, coreDiff W ε' x i j| with hfresh
+  -- pointwise: every cut's value is at most the fresh sup plus `2|Q|k`
+  have hpt : ∀ AB : Finset (Fin k) × Finset (Fin k),
+      |∑ i ∈ AB.1, ∑ j ∈ AB.2, coreDiff W ε' x i j|
+        ≤ Finset.univ.sup' Finset.univ_nonempty fresh + 2 * (Q.card : ℝ) * (k : ℝ) := by
+    intro AB
+    obtain ⟨A, B⟩ := AB
+    have hinner : ∀ i, ∑ j ∈ B, coreDiff W ε' x i j
+        = ∑ j ∈ B ∩ Q, coreDiff W ε' x i j + ∑ j ∈ B \ Q, coreDiff W ε' x i j :=
+      fun i ↦ (Finset.sum_inter_add_sum_sdiff B Q _).symm
+    have hdecomp : ∑ i ∈ A, ∑ j ∈ B, coreDiff W ε' x i j
+        = (∑ i ∈ A ∩ Q, ∑ j ∈ B, coreDiff W ε' x i j
+            + ∑ i ∈ A \ Q, ∑ j ∈ B ∩ Q, coreDiff W ε' x i j)
+          + ∑ i ∈ A \ Q, ∑ j ∈ B \ Q, coreDiff W ε' x i j := by
+      rw [← Finset.sum_inter_add_sum_sdiff A Q (fun i ↦ ∑ j ∈ B, coreDiff W ε' x i j), add_assoc]
+      congr 1
+      rw [← Finset.sum_add_distrib]
+      exact Finset.sum_congr rfl (fun i _ ↦ hinner i)
+    have hbound : |∑ i ∈ A ∩ Q, ∑ j ∈ B, coreDiff W ε' x i j
+          + ∑ i ∈ A \ Q, ∑ j ∈ B ∩ Q, coreDiff W ε' x i j| ≤ 2 * (Q.card : ℝ) * k := by
+      refine (abs_add_le _ _).trans ?_
+      have h1 := hrect (A ∩ Q) B
+      have h2 := hrect (A \ Q) (B ∩ Q)
+      have c1 : ((A ∩ Q).card : ℝ) ≤ Q.card := by
+        exact_mod_cast Finset.card_le_card Finset.inter_subset_right
+      have c4 : ((B ∩ Q).card : ℝ) ≤ Q.card := by
+        exact_mod_cast Finset.card_le_card Finset.inter_subset_right
+      have hp1 : ((A ∩ Q).card : ℝ) * (B.card : ℝ) ≤ (Q.card : ℝ) * k :=
+        mul_le_mul c1 (hcard B) (by positivity) (by positivity)
+      have hp2 : ((A \ Q).card : ℝ) * ((B ∩ Q).card : ℝ) ≤ (k : ℝ) * (Q.card : ℝ) :=
+        mul_le_mul (hcard _) c4 (by positivity) (by positivity)
+      nlinarith [h1, h2, hp1, hp2]
+    calc |∑ i ∈ A, ∑ j ∈ B, coreDiff W ε' x i j|
+        = |(∑ i ∈ A ∩ Q, ∑ j ∈ B, coreDiff W ε' x i j
+            + ∑ i ∈ A \ Q, ∑ j ∈ B ∩ Q, coreDiff W ε' x i j)
+          + ∑ i ∈ A \ Q, ∑ j ∈ B \ Q, coreDiff W ε' x i j| := by rw [hdecomp]
+      _ ≤ |∑ i ∈ A ∩ Q, ∑ j ∈ B, coreDiff W ε' x i j
+            + ∑ i ∈ A \ Q, ∑ j ∈ B ∩ Q, coreDiff W ε' x i j|
+          + |∑ i ∈ A \ Q, ∑ j ∈ B \ Q, coreDiff W ε' x i j| := abs_add_le _ _
+      _ ≤ 2 * (Q.card : ℝ) * k + Finset.univ.sup' Finset.univ_nonempty fresh := by
+          gcongr
+          exact Finset.le_sup' fresh (Finset.mem_univ (A, B))
+      _ = Finset.univ.sup' Finset.univ_nonempty fresh + 2 * (Q.card : ℝ) * k := by ring
+  rw [coreTerm_eq_normalForm]
+  have hsup : Finset.univ.sup' Finset.univ_nonempty
+        (fun AB : Finset (Fin k) × Finset (Fin k) ↦
+          |∑ i ∈ AB.1, ∑ j ∈ AB.2, coreDiff W ε' x i j|)
+      ≤ Finset.univ.sup' Finset.univ_nonempty fresh + 2 * (Q.card : ℝ) * k :=
+    Finset.sup'_le _ _ (fun AB _ ↦ hpt AB)
+  calc (k : ℝ)⁻¹ ^ 2 * Finset.univ.sup' Finset.univ_nonempty
+          (fun AB : Finset (Fin k) × Finset (Fin k) ↦
+            |∑ i ∈ AB.1, ∑ j ∈ AB.2, coreDiff W ε' x i j|)
+      ≤ (k : ℝ)⁻¹ ^ 2 * (Finset.univ.sup' Finset.univ_nonempty fresh
+          + 2 * (Q.card : ℝ) * k) := by
+        exact mul_le_mul_of_nonneg_left hsup (by positivity)
+    _ = (k : ℝ)⁻¹ ^ 2 * Finset.univ.sup' Finset.univ_nonempty fresh
+          + 2 * (Q.card : ℝ) / k := by
+        rw [mul_add]; congr 1; field_simp
+
+/-- **A.e. clamp transparency.** Since a graphon takes values in `[0,1]` a.e., the clamp
+`min 1 (max 0 ·)` is invisible: at a.e. sampled off-diagonal pair `(x_i, x_j)` the clamped
+evaluation equals the raw kernel value. Companion to `ae_clampEval_chosenStep_eq` for the
+raw-kernel side, used to identify the fresh-block rectangle sums as rectangle integrals of
+`W − U`. -/
+private theorem ae_clampEval_eq (V : Graphon α μ) {k : ℕ} {i j : Fin k} (hij : i ≠ j) :
+    ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ),
+      clampEval V x i j = V.toAEEqFun (x (min i j), x (max i j)) := by
+  have hmm : min i j ≠ max i j := by
+    rcases lt_or_gt_of_ne hij with h | h
+    · rw [min_eq_left h.le, max_eq_right h.le]; exact hij
+    · rw [min_eq_right h.le, max_eq_left h.le]; exact hij.symm
+  filter_upwards [ae_pairMap_of_prod (min i j) (max i j) hmm V.ae_mem_Icc] with x hx
+  rw [clampEval, max_eq_right hx.1, min_eq_right hx.2]
+
+/-- At a.e. sampled off-diagonal pair, the empirical difference entry `D` equals the raw
+difference kernel `W − U` (`U = chosenStep W ε'`) at the `(min,max)`-ordered sampled pair.
+This is the a.e. bridge from the discrete cut sum to the continuous cut norm. -/
+private theorem ae_coreDiff_eq (W : Graphon α μ) (ε' : ℝ) {k : ℕ} {i j : Fin k} (hij : i ≠ j) :
+    ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ),
+      coreDiff W ε' x i j
+        = W.toAEEqFun (x (min i j), x (max i j))
+          - (chosenStep W ε').toAEEqFun (x (min i j), x (max i j)) := by
+  filter_upwards [ae_clampEval_eq W hij, ae_clampEval_eq (chosenStep W ε') hij] with x hW hU
+  rw [coreDiff, hW, hU]
+
+/-- The deterministic **subsample (guessing) block** `Q ⊆ [k]` of the AFKK cut-guessing
+argument: the first `⌈√k⌉` coordinates. Because coordinates are iid under `Measure.pi`, the
+`Q`-block is exactly independent of the fresh complement `F = Qᶜ`, so no hypergeometric second
+moment is needed. Its cardinality is `⌈√k⌉` (as `⌈√k⌉ ≤ k`). -/
+private noncomputable def guessBlock (k : ℕ) : Finset (Fin k) :=
+  Finset.univ.filter (fun i : Fin k ↦ (i : ℕ) < Nat.ceil (Real.sqrt k))
+
+/-- **Crux — AFKK / Lovász-10.7 Q-subsample cut-guessing** (the single remaining narrowed
+`sorry`). After the block-split reduction `coreTerm_restrict_fresh_block`, what remains is to
+bound the `1/k²`-normalized expectation of the fresh-block discrete cut norm, plus the
+block-split cost `2|Q|/k`, by the continuous cut norm `cutNormDiff W (chosenStep W ε')` up to
+`8·k^{-1/4}`.
+
+Proof obligation (NOT yet formalized — this is the deep analytic content):
+* For the maximizing fresh cut `(A*,B*) ⊆ F`, `A*` is the sign set of the row sums
+  `ρᵢ = ∑_{j∈B*} D(xᵢ,·)`. Estimate `ρᵢ` from the `Q`-block via `(k/|Q|)∑_{j∈B*∩Q} D`; the
+  near-optimal cut is a measurable function of `(x_Q, A*∩Q, B*∩Q)` — only `4^{|Q|}` *rules*.
+* For each FIXED rule the cut membership of a fresh coordinate `i ∈ F` depends only on `xᵢ`
+  and `x_Q`; conditioning on `x_Q` (`Measure.pi` block factorization), the fresh-sample
+  expectation of the normalized rectangle sum is a genuine measurable-rectangle integral of
+  `W − U`, hence `≤ cutNormDiff W (chosenStep W ε')` (uses `ae_coreDiff_eq`).
+* The sign-mismatch loss between the true optimal fresh cut and the best rule-reconstructed
+  cut is `≤ ∑ᵢ|ρᵢ − ρ̂ᵢ|`, an `L¹` estimation error `O(k/√|Q|)`; after `1/k²` normalization
+  this and the block-split `2|Q|/k` are both `O(k^{-1/4})` at `|Q| = ⌈√k⌉` (mirror the
+  `integral_abs_empFreq_sub_le` / `variance_sum_pi` variance computation in this file).
+* Both `±` directions by applying the argument to `D` and `−D` (the `sup'` is of `|·|`).
+
+References: Lovász, *Large Networks*, Lemma 10.7; AFKK, JCSS 67 (2003); arXiv:2203.07581 §6.2. -/
+private theorem guessBlock_integral_le_cutNormDiff (W : Graphon α μ) (ε' : ℝ) (hε' : 0 < ε')
+    {k : ℕ} [NeZero k] :
+    (∫ x, (k : ℝ)⁻¹ ^ 2 * (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup'
+        Finset.univ_nonempty (fun AB ↦ |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k,
+          coreDiff W ε' x i j|) ∂Measure.pi (fun _ : Fin k ↦ μ))
+      + 2 * ((guessBlock k).card : ℝ) / k
+      ≤ cutNormDiff W (chosenStep W ε') + 8 * ((k : ℝ) ^ (-(1 / 4 : ℝ))) := by
+  sorry
+
 /-- **Layer 3 core — AFKK cut-norm sampling** (the one deep step; narrowed private
 sorry during development, discharged before this branch ships). The expectation of the
 empirical (normalized, `1/k²`-weighted) discrete cut norm of the sampled difference matrix
@@ -1240,7 +1442,72 @@ private theorem coreTerm_expectation_le_cutNormDiff (W : Graphon α μ) (ε' : �
     {k : ℕ} [NeZero k] :
     ∫ x, coreTerm W ε' k x ∂Measure.pi (fun _ : Fin k ↦ μ) ≤
       cutNormDiff W (chosenStep W ε') + 8 * ((k : ℝ) ^ (-(1 / 4 : ℝ))) := by
-  sorry
+  have hkpos : (0 : ℝ) < (k : ℝ) := by exact_mod_cast Nat.pos_of_ne_zero (NeZero.ne k)
+  set π : Measure (Fin k → α) := Measure.pi (fun _ : Fin k ↦ μ) with hπ
+  -- the `1/k²`-normalized fresh-block discrete cut norm, as a function of the sample
+  set g : (Fin k → α) → ℝ := fun x ↦ (k : ℝ)⁻¹ ^ 2 *
+      (Finset.univ : Finset (Finset (Fin k) × Finset (Fin k))).sup' Finset.univ_nonempty
+        (fun AB ↦ |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k,
+          coreDiff W ε' x i j|) with hg
+  -- `g` is measurable (finite `sup'` of measurable functions of the sample)
+  have hg_meas : Measurable g := by
+    have heq : g = fun x ↦ (k : ℝ)⁻¹ ^ 2 * Finset.univ.sup' Finset.univ_nonempty
+        (fun (AB : Finset (Fin k) × Finset (Fin k)) (x : Fin k → α) ↦
+          |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k, coreDiff W ε' x i j|) x := by
+      funext x; rw [hg, Finset.sup'_apply]
+    rw [heq]
+    refine measurable_const.mul (Finset.measurable_sup' _ (fun AB _ ↦ ?_))
+    refine continuous_abs.measurable.comp
+      (Finset.measurable_sum _ (fun i _ ↦ Finset.measurable_sum _ (fun j _ ↦ ?_)))
+    simp only [coreDiff]
+    exact (measurable_clampEval W i j).sub (measurable_clampEval (chosenStep W ε') i j)
+  -- `g ∈ [0,1]`, hence integrable on the probability measure `π`
+  have hg_nn : ∀ x, 0 ≤ g x := by
+    intro x
+    rw [hg]
+    refine mul_nonneg (by positivity) (le_trans ?_
+      (Finset.le_sup' (fun AB : Finset (Fin k) × Finset (Fin k) ↦
+          |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k, coreDiff W ε' x i j|)
+        (Finset.mem_univ ((∅, ∅) : Finset (Fin k) × Finset (Fin k)))))
+    exact abs_nonneg _
+  have hg_le : ∀ x, g x ≤ 1 := by
+    intro x
+    rw [hg]
+    have hsup : Finset.univ.sup' Finset.univ_nonempty
+        (fun AB : Finset (Fin k) × Finset (Fin k) ↦
+          |∑ i ∈ AB.1 \ guessBlock k, ∑ j ∈ AB.2 \ guessBlock k, coreDiff W ε' x i j|)
+        ≤ (k : ℝ) ^ 2 := by
+      refine Finset.sup'_le _ _ (fun AB _ ↦ ?_)
+      refine (abs_coreDiff_rect_le W ε' x _ _).trans ?_
+      have hc : ∀ S : Finset (Fin k), ((S \ guessBlock k).card : ℝ) ≤ k := by
+        intro S
+        calc ((S \ guessBlock k).card : ℝ)
+            ≤ ((Finset.univ : Finset (Fin k)).card : ℝ) := by
+              exact_mod_cast Finset.card_le_card (Finset.subset_univ _)
+          _ = k := by rw [Finset.card_univ, Fintype.card_fin]
+      calc ((AB.1 \ guessBlock k).card : ℝ) * ((AB.2 \ guessBlock k).card : ℝ)
+          ≤ (k : ℝ) * k := mul_le_mul (hc _) (hc _) (by positivity) (by positivity)
+        _ = (k : ℝ) ^ 2 := by ring
+    calc (k : ℝ)⁻¹ ^ 2 * _
+        ≤ (k : ℝ)⁻¹ ^ 2 * (k : ℝ) ^ 2 := mul_le_mul_of_nonneg_left hsup (by positivity)
+      _ = 1 := by field_simp
+  have hg_int : Integrable g π :=
+    (integrable_const (1 : ℝ)).mono' hg_meas.aestronglyMeasurable
+      (ae_of_all _ (fun x ↦ by rw [Real.norm_eq_abs, abs_of_nonneg (hg_nn x)]; exact hg_le x))
+  -- integrate the block-split reduction `coreTerm_restrict_fresh_block`
+  have hstep : ∫ x, coreTerm W ε' k x ∂π
+      ≤ (∫ x, g x ∂π) + 2 * ((guessBlock k).card : ℝ) / k := by
+    have hmono : ∫ x, coreTerm W ε' k x ∂π
+        ≤ ∫ x, (g x + 2 * ((guessBlock k).card : ℝ) / k) ∂π := by
+      refine integral_mono_of_nonneg (ae_of_all _ (fun x ↦ coreTerm_nonneg W ε' k x))
+        (hg_int.add (integrable_const _)) (ae_of_all _ (fun x ↦ ?_))
+      rw [hg]
+      exact coreTerm_restrict_fresh_block W ε' x (guessBlock k)
+    rwa [integral_add hg_int (integrable_const _), integral_const, smul_eq_mul,
+      probReal_univ, one_mul] at hmono
+  refine hstep.trans ?_
+  simp only [hg, hπ]
+  exact guessBlock_integral_le_cutNormDiff W ε' hε'
 
 /-- **Layer 3 — the core-term expectation bound.** Combines the AFKK sampling core
 `coreTerm_expectation_le_cutNormDiff` with the Frieze–Kannan budget
