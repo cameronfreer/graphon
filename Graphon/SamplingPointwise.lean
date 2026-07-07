@@ -1198,16 +1198,62 @@ theorem freqTerm_expectation_bound (W : Graphon α μ) (ε' : ℝ) (k : ℕ) [Ne
     field_simp
   linarith [hgoal]
 
-/-- **Layer 3 — the Q-subsample / AFKK core** (deferred; see the design notes above):
-the expectation of the core term is at most `ε'` plus a `k`-vanishing dispersion cost. This
-is part of the `first_sampling_lemma` analytic accounting, NOT a new live input — the
-naive `4^k`-cut union bound fails here (only `exp(−cε²k)` per-cut tails), so it needs the
-Q-subsample cut-guessing mechanism. -/
+/-- **Frieze–Kannan control of the chosen step approximation.** By construction
+`chosenStep W ε' = stepify P W` for the regularity partition `P` at quality `ε'`, so the
+cut-norm difference `‖W − U‖_□` is at most `ε'`. This is the *systematic-error budget* of
+the core term: the a.e. entries of the empirical difference matrix are the sampled values of
+`W − U`, whose continuous cut norm the AFKK core compares against. -/
+theorem chosenStep_cutNormDiff_le (W : Graphon α μ) {ε' : ℝ} (hε' : 0 < ε') :
+    cutNormDiff W (chosenStep W ε') ≤ ε' := by
+  unfold chosenStep chosenPartition
+  rw [dif_pos hε']
+  exact (regularity W ε' hε').choose_spec.2
+
+/-- **Layer 3 core — AFKK cut-norm sampling** (the one deep step; narrowed private
+sorry during development, discharged before this branch ships). The expectation of the
+empirical (normalized, `1/k²`-weighted) discrete cut norm of the sampled difference matrix
+`D(x)ᵢⱼ = clampEval W x i j − clampEval (chosenStep W ε') x i j` is at most the *continuous*
+cut norm `cutNormDiff W (chosenStep W ε')` plus a `k`-vanishing dispersion cost.
+
+This is the honest content of the point-sampling lemma: a cut `A, B ⊆ [k]` of the sample can
+overfit the `k` random points, so the max over the `4^k` sample cuts can exceed the true cut
+norm; the AFKK / book-10.7 **Q-subsample cut-guessing** mechanism shows the excess is only
+`O(k^{−1/4})` in expectation. Proof strategy (deterministic block split — iid makes the
+`Q`-block independent of the fresh block, so no hypergeometric second moment is needed):
+
+* Split `[k] = Q ⊔ F`, `|Q| = q := ⌈√k⌉`. Entries touching `Q` number `≤ 2qk`, contributing
+  `≤ 2q/k = O(k^{−1/2})` to the `1/k²`-normalized sum, so up to that error the max is over
+  cuts `A, B ⊆ F` (`coreTerm_restrict_fresh_block`).
+* For the maximizer `(A*, B*) ⊆ F`, `A*` is the sign set of the row sums `ρᵢ = ∑_{j∈B*}D(xᵢ,·)`.
+  Estimate `ρᵢ` from the `Q`-block via `(k/q)∑_{j∈Q}[j∈B*]D(xᵢ,·)`; the near-optimal cut is then
+  a measurable function of `(x_Q, B*∩Q, A*∩Q)` — only `4^q` *rules*. The sign-mismatch loss is
+  `≤ ∑ᵢ|ρᵢ − ρ̂ᵢ|`, an `L¹` estimation error `O(k/√q)` after normalization (`estimation_error`).
+* For each FIXED rule the cut membership of a fresh coordinate `i ∈ F` depends only on `xᵢ`
+  and `x_Q`, so — conditioning on `x_Q` — the fresh-sample expectation of the rectangle sum is a
+  genuine measurable-rectangle integral, `≤ cutNormDiff W (chosenStep W ε')`
+  (`fresh_rectangle_le_cutNorm`). Union over the `4^q` rules with the estimation error and the
+  block-split error gives the `O(k^{−1/4})` total at `q = ⌈√k⌉`.
+* Both `±` directions by applying the argument to `D` and `−D`.
+
+References: Lovász, *Large Networks*, Lemma 10.7; AFKK, JCSS 67 (2003); arXiv:2203.07581 §6.2. -/
+private theorem coreTerm_expectation_le_cutNormDiff (W : Graphon α μ) (ε' : ℝ) (hε' : 0 < ε')
+    {k : ℕ} [NeZero k] :
+    ∫ x, coreTerm W ε' k x ∂Measure.pi (fun _ : Fin k ↦ μ) ≤
+      cutNormDiff W (chosenStep W ε') + 8 * ((k : ℝ) ^ (-(1 / 4 : ℝ))) := by
+  sorry
+
+/-- **Layer 3 — the core-term expectation bound.** Combines the AFKK sampling core
+`coreTerm_expectation_le_cutNormDiff` with the Frieze–Kannan budget
+`chosenStep_cutNormDiff_le`: the expectation of the core term is at most `ε'` plus a
+`k`-vanishing dispersion cost. Part of the `first_sampling_lemma` analytic accounting,
+NOT a new live input. -/
 private theorem coreTerm_expectation_bound (W : Graphon α μ) (ε' : ℝ) (hε' : 0 < ε')
     {k : ℕ} [NeZero k] :
     ∫ x, coreTerm W ε' k x ∂Measure.pi (fun _ : Fin k ↦ μ) ≤
       ε' + 8 * ((k : ℝ) ^ (-(1 / 4 : ℝ))) := by
-  sorry
+  refine le_trans (coreTerm_expectation_le_cutNormDiff W ε' hε') ?_
+  gcongr
+  exact chosenStep_cutNormDiff_le W hε'
 
 end PointSamplingMajorant
 
