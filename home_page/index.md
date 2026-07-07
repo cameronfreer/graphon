@@ -31,7 +31,7 @@ Two live `sorry` blockers remain, both driven by one missing mathematical input:
 | Pending result | `sorry` location | Used by | Progress |
 |----------------|-----------------|---------|----------|
 | **Rokhlin's theorem** (isomorphism of standard Borel probability spaces) | `exists_common_extension` | Cut distance triangle inequality, partition alignment, compactness | Mathlib has `PolishSpace.measurableEquiv` but not the measure-preserving version; proving this is in progress |
-| **Determination pending theorem** | `cutDistance_zero_of_homDensity_eq` | Convergence equivalence | Awaits Rokhlin, plus its own uniform-regularity assembly |
+| **Headline parameter selection** | `headline_parameter_selection` | Determination theorem `cutDistance_zero_of_homDensity_eq` (now fully assembled), hence convergence equivalence | A partition-size-independent step inverse counting parameter choice; classically discharged via the sampling lemmas &mdash; regularity bookkeeping provably cannot break the parameter circularity (see the lemma docstring) |
 
 **Algebraic determination is PROVED** (2026-07-06): `matrix_quotient_of_weightedHomSum_eq` (Lov&aacute;sz Theorem 5.30, k&ge;2 positive-weight case) is axiom-clean, via the twin-free bijection and the cross-matrix super-surjective transfer (`Graphon/CrossSuper.lean`).
 
