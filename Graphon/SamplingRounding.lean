@@ -425,6 +425,170 @@ theorem sum_massOf_exp_cutStat_le (p κ : Sym2 (Fin k) → ℝ)
               rw [Finset.sum_const, nsmul_eq_mul]
               ring
 
+/-- Bernoulli graph masses are nonnegative for `[0,1]` edge probabilities. -/
+theorem massOf_nonneg {p : Sym2 (Fin k) → ℝ}
+    (hp : ∀ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset, p e ∈ Set.Icc (0 : ℝ) 1)
+    (G : SimpleGraph (Fin k)) : 0 ≤ massOf p G := by
+  refine mul_nonneg (Finset.prod_nonneg fun e he ↦ ?_)
+    (Finset.prod_nonneg fun e he ↦ ?_)
+  · exact (hp e (SimpleGraph.edgeFinset_mono le_top he)).1
+  · have := (hp e (Finset.sdiff_subset he)).2
+    linarith
+
+/-- **One-sided Chernoff tail** for cut statistics. -/
+theorem mass_tail_le (p κ : Sym2 (Fin k) → ℝ)
+    (hp : ∀ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset, p e ∈ Set.Icc (0 : ℝ) 1)
+    (hκ : ∀ e, |κ e| ≤ 2) {lam t : ℝ} (hlam0 : 0 ≤ lam) (hlam : |lam| ≤ 1 / 2) :
+    ∑ G ∈ Finset.univ.filter (fun G : SimpleGraph (Fin k) ↦ t ≤ cutStat p κ G),
+      massOf p G ≤
+      Real.exp (lam ^ 2 * 4 * (⊤ : SimpleGraph (Fin k)).edgeFinset.card - lam * t) := by
+  classical
+  calc ∑ G ∈ Finset.univ.filter (fun G : SimpleGraph (Fin k) ↦ t ≤ cutStat p κ G),
+        massOf p G
+      ≤ ∑ G ∈ Finset.univ.filter (fun G : SimpleGraph (Fin k) ↦ t ≤ cutStat p κ G),
+        massOf p G * Real.exp (lam * (cutStat p κ G - t)) := by
+        refine Finset.sum_le_sum fun G hG ↦ ?_
+        have ht := (Finset.mem_filter.mp hG).2
+        have h1 : (1 : ℝ) ≤ Real.exp (lam * (cutStat p κ G - t)) := by
+          rw [show (1 : ℝ) = Real.exp 0 from (Real.exp_zero).symm]
+          exact Real.exp_le_exp.mpr (mul_nonneg hlam0 (by linarith))
+        calc massOf p G = massOf p G * 1 := (mul_one _).symm
+          _ ≤ massOf p G * Real.exp (lam * (cutStat p κ G - t)) :=
+              mul_le_mul_of_nonneg_left h1 (massOf_nonneg hp G)
+    _ ≤ ∑ G : SimpleGraph (Fin k), massOf p G * Real.exp (lam * (cutStat p κ G - t)) :=
+        Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _)
+          (fun G _ _ ↦ mul_nonneg (massOf_nonneg hp G) (Real.exp_nonneg _))
+    _ = Real.exp (-(lam * t)) *
+          ∑ G : SimpleGraph (Fin k), massOf p G * Real.exp (lam * cutStat p κ G) := by
+        rw [Finset.mul_sum]
+        refine Finset.sum_congr rfl fun G _ ↦ ?_
+        rw [show lam * (cutStat p κ G - t) = lam * cutStat p κ G + -(lam * t) by ring,
+          Real.exp_add]
+        ring
+    _ ≤ Real.exp (-(lam * t)) *
+          Real.exp (lam ^ 2 * 4 * (⊤ : SimpleGraph (Fin k)).edgeFinset.card) :=
+        mul_le_mul_of_nonneg_left (sum_massOf_exp_cutStat_le p κ hp hκ hlam)
+          (Real.exp_nonneg _)
+    _ = Real.exp (lam ^ 2 * 4 * (⊤ : SimpleGraph (Fin k)).edgeFinset.card - lam * t) := by
+        rw [← Real.exp_add]
+        ring_nf
+
+/-- Negating the coefficients negates the cut statistic. -/
+theorem cutStat_neg (p κ : Sym2 (Fin k) → ℝ) (G : SimpleGraph (Fin k)) :
+    cutStat p (fun e ↦ -κ e) G = -cutStat p κ G := by
+  rw [cutStat, cutStat, ← Finset.sum_neg_distrib]
+  exact Finset.sum_congr rfl fun e _ ↦ by ring
+
+/-- **Two-sided Chernoff tail** for cut statistics. -/
+theorem mass_tail_abs_le (p κ : Sym2 (Fin k) → ℝ)
+    (hp : ∀ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset, p e ∈ Set.Icc (0 : ℝ) 1)
+    (hκ : ∀ e, |κ e| ≤ 2) {lam t : ℝ} (hlam0 : 0 ≤ lam) (hlam : |lam| ≤ 1 / 2) :
+    ∑ G ∈ Finset.univ.filter (fun G : SimpleGraph (Fin k) ↦ t ≤ |cutStat p κ G|),
+      massOf p G ≤
+      2 * Real.exp (lam ^ 2 * 4 * (⊤ : SimpleGraph (Fin k)).edgeFinset.card - lam * t) := by
+  classical
+  have hκ' : ∀ e, |(fun e ↦ -κ e) e| ≤ 2 := fun e ↦ by rw [abs_neg]; exact hκ e
+  have hsubset : Finset.univ.filter
+      (fun G : SimpleGraph (Fin k) ↦ t ≤ |cutStat p κ G|) ⊆
+      Finset.univ.filter (fun G : SimpleGraph (Fin k) ↦ t ≤ cutStat p κ G) ∪
+        Finset.univ.filter (fun G : SimpleGraph (Fin k) ↦ t ≤ cutStat p (fun e ↦ -κ e) G) := by
+    intro G hG
+    have hthis := (Finset.mem_filter.mp hG).2
+    rcases le_or_gt (cutStat p κ G) 0 with hneg | hpos
+    · refine Finset.mem_union_right _ (Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩)
+      rw [cutStat_neg]
+      rw [abs_of_nonpos hneg] at hthis
+      linarith
+    · refine Finset.mem_union_left _ (Finset.mem_filter.mpr ⟨Finset.mem_univ _, ?_⟩)
+      rw [abs_of_pos hpos] at hthis
+      linarith
+  calc ∑ G ∈ Finset.univ.filter
+        (fun G : SimpleGraph (Fin k) ↦ t ≤ |cutStat p κ G|), massOf p G
+      ≤ ∑ G ∈ (Finset.univ.filter (fun G : SimpleGraph (Fin k) ↦ t ≤ cutStat p κ G) ∪
+          Finset.univ.filter
+            (fun G : SimpleGraph (Fin k) ↦ t ≤ cutStat p (fun e ↦ -κ e) G)),
+          massOf p G :=
+        Finset.sum_le_sum_of_subset_of_nonneg hsubset (fun G _ _ ↦ massOf_nonneg hp G)
+    _ ≤ (∑ G ∈ Finset.univ.filter
+          (fun G : SimpleGraph (Fin k) ↦ t ≤ cutStat p κ G), massOf p G) +
+        ∑ G ∈ Finset.univ.filter
+          (fun G : SimpleGraph (Fin k) ↦ t ≤ cutStat p (fun e ↦ -κ e) G), massOf p G :=
+        by
+          have hui := Finset.sum_union_inter
+            (s₁ := Finset.univ.filter (fun G : SimpleGraph (Fin k) ↦ t ≤ cutStat p κ G))
+            (s₂ := Finset.univ.filter
+              (fun G : SimpleGraph (Fin k) ↦ t ≤ cutStat p (fun e ↦ -κ e) G))
+            (f := massOf p)
+          have hnn : 0 ≤ ∑ G ∈
+              (Finset.univ.filter (fun G : SimpleGraph (Fin k) ↦ t ≤ cutStat p κ G) ∩
+                Finset.univ.filter
+                  (fun G : SimpleGraph (Fin k) ↦ t ≤ cutStat p (fun e ↦ -κ e) G)),
+              massOf p G :=
+            Finset.sum_nonneg fun G _ ↦ massOf_nonneg hp G
+          linarith
+    _ ≤ Real.exp (lam ^ 2 * 4 * (⊤ : SimpleGraph (Fin k)).edgeFinset.card - lam * t) +
+        Real.exp (lam ^ 2 * 4 * (⊤ : SimpleGraph (Fin k)).edgeFinset.card - lam * t) :=
+        add_le_add (mass_tail_le p κ hp hκ hlam0 hlam)
+          (mass_tail_le p (fun e ↦ -κ e) hp hκ' hlam0 hlam)
+    _ = 2 * Real.exp (lam ^ 2 * 4 * (⊤ : SimpleGraph (Fin k)).edgeFinset.card - lam * t) :=
+        by ring
+
+/-- **Union bound over a finite family** of cut statistics. -/
+theorem mass_bad_family_le {ι : Type*} [Fintype ι] (p : Sym2 (Fin k) → ℝ)
+    (κfam : ι → Sym2 (Fin k) → ℝ)
+    (hp : ∀ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset, p e ∈ Set.Icc (0 : ℝ) 1)
+    (hκ : ∀ i e, |κfam i e| ≤ 2) {lam t : ℝ} (hlam0 : 0 ≤ lam) (hlam : |lam| ≤ 1 / 2) :
+    ∑ G ∈ Finset.univ.filter
+        (fun G : SimpleGraph (Fin k) ↦ ∃ i, t ≤ |cutStat p (κfam i) G|),
+      massOf p G ≤
+      (Fintype.card ι) *
+        (2 * Real.exp (lam ^ 2 * 4 * (⊤ : SimpleGraph (Fin k)).edgeFinset.card - lam * t)) := by
+  classical
+  calc ∑ G ∈ Finset.univ.filter
+        (fun G : SimpleGraph (Fin k) ↦ ∃ i, t ≤ |cutStat p (κfam i) G|), massOf p G
+      ≤ ∑ i : ι, ∑ G ∈ Finset.univ.filter
+          (fun G : SimpleGraph (Fin k) ↦ t ≤ |cutStat p (κfam i) G|), massOf p G := by
+        have hstep1 : ∀ G ∈ Finset.univ.filter
+            (fun G : SimpleGraph (Fin k) ↦ ∃ i, t ≤ |cutStat p (κfam i) G|),
+            massOf p G ≤
+              ∑ i : ι, if t ≤ |cutStat p (κfam i) G| then massOf p G else 0 := by
+          intro G hG
+          obtain ⟨i₀, hi₀⟩ := (Finset.mem_filter.mp hG).2
+          calc massOf p G
+              = (if t ≤ |cutStat p (κfam i₀) G| then massOf p G else 0) := by
+                rw [if_pos hi₀]
+            _ ≤ ∑ i : ι, if t ≤ |cutStat p (κfam i) G| then massOf p G else 0 :=
+                Finset.single_le_sum
+                  (f := fun i ↦ if t ≤ |cutStat p (κfam i) G| then massOf p G else 0)
+                  (fun i _ ↦ by
+                    split_ifs
+                    · exact massOf_nonneg hp G
+                    · exact le_refl 0) (Finset.mem_univ i₀)
+        calc ∑ G ∈ Finset.univ.filter
+              (fun G : SimpleGraph (Fin k) ↦ ∃ i, t ≤ |cutStat p (κfam i) G|), massOf p G
+            ≤ ∑ G ∈ Finset.univ.filter
+                (fun G : SimpleGraph (Fin k) ↦ ∃ i, t ≤ |cutStat p (κfam i) G|),
+                ∑ i : ι, if t ≤ |cutStat p (κfam i) G| then massOf p G else 0 :=
+              Finset.sum_le_sum hstep1
+          _ ≤ ∑ G : SimpleGraph (Fin k),
+                ∑ i : ι, if t ≤ |cutStat p (κfam i) G| then massOf p G else 0 :=
+              Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _)
+                (fun G _ _ ↦ Finset.sum_nonneg fun i _ ↦ by
+                  split_ifs
+                  · exact massOf_nonneg hp G
+                  · exact le_refl 0)
+          _ = ∑ i : ι, ∑ G : SimpleGraph (Fin k),
+                if t ≤ |cutStat p (κfam i) G| then massOf p G else 0 := Finset.sum_comm
+          _ = ∑ i : ι, ∑ G ∈ Finset.univ.filter
+                (fun G : SimpleGraph (Fin k) ↦ t ≤ |cutStat p (κfam i) G|), massOf p G :=
+              Finset.sum_congr rfl fun i _ ↦ (Finset.sum_filter _ _).symm
+    _ ≤ ∑ _i : ι,
+        2 * Real.exp (lam ^ 2 * 4 * (⊤ : SimpleGraph (Fin k)).edgeFinset.card - lam * t) :=
+        Finset.sum_le_sum fun i _ ↦ mass_tail_abs_le p (κfam i) hp (hκ i) hlam0 hlam
+    _ = (Fintype.card ι) *
+        (2 * Real.exp (lam ^ 2 * 4 * (⊤ : SimpleGraph (Fin k)).edgeFinset.card - lam * t)) := by
+        rw [Finset.sum_const, nsmul_eq_mul, Finset.card_univ]
+
 end ChernoffEngine
 
 end Graphon
