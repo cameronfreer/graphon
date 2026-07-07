@@ -24,6 +24,7 @@ import Graphon.SimpleRank
 import Graphon.CycleKrylov
 import Graphon.MatrixDetermination
 import Graphon.SamplingICL
+import Graphon.SamplingConcentration
 import Graphon.InverseCounting
 import Graphon.Convergence
 
@@ -52,6 +53,7 @@ in Lean 4 using Mathlib.
 * `Graphon.CycleKrylov` — spectral slice of the cycle–Krylov square-moment proof (#70)
 * `Graphon.MatrixDetermination` — Algebraic determination of step graphons
 * `Graphon.SamplingICL` — Sampling route to the partition-size-independent quantitative inverse counting lemma
+* `Graphon.SamplingConcentration` — Concentration scaffold for the First Sampling Lemma (conditional distribution, weighted sample, two-stage reduction)
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 

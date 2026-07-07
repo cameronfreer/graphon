@@ -404,7 +404,12 @@ Classical proof (future target): Lovász, *Large Networks and Graph Limits*, Lem
 concentration for the cut norm of samples, or BCLSV, "Convergent sequences I", Thm 4.6.
 The classical argument is space-agnostic once the sampled graph is embedded on an
 equal-measure partition of the same space; alternatively it can be proved on `[0,1]`
-and transferred once the measure isomorphism theorem (Rokhlin-adjacent) exists. -/
+and transferred once the measure isomorphism theorem (Rokhlin-adjacent) exists.
+
+**Narrowed form** (see `Graphon/SamplingConcentration.lean`): by the PROVED reduction
+`sampleGoodMassOn_of_events`, this sorry is discharged by establishing, with `W`-uniform
+`k`, the two concentration events `PointSamplingEvent` (Azuma/point sampling, the
+genuinely analytic step) and `RoundingEvent` (finite union bound over cuts). -/
 theorem first_sampling_lemma (ε η : ℝ) (hε : 0 < ε) (hη : 0 < η) :
     ∃ k : ℕ, ∀ W : Graphon α μ, 1 - η < sampleGoodMassOn W (k + 1) ε := by
   sorry
