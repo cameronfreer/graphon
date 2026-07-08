@@ -8,6 +8,7 @@ import Graphon.Counting
 import Graphon.Compactness
 import Graphon.MatrixDetermination
 import Graphon.SamplingICL
+import Graphon.SamplingLemma
 
 /-!
 # Inverse Counting Lemma

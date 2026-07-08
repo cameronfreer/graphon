@@ -28,10 +28,9 @@ will be developed with that blocker).
   atomless standard Borel space (equal-measure cells)
 * `Graphon.sampleGoodMassOn` — probability that the sampled graph lands within cut
   distance `ε` of `W`
-* `Graphon.first_sampling_lemma` — THE analytic gap of the sampling route (sorried):
-  some `k` works for every graphon on the space simultaneously
-* `Graphon.sampling_quantitative_icl` — sampling ⟹ the `K`-independent quantitative
-  ICL, by the event-intersection argument (PROVED)
+* (moved) `Graphon.first_sampling_lemma` and `Graphon.sampling_quantitative_icl` now
+  live in `Graphon/SamplingLemma.lean`, downstream of the two proved concentration
+  events — the First Sampling Lemma is PROVED there by recombination
 
 ## References
 
@@ -389,113 +388,6 @@ theorem sampleGoodMassOn_extract {k : ℕ} [NeZero k] (U W : Graphon α μ) (ε 
     exact ⟨Finset.mem_univ G, hsubset G hG⟩
   have hextract := sum_sampleMass_event_sub_le U W A tv htv
   linarith [hgoodU ▸ hU]
-
-/-- **The First Sampling Lemma** (space-generic interface) — the sole remaining analytic
-gap of the sampling route.
-
-For every accuracy `ε` and failure probability `η`, some sample size `k` works for
-EVERY graphon on the space simultaneously: the sampled graph `G(k, W)` lies within cut
-distance `ε` of `W` with probability greater than `1 − η`. The `W`-uniformity of `k` is
-the point — it is what makes the quantitative ICL below partition-size-independent,
-breaking the circularity documented at `headline_parameter_selection`.
-
-Classical proof (future target): Lovász, *Large Networks and Graph Limits*, Lemma 10.16
-(First Sampling Lemma, `δ_□(W, W[x]) ≤ 22/√(log k)` in expectation) via Azuma–Hoeffding
-concentration for the cut norm of samples, or BCLSV, "Convergent sequences I", Thm 4.6.
-The classical argument is space-agnostic once the sampled graph is embedded on an
-equal-measure partition of the same space; alternatively it can be proved on `[0,1]`
-and transferred once the measure isomorphism theorem (Rokhlin-adjacent) exists.
-
-**Narrowed form** (see `Graphon/SamplingConcentration.lean`): by the PROVED reduction
-`sampleGoodMassOn_of_events`, this sorry is discharged by establishing, with `W`-uniform
-`k`, the two concentration events `PointSamplingEvent` (Azuma/point sampling, the
-genuinely analytic step) and `RoundingEvent` (finite union bound over cuts). -/
-theorem first_sampling_lemma (ε η : ℝ) (hε : 0 < ε) (hη : 0 < η) :
-    ∃ k : ℕ, ∀ W : Graphon α μ, 1 - η < sampleGoodMassOn W (k + 1) ε := by
-  sorry
-
-/-- **Sampling ⇒ the partition-size-independent quantitative ICL** — the non-circular
-inverse counting lemma. The parameters `(δ, m)` depend only on `ε` (through
-`first_sampling_lemma`), on NO partition cardinality: this is the `K`-independence that
-`headline_parameter_selection` documents as impossible for regularity bookkeeping.
-
-**Proof (event intersection)**: sample at accuracy `ε/2`, failure probability `1/4`, so
-both `U` and `W` have own-good mass `> 3/4`. Hom-density `δ`-closeness makes the sampled
-distributions `< 1/4`-close in total variation, so `U`'s good event keeps mass `> 1/2`
-under `W`'s distribution; together with `W`'s own good event (mass `> 3/4`) the two
-events must intersect. A common good graph `G` gives
-`d(U, W) ≤ d(U, K_G) + d(K_G, W) < ε`. No `cutDistance U W ≤ ρ` hypothesis enters
-anywhere (that would be circular for inverse counting); only the generic event transfer
-`sum_sampleMass_event_sub_le` is used. -/
-theorem sampling_quantitative_icl (ε : ℝ) (hε : 0 < ε) :
-    ∃ (δ : ℝ) (_ : 0 < δ) (m : ℕ),
-      ∀ U W : Graphon α μ,
-        (∀ (F : SimpleGraph (Fin m)) [DecidableRel F.Adj],
-          |homDensity F U - homDensity F W| < δ) →
-        cutDistance U W < ε := by
-  classical
-  obtain ⟨k, hk⟩ := first_sampling_lemma (α := α) (μ := μ) (ε / 2) (1 / 4)
-    (by positivity) (by norm_num)
-  set m := k + 1 with hm
-  refine ⟨1 / (4 ^ (m * m) * 8), by positivity, m, ?_⟩
-  intro U W hclose
-  -- Total variation between the sampled distributions is < 1/4.
-  have htv : ∑ G : SimpleGraph (Fin m), |sampleMass U G - sampleMass W G| ≤
-      2 ^ (m * m) * (2 ^ (m * m) * (1 / (4 ^ (m * m) * 8))) :=
-    sampleDistribution_tv_close_of_homDensity_close U W _
-      (fun F _ ↦ (hclose F).le)
-  have htv4 : ∑ G : SimpleGraph (Fin m), |sampleMass U G - sampleMass W G| < 1 / 4 := by
-    refine lt_of_le_of_lt htv ?_
-    have h4 : ((4 : ℝ)) ^ (m * m) = 2 ^ (m * m) * 2 ^ (m * m) := by
-      rw [← mul_pow]; norm_num
-    rw [show (2 : ℝ) ^ (m * m) * (2 ^ (m * m) * (1 / (4 ^ (m * m) * 8))) =
-        (2 ^ (m * m) * 2 ^ (m * m)) / (4 ^ (m * m) * 8) by ring, ← h4]
-    rw [div_lt_iff₀ (by positivity)]
-    have hpos : (0 : ℝ) < 4 ^ (m * m) := by positivity
-    nlinarith [hpos]
-  -- The U-good event, under both distributions.
-  set A : Finset (SimpleGraph (Fin m)) :=
-    Finset.univ.filter (fun G ↦ cutDistance U (ofSimpleGraphOn G) < ε / 2) with hA
-  have hUA : sampleGoodMassOn U m (ε / 2) = ∑ G ∈ A, sampleMass U G := by
-    rw [hA, Finset.sum_filter]; rfl
-  set B : Finset (SimpleGraph (Fin m)) :=
-    Finset.univ.filter (fun G ↦ cutDistance W (ofSimpleGraphOn G) < ε / 2) with hB
-  have hWB : sampleGoodMassOn W m (ε / 2) = ∑ G ∈ B, sampleMass W G := by
-    rw [hB, Finset.sum_filter]; rfl
-  -- U's good event has W-mass > 1/2 (event transfer); W's own good event has mass > 3/4.
-  have hWA : (1 : ℝ) / 2 < ∑ G ∈ A, sampleMass W G := by
-    have h1 := sum_sampleMass_event_sub_le U W A _ htv4.le
-    have h2 := hk U
-    rw [hUA] at h2
-    linarith
-  have hWB' : (3 : ℝ) / 4 < ∑ G ∈ B, sampleMass W G := by
-    have h2 := hk W
-    rw [hWB] at h2
-    linarith
-  -- The two events intersect: otherwise their masses would sum past the total 1.
-  have hinter : (A ∩ B).Nonempty := by
-    rw [Finset.nonempty_iff_ne_empty]
-    intro hempty
-    have hdisj : Disjoint A B := Finset.disjoint_iff_inter_eq_empty.mpr hempty
-    have hunion : ∑ G ∈ A ∪ B, sampleMass W G =
-        ∑ G ∈ A, sampleMass W G + ∑ G ∈ B, sampleMass W G :=
-      Finset.sum_union hdisj
-    have hle : ∑ G ∈ A ∪ B, sampleMass W G ≤ 1 := by
-      rw [← sampleMass_sum_eq_one (k := m) W]
-      exact Finset.sum_le_sum_of_subset_of_nonneg (Finset.subset_univ _)
-        (fun G _ _ ↦ sampleMass_nonneg W G)
-    linarith
-  -- A common good graph closes the triangle.
-  obtain ⟨G, hG⟩ := hinter
-  rw [Finset.mem_inter, hA, hB, Finset.mem_filter, Finset.mem_filter] at hG
-  calc cutDistance U W
-      ≤ cutDistance U (ofSimpleGraphOn G) + cutDistance (ofSimpleGraphOn G) W :=
-        cutDistance_triangle _ _ _
-    _ < ε / 2 + ε / 2 := by
-        refine add_lt_add hG.1.2 ?_
-        rw [cutDistance_symm]
-        exact hG.2.2
-    _ = ε := by ring
 
 end GoodMass
 
