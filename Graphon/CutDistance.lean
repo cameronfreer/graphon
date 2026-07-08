@@ -1126,9 +1126,30 @@ theorem mp_maps_into_forces_measure_le
   calc μ S ≤ μ (e ⁻¹' T) := measure_mono_ae hsub
     _ = μ T := he.measure_preimage hT.nullMeasurableSet
 
-/-- Map-alignment consequence of `exists_common_extension`: given two MP maps,
-there exist MP bijections aligning them. This is the interface used by
-`cutDistance_triangle`. -/
+/-- **Common coupling of two measure-preserving maps (corrected Rokhlin consequence 1).**
+Given measure-preserving maps `ψ₁, φ₂ : α → α` on an *atomless* standard Borel probability
+space, there are measure-preserving **maps** `χ₁, χ₂ : α → α` with `ψ₁ ∘ χ₁ =ᵐ φ₂ ∘ χ₂`.
+
+This replaces the false `exists_common_extension_maps`: demanding `χ₁, χ₂` be **bijections**
+is unprovable (take `ψ₁ = id`, `φ₂ = ` doubling — a bijection cannot equal an essentially
+2-to-1 map a.e.; see the scoping note). The honest statement is a coupling: build the
+relatively-independent joining of `ψ₁, φ₂` over their common factor on `α × α`, then re-type
+it onto `α` via the measure-isomorphism theorem — which needs `[NoAtoms μ]`. Interface for
+`cutDistance_triangle` (used together with the pullback contraction
+`cutNormDiff_pullback_le`, since `χ₁, χ₂` are maps, not measure-preserving bijections). -/
+theorem MeasurePreserving.exists_common_coupling_maps [StandardBorelSpace α] [NoAtoms μ]
+    (ψ₁ : α → α) (hψ₁ : MeasurePreserving ψ₁ μ μ)
+    (φ₂ : α → α) (hφ₂ : MeasurePreserving φ₂ μ μ) :
+    ∃ (χ₁ χ₂ : α → α)
+      (hχ₁ : MeasurePreserving χ₁ μ μ) (hχ₂ : MeasurePreserving χ₂ μ μ),
+      ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂ := by
+  sorry
+
+/-- **Deprecated (false) map-alignment via bijections.** Retained transiently as the interface
+still used by the `Compactness` weak-isomorphism route, which migrates to
+`exists_common_coupling_maps` (+ the contraction lemma) in the R0.3c Compactness checkpoint.
+Its bijection demand is unprovable (see `exists_common_coupling_maps` and the scoping note);
+`cutDistance_triangle` no longer depends on it. -/
 theorem MeasurePreserving.exists_common_extension_maps [StandardBorelSpace α]
     (ψ₁ : α → α) (hψ₁ : MeasurePreserving ψ₁ μ μ)
     (φ₂ : α → α) (hφ₂ : MeasurePreserving φ₂ μ μ) :
@@ -1234,6 +1255,21 @@ theorem cutNormDiff_pullback_measurableEquiv (U W : Graphon α μ)
         ← rect_eq hS₀ hT₀]
     exact abs_rectIntegralDiff_le (pullback U e he) (pullback W e he) hS₀ hT₀
 
+/-- **Pullback contracts the cut norm.** For a measure-preserving *map* `φ` (not necessarily a
+bijection), `‖U^φ − W^φ‖_□ ≤ ‖U − W‖_□`.
+
+Unlike `cutNormDiff_pullback_measurableEquiv` (equality, for bijections), this only requires
+`φ` to be measure-preserving. Proof idea: writing the rectangle integrals of the pulled-back
+kernels via the disintegration of `μ` along `φ`, each indicator `1_S` becomes the conditional
+probability `E[1_S ∣ φ] ∈ [0,1]`, so the pulled-back cut norm is a *weighted* cut norm with
+`[0,1]`-weights, which the cut norm dominates (`abs_weighted_integral_diff_le`). This is the
+map-level companion the corrected coupling triangle needs; it rests on the standard-Borel
+disintegration (campaign phase R1/R2). -/
+theorem cutNormDiff_pullback_le [StandardBorelSpace α] (U W : Graphon α μ)
+    (φ : α → α) (hφ : MeasurePreserving φ μ μ) :
+    cutNormDiff (pullback U φ hφ) (pullback W φ hφ) ≤ cutNormDiff U W := by
+  sorry
+
 /-- Cut distance from a graphon to its pullback by a MP bijection is zero.
 
 For any graphon V and measure-preserving bijection e, `δ□(V, V^e) = 0`.
@@ -1287,10 +1323,11 @@ This is the key property making cut distance a pseudometric.
    d(U,W) ≤ d(U,V) + d(V,W) + 2ε
 5. Take ε → 0.
 
-**Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin sorry). -/
+**Depends on**: `MeasurePreserving.exists_common_coupling_maps` (corrected coupling, needs
+`[NoAtoms μ]`) and `cutNormDiff_pullback_le` (pullback contraction). -/
 @[blueprint "thm:cutDistance-triangle"
   (title := /-- Triangle inequality for cut distance -/)]
-theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
+theorem cutDistance_triangle [StandardBorelSpace α] [NoAtoms μ] (U V W : Graphon α μ) :
     cutDistance U W ≤ cutDistance U V + cutDistance V W := by
   -- Suffices to show: for all ε > 0, d(U,W) ≤ d(U,V) + d(V,W) + ε
   rw [← sub_nonneg]
@@ -1302,27 +1339,27 @@ theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
   -- Choose near-optimal maps for d(U,V) and d(V,W) with error δ/2
   obtain ⟨φ₁, ψ₁, hφ₁, hψ₁, h_UV⟩ := cutDistance_lt_add_of_pos U V (half_pos hδ_pos)
   obtain ⟨φ₂, ψ₂, hφ₂, hψ₂, h_VW⟩ := cutDistance_lt_add_of_pos V W (half_pos hδ_pos)
-  -- Rokhlin alignment — find bijections χ₁, χ₂ with ψ₁ ∘ χ₁ =ᵐ φ₂ ∘ χ₂
+  -- Coupling alignment — find MP maps χ₁, χ₂ with ψ₁ ∘ χ₁ =ᵐ φ₂ ∘ χ₂
   obtain ⟨χ₁, χ₂, hχ₁, hχ₂, h_align⟩ :=
-    MeasurePreserving.exists_common_extension_maps ψ₁ hψ₁ φ₂ hφ₂
+    MeasurePreserving.exists_common_coupling_maps ψ₁ hψ₁ φ₂ hφ₂
   -- Compose maps: (φ₁ ∘ χ₁, ψ₂ ∘ χ₂) are measure-preserving
   have hφ₁χ₁ : MeasurePreserving (φ₁ ∘ χ₁) μ μ := hφ₁.comp hχ₁
   have hψ₂χ₂ : MeasurePreserving (ψ₂ ∘ χ₂) μ μ := hψ₂.comp hχ₂
   -- d(U,W) ≤ ‖U^(φ₁∘χ₁) − W^(ψ₂∘χ₂)‖_□ (definition of inf)
   have h_inf_le : cutDistance U W ≤
-      cutNormDiff (pullback U (φ₁ ∘ ↑χ₁) hφ₁χ₁) (pullback W (ψ₂ ∘ ↑χ₂) hψ₂χ₂) := by
+      cutNormDiff (pullback U (φ₁ ∘ χ₁) hφ₁χ₁) (pullback W (ψ₂ ∘ χ₂) hψ₂χ₂) := by
     unfold cutDistance
     apply csInf_le
     · use 0; intro d ⟨φ, ψ, hφ, hψ, hd⟩; rw [hd]; exact cutNormDiff_nonneg _ _
     · exact ⟨φ₁ ∘ χ₁, ψ₂ ∘ χ₂, hφ₁χ₁, hψ₂χ₂, rfl⟩
   -- Triangle inequality for cutNormDiff
-  have hψ₁χ₁ : MeasurePreserving (ψ₁ ∘ ↑χ₁) μ μ := hψ₁.comp hχ₁
-  have hφ₂χ₂ : MeasurePreserving (φ₂ ∘ ↑χ₂) μ μ := hφ₂.comp hχ₂
+  have hψ₁χ₁ : MeasurePreserving (ψ₁ ∘ χ₁) μ μ := hψ₁.comp hχ₁
+  have hφ₂χ₂ : MeasurePreserving (φ₂ ∘ χ₂) μ μ := hφ₂.comp hχ₂
   -- V^(ψ₁∘χ₁) = V^(φ₂∘χ₂) by alignment
-  have h_V_ae : pullback V (ψ₁ ∘ ↑χ₁) hψ₁χ₁ = pullback V (φ₂ ∘ ↑χ₂) hφ₂χ₂ := by
+  have h_V_ae : pullback V (ψ₁ ∘ χ₁) hψ₁χ₁ = pullback V (φ₂ ∘ χ₂) hφ₂χ₂ := by
     apply Graphon.ext; apply SymmKernel.ext; apply AEEqFun.ext
-    have h1 := pullback_ae V (ψ₁ ∘ ↑χ₁) hψ₁χ₁
-    have h2 := pullback_ae V (φ₂ ∘ ↑χ₂) hφ₂χ₂
+    have h1 := pullback_ae V (ψ₁ ∘ χ₁) hψ₁χ₁
+    have h2 := pullback_ae V (φ₂ ∘ χ₂) hφ₂χ₂
     have h_prod_ae : ∀ᵐ p ∂(μ.prod μ),
         (ψ₁ (χ₁ p.1), ψ₁ (χ₁ p.2)) = (φ₂ (χ₂ p.1), φ₂ (χ₂ p.2)) := by
       have h_fst : ∀ᵐ p ∂(μ.prod μ), ψ₁ (χ₁ p.1) = φ₂ (χ₂ p.1) :=
@@ -1333,31 +1370,30 @@ theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
       exact Prod.ext hp1 hp2
     filter_upwards [h1, h2, h_prod_ae] with p hp1 hp2 hp_eq
     rw [hp1, hp2]; simp only [Function.comp_apply] at hp_eq ⊢; rw [hp_eq]
-  -- Key bounds using pullback_pullback and cutNormDiff_pullback_measurableEquiv
-  -- Term 1: ‖U^(φ₁∘χ₁) − V^(ψ₁∘χ₁)‖ = ‖(U^φ₁)^χ₁ − (V^ψ₁)^χ₁‖ = ‖U^φ₁ − V^ψ₁‖
-  have h1 : cutNormDiff (pullback U (φ₁ ∘ ↑χ₁) hφ₁χ₁) (pullback V (ψ₁ ∘ ↑χ₁) hψ₁χ₁) =
+  -- Key bounds using pullback_pullback and the pullback CONTRACTION (χ₁, χ₂ are maps)
+  -- Term 1: ‖U^(φ₁∘χ₁) − V^(ψ₁∘χ₁)‖ = ‖(U^φ₁)^χ₁ − (V^ψ₁)^χ₁‖ ≤ ‖U^φ₁ − V^ψ₁‖
+  have h1 : cutNormDiff (pullback U (φ₁ ∘ χ₁) hφ₁χ₁) (pullback V (ψ₁ ∘ χ₁) hψ₁χ₁) ≤
       cutNormDiff (pullback U φ₁ hφ₁) (pullback V ψ₁ hψ₁) := by
-    rw [show pullback U (φ₁ ∘ ↑χ₁) hφ₁χ₁ = pullback (pullback U φ₁ hφ₁) χ₁ hχ₁ from
-        (pullback_pullback U φ₁ hφ₁ (↑χ₁) hχ₁).symm,
-      show pullback V (ψ₁ ∘ ↑χ₁) hψ₁χ₁ = pullback (pullback V ψ₁ hψ₁) χ₁ hχ₁ from
-        (pullback_pullback V ψ₁ hψ₁ (↑χ₁) hχ₁).symm]
-    exact cutNormDiff_pullback_measurableEquiv _ _ χ₁ hχ₁
+    rw [show pullback U (φ₁ ∘ χ₁) hφ₁χ₁ = pullback (pullback U φ₁ hφ₁) χ₁ hχ₁ from
+        (pullback_pullback U φ₁ hφ₁ χ₁ hχ₁).symm,
+      show pullback V (ψ₁ ∘ χ₁) hψ₁χ₁ = pullback (pullback V ψ₁ hψ₁) χ₁ hχ₁ from
+        (pullback_pullback V ψ₁ hψ₁ χ₁ hχ₁).symm]
+    exact cutNormDiff_pullback_le _ _ χ₁ hχ₁
   -- Term 2: ‖V^(ψ₁∘χ₁) − W^(ψ₂∘χ₂)‖ = ‖V^(φ₂∘χ₂) − W^(ψ₂∘χ₂)‖
-  --       = ‖(V^φ₂)^χ₂ − (W^ψ₂)^χ₂‖ = ‖V^φ₂ − W^ψ₂‖
-  have h2 : cutNormDiff (pullback V (ψ₁ ∘ ↑χ₁) hψ₁χ₁) (pullback W (ψ₂ ∘ ↑χ₂) hψ₂χ₂) =
+  --       = ‖(V^φ₂)^χ₂ − (W^ψ₂)^χ₂‖ ≤ ‖V^φ₂ − W^ψ₂‖
+  have h2 : cutNormDiff (pullback V (ψ₁ ∘ χ₁) hψ₁χ₁) (pullback W (ψ₂ ∘ χ₂) hψ₂χ₂) ≤
       cutNormDiff (pullback V φ₂ hφ₂) (pullback W ψ₂ hψ₂) := by
     rw [h_V_ae,
-      show pullback V (φ₂ ∘ ↑χ₂) hφ₂χ₂ = pullback (pullback V φ₂ hφ₂) χ₂ hχ₂ from
-        (pullback_pullback V φ₂ hφ₂ (↑χ₂) hχ₂).symm,
-      show pullback W (ψ₂ ∘ ↑χ₂) hψ₂χ₂ = pullback (pullback W ψ₂ hψ₂) χ₂ hχ₂ from
-        (pullback_pullback W ψ₂ hψ₂ (↑χ₂) hχ₂).symm]
-    exact cutNormDiff_pullback_measurableEquiv _ _ χ₂ hχ₂
+      show pullback V (φ₂ ∘ χ₂) hφ₂χ₂ = pullback (pullback V φ₂ hφ₂) χ₂ hχ₂ from
+        (pullback_pullback V φ₂ hφ₂ χ₂ hχ₂).symm,
+      show pullback W (ψ₂ ∘ χ₂) hψ₂χ₂ = pullback (pullback W ψ₂ hψ₂) χ₂ hχ₂ from
+        (pullback_pullback W ψ₂ hψ₂ χ₂ hχ₂).symm]
+    exact cutNormDiff_pullback_le _ _ χ₂ hχ₂
   -- Combine via cutNormDiff triangle and the inf bound
   have h_tri := cutNormDiff_triangle
-    (pullback U (φ₁ ∘ ↑χ₁) hφ₁χ₁) (pullback V (ψ₁ ∘ ↑χ₁) hψ₁χ₁) (pullback W (ψ₂ ∘ ↑χ₂) hψ₂χ₂)
-  rw [h1, h2] at h_tri
-  -- Now: d(U,W) ≤ ‖...‖ ≤ ‖U^φ₁ − V^ψ₁‖ + ‖V^φ₂ − W^ψ₂‖
-  --            < (d(U,V) + δ/2) + (d(V,W) + δ/2) = d(U,V) + d(V,W) + δ
+    (pullback U (φ₁ ∘ χ₁) hφ₁χ₁) (pullback V (ψ₁ ∘ χ₁) hψ₁χ₁) (pullback W (ψ₂ ∘ χ₂) hψ₂χ₂)
+  -- Now: d(U,W) ≤ ‖...‖ ≤ ‖U^(φ₁χ₁) − V^(ψ₁χ₁)‖ + ‖V^(ψ₁χ₁) − W^(ψ₂χ₂)‖
+  --            ≤ ‖U^φ₁ − V^ψ₁‖ + ‖V^φ₂ − W^ψ₂‖ < (d(U,V) + δ/2) + (d(V,W) + δ/2)
   -- But δ = d(U,W) − d(U,V) − d(V,W), so d(U,W) < d(U,W), contradiction.
   linarith
 

@@ -75,7 +75,7 @@ theorem WeaklyIsomorphic.symm {U W : Graphon α μ}
   exact h
 
 /-- Weak isomorphism is transitive (on standard Borel spaces). -/
-theorem WeaklyIsomorphic.trans [StandardBorelSpace α] {U V W : Graphon α μ}
+theorem WeaklyIsomorphic.trans [StandardBorelSpace α] [NoAtoms μ] {U V W : Graphon α μ}
     (hUV : WeaklyIsomorphic U V) (hVW : WeaklyIsomorphic V W) :
     WeaklyIsomorphic U W := by
   unfold WeaklyIsomorphic at *
@@ -86,10 +86,11 @@ theorem WeaklyIsomorphic.trans [StandardBorelSpace α] {U V W : Graphon α μ}
 
 /-- Weak isomorphism is an equivalence relation (on standard Borel spaces).
 
-Note: Only `trans` still requires `StandardBorelSpace` (for the triangle inequality). -/
-theorem weaklyIsomorphic_equivalence [StandardBorelSpace α] :
+Note: Only `trans` still requires `StandardBorelSpace` and `NoAtoms` (for the triangle
+inequality, whose corrected coupling proof needs an atomless space). -/
+theorem weaklyIsomorphic_equivalence [StandardBorelSpace α] [NoAtoms μ] :
     Equivalence (WeaklyIsomorphic (α := α) (μ := μ)) :=
-  ⟨WeaklyIsomorphic.refl, WeaklyIsomorphic.symm, @WeaklyIsomorphic.trans _ _ _ _ _⟩
+  ⟨WeaklyIsomorphic.refl, WeaklyIsomorphic.symm, @WeaklyIsomorphic.trans _ _ _ _ _ _⟩
 
 /-- Relationship between `WeaklyIsomorphic` and `WeakIso`:
 
@@ -304,7 +305,7 @@ number of parts form an ε-net.
 6. Triangle: W within ε of nearest gridpoint -/
 @[blueprint "thm:totallyBounded"
   (title := /-- Total boundedness of graphon space -/)]
-theorem totallyBounded (ε : ℝ) (hε : ε > 0) :
+theorem totallyBounded [NoAtoms μ] (ε : ℝ) (hε : ε > 0) :
     ∃ (S : Finset (Graphon α μ)), ∀ W : Graphon α μ, ∃ V ∈ S, cutDistance W V ≤ ε := by
   -- Proof (Lovász [2012], Proposition 9.15):
   -- Fix a reference partition P₀. Build a finite net of grid step graphons on P₀.
@@ -1599,7 +1600,7 @@ sequence converges to the same limit using the triangle inequality.
 `exists_aligned_cutNormDiff_limit`, sorry'd), `cutDistance_triangle` (proved modulo Rokhlin). -/
 @[blueprint "thm:complete"
   (title := /-- Completeness of graphon space -/)]
-theorem complete (W : ℕ → Graphon α μ) (hW : IsCauchy W) :
+theorem complete [NoAtoms μ] (W : ℕ → Graphon α μ) (hW : IsCauchy W) :
     ∃ V : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε := by
   -- Step 1: Extract a rapidly converging subsequence.
   -- For each k, choose N_k such that d(W_m, W_n) < 1/2^k for m, n ≥ N_k.
@@ -1691,7 +1692,7 @@ for metric spaces (which graphon space is, modulo weak isomorphism).
 
 **Depends on**: `totallyBounded` (sorry), `complete` (sorry), `cutDistance_triangle`
 (proved modulo Rokhlin sorry). -/
-theorem compact :
+theorem compact [NoAtoms μ] :
     ∀ (W : ℕ → Graphon α μ), ∃ (V : Graphon α μ) (φ : ℕ → ℕ),
       StrictMono φ ∧ ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W (φ n)) V < ε := by
   intro W
