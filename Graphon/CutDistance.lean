@@ -1079,6 +1079,53 @@ theorem MeasurePreserving.exists_common_extension [StandardBorelSpace α]
         ∀ i, ∀ᵐ x ∂μ, x ∈ ι_S i → e x ∈ ι_T i) := by
   sorry
 
+/-! ### Scoping: `exists_common_extension` is unprovable as stated
+
+See `docs/rokhlin-scoping.md`. The monolithic stub above bundles three conjuncts, **two of
+which are false as written**; the campaign to close the project's last live sorry must first
+replace it by corrected statements (coupling with measure-preserving *maps*; partition/cell
+alignment only under *matched cell measures* and `[NoAtoms μ]`). The two lemmas below certify
+the "measure-obvious" necessity facts that force those corrections.
+
+* **Conjunct 1 (map alignment via bijections) is FALSE.** Take `(α, μ) = ([0,1], λ)`,
+  `ψ₁ = id`, `φ₂ = ` the doubling map `x ↦ 2x mod 1` (both measure-preserving). The
+  conclusion demands a measurable-equiv (a.e.-injective) `χ₁` with `χ₁ =ᵐ φ₂ ∘ χ₂`, but
+  `φ₂ ∘ χ₂` is essentially 2-to-1, so on the conull agreement set a positive-measure set of
+  collision pairs contradicts injectivity. The classical fact is a *coupling* statement with
+  measure-preserving maps (not automorphisms of `α`). The doubling counterexample is left as
+  prose (formalizing the doubling map's 2-to-1-ness is not cheap and off the critical path).
+
+* **Conjunct 2 (arbitrary-partition alignment) is FALSE** unless the cell measures match —
+  certified by `mp_align_forces_equal_measure` below. Counterexample: `P = {A, Aᶜ}` with
+  `μ A = 1/2` and `Q = trivialPartition` (whose only cell has measure `1`).
+
+* **Conjunct 3 (controlled cell alignment) needs `[NoAtoms μ]`.** With atoms it fails even at
+  equal measures: on `{a,b,c}` with `μ = (1/2, 1/4, 1/4)`, no measure-preserving bijection
+  maps the two-atom cell `{b,c}` into the one-atom cell `{a}`. `mp_maps_into_forces_measure_le`
+  certifies the one-sided measure necessity that underlies the cell-matching hypotheses. -/
+
+/-- **Refutation support (conjunct 2).** A measure-preserving `e` that aligns `S` with `T`
+symmetrically (`μ(S \ e⁻¹T) = 0` and `μ(e⁻¹T \ S) = 0`) forces `μ S = μ T`. Hence partition
+alignment is impossible unless the two partitions have matching cell measures. -/
+theorem mp_align_forces_equal_measure
+    {e : α ≃ᵐ α} (he : MeasurePreserving e μ μ) {S T : Set α} (hT : MeasurableSet T)
+    (h1 : μ (S \ e ⁻¹' T) = 0) (h2 : μ (e ⁻¹' T \ S) = 0) :
+    μ S = μ T := by
+  have hae : S =ᵐ[μ] e ⁻¹' T := by rw [ae_eq_set]; exact ⟨h1, h2⟩
+  rw [measure_congr hae, he.measure_preimage hT.nullMeasurableSet]
+
+/-- **Refutation support (conjunct 3).** If a measure-preserving `e` maps `S` a.e. into `T`,
+then `μ S ≤ μ T`. For injective cell families whose measures sum to the whole space this forces
+equality; with atoms present, equal measures are not enough to realize the map (see the scoping
+note above), which is why the corrected cell-alignment lemma assumes `[NoAtoms μ]`. -/
+theorem mp_maps_into_forces_measure_le
+    {e : α ≃ᵐ α} (he : MeasurePreserving e μ μ) {S T : Set α} (hT : MeasurableSet T)
+    (h : ∀ᵐ x ∂μ, x ∈ S → e x ∈ T) :
+    μ S ≤ μ T := by
+  have hsub : S ≤ᵐ[μ] e ⁻¹' T := h
+  calc μ S ≤ μ (e ⁻¹' T) := measure_mono_ae hsub
+    _ = μ T := he.measure_preimage hT.nullMeasurableSet
+
 /-- Map-alignment consequence of `exists_common_extension`: given two MP maps,
 there exist MP bijections aligning them. This is the interface used by
 `cutDistance_triangle`. -/
