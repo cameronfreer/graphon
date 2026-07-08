@@ -1485,7 +1485,7 @@ measure-preserving maps `e_k` and a limit graphon `V` such that
     cutNormDiff convergence. Now proved modulo `exists_graphon_with_limiting_rect_integrals`
     (Radon-Nikodym sorry).
 
-**Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin axiom),
+**Depends on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin axiom),
 `exists_graphon_with_limiting_rect_integrals` (Radon-Nikodym sorry). -/
 private theorem exists_aligned_cutNormDiff_limit [NoAtoms μ]
     (W : ℕ → Graphon α μ)
@@ -1971,7 +1971,7 @@ theorem cutDistance_step_weight_le {K : ℕ}
       exists_measurable_subset_of_measure (μ := μ) hQ_meas (min_le_right _ _)
     exact ⟨MP_i, MQ_i, hMP_m, hMQ_m, hMP_s, hMQ_s, hMP_e, hMQ_e⟩
   choose M_P M_Q hM_P_meas hM_Q_meas hM_P_sub hM_Q_sub hM_P_eq hM_Q_eq using h_matched
-  -- Step 2: Sorry the alignment — traces to Rokhlin/exists_common_extension
+  -- Step 2: Sorry the alignment — traces to Rokhlin/exists_controlled_cell_alignment
   -- We need e : α ≃ᵐ α, MP, mapping M_Q i into M_P i a.e.
   have h_align : ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
       ∀ i : Fin K, ∀ᵐ x ∂μ, x ∈ M_Q i → e x ∈ M_P i := by

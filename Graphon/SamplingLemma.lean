@@ -20,9 +20,11 @@ downstream of `SamplingICL` — prevented the assembly).
 * `Graphon.sampling_quantitative_icl` — sampling ⟹ the `K`-independent quantitative
   ICL, by the event-intersection argument (unchanged).
 
-Axiom accounting: both theorems are `cutDistance`-level, so they carry the project's one
-documented measure-theory gap (`MeasurePreserving.exists_common_extension`, Rokhlin, via
-`cutDistance_triangle`) — and nothing else beyond the standard axioms.
+Axiom accounting: both theorems are `cutDistance`-level, so they carry the project's remaining
+measure-theory gap — the four corrected Rokhlin cores (`exists_common_coupling_maps`,
+`cutNormDiff_pullback_le`, `exists_controlled_cell_alignment`, `exists_mpEquiv_cutNormDiff_lt_add`,
+via `cutDistance_triangle`), each a consequence of the atomless standard-Borel
+measure-isomorphism theorem — and nothing else beyond the standard axioms.
 -/
 
 open MeasureTheory

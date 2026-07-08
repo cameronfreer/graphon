@@ -1032,60 +1032,26 @@ theorem cutDistance_le_one (U W : Graphon α μ) : cutDistance U W ≤ 1 := by
       ≤ cutNormDiff U W := csInf_le h_bdd h_in_set
     _ ≤ 1 := cutNormDiff_le_one U W
 
-/-- **Rokhlin consequence**: Two measure-preserving maps into a standard Borel
-probability space can be "aligned" via measure-preserving bijections, and
-any two measurable partitions can be aligned by a measure-preserving bijection.
+/-! ### Scoping: the former `exists_common_extension` monolith was unprovable as stated
 
-This is a consequence of Rokhlin's theorem: every standard Borel probability
-space is measure-theoretically isomorphic to [0,1] with Lebesgue measure.
+See `docs/rokhlin-scoping.md`. The old monolithic Rokhlin stub bundled three conjuncts, **two
+of which are false as written**; it has now been **deleted** and replaced by four corrected,
+consumer-shaped cores (`exists_common_coupling_maps`, `cutNormDiff_pullback_le`,
+`exists_controlled_cell_alignment`, `exists_mpEquiv_cutNormDiff_lt_add`), each a standard
+consequence of the atomless standard-Borel measure-isomorphism theorem. The two lemmas below
+certify the "measure-obvious" necessity facts that forced those corrections; the historical
+counterexamples:
 
-The theorem provides two outputs:
-1. **Map alignment**: Given MP maps ψ₁, φ₂ : α → α, there exist MP bijections
-   χ₁, χ₂ such that ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂.
-2. **Partition alignment**: Given measurable partitions P, Q, there exists a
-   MP bijection e mapping each P-cell a.e. into some Q-cell.
-
-Both follow from the fact that (α, μ) ≅ ([0,1], λ). Map alignment is
-Kechris [1995], Theorem 17.41. Partition alignment follows because any
-finite measurable partition of [0,1] can be mapped to any other by a
-measure-preserving bijection (rearranging intervals).
-
-**Sorry**: Requires Rokhlin's theorem, which is not yet in Mathlib. This is
-well-established mathematics. This is one of three `sorry` declarations in
-the formalization and the only one that requires genuinely new Mathlib
-infrastructure. All other Rokhlin consequences (partition transfer,
-alignment chains, controlled cell alignment) are derived from this.
-
-The conclusion has three parts:
-1. **Coupling**: The two MP maps can be aligned via MP bijections.
-2. **Partition alignment**: Each cell of P maps a.e. to some cell of Q.
-3. **Controlled cell alignment**: Given a specific measure-matching
-   correspondence between cells, the alignment can be chosen to realize it.
-   This follows from Rokhlin's classification theorem applied cell-by-cell. -/
-theorem MeasurePreserving.exists_common_extension [StandardBorelSpace α]
-    (ψ₁ : α → α) (hψ₁ : MeasurePreserving ψ₁ μ μ)
-    (φ₂ : α → α) (hφ₂ : MeasurePreserving φ₂ μ μ)
-    (P Q : MeasurablePartition α μ) :
-    (∃ (χ₁ χ₂ : α ≃ᵐ α)
-      (hχ₁ : MeasurePreserving χ₁ μ μ) (hχ₂ : MeasurePreserving χ₂ μ μ),
-      ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂) ∧
-    (∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
-      ∀ S ∈ P.parts, ∃ T ∈ Q.parts, μ (S \ e ⁻¹' T) = 0 ∧ μ (e ⁻¹' T \ S) = 0) ∧
-    (∀ {k : ℕ} (ι_S ι_T : Fin k → Set α),
-      (∀ i, ι_S i ∈ P.parts) → (∀ i, ι_T i ∈ Q.parts) →
-      Function.Injective ι_S → Function.Injective ι_T →
-      (∀ i, μ (ι_S i) = μ (ι_T i)) →
-      ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
-        ∀ i, ∀ᵐ x ∂μ, x ∈ ι_S i → e x ∈ ι_T i) := by
-  sorry
-
-/-! ### Scoping: `exists_common_extension` is unprovable as stated
-
-See `docs/rokhlin-scoping.md`. The monolithic stub above bundles three conjuncts, **two of
-which are false as written**; the campaign to close the project's last live sorry must first
-replace it by corrected statements (coupling with measure-preserving *maps*; partition/cell
-alignment only under *matched cell measures* and `[NoAtoms μ]`). The two lemmas below certify
-the "measure-obvious" necessity facts that force those corrections.
+* **Map alignment via bijections is FALSE.** `(α, μ) = ([0,1], λ)`, `ψ₁ = id`, `φ₂ = ` the
+  doubling map `x ↦ 2x mod 1`: the demanded a.e.-injective `χ₁` with `χ₁ =ᵐ φ₂ ∘ χ₂` cannot
+  equal the essentially 2-to-1 `φ₂ ∘ χ₂`. The honest fact is a coupling with measure-preserving
+  *maps* (`exists_common_coupling_maps`), used with the pullback contraction
+  `cutNormDiff_pullback_le`.
+* **Arbitrary-partition alignment is FALSE** unless the cell measures match — certified by
+  `mp_align_forces_equal_measure`. The honest form is equal-measure cell alignment
+  (`exists_controlled_cell_alignment`, `[NoAtoms μ]`).
+* **Controlled cell alignment needs `[NoAtoms μ]`** (atom counterexample; one-sided necessity
+  by `mp_maps_into_forces_measure_le`).
 
 * **Conjunct 1 (map alignment via bijections) is FALSE.** Take `(α, μ) = ([0,1], λ)`,
   `ψ₁ = id`, `φ₂ = ` the doubling map `x ↦ 2x mod 1` (both measure-preserving). The
@@ -1144,17 +1110,6 @@ theorem MeasurePreserving.exists_common_coupling_maps [StandardBorelSpace α] [N
       (hχ₁ : MeasurePreserving χ₁ μ μ) (hχ₂ : MeasurePreserving χ₂ μ μ),
       ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂ := by
   sorry
-
-/-- Partition-alignment consequence of `exists_common_extension`: given two
-measurable partitions, there exists a MP bijection mapping each cell of the
-first a.e. into a cell of the second. -/
-theorem MeasurePreserving.exists_partition_alignment [StandardBorelSpace α]
-    (P Q : MeasurablePartition α μ) :
-    ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
-      ∀ S ∈ P.parts, ∃ T ∈ Q.parts, μ (S \ e ⁻¹' T) = 0 ∧ μ (e ⁻¹' T \ S) = 0 := by
-  have ⟨_, h, _⟩ := MeasurePreserving.exists_common_extension id (MeasurePreserving.id μ)
-    id (MeasurePreserving.id μ) P Q
-  exact h
 
 /-- **Controlled cell alignment (corrected Rokhlin consequence 3).** Given injective indexed
 families of cells from two partitions with *matching measures*, over an *atomless* standard
