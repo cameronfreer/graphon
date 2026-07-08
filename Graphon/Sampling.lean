@@ -234,8 +234,8 @@ private theorem sampleIntegrand_eq_sum_integrand (W : Graphon α μ)
   rw [homDensityIntegrand_fromEdgeSet (union_not_isDiag hS)]
 
 /-- The sampled-graph integrand is integrable (as a finite signed sum of integrable
-hom-density integrands). -/
-private theorem sampleIntegrand_integrable (W : Graphon α μ) (G : SimpleGraph (Fin k)) :
+hom-density integrands). Public: used by the concentration scaffold. -/
+theorem sampleIntegrand_integrable (W : Graphon α μ) (G : SimpleGraph (Fin k)) :
     Integrable (sampleIntegrand W G) (Measure.pi (fun _ : Fin k ↦ μ)) := by
   rw [sampleIntegrand_eq_sum_integrand]
   exact integrable_finsetSum _ fun S _ ↦
@@ -254,8 +254,9 @@ theorem sampleMass_eq_sum_homDensity (W : Graphon α μ) (G : SimpleGraph (Fin k
   exact Finset.sum_congr rfl fun S _ ↦ by
     rw [integral_const_mul, ← homDensity_eq_integral]
 
-/-- All edge evaluations over `⊤` lie in `[0,1]` almost everywhere. -/
-private theorem ae_top_edges_mem_Icc (W : Graphon α μ) :
+/-- All edge evaluations over `⊤` lie in `[0,1]` almost everywhere (public: used by the
+concentration scaffold for a.e. nonnegativity of conditional masses). -/
+theorem ae_top_edges_mem_Icc (W : Graphon α μ) :
     ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ),
       ∀ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset,
         W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2) ∈ Set.Icc 0 1 := by
@@ -283,8 +284,10 @@ theorem sampleMass_nonneg (W : Graphon α μ) (G : SimpleGraph (Fin k)) :
     linarith
 
 omit [IsProbabilityMeasure μ] in
-/-- Pointwise: the sampled-graph integrands sum to `1` over all graphs on `Fin k`. -/
-private theorem sum_sampleIntegrand_eq_one (W : Graphon α μ) (x : Fin k → α) :
+/-- Pointwise: the sampled-graph integrands sum to `1` over all graphs on `Fin k`
+(public: this is the conditional-distribution normalization used by the concentration
+scaffold). -/
+theorem sum_sampleIntegrand_eq_one (W : Graphon α μ) (x : Fin k → α) :
     ∑ G : SimpleGraph (Fin k), sampleIntegrand W G x = 1 := by
   set w : Sym2 (Fin k) → ℝ := fun e ↦ W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)
   have hbij : ∑ G : SimpleGraph (Fin k), sampleIntegrand W G x =
