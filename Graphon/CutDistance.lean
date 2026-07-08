@@ -1145,21 +1145,6 @@ theorem MeasurePreserving.exists_common_coupling_maps [StandardBorelSpace α] [N
       ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂ := by
   sorry
 
-/-- **Deprecated (false) map-alignment via bijections.** Retained transiently as the interface
-still used by the `Compactness` weak-isomorphism route, which migrates to
-`exists_common_coupling_maps` (+ the contraction lemma) in the R0.3c Compactness checkpoint.
-Its bijection demand is unprovable (see `exists_common_coupling_maps` and the scoping note);
-`cutDistance_triangle` no longer depends on it. -/
-theorem MeasurePreserving.exists_common_extension_maps [StandardBorelSpace α]
-    (ψ₁ : α → α) (hψ₁ : MeasurePreserving ψ₁ μ μ)
-    (φ₂ : α → α) (hφ₂ : MeasurePreserving φ₂ μ μ) :
-    ∃ (χ₁ χ₂ : α ≃ᵐ α)
-      (hχ₁ : MeasurePreserving χ₁ μ μ) (hχ₂ : MeasurePreserving χ₂ μ μ),
-      ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂ := by
-  have ⟨h, _, _⟩ := MeasurePreserving.exists_common_extension ψ₁ hψ₁ φ₂ hφ₂
-    (trivialPartition (α := α) (μ := μ)) (trivialPartition (α := α) (μ := μ))
-  exact h
-
 /-- Partition-alignment consequence of `exists_common_extension`: given two
 measurable partitions, there exists a MP bijection mapping each cell of the
 first a.e. into a cell of the second. -/
@@ -1268,6 +1253,25 @@ disintegration (campaign phase R1/R2). -/
 theorem cutNormDiff_pullback_le [StandardBorelSpace α] (U W : Graphon α μ)
     (φ : α → α) (hφ : MeasurePreserving φ μ μ) :
     cutNormDiff (pullback U φ hφ) (pullback W φ hφ) ≤ cutNormDiff U W := by
+  sorry
+
+/-- **An MP bijection nearly achieves the cut distance (corrected Rokhlin consequence 4).**
+On an *atomless* standard Borel probability space, the cut distance — an infimum over pairs of
+measure-preserving *maps* — is achieved up to any `ε` by pulling back `U` along a single
+measure-preserving **bijection**, leaving `W` bare.
+
+This is the honest, true replacement for the false `cutDistance_lt_add_of_pos_equiv`
+(Compactness) whose bijection witness was derived from the unprovable
+`exists_common_extension_maps`. It is genuinely needed by the completeness/compactness
+telescope: coherent frames require a bare reference, which forces invertibility (a coupling of
+maps cannot make a graphon bare without re-pulling the whole history). It is a standard
+consequence of the measure-isomorphism theorem (campaign phase R1); the value of `ε`-optimal
+maps comes from `cutDistance_lt_add_of_pos`, then one map is inverted onto a bijection via the
+measure iso. -/
+theorem exists_mpEquiv_cutNormDiff_lt_add [StandardBorelSpace α] [NoAtoms μ]
+    (U W : Graphon α μ) {ε : ℝ} (hε : 0 < ε) :
+    ∃ (σ : α ≃ᵐ α) (hσ : MeasurePreserving σ μ μ),
+      cutNormDiff (pullback U σ hσ) W < cutDistance U W + ε := by
   sorry
 
 /-- Cut distance from a graphon to its pullback by a MP bijection is zero.
