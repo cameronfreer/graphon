@@ -145,24 +145,6 @@ variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
 
 namespace Graphon
 
-section PointSampling
-
-variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
-
-/-- **The point-sampling half of the First Sampling Lemma** (PR #11 target; sorried
-scaffold — this branch ships only when it is proved). With `W`-uniform `K`: for all
-`k ≥ K`, the weighted sampled graphon `H_{W,x}` is within cut distance `ε` of `W`
-outside a bad set of measure `≤ η`.
-
-Together with `rounding_event_of_large_k` and `sampleGoodMassOn_of_events`, this
-closes `first_sampling_lemma` (the PR #12 recombination). -/
-theorem point_sampling_event_of_large_k (ε η : ℝ) (hε : 0 < ε) (hη : 0 < η) :
-    ∃ K : ℕ, ∀ k : ℕ, K ≤ k → ∀ (_ : NeZero k), ∀ W : Graphon α μ,
-      PointSamplingEvent W k ε η := by
-  sorry
-
-end PointSampling
-
 /-! ## PR #11A Layers 1+2: the point-sampling majorant and its frequency accounting
 
 This section builds the nonnegative, measurable, integrable **majorant**
@@ -4142,6 +4124,132 @@ private theorem coreTerm_expectation_bound (W : Graphon α μ) (ε' : ℝ) (hε'
   refine le_trans (coreTerm_expectation_le_cutNormDiff W ε' hε') ?_
   gcongr
   exact chosenStep_cutNormDiff_le W hε'
+
+/-! ### Layer 4 — event packaging (Markov) and the uniform target theorem -/
+
+/-- The frequency term is integrable: it is bounded by a constant on the finite-measure
+product space (crude uniform bound `freqTerm_le`). -/
+theorem integrable_freqTerm (W : Graphon α μ) (ε' : ℝ) (k : ℕ) [NeZero k] :
+    Integrable (fun x : Fin k → α ↦ freqTerm W ε' k x) (Measure.pi (fun _ : Fin k ↦ μ)) := by
+  refine Integrable.mono' (integrable_const (2 * ((chosenPartition W ε').parts.card) + 1 : ℝ))
+    (measurable_freqTerm W ε' k).aestronglyMeasurable (ae_of_all _ (fun x ↦ ?_))
+  rw [Real.norm_eq_abs, abs_of_nonneg (freqTerm_nonneg W ε' k x)]
+  exact freqTerm_le W ε' k x
+
+/-- The core term is integrable: it is bounded by `1` on the finite-measure product space
+(`coreTerm_le_one`). -/
+theorem integrable_coreTerm (W : Graphon α μ) (ε' : ℝ) (k : ℕ) [NeZero k] :
+    Integrable (fun x : Fin k → α ↦ coreTerm W ε' k x) (Measure.pi (fun _ : Fin k ↦ μ)) := by
+  refine Integrable.mono' (integrable_const (1 : ℝ))
+    (measurable_coreTerm W ε' k).aestronglyMeasurable (ae_of_all _ (fun x ↦ ?_))
+  rw [Real.norm_eq_abs, abs_of_nonneg (coreTerm_nonneg W ε' k x)]
+  exact coreTerm_le_one W ε' k x
+
+/-- **Markov event packaging.** On a probability space, given a nonnegative integrable `f`
+a.e.-dominating `g`, if `∫ f < c·η` then the set `{f < c}` (minus a null domination-failure
+set) is a measurable witness of measure `≥ 1 − η` on which `g < c` holds pointwise. This is
+the qualitative concentration step (Markov's inequality on the majorant), NOT a new
+mathematical input. -/
+private theorem exists_event_set_of_integral_lt {Ω : Type*} [MeasurableSpace Ω] (ν : Measure Ω)
+    [IsProbabilityMeasure ν] (f g : Ω → ℝ) (hf_meas : Measurable f) (hf_int : Integrable f ν)
+    (hf_nn : ∀ x, 0 ≤ f x) (hdom : ∀ᵐ x ∂ν, g x ≤ f x) {c η : ℝ} (hc : 0 < c)
+    (hbound : ∫ x, f x ∂ν < c * η) :
+    ∃ X : Set Ω, MeasurableSet X ∧ 1 - η ≤ (ν X).toReal ∧ ∀ x ∈ X, g x < c := by
+  set Y : Set Ω := {x | f x < c} with hYdef
+  have hY_meas : MeasurableSet Y := measurableSet_lt hf_meas measurable_const
+  have hmarkov := mul_meas_ge_le_integral_of_nonneg (ae_of_all _ hf_nn) hf_int c
+  have hlt : c * ν.real {x | c ≤ f x} < c * η := lt_of_le_of_lt hmarkov hbound
+  have hcompl : ν.real {x | c ≤ f x} < η := lt_of_mul_lt_mul_left hlt hc.le
+  have hset : {x | c ≤ f x} = Yᶜ := by rw [hYdef]; ext x; simp [not_lt]
+  have hcompl2 : ν.real Yᶜ = 1 - ν.real Y := probReal_compl_eq_one_sub hY_meas
+  rw [hset, hcompl2] at hcompl
+  have hYmeasure : 1 - η ≤ (ν Y).toReal := by
+    have hrfl : ν.real Y = (ν Y).toReal := rfl
+    rw [hrfl] at hcompl; linarith
+  set N : Set Ω := {x | ¬ g x ≤ f x} with hNdef
+  have hN_null : ν N = 0 := by rw [hNdef, ← ae_iff]; exact hdom
+  set N' : Set Ω := toMeasurable ν N with hN'def
+  have hN'_meas : MeasurableSet N' := measurableSet_toMeasurable ν N
+  have hN'_null : ν N' = 0 := by rw [hN'def, measure_toMeasurable]; exact hN_null
+  have hN_sub : N ⊆ N' := subset_toMeasurable ν N
+  refine ⟨Y \ N', hY_meas.diff hN'_meas, ?_, ?_⟩
+  · rw [measure_sdiff_null hN'_null]; exact hYmeasure
+  · rintro x ⟨hxY, hxN'⟩
+    have hxN : x ∉ N := fun h ↦ hxN' (hN_sub h)
+    have hdomx : g x ≤ f x := by by_contra h; exact hxN h
+    have hfx : f x < c := hxY
+    linarith
+
+/-- **The point-sampling half of the First Sampling Lemma** (PR #11 target; PROVED).
+With `W`-uniform `K`: for all `k ≥ K`, the weighted sampled graphon `H_{W,x}` is within
+cut distance `ε` of `W` outside a bad set of measure `≤ η`.
+
+Proof: at accuracy `ε' := εη/4`, the majorant's expectation is
+`≤ 2ε' + regularityBound ε'/√k + 1/k + 8·k^{-1/4} < εη` for all large `k` — uniformly in
+`W`, since `regularityBound` is `W`-free; Markov applied to the nonnegative integrable
+majorant plus the a.e. domination `ae_cutDistance_le_pointSamplingMajorant` packages the
+measurable event set.
+
+Together with `rounding_event_of_large_k` and `sampleGoodMassOn_of_events`, this
+closes `first_sampling_lemma` (the PR #12 recombination). -/
+theorem point_sampling_event_of_large_k (ε η : ℝ) (hε : 0 < ε) (hη : 0 < η) :
+    ∃ K : ℕ, ∀ k : ℕ, K ≤ k → ∀ (_ : NeZero k), ∀ W : Graphon α μ,
+      PointSamplingEvent W k ε η := by
+  set ε' : ℝ := ε * η / 4 with hε'def
+  have hε' : 0 < ε' := by rw [hε'def]; have := mul_pos hε hη; linarith
+  set M : ℕ := regularityBound ε' with hMdef
+  -- the dispersion tail vanishes as `k → ∞`, uniformly in `W` (`M` does not depend on `W`)
+  have htail : Tendsto
+      (fun k : ℕ ↦ (M : ℝ) / Real.sqrt k + (k : ℝ)⁻¹ + 8 * (k : ℝ) ^ (-(1 / 4 : ℝ)))
+      atTop (nhds 0) := by
+    have h1 : Tendsto (fun k : ℕ ↦ (M : ℝ) / Real.sqrt k) atTop (nhds 0) :=
+      tendsto_const_nhds.div_atTop (Real.tendsto_sqrt_atTop.comp tendsto_natCast_atTop_atTop)
+    have h2 : Tendsto (fun k : ℕ ↦ (k : ℝ)⁻¹) atTop (nhds 0) :=
+      tendsto_inv_atTop_zero.comp tendsto_natCast_atTop_atTop
+    have h3 : Tendsto (fun k : ℕ ↦ 8 * (k : ℝ) ^ (-(1 / 4 : ℝ))) atTop (nhds 0) := by
+      have h4 := ((tendsto_rpow_neg_atTop (by norm_num : (0 : ℝ) < 1 / 4)).comp
+        tendsto_natCast_atTop_atTop).const_mul (8 : ℝ)
+      simpa using h4
+    simpa using (h1.add h2).add h3
+  have hεη : (0 : ℝ) < ε * η / 2 := by have := mul_pos hε hη; linarith
+  have hev : ∀ᶠ k : ℕ in atTop,
+      (M : ℝ) / Real.sqrt k + (k : ℝ)⁻¹ + 8 * (k : ℝ) ^ (-(1 / 4 : ℝ)) < ε * η / 2 :=
+    htail.eventually_lt_const hεη
+  obtain ⟨K, hK⟩ := eventually_atTop.mp hev
+  refine ⟨K, fun k hk hNe W ↦ ?_⟩
+  haveI := hNe
+  have htk := hK k hk
+  -- the Frieze–Kannan cell count is `≤ M`, uniformly in `W`
+  have hcard : ((chosenPartition W ε').parts.card : ℝ) ≤ (M : ℝ) := by
+    have hc : (chosenPartition W ε').parts.card ≤ regularityBound ε' := by
+      unfold chosenPartition; rw [dif_pos hε']; exact (regularity W ε' hε').choose_spec.1
+    rw [hMdef]; exact_mod_cast hc
+  -- expectation of the majorant splits into the three layers
+  have hsplit : ∫ x, pointSamplingMajorant W ε' k x ∂Measure.pi (fun _ : Fin k ↦ μ)
+      = ε' + ∫ x, freqTerm W ε' k x ∂Measure.pi (fun _ : Fin k ↦ μ)
+        + ∫ x, coreTerm W ε' k x ∂Measure.pi (fun _ : Fin k ↦ μ) := by
+    have hint1 : Integrable (fun x : Fin k → α ↦ ε' + freqTerm W ε' k x)
+        (Measure.pi (fun _ : Fin k ↦ μ)) :=
+      (integrable_const ε').add (integrable_freqTerm W ε' k)
+    simp only [pointSamplingMajorant]
+    rw [integral_add hint1 (integrable_coreTerm W ε' k),
+      integral_add (integrable_const ε') (integrable_freqTerm W ε' k),
+      integral_const, smul_eq_mul, probReal_univ, one_mul]
+  have hfbound : ∫ x, freqTerm W ε' k x ∂Measure.pi (fun _ : Fin k ↦ μ)
+      ≤ (M : ℝ) / Real.sqrt k + (k : ℝ)⁻¹ := by
+    refine (freqTerm_expectation_bound W ε' k).trans ?_
+    gcongr
+  have hcbound : ∫ x, coreTerm W ε' k x ∂Measure.pi (fun _ : Fin k ↦ μ)
+      ≤ ε' + 8 * (k : ℝ) ^ (-(1 / 4 : ℝ)) := coreTerm_expectation_bound W ε' hε'
+  have hexp : ∫ x, pointSamplingMajorant W ε' k x ∂Measure.pi (fun _ : Fin k ↦ μ) < ε * η := by
+    have hsum := add_le_add hfbound hcbound
+    have h2eps : 2 * ε' = ε * η / 2 := by rw [hε'def]; ring
+    rw [hsplit]
+    linarith [hsum, htk, h2eps]
+  exact exists_event_set_of_integral_lt (Measure.pi (fun _ : Fin k ↦ μ)) _ _
+    (measurable_pointSamplingMajorant W ε' k) (integrable_pointSamplingMajorant W ε' k)
+    (fun x ↦ pointSamplingMajorant_nonneg W hε'.le k x)
+    (ae_cutDistance_le_pointSamplingMajorant W hε' k) hε hexp
 
 end PointSamplingMajorant
 
