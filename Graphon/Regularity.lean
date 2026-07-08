@@ -4842,6 +4842,96 @@ theorem exists_measurable_subset_of_measure [StandardBorelSpace α] [NoAtoms μ]
     congr 1; ext n; exact hpartial n
   rw [this, hacc_sup]
 
+/-- **Within-cell exact-measure carving.** Carve `n` pairwise disjoint measurable subsets of
+`S`, each of measure *exactly* `1/q`, provided `S` has room (`n/q ≤ μ S`). Iterated application
+of the atomless subset-of-prescribed-measure carve `exists_measurable_subset_of_measure`.
+Unlike `exists_equal_measure_partition` (which splits `S` into `n` pieces of size `μS/n` that
+*cover* `S`), here the pieces have a *fixed* size `1/q` independent of `μ S` and generally leave
+a remainder — the building block for re-rounding an arbitrary partition onto an equipartition. -/
+theorem exists_equal_chunks_inside [StandardBorelSpace α] [NoAtoms μ]
+    {S : Set α} (hS : MeasurableSet S) {q : ℕ} (hq : 0 < q) :
+    ∀ n : ℕ, (n : ℝ≥0∞) / q ≤ μ S →
+    ∃ A : Fin n → Set α, (∀ i, MeasurableSet (A i)) ∧ (∀ i, A i ⊆ S) ∧
+      Pairwise (fun i j => Disjoint (A i) (A j)) ∧ (∀ i, μ (A i) = 1 / q) := by
+  intro n
+  induction n generalizing S with
+  | zero => intro _; exact ⟨Fin.elim0, (·.elim0), (·.elim0), (fun a _ _ => a.elim0), (·.elim0)⟩
+  | succ n ih =>
+    intro hqn
+    have hqE : (q : ℝ≥0∞) ≠ 0 := by exact_mod_cast hq.ne'
+    have h1q_top : (1 : ℝ≥0∞) / q ≠ ⊤ := by simp [hqE]
+    have hsucc : ((n + 1 : ℕ) : ℝ≥0∞) / q = (n : ℝ≥0∞) / q + 1 / q := by
+      rw [← ENNReal.add_div]; norm_cast
+    have h1q_le : (1 : ℝ≥0∞) / q ≤ μ S :=
+      le_trans (by rw [hsucc]; exact le_add_self) hqn
+    obtain ⟨A0, hA0_meas, hA0_sub, hA0_mu⟩ := exists_measurable_subset_of_measure hS h1q_le
+    have hS'_meas : MeasurableSet (S \ A0) := hS.diff hA0_meas
+    have hS'_mu : μ (S \ A0) = μ S - 1 / q := by
+      rw [measure_sdiff hA0_sub hA0_meas.nullMeasurableSet (by rw [hA0_mu]; exact h1q_top), hA0_mu]
+    have hqn' : (n : ℝ≥0∞) / q ≤ μ (S \ A0) := by
+      rw [hS'_mu]
+      refine ENNReal.le_sub_of_add_le_left h1q_top ?_
+      rw [add_comm, ← hsucc]; exact hqn
+    obtain ⟨A', hA'_meas, hA'_sub, hA'_disj, hA'_mu⟩ := ih hS'_meas hqn'
+    have hA0_disj_A' : ∀ l, Disjoint A0 (A' l) := fun l =>
+      Set.disjoint_left.mpr (fun x hx0 hxl => (hA'_sub l hxl).2 hx0)
+    refine ⟨Fin.cons A0 A', Fin.cases hA0_meas hA'_meas,
+      Fin.cases hA0_sub (fun j => (hA'_sub j).trans Set.sdiff_subset), ?_, Fin.cases hA0_mu hA'_mu⟩
+    intro i j hij
+    induction i using Fin.cases with
+    | zero =>
+      induction j using Fin.cases with
+      | zero => exact absurd rfl hij
+      | succ l => simpa using hA0_disj_A' l
+    | succ k =>
+      induction j using Fin.cases with
+      | zero => simpa using (hA0_disj_A' k).symm
+      | succ l =>
+        simp only [Fin.cons_succ]
+        exact hA'_disj (fun h => hij (congrArg Fin.succ h))
+
+/-- **`1/q`-chunks with remainder.** Carve a cell `P` into `⌊μ(P)·q⌋` disjoint `1/q`-chunks
+(via `exists_equal_chunks_inside`) leaving a remainder of measure `< 1/q`. The immediate
+building block for the equipartition re-rounding: applied to each cell of a partition, it
+produces exact-`1/q` pieces refining that cell, with an `O(1/q)` boundary per cell. -/
+theorem exists_one_over_q_chunks_with_remainder [StandardBorelSpace α] [NoAtoms μ]
+    {P : Set α} (hP : MeasurableSet P) {q : ℕ} (hq : 0 < q) :
+    ∃ (n : ℕ) (A : Fin n → Set α),
+      (∀ i, MeasurableSet (A i)) ∧ (∀ i, A i ⊆ P) ∧
+      Pairwise (fun i j => Disjoint (A i) (A j)) ∧ (∀ i, μ (A i) = 1 / q) ∧
+      μ (P \ ⋃ i, A i) < 1 / q := by
+  have hPfin : μ P ≠ ⊤ := measure_ne_top μ P
+  have hqE : (q : ℝ≥0∞) ≠ 0 := by exact_mod_cast hq.ne'
+  have hqT : (q : ℝ≥0∞) ≠ ⊤ := by simp
+  set x : ℝ := (μ P).toReal * q with hx_def
+  set n : ℕ := ⌊x⌋₊ with hn_def
+  have hx_nn : 0 ≤ x := by positivity
+  have hPq : μ P * q = ENNReal.ofReal x := by
+    rw [hx_def, ENNReal.ofReal_mul ENNReal.toReal_nonneg, ENNReal.ofReal_toReal hPfin,
+      ENNReal.ofReal_natCast]
+  have hnP : (n : ℝ≥0∞) ≤ μ P * q := by
+    rw [hPq]
+    calc (n : ℝ≥0∞) = ENNReal.ofReal n := (ENNReal.ofReal_natCast n).symm
+      _ ≤ ENNReal.ofReal x := ENNReal.ofReal_le_ofReal (Nat.floor_le hx_nn)
+  have hle : (n : ℝ≥0∞) / q ≤ μ P := (ENNReal.div_le_iff hqE hqT).mpr hnP
+  obtain ⟨A, hA_meas, hA_sub, hA_disj, hA_mu⟩ := exists_equal_chunks_inside hP hq n hle
+  have hUmeas : MeasurableSet (⋃ i, A i) := MeasurableSet.iUnion hA_meas
+  have hUsub : (⋃ i, A i) ⊆ P := Set.iUnion_subset hA_sub
+  have hUmu : μ (⋃ i, A i) = (n : ℝ≥0∞) / q := by
+    rw [measure_iUnion (fun i j hij => hA_disj hij) hA_meas, tsum_fintype]
+    simp only [hA_mu, Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul,
+      mul_one_div]
+  have hUne : μ (⋃ i, A i) ≠ ⊤ := by rw [hUmu]; exact ENNReal.div_ne_top (by simp) hqE
+  refine ⟨n, A, hA_meas, hA_sub, hA_disj, hA_mu, ?_⟩
+  rw [measure_sdiff hUsub hUmeas.nullMeasurableSet hUne, hUmu]
+  have hlt : μ P < ((n : ℝ≥0∞) + 1) / q := by
+    rw [ENNReal.lt_div_iff_mul_lt (Or.inl hqE) (Or.inl hqT), hPq]
+    calc ENNReal.ofReal x < ENNReal.ofReal (n + 1) :=
+          (ENNReal.ofReal_lt_ofReal_iff_of_nonneg hx_nn).mpr (Nat.lt_floor_add_one x)
+      _ = (n : ℝ≥0∞) + 1 := by rw [ENNReal.ofReal_add (by positivity) zero_le_one]; norm_num
+  have hkey : μ P < (n : ℝ≥0∞) / q + 1 / q := by rw [ENNReal.div_add_div_same]; exact hlt
+  exact (ENNReal.sub_lt_iff_lt_left (ENNReal.div_ne_top (by simp) hqE) hle).mpr hkey
+
 /-- Split a measurable set into exactly n pairwise disjoint measurable pieces of equal measure.
 
 Given a measurable set S in an atomless measure space and n ≥ 1, there exist
