@@ -4932,6 +4932,214 @@ theorem exists_one_over_q_chunks_with_remainder [StandardBorelSpace α] [NoAtoms
   have hkey : μ P < (n : ℝ≥0∞) / q + 1 / q := by rw [ENNReal.div_add_div_same]; exact hlt
   exact (ENNReal.sub_lt_iff_lt_left (ENNReal.div_ne_top (by simp) hqE) hle).mpr hkey
 
+/-- The measures of the parts of a `MeasurablePartition` of a probability space sum to `1`.
+Since the parts are pairwise disjoint and cover the space almost everywhere, `∑ μ S = μ univ`. -/
+private lemma sum_measure_parts_eq_one (P : MeasurablePartition α μ) :
+    ∑ S ∈ P.parts, μ S = 1 := by
+  have hcov : (⋃ S ∈ P.parts, S) =ᵐ[μ] (Set.univ : Set α) := by
+    rw [ae_eq_univ]
+    have hsub : {x | x ∉ ⋃ S ∈ P.parts, S} ⊆ {x | ¬ ∃ S ∈ P.parts, x ∈ S} := by
+      intro x hx hcon
+      exact hx (Set.mem_biUnion hcon.choose_spec.1 hcon.choose_spec.2)
+    apply measure_mono_null hsub
+    rw [← ae_iff]; exact P.ae_covers
+  calc ∑ S ∈ P.parts, μ S
+      = μ (⋃ S ∈ P.parts, S) :=
+        (measure_biUnion_finset (f := id) P.pairwiseDisjoint P.measurable_parts).symm
+    _ = μ Set.univ := measure_congr hcov
+    _ = 1 := measure_univ
+
+omit [IsProbabilityMeasure μ] in
+/-- Assemble a finite pairwise-disjoint family of equal-measure sets that a.e. covers the space
+into a `MeasurablePartition`. Each set has measure `1/q`, so (being nonempty and disjoint) the
+family is injective and the resulting partition has exactly `Fintype.card ι` parts. -/
+private lemma partition_of_disjoint_family {ι : Type*} [Fintype ι] {q : ℕ}
+    (C : ι → Set α) (hmeas : ∀ i, MeasurableSet (C i))
+    (hdisj : Pairwise (fun i j => Disjoint (C i) (C j)))
+    (hmu : ∀ i, μ (C i) = 1 / q)
+    (hcov : ∀ᵐ x ∂μ, ∃ i, x ∈ C i) :
+    ∃ Q : MeasurablePartition α μ,
+      Q.parts = Finset.image C Finset.univ ∧
+      Q.parts.card = Fintype.card ι ∧
+      (∀ A ∈ Q.parts, μ A = 1 / q) := by
+  have hne : ∀ i, (C i).Nonempty := by
+    intro i
+    apply nonempty_of_measure_ne_zero (μ := μ)
+    rw [hmu i]
+    exact (ENNReal.div_pos one_ne_zero (ENNReal.natCast_ne_top q)).ne'
+  have hinj : Function.Injective C := by
+    intro i j hij
+    by_contra hne'
+    have hd : Disjoint (C i) (C j) := hdisj hne'
+    rw [hij, disjoint_self] at hd
+    exact (hne j).ne_empty hd
+  refine ⟨{
+    parts := Finset.image C Finset.univ
+    measurable_parts := ?_
+    pairwiseDisjoint := ?_
+    ae_covers := ?_ }, rfl, ?_, ?_⟩
+  · intro A hA
+    simp only [Finset.mem_image, Finset.mem_univ, true_and] at hA
+    obtain ⟨i, rfl⟩ := hA
+    exact hmeas i
+  · intro A hA B hB hAB
+    simp only [Finset.coe_image, Finset.coe_univ, Set.image_univ, Set.mem_range] at hA hB
+    obtain ⟨i, rfl⟩ := hA
+    obtain ⟨j, rfl⟩ := hB
+    exact hdisj (fun h => hAB (by rw [h]))
+  · filter_upwards [hcov] with x ⟨i, hxi⟩
+    exact ⟨C i, Finset.mem_image.mpr ⟨i, Finset.mem_univ i, rfl⟩, hxi⟩
+  · rw [Finset.card_image_of_injective _ hinj, Finset.card_univ]
+  · intro A hA
+    simp only [Finset.mem_image, Finset.mem_univ, true_and] at hA
+    obtain ⟨i, rfl⟩ := hA
+    exact hmu i
+
+set_option maxHeartbeats 1600000 in
+/-- **Almost-refining equipartition.** Given a partition `P` of an atomless probability space and
+`q > 0`, there is a `q`-cell partition `Q` with every cell of measure exactly `1/q` that "almost
+refines" `P`: outside a bad set of measure `≤ (P.parts.card)/q`, each cell of `Q` lies inside a
+single cell of `P`.
+
+Construction: carve `⌊μ(S)·q⌋` disjoint `1/q`-chunks inside each cell `S` of `P`
+(`exists_one_over_q_chunks_with_remainder`), collect them all (there are `q - k ≤ N ≤ q` of them
+for `k = P.parts.card`), then fill the leftover `bad := (⋃ chunks)ᶜ` with `q - N` more `1/q`-chunks
+(`exists_equal_chunks_inside`, which exhaust `bad` up to measure zero). The `2·(P.parts.card)`-style
+boundary control comes from the per-cell remainder being `< 1/q`. -/
+theorem exists_equipartition_almost_refining [StandardBorelSpace α] [NoAtoms μ]
+    (P : MeasurablePartition α μ) {q : ℕ} (hq : 0 < q) :
+    ∃ Q : MeasurablePartition α μ,
+      Q.parts.card = q ∧
+      (∀ A ∈ Q.parts, μ A = (1 : ℝ≥0∞) / q) ∧
+      ∃ bad : Set α, MeasurableSet bad ∧ μ bad ≤ (P.parts.card : ℝ≥0∞) / q ∧
+        ∀ A ∈ Q.parts, ∃ S ∈ P.parts, A \ bad ⊆ S := by
+  classical
+  have hqE : (q : ℝ≥0∞) ≠ 0 := by exact_mod_cast hq.ne'
+  have hqT : (q : ℝ≥0∞) ≠ ⊤ := ENNReal.natCast_ne_top q
+  have hnq_top : ∀ k : ℕ, (k : ℝ≥0∞) / q ≠ ⊤ :=
+    fun k => ENNReal.div_ne_top (ENNReal.natCast_ne_top k) hqE
+  have hchunks : ∀ S : {S // S ∈ P.parts}, ∃ (n : ℕ) (A : Fin n → Set α),
+      (∀ i, MeasurableSet (A i)) ∧ (∀ i, A i ⊆ S.1) ∧
+      Pairwise (fun i j => Disjoint (A i) (A j)) ∧ (∀ i, μ (A i) = 1 / q) ∧
+      μ (S.1 \ ⋃ i, A i) < 1 / q :=
+    fun S => exists_one_over_q_chunks_with_remainder (P.measurableSet_part S.2) hq
+  choose n ch hch_meas hch_sub hch_disj hch_mu hch_rem using hchunks
+  set m := P.parts.card with hm_def
+  set C₁ : ((S : {S // S ∈ P.parts}) × Fin (n S)) → Set α := fun p => ch p.1 p.2 with hC₁_def
+  set N := Fintype.card ((S : {S // S ∈ P.parts}) × Fin (n S)) with hN_def
+  have hN_sum : N = ∑ S : {S // S ∈ P.parts}, n S := by rw [hN_def, Fintype.card_sigma]; simp
+  have hC₁_meas : ∀ p, MeasurableSet (C₁ p) := fun p => hch_meas p.1 p.2
+  have hC₁_mu : ∀ p, μ (C₁ p) = 1 / q := fun p => hch_mu p.1 p.2
+  have hC₁_disj : Pairwise (fun p q => Disjoint (C₁ p) (C₁ q)) := by
+    rintro ⟨S, i⟩ ⟨S', i'⟩ hpp'
+    by_cases hS : S = S'
+    · subst hS
+      have hii : i ≠ i' := by rintro rfl; exact hpp' rfl
+      exact hch_disj S hii
+    · have hSS : S.1 ≠ S'.1 := fun h => hS (Subtype.ext h)
+      exact (P.pairwiseDisjoint (Finset.mem_coe.mpr S.2) (Finset.mem_coe.mpr S'.2) hSS).mono
+        (hch_sub S i) (hch_sub S' i')
+  set Chunks := ⋃ p, C₁ p with hChunks_def
+  have hChunks_meas : MeasurableSet Chunks := MeasurableSet.iUnion hC₁_meas
+  have hChunks_mu : μ Chunks = (N : ℝ≥0∞) / q := by
+    rw [hChunks_def, measure_iUnion hC₁_disj hC₁_meas, tsum_fintype]
+    simp only [hC₁_mu, Finset.sum_const, Finset.card_univ, nsmul_eq_mul, mul_one_div, hN_def]
+  have hChunks_le : (N : ℝ≥0∞) / q ≤ 1 := by
+    rw [← hChunks_mu, ← measure_univ (μ := μ)]; exact measure_mono (subset_univ _)
+  have hNq : N ≤ q := by
+    have hle : (N : ℝ≥0∞) ≤ q := by
+      have := (ENNReal.div_le_iff hqE hqT).mp hChunks_le; rwa [one_mul] at this
+    exact_mod_cast hle
+  have hcell : ∀ S : {S // S ∈ P.parts}, μ S.1 < (↑(n S) + 1) / q := by
+    intro S
+    have hUsub : (⋃ i, ch S i) ⊆ S.1 := Set.iUnion_subset (hch_sub S)
+    have hUmu : μ (⋃ i, ch S i) = ↑(n S) / q := by
+      rw [measure_iUnion (fun i j hij => hch_disj S hij) (hch_meas S), tsum_fintype]
+      simp only [hch_mu S, Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul,
+        mul_one_div]
+    calc μ S.1 = μ ((⋃ i, ch S i) ∪ (S.1 \ ⋃ i, ch S i)) := by rw [Set.union_sdiff_cancel hUsub]
+      _ ≤ μ (⋃ i, ch S i) + μ (S.1 \ ⋃ i, ch S i) := measure_union_le _ _
+      _ < ↑(n S) / q + 1 / q := by
+          rw [hUmu]; exact ENNReal.add_lt_add_left (hnq_top _) (hch_rem S)
+      _ = (↑(n S) + 1) / q := by rw [ENNReal.div_add_div_same]
+  have hqNm : (q : ℝ≥0∞) ≤ (N : ℝ≥0∞) + m := by
+    have hsum1 : ∑ S : {S // S ∈ P.parts}, μ S.1 = 1 := by
+      rw [Finset.sum_coe_sort P.parts (fun S => μ S)]; exact sum_measure_parts_eq_one P
+    have hstep : ∀ S : {S // S ∈ P.parts}, μ S.1 * q ≤ ↑(n S) + 1 :=
+      fun S => le_of_lt ((ENNReal.lt_div_iff_mul_lt (Or.inl hqE) (Or.inl hqT)).mp (hcell S))
+    calc (q : ℝ≥0∞) = (∑ S : {S // S ∈ P.parts}, μ S.1) * q := by rw [hsum1, one_mul]
+      _ = ∑ S : {S // S ∈ P.parts}, μ S.1 * q := by rw [Finset.sum_mul]
+      _ ≤ ∑ S : {S // S ∈ P.parts}, (↑(n S) + 1) := Finset.sum_le_sum (fun S _ => hstep S)
+      _ = (N : ℝ≥0∞) + m := by
+          rw [Finset.sum_add_distrib, Finset.sum_const, Finset.card_univ, Fintype.card_coe,
+            hN_sum, Nat.cast_sum]
+          simp [hm_def]
+  have hqNm_nat : q ≤ N + m := by
+    have : (q : ℝ≥0∞) ≤ ((N + m : ℕ) : ℝ≥0∞) := by push_cast; exact hqNm
+    exact_mod_cast this
+  have hqNm' : q - N ≤ m := by omega
+  set bad := Chunksᶜ with hbad_def
+  have hbad_meas : MeasurableSet bad := hChunks_meas.compl
+  have hChunks_ne_top : μ Chunks ≠ ⊤ := by rw [hChunks_mu]; exact hnq_top N
+  have hbad_mu : μ bad = ((q - N : ℕ) : ℝ≥0∞) / q := by
+    have hadd : ((q - N : ℕ) : ℝ≥0∞) / q + (N : ℝ≥0∞) / q = 1 := by
+      rw [ENNReal.div_add_div_same, ← Nat.cast_add, Nat.sub_add_cancel hNq,
+        ENNReal.div_self hqE hqT]
+    rw [hbad_def, measure_compl hChunks_meas hChunks_ne_top, measure_univ, hChunks_mu, ← hadd,
+      ENNReal.add_sub_cancel_right (hnq_top N)]
+  have hbad_ge : ((q - N : ℕ) : ℝ≥0∞) / q ≤ μ bad := le_of_eq hbad_mu.symm
+  obtain ⟨f, hf_meas, hf_sub, hf_disj, hf_mu⟩ :=
+    exists_equal_chunks_inside hbad_meas hq (q - N) hbad_ge
+  have hUfill_sub : (⋃ k, f k) ⊆ bad := Set.iUnion_subset hf_sub
+  have hUfill_meas : MeasurableSet (⋃ k, f k) := MeasurableSet.iUnion hf_meas
+  have hfill_mu : μ (⋃ k, f k) = ((q - N : ℕ) : ℝ≥0∞) / q := by
+    rw [measure_iUnion (fun i j hij => hf_disj hij) hf_meas, tsum_fintype]
+    simp only [hf_mu, Finset.sum_const, Finset.card_univ, Fintype.card_fin, nsmul_eq_mul,
+      mul_one_div]
+  have hbadfill_null : μ (bad \ ⋃ k, f k) = 0 := by
+    rw [measure_sdiff hUfill_sub hUfill_meas.nullMeasurableSet (by rw [hfill_mu]; exact hnq_top _),
+      hbad_mu, hfill_mu, tsub_self]
+  set C : (((S : {S // S ∈ P.parts}) × Fin (n S)) ⊕ Fin (q - N)) → Set α :=
+    Sum.elim C₁ f with hC_def
+  have hC_meas : ∀ i, MeasurableSet (C i) := by rintro (p | k); exacts [hC₁_meas p, hf_meas k]
+  have hC_mu : ∀ i, μ (C i) = 1 / q := by rintro (p | k); exacts [hC₁_mu p, hf_mu k]
+  have hC₁_sub_Chunks : ∀ p, C₁ p ⊆ Chunks := fun p => Set.subset_iUnion C₁ p
+  have hC_disj : Pairwise (fun i j => Disjoint (C i) (C j)) := by
+    rintro (p | k) (p' | k') hij
+    · exact hC₁_disj (fun h => hij (by rw [h]))
+    · exact Disjoint.mono (hC₁_sub_Chunks p) (hf_sub k') disjoint_compl_right
+    · exact (Disjoint.mono (hC₁_sub_Chunks p') (hf_sub k) disjoint_compl_right).symm
+    · exact hf_disj (fun h => hij (by rw [h]))
+  have hC_cov : ∀ᵐ x ∂μ, ∃ i, x ∈ C i := by
+    rw [ae_iff]
+    refine measure_mono_null ?_ hbadfill_null
+    intro x hx
+    refine ⟨fun hxCh => ?_, fun hxf => ?_⟩
+    · obtain ⟨p, hxp⟩ := Set.mem_iUnion.mp hxCh
+      exact hx ⟨Sum.inl p, hxp⟩
+    · obtain ⟨k, hxk⟩ := Set.mem_iUnion.mp hxf
+      exact hx ⟨Sum.inr k, hxk⟩
+  obtain ⟨Q, hQparts, hQcard, hQmu⟩ :=
+    partition_of_disjoint_family C hC_meas hC_disj hC_mu hC_cov
+  have hQcard_q : Q.parts.card = q := by
+    rw [hQcard, Fintype.card_sum, Fintype.card_fin, ← hN_def]; omega
+  have hPne : P.parts.Nonempty := by
+    by_contra h
+    rw [Finset.not_nonempty_iff_eq_empty] at h
+    have := sum_measure_parts_eq_one P
+    rw [h, Finset.sum_empty] at this
+    exact one_ne_zero this.symm
+  obtain ⟨S₀, hS₀⟩ := hPne
+  refine ⟨Q, hQcard_q, hQmu, bad, hbad_meas, ?_, ?_⟩
+  · rw [hbad_mu]; gcongr
+  · intro A hA
+    rw [hQparts] at hA
+    simp only [Finset.mem_image, Finset.mem_univ, true_and] at hA
+    obtain ⟨i, rfl⟩ := hA
+    rcases i with p | k
+    · exact ⟨p.1.1, p.1.2, Set.sdiff_subset.trans (hch_sub p.1 p.2)⟩
+    · exact ⟨S₀, hS₀, fun x hx => absurd (hf_sub k hx.1) hx.2⟩
+
 /-- Split a measurable set into exactly n pairwise disjoint measurable pieces of equal measure.
 
 Given a measurable set S in an atomless measure space and n ≥ 1, there exist
