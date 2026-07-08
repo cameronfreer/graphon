@@ -1888,6 +1888,93 @@ theorem cutNormDiff_le_of_ae_agree_off_strip (U W : Graphon α μ)
     _ ≤ (μ E).toReal + (μ E).toReal := add_le_add h_piece1 h_piece2
     _ = 2 * (μ E).toReal := by ring
 
+/-- **Re-rounding a step graphon to an equipartition.** A step graphon on an
+arbitrary partition `P` can be approximated, in cut-norm difference, by a step
+graphon on an equal-measure `q`-cell partition `Q`, with crude error `O(P.card / q)`.
+
+The `q` equal cells of `Q` almost refine `P` (off a small "bad" set of measure at
+most `P.card / q`), so we reassign each cell of `Q` the coefficient of its parent
+`P`-cell.  The two step graphons then agree off the strip `bad × univ ∪ univ × bad`,
+and `cutNormDiff_le_of_ae_agree_off_strip` yields the bound `2 * P.card / q`. -/
+theorem stepGraphon_reround_to_equipartition
+    (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
+    (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
+    (hc_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T ∈ Set.Icc 0 1)
+    {q : ℕ} (hq : 0 < q) :
+    ∃ (Q : MeasurablePartition α μ) (cQ : Set α → Set α → ℝ)
+      (hcQ_symm : ∀ A ∈ Q.parts, ∀ B ∈ Q.parts, cQ A B = cQ B A)
+      (hcQ_mem : ∀ A ∈ Q.parts, ∀ B ∈ Q.parts, cQ A B ∈ Set.Icc 0 1),
+      Q.parts.card = q ∧
+      (∀ A ∈ Q.parts, μ A = (1 : ℝ≥0∞) / q) ∧
+      cutNormDiff (mkStepGraphon P c hc_symm hc_mem) (mkStepGraphon Q cQ hcQ_symm hcQ_mem)
+        ≤ 2 * (P.parts.card : ℝ) / q := by
+  classical
+  obtain ⟨Q, hQcard, hQmu, bad, hbad_meas, hbad_le, hrefine⟩ :=
+    exists_equipartition_almost_refining P hq
+  -- `Q` is nonempty (it has `q > 0` cells), giving a fallback parent `S₀ ∈ P.parts`.
+  have hQne : Q.parts.Nonempty := by rw [← Finset.card_pos, hQcard]; exact hq
+  obtain ⟨A₀, hA₀⟩ := hQne
+  obtain ⟨S₀, hS₀, -⟩ := hrefine A₀ hA₀
+  -- For each `Q`-cell `A`, pick a parent `P`-cell `par A` with `A \ bad ⊆ par A`.
+  choose par hpar_mem hpar_sub using hrefine
+  -- Total parent map (fallback to `S₀` off `Q.parts`, never actually used a.e.).
+  set parentOf : Set α → Set α := fun A => if hA : A ∈ Q.parts then par A hA else S₀
+    with hpar_def
+  have hparentOf_mem : ∀ A, parentOf A ∈ P.parts := by
+    intro A
+    simp only [hpar_def]
+    by_cases hA : A ∈ Q.parts
+    · rw [dif_pos hA]; exact hpar_mem A hA
+    · rw [dif_neg hA]; exact hS₀
+  have hparentOf_sub : ∀ A, A ∈ Q.parts → A \ bad ⊆ parentOf A := by
+    intro A hA
+    simp only [hpar_def]
+    rw [dif_pos hA]; exact hpar_sub A hA
+  -- Re-rounded coefficients: inherit the parent `P`-cell coefficient.
+  set cQ : Set α → Set α → ℝ := fun A B => c (parentOf A) (parentOf B) with hcQ_def
+  have hcQ_symm : ∀ A ∈ Q.parts, ∀ B ∈ Q.parts, cQ A B = cQ B A := by
+    intro A _ B _
+    simp only [hcQ_def]
+    exact hc_symm _ (hparentOf_mem A) _ (hparentOf_mem B)
+  have hcQ_mem : ∀ A ∈ Q.parts, ∀ B ∈ Q.parts, cQ A B ∈ Set.Icc 0 1 := by
+    intro A _ B _
+    simp only [hcQ_def]
+    exact hc_mem _ (hparentOf_mem A) _ (hparentOf_mem B)
+  refine ⟨Q, cQ, hcQ_symm, hcQ_mem, hQcard, hQmu, ?_⟩
+  -- Connect the graphons' `AEEqFun`s to the underlying step functions.
+  have hU_eq : ∀ᵐ p ∂(μ.prod μ),
+      (mkStepGraphon P c hc_symm hc_mem).toAEEqFun p = mkStepFun P c p :=
+    AEEqFun.coeFn_mk (mkStepFun P c) (mkStepFun_measurable P c).aestronglyMeasurable
+  have hW_eq : ∀ᵐ p ∂(μ.prod μ),
+      (mkStepGraphon Q cQ hcQ_symm hcQ_mem).toAEEqFun p = mkStepFun Q cQ p :=
+    AEEqFun.coeFn_mk (mkStepFun Q cQ) (mkStepFun_measurable Q cQ).aestronglyMeasurable
+  have hAcov : ∀ᵐ p ∂(μ.prod μ), ∃ A ∈ Q.parts, p.1 ∈ A :=
+    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst Q.ae_covers
+  have hBcov : ∀ᵐ p ∂(μ.prod μ), ∃ B ∈ Q.parts, p.2 ∈ B :=
+    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd Q.ae_covers
+  refine le_trans (cutNormDiff_le_of_ae_agree_off_strip _ _ bad hbad_meas ?_) ?_
+  · -- Off the strip, both step graphons equal `c` of the shared parent cells.
+    filter_upwards [hU_eq, hW_eq, hAcov, hBcov] with p hPeq hQeq hAc hBc h1 h2
+    obtain ⟨A, hA, hpA⟩ := hAc
+    obtain ⟨B, hB, hpB⟩ := hBc
+    have hp1par : p.1 ∈ parentOf A := hparentOf_sub A hA ⟨hpA, h1⟩
+    have hp2par : p.2 ∈ parentOf B := hparentOf_sub B hB ⟨hpB, h2⟩
+    rw [hPeq, hQeq,
+      mkStepFun_eq_at P c (hparentOf_mem A) (hparentOf_mem B)
+        (Set.mem_prod.mpr ⟨hp1par, hp2par⟩),
+      mkStepFun_eq_at Q cQ hA hB (Set.mem_prod.mpr ⟨hpA, hpB⟩)]
+  · -- Convert the measure bound `μ bad ≤ P.card / q` to the real-valued estimate.
+    have hqE : (q : ℝ≥0∞) ≠ 0 := by exact_mod_cast hq.ne'
+    have hne : ((P.parts.card : ℝ≥0∞) / q) ≠ ⊤ :=
+      ENNReal.div_ne_top (ENNReal.natCast_ne_top _) hqE
+    have hbad_toReal : (μ bad).toReal ≤ (P.parts.card : ℝ) / q := by
+      calc (μ bad).toReal ≤ ((P.parts.card : ℝ≥0∞) / q).toReal :=
+            ENNReal.toReal_mono hne hbad_le
+        _ = (P.parts.card : ℝ) / q := by
+            rw [ENNReal.toReal_div, ENNReal.toReal_natCast, ENNReal.toReal_natCast]
+    rw [mul_div_assoc]
+    linarith [hbad_toReal]
+
 /-- **Weight stability for step graphons** on different partitions with the same
 coefficient matrix (moved here from `Graphon/InverseCounting.lean`, 2026-07-07, and
 de-privatized: it is the API boundary for the sampling layer's frequency-term bound).
