@@ -101,3 +101,51 @@ Every remaining `sorryAx` trace in the project (`cutDistance_triangle`,
 `first_sampling_lemma`, `sampling_quantitative_icl`, `cutDistance_zero_of_homDensity_eq`,
 Compactness alignment) flows through this one stub; R0–R2 would make the entire graphon
 program axiom-clean.
+
+## 7. R0 COMPLETE (2026-07-08) — the four honest cores
+
+The monolith is deleted. The project's entire live measure-theory surface is now exactly four
+corrected, true, sorried cores in `CutDistance.lean`, each a consequence of the R1 theorem:
+1. `exists_common_coupling_maps` — common coupling of two MP maps by MP maps (`[NoAtoms μ]`).
+2. `cutNormDiff_pullback_le` — pullback contracts the cut norm (MP maps).
+3. `exists_controlled_cell_alignment` — equal-measure cell families aligned by an MP bijection
+   (`[NoAtoms μ]`).
+4. `exists_mpEquiv_cutNormDiff_lt_add` — an MP bijection achieves the cut distance up to ε
+   (`[NoAtoms μ]`).
+Supporting new infrastructure proved en route (all axiom-clean): `exists_equal_chunks_inside`,
+`exists_one_over_q_chunks_with_remainder`, `exists_equipartition_almost_refining`
+(Regularity.lean); `stepGraphon_reround_to_equipartition` (Compactness.lean); the certified
+refutations `mp_align_forces_equal_measure`, `mp_maps_into_forces_measure_le`. `totallyBounded`
+and `cutDistance_triangle` were rewritten onto these; no false interface remains.
+
+## 8. R1 plan — the measure-isomorphism theorem (the single remaining gap)
+
+**Goal.** An atomless standard-Borel probability space `(α, μ)` is measure-preservingly
+isomorphic mod 0 to `([0,1], Lebesgue)`; upgrade to an everywhere `α ≃ᵐ [0,1]` (or a
+`MeasurePreserving` equiv on `α` composed as needed by R2).
+
+**Mathlib inventory (checked).** Present: `embeddingReal`/`exists_subset_real_measurableEquiv`
+(Borel embedding of std Borel into ℝ), `ProbabilityTheory.cdf μ : StieltjesFunction ℝ` with
+`cdf_nonneg`/`monotone_cdf`/`tendsto_cdf_atBot`/`atTop`, `StieltjesFunction.measure` +
+`measure_Ioc`/`measure_Iic`, disintegration (`condKernel`). ABSENT (the genuine new work):
+the **probability integral transform** (for atomless ν on ℝ, the CDF `F` pushes ν to Lebesgue:
+`F_* ν = volume` on `[0,1]`), CDF-continuity-from-atomless, the **quantile** inverse, and the
+mod-0 → everywhere `≃ᵐ` **null-set patch**.
+
+**Construction (R1 sub-lemmas).**
+- R1a: `embeddingReal α` pushes μ to an atomless prob measure `ν` on ℝ (measurable embedding
+  preserves atomlessness).
+- R1b: `F := cdf ν` is **continuous** (⟸ ν atomless: `F(x) − F(x⁻) = ν{x} = 0`).
+- R1c (**crux**): `F_* ν = volume.restrict [0,1]` — the probability integral transform. Via
+  `StieltjesFunction.measure_Ioc` (`ν(a,b] = F(b) − F(a)`) and `F` continuous monotone onto
+  `[0,1]`: `F_*ν (c,d] = ν F⁻¹(c,d] = d − c`. Identify with Lebesgue by the `Ioc`-generated
+  π-system (`ext` + `measure_Iic`/`Ioc`).
+- R1d: quantile `G(u) := sInf {x | u ≤ F x}` is the mod-0 inverse; `F ∘ G =ᵐ id` on `[0,1]`,
+  `G ∘ F =ᵐ id` on ℝ (ν-a.e.), both measurable.
+- R1e: null-set patch — off the (null) set where the mod-0 inverse fails, redefine to a fixed
+  Borel iso to get an everywhere `≃ᵐ` (uncountable-standard-Borel patching, standard).
+
+Effort: R1c is the load-bearing classical lemma (Stieltjes π-system argument); R1b/R1d/R1e are
+standard but fiddly. Mathlib-upstreaming grade. **R2** then derives the four cores by conjugating
+through the iso: interval rearrangement (→ core 3), joining via `condKernel` re-typed by the iso
+(→ core 1), CDF-weighting/disintegration (→ core 2), bijection-achieves-cutdistance (→ core 4).
