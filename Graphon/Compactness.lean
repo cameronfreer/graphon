@@ -287,6 +287,210 @@ theorem cutNormDiff_mkStepGraphon_le (P : MeasurablePartition α μ)
           simp only [ENNReal.ofReal_one]; exact h_le)
     _ = δ := one_mul δ
 
+section  -- relocated weight-stability lemmas needed by `totallyBounded`
+variable [NoAtoms μ]
+
+/-- If two graphons agree a.e. off a "strip" `E × univ ∪ univ × E`, then their
+cut norm difference is at most `2 * (μ E).toReal`. -/
+theorem cutNormDiff_le_of_ae_agree_off_strip (U W : Graphon α μ)
+    (E : Set α) (hE : MeasurableSet E)
+    (h_agree : ∀ᵐ p ∂(μ.prod μ), p.1 ∉ E → p.2 ∉ E →
+        U.toAEEqFun p = W.toAEEqFun p) :
+    cutNormDiff U W ≤ 2 * (μ E).toReal := by
+  -- Peel the 4-level iSup
+  unfold cutNormDiff
+  have h_bound_nn : 0 ≤ 2 * (μ E).toReal := by positivity
+  apply Real.iSup_le _ h_bound_nn; intro S
+  apply Real.iSup_le _ h_bound_nn; intro hS
+  apply Real.iSup_le _ h_bound_nn; intro T
+  apply Real.iSup_le _ h_bound_nn; intro hT
+  -- Goal: |rectIntegralDiff U W S T| ≤ 2 * (μ E).toReal
+  simp only [rectIntegralDiff]
+  -- Abbreviations for the integrand
+  set f := fun p : α × α => U.toAEEqFun p - W.toAEEqFun p with hf_def
+  -- Integrability of f
+  have hf_int : Integrable f (μ.prod μ) :=
+    (SymmKernel.graphon_integrable U).sub (SymmKernel.graphon_integrable W)
+  -- |f| ≤ 1 a.e.
+  have hf_le_one : ∀ᵐ p ∂(μ.prod μ), |f p| ≤ 1 := by
+    filter_upwards [U.ae_mem_Icc, W.ae_mem_Icc] with p hU hW
+    rw [abs_le]; exact ⟨by linarith [hU.1, hW.2], by linarith [hU.2, hW.1]⟩
+  -- Measurability facts
+  have hSE := hS.inter hE
+  have hSdE := hS.diff hE
+  have hTE := hT.inter hE
+  have hTdE := hT.diff hE
+  -- Key decomposition: S ×ˢ T = (S ∩ E) ×ˢ T ∪ (S \ E) ×ˢ T
+  have h_ST_decomp : S ×ˢ T = ((S ∩ E) ×ˢ T) ∪ ((S \ E) ×ˢ T) := by
+    rw [← Set.union_prod, Set.inter_union_sdiff]
+  -- Further decompose (S \ E) ×ˢ T = (S \ E) ×ˢ (T ∩ E) ∪ (S \ E) ×ˢ (T \ E)
+  have h_SdET_decomp : (S \ E) ×ˢ T = ((S \ E) ×ˢ (T ∩ E)) ∪ ((S \ E) ×ˢ (T \ E)) := by
+    rw [← Set.prod_union, Set.inter_union_sdiff]
+  -- Disjointness
+  have h_disj1 : Disjoint ((S ∩ E) ×ˢ T) ((S \ E) ×ˢ T) :=
+    disjoint_inf_sdiff.set_prod_left T T
+  have h_disj2 : Disjoint ((S \ E) ×ˢ (T ∩ E)) ((S \ E) ×ˢ (T \ E)) :=
+    disjoint_inf_sdiff.set_prod_right (S \ E) (S \ E)
+  -- Split the integral over S ×ˢ T into two pieces
+  have h_int1 : IntegrableOn f ((S ∩ E) ×ˢ T) (μ.prod μ) := hf_int.integrableOn
+  have h_int2 : IntegrableOn f ((S \ E) ×ˢ T) (μ.prod μ) := hf_int.integrableOn
+  have h_int3 : IntegrableOn f ((S \ E) ×ˢ (T ∩ E)) (μ.prod μ) := hf_int.integrableOn
+  have h_int4 : IntegrableOn f ((S \ E) ×ˢ (T \ E)) (μ.prod μ) := hf_int.integrableOn
+  -- On (S \ E) ×ˢ (T \ E), f = 0 a.e. by h_agree
+  have h_zero : ∫ p in (S \ E) ×ˢ (T \ E), f p ∂(μ.prod μ) = 0 := by
+    apply setIntegral_eq_zero_of_ae_eq_zero
+    filter_upwards [h_agree] with p hp hpmem
+    have hp1 : p.1 ∉ E := hpmem.1.2
+    have hp2 : p.2 ∉ E := hpmem.2.2
+    simp [hf_def, hp hp1 hp2]
+  -- Bound piece 1: |(S ∩ E) ×ˢ T| ≤ μ(E).toReal
+  have hE_ne_top : μ E ≠ ⊤ := measure_ne_top μ E
+  have h_piece1 : |∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)| ≤ (μ E).toReal := by
+    calc |∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)|
+        ≤ ∫ p in (S ∩ E) ×ˢ T, |f p| ∂(μ.prod μ) := abs_integral_le_integral_abs
+      _ ≤ ∫ _ in (S ∩ E) ×ˢ T, (1 : ℝ) ∂(μ.prod μ) := by
+          apply setIntegral_mono_ae_restrict
+          · exact hf_int.abs.integrableOn
+          · exact integrable_const 1
+          · exact ae_restrict_of_ae hf_le_one
+      _ = ((μ.prod μ) ((S ∩ E) ×ˢ T)).toReal := by
+          rw [setIntegral_const, smul_eq_mul, mul_one]; rfl
+      _ = (μ (S ∩ E) * μ T).toReal := by rw [Measure.prod_prod]
+      _ ≤ (μ E * 1).toReal := by
+          apply ENNReal.toReal_mono (by rw [mul_one]; exact hE_ne_top)
+          exact mul_le_mul' (measure_mono Set.inter_subset_right)
+            (by rw [← measure_univ (μ := μ)]; exact measure_mono (subset_univ _))
+      _ = (μ E).toReal := by rw [mul_one]
+  -- Bound piece 2: |(S \ E) ×ˢ (T ∩ E)| ≤ μ(E).toReal
+  have h_piece2 : |∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)| ≤ (μ E).toReal := by
+    calc |∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)|
+        ≤ ∫ p in (S \ E) ×ˢ (T ∩ E), |f p| ∂(μ.prod μ) := abs_integral_le_integral_abs
+      _ ≤ ∫ _ in (S \ E) ×ˢ (T ∩ E), (1 : ℝ) ∂(μ.prod μ) := by
+          apply setIntegral_mono_ae_restrict
+          · exact hf_int.abs.integrableOn
+          · exact integrable_const 1
+          · exact ae_restrict_of_ae hf_le_one
+      _ = ((μ.prod μ) ((S \ E) ×ˢ (T ∩ E))).toReal := by
+          rw [setIntegral_const, smul_eq_mul, mul_one]; rfl
+      _ = (μ (S \ E) * μ (T ∩ E)).toReal := by rw [Measure.prod_prod]
+      _ ≤ (1 * μ E).toReal := by
+          apply ENNReal.toReal_mono (by rw [one_mul]; exact hE_ne_top)
+          exact mul_le_mul'
+            (by rw [← measure_univ (μ := μ)]; exact measure_mono (subset_univ _))
+            (measure_mono Set.inter_subset_right)
+      _ = (μ E).toReal := by rw [one_mul]
+  -- Split the second integral (S \ E) ×ˢ T into two sub-parts
+  have h_split2 : ∫ p in (S \ E) ×ˢ T, f p ∂(μ.prod μ) =
+      (∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)) +
+      (∫ p in (S \ E) ×ˢ (T \ E), f p ∂(μ.prod μ)) := by
+    rw [h_SdET_decomp, setIntegral_union h_disj2 (hSdE.prod hTdE) h_int3 h_int4]
+  -- Now assemble: split integral and use triangle inequality
+  have h_main_split : ∫ p in S ×ˢ T, f p ∂(μ.prod μ) =
+      (∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)) +
+      (∫ p in (S \ E) ×ˢ T, f p ∂(μ.prod μ)) := by
+    rw [h_ST_decomp]; exact setIntegral_union h_disj1 (hSdE.prod hT) h_int1 h_int2
+  calc |∫ p in S ×ˢ T, f p ∂(μ.prod μ)|
+      = |(∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)) +
+         ((∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)) +
+          (∫ p in (S \ E) ×ˢ (T \ E), f p ∂(μ.prod μ)))| := by
+        rw [h_main_split, h_split2]
+    _ = |(∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)) +
+         (∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ))| := by
+        rw [h_zero, add_zero]
+    _ ≤ |∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)| +
+        |∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)| := abs_add_le _ _
+    _ ≤ (μ E).toReal + (μ E).toReal := add_le_add h_piece1 h_piece2
+    _ = 2 * (μ E).toReal := by ring
+
+/-- **Re-rounding a step graphon to an equipartition.** A step graphon on an
+arbitrary partition `P` can be approximated, in cut-norm difference, by a step
+graphon on an equal-measure `q`-cell partition `Q`, with crude error `O(P.card / q)`.
+
+The `q` equal cells of `Q` almost refine `P` (off a small "bad" set of measure at
+most `P.card / q`), so we reassign each cell of `Q` the coefficient of its parent
+`P`-cell.  The two step graphons then agree off the strip `bad × univ ∪ univ × bad`,
+and `cutNormDiff_le_of_ae_agree_off_strip` yields the bound `2 * P.card / q`. -/
+theorem stepGraphon_reround_to_equipartition
+    (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
+    (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
+    (hc_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T ∈ Set.Icc 0 1)
+    {q : ℕ} (hq : 0 < q) :
+    ∃ (Q : MeasurablePartition α μ) (cQ : Set α → Set α → ℝ)
+      (hcQ_symm : ∀ A ∈ Q.parts, ∀ B ∈ Q.parts, cQ A B = cQ B A)
+      (hcQ_mem : ∀ A ∈ Q.parts, ∀ B ∈ Q.parts, cQ A B ∈ Set.Icc 0 1),
+      Q.parts.card = q ∧
+      (∀ A ∈ Q.parts, μ A = (1 : ℝ≥0∞) / q) ∧
+      cutNormDiff (mkStepGraphon P c hc_symm hc_mem) (mkStepGraphon Q cQ hcQ_symm hcQ_mem)
+        ≤ 2 * (P.parts.card : ℝ) / q := by
+  classical
+  obtain ⟨Q, hQcard, hQmu, bad, hbad_meas, hbad_le, hrefine⟩ :=
+    exists_equipartition_almost_refining P hq
+  -- `Q` is nonempty (it has `q > 0` cells), giving a fallback parent `S₀ ∈ P.parts`.
+  have hQne : Q.parts.Nonempty := by rw [← Finset.card_pos, hQcard]; exact hq
+  obtain ⟨A₀, hA₀⟩ := hQne
+  obtain ⟨S₀, hS₀, -⟩ := hrefine A₀ hA₀
+  -- For each `Q`-cell `A`, pick a parent `P`-cell `par A` with `A \ bad ⊆ par A`.
+  choose par hpar_mem hpar_sub using hrefine
+  -- Total parent map (fallback to `S₀` off `Q.parts`, never actually used a.e.).
+  set parentOf : Set α → Set α := fun A => if hA : A ∈ Q.parts then par A hA else S₀
+    with hpar_def
+  have hparentOf_mem : ∀ A, parentOf A ∈ P.parts := by
+    intro A
+    simp only [hpar_def]
+    by_cases hA : A ∈ Q.parts
+    · rw [dif_pos hA]; exact hpar_mem A hA
+    · rw [dif_neg hA]; exact hS₀
+  have hparentOf_sub : ∀ A, A ∈ Q.parts → A \ bad ⊆ parentOf A := by
+    intro A hA
+    simp only [hpar_def]
+    rw [dif_pos hA]; exact hpar_sub A hA
+  -- Re-rounded coefficients: inherit the parent `P`-cell coefficient.
+  set cQ : Set α → Set α → ℝ := fun A B => c (parentOf A) (parentOf B) with hcQ_def
+  have hcQ_symm : ∀ A ∈ Q.parts, ∀ B ∈ Q.parts, cQ A B = cQ B A := by
+    intro A _ B _
+    simp only [hcQ_def]
+    exact hc_symm _ (hparentOf_mem A) _ (hparentOf_mem B)
+  have hcQ_mem : ∀ A ∈ Q.parts, ∀ B ∈ Q.parts, cQ A B ∈ Set.Icc 0 1 := by
+    intro A _ B _
+    simp only [hcQ_def]
+    exact hc_mem _ (hparentOf_mem A) _ (hparentOf_mem B)
+  refine ⟨Q, cQ, hcQ_symm, hcQ_mem, hQcard, hQmu, ?_⟩
+  -- Connect the graphons' `AEEqFun`s to the underlying step functions.
+  have hU_eq : ∀ᵐ p ∂(μ.prod μ),
+      (mkStepGraphon P c hc_symm hc_mem).toAEEqFun p = mkStepFun P c p :=
+    AEEqFun.coeFn_mk (mkStepFun P c) (mkStepFun_measurable P c).aestronglyMeasurable
+  have hW_eq : ∀ᵐ p ∂(μ.prod μ),
+      (mkStepGraphon Q cQ hcQ_symm hcQ_mem).toAEEqFun p = mkStepFun Q cQ p :=
+    AEEqFun.coeFn_mk (mkStepFun Q cQ) (mkStepFun_measurable Q cQ).aestronglyMeasurable
+  have hAcov : ∀ᵐ p ∂(μ.prod μ), ∃ A ∈ Q.parts, p.1 ∈ A :=
+    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst Q.ae_covers
+  have hBcov : ∀ᵐ p ∂(μ.prod μ), ∃ B ∈ Q.parts, p.2 ∈ B :=
+    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd Q.ae_covers
+  refine le_trans (cutNormDiff_le_of_ae_agree_off_strip _ _ bad hbad_meas ?_) ?_
+  · -- Off the strip, both step graphons equal `c` of the shared parent cells.
+    filter_upwards [hU_eq, hW_eq, hAcov, hBcov] with p hPeq hQeq hAc hBc h1 h2
+    obtain ⟨A, hA, hpA⟩ := hAc
+    obtain ⟨B, hB, hpB⟩ := hBc
+    have hp1par : p.1 ∈ parentOf A := hparentOf_sub A hA ⟨hpA, h1⟩
+    have hp2par : p.2 ∈ parentOf B := hparentOf_sub B hB ⟨hpB, h2⟩
+    rw [hPeq, hQeq,
+      mkStepFun_eq_at P c (hparentOf_mem A) (hparentOf_mem B)
+        (Set.mem_prod.mpr ⟨hp1par, hp2par⟩),
+      mkStepFun_eq_at Q cQ hA hB (Set.mem_prod.mpr ⟨hpA, hpB⟩)]
+  · -- Convert the measure bound `μ bad ≤ P.card / q` to the real-valued estimate.
+    have hqE : (q : ℝ≥0∞) ≠ 0 := by exact_mod_cast hq.ne'
+    have hne : ((P.parts.card : ℝ≥0∞) / q) ≠ ⊤ :=
+      ENNReal.div_ne_top (ENNReal.natCast_ne_top _) hqE
+    have hbad_toReal : (μ bad).toReal ≤ (P.parts.card : ℝ) / q := by
+      calc (μ bad).toReal ≤ ((P.parts.card : ℝ≥0∞) / q).toReal :=
+            ENNReal.toReal_mono hne hbad_le
+        _ = (P.parts.card : ℝ) / q := by
+            rw [ENNReal.toReal_div, ENNReal.toReal_natCast, ENNReal.toReal_natCast]
+    rw [mul_div_assoc]
+    linarith [hbad_toReal]
+
+end
+
 /-- The space of graphons is totally bounded with respect to cut distance.
 
 For any ε > 0, there exists a finite set of graphons such that every
@@ -303,123 +507,88 @@ number of parts form an ε-net.
 5. Gridpoints on P_W = gridpoints on any other partition up to cutDistance 0
    (via measure-preserving map between partitions, needs StandardBorelSpace)
 6. Triangle: W within ε of nearest gridpoint -/
+
 @[blueprint "thm:totallyBounded"
   (title := /-- Total boundedness of graphon space -/)]
 theorem totallyBounded [NoAtoms μ] (ε : ℝ) (hε : ε > 0) :
     ∃ (S : Finset (Graphon α μ)), ∀ W : Graphon α μ, ∃ V ∈ S, cutDistance W V ≤ ε := by
-  -- Proof (Lovász [2012], Proposition 9.15):
-  -- Fix a reference partition P₀. Build a finite net of grid step graphons on P₀.
-  -- For any W: regularity gives P_W with cutNormDiff ≤ ε/2, round coefficients
-  -- (error ≤ ε/2), then partition transfer (Rokhlin) maps to a net element.
-  -- Triangle: cutDistance W (net element) ≤ ε/2 + ε/2 + 0 = ε.
-  --
-  -- Parameters
-  set ε₂ := ε / 2 with hε₂_def
-  have hε₂ : ε₂ > 0 := by positivity
-  set N := Nat.ceil (2 / ε) with hN_def
-  have hN_pos : 0 < N := Nat.ceil_pos.mpr (by positivity)
-  have hδ_le : (1 : ℝ) / N ≤ ε / 2 := by
-    have hN_le : (2 / ε : ℝ) ≤ N := Nat.le_ceil (2 / ε)
-    rw [div_le_div_iff₀ (Nat.cast_pos.mpr hN_pos) (by norm_num : (0:ℝ) < 2)]
-    rw [one_mul]
-    calc (2 : ℝ) = ε * (2 / ε) := by field_simp
-      _ ≤ ε * N := by apply mul_le_mul_of_nonneg_left hN_le hε.le
-  -- Fix reference partition P₀
-  obtain ⟨P₀, _, _⟩ := regularity (mkStepGraphon (trivialPartition (α := α) (μ := μ))
-    (fun _ _ => 1/2)
-    (fun _ _ _ _ => rfl)
-    (fun _ _ _ _ => ⟨by norm_num, by norm_num⟩)) ε₂ hε₂
-  -- Build finite net on P₀: all mkStepGraphon P₀ with symmetrized grid coefficients
+  -- Proof (Lovász [2012], Proposition 9.15), corrected route avoiding arbitrary-partition
+  -- alignment (which is false). Fix a canonical equal-measure `q`-cell partition `E` and
+  -- build the finite net of grid step graphons on `E`. For any `W`:
+  --   W  --regularity/stepify (ε/3)-->  V_avg  (step graphon on P_W, rectAverages)
+  --      --reround to equal-measure Q (ε/3)-->  V_Q  (step graphon on q-cell Q)
+  --      --grid-round coefficients (1/N ≤ ε/3)-->  V_QR
+  --      --align Q to E, cut-distance 0-->  netMap f  ∈ net.
+  -- Triangle: cutDistance W (netMap f) ≤ ε/3 + ε/3 + ε/3 + 0 = ε.
   classical
-  let toCoeff : (↑P₀.parts → ↑P₀.parts → Fin (N + 1)) → Set α → Set α → ℝ :=
+  -- Parameters
+  set ε₃ := ε / 3 with hε₃_def
+  have hε₃ : ε₃ > 0 := by positivity
+  set N := Nat.ceil (3 / ε) with hN_def
+  have hN_pos : 0 < N := Nat.ceil_pos.mpr (by positivity)
+  have h1N_le : (1 : ℝ) / N ≤ ε₃ := by
+    rw [hε₃_def]
+    have hN_le : (3 / ε : ℝ) ≤ N := Nat.le_ceil (3 / ε)
+    rw [div_le_div_iff₀ (Nat.cast_pos.mpr hN_pos) (by norm_num : (0:ℝ) < 3), one_mul]
+    calc (3 : ℝ) = ε * (3 / ε) := by field_simp
+      _ ≤ ε * N := by apply mul_le_mul_of_nonneg_left hN_le hε.le
+  set m₀ := regularityBound ε₃ with hm₀_def
+  set q := Nat.ceil (6 * (m₀ : ℝ) / ε) + 1 with hq_def
+  have hq : 0 < q := by omega
+  have hq_real : (0 : ℝ) < q := by exact_mod_cast hq
+  -- q is large enough that 2 * m₀ / q ≤ ε/3
+  have hεq : 6 * (m₀ : ℝ) ≤ ε * q := by
+    have h1 : (6 * (m₀ : ℝ) / ε) ≤ q := by
+      have hc := Nat.le_ceil (6 * (m₀ : ℝ) / ε)
+      rw [hq_def]; push_cast; linarith
+    calc 6 * (m₀ : ℝ) = ε * (6 * (m₀ : ℝ) / ε) := by field_simp
+      _ ≤ ε * q := by apply mul_le_mul_of_nonneg_left h1 hε.le
+  have h2m0q : 2 * (m₀ : ℝ) / q ≤ ε₃ := by
+    rw [div_le_iff₀ hq_real, hε₃_def]; nlinarith [hεq]
+  -- Fix a canonical equal-measure q-cell partition E (W-independent)
+  obtain ⟨E, hEcard, hEmu, -⟩ :=
+    exists_equipartition_almost_refining (trivialPartition (α := α) (μ := μ)) hq
+  -- Injective enumeration of E's cells
+  set eqE := (E.parts.equivFinOfCardEq hEcard).symm with heqE_def
+  set ιE : Fin q → Set α := fun i => (eqE i : Set α) with hιE_def
+  have hιE_mem : ∀ i, ιE i ∈ E.parts := fun i => (eqE i).2
+  have hιE_inj : Function.Injective ιE := fun i j h => eqE.injective (Subtype.ext h)
+  have hιE_mu : ∀ i, μ (ιE i) = (1 : ℝ≥0∞) / q := fun i => hEmu _ (hιE_mem i)
+  -- Build finite net on E: all mkStepGraphon E with symmetrized grid coefficients
+  let toCoeff : (↑E.parts → ↑E.parts → Fin (N + 1)) → Set α → Set α → ℝ :=
     fun f S T =>
-      if hS : S ∈ P₀.parts then
-        if hT : T ∈ P₀.parts then
+      if hS : S ∈ E.parts then
+        if hT : T ∈ E.parts then
           ((f ⟨S, hS⟩ ⟨T, hT⟩ : ℕ) + (f ⟨T, hT⟩ ⟨S, hS⟩ : ℕ)) / (2 * N)
         else 0
       else 0
-  have htoCoeff_symm : ∀ f, ∀ S ∈ P₀.parts, ∀ T ∈ P₀.parts,
+  have htoCoeff_symm : ∀ f, ∀ S ∈ E.parts, ∀ T ∈ E.parts,
       toCoeff f S T = toCoeff f T S := by
     intro f S hS T hT
     simp only [toCoeff, hS, hT, dif_pos]
     ring
-  have htoCoeff_mem : ∀ f, ∀ S ∈ P₀.parts, ∀ T ∈ P₀.parts,
+  have htoCoeff_mem : ∀ f, ∀ S ∈ E.parts, ∀ T ∈ E.parts,
       toCoeff f S T ∈ Set.Icc 0 1 := by
     intro f S hS T hT
     simp only [toCoeff, hS, hT, dif_pos, Set.mem_Icc]
-    constructor
-    · positivity
-    · have h1 : (f ⟨S, hS⟩ ⟨T, hT⟩ : ℕ) ≤ N := by omega
-      have h2 : (f ⟨T, hT⟩ ⟨S, hS⟩ : ℕ) ≤ N := by omega
-      rw [div_le_one (by positivity : (0 : ℝ) < 2 * N)]
-      have h1' : (↑(f ⟨S, hS⟩ ⟨T, hT⟩ : ℕ) : ℝ) ≤ (N : ℝ) := Nat.cast_le.mpr h1
-      have h2' : (↑(f ⟨T, hT⟩ ⟨S, hS⟩ : ℕ) : ℝ) ≤ (N : ℝ) := Nat.cast_le.mpr h2
-      linarith
-  let netMap : (↑P₀.parts → ↑P₀.parts → Fin (N + 1)) → Graphon α μ :=
-    fun f => mkStepGraphon P₀ (toCoeff f) (htoCoeff_symm f) (htoCoeff_mem f)
+    refine ⟨by positivity, ?_⟩
+    have h1 : (f ⟨S, hS⟩ ⟨T, hT⟩ : ℕ) ≤ N := by omega
+    have h2 : (f ⟨T, hT⟩ ⟨S, hS⟩ : ℕ) ≤ N := by omega
+    rw [div_le_one (by positivity : (0 : ℝ) < 2 * N)]
+    have h1' : (↑(f ⟨S, hS⟩ ⟨T, hT⟩ : ℕ) : ℝ) ≤ (N : ℝ) := Nat.cast_le.mpr h1
+    have h2' : (↑(f ⟨T, hT⟩ ⟨S, hS⟩ : ℕ) : ℝ) ≤ (N : ℝ) := Nat.cast_le.mpr h2
+    linarith
+  let netMap : (↑E.parts → ↑E.parts → Fin (N + 1)) → Graphon α μ :=
+    fun f => mkStepGraphon E (toCoeff f) (htoCoeff_symm f) (htoCoeff_mem f)
   let net : Finset (Graphon α μ) := Finset.univ.image netMap
   use net
   -- For any W, find a close net element
   intro W
-  obtain ⟨P_W, _, hP_W_close⟩ := regularity W ε₂ hε₂
-  -- cutDistance W (stepify P_W W) ≤ ε/2
-  have h_cd_step : cutDistance W (stepify P_W W) ≤ ε₂ :=
+  obtain ⟨P_W, hP_W_card, hP_W_close⟩ := regularity W ε₃ hε₃
+  -- cutDistance W (stepify P_W W) ≤ ε/3
+  have h_cd_step : cutDistance W (stepify P_W W) ≤ ε₃ :=
     (cutDistance_le_cutNormDiff W (stepify P_W W)).trans hP_W_close
-  -- Round rectAverages to nearest grid point: ⌊a * N⌋ / N
-  let roundCoeff : Set α → Set α → ℝ := fun S T =>
-    if hS : S ∈ P_W.parts then
-      if hT : T ∈ P_W.parts then
-        (Nat.floor (rectAverage W S T * N) : ℝ) / N
-      else 0
-    else 0
-  have hround_symm : ∀ S ∈ P_W.parts, ∀ T ∈ P_W.parts, roundCoeff S T = roundCoeff T S := by
-    intro S hS T hT
-    simp only [roundCoeff, hS, hT, dif_pos]
-    congr 1
-    rw [rectAverage_symm W S T (P_W.measurableSet_part hS) (P_W.measurableSet_part hT)]
-  have hround_mem : ∀ S ∈ P_W.parts, ∀ T ∈ P_W.parts, roundCoeff S T ∈ Set.Icc 0 1 := by
-    intro S hS T hT
-    simp only [roundCoeff, hS, hT, dif_pos, Set.mem_Icc]
-    have h_avg := rectAverage_mem_Icc W S T (P_W.measurableSet_part hS) (P_W.measurableSet_part hT)
-    constructor
-    · positivity
-    · rw [div_le_one (Nat.cast_pos.mpr hN_pos)]
-      have : rectAverage W S T * N ≤ N := by nlinarith [h_avg.2]
-      exact_mod_cast Nat.floor_le_of_le (by exact_mod_cast this)
-  -- Coefficient difference: |rectAverage - roundCoeff| ≤ 1/N
-  have hround_close : ∀ S ∈ P_W.parts, ∀ T ∈ P_W.parts,
-      |rectAverage W S T - roundCoeff S T| ≤ 1 / (N : ℝ) := by
-    intro S hS T hT
-    simp only [roundCoeff, hS, hT, dif_pos]
-    have h_avg := rectAverage_mem_Icc W S T (P_W.measurableSet_part hS) (P_W.measurableSet_part hT)
-    have hN_pos' : (0 : ℝ) < N := Nat.cast_pos.mpr hN_pos
-    have h_nn : 0 ≤ rectAverage W S T * N := mul_nonneg h_avg.1 (Nat.cast_nonneg N)
-    have h_floor_le : (Nat.floor (rectAverage W S T * N) : ℝ) ≤ rectAverage W S T * N :=
-      Nat.floor_le h_nn
-    have h_lt_floor_add : rectAverage W S T * ↑N < (Nat.floor (rectAverage W S T * ↑N) : ℝ) + 1 :=
-      Nat.lt_floor_add_one _
-    rw [abs_le]
-    constructor
-    · -- lower bound: -(1/N) ≤ a - ⌊aN⌋/N
-      -- Since ⌊aN⌋ ≤ aN, we have ⌊aN⌋/N ≤ a, so a - ⌊aN⌋/N ≥ 0 ≥ -(1/N)
-      have h_sub_nn : 0 ≤ rectAverage W S T - (↑⌊rectAverage W S T * ↑N⌋₊ : ℝ) / N := by
-        rw [sub_nonneg, div_le_iff₀ hN_pos']
-        linarith
-      have h_inv_pos : (0 : ℝ) < 1 / N := div_pos one_pos hN_pos'
-      linarith
-    · -- upper bound: a - ⌊aN⌋/N ≤ 1/N, i.e., aN ≤ ⌊aN⌋ + 1
-      rw [sub_le_iff_le_add]
-      rw [show 1 / (↑N : ℝ) + (↑⌊rectAverage W S T * ↑N⌋₊ : ℝ) / ↑N =
-        (↑⌊rectAverage W S T * ↑N⌋₊ + 1) / ↑N from by ring]
-      rw [le_div_iff₀ hN_pos']
-      linarith
-  -- The rounded step graphon
-  set V_round := mkStepGraphon P_W roundCoeff hround_symm hround_mem
-  -- cutDistance (stepify P_W W) V_round ≤ ε/2
-  -- Key: stepifyFun P_W W = mkStepFun P_W (rectAverage W) pointwise (by definition),
-  -- so stepify and mkStepGraphon with rectAverage coefficients have the same AEEqFun.
-  -- Then cutNormDiff_mkStepGraphon_le bounds the grid rounding error.
-  -- rectAverage symmetry and [0,1] membership for mkStepGraphon
+  -- rectAverage symmetry and [0,1] membership
   have hRA_symm : ∀ S ∈ P_W.parts, ∀ T ∈ P_W.parts,
       rectAverage W S T = rectAverage W T S := by
     intro S hS T hT
@@ -428,20 +597,16 @@ theorem totallyBounded [NoAtoms μ] (ε : ℝ) (hε : ε > 0) :
       rectAverage W S T ∈ Set.Icc 0 1 := by
     intro S hS T hT
     exact rectAverage_mem_Icc W S T (P_W.measurableSet_part hS) (P_W.measurableSet_part hT)
-  -- The step graphon with rectAverage coefficients
-  set V_avg := mkStepGraphon P_W (rectAverage W) hRA_symm hRA_mem
-  -- stepify and mkStepGraphon with rectAverage have the same underlying function
-  -- (stepifyFun P_W W = mkStepFun P_W (rectAverage W) by definition)
+  set V_avg := mkStepGraphon P_W (rectAverage W) hRA_symm hRA_mem with hV_avg_def
+  -- stepify P_W W and V_avg have the same underlying function a.e.
   have h_stepify_eq_avg : ∀ᵐ p ∂(μ.prod μ),
       (stepify P_W W).toAEEqFun p = V_avg.toAEEqFun p := by
-    -- Both AEEqFuns are mk'd from the same function (stepifyFun = mkStepFun for rectAverage)
     have h_fun_eq : stepifyFun P_W W = mkStepFun P_W (rectAverage W) := rfl
-    have h1 := stepify_ae P_W W  -- stepify agrees with stepifyFun a.e.
+    have h1 := stepify_ae P_W W
     have h2 : ∀ᵐ p ∂(μ.prod μ), V_avg.toAEEqFun p = mkStepFun P_W (rectAverage W) p :=
       AEEqFun.coeFn_mk _ _
     filter_upwards [h1, h2] with p hp1 hp2
     rw [hp1, h_fun_eq, hp2]
-  -- cutNormDiff (stepify P_W W) V_avg = 0
   have h_cn_zero : cutNormDiff (stepify P_W W) V_avg = 0 := by
     unfold cutNormDiff rectIntegralDiff
     apply le_antisymm
@@ -450,163 +615,145 @@ theorem totallyBounded [NoAtoms μ] (ε : ℝ) (hε : ε > 0) :
       intro hS'; apply Real.iSup_le _ le_rfl
       intro T'; apply Real.iSup_le _ le_rfl
       intro hT'
-      have : ∀ᵐ p ∂(μ.prod μ),
+      have h_ae : ∀ᵐ p ∂(μ.prod μ),
           (stepify P_W W).toAEEqFun p - V_avg.toAEEqFun p = 0 := by
         filter_upwards [h_stepify_eq_avg] with p hp
         rw [hp, sub_self]
-      have h_zero : ∫ p in S' ×ˢ T', ((stepify P_W W).toAEEqFun p - V_avg.toAEEqFun p) ∂(μ.prod μ) = 0 := by
-        rw [setIntegral_congr_ae (hS'.prod hT') (this.mono (fun p hp _ => hp))]
+      have h_zero : ∫ p in S' ×ˢ T',
+          ((stepify P_W W).toAEEqFun p - V_avg.toAEEqFun p) ∂(μ.prod μ) = 0 := by
+        rw [setIntegral_congr_ae (hS'.prod hT') (h_ae.mono (fun p hp _ => hp))]
         simp
-      rw [h_zero]
-      simp
+      rw [h_zero]; simp
     · exact cutNormDiff_nonneg _ _
-  -- cutNormDiff V_avg V_round ≤ 1/N by cutNormDiff_mkStepGraphon_le
-  have h_cn_round : cutNormDiff V_avg V_round ≤ 1 / (N : ℝ) :=
-    cutNormDiff_mkStepGraphon_le P_W (rectAverage W) roundCoeff hRA_symm hRA_mem
-      hround_symm hround_mem (1 / N) hround_close
-  -- cutNormDiff (stepify P_W W) V_round ≤ 0 + 1/N = 1/N ≤ ε/2
-  have h_cd_round : cutDistance (stepify P_W W) V_round ≤ ε / 2 := by
-    calc cutDistance (stepify P_W W) V_round
-        ≤ cutNormDiff (stepify P_W W) V_round := cutDistance_le_cutNormDiff _ _
-      _ ≤ cutNormDiff (stepify P_W W) V_avg + cutNormDiff V_avg V_round :=
-          cutNormDiff_triangle _ _ _
-      _ = 0 + cutNormDiff V_avg V_round := by rw [h_cn_zero]
-      _ = cutNormDiff V_avg V_round := zero_add _
-      _ ≤ 1 / (N : ℝ) := h_cn_round
-      _ ≤ ε / 2 := hδ_le
-  -- Final assembly via triangle inequality
-  -- Need: exists V in net with cutDistance V_round V = 0 (partition transfer)
-  suffices h_exists_close : ∃ V ∈ net, cutDistance V_round V = 0 by
-    obtain ⟨V, hV_mem, hV_dist⟩ := h_exists_close
-    exact ⟨V, hV_mem, by
-      calc cutDistance W V
-          ≤ cutDistance W (stepify P_W W) + cutDistance (stepify P_W W) V :=
-            cutDistance_triangle W (stepify P_W W) V
-        _ ≤ cutDistance W (stepify P_W W) +
-            (cutDistance (stepify P_W W) V_round + cutDistance V_round V) := by
-            linarith [cutDistance_triangle (stepify P_W W) V_round V]
-        _ = cutDistance W (stepify P_W W) + cutDistance (stepify P_W W) V_round + 0 := by
-            rw [hV_dist]; ring
-        _ ≤ ε₂ + ε / 2 + 0 := by linarith [h_cd_step, h_cd_round]
-        _ = ε := by rw [hε₂_def]; ring⟩
-  -- **Partition transfer**: V_round on P_W matches some net element on P₀ via Rokhlin.
-  -- Step 1: Get partition alignment e : α ≃ᵐ α mapping P₀-cells a.e. into P_W-cells
-  obtain ⟨e, he, h_align⟩ := MeasurePreserving.exists_partition_alignment P₀ P_W
-  -- Step 2: For each P₀-cell, extract the corresponding P_W-cell
-  -- σ maps each P₀-cell to its aligned P_W-cell
-  have h_σ : ∀ S ∈ P₀.parts, ∃ T ∈ P_W.parts,
-      μ (S \ e ⁻¹' T) = 0 ∧ μ (e ⁻¹' T \ S) = 0 := h_align
-  -- Use classical choice to extract σ
-  choose σ hσ_mem hσ_null using fun S (hS : S ∈ P₀.parts) => h_σ S hS
-  -- Step 3: Define the net function f
-  -- roundCoeff(σ(S), σ(T)) = ⌊rectAverage(W, σ(S), σ(T)) * N⌋ / N
-  -- The numerator ⌊...⌋ is in {0, ..., N}, so it's a valid Fin(N+1)
-  let f : ↑P₀.parts → ↑P₀.parts → Fin (N + 1) := fun ⟨S, hS⟩ ⟨T, hT⟩ =>
-    ⟨Nat.floor (rectAverage W (σ S hS) (σ T hT) * N), by
-      have h_avg := rectAverage_mem_Icc W (σ S hS) (σ T hT)
-        (P_W.measurableSet_part (hσ_mem S hS))
-        (P_W.measurableSet_part (hσ_mem T hT))
-      apply Nat.lt_succ_of_le
-      exact Nat.floor_le_of_le (by exact_mod_cast (by nlinarith [h_avg.2] : rectAverage W (σ S hS) (σ T hT) * ↑N ≤ ↑N))⟩
-  -- Step 4: toCoeff f agrees with roundCoeff ∘ σ on P₀.parts
-  have h_coeff_eq : ∀ S (hS : S ∈ P₀.parts) T (hT : T ∈ P₀.parts),
-      toCoeff f S T = roundCoeff (σ S hS) (σ T hT) := by
+  have h_cd_stepavg : cutDistance (stepify P_W W) V_avg ≤ 0 :=
+    (cutDistance_le_cutNormDiff _ _).trans (le_of_eq h_cn_zero)
+  -- Re-round V_avg onto an equal-measure q-cell partition Q
+  obtain ⟨Q, cQ, hcQ_symm, hcQ_mem, hQcard, hQmu, hbound⟩ :=
+    stepGraphon_reround_to_equipartition P_W (rectAverage W) hRA_symm hRA_mem hq
+  set V_Q := mkStepGraphon Q cQ hcQ_symm hcQ_mem with hV_Q_def
+  rw [← hV_avg_def] at hbound
+  have h_cd_reround : cutDistance V_avg V_Q ≤ ε₃ := by
+    calc cutDistance V_avg V_Q ≤ cutNormDiff V_avg V_Q := cutDistance_le_cutNormDiff _ _
+      _ ≤ 2 * (P_W.parts.card : ℝ) / q := hbound
+      _ ≤ 2 * (m₀ : ℝ) / q := by gcongr
+      _ ≤ ε₃ := h2m0q
+  -- Grid-round the coefficients of Q
+  let roundCQ : Set α → Set α → ℝ := fun S T =>
+    if hS : S ∈ Q.parts then
+      if hT : T ∈ Q.parts then
+        (Nat.floor (cQ S T * N) : ℝ) / N
+      else 0
+    else 0
+  have hroundCQ_symm : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts, roundCQ S T = roundCQ T S := by
     intro S hS T hT
-    simp only [toCoeff, hS, hT, dif_pos, f, roundCoeff,
-      hσ_mem S hS, hσ_mem T hT]
-    -- toCoeff f S T = (⌊a*N⌋ + ⌊b*N⌋) / (2*N) where a = rectAvg(σS, σT), b = rectAvg(σT, σS)
-    -- Since rectAverage is symmetric: a = b, so this = 2⌊a*N⌋/(2*N) = ⌊a*N⌋/N
-    have h_symm_avg := rectAverage_symm W (σ S hS) (σ T hT)
-      (P_W.measurableSet_part (hσ_mem S hS)) (P_W.measurableSet_part (hσ_mem T hT))
-    rw [h_symm_avg]
+    simp only [roundCQ, hS, hT, dif_pos]
+    rw [hcQ_symm S hS T hT]
+  have hroundCQ_mem : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts, roundCQ S T ∈ Set.Icc 0 1 := by
+    intro S hS T hT
+    simp only [roundCQ, hS, hT, dif_pos, Set.mem_Icc]
+    have hc := hcQ_mem S hS T hT
+    refine ⟨by positivity, ?_⟩
+    rw [div_le_one (Nat.cast_pos.mpr hN_pos)]
+    have : cQ S T * N ≤ N := by nlinarith [hc.2]
+    exact_mod_cast Nat.floor_le_of_le (by exact_mod_cast this)
+  have hroundCQ_close : ∀ S ∈ Q.parts, ∀ T ∈ Q.parts,
+      |cQ S T - roundCQ S T| ≤ 1 / (N : ℝ) := by
+    intro S hS T hT
+    simp only [roundCQ, hS, hT, dif_pos]
+    have hc := hcQ_mem S hS T hT
+    have hN_pos' : (0 : ℝ) < N := Nat.cast_pos.mpr hN_pos
+    have h_nn : 0 ≤ cQ S T * N := mul_nonneg hc.1 (Nat.cast_nonneg N)
+    have h_floor_le : (Nat.floor (cQ S T * N) : ℝ) ≤ cQ S T * N := Nat.floor_le h_nn
+    have h_lt : cQ S T * ↑N < (Nat.floor (cQ S T * ↑N) : ℝ) + 1 := Nat.lt_floor_add_one _
+    rw [abs_le]
+    refine ⟨?_, ?_⟩
+    · have h_sub_nn : 0 ≤ cQ S T - (↑⌊cQ S T * ↑N⌋₊ : ℝ) / N := by
+        rw [sub_nonneg, div_le_iff₀ hN_pos']; linarith
+      have h_inv_pos : (0 : ℝ) < 1 / N := div_pos one_pos hN_pos'
+      linarith
+    · rw [sub_le_iff_le_add,
+        show 1 / (↑N : ℝ) + (↑⌊cQ S T * ↑N⌋₊ : ℝ) / ↑N =
+          (↑⌊cQ S T * ↑N⌋₊ + 1) / ↑N from by ring, le_div_iff₀ hN_pos']
+      linarith
+  set V_QR := mkStepGraphon Q roundCQ hroundCQ_symm hroundCQ_mem with hV_QR_def
+  have h_cn_grid : cutNormDiff V_Q V_QR ≤ 1 / (N : ℝ) :=
+    cutNormDiff_mkStepGraphon_le Q cQ roundCQ hcQ_symm hcQ_mem
+      hroundCQ_symm hroundCQ_mem (1 / N) hroundCQ_close
+  have h_cd_grid : cutDistance V_Q V_QR ≤ ε₃ := by
+    calc cutDistance V_Q V_QR ≤ cutNormDiff V_Q V_QR := cutDistance_le_cutNormDiff _ _
+      _ ≤ 1 / (N : ℝ) := h_cn_grid
+      _ ≤ ε₃ := h1N_le
+  -- Transfer Q → E with cut-distance 0.  Injective enumeration of Q's cells.
+  set eqQ := (Q.parts.equivFinOfCardEq hQcard).symm with heqQ_def
+  set ιQ : Fin q → Set α := fun i => (eqQ i : Set α) with hιQ_def
+  have hιQ_mem : ∀ i, ιQ i ∈ Q.parts := fun i => (eqQ i).2
+  have hιQ_inj : Function.Injective ιQ := fun i j h => eqQ.injective (Subtype.ext h)
+  have hιQ_mu : ∀ i, μ (ιQ i) = (1 : ℝ≥0∞) / q := fun i => hQmu _ (hιQ_mem i)
+  have hμ_match : ∀ i, μ (ιE i) = μ (ιQ i) := fun i => by rw [hιE_mu, hιQ_mu]
+  obtain ⟨e, he, h_align⟩ :=
+    MeasurePreserving.exists_controlled_cell_alignment E Q ιE ιQ
+      hιE_mem hιQ_mem hιE_inj hιQ_inj hμ_match
+  -- The net function f: for E-cells indexed by i, use rounded cQ of the aligned Q-cells
+  let f : ↑E.parts → ↑E.parts → Fin (N + 1) := fun S T =>
+    ⟨Nat.floor (cQ (ιQ (eqE.symm S)) (ιQ (eqE.symm T)) * N), by
+      have hc := hcQ_mem (ιQ (eqE.symm S)) (hιQ_mem _) (ιQ (eqE.symm T)) (hιQ_mem _)
+      apply Nat.lt_succ_of_le
+      exact Nat.floor_le_of_le
+        (by exact_mod_cast (by nlinarith [hc.2] :
+          cQ (ιQ (eqE.symm S)) (ιQ (eqE.symm T)) * ↑N ≤ ↑N))⟩
+  -- toCoeff f agrees with roundCQ of the aligned Q-cells on E-cells
+  have h_coeff_eq : ∀ S (hS : S ∈ E.parts) T (hT : T ∈ E.parts),
+      toCoeff f S T = roundCQ (ιQ (eqE.symm ⟨S, hS⟩)) (ιQ (eqE.symm ⟨T, hT⟩)) := by
+    intro S hS T hT
+    have hNne : (N : ℝ) ≠ 0 := Nat.cast_ne_zero.mpr hN_pos.ne'
+    simp only [toCoeff, hS, hT, dif_pos, f, roundCQ,
+      hιQ_mem (eqE.symm ⟨S, hS⟩), hιQ_mem (eqE.symm ⟨T, hT⟩)]
+    have h_symm := hcQ_symm (ιQ (eqE.symm ⟨T, hT⟩)) (hιQ_mem _)
+      (ιQ (eqE.symm ⟨S, hS⟩)) (hιQ_mem _)
+    rw [h_symm]
     field_simp
     ring
-  -- Step 5: netMap f ∈ net
   have hf_mem : netMap f ∈ net := Finset.mem_image.mpr ⟨f, Finset.mem_univ _, rfl⟩
-  -- Step 6: pullback V_round e and netMap f agree a.e.
-  -- Key: for a.e. (x, y), if x ∈ S₁ ∈ P₀, y ∈ S₂ ∈ P₀, then
-  --   pullback V_round e (x,y) = roundCoeff(σ(S₁), σ(S₂))
-  --   netMap f (x,y) = toCoeff f S₁ S₂ = roundCoeff(σ(S₁), σ(S₂))
-  -- So they agree.
+  -- pullback V_QR e and netMap f agree a.e.
+  have h_align_all : ∀ᵐ x ∂μ, ∀ i, x ∈ ιE i → e x ∈ ιQ i := (ae_all_iff).mpr h_align
+  have h_e_fst : ∀ᵐ p ∂(μ.prod μ), ∀ i, p.1 ∈ ιE i → e p.1 ∈ ιQ i :=
+    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst h_align_all
+  have h_e_snd : ∀ᵐ p ∂(μ.prod μ), ∀ i, p.2 ∈ ιE i → e p.2 ∈ ιQ i :=
+    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd h_align_all
+  have h_fst : ∀ᵐ p ∂(μ.prod μ), ∃ S ∈ E.parts, p.1 ∈ S :=
+    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst E.ae_covers
+  have h_snd : ∀ᵐ p ∂(μ.prod μ), ∃ S ∈ E.parts, p.2 ∈ S :=
+    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd E.ae_covers
+  have h_pb := pullback_ae V_QR (⇑e) he
+  have h_net : ∀ᵐ p ∂(μ.prod μ),
+      (netMap f).toAEEqFun p = mkStepFun E (toCoeff f) p := AEEqFun.coeFn_mk _ _
+  have h_vr : ∀ᵐ p ∂(μ.prod μ),
+      V_QR.toAEEqFun p = mkStepFun Q roundCQ p := AEEqFun.coeFn_mk _ _
+  have h_vr_image : ∀ᵐ p ∂(μ.prod μ),
+      V_QR.toAEEqFun (e p.1, e p.2) = mkStepFun Q roundCQ (e p.1, e p.2) :=
+    (MeasurePreserving.prod he he).quasiMeasurePreserving.ae h_vr
   have h_pb_ae : ∀ᵐ p ∂(μ.prod μ),
-      (pullback V_round e he).toAEEqFun p = (netMap f).toAEEqFun p := by
-    -- Get a.e. facts
-    have h_pb := pullback_ae V_round (⇑e) he
-    have h_net : ∀ᵐ p ∂(μ.prod μ),
-        (netMap f).toAEEqFun p = mkStepFun P₀ (toCoeff f) p :=
-      AEEqFun.coeFn_mk _ _
-    have h_vr : ∀ᵐ p ∂(μ.prod μ),
-        V_round.toAEEqFun p = mkStepFun P_W roundCoeff p :=
-      AEEqFun.coeFn_mk _ _
-    -- Push h_vr through the product MP map (Prod.map e e) to get it at image points
-    have h_vr_image : ∀ᵐ p ∂(μ.prod μ),
-        V_round.toAEEqFun (e p.1, e p.2) = mkStepFun P_W roundCoeff (e p.1, e p.2) := by
-      have h_mp : MeasurePreserving (Prod.map e e) (μ.prod μ) (μ.prod μ) :=
-        MeasurePreserving.prod he he
-      exact h_mp.quasiMeasurePreserving.ae h_vr
-    -- a.e. x is in some P₀-cell, a.e. y is in some P₀-cell
-    have h_fst : ∀ᵐ p ∂(μ.prod μ), ∃ S ∈ P₀.parts, p.1 ∈ S :=
-      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst P₀.ae_covers
-    have h_snd : ∀ᵐ p ∂(μ.prod μ), ∃ S ∈ P₀.parts, p.2 ∈ S :=
-      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd P₀.ae_covers
-    -- a.e. x ∈ S ∈ P₀ implies e(x) ∈ σ(S): finite union of null sets is null
-    -- For each S ∈ P₀.parts: μ(S \ e⁻¹(σ S)) = 0, so the finite union has measure 0
-    have h_align_ae : ∀ᵐ x ∂μ,
-        ∀ (S : Set α) (hS : S ∈ P₀.parts), x ∈ S → e x ∈ σ S hS := by
-      -- For each S, show the a.e. property
-      suffices ∀ S hS, ∀ᵐ x ∂μ, x ∈ S → e x ∈ σ S hS by
-        have h_finite := (ae_ball_iff P₀.parts.countable_toSet).mpr this
-        filter_upwards [h_finite] with x hx S hS hmem
-        exact hx S hS hmem
-      intro S hS
-      have h_null := (hσ_null S hS).1
-      rw [Filter.eventually_iff]
-      apply Filter.mem_of_superset (compl_mem_ae_iff.mpr h_null)
-      intro x hx hxS
-      by_contra h_ne
-      exact hx (Set.mem_sdiff_of_mem hxS h_ne)
-    have h_e_fst : ∀ᵐ p ∂(μ.prod μ),
-        ∀ (S : Set α) (hS : S ∈ P₀.parts), p.1 ∈ S → e p.1 ∈ σ S hS :=
-      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst h_align_ae
-    have h_e_snd : ∀ᵐ p ∂(μ.prod μ),
-        ∀ (S : Set α) (hS : S ∈ P₀.parts), p.2 ∈ S → e p.2 ∈ σ S hS :=
-      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd h_align_ae
-    -- a.e. e(x) is in some P_W-cell (push P_W.ae_covers through the MP map e)
-    have h_e_covers : ∀ᵐ x ∂μ, ∃ T ∈ P_W.parts, e x ∈ T :=
-      he.quasiMeasurePreserving.ae P_W.ae_covers
-    have h_e_fst_W : ∀ᵐ p ∂(μ.prod μ), ∃ T ∈ P_W.parts, e p.1 ∈ T :=
-      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst h_e_covers
-    have h_e_snd_W : ∀ᵐ p ∂(μ.prod μ), ∃ T ∈ P_W.parts, e p.2 ∈ T :=
-      Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd h_e_covers
-    filter_upwards [h_pb, h_net, h_vr_image, h_fst, h_snd,
-      h_e_fst, h_e_snd, h_e_fst_W, h_e_snd_W]
-      with p h_pb h_net h_vr_image ⟨S₁, hS₁, hpS₁⟩ ⟨S₂, hS₂, hpS₂⟩
-        h_ef h_es ⟨T₁, hT₁, heT₁⟩ ⟨T₂, hT₂, heT₂⟩
-    -- pullback side
+      (pullback V_QR e he).toAEEqFun p = (netMap f).toAEEqFun p := by
+    filter_upwards [h_pb, h_net, h_vr_image, h_fst, h_snd, h_e_fst, h_e_snd]
+      with p h_pb h_net h_vr_image ⟨S₁, hS₁, hpS₁⟩ ⟨S₂, hS₂, hpS₂⟩ h_ef h_es
     rw [h_pb]
-    -- V_round at (e p.1, e p.2) = roundCoeff T₁ T₂ (where e p.i ∈ T_i)
-    have h_vr_val : V_round.toAEEqFun (e p.1, e p.2) = roundCoeff T₁ T₂ := by
+    have hpi₁ : p.1 ∈ ιE (eqE.symm ⟨S₁, hS₁⟩) := by
+      show p.1 ∈ ((eqE (eqE.symm ⟨S₁, hS₁⟩)) : Set α)
+      rw [Equiv.apply_symm_apply]; exact hpS₁
+    have hpi₂ : p.2 ∈ ιE (eqE.symm ⟨S₂, hS₂⟩) := by
+      show p.2 ∈ ((eqE (eqE.symm ⟨S₂, hS₂⟩)) : Set α)
+      rw [Equiv.apply_symm_apply]; exact hpS₂
+    have heQ₁ : e p.1 ∈ ιQ (eqE.symm ⟨S₁, hS₁⟩) := h_ef _ hpi₁
+    have heQ₂ : e p.2 ∈ ιQ (eqE.symm ⟨S₂, hS₂⟩) := h_es _ hpi₂
+    have h_vr_val : V_QR.toAEEqFun (e p.1, e p.2)
+        = roundCQ (ιQ (eqE.symm ⟨S₁, hS₁⟩)) (ιQ (eqE.symm ⟨S₂, hS₂⟩)) := by
       rw [h_vr_image]
-      exact mkStepFun_eq_at P_W roundCoeff hT₁ hT₂ (Set.mem_prod.mpr ⟨heT₁, heT₂⟩)
-    rw [h_vr_val]
-    -- netMap f side: (netMap f) at p = toCoeff f S₁ S₂
-    rw [h_net]
-    rw [mkStepFun_eq_at P₀ (toCoeff f) hS₁ hS₂ (Set.mem_prod.mpr ⟨hpS₁, hpS₂⟩)]
-    -- Now: roundCoeff T₁ T₂ = toCoeff f S₁ S₂
-    rw [h_coeff_eq S₁ hS₁ S₂ hS₂]
-    -- Need: T₁ = σ S₁ hS₁ and T₂ = σ S₂ hS₂
-    -- e p.1 ∈ σ(S₁) (from h_ef) and e p.1 ∈ T₁
-    -- Since P_W is a partition, σ(S₁) = T₁
-    congr 1
-    · -- T₁ = σ S₁ hS₁: both contain e p.1, both in P_W.parts
-      by_contra h_ne
-      exact Set.disjoint_left.mp (P_W.pairwiseDisjoint (Finset.mem_coe.mpr (hσ_mem S₁ hS₁))
-        (Finset.mem_coe.mpr hT₁) (Ne.symm h_ne)) (h_ef S₁ hS₁ hpS₁) heT₁
-    · by_contra h_ne
-      exact Set.disjoint_left.mp (P_W.pairwiseDisjoint (Finset.mem_coe.mpr (hσ_mem S₂ hS₂))
-        (Finset.mem_coe.mpr hT₂) (Ne.symm h_ne)) (h_es S₂ hS₂ hpS₂) heT₂
-  -- Step 7: cutNormDiff between pullback and netMap f is 0
-  have h_cn_pb : cutNormDiff (pullback V_round e he) (netMap f) = 0 := by
+      exact mkStepFun_eq_at Q roundCQ (hιQ_mem _) (hιQ_mem _)
+        (Set.mem_prod.mpr ⟨heQ₁, heQ₂⟩)
+    rw [h_vr_val, h_net,
+      mkStepFun_eq_at E (toCoeff f) hS₁ hS₂ (Set.mem_prod.mpr ⟨hpS₁, hpS₂⟩),
+      h_coeff_eq S₁ hS₁ S₂ hS₂]
+  have h_cn_pb : cutNormDiff (pullback V_QR e he) (netMap f) = 0 := by
     apply le_antisymm
     · unfold cutNormDiff rectIntegralDiff
       apply Real.iSup_le _ le_rfl; intro S'
@@ -614,23 +761,29 @@ theorem totallyBounded [NoAtoms μ] (ε : ℝ) (hε : ε > 0) :
       apply Real.iSup_le _ le_rfl; intro T'
       apply Real.iSup_le _ le_rfl; intro hT'
       have h_zero_ae : ∀ᵐ p ∂(μ.prod μ),
-          (pullback V_round e he).toAEEqFun p - (netMap f).toAEEqFun p = 0 := by
+          (pullback V_QR e he).toAEEqFun p - (netMap f).toAEEqFun p = 0 := by
         filter_upwards [h_pb_ae] with p hp; rw [hp, sub_self]
-      rw [setIntegral_congr_ae (hS'.prod hT')
-        (h_zero_ae.mono (fun p hp _ => hp))]
+      rw [setIntegral_congr_ae (hS'.prod hT') (h_zero_ae.mono (fun p hp _ => hp))]
       simp
     · exact cutNormDiff_nonneg _ _
-  -- Step 8: Combine
-  refine ⟨netMap f, hf_mem, le_antisymm ?_ (cutDistance_nonneg _ _)⟩
-  calc cutDistance V_round (netMap f)
-      ≤ cutDistance V_round (pullback V_round e he) +
-        cutDistance (pullback V_round e he) (netMap f) :=
-        cutDistance_triangle V_round (pullback V_round e he) (netMap f)
-    _ = 0 + cutDistance (pullback V_round e he) (netMap f) := by
-        rw [cutDistance_pullback_eq_zero]
-    _ ≤ 0 + cutNormDiff (pullback V_round e he) (netMap f) := by
-        linarith [cutDistance_le_cutNormDiff (pullback V_round e he) (netMap f)]
-    _ = 0 := by rw [h_cn_pb]; ring
+  have h_cd_transfer : cutDistance V_QR (netMap f) ≤ 0 := by
+    calc cutDistance V_QR (netMap f)
+        ≤ cutDistance V_QR (pullback V_QR e he)
+          + cutDistance (pullback V_QR e he) (netMap f) :=
+          cutDistance_triangle _ _ _
+      _ = 0 + cutDistance (pullback V_QR e he) (netMap f) := by
+          rw [cutDistance_pullback_eq_zero]
+      _ ≤ 0 + cutNormDiff (pullback V_QR e he) (netMap f) := by
+          linarith [cutDistance_le_cutNormDiff (pullback V_QR e he) (netMap f)]
+      _ = 0 := by rw [h_cn_pb]; ring
+  -- Final assembly via the triangle inequality
+  refine ⟨netMap f, hf_mem, ?_⟩
+  have hT1 := cutDistance_triangle W V_QR (netMap f)
+  have hT2 := cutDistance_triangle W V_Q V_QR
+  have hT3 := cutDistance_triangle W V_avg V_Q
+  have hT4 := cutDistance_triangle W (stepify P_W W) V_avg
+  linarith [h_cd_step, h_cd_stepavg, h_cd_reround, h_cd_grid, h_cd_transfer,
+    hT1, hT2, hT3, hT4]
 
 end TotalBoundedness
 
@@ -1775,205 +1928,6 @@ end Compactness
 section WeightStability
 
 variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
-
-/-- If two graphons agree a.e. off a "strip" `E × univ ∪ univ × E`, then their
-cut norm difference is at most `2 * (μ E).toReal`. -/
-theorem cutNormDiff_le_of_ae_agree_off_strip (U W : Graphon α μ)
-    (E : Set α) (hE : MeasurableSet E)
-    (h_agree : ∀ᵐ p ∂(μ.prod μ), p.1 ∉ E → p.2 ∉ E →
-        U.toAEEqFun p = W.toAEEqFun p) :
-    cutNormDiff U W ≤ 2 * (μ E).toReal := by
-  -- Peel the 4-level iSup
-  unfold cutNormDiff
-  have h_bound_nn : 0 ≤ 2 * (μ E).toReal := by positivity
-  apply Real.iSup_le _ h_bound_nn; intro S
-  apply Real.iSup_le _ h_bound_nn; intro hS
-  apply Real.iSup_le _ h_bound_nn; intro T
-  apply Real.iSup_le _ h_bound_nn; intro hT
-  -- Goal: |rectIntegralDiff U W S T| ≤ 2 * (μ E).toReal
-  simp only [rectIntegralDiff]
-  -- Abbreviations for the integrand
-  set f := fun p : α × α => U.toAEEqFun p - W.toAEEqFun p with hf_def
-  -- Integrability of f
-  have hf_int : Integrable f (μ.prod μ) :=
-    (SymmKernel.graphon_integrable U).sub (SymmKernel.graphon_integrable W)
-  -- |f| ≤ 1 a.e.
-  have hf_le_one : ∀ᵐ p ∂(μ.prod μ), |f p| ≤ 1 := by
-    filter_upwards [U.ae_mem_Icc, W.ae_mem_Icc] with p hU hW
-    rw [abs_le]; exact ⟨by linarith [hU.1, hW.2], by linarith [hU.2, hW.1]⟩
-  -- Measurability facts
-  have hSE := hS.inter hE
-  have hSdE := hS.diff hE
-  have hTE := hT.inter hE
-  have hTdE := hT.diff hE
-  -- Key decomposition: S ×ˢ T = (S ∩ E) ×ˢ T ∪ (S \ E) ×ˢ T
-  have h_ST_decomp : S ×ˢ T = ((S ∩ E) ×ˢ T) ∪ ((S \ E) ×ˢ T) := by
-    rw [← Set.union_prod, Set.inter_union_sdiff]
-  -- Further decompose (S \ E) ×ˢ T = (S \ E) ×ˢ (T ∩ E) ∪ (S \ E) ×ˢ (T \ E)
-  have h_SdET_decomp : (S \ E) ×ˢ T = ((S \ E) ×ˢ (T ∩ E)) ∪ ((S \ E) ×ˢ (T \ E)) := by
-    rw [← Set.prod_union, Set.inter_union_sdiff]
-  -- Disjointness
-  have h_disj1 : Disjoint ((S ∩ E) ×ˢ T) ((S \ E) ×ˢ T) :=
-    disjoint_inf_sdiff.set_prod_left T T
-  have h_disj2 : Disjoint ((S \ E) ×ˢ (T ∩ E)) ((S \ E) ×ˢ (T \ E)) :=
-    disjoint_inf_sdiff.set_prod_right (S \ E) (S \ E)
-  -- Split the integral over S ×ˢ T into two pieces
-  have h_int1 : IntegrableOn f ((S ∩ E) ×ˢ T) (μ.prod μ) := hf_int.integrableOn
-  have h_int2 : IntegrableOn f ((S \ E) ×ˢ T) (μ.prod μ) := hf_int.integrableOn
-  have h_int3 : IntegrableOn f ((S \ E) ×ˢ (T ∩ E)) (μ.prod μ) := hf_int.integrableOn
-  have h_int4 : IntegrableOn f ((S \ E) ×ˢ (T \ E)) (μ.prod μ) := hf_int.integrableOn
-  -- On (S \ E) ×ˢ (T \ E), f = 0 a.e. by h_agree
-  have h_zero : ∫ p in (S \ E) ×ˢ (T \ E), f p ∂(μ.prod μ) = 0 := by
-    apply setIntegral_eq_zero_of_ae_eq_zero
-    filter_upwards [h_agree] with p hp hpmem
-    have hp1 : p.1 ∉ E := hpmem.1.2
-    have hp2 : p.2 ∉ E := hpmem.2.2
-    simp [hf_def, hp hp1 hp2]
-  -- Bound piece 1: |(S ∩ E) ×ˢ T| ≤ μ(E).toReal
-  have hE_ne_top : μ E ≠ ⊤ := measure_ne_top μ E
-  have h_piece1 : |∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)| ≤ (μ E).toReal := by
-    calc |∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)|
-        ≤ ∫ p in (S ∩ E) ×ˢ T, |f p| ∂(μ.prod μ) := abs_integral_le_integral_abs
-      _ ≤ ∫ _ in (S ∩ E) ×ˢ T, (1 : ℝ) ∂(μ.prod μ) := by
-          apply setIntegral_mono_ae_restrict
-          · exact hf_int.abs.integrableOn
-          · exact integrable_const 1
-          · exact ae_restrict_of_ae hf_le_one
-      _ = ((μ.prod μ) ((S ∩ E) ×ˢ T)).toReal := by
-          rw [setIntegral_const, smul_eq_mul, mul_one]; rfl
-      _ = (μ (S ∩ E) * μ T).toReal := by rw [Measure.prod_prod]
-      _ ≤ (μ E * 1).toReal := by
-          apply ENNReal.toReal_mono (by rw [mul_one]; exact hE_ne_top)
-          exact mul_le_mul' (measure_mono Set.inter_subset_right)
-            (by rw [← measure_univ (μ := μ)]; exact measure_mono (subset_univ _))
-      _ = (μ E).toReal := by rw [mul_one]
-  -- Bound piece 2: |(S \ E) ×ˢ (T ∩ E)| ≤ μ(E).toReal
-  have h_piece2 : |∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)| ≤ (μ E).toReal := by
-    calc |∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)|
-        ≤ ∫ p in (S \ E) ×ˢ (T ∩ E), |f p| ∂(μ.prod μ) := abs_integral_le_integral_abs
-      _ ≤ ∫ _ in (S \ E) ×ˢ (T ∩ E), (1 : ℝ) ∂(μ.prod μ) := by
-          apply setIntegral_mono_ae_restrict
-          · exact hf_int.abs.integrableOn
-          · exact integrable_const 1
-          · exact ae_restrict_of_ae hf_le_one
-      _ = ((μ.prod μ) ((S \ E) ×ˢ (T ∩ E))).toReal := by
-          rw [setIntegral_const, smul_eq_mul, mul_one]; rfl
-      _ = (μ (S \ E) * μ (T ∩ E)).toReal := by rw [Measure.prod_prod]
-      _ ≤ (1 * μ E).toReal := by
-          apply ENNReal.toReal_mono (by rw [one_mul]; exact hE_ne_top)
-          exact mul_le_mul'
-            (by rw [← measure_univ (μ := μ)]; exact measure_mono (subset_univ _))
-            (measure_mono Set.inter_subset_right)
-      _ = (μ E).toReal := by rw [one_mul]
-  -- Split the second integral (S \ E) ×ˢ T into two sub-parts
-  have h_split2 : ∫ p in (S \ E) ×ˢ T, f p ∂(μ.prod μ) =
-      (∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)) +
-      (∫ p in (S \ E) ×ˢ (T \ E), f p ∂(μ.prod μ)) := by
-    rw [h_SdET_decomp, setIntegral_union h_disj2 (hSdE.prod hTdE) h_int3 h_int4]
-  -- Now assemble: split integral and use triangle inequality
-  have h_main_split : ∫ p in S ×ˢ T, f p ∂(μ.prod μ) =
-      (∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)) +
-      (∫ p in (S \ E) ×ˢ T, f p ∂(μ.prod μ)) := by
-    rw [h_ST_decomp]; exact setIntegral_union h_disj1 (hSdE.prod hT) h_int1 h_int2
-  calc |∫ p in S ×ˢ T, f p ∂(μ.prod μ)|
-      = |(∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)) +
-         ((∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)) +
-          (∫ p in (S \ E) ×ˢ (T \ E), f p ∂(μ.prod μ)))| := by
-        rw [h_main_split, h_split2]
-    _ = |(∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)) +
-         (∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ))| := by
-        rw [h_zero, add_zero]
-    _ ≤ |∫ p in (S ∩ E) ×ˢ T, f p ∂(μ.prod μ)| +
-        |∫ p in (S \ E) ×ˢ (T ∩ E), f p ∂(μ.prod μ)| := abs_add_le _ _
-    _ ≤ (μ E).toReal + (μ E).toReal := add_le_add h_piece1 h_piece2
-    _ = 2 * (μ E).toReal := by ring
-
-/-- **Re-rounding a step graphon to an equipartition.** A step graphon on an
-arbitrary partition `P` can be approximated, in cut-norm difference, by a step
-graphon on an equal-measure `q`-cell partition `Q`, with crude error `O(P.card / q)`.
-
-The `q` equal cells of `Q` almost refine `P` (off a small "bad" set of measure at
-most `P.card / q`), so we reassign each cell of `Q` the coefficient of its parent
-`P`-cell.  The two step graphons then agree off the strip `bad × univ ∪ univ × bad`,
-and `cutNormDiff_le_of_ae_agree_off_strip` yields the bound `2 * P.card / q`. -/
-theorem stepGraphon_reround_to_equipartition
-    (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
-    (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
-    (hc_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T ∈ Set.Icc 0 1)
-    {q : ℕ} (hq : 0 < q) :
-    ∃ (Q : MeasurablePartition α μ) (cQ : Set α → Set α → ℝ)
-      (hcQ_symm : ∀ A ∈ Q.parts, ∀ B ∈ Q.parts, cQ A B = cQ B A)
-      (hcQ_mem : ∀ A ∈ Q.parts, ∀ B ∈ Q.parts, cQ A B ∈ Set.Icc 0 1),
-      Q.parts.card = q ∧
-      (∀ A ∈ Q.parts, μ A = (1 : ℝ≥0∞) / q) ∧
-      cutNormDiff (mkStepGraphon P c hc_symm hc_mem) (mkStepGraphon Q cQ hcQ_symm hcQ_mem)
-        ≤ 2 * (P.parts.card : ℝ) / q := by
-  classical
-  obtain ⟨Q, hQcard, hQmu, bad, hbad_meas, hbad_le, hrefine⟩ :=
-    exists_equipartition_almost_refining P hq
-  -- `Q` is nonempty (it has `q > 0` cells), giving a fallback parent `S₀ ∈ P.parts`.
-  have hQne : Q.parts.Nonempty := by rw [← Finset.card_pos, hQcard]; exact hq
-  obtain ⟨A₀, hA₀⟩ := hQne
-  obtain ⟨S₀, hS₀, -⟩ := hrefine A₀ hA₀
-  -- For each `Q`-cell `A`, pick a parent `P`-cell `par A` with `A \ bad ⊆ par A`.
-  choose par hpar_mem hpar_sub using hrefine
-  -- Total parent map (fallback to `S₀` off `Q.parts`, never actually used a.e.).
-  set parentOf : Set α → Set α := fun A => if hA : A ∈ Q.parts then par A hA else S₀
-    with hpar_def
-  have hparentOf_mem : ∀ A, parentOf A ∈ P.parts := by
-    intro A
-    simp only [hpar_def]
-    by_cases hA : A ∈ Q.parts
-    · rw [dif_pos hA]; exact hpar_mem A hA
-    · rw [dif_neg hA]; exact hS₀
-  have hparentOf_sub : ∀ A, A ∈ Q.parts → A \ bad ⊆ parentOf A := by
-    intro A hA
-    simp only [hpar_def]
-    rw [dif_pos hA]; exact hpar_sub A hA
-  -- Re-rounded coefficients: inherit the parent `P`-cell coefficient.
-  set cQ : Set α → Set α → ℝ := fun A B => c (parentOf A) (parentOf B) with hcQ_def
-  have hcQ_symm : ∀ A ∈ Q.parts, ∀ B ∈ Q.parts, cQ A B = cQ B A := by
-    intro A _ B _
-    simp only [hcQ_def]
-    exact hc_symm _ (hparentOf_mem A) _ (hparentOf_mem B)
-  have hcQ_mem : ∀ A ∈ Q.parts, ∀ B ∈ Q.parts, cQ A B ∈ Set.Icc 0 1 := by
-    intro A _ B _
-    simp only [hcQ_def]
-    exact hc_mem _ (hparentOf_mem A) _ (hparentOf_mem B)
-  refine ⟨Q, cQ, hcQ_symm, hcQ_mem, hQcard, hQmu, ?_⟩
-  -- Connect the graphons' `AEEqFun`s to the underlying step functions.
-  have hU_eq : ∀ᵐ p ∂(μ.prod μ),
-      (mkStepGraphon P c hc_symm hc_mem).toAEEqFun p = mkStepFun P c p :=
-    AEEqFun.coeFn_mk (mkStepFun P c) (mkStepFun_measurable P c).aestronglyMeasurable
-  have hW_eq : ∀ᵐ p ∂(μ.prod μ),
-      (mkStepGraphon Q cQ hcQ_symm hcQ_mem).toAEEqFun p = mkStepFun Q cQ p :=
-    AEEqFun.coeFn_mk (mkStepFun Q cQ) (mkStepFun_measurable Q cQ).aestronglyMeasurable
-  have hAcov : ∀ᵐ p ∂(μ.prod μ), ∃ A ∈ Q.parts, p.1 ∈ A :=
-    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_fst Q.ae_covers
-  have hBcov : ∀ᵐ p ∂(μ.prod μ), ∃ B ∈ Q.parts, p.2 ∈ B :=
-    Measure.QuasiMeasurePreserving.ae Measure.quasiMeasurePreserving_snd Q.ae_covers
-  refine le_trans (cutNormDiff_le_of_ae_agree_off_strip _ _ bad hbad_meas ?_) ?_
-  · -- Off the strip, both step graphons equal `c` of the shared parent cells.
-    filter_upwards [hU_eq, hW_eq, hAcov, hBcov] with p hPeq hQeq hAc hBc h1 h2
-    obtain ⟨A, hA, hpA⟩ := hAc
-    obtain ⟨B, hB, hpB⟩ := hBc
-    have hp1par : p.1 ∈ parentOf A := hparentOf_sub A hA ⟨hpA, h1⟩
-    have hp2par : p.2 ∈ parentOf B := hparentOf_sub B hB ⟨hpB, h2⟩
-    rw [hPeq, hQeq,
-      mkStepFun_eq_at P c (hparentOf_mem A) (hparentOf_mem B)
-        (Set.mem_prod.mpr ⟨hp1par, hp2par⟩),
-      mkStepFun_eq_at Q cQ hA hB (Set.mem_prod.mpr ⟨hpA, hpB⟩)]
-  · -- Convert the measure bound `μ bad ≤ P.card / q` to the real-valued estimate.
-    have hqE : (q : ℝ≥0∞) ≠ 0 := by exact_mod_cast hq.ne'
-    have hne : ((P.parts.card : ℝ≥0∞) / q) ≠ ⊤ :=
-      ENNReal.div_ne_top (ENNReal.natCast_ne_top _) hqE
-    have hbad_toReal : (μ bad).toReal ≤ (P.parts.card : ℝ) / q := by
-      calc (μ bad).toReal ≤ ((P.parts.card : ℝ≥0∞) / q).toReal :=
-            ENNReal.toReal_mono hne hbad_le
-        _ = (P.parts.card : ℝ) / q := by
-            rw [ENNReal.toReal_div, ENNReal.toReal_natCast, ENNReal.toReal_natCast]
-    rw [mul_div_assoc]
-    linarith [hbad_toReal]
 
 /-- **Weight stability for step graphons** on different partitions with the same
 coefficient matrix (moved here from `Graphon/InverseCounting.lean`, 2026-07-07, and
