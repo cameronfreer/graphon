@@ -394,4 +394,138 @@ theorem cdfQuantile_cdf_ae (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms
     simp only [Pi.zero_apply] at hx; linarith
   exact Real.arctan_injective heq
 
+/-! ### R1e — the mod-0 measure isomorphism, packaged and assembled
+
+We package a measure-preserving isomorphism *mod 0* as a bundled `Mod0MeasureIso` structure
+(two measurable maps that push each measure to the other and are mutually inverse a.e.), prove
+it composes (`Mod0MeasureIso.trans`), instantiate it on the real line via the CDF/quantile pair
+(`realMod0MeasureIso`), and transport a general atomless standard-Borel probability space to the
+real line via `embeddingReal` (`embeddingRealMod0MeasureIso`). Composing the two yields the main
+theorem: every atomless standard-Borel probability space is isomorphic mod 0 to
+`([0,1], Lebesgue)` (`atomless_standardBorel_mod0MeasureIso_unitInterval`). -/
+
+/-- **R1e — a measure-preserving isomorphism mod 0.** A pair of measurable maps `toFun`, `invFun`
+that push `μ` and `ν` onto each other and are two-sided inverses almost everywhere. -/
+structure Mod0MeasureIso (α β : Type*) [MeasurableSpace α] [MeasurableSpace β]
+    (μ : Measure α) (ν : Measure β) where
+  toFun : α → β
+  invFun : β → α
+  measurable_toFun : Measurable toFun
+  measurable_invFun : Measurable invFun
+  map_toFun : Measure.map toFun μ = ν
+  map_invFun : Measure.map invFun ν = μ
+  left_inv_ae : (fun x => invFun (toFun x)) =ᵐ[μ] id
+  right_inv_ae : (fun y => toFun (invFun y)) =ᵐ[ν] id
+
+/-- **R1e — composition of mod-0 isomorphisms.** The a.e.-inverse identities are chained by
+pulling each factor's a.e. identity back through the other map, using that the pushforward
+equalities make the maps `QuasiMeasurePreserving` (so `ν`-a.e. statements become `μ`-a.e.
+statements after precomposition, via `QuasiMeasurePreserving.ae_eq`). -/
+def Mod0MeasureIso.trans {α β γ} [MeasurableSpace α] [MeasurableSpace β] [MeasurableSpace γ]
+    {μ : Measure α} {ν : Measure β} {ξ : Measure γ}
+    (e : Mod0MeasureIso α β μ ν) (f : Mod0MeasureIso β γ ν ξ) : Mod0MeasureIso α γ μ ξ where
+  toFun := f.toFun ∘ e.toFun
+  invFun := e.invFun ∘ f.invFun
+  measurable_toFun := f.measurable_toFun.comp e.measurable_toFun
+  measurable_invFun := e.measurable_invFun.comp f.measurable_invFun
+  map_toFun := by
+    rw [← Measure.map_map f.measurable_toFun e.measurable_toFun, e.map_toFun, f.map_toFun]
+  map_invFun := by
+    rw [← Measure.map_map e.measurable_invFun f.measurable_invFun, f.map_invFun, e.map_invFun]
+  left_inv_ae := by
+    have hqmp : Measure.QuasiMeasurePreserving e.toFun μ ν := by
+      refine ⟨e.measurable_toFun, ?_⟩
+      rw [e.map_toFun]
+    have h1 := hqmp.ae_eq f.left_inv_ae
+    filter_upwards [h1, e.left_inv_ae] with x hx1 hx2
+    simp only [Function.comp_apply, id_eq] at hx1 hx2 ⊢
+    rw [hx1]; exact hx2
+  right_inv_ae := by
+    have hqmp : Measure.QuasiMeasurePreserving f.invFun ξ ν := by
+      refine ⟨f.measurable_invFun, ?_⟩
+      rw [f.map_invFun]
+    have h2 := hqmp.ae_eq e.right_inv_ae
+    filter_upwards [h2, f.right_inv_ae] with y hy1 hy2
+    simp only [Function.comp_apply, id_eq] at hy1 hy2 ⊢
+    rw [hy1]; exact hy2
+
+/-- **R1e — the real-line instance.** The CDF/quantile pair of an atomless probability measure
+`ν` on `ℝ` is a mod-0 isomorphism between `(ℝ, ν)` and `([0,1], Lebesgue)`. -/
+noncomputable def realMod0MeasureIso (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν] :
+    Mod0MeasureIso ℝ ℝ ν (volume.restrict (Set.Icc 0 1)) where
+  toFun := cdf ν
+  invFun := cdfQuantile ν
+  measurable_toFun := (cdf ν).mono.measurable
+  measurable_invFun := measurable_cdfQuantile ν
+  map_toFun := cdf_map_eq_volume_restrict ν
+  map_invFun := map_cdfQuantile_volume_restrict ν
+  left_inv_ae := cdfQuantile_cdf_ae ν
+  right_inv_ae := cdf_cdfQuantile_ae ν
+
+/-- The pushforward of an atomless measure by a measurable embedding is atomless: each singleton
+has an at-most-singleton preimage, which is null. -/
+private lemma noAtoms_map_of_injective {α β} [MeasurableSpace α] [MeasurableSpace β]
+    {μ : Measure α} [NoAtoms μ] {f : α → β} (hf : MeasurableEmbedding f) :
+    NoAtoms (Measure.map f μ) := by
+  refine ⟨fun y => ?_⟩
+  rw [hf.map_apply]
+  have hsub : (f ⁻¹' {y}).Subsingleton := by
+    intro a ha b hb
+    simp only [mem_preimage, mem_singleton_iff] at ha hb
+    exact hf.injective (ha.trans hb.symm)
+  exact hsub.measure_zero μ
+
+/-- **R1e — the standard-Borel embedding instance.** A standard-Borel space `α` measurably embeds
+into `ℝ` via `embeddingReal`; that embedding is a mod-0 isomorphism from `(α, μ)` to the
+pushforward `(ℝ, map (embeddingReal α) μ)`. The right inverse holds `ν`-a.e. because `ν` is
+concentrated on the range of the embedding. -/
+noncomputable def embeddingRealMod0MeasureIso (α) [MeasurableSpace α] [StandardBorelSpace α]
+    (μ : Measure α) [IsProbabilityMeasure μ] [Nonempty α] :
+    Mod0MeasureIso α ℝ μ (Measure.map (embeddingReal α) μ) :=
+  let he := measurableEmbedding_embeddingReal α
+  { toFun := embeddingReal α
+    invFun := he.invFun
+    measurable_toFun := he.measurable
+    measurable_invFun := he.measurable_invFun
+    map_toFun := rfl
+    map_invFun := by
+      rw [Measure.map_map he.measurable_invFun he.measurable]
+      have : he.invFun ∘ embeddingReal α = id := funext he.leftInverse_invFun
+      rw [this, Measure.map_id]
+    left_inv_ae := ae_of_all _ he.leftInverse_invFun
+    right_inv_ae := by
+      haveI : IsProbabilityMeasure (Measure.map (embeddingReal α) μ) :=
+        Measure.isProbabilityMeasure_map he.measurable.aemeasurable
+      have hrange : Measure.map (embeddingReal α) μ (range (embeddingReal α))ᶜ = 0 := by
+        have h1 : Measure.map (embeddingReal α) μ (range (embeddingReal α)) = 1 := by
+          rw [he.map_apply, preimage_range, measure_univ]
+        rw [measure_compl he.measurableSet_range (measure_ne_top _ _), h1, measure_univ,
+          tsub_self]
+      have hmem : ∀ᵐ y ∂(Measure.map (embeddingReal α) μ), y ∈ range (embeddingReal α) := by
+        rw [ae_iff]; exact hrange
+      filter_upwards [hmem] with y hy
+      obtain ⟨x, rfl⟩ := hy
+      simp only [id_eq]
+      rw [he.leftInverse_invFun x] }
+
+/-- **R1e — the atomless standard-Borel measure-isomorphism theorem.** Every atomless
+standard-Borel probability space `(α, μ)` is measure-preservingly isomorphic mod 0 to
+`([0,1], Lebesgue)`. Assembled by embedding `α` into `ℝ` and composing with the real-line
+CDF/quantile isomorphism of the (atomless, probability) pushforward measure. -/
+theorem atomless_standardBorel_mod0MeasureIso_unitInterval (α) [MeasurableSpace α]
+    [StandardBorelSpace α] (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ] :
+    Nonempty (Mod0MeasureIso α ℝ μ (volume.restrict (Set.Icc 0 1))) := by
+  have hne : Nonempty α := by
+    by_contra h
+    rw [not_nonempty_iff] at h
+    have h1 : (μ Set.univ) = 1 := measure_univ
+    rw [Set.univ_eq_empty_iff.mpr h, measure_empty] at h1
+    exact zero_ne_one h1
+  haveI : IsProbabilityMeasure (Measure.map (embeddingReal α) μ) :=
+    Measure.isProbabilityMeasure_map (measurableEmbedding_embeddingReal α).measurable.aemeasurable
+  haveI : NoAtoms (Measure.map (embeddingReal α) μ) :=
+    noAtoms_map_of_injective (measurableEmbedding_embeddingReal α)
+  exact ⟨(embeddingRealMod0MeasureIso α μ).trans
+    (realMod0MeasureIso (Measure.map (embeddingReal α) μ))⟩
+
 end Graphon.MeasureIso
