@@ -1150,11 +1150,17 @@ theorem MeasurePreserving.exists_partition_alignment [StandardBorelSpace α]
     id (MeasurePreserving.id μ) P Q
   exact h
 
-/-- Controlled cell alignment: given indexed families of cells from two partitions
-with matching measures, there exists a MP bijection mapping each cell a.e. to the
-corresponding cell. This is a direct consequence of the third conjunct of
-`exists_common_extension`. -/
-theorem MeasurePreserving.exists_controlled_cell_alignment [StandardBorelSpace α]
+/-- **Controlled cell alignment (corrected Rokhlin consequence 3).** Given injective indexed
+families of cells from two partitions with *matching measures*, over an *atomless* standard
+Borel probability space, there is a measure-preserving bijection mapping each cell `ι_S i`
+a.e. into `ι_T i`.
+
+This is the honest, true form of the third conjunct of the old `exists_common_extension`
+stub: it adds `[NoAtoms μ]` (necessary — see the atom counterexample in the scoping note and
+`mp_maps_into_forces_measure_le`) and is now a standalone obligation resting only on the
+measure-isomorphism theorem (campaign phase R1), not on the unprovable monolithic stub. It is
+the sole cell-matching interface used by the inverse-counting route. -/
+theorem MeasurePreserving.exists_controlled_cell_alignment [StandardBorelSpace α] [NoAtoms μ]
     (P Q : MeasurablePartition α μ)
     {k : ℕ} (ι_S ι_T : Fin k → Set α)
     (hS : ∀ i, ι_S i ∈ P.parts) (hT : ∀ i, ι_T i ∈ Q.parts)
@@ -1162,9 +1168,7 @@ theorem MeasurePreserving.exists_controlled_cell_alignment [StandardBorelSpace �
     (h_meas : ∀ i, μ (ι_S i) = μ (ι_T i)) :
     ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
       ∀ i, ∀ᵐ x ∂μ, x ∈ ι_S i → e x ∈ ι_T i := by
-  have ⟨_, _, h_controlled⟩ := MeasurePreserving.exists_common_extension
-    id (MeasurePreserving.id μ) id (MeasurePreserving.id μ) P Q
-  exact h_controlled ι_S ι_T hS hT hS_inj hT_inj h_meas
+  sorry
 
 /-- Cut norm difference is invariant under applying the same MeasurableEquiv to both graphons.
 
