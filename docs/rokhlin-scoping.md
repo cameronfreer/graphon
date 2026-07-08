@@ -149,3 +149,38 @@ Effort: R1c is the load-bearing classical lemma (Stieltjes π-system argument); 
 standard but fiddly. Mathlib-upstreaming grade. **R2** then derives the four cores by conjugating
 through the iso: interval rearrangement (→ core 3), joining via `condKernel` re-typed by the iso
 (→ core 1), CDF-weighting/disintegration (→ core 2), bijection-achieves-cutdistance (→ core 4).
+
+## R1 COMPLETE (2026-07-08) — `Mod0MeasureIso` + `atomless_standardBorel_mod0MeasureIso_unitInterval`
+
+`Graphon/MeasureIso.lean` (graphon-independent, `import Mathlib` only, all axiom-clean): R1b
+`continuous_cdf_of_noAtoms`, R1c `cdf_map_eq_volume_restrict` (the crux), R1d `cdfQuantile` +
+`map_cdfQuantile_volume_restrict` + a.e. inverses, R1e the `Mod0MeasureIso` structure (`.trans`,
+`realMod0MeasureIso`, `embeddingRealMod0MeasureIso`) and the main theorem
+`atomless_standardBorel_mod0MeasureIso_unitInterval`. This is a **mod-0** iso: mutual a.e.-inverse
+measurable maps with matching pushforwards — NOT an everywhere `≃ᵐ`.
+
+## R2 scoping (the four cores split by what they need)
+
+Cores categorized by their conclusion's requirement:
+- **Core 1 `exists_common_coupling_maps`** — `∃ χ₁ χ₂ : α → α` (MP **maps**). Needs only mod-0
+  maps; Mod0MeasureIso supplies them directly. Good first API test.
+- **Core 2 `cutNormDiff_pullback_le`** — inequality about pullback by an MP **map** `φ`. Analytic
+  (disintegration/conditional-expectation weighting); does NOT need a bijection.
+- **Core 3 `exists_controlled_cell_alignment`** — `∃ e : α ≃ᵐ α` (everywhere MP **bijection**).
+- **Core 4 `exists_mpEquiv_cutNormDiff_lt_add`** — `∃ σ : α ≃ᵐ α` (everywhere MP **bijection**).
+
+**Key finding:** cores 3 & 4 need a genuine measure-preserving `MeasurableEquiv`, but
+`Mod0MeasureIso` is only mod-0. Mathlib has `PolishSpace.measurableEquivOfNotCountable` (Borel
+iso between uncountable std Borel spaces) but **no** measure-preserving `≃ᵐ` / strong-iso result.
+So the foundational R2 brick is the **mod-0 → everywhere upgrade**:
+`Mod0MeasureIso α β μ ν → ∃ e : α ≃ᵐ β, MeasurePreserving e μ ν` (μ,ν atomless prob), via the
+classical null-patch: find conull `A ⊆ α`, `B ⊆ β` with `toFun : A ≃ B` a measure-preserving
+bijection; enlarge the null complements to uncountable null Borel sets (atomless ⟹ can carve
+null pieces) and patch them via `measurableEquivOfNotCountable`; assemble a piecewise `≃ᵐ`,
+measure-preserving since the patch region is null. Fiddly (~150–250 lines).
+
+**Recommended R2 order (revised):** (0) build the strong-iso upgrade `mod0_to_mpEquiv` [enables
+3,4]; (1) core 3 `exists_controlled_cell_alignment` (upgrade + interval rearrangement of matched
+equal-measure cells, transported through the iso); (2) core 4; (3) core 1 (mod-0 maps directly);
+(4) core 2 (analytic, last). Cores 1 & 2 are independent of the upgrade — core 1 is the cleanest
+first API test if a warm-up is wanted before the upgrade.
