@@ -12,6 +12,7 @@ import Graphon.Operations
 import Graphon.Operator
 import Graphon.CutNorm
 import Graphon.CutDistance
+import Graphon.MeasureIso
 import Graphon.Approximation
 import Graphon.Counting
 import Graphon.Regularity
