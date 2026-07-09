@@ -9,6 +9,8 @@ import Graphon.Pullback
 import Graphon.MeasureIso
 import Mathlib.MeasureTheory.Constructions.Polish.Basic
 import Mathlib.MeasureTheory.Integral.Layercake
+import Mathlib.Probability.Kernel.Composition.Lemmas
+import Mathlib.Probability.Kernel.Disintegration.StandardBorel
 
 /-!
 # Cut Distance for Graphons
