@@ -408,4 +408,62 @@ theorem exists_mpEquiv_pullback_stepify_eq [StandardBorelSpace α] [NoAtoms μ]
 
 end StepOverlay
 
+/-! ### O3: the overlay theorem -/
+
+section OverlayTheorem
+
+variable [IsProbabilityMeasure μ]
+
+/-- **An MP bijection nearly achieves the cut distance (corrected Rokhlin consequence 4).**
+On an *atomless* standard Borel probability space, the cut distance — an infimum over pairs of
+measure-preserving *maps* — is achieved up to any `ε` by pulling back `U` along a single
+measure-preserving **bijection**, leaving `W` bare.
+
+This is the honest, true replacement for the false `cutDistance_lt_add_of_pos_equiv`
+(Compactness) whose bijection witness was derived from the unprovable
+`exists_common_extension_maps`. It is genuinely needed by the completeness/compactness
+telescope: coherent frames require a bare reference, which forces invertibility (a coupling of
+maps cannot make a graphon bare without re-pulling the whole history).
+
+**Proof** (the overlay argument, `docs/overlay-scoping.md`): approximate `U` and `W` by step
+graphons at `ε/8` (`regularity`); take `ε/8`-optimal maps `(φ, ψ)` for the original pair
+(`cutDistance_lt_add_of_pos`); realize the coupling value of the step approximations
+*exactly* by an MP bijection (`exists_mpEquiv_pullback_stepify_eq`); transfer the step
+approximation errors through the pullback contraction `cutNormDiff_pullback_le` and the
+bijection invariance `cutNormDiff_pullback_measurableEquiv`. Total budget `5ε/8 < ε`. -/
+theorem exists_mpEquiv_cutNormDiff_lt_add [StandardBorelSpace α] [NoAtoms μ]
+    (U W : Graphon α μ) {ε : ℝ} (hε : 0 < ε) :
+    ∃ (σ : α ≃ᵐ α) (hσ : MeasurePreserving σ μ μ),
+      cutNormDiff (pullback U σ hσ) W < cutDistance U W + ε := by
+  have hε8 : 0 < ε / 8 := by linarith
+  -- Step approximations of both graphons at ε/8.
+  obtain ⟨P, -, hP⟩ := regularity U (ε / 8) hε8
+  obtain ⟨Q, -, hQ⟩ := regularity W (ε / 8) hε8
+  -- Near-optimal measure-preserving maps for the original pair.
+  obtain ⟨φ, ψ, hφ, hψ, hopt⟩ := cutDistance_lt_add_of_pos U W hε8
+  -- The exact step overlay along the same maps.
+  obtain ⟨σ, hσ, heq⟩ := exists_mpEquiv_pullback_stepify_eq P Q U W hφ hψ
+  refine ⟨σ, hσ, ?_⟩
+  -- The step approximation errors survive the pullbacks (contraction on the map side,
+  -- invariance on the bijection side).
+  have c1 : cutNormDiff (pullback (stepify P U) φ hφ) (pullback U φ hφ) ≤ ε / 8 :=
+    (cutNormDiff_pullback_le (stepify P U) U φ hφ).trans
+      ((cutNormDiff_symm (stepify P U) U).trans_le hP)
+  have c2 : cutNormDiff (pullback W ψ hψ) (pullback (stepify Q W) ψ hψ) ≤ ε / 8 :=
+    (cutNormDiff_pullback_le W (stepify Q W) ψ hψ).trans hQ
+  have E1 : cutNormDiff (pullback U σ hσ) (pullback (stepify P U) σ hσ) ≤ ε / 8 :=
+    (cutNormDiff_pullback_measurableEquiv U (stepify P U) σ hσ).trans_le hP
+  have E2 : cutNormDiff (stepify Q W) W ≤ ε / 8 :=
+    (cutNormDiff_symm (stepify Q W) W).trans_le hQ
+  -- Chain the triangle inequalities.
+  have t1 := cutNormDiff_triangle (pullback (stepify P U) φ hφ) (pullback U φ hφ)
+    (pullback (stepify Q W) ψ hψ)
+  have t2 := cutNormDiff_triangle (pullback U φ hφ) (pullback W ψ hψ)
+    (pullback (stepify Q W) ψ hψ)
+  have T1 := cutNormDiff_triangle (pullback U σ hσ) (pullback (stepify P U) σ hσ) W
+  have T2 := cutNormDiff_triangle (pullback (stepify P U) σ hσ) (stepify Q W) W
+  linarith [heq, hopt, t1, t2, c1, c2, T1, T2, E1, E2]
+
+end OverlayTheorem
+
 end Graphon

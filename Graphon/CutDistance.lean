@@ -1038,8 +1038,10 @@ theorem cutDistance_le_one (U W : Graphon α μ) : cutDistance U W ≤ 1 := by
 See `docs/rokhlin-scoping.md`. The old monolithic Rokhlin stub bundled three conjuncts, **two
 of which are false as written**; it has now been **deleted** and replaced by four corrected,
 consumer-shaped cores (`exists_common_coupling_maps`, `cutNormDiff_pullback_le`,
-`exists_controlled_cell_alignment`, `exists_mpEquiv_cutNormDiff_lt_add`), each a standard
-consequence of the atomless standard-Borel measure-isomorphism theorem. The two lemmas below
+`exists_controlled_cell_alignment` in this file; `exists_mpEquiv_cutNormDiff_lt_add` in
+`Graphon/Overlay.lean`, whose overlay proof needs the downstream regularity lemma), each a
+standard consequence of the atomless standard-Borel measure-isomorphism theorem. All four are
+now **proved** (campaigns R2 + R3). The two lemmas below
 certify the "measure-obvious" necessity facts that forced those corrections; the historical
 counterexamples:
 
@@ -1757,24 +1759,10 @@ theorem cutNormDiff_pullback_le [StandardBorelSpace α] (U W : Graphon α μ)
     _ ≤ cutNormDiff U W :=
         abs_weighted_integral_diff_le U W f g hf_meas hg_meas hf_bound hg_bound
 
-/-- **An MP bijection nearly achieves the cut distance (corrected Rokhlin consequence 4).**
-On an *atomless* standard Borel probability space, the cut distance — an infimum over pairs of
-measure-preserving *maps* — is achieved up to any `ε` by pulling back `U` along a single
-measure-preserving **bijection**, leaving `W` bare.
-
-This is the honest, true replacement for the false `cutDistance_lt_add_of_pos_equiv`
-(Compactness) whose bijection witness was derived from the unprovable
-`exists_common_extension_maps`. It is genuinely needed by the completeness/compactness
-telescope: coherent frames require a bare reference, which forces invertibility (a coupling of
-maps cannot make a graphon bare without re-pulling the whole history). It is a standard
-consequence of the measure-isomorphism theorem (campaign phase R1); the value of `ε`-optimal
-maps comes from `cutDistance_lt_add_of_pos`, then one map is inverted onto a bijection via the
-measure iso. -/
-theorem exists_mpEquiv_cutNormDiff_lt_add [StandardBorelSpace α] [NoAtoms μ]
-    (U W : Graphon α μ) {ε : ℝ} (hε : 0 < ε) :
-    ∃ (σ : α ≃ᵐ α) (hσ : MeasurePreserving σ μ μ),
-      cutNormDiff (pullback U σ hσ) W < cutDistance U W + ε := by
-  sorry
+/- NOTE (R3): the fourth corrected Rokhlin core, `exists_mpEquiv_cutNormDiff_lt_add`
+("an MP bijection nearly achieves the cut distance"), lives in `Graphon/Overlay.lean` —
+its proof (the overlay argument) needs the Frieze–Kannan regularity lemma and the atomless
+carving primitives of `Graphon/Regularity.lean`, which sit downstream of this file. -/
 
 /-- Cut distance from a graphon to its pullback by a MP bijection is zero.
 

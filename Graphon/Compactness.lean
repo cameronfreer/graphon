@@ -6,6 +6,7 @@ Authors: Cameron Freer
 import Architect
 import Graphon.CutDistance
 import Graphon.Regularity
+import Graphon.Overlay
 import Mathlib.MeasureTheory.Measure.Decomposition.RadonNikodym
 import Mathlib.Analysis.Normed.Group.Tannery
 
