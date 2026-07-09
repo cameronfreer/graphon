@@ -1093,6 +1093,7 @@ theorem mp_maps_into_forces_measure_le
   calc μ S ≤ μ (e ⁻¹' T) := measure_mono_ae hsub
     _ = μ T := he.measure_preimage hT.nullMeasurableSet
 
+open ProbabilityTheory Graphon.MeasureIso in
 /-- **Common coupling of two measure-preserving maps (corrected Rokhlin consequence 1).**
 Given measure-preserving maps `ψ₁, φ₂ : α → α` on an *atomless* standard Borel probability
 space, there are measure-preserving **maps** `χ₁, χ₂ : α → α` with `ψ₁ ∘ χ₁ =ᵐ φ₂ ∘ χ₂`.
@@ -1110,7 +1111,133 @@ theorem MeasurePreserving.exists_common_coupling_maps [StandardBorelSpace α] [N
     ∃ (χ₁ χ₂ : α → α)
       (hχ₁ : MeasurePreserving χ₁ μ μ) (hχ₂ : MeasurePreserving χ₂ μ μ),
       ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂ := by
-  sorry
+  classical
+  haveI : Nonempty α := by
+    by_contra h
+    simp only [not_nonempty_iff] at h
+    exact zero_ne_one (by rw [← measure_univ (μ := μ), Set.univ_eq_empty_iff.mpr h, measure_empty])
+  -- graph maps and graph measures
+  set g₁ : α → α × α := fun x ↦ (ψ₁ x, x) with hg₁def
+  set g₂ : α → α × α := fun x ↦ (φ₂ x, x) with hg₂def
+  have hg₁ : Measurable g₁ := hψ₁.measurable.prodMk measurable_id
+  have hg₂ : Measurable g₂ := hφ₂.measurable.prodMk measurable_id
+  set G₁ : Measure (α × α) := μ.map g₁ with hG₁
+  set G₂ : Measure (α × α) := μ.map g₂ with hG₂
+  haveI : IsProbabilityMeasure G₁ := Measure.isProbabilityMeasure_map hg₁.aemeasurable
+  haveI : IsProbabilityMeasure G₂ := Measure.isProbabilityMeasure_map hg₂.aemeasurable
+  -- marginals of graph measures
+  have hfst1 : G₁.fst = μ := by
+    rw [hG₁, Measure.fst, Measure.map_map measurable_fst hg₁, hg₁def]; exact hψ₁.map_eq
+  have hfst2 : G₂.fst = μ := by
+    rw [hG₂, Measure.fst, Measure.map_map measurable_fst hg₂, hg₂def]; exact hφ₂.map_eq
+  have hsnd1 : G₁.snd = μ := by
+    rw [hG₁, Measure.snd, Measure.map_map measurable_snd hg₁, hg₁def]; exact Measure.map_id
+  have hsnd2 : G₂.snd = μ := by
+    rw [hG₂, Measure.snd, Measure.map_map measurable_snd hg₂, hg₂def]; exact Measure.map_id
+  -- conditional kernels
+  set κ₁ : Kernel α α := G₁.condKernel with hκ₁
+  set κ₂ : Kernel α α := G₂.condKernel with hκ₂
+  haveI : IsMarkovKernel κ₁ := by rw [hκ₁]; infer_instance
+  haveI : IsMarkovKernel κ₂ := by rw [hκ₂]; infer_instance
+  have hdis1 : μ ⊗ₘ κ₁ = G₁ := by rw [← hfst1]; exact Measure.disintegrate G₁ κ₁
+  have hdis2 : μ ⊗ₘ κ₂ = G₂ := by rw [← hfst2]; exact Measure.disintegrate G₂ κ₂
+  -- support facts
+  have hmeasset1 : MeasurableSet {q : α × α | ψ₁ q.2 = q.1} :=
+    measurableSet_eq_fun (hψ₁.measurable.comp measurable_snd) measurable_fst
+  have hmeasset2 : MeasurableSet {q : α × α | φ₂ q.2 = q.1} :=
+    measurableSet_eq_fun (hφ₂.measurable.comp measurable_snd) measurable_fst
+  have hG1supp : ∀ᵐ q ∂G₁, ψ₁ q.2 = q.1 := by
+    rw [hG₁, ae_map_iff hg₁.aemeasurable hmeasset1]
+    exact ae_of_all _ fun x ↦ rfl
+  have hG2supp : ∀ᵐ q ∂G₂, φ₂ q.2 = q.1 := by
+    rw [hG₂, ae_map_iff hg₂.aemeasurable hmeasset2]
+    exact ae_of_all _ fun x ↦ rfl
+  have hκ1supp : ∀ᵐ v ∂μ, ∀ᵐ b ∂κ₁ v, ψ₁ b = v := by
+    have h : ∀ᵐ q ∂(μ ⊗ₘ κ₁), ψ₁ q.2 = q.1 := by rw [hdis1]; exact hG1supp
+    exact (Measure.ae_compProd_iff hmeasset1).mp h
+  have hκ2supp : ∀ᵐ v ∂μ, ∀ᵐ b ∂κ₂ v, φ₂ b = v := by
+    have h : ∀ᵐ q ∂(μ ⊗ₘ κ₂), φ₂ q.2 = q.1 := by rw [hdis2]; exact hG2supp
+    exact (Measure.ae_compProd_iff hmeasset2).mp h
+  -- fiber product
+  set Ω : Measure (α × (α × α)) := μ ⊗ₘ (κ₁ ×ₖ κ₂) with hΩ
+  haveI : IsProbabilityMeasure Ω := by rw [hΩ]; infer_instance
+  set ρ : Measure (α × α) := Ω.snd with hρ
+  haveI : IsProbabilityMeasure ρ := by rw [hρ]; infer_instance
+  -- kernel marginal facts
+  have hkfst : (κ₁ ×ₖ κ₂).map Prod.fst = κ₁ := by rw [← Kernel.fst_eq]; exact Kernel.fst_prod κ₁ κ₂
+  have hksnd : (κ₁ ×ₖ κ₂).map Prod.snd = κ₂ := by rw [← Kernel.snd_eq]; exact Kernel.snd_prod κ₁ κ₂
+  -- marginals of ρ
+  have marg1 : Ω.map (fun q : α × (α × α) ↦ q.2.1) = μ := by
+    have e1 : Ω.map (Prod.map id Prod.fst) = G₁ := by
+      rw [hΩ, ← Measure.compProd_map measurable_fst, hkfst, hdis1]
+    calc Ω.map (fun q : α × (α × α) ↦ q.2.1)
+        = (Ω.map (Prod.map id Prod.fst)).map Prod.snd := by
+          rw [Measure.map_map measurable_snd (measurable_id.prodMap measurable_fst)]; rfl
+      _ = G₁.map Prod.snd := by rw [e1]
+      _ = μ := hsnd1
+  have marg2 : Ω.map (fun q : α × (α × α) ↦ q.2.2) = μ := by
+    have e2 : Ω.map (Prod.map id Prod.snd) = G₂ := by
+      rw [hΩ, ← Measure.compProd_map measurable_snd, hksnd, hdis2]
+    calc Ω.map (fun q : α × (α × α) ↦ q.2.2)
+        = (Ω.map (Prod.map id Prod.snd)).map Prod.snd := by
+          rw [Measure.map_map measurable_snd (measurable_id.prodMap measurable_snd)]; rfl
+      _ = G₂.map Prod.snd := by rw [e2]
+      _ = μ := hsnd2
+  have hρfst : ρ.fst = μ := by
+    rw [hρ]
+    show (Ω.map Prod.snd).map Prod.fst = μ
+    rw [Measure.map_map measurable_fst measurable_snd]; exact marg1
+  have hρsnd : ρ.snd = μ := by
+    rw [hρ]
+    show (Ω.map Prod.snd).map Prod.snd = μ
+    rw [Measure.map_map measurable_snd measurable_snd]; exact marg2
+  -- ρ is atomless
+  haveI : NoAtoms ρ := by
+    refine ⟨fun p ↦ ?_⟩
+    have hle : ρ {p} ≤ ρ.fst {p.1} := by
+      rw [Measure.fst_apply (measurableSet_singleton p.1)]
+      exact measure_mono (by rintro q rfl; exact rfl)
+    rw [hρfst] at hle
+    exact le_antisymm (hle.trans (measure_singleton p.1).le) bot_le
+  -- support of ρ
+  have hmeassetρ : MeasurableSet {w : α × α | ψ₁ w.1 = φ₂ w.2} :=
+    measurableSet_eq_fun (hψ₁.measurable.comp measurable_fst) (hφ₂.measurable.comp measurable_snd)
+  have hΩsupp : ∀ᵐ q ∂Ω, ψ₁ q.2.1 = φ₂ q.2.2 := by
+    have hmeassetΩ : MeasurableSet {q : α × (α × α) | ψ₁ q.2.1 = φ₂ q.2.2} :=
+      measurableSet_eq_fun (hψ₁.measurable.comp (measurable_fst.comp measurable_snd))
+        (hφ₂.measurable.comp (measurable_snd.comp measurable_snd))
+    rw [hΩ, Measure.ae_compProd_iff hmeassetΩ]
+    filter_upwards [hκ1supp, hκ2supp] with v hv1 hv2
+    rw [Kernel.prod_apply]
+    have ha1 : ∀ᵐ w ∂(κ₁ v).prod (κ₂ v), ψ₁ w.1 = v :=
+      Measure.quasiMeasurePreserving_fst.ae hv1
+    have ha2 : ∀ᵐ w ∂(κ₁ v).prod (κ₂ v), φ₂ w.2 = v :=
+      Measure.quasiMeasurePreserving_snd.ae hv2
+    filter_upwards [ha1, ha2] with w hw1 hw2
+    rw [hw1, hw2]
+  have hρsupp : ∀ᵐ w ∂ρ, ψ₁ w.1 = φ₂ w.2 := by
+    rw [hρ, Measure.snd, ae_map_iff measurable_snd.aemeasurable hmeassetρ]
+    exact hΩsupp
+  -- transport to (α, μ) via the measure-isomorphism theorem
+  obtain ⟨eα⟩ := atomless_standardBorel_mod0MeasureIso_unitInterval α μ
+  obtain ⟨eρ⟩ := atomless_standardBorel_mod0MeasureIso_unitInterval (α × α) ρ
+  let eρsymm : Mod0MeasureIso ℝ (α × α) (volume.restrict (Set.Icc 0 1)) ρ :=
+    ⟨eρ.invFun, eρ.toFun, eρ.measurable_invFun, eρ.measurable_toFun,
+      eρ.map_invFun, eρ.map_toFun, eρ.right_inv_ae, eρ.left_inv_ae⟩
+  let tiso : Mod0MeasureIso α (α × α) μ ρ := eα.trans eρsymm
+  set t : α → α × α := tiso.toFun with htdef
+  have htmeas : Measurable t := tiso.measurable_toFun
+  have htmap : Measure.map t μ = ρ := tiso.map_toFun
+  refine ⟨fun x ↦ (t x).1, fun x ↦ (t x).2, ?_, ?_, ?_⟩
+  · refine ⟨measurable_fst.comp htmeas, ?_⟩
+    rw [show (fun x ↦ (t x).1) = Prod.fst ∘ t from rfl,
+      ← Measure.map_map measurable_fst htmeas, htmap, ← Measure.fst, hρfst]
+  · refine ⟨measurable_snd.comp htmeas, ?_⟩
+    rw [show (fun x ↦ (t x).2) = Prod.snd ∘ t from rfl,
+      ← Measure.map_map measurable_snd htmeas, htmap, ← Measure.snd, hρsnd]
+  · have htqmp : Measure.QuasiMeasurePreserving t μ ρ := ⟨htmeas, by rw [htmap]⟩
+    filter_upwards [htqmp.ae hρsupp] with x hx
+    exact hx
 
 section Mod0Alignment
 open Graphon.MeasureIso
