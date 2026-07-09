@@ -528,4 +528,123 @@ theorem atomless_standardBorel_mod0MeasureIso_unitInterval (α) [MeasurableSpace
   exact ⟨(embeddingRealMod0MeasureIso α μ).trans
     (realMod0MeasureIso (Measure.map (embeddingReal α) μ))⟩
 
+/-- **Brick 1 — parameterized patching lemma (R2.0a).** Upgrade a mod-0 isomorphism to a genuine
+measure-preserving `MeasurableEquiv`, *assuming* two null uncountable reservoir sets are already in
+hand — one on each side. The reservoirs are removed from the a.e.-defined bijection region so that
+both leftover "defect" sets become uncountable standard-Borel spaces, hence Borel-isomorphic via
+`measurableEquivOfNotCountable`; gluing that Borel isomorphism onto the honest bijection produces an
+everywhere `≃ᵐ` that still agrees with `toFun`/`invFun` almost everywhere (so it is measure
+preserving). This isolates all the `MeasurableEquiv`-gluing and a.e.-transfer bookkeeping from the
+reservoir *construction* (Brick 2). -/
+theorem Mod0MeasureIso.toMeasurableEquiv_of_null_reservoirs
+    {α β : Type*} [MeasurableSpace α] [StandardBorelSpace α]
+    [MeasurableSpace β] [StandardBorelSpace β]
+    {μ : Measure α} {ν : Measure β} [IsProbabilityMeasure μ] [IsProbabilityMeasure ν]
+    (e : Mod0MeasureIso α β μ ν)
+    (A₀ : Set α) (hA₀ : MeasurableSet A₀) (hA₀0 : μ A₀ = 0) (hA₀c : ¬ A₀.Countable)
+    (B₀ : Set β) (hB₀ : MeasurableSet B₀) (hB₀0 : ν B₀ = 0) (hB₀c : ¬ B₀.Countable) :
+    ∃ φ : α ≃ᵐ β, MeasurePreserving φ μ ν ∧ φ =ᵐ[μ] e.toFun ∧ φ.symm =ᵐ[ν] e.invFun := by
+  classical
+  -- Good loci where the two maps are genuine one-sided inverses.
+  set Gα : Set α := {x | e.invFun (e.toFun x) = x} with hGαdef
+  set Gβ : Set β := {y | e.toFun (e.invFun y) = y} with hGβdef
+  have hGαmeas : MeasurableSet Gα :=
+    measurableSet_eq_fun (e.measurable_invFun.comp e.measurable_toFun) measurable_id
+  have hGβmeas : MeasurableSet Gβ :=
+    measurableSet_eq_fun (e.measurable_toFun.comp e.measurable_invFun) measurable_id
+  -- The honest bijection region: good on both sides, with both reservoirs removed.
+  set S : Set α := (Gα ∩ e.toFun ⁻¹' Gβ) \ (A₀ ∪ e.toFun ⁻¹' B₀) with hSdef
+  have hSmeas : MeasurableSet S :=
+    (hGαmeas.inter (hGβmeas.preimage e.measurable_toFun)).diff
+      (hA₀.union (hB₀.preimage e.measurable_toFun))
+  set T : Set β := e.toFun '' S with hTdef
+  -- Membership consequences of lying in `S` / `T`.
+  have hSGα : ∀ x ∈ S, e.invFun (e.toFun x) = x := fun x hx => hx.1.1
+  have hSinj : Set.InjOn e.toFun S := by
+    intro a ha b hb hab
+    have h := congrArg e.invFun hab
+    rwa [hSGα a ha, hSGα b hb] at h
+  have hTGβ : ∀ y ∈ T, e.toFun (e.invFun y) = y := by
+    rintro y ⟨x, hxS, rfl⟩; exact hxS.1.2
+  have hinvS : ∀ y ∈ T, e.invFun y ∈ S := by
+    rintro y ⟨x, hxS, rfl⟩; rw [hSGα x hxS]; exact hxS
+  -- `T` is measurable: `toFun` is a measurable embedding on the standard-Borel subtype `↥S`.
+  haveI : StandardBorelSpace ↥S := hSmeas.standardBorel
+  have hgSmeas : Measurable (fun x : ↥S => e.toFun x.1) :=
+    e.measurable_toFun.comp measurable_subtype_coe
+  have hgSinj : Function.Injective (fun x : ↥S => e.toFun x.1) := fun a b hab =>
+    Subtype.ext (hSinj a.2 b.2 hab)
+  have hgSemb : MeasurableEmbedding (fun x : ↥S => e.toFun x.1) :=
+    hgSmeas.measurableEmbedding hgSinj
+  have hTrange : T = Set.range (fun x : ↥S => e.toFun x.1) := by
+    ext y; constructor
+    · rintro ⟨x, hxS, rfl⟩; exact ⟨⟨x, hxS⟩, rfl⟩
+    · rintro ⟨x, rfl⟩; exact ⟨x.1, x.2, rfl⟩
+  have hTmeas : MeasurableSet T := by rw [hTrange]; exact hgSemb.measurableSet_range
+  -- Nullity bookkeeping: `S` is conull, hence so is `T`.
+  have hGαnull : μ Gαᶜ = 0 := ae_iff.mp e.left_inv_ae
+  have hGβnull : ν Gβᶜ = 0 := ae_iff.mp e.right_inv_ae
+  have hpre_Gβ : μ (e.toFun ⁻¹' Gβᶜ) = 0 := by
+    rw [← Measure.map_apply e.measurable_toFun hGβmeas.compl, e.map_toFun]; exact hGβnull
+  have hpre_B₀ : μ (e.toFun ⁻¹' B₀) = 0 := by
+    rw [← Measure.map_apply e.measurable_toFun hB₀, e.map_toFun]; exact hB₀0
+  have hScoNull : μ Sᶜ = 0 := by
+    have hsub : Sᶜ ⊆ Gαᶜ ∪ e.toFun ⁻¹' Gβᶜ ∪ A₀ ∪ e.toFun ⁻¹' B₀ := by
+      intro x hx
+      simp only [hSdef, Set.mem_compl_iff, Set.mem_sdiff, Set.mem_inter_iff, Set.mem_union,
+        Set.mem_preimage, not_and, not_not, not_or] at hx ⊢
+      tauto
+    exact measure_mono_null hsub
+      (measure_union_null (measure_union_null (measure_union_null hGαnull hpre_Gβ) hA₀0) hpre_B₀)
+  have hSprob : μ S = 1 := by
+    have h := measure_add_measure_compl (μ := μ) hSmeas
+    rw [hScoNull, add_zero, measure_univ] at h; exact h
+  have hTcoNull : ν Tᶜ = 0 := by
+    rw [← e.map_toFun, Measure.map_apply e.measurable_toFun hTmeas.compl]
+    exact measure_mono_null (fun x hx hxS => hx (Set.mem_image_of_mem _ hxS)) hScoNull
+  -- Both defect sets are uncountable (they contain the reservoirs).
+  have hA₀subSc : A₀ ⊆ Sᶜ := fun x hx hxS => hxS.2 (Or.inl hx)
+  have hB₀subTc : B₀ ⊆ Tᶜ := by rintro y hy ⟨x, hxS, rfl⟩; exact hxS.2 (Or.inr hy)
+  haveI : StandardBorelSpace ↥(Sᶜ) := hSmeas.compl.standardBorel
+  haveI : StandardBorelSpace ↥(Tᶜ) := hTmeas.compl.standardBorel
+  have hScUnc : ¬ Countable ↥(Sᶜ) := fun h =>
+    hA₀c (Set.Countable.mono hA₀subSc (Set.countable_coe_iff.mp h))
+  have hTcUnc : ¬ Countable ↥(Tᶜ) := fun h =>
+    hB₀c (Set.Countable.mono hB₀subTc (Set.countable_coe_iff.mp h))
+  -- The honest bijection `↥S ≃ᵐ ↥T`, built directly for transparent computation.
+  let τ : ↥S ≃ᵐ ↥T :=
+    { toEquiv :=
+        { toFun := fun x => ⟨e.toFun x.1, Set.mem_image_of_mem _ x.2⟩
+          invFun := fun y => ⟨e.invFun y.1, hinvS y.1 y.2⟩
+          left_inv := fun x => Subtype.ext (hSGα x.1 x.2)
+          right_inv := fun y => Subtype.ext (hTGβ y.1 y.2) }
+      measurable_toFun := (e.measurable_toFun.comp measurable_subtype_coe).subtype_mk
+      measurable_invFun := (e.measurable_invFun.comp measurable_subtype_coe).subtype_mk }
+  -- The Borel patch between the defect sets, and the glued global equivalence.
+  let p : ↥(Sᶜ) ≃ᵐ ↥(Tᶜ) := PolishSpace.measurableEquivOfNotCountable hScUnc hTcUnc
+  let φ : α ≃ᵐ β :=
+    (MeasurableEquiv.sumCompl hSmeas).symm.trans
+      ((τ.sumCongr p).trans (MeasurableEquiv.sumCompl hTmeas))
+  -- On the conull good region, `φ` is exactly `toFun`.
+  have hφeqS : ∀ x, x ∈ S → φ x = e.toFun x := by
+    intro x hxS
+    have key : (MeasurableEquiv.sumCompl hSmeas).symm x = Sum.inl ⟨x, hxS⟩ := by
+      apply (MeasurableEquiv.sumCompl hSmeas).injective
+      rw [MeasurableEquiv.apply_symm_apply]; rfl
+    show (MeasurableEquiv.sumCompl hTmeas) ((τ.sumCongr p)
+      ((MeasurableEquiv.sumCompl hSmeas).symm x)) = e.toFun x
+    rw [key]; rfl
+  have hSae : ∀ᵐ x ∂μ, x ∈ S := by rw [ae_iff]; exact hScoNull
+  have hφae : φ =ᵐ[μ] e.toFun := by filter_upwards [hSae] with x hx using hφeqS x hx
+  have hMP : MeasurePreserving φ μ ν :=
+    ⟨φ.measurable, by rw [Measure.map_congr hφae, e.map_toFun]⟩
+  have hφsymm : φ.symm =ᵐ[ν] e.invFun := by
+    have hTae : ∀ᵐ y ∂ν, y ∈ T := by rw [ae_iff]; exact hTcoNull
+    filter_upwards [hTae] with y hyT
+    have h1 : φ (e.invFun y) = y := by
+      rw [hφeqS (e.invFun y) (hinvS y hyT)]; exact hTGβ y hyT
+    calc φ.symm y = φ.symm (φ (e.invFun y)) := by rw [h1]
+      _ = e.invFun y := MeasurableEquiv.symm_apply_apply φ (e.invFun y)
+  exact ⟨φ, hMP, hφae, hφsymm⟩
+
 end Graphon.MeasureIso
