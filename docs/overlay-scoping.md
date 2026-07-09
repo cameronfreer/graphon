@@ -84,50 +84,111 @@ error `ε / 2`, and combining inequalities.
 This theorem is preferable to attacking `exists_mpEquiv_cutNormDiff_lt_add` directly
 because it isolates the analytic content from the `sInf` bookkeeping.
 
-## 4. Expected proof route
+(With the exact-carving route of §4 the intermediate theorem is even stronger: at the
+step-graphon level the overlay is realized with `η = 0` — see O2 in §5 — and the `η` in the
+general statement comes purely from step approximation of `U` and `W`.)
+
+## 4. Proof route — exact carving, no Birkhoff (scoping upgrade, 2026-07-09)
 
 The proof should be built as a separate campaign, not folded into the completeness proof.
 
-1. **Step approximation.** Approximate `U` and `W` in cut norm by step graphons on a common
-   finite equipartition. This reduces the overlay estimate to finitely many cell-pair
-   coefficients.
+**Key simplification found during scoping**: for *step* graphons, the value of any coupling
+`(φ, ψ)` is achieved **exactly** by an MP bijection — no rational approximation of the
+coupling matrix, no Birkhoff/permutation matching. The atomless carving primitives realize
+arbitrary real masses directly, so the only ε in the whole proof comes from step
+approximation (regularity).
 
-2. **Coupling matrix.** Push `μ` through `(φ, ψ)` and record the finite coupling matrix
-   between source cells and target cells. The row and column sums are the common cell
-   measures because `φ` and `ψ` are measure-preserving.
+Let `U' = stepify P U` (cells `S_i`, values `u_{ii'}`), `W' = stepify Q W` (cells `T_k`,
+values `w_{kk'}`) — independent partitions, no common refinement needed — and `(φ, ψ)` an MP
+pair. Define the **coupling matrix**
 
-3. **Finite overlay.** Approximate the finite coupling matrix by a rational coupling, split
-   cells into equal subcells, and realize the rational coupling by a permutation of subcells.
-   This is the finite Birkhoff/integer-matching step.
-
-4. **Realize as an MP bijection.** Use the already-proved
-   `MeasurePreserving.exists_controlled_cell_alignment` to turn the finite subcell
-   permutation into a measure-preserving `α ≃ᵐ α`.
-
-5. **Cut-norm error.** Bound the error between the original coupling pullback and the
-   permutation graph by the step approximation error plus the rational-coupling error.
-
-## 5. Work plan
-
-Recommended first Lean target:
-
-```lean
-theorem finiteCoupling_approximated_by_cellPermutation
+```
+λ_{ik} := μ (φ⁻¹(S_i) ∩ ψ⁻¹(T_k)),   ∑_k λ_{ik} = μ(S_i),   ∑_i λ_{ik} = μ(T_k)
 ```
 
-for finite probability vectors, producing a common refinement and a permutation of equal
-mass atoms approximating a bistochastic matrix. Keep it graphon-free.
+(marginals because `φ, ψ` are MP). Then:
 
-Second target:
+1. **Carve** (atomless; `exists_measurable_subset_of_measure`): split each `T_k` into
+   disjoint measurable `T_{ik} ⊆ T_k` with `μ(T_{ik}) = λ_{ik}`, and each `S_i` into
+   `S_{ik} ⊆ S_i` with `μ(S_{ik}) = λ_{ik}`. Two refined partitions, both indexed by
+   `(i, k)`, with equal masses cell-by-cell.
 
-```lean
-theorem stepGraphon_overlay_by_mpEquiv
-```
+2. **Align twice** via the proved `exists_controlled_cell_alignment` (whose a.e. conclusion
+   handles null cells `λ_{ik} = 0` vacuously — exactly why its pointwise form was refuted
+   and weakened in R2.1):
+   - `σ : α ≃ᵐ α` MP with `σ(T_{ik}) ⊆ S_{ik}` a.e. — **the answer bijection**;
+   - `τ : α ≃ᵐ α` MP with `τ(T_{ik}) ⊆ φ⁻¹(S_i) ∩ ψ⁻¹(T_k)` a.e. — a **proof-only
+     transfer** (same masses `λ_{ik}` on both sides, so R2.1 applies again).
 
-for step graphons on equal-measure finite partitions, consuming the finite theorem and
-`exists_controlled_cell_alignment`.
+3. **Transfer.** For a.e. `x ∈ T_{ik}`, `y ∈ T_{i'k'}`:
+   `(pullback U' φ)(τx, τy) = u_{ii'} = (pullback U' σ)(x, y)` and
+   `(pullback W' ψ)(τx, τy) = w_{kk'} = W'(x, y)`. Hence a.e.
+   `pullback (pullback U' φ) τ = pullback U' σ` and `pullback (pullback W' ψ) τ = W'`, so
 
-Only after those land should the full `cutDistance_maps_to_equiv_overlay` be assembled.
+   ```
+   cutNormDiff (pullback U' σ) W'
+     = cutNormDiff (pullback (pullback U' φ) τ) (pullback (pullback W' ψ) τ)  -- a.e. congr
+     = cutNormDiff (pullback U' φ) (pullback W' ψ)                            -- τ bijection
+   ```
+
+   the second equality by `cutNormDiff_pullback_measurableEquiv`. This is precisely the
+   mechanism already executed once in the totally-bounded net proof
+   (`Compactness.lean:~2050–2135`: assemble refined `MeasurablePartition`s with a waste
+   cell, apply R2.1, prove a.e. step equality of pullbacks) — reusable as a template.
+
+**ε-budget for the core.** Given `ε > 0`:
+
+1. `regularity` (`Regularity.lean:4550`) at `ε/8` twice: `‖U − U'‖_□ ≤ ε/8`,
+   `‖W − W'‖_□ ≤ ε/8`.
+2. `cutDistance U' W' ≤ cutDistance U W + ε/4` via the now-proved `cutDistance_triangle`
+   plus `cutDistance_le_cutNormDiff`.
+3. `cutDistance_lt_add_of_pos` at `ε/8`: MP pair `(φ, ψ)` with
+   `cutNormDiff (pullback U' φ) (pullback W' ψ) < cutDistance U' W' + ε/8`.
+4. Overlay above: bijection `σ` with `cutNormDiff (pullback U' σ) W'` equal to that value.
+5. `cutNormDiff_triangle` twice (σ is a bijection, so
+   `cutNormDiff (pullback U σ) (pullback U' σ) = ‖U − U'‖_□`):
+
+   ```
+   cutNormDiff (U^σ) W ≤ ε/8 + (cutDistance U W + ε/4 + ε/8) + ε/8
+                       = cutDistance U W + 5ε/8 < cutDistance U W + ε.
+   ```
+
+   Slack `3ε/8`.
+
+## 5. Work plan (campaign R3; est. 300–600 lines, all in CutDistance.lean as private helpers)
+
+- **O1 — matrix carving** (~80–120 lines): given finitely many disjoint measurable cells
+  `C_j` and prescribed masses `λ_{j·} ≥ 0` with `∑ λ_{j·} = μ(C_j)`, produce disjoint
+  measurable `C_{j·} ⊆ C_j` of exactly those masses (iterate
+  `exists_measurable_subset_of_measure`, `Regularity.lean:4669`; `NoAtoms` available).
+- **O2 — step-overlay transfer** (~150–250 lines, the bulk): the §4 double-alignment lemma.
+  Inputs: two `stepify` graphons + MP pair; output `σ : α ≃ᵐ α` MP with
+  `cutNormDiff (pullback U' σ) W' ≤ cutNormDiff (pullback U' φ) (pullback W' ψ)`.
+  Bulk is `MeasurablePartition` plumbing ((i,k)-indexed refinements, waste cells, index
+  injectivity) and a.e. cell-membership bookkeeping — both mirror the Compactness net proof.
+  May need a small `cutNormDiff_congr_ae` helper if not already present (the net proof did
+  this dance, so at worst it is extracted, not invented). Note `stepify` values are
+  `rectAverage`s, but O2 only needs constancy on cells, never the numeric values.
+- **O3 — assembly** (~80–120 lines): fill `exists_mpEquiv_cutNormDiff_lt_add` by the §4
+  budget. Removes the last live Rokhlin sorry; unlocks `complete`/`compact` and the
+  InverseCounting chain.
+
+Commit discipline as in R2: O1/O2 land only sorry-free, O3's commit removes the crux sorry,
+axiom check (standard axioms only) before each commit.
+
+**Ingredient inventory (all verified to exist by name):**
+
+| Ingredient | Location | Status |
+|---|---|---|
+| `regularity` (Frieze–Kannan weak) + `stepify` | `Regularity.lean:4550` | proved |
+| `cutDistance_lt_add_of_pos` (ε-optimal MP pair) | `CutDistance.lean` | proved |
+| `exists_measurable_subset_of_measure` (carve prescribed mass) | `Regularity.lean:4669` | proved |
+| `exists_equal_chunks_inside` | `Regularity.lean:4851` | proved |
+| `exists_controlled_cell_alignment` (R2.1) | `CutDistance.lean` | proved this campaign |
+| `cutNormDiff_pullback_measurableEquiv` | `CutDistance.lean` | proved |
+| `cutNormDiff_triangle`, `cutDistance_le_cutNormDiff` | `CutDistance.lean` | proved |
+| `cutDistance_triangle` | `CutDistance.lean` | fully proved as of R2.4 |
+| Refined-partition + waste-cell + R2.1 template | `Compactness.lean:~2050–2135` | proved (net proof) |
 
 ## 6. Decision
 

@@ -9,9 +9,11 @@ import Mathlib
 # The atomless standard-Borel measure-isomorphism theorem (Rokhlin campaign, R1)
 
 This file builds, from the ground up, the measure-theoretic core that the graphon program's
-four remaining `sorry`s (`exists_common_coupling_maps`, `cutNormDiff_pullback_le`,
+four corrected Rokhlin cores (`exists_common_coupling_maps`, `cutNormDiff_pullback_le`,
 `exists_controlled_cell_alignment`, `exists_mpEquiv_cutNormDiff_lt_add` in
-`Graphon/CutDistance.lean`) all reduce to (see `docs/rokhlin-scoping.md` §7–8):
+`Graphon/CutDistance.lean`) all reduce to (see `docs/rokhlin-scoping.md` §7–8). As of R2
+(2026-07-09) the first three are proved from this file's theorems; the fourth — the overlay
+theorem — is the sole live obligation, scoped in `docs/overlay-scoping.md`:
 
 > An atomless standard-Borel probability space `(α, μ)` is measure-preservingly isomorphic
 > mod 0 to `([0,1], Lebesgue)`.
