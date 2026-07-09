@@ -1631,7 +1631,131 @@ disintegration (campaign phase R1/R2). -/
 theorem cutNormDiff_pullback_le [StandardBorelSpace α] (U W : Graphon α μ)
     (φ : α → α) (hφ : MeasurePreserving φ μ μ) :
     cutNormDiff (pullback U φ hφ) (pullback W φ hφ) ≤ cutNormDiff U W := by
-  sorry
+  classical
+  -- Reduce to a fixed rectangle S × T.
+  unfold cutNormDiff
+  apply Real.iSup_le _ (cutNormDiff_nonneg U W)
+  intro S; apply Real.iSup_le _ (cutNormDiff_nonneg U W)
+  intro hS; apply Real.iSup_le _ (cutNormDiff_nonneg U W)
+  intro T; apply Real.iSup_le _ (cutNormDiff_nonneg U W)
+  intro hT
+  -- The graphon difference as a (strongly measurable, integrable) function.
+  set D : α × α → ℝ := fun q ↦ U.toAEEqFun q - W.toAEEqFun q with hD
+  have hD_sm : StronglyMeasurable D :=
+    U.toAEEqFun.stronglyMeasurable.sub W.toAEEqFun.stronglyMeasurable
+  have hD_int : Integrable D (μ.prod μ) :=
+    (SymmKernel.graphon_integrable U).sub (SymmKernel.graphon_integrable W)
+  -- Step 1: rewrite the pulled-back rectangle integral through `pullback_ae`.
+  have hstep1 : rectIntegralDiff (pullback U φ hφ) (pullback W φ hφ) S T =
+      ∫ p in S ×ˢ T, D (φ p.1, φ p.2) ∂(μ.prod μ) := by
+    unfold rectIntegralDiff
+    apply setIntegral_congr_ae (hS.prod hT)
+    filter_upwards [pullback_ae U φ hφ, pullback_ae W φ hφ] with p hU hW _
+    rw [hU, hW]
+  -- The conditional-probability weight measures: pushforwards of the restricted measures.
+  set νS : Measure α := Measure.map φ (μ.restrict S) with hνS
+  set νT : Measure α := Measure.map φ (μ.restrict T) with hνT
+  -- Each weight measure is dominated by μ.
+  have hle : ∀ R : Set α, Measure.map φ (μ.restrict R) ≤ μ := by
+    intro R
+    refine Measure.le_iff.mpr fun E hE ↦ ?_
+    rw [Measure.map_apply hφ.measurable hE, Measure.restrict_apply (hφ.measurable hE)]
+    calc μ (φ ⁻¹' E ∩ R) ≤ μ (φ ⁻¹' E) := measure_mono Set.inter_subset_left
+      _ = μ E := hφ.measure_preimage hE.nullMeasurableSet
+  have hleS : νS ≤ μ := hνS ▸ hle S
+  have hleT : νT ≤ μ := hνT ▸ hle T
+  have hacS : νS ≪ μ := Measure.absolutelyContinuous_of_le hleS
+  have hacT : νT ≪ μ := Measure.absolutelyContinuous_of_le hleT
+  haveI : IsFiniteMeasure νS := ⟨lt_of_le_of_lt (hleS Set.univ) (measure_lt_top μ _)⟩
+  haveI : IsFiniteMeasure νT := ⟨lt_of_le_of_lt (hleT Set.univ) (measure_lt_top μ _)⟩
+  -- The [0,1]-valued Radon–Nikodym weights (= the conditional probabilities E[1_S ∣ φ]).
+  set f0 : α → ℝ := fun a ↦ (νS.rnDeriv μ a).toReal with hf0
+  set g0 : α → ℝ := fun b ↦ (νT.rnDeriv μ b).toReal with hg0
+  have hf0_meas : Measurable f0 := (Measure.measurable_rnDeriv νS μ).ennreal_toReal
+  have hg0_meas : Measurable g0 := (Measure.measurable_rnDeriv νT μ).ennreal_toReal
+  have hf0_le : ∀ᵐ a ∂μ, f0 a ≤ 1 := by
+    filter_upwards [Measure.rnDeriv_le_one_of_le hleS] with a ha
+    calc (νS.rnDeriv μ a).toReal ≤ (1 : ℝ≥0∞).toReal :=
+          ENNReal.toReal_mono ENNReal.one_ne_top ha
+      _ = 1 := ENNReal.toReal_one
+  have hg0_le : ∀ᵐ b ∂μ, g0 b ≤ 1 := by
+    filter_upwards [Measure.rnDeriv_le_one_of_le hleT] with b hb
+    calc (νT.rnDeriv μ b).toReal ≤ (1 : ℝ≥0∞).toReal :=
+          ENNReal.toReal_mono ENNReal.one_ne_top hb
+      _ = 1 := ENNReal.toReal_one
+  -- Step 2: the change of variables, at the product level.
+  have hkey : ∫ p in S ×ˢ T, D (φ p.1, φ p.2) ∂(μ.prod μ) =
+      ∫ x, ∫ y, f0 x * g0 y * D (x, y) ∂μ ∂μ := by
+    have hΦmeas : Measurable (Prod.map φ φ) := hφ.measurable.prodMap hφ.measurable
+    -- pushforward of the restricted product measure = product of the weight measures
+    have hmapΦ : Measure.map (Prod.map φ φ) ((μ.prod μ).restrict (S ×ˢ T)) = νS.prod νT := by
+      rw [← Measure.prod_restrict, ← Measure.map_prod_map _ _ hφ.measurable hφ.measurable]
+    -- integrability of the weighted integrand over μ.prod μ
+    have hF_int : Integrable (fun q : α × α ↦ f0 q.1 * g0 q.2 * D q) (μ.prod μ) := by
+      refine Integrable.mono' hD_int.abs
+        ((((hf0_meas.comp measurable_fst).mul (hg0_meas.comp measurable_snd)).mul
+          hD_sm.measurable).aestronglyMeasurable) ?_
+      have h1 : ∀ᵐ q ∂(μ.prod μ), f0 q.1 ≤ 1 :=
+        Measure.quasiMeasurePreserving_fst.ae hf0_le
+      have h2 : ∀ᵐ q ∂(μ.prod μ), g0 q.2 ≤ 1 :=
+        Measure.quasiMeasurePreserving_snd.ae hg0_le
+      filter_upwards [h1, h2] with q hq1 hq2
+      rw [Real.norm_eq_abs, abs_mul, abs_mul]
+      calc |f0 q.1| * |g0 q.2| * |D q| ≤ 1 * 1 * |D q| := by
+            gcongr
+            · exact ((abs_of_nonneg ENNReal.toReal_nonneg).le.trans hq1)
+            · exact ((abs_of_nonneg ENNReal.toReal_nonneg).le.trans hq2)
+        _ = |D q| := by ring
+    calc ∫ p in S ×ˢ T, D (φ p.1, φ p.2) ∂(μ.prod μ)
+        = ∫ p, D (Prod.map φ φ p) ∂((μ.prod μ).restrict (S ×ˢ T)) := rfl
+      _ = ∫ q, D q ∂(Measure.map (Prod.map φ φ) ((μ.prod μ).restrict (S ×ˢ T))) :=
+          (integral_map hΦmeas.aemeasurable hD_sm.aestronglyMeasurable).symm
+      _ = ∫ q, D q ∂(νS.prod νT) := by rw [hmapΦ]
+      _ = ∫ q, D q
+            ∂((μ.prod μ).withDensity fun q ↦ νS.rnDeriv μ q.1 * νT.rnDeriv μ q.2) := by
+          rw [← MeasureTheory.prod_withDensity (Measure.measurable_rnDeriv νS μ)
+              (Measure.measurable_rnDeriv νT μ),
+            Measure.withDensity_rnDeriv_eq νS μ hacS, Measure.withDensity_rnDeriv_eq νT μ hacT]
+      _ = ∫ q, (νS.rnDeriv μ q.1 * νT.rnDeriv μ q.2).toReal • D q ∂(μ.prod μ) := by
+          refine integral_withDensity_eq_integral_toReal_smul
+            (((Measure.measurable_rnDeriv νS μ).comp measurable_fst).mul
+              ((Measure.measurable_rnDeriv νT μ).comp measurable_snd)) ?_ D
+          have h1 : ∀ᵐ q ∂(μ.prod μ), νS.rnDeriv μ q.1 < ∞ :=
+            Measure.quasiMeasurePreserving_fst.ae (Measure.rnDeriv_lt_top νS μ)
+          have h2 : ∀ᵐ q ∂(μ.prod μ), νT.rnDeriv μ q.2 < ∞ :=
+            Measure.quasiMeasurePreserving_snd.ae (Measure.rnDeriv_lt_top νT μ)
+          filter_upwards [h1, h2] with q hq1 hq2
+          exact ENNReal.mul_lt_top hq1 hq2
+      _ = ∫ q : α × α, f0 q.1 * g0 q.2 * D q ∂(μ.prod μ) := by
+          congr 1; funext q
+          rw [smul_eq_mul, ENNReal.toReal_mul]
+      _ = ∫ x, ∫ y, f0 x * g0 y * D (x, y) ∂μ ∂μ := integral_prod _ hF_int
+  -- Step 3: truncate the weights to land pointwise in [0,1].
+  set f : α → ℝ := fun a ↦ min (f0 a) 1 with hf
+  set g : α → ℝ := fun b ↦ min (g0 b) 1 with hg
+  have hf_meas : Measurable f := hf0_meas.min measurable_const
+  have hg_meas : Measurable g := hg0_meas.min measurable_const
+  have hf_bound : ∀ x, f x ∈ Set.Icc (0 : ℝ) 1 := fun x ↦
+    ⟨le_min ENNReal.toReal_nonneg zero_le_one, min_le_right _ _⟩
+  have hg_bound : ∀ x, g x ∈ Set.Icc (0 : ℝ) 1 := fun x ↦
+    ⟨le_min ENNReal.toReal_nonneg zero_le_one, min_le_right _ _⟩
+  have hf_ae : (f : α → ℝ) =ᵐ[μ] f0 := by
+    filter_upwards [hf0_le] with a ha using min_eq_left ha
+  have hg_ae : (g : α → ℝ) =ᵐ[μ] g0 := by
+    filter_upwards [hg0_le] with b hb using min_eq_left hb
+  have hcongr : ∫ x, ∫ y, f0 x * g0 y * D (x, y) ∂μ ∂μ =
+      ∫ x, ∫ y, f x * g y * D (x, y) ∂μ ∂μ := by
+    apply integral_congr_ae
+    filter_upwards [hf_ae] with x hx
+    apply integral_congr_ae
+    filter_upwards [hg_ae] with y hy
+    rw [hx, hy]
+  -- Conclude via the weighted cut-norm bound.
+  calc |rectIntegralDiff (pullback U φ hφ) (pullback W φ hφ) S T|
+      = |∫ x, ∫ y, f x * g y * (U.toAEEqFun (x, y) - W.toAEEqFun (x, y)) ∂μ ∂μ| := by
+        rw [hstep1, hkey, hcongr]
+    _ ≤ cutNormDiff U W :=
+        abs_weighted_integral_diff_le U W f g hf_meas hg_meas hf_bound hg_bound
 
 /-- **An MP bijection nearly achieves the cut distance (corrected Rokhlin consequence 4).**
 On an *atomless* standard Borel probability space, the cut distance — an infimum over pairs of
