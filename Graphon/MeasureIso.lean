@@ -647,4 +647,309 @@ theorem Mod0MeasureIso.toMeasurableEquiv_of_null_reservoirs
       _ = e.invFun y := MeasurableEquiv.symm_apply_apply φ (e.invFun y)
   exact ⟨φ, hMP, hφae, hφsymm⟩
 
+section NullReservoir
+open Metric
+
+variable {α : Type*} [MeasurableSpace α] [MetricSpace α] [BorelSpace α]
+  [SecondCountableTopology α]
+
+omit [SecondCountableTopology α] in
+/-- A closed ball of arbitrarily small measure around a point of measure zero. -/
+private lemma exists_small_ball (nu : Measure α) [IsFiniteMeasure nu] (x : α)
+    (hx : nu {x} = 0) {c : ENNReal} (hc : 0 < c) {ρ : ℝ} (hρ : 0 < ρ) :
+    ∃ r : ℝ, 0 < r ∧ r ≤ ρ ∧ nu (closedBall x r) ≤ c := by
+  have hkey : ⋂ n : ℕ, closedBall x (ρ / (n + 1)) = {x} := by
+    apply subset_antisymm
+    · intro z hz
+      simp only [mem_iInter, mem_closedBall] at hz
+      have htend : Tendsto (fun n : ℕ => ρ / (n + 1)) atTop (𝓝 0) := by
+        simpa [div_eq_mul_inv] using
+          (tendsto_one_div_add_atTop_nhds_zero_nat (𝕜 := ℝ)).const_mul ρ
+      have : dist z x ≤ 0 := ge_of_tendsto htend (Eventually.of_forall hz)
+      simp only [mem_singleton_iff]
+      exact dist_le_zero.mp this
+    · intro z hz
+      simp only [mem_singleton_iff] at hz
+      subst hz
+      simp only [mem_iInter, mem_closedBall, dist_self]
+      intro n
+      positivity
+  have hanti : Antitone (fun n : ℕ => closedBall x (ρ / (n + 1))) := by
+    intro n m hnm
+    apply closedBall_subset_closedBall
+    apply div_le_div_of_nonneg_left hρ.le (by positivity)
+    exact_mod_cast by omega
+  have htends : Tendsto (fun n : ℕ => nu (closedBall x (ρ / (n + 1)))) atTop
+      (𝓝 (nu (⋂ n : ℕ, closedBall x (ρ / (n + 1))))) := by
+    apply tendsto_measure_iInter_atTop
+    · intro n; exact measurableSet_closedBall.nullMeasurableSet
+    · exact hanti
+    · exact ⟨0, measure_ne_top _ _⟩
+  rw [hkey, hx] at htends
+  have hlt : ∀ᶠ n : ℕ in atTop, nu (closedBall x (ρ / (n + 1))) < c :=
+    htends.eventually (eventually_lt_nhds hc)
+  obtain ⟨n, hn⟩ := hlt.exists
+  exact ⟨ρ / (n + 1), by positivity, by
+    rw [div_le_iff₀ (by positivity)]; nlinarith [hρ.le], hn.le⟩
+
+/-- Splitting primitive: a positive-measure closed set splits into two disjoint closed
+subsets of positive measure, small diameter, and each at most a quarter of the parent's mass. -/
+private lemma exists_split (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ]
+    {S : Set α} (hS : IsClosed S) (hpos : 0 < μ S) {ε : ℝ} (hε : 0 < ε) :
+    ∃ K₀ K₁ : Set α, IsClosed K₀ ∧ IsClosed K₁ ∧ K₀ ⊆ S ∧ K₁ ⊆ S ∧ Disjoint K₀ K₁ ∧
+      0 < μ K₀ ∧ 0 < μ K₁ ∧ Metric.ediam K₀ ≤ ENNReal.ofReal ε ∧
+      Metric.ediam K₁ ≤ ENNReal.ofReal ε ∧ μ K₀ ≤ μ S / 4 ∧ μ K₁ ≤ μ S / 4 := by
+  classical
+  set nu := μ.restrict S with hnu
+  haveI : IsFiniteMeasure nu := by rw [hnu]; infer_instance
+  have hnuuniv : nu univ = μ S := by rw [hnu, Measure.restrict_apply_univ]
+  have hnu0 : nu ≠ 0 := by
+    intro h; rw [h] at hnuuniv; simp only [Measure.coe_zero, Pi.zero_apply] at hnuuniv
+    exact hpos.ne' hnuuniv.symm
+  haveI : NoAtoms nu := by
+    refine ⟨fun z => ?_⟩
+    rw [hnu, Measure.restrict_apply (measurableSet_singleton z)]
+    exact measure_mono_null Set.inter_subset_left (measure_singleton z)
+  obtain ⟨x, hx⟩ := Measure.nonempty_support hnu0
+  have hex : ∃ y ∈ nu.support, y ≠ x := by
+    by_contra h
+    have hsub : nu.support ⊆ {x} := by
+      intro y hy
+      rw [mem_singleton_iff]
+      by_contra hyx
+      exact h ⟨y, hy, hyx⟩
+    have h1 : nu univ ≤ nu nu.support := by
+      calc nu univ = nu (nu.support ∪ nu.supportᶜ) := by rw [union_compl_self]
+        _ ≤ nu nu.support + nu nu.supportᶜ := measure_union_le _ _
+        _ = nu nu.support := by rw [Measure.measure_compl_support, add_zero]
+    have h2 : nu nu.support ≤ nu {x} := measure_mono hsub
+    rw [measure_singleton] at h2
+    rw [hnuuniv] at h1
+    exact absurd (h1.trans h2) (not_le.mpr hpos)
+  obtain ⟨y, hy, hxy⟩ := hex
+  have hballpos : ∀ (z : α), z ∈ nu.support → ∀ r : ℝ, 0 < r → 0 < nu (closedBall z r) := by
+    intro z hz r hr
+    exact lt_of_lt_of_le
+      ((Measure.mem_support_iff_forall z).mp hz (ball z r) (ball_mem_nhds z hr))
+      (measure_mono ball_subset_closedBall)
+  set ρ : ℝ := min (ε / 2) (dist x y / 3) with hρdef
+  have hρpos : 0 < ρ := by
+    apply lt_min (by linarith)
+    have : 0 < dist x y := dist_pos.mpr (Ne.symm hxy)
+    linarith
+  have hquarter : 0 < μ S / 4 := ENNReal.div_pos hpos.ne' (by simp)
+  obtain ⟨rx, hrxpos, hrxρ, hrxμ⟩ :=
+    exists_small_ball nu x (measure_singleton x) (c := μ S / 4) hquarter hρpos
+  obtain ⟨ry, hrypos, hryρ, hryμ⟩ :=
+    exists_small_ball nu y (measure_singleton y) (c := μ S / 4) hquarter hρpos
+  refine ⟨closedBall x rx ∩ S, closedBall y ry ∩ S, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_, ?_⟩
+  · exact isClosed_closedBall.inter hS
+  · exact isClosed_closedBall.inter hS
+  · exact Set.inter_subset_right
+  · exact Set.inter_subset_right
+  · apply Disjoint.mono Set.inter_subset_left Set.inter_subset_left
+    apply closedBall_disjoint_closedBall
+    have hd : 0 < dist x y := dist_pos.mpr (Ne.symm hxy)
+    have hx3 : rx ≤ dist x y / 3 := le_trans hrxρ (min_le_right _ _)
+    have hy3 : ry ≤ dist x y / 3 := le_trans hryρ (min_le_right _ _)
+    linarith
+  · have h : μ (closedBall x rx ∩ S) = nu (closedBall x rx) := by
+      rw [hnu, Measure.restrict_apply measurableSet_closedBall]
+    rw [h]; exact hballpos x hx rx hrxpos
+  · have h : μ (closedBall y ry ∩ S) = nu (closedBall y ry) := by
+      rw [hnu, Measure.restrict_apply measurableSet_closedBall]
+    rw [h]; exact hballpos y hy ry hrypos
+  · refine le_trans (Metric.ediam_mono Set.inter_subset_left) ?_
+    refine Metric.ediam_le ?_
+    intro a ha b hb
+    rw [mem_closedBall] at ha hb
+    have hrxε : rx ≤ ε / 2 := le_trans hrxρ (min_le_left _ _)
+    calc edist a b ≤ edist a x + edist x b := edist_triangle a x b
+      _ = ENNReal.ofReal (dist a x) + ENNReal.ofReal (dist x b) := by rw [edist_dist, edist_dist]
+      _ ≤ ENNReal.ofReal rx + ENNReal.ofReal rx := by
+          gcongr
+          rwa [dist_comm]
+      _ = ENNReal.ofReal (rx + rx) := (ENNReal.ofReal_add hrxpos.le hrxpos.le).symm
+      _ ≤ ENNReal.ofReal ε := by apply ENNReal.ofReal_le_ofReal; linarith
+  · refine le_trans (Metric.ediam_mono Set.inter_subset_left) ?_
+    refine Metric.ediam_le ?_
+    intro a ha b hb
+    rw [mem_closedBall] at ha hb
+    have hryε : ry ≤ ε / 2 := le_trans hryρ (min_le_left _ _)
+    calc edist a b ≤ edist a y + edist y b := edist_triangle a y b
+      _ = ENNReal.ofReal (dist a y) + ENNReal.ofReal (dist y b) := by rw [edist_dist, edist_dist]
+      _ ≤ ENNReal.ofReal ry + ENNReal.ofReal ry := by
+          gcongr
+          rwa [dist_comm]
+      _ = ENNReal.ofReal (ry + ry) := (ENNReal.ofReal_add hrypos.le hrypos.le).symm
+      _ ≤ ENNReal.ofReal ε := by apply ENNReal.ofReal_le_ofReal; linarith
+  · have h : μ (closedBall x rx ∩ S) = nu (closedBall x rx) := by
+      rw [hnu, Measure.restrict_apply measurableSet_closedBall]
+    rw [h]; exact hrxμ
+  · have h : μ (closedBall y ry ∩ S) = nu (closedBall y ry) := by
+      rw [hnu, Measure.restrict_apply measurableSet_closedBall]
+    rw [h]; exact hryμ
+
+open scoped Classical in
+/-- The two children of `S` at level `n` (junk if `S` is not a positive-measure closed set). -/
+private noncomputable def splitPair (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ]
+    (S : Set α) (n : ℕ) : Set α × Set α :=
+  if h : IsClosed S ∧ 0 < μ S then
+    ((exists_split μ h.1 h.2 (show (0:ℝ) < (1/2)^(n+1) by positivity)).choose,
+     (exists_split μ h.1 h.2 (show (0:ℝ) < (1/2)^(n+1) by positivity)).choose_spec.choose)
+  else (∅, ∅)
+
+/-- The Cantor scheme: `[]` maps to the whole space; each child is a `splitPair` component. -/
+private noncomputable def scheme (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ] :
+    List Bool → Set α
+  | [] => univ
+  | b :: l => bif b then (splitPair μ (scheme μ l) l.length).2
+                    else (splitPair μ (scheme μ l) l.length).1
+
+private lemma splitPair_spec (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ]
+    {S : Set α} {n : ℕ} (hS : IsClosed S) (hpos : 0 < μ S) :
+    IsClosed (splitPair μ S n).1 ∧ IsClosed (splitPair μ S n).2 ∧
+    (splitPair μ S n).1 ⊆ S ∧ (splitPair μ S n).2 ⊆ S ∧
+    Disjoint (splitPair μ S n).1 (splitPair μ S n).2 ∧
+    0 < μ (splitPair μ S n).1 ∧ 0 < μ (splitPair μ S n).2 ∧
+    Metric.ediam (splitPair μ S n).1 ≤ ENNReal.ofReal ((1/2)^(n+1)) ∧
+    Metric.ediam (splitPair μ S n).2 ≤ ENNReal.ofReal ((1/2)^(n+1)) ∧
+    μ (splitPair μ S n).1 ≤ μ S / 4 ∧ μ (splitPair μ S n).2 ≤ μ S / 4 := by
+  have hε : (0:ℝ) < (1/2)^(n+1) := by positivity
+  have hpair : splitPair μ S n =
+      ((exists_split μ hS hpos hε).choose, (exists_split μ hS hpos hε).choose_spec.choose) := by
+    rw [splitPair, dif_pos ⟨hS, hpos⟩]
+  rw [hpair]
+  exact (exists_split μ hS hpos hε).choose_spec.choose_spec
+
+private lemma scheme_node (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ] :
+    ∀ l : List Bool, IsClosed (scheme μ l) ∧ 0 < μ (scheme μ l) ∧
+      μ (scheme μ l) ≤ (1 / 4 : ENNReal) ^ l.length := by
+  intro l
+  induction l with
+  | nil => exact ⟨isClosed_univ, by simp [scheme, measure_univ], by simp [scheme, measure_univ]⟩
+  | cons b l ih =>
+    obtain ⟨hcl, hpos, hmeas⟩ := ih
+    obtain ⟨h0c, h1c, _, _, _, h0pos, h1pos, _, _, h0m, h1m⟩ :=
+      splitPair_spec μ (n := l.length) hcl hpos
+    have hbound : μ (scheme μ l) / 4 ≤ (1 / 4 : ENNReal) ^ (l.length + 1) := by
+      calc μ (scheme μ l) / 4 ≤ (1 / 4 : ENNReal) ^ l.length / 4 := by gcongr
+        _ = (1 / 4 : ENNReal) ^ (l.length + 1) := by rw [pow_succ, div_eq_mul_inv, one_div]
+    cases b with
+    | false => exact ⟨h0c, h0pos, le_trans h0m hbound⟩
+    | true => exact ⟨h1c, h1pos, le_trans h1m hbound⟩
+
+private lemma scheme_subset (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ]
+    (l : List Bool) (b : Bool) : scheme μ (b :: l) ⊆ scheme μ l := by
+  obtain ⟨hcl, hpos, _⟩ := scheme_node μ l
+  obtain ⟨_, _, h0S, h1S, _⟩ := splitPair_spec μ (n := l.length) hcl hpos
+  cases b with
+  | false => exact h0S
+  | true => exact h1S
+
+private lemma scheme_diam (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ]
+    (l : List Bool) (b : Bool) :
+    Metric.ediam (scheme μ (b :: l)) ≤ ENNReal.ofReal ((1 / 2) ^ (l.length + 1)) := by
+  obtain ⟨hcl, hpos, _⟩ := scheme_node μ l
+  obtain ⟨_, _, _, _, _, _, _, h0d, h1d, _⟩ := splitPair_spec μ (n := l.length) hcl hpos
+  cases b with
+  | false => exact h0d
+  | true => exact h1d
+
+end NullReservoir
+
+/-- **Brick 2 — null reservoir lemma (R2.0b).** Every atomless standard-Borel probability space
+contains an uncountable Borel set of measure zero. This is the reservoir fed to Brick 1. (Stated
+without a "`⊆ A`" constraint: Brick 1 removes the reservoir from its bijection region regardless,
+so the reservoir need not live inside any prescribed conull set — a strengthening of hypotheses
+that makes the construction cleaner.) -/
+theorem exists_uncountable_null_measurableSet
+    {α : Type*} [MeasurableSpace α] [StandardBorelSpace α]
+    (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ] :
+    ∃ R : Set α, MeasurableSet R ∧ μ R = 0 ∧ ¬ R.Countable := by
+  letI := upgradeStandardBorel α
+  letI := TopologicalSpace.upgradeIsCompletelyMetrizable α
+  have hclosed : ∀ l, IsClosed (scheme μ l) := fun l => (scheme_node μ l).1
+  have hposm : ∀ l, 0 < μ (scheme μ l) := fun l => (scheme_node μ l).2.1
+  have hmeas : ∀ l, μ (scheme μ l) ≤ (1 / 4 : ENNReal) ^ l.length := fun l => (scheme_node μ l).2.2
+  have hanti : CantorScheme.Antitone (scheme μ) := fun l b => scheme_subset μ l b
+  have hclanti : CantorScheme.ClosureAntitone (scheme μ) := hanti.closureAntitone hclosed
+  have hne : ∀ l, (scheme μ l).Nonempty := fun l =>
+    MeasureTheory.nonempty_of_measure_ne_zero (hposm l).ne'
+  have hdisj : CantorScheme.Disjoint (scheme μ) := by
+    intro l a b hab
+    obtain ⟨_, _, _, _, hd, _⟩ := splitPair_spec μ (n := l.length) (hclosed l) (hposm l)
+    match a, b with
+    | false, true => exact hd
+    | true, false => exact hd.symm
+    | false, false => exact absurd rfl hab
+    | true, true => exact absurd rfl hab
+  have hvanish : CantorScheme.VanishingDiam (scheme μ) := by
+    intro x
+    have hbd : ∀ m : ℕ, Metric.ediam (scheme μ (PiNat.res x (m + 1))) ≤
+        ENNReal.ofReal ((1 / 2 : ℝ) ^ (m + 1)) := by
+      intro m
+      have h := scheme_diam μ (PiNat.res x m) (x m)
+      rw [PiNat.res_length] at h
+      rw [PiNat.res_succ]
+      exact h
+    have hg : Tendsto (fun n : ℕ => ENNReal.ofReal ((1 / 2 : ℝ) ^ n)) atTop (𝓝 0) := by
+      rw [show (0 : ENNReal) = ENNReal.ofReal 0 by simp]
+      exact (ENNReal.continuous_ofReal.tendsto 0).comp
+        (tendsto_pow_atTop_nhds_zero_of_lt_one (by norm_num) (by norm_num))
+    refine tendsto_of_tendsto_of_tendsto_of_le_of_le' tendsto_const_nhds hg
+      (Eventually.of_forall fun n => bot_le) ?_
+    filter_upwards [eventually_ge_atTop 1] with n hn
+    obtain ⟨m, rfl⟩ : ∃ m, n = m + 1 := ⟨n - 1, by omega⟩
+    exact hbd m
+  have hdom : (CantorScheme.inducedMap (scheme μ)).1 = univ :=
+    hclanti.map_of_vanishingDiam hvanish hne
+  set f := (CantorScheme.inducedMap (scheme μ)).2 with hf
+  have hinj : Injective f := hdisj.map_injective
+  set L : ℕ → Set α := fun n => ⋃ v : List.Vector Bool n, scheme μ v.1 with hLdef
+  set R : Set α := ⋂ n, L n with hRdef
+  have hLmeas : ∀ n, MeasurableSet (L n) := fun n =>
+    MeasurableSet.iUnion fun v => (hclosed v.1).measurableSet
+  have hRmeas : MeasurableSet R := MeasurableSet.iInter hLmeas
+  have hrange : range f ⊆ R := by
+    rintro _ ⟨x', rfl⟩
+    simp only [hRdef, mem_iInter]
+    intro n
+    simp only [hLdef, mem_iUnion]
+    exact ⟨⟨PiNat.res (x' : ℕ → Bool) n, PiNat.res_length _ _⟩, CantorScheme.map_mem x' n⟩
+  have hnull : μ R = 0 := by
+    have hle : ∀ n, μ R ≤ (1 / 2 : ENNReal) ^ n := by
+      intro n
+      calc μ R ≤ μ (L n) := measure_mono (iInter_subset _ n)
+        _ ≤ ∑' v : List.Vector Bool n, μ (scheme μ v.1) := measure_iUnion_le _
+        _ ≤ ∑' _ : List.Vector Bool n, (1 / 4 : ENNReal) ^ n := by
+            apply ENNReal.tsum_le_tsum
+            intro v
+            have hv := hmeas v.1
+            rwa [v.2] at hv
+        _ = (Fintype.card (List.Vector Bool n)) • (1 / 4 : ENNReal) ^ n := by
+            rw [tsum_fintype, Finset.sum_const, Finset.card_univ]
+        _ = (1 / 2 : ENNReal) ^ n := by
+            have h2 : (2 : ENNReal) * (1 / 4) = 1 / 2 := by
+              rw [one_div, one_div, show (4 : ENNReal) = 2 * 2 by norm_num,
+                ENNReal.mul_inv (Or.inl (by norm_num)) (Or.inl (by norm_num)), ← mul_assoc,
+                ENNReal.mul_inv_cancel (by norm_num) (by norm_num), one_mul]
+            rw [card_vector, Fintype.card_bool, nsmul_eq_mul, Nat.cast_pow, Nat.cast_ofNat,
+              ← mul_pow, h2]
+    have htend0 : Tendsto (fun n : ℕ => (1 / 2 : ENNReal) ^ n) atTop (𝓝 0) :=
+      ENNReal.tendsto_pow_atTop_nhds_zero_of_lt_one (by norm_num)
+    exact le_antisymm (ge_of_tendsto htend0 (Eventually.of_forall hle)) bot_le
+  refine ⟨R, hRmeas, hnull, ?_⟩
+  intro hRc
+  have hrc : (range f).Countable := hRc.mono hrange
+  haveI : Countable ↥(range f) := hrc.to_subtype
+  haveI hcd : Countable ↥(CantorScheme.inducedMap (scheme μ)).1 :=
+    Countable.of_equiv _ (Equiv.ofInjective f hinj).symm
+  rw [hdom] at hcd
+  haveI hcount : Countable (ℕ → Bool) := Countable.of_equiv _ (Equiv.Set.univ (ℕ → Bool))
+  have hunc : Uncountable (ℕ → Bool) := by
+    rw [← Cardinal.aleph0_lt_mk_iff, ← Cardinal.power_def, Cardinal.mk_bool, Cardinal.mk_nat]
+    exact Cardinal.cantor _
+  exact hunc.not_countable hcount
+
 end Graphon.MeasureIso
