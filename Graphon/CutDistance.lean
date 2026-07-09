@@ -6,6 +6,7 @@ Authors: Cameron Freer
 import Architect
 import Graphon.CutNorm
 import Graphon.Pullback
+import Graphon.MeasureIso
 import Mathlib.MeasureTheory.Constructions.Polish.Basic
 import Mathlib.MeasureTheory.Integral.Layercake
 
@@ -1111,6 +1112,296 @@ theorem MeasurePreserving.exists_common_coupling_maps [StandardBorelSpace α] [N
       ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂ := by
   sorry
 
+section Mod0Alignment
+open Graphon.MeasureIso
+
+/-- **Step 1 for `exists_mod0_self_iso_aligning_cells`.** For measurable `A B` of equal measure,
+the restricted measures `μ.restrict A` and `μ.restrict B` are isomorphic mod 0 by an ambient
+self-map of `α`. If `μ A = 0` both restrictions vanish and the identity works; otherwise
+normalize each to a probability measure (dividing by the common mass `μ A`) and transport through
+`[0,1]` via `atomless_standardBorel_mod0MeasureIso_unitInterval`, then unnormalize — pushforwards
+and a.e. relations are invariant under the common nonzero, finite scalar. -/
+private lemma equalMeasure_restrict_mod0iso [StandardBorelSpace α] [NoAtoms μ]
+    {A B : Set α} (hAB : μ A = μ B) :
+    Nonempty (Mod0MeasureIso α α (μ.restrict A) (μ.restrict B)) := by
+  rcases eq_or_ne (μ A) 0 with hA0 | hApos
+  · have hB0 : μ B = 0 := hAB ▸ hA0
+    have hrA : μ.restrict A = 0 := Measure.restrict_eq_zero.mpr hA0
+    have hrB : μ.restrict B = 0 := Measure.restrict_eq_zero.mpr hB0
+    refine ⟨⟨id, id, measurable_id, measurable_id, ?_, ?_,
+      Filter.EventuallyEq.rfl, Filter.EventuallyEq.rfl⟩⟩
+    · rw [Measure.map_id, hrA, hrB]
+    · rw [Measure.map_id, hrB, hrA]
+  · have hmtop : μ A ≠ ∞ := measure_ne_top μ A
+    set νA := (μ A)⁻¹ • μ.restrict A with hνAdef
+    set νB := (μ A)⁻¹ • μ.restrict B with hνBdef
+    haveI : IsProbabilityMeasure νA := by
+      refine ⟨?_⟩
+      rw [hνAdef, Measure.smul_apply, Measure.restrict_apply_univ, smul_eq_mul]
+      exact ENNReal.inv_mul_cancel hApos hmtop
+    haveI : IsProbabilityMeasure νB := by
+      refine ⟨?_⟩
+      rw [hνBdef, Measure.smul_apply, Measure.restrict_apply_univ, smul_eq_mul, ← hAB]
+      exact ENNReal.inv_mul_cancel hApos hmtop
+    haveI : NoAtoms νA := by
+      refine ⟨fun x => ?_⟩
+      rw [hνAdef, Measure.smul_apply, Measure.restrict_apply (measurableSet_singleton x),
+        smul_eq_mul, measure_mono_null Set.inter_subset_left (measure_singleton x), mul_zero]
+    haveI : NoAtoms νB := by
+      refine ⟨fun x => ?_⟩
+      rw [hνBdef, Measure.smul_apply, Measure.restrict_apply (measurableSet_singleton x),
+        smul_eq_mul, measure_mono_null Set.inter_subset_left (measure_singleton x), mul_zero]
+    obtain ⟨eA⟩ := atomless_standardBorel_mod0MeasureIso_unitInterval α νA
+    obtain ⟨eB⟩ := atomless_standardBorel_mod0MeasureIso_unitInterval α νB
+    let eBsymm : Mod0MeasureIso ℝ α (volume.restrict (Set.Icc 0 1)) νB :=
+      ⟨eB.invFun, eB.toFun, eB.measurable_invFun, eB.measurable_toFun,
+        eB.map_invFun, eB.map_toFun, eB.right_inv_ae, eB.left_inv_ae⟩
+    let σ0 : Mod0MeasureIso α α νA νB := eA.trans eBsymm
+    have hinv0 : (μ A)⁻¹ ≠ 0 := ENNReal.inv_ne_zero.mpr hmtop
+    refine ⟨⟨σ0.toFun, σ0.invFun, σ0.measurable_toFun, σ0.measurable_invFun,
+      ?_, ?_, ?_, ?_⟩⟩
+    · have h : (μ A)⁻¹ • Measure.map σ0.toFun (μ.restrict A) = (μ A)⁻¹ • μ.restrict B := by
+        rw [← Measure.map_smul]; exact σ0.map_toFun
+      have h2 := congrArg (fun ν => (μ A) • ν) h
+      simpa only [smul_smul, ENNReal.mul_inv_cancel hApos hmtop, one_smul] using h2
+    · have h : (μ A)⁻¹ • Measure.map σ0.invFun (μ.restrict B) = (μ A)⁻¹ • μ.restrict A := by
+        rw [← Measure.map_smul]; exact σ0.map_invFun
+      have h2 := congrArg (fun ν => (μ A) • ν) h
+      simpa only [smul_smul, ENNReal.mul_inv_cancel hApos hmtop, one_smul] using h2
+    · have h := σ0.left_inv_ae
+      rw [show (ae νA) = ae (μ.restrict A) from
+        Measure.ae_ennreal_smul_measure_eq hinv0 (μ.restrict A)] at h
+      exact h
+    · have h := σ0.right_inv_ae
+      rw [show (ae νB) = ae (μ.restrict B) from
+        Measure.ae_ennreal_smul_measure_eq hinv0 (μ.restrict B)] at h
+      exact h
+
+/-- Helper for `exists_controlled_cell_alignment` (the one-mod-0-self-iso route). Given the
+equal-measure matched cell families, a mod-0 self-isomorphism of `(α, μ)` whose forward map
+sends each source cell **a.e. into** its target cell (a.e., not pointwise: a null source cell may
+be matched to an empty target cell, so the pointwise form is false — and a.e. is all the main
+theorem needs). Built from per-cell equal-measure mod-0 isos
+(each pair `ι_S i, ι_T i` and the leftover `(⋃ ι_S)ᶜ ↔ (⋃ ι_T)ᶜ`, all equal measure) assembled
+over the disjoint cells; the everywhere-bijection difficulty is then discharged once by
+`Mod0MeasureIso.toMeasurableEquiv` in the main theorem. -/
+private theorem exists_mod0_self_iso_aligning_cells [StandardBorelSpace α] [NoAtoms μ]
+    (P Q : MeasurablePartition α μ) {k : ℕ} (ι_S ι_T : Fin k → Set α)
+    (hS : ∀ i, ι_S i ∈ P.parts) (hT : ∀ i, ι_T i ∈ Q.parts)
+    (hS_inj : Function.Injective ι_S) (hT_inj : Function.Injective ι_T)
+    (h_meas : ∀ i, μ (ι_S i) = μ (ι_T i)) :
+    ∃ f : Graphon.MeasureIso.Mod0MeasureIso α α μ μ,
+      ∀ i, ∀ᵐ x ∂μ, x ∈ ι_S i → f.toFun x ∈ ι_T i := by
+  classical
+  have hmeasS : ∀ i, MeasurableSet (ι_S i) := fun i => P.measurable_parts _ (hS i)
+  have hmeasT : ∀ i, MeasurableSet (ι_T i) := fun i => Q.measurable_parts _ (hT i)
+  have hdisjS : Pairwise (Function.onFun Disjoint ι_S) := fun i j hij =>
+    P.pairwiseDisjoint (Finset.mem_coe.mpr (hS i)) (Finset.mem_coe.mpr (hS j))
+      (fun h => hij (hS_inj h))
+  have hdisjT : Pairwise (Function.onFun Disjoint ι_T) := fun i j hij =>
+    Q.pairwiseDisjoint (Finset.mem_coe.mpr (hT i)) (Finset.mem_coe.mpr (hT j))
+      (fun h => hij (hT_inj h))
+  set S : Option (Fin k) → Set α := fun o => o.elim ((⋃ i, ι_S i)ᶜ) ι_S with hSdef
+  set T : Option (Fin k) → Set α := fun o => o.elim ((⋃ i, ι_T i)ᶜ) ι_T with hTdef
+  have hSn : S none = (⋃ i, ι_S i)ᶜ := rfl
+  have hSs : ∀ i, S (some i) = ι_S i := fun _ => rfl
+  have hTn : T none = (⋃ i, ι_T i)ᶜ := rfl
+  have hTs : ∀ i, T (some i) = ι_T i := fun _ => rfl
+  have hSmeas : ∀ o, MeasurableSet (S o) := by
+    rintro (_ | i)
+    · rw [hSn]; exact (MeasurableSet.iUnion hmeasS).compl
+    · rw [hSs]; exact hmeasS i
+  have hTmeas : ∀ o, MeasurableSet (T o) := by
+    rintro (_ | i)
+    · rw [hTn]; exact (MeasurableSet.iUnion hmeasT).compl
+    · rw [hTs]; exact hmeasT i
+  have hReq : μ ((⋃ i, ι_S i)ᶜ) = μ ((⋃ i, ι_T i)ᶜ) := by
+    rw [measure_compl (MeasurableSet.iUnion hmeasS) (measure_ne_top _ _),
+      measure_compl (MeasurableSet.iUnion hmeasT) (measure_ne_top _ _),
+      measure_iUnion hdisjS hmeasS, measure_iUnion hdisjT hmeasT, tsum_congr h_meas]
+  have hmeasEq : ∀ o, μ (S o) = μ (T o) := by
+    rintro (_ | i)
+    · rw [hSn, hTn]; exact hReq
+    · rw [hSs, hTs]; exact h_meas i
+  let σ : ∀ o, Mod0MeasureIso α α (μ.restrict (S o)) (μ.restrict (T o)) :=
+    fun o => (equalMeasure_restrict_mod0iso (hmeasEq o)).some
+  let Gf : List (Fin k) → α → α := fun l =>
+    List.foldr (fun i acc => (ι_S i).piecewise (σ (some i)).toFun acc) (σ none).toFun l
+  let G : α → α := Gf (List.finRange k)
+  let G'f : List (Fin k) → α → α := fun l =>
+    List.foldr (fun i acc => (ι_T i).piecewise (σ (some i)).invFun acc) (σ none).invFun l
+  let G' : α → α := G'f (List.finRange k)
+  have hGfmeas : ∀ l, Measurable (Gf l) := by
+    intro l; induction l with
+    | nil => exact (σ none).measurable_toFun
+    | cons i t ih => exact Measurable.piecewise (hmeasS i) (σ (some i)).measurable_toFun ih
+  have hG'fmeas : ∀ l, Measurable (G'f l) := by
+    intro l; induction l with
+    | nil => exact (σ none).measurable_invFun
+    | cons i t ih => exact Measurable.piecewise (hmeasT i) (σ (some i)).measurable_invFun ih
+  have hGmeas : Measurable G := hGfmeas _
+  have hG'meas : Measurable G' := hG'fmeas _
+  have hGmem : ∀ (l : List (Fin k)) (x : α) (j : Fin k), j ∈ l → x ∈ ι_S j →
+      Gf l x = (σ (some j)).toFun x := by
+    intro l
+    induction l with
+    | nil => intro x j hj _; simp at hj
+    | cons i t ih =>
+      intro x j hj hxj
+      show (ι_S i).piecewise (σ (some i)).toFun (Gf t) x = _
+      by_cases hij : i = j
+      · subst hij; exact Set.piecewise_eq_of_mem _ _ _ hxj
+      · have hxi : x ∉ ι_S i := Set.disjoint_right.mp (hdisjS hij) hxj
+        rw [Set.piecewise_eq_of_notMem _ _ _ hxi]
+        exact ih x j ((List.mem_cons.mp hj).resolve_left (fun h => hij h.symm)) hxj
+  have hGnot : ∀ (l : List (Fin k)) (x : α), (∀ j, x ∉ ι_S j) →
+      Gf l x = (σ none).toFun x := by
+    intro l x hx
+    induction l with
+    | nil => rfl
+    | cons i t ih =>
+      show (ι_S i).piecewise (σ (some i)).toFun (Gf t) x = _
+      rw [Set.piecewise_eq_of_notMem _ _ _ (hx i)]; exact ih
+  have hG'mem : ∀ (l : List (Fin k)) (y : α) (j : Fin k), j ∈ l → y ∈ ι_T j →
+      G'f l y = (σ (some j)).invFun y := by
+    intro l
+    induction l with
+    | nil => intro y j hj _; simp at hj
+    | cons i t ih =>
+      intro y j hj hyj
+      show (ι_T i).piecewise (σ (some i)).invFun (G'f t) y = _
+      by_cases hij : i = j
+      · subst hij; exact Set.piecewise_eq_of_mem _ _ _ hyj
+      · have hyi : y ∉ ι_T i := Set.disjoint_right.mp (hdisjT hij) hyj
+        rw [Set.piecewise_eq_of_notMem _ _ _ hyi]
+        exact ih y j ((List.mem_cons.mp hj).resolve_left (fun h => hij h.symm)) hyj
+  have hG'not : ∀ (l : List (Fin k)) (y : α), (∀ j, y ∉ ι_T j) →
+      G'f l y = (σ none).invFun y := by
+    intro l y hy
+    induction l with
+    | nil => rfl
+    | cons i t ih =>
+      show (ι_T i).piecewise (σ (some i)).invFun (G'f t) y = _
+      rw [Set.piecewise_eq_of_notMem _ _ _ (hy i)]; exact ih
+  have hGeqS : ∀ o, ∀ x ∈ S o, G x = (σ o).toFun x := by
+    rintro (_ | i) x hx
+    · have hx' : ∀ j, x ∉ ι_S j := by
+        intro j hj; rw [hSn] at hx; exact hx (Set.mem_iUnion.mpr ⟨j, hj⟩)
+      exact hGnot _ x hx'
+    · rw [hSs] at hx; exact hGmem _ x i (List.mem_finRange i) hx
+  have hGeqT : ∀ o, ∀ y ∈ T o, G' y = (σ o).invFun y := by
+    rintro (_ | i) y hy
+    · have hy' : ∀ j, y ∉ ι_T j := by
+        intro j hj; rw [hTn] at hy; exact hy (Set.mem_iUnion.mpr ⟨j, hj⟩)
+      exact hG'not _ y hy'
+    · rw [hTs] at hy; exact hG'mem _ y i (List.mem_finRange i) hy
+  have hmapG : ∀ o, Measure.map G (μ.restrict (S o)) = μ.restrict (T o) := by
+    intro o
+    have hcongr : G =ᵐ[μ.restrict (S o)] (σ o).toFun :=
+      (ae_restrict_iff' (hSmeas o)).mpr (Filter.Eventually.of_forall (hGeqS o))
+    rw [Measure.map_congr hcongr, (σ o).map_toFun]
+  have hmapG' : ∀ o, Measure.map G' (μ.restrict (T o)) = μ.restrict (S o) := by
+    intro o
+    have hcongr : G' =ᵐ[μ.restrict (T o)] (σ o).invFun :=
+      (ae_restrict_iff' (hTmeas o)).mpr (Filter.Eventually.of_forall (hGeqT o))
+    rw [Measure.map_congr hcongr, (σ o).map_invFun]
+  have hmapCell : ∀ i, Measure.map G (μ.restrict (ι_S i)) = μ.restrict (ι_T i) := by
+    intro i; have := hmapG (some i); rwa [hSs i, hTs i] at this
+  have hSpwd : Pairwise (Function.onFun Disjoint S) := by
+    rintro (_ | i) (_ | j) hne
+    · exact absurd rfl hne
+    · simp only [Function.onFun, hSn, hSs]
+      exact (disjoint_compl_right_iff_subset.mpr (Set.subset_iUnion ι_S j)).symm
+    · simp only [Function.onFun, hSn, hSs]
+      exact disjoint_compl_right_iff_subset.mpr (Set.subset_iUnion ι_S i)
+    · simp only [Function.onFun, hSs]
+      exact hdisjS (fun h => hne (by rw [h]))
+  have hTpwd : Pairwise (Function.onFun Disjoint T) := by
+    rintro (_ | i) (_ | j) hne
+    · exact absurd rfl hne
+    · simp only [Function.onFun, hTn, hTs]
+      exact (disjoint_compl_right_iff_subset.mpr (Set.subset_iUnion ι_T j)).symm
+    · simp only [Function.onFun, hTn, hTs]
+      exact disjoint_compl_right_iff_subset.mpr (Set.subset_iUnion ι_T i)
+    · simp only [Function.onFun, hTs]
+      exact hdisjT (fun h => hne (by rw [h]))
+  have hμS : μ = Measure.sum (fun o => μ.restrict (S o)) := by
+    have hcov : (⋃ o, S o) = Set.univ := by
+      rw [Set.iUnion_option]
+      show (⋃ i, ι_S i)ᶜ ∪ (⋃ i, ι_S i) = Set.univ
+      exact compl_union_self _
+    have h := Measure.restrict_iUnion (μ := μ) hSpwd hSmeas
+    rw [hcov, Measure.restrict_univ] at h
+    exact h
+  have hμT : μ = Measure.sum (fun o => μ.restrict (T o)) := by
+    have hcov : (⋃ o, T o) = Set.univ := by
+      rw [Set.iUnion_option]
+      show (⋃ i, ι_T i)ᶜ ∪ (⋃ i, ι_T i) = Set.univ
+      exact compl_union_self _
+    have h := Measure.restrict_iUnion (μ := μ) hTpwd hTmeas
+    rw [hcov, Measure.restrict_univ] at h
+    exact h
+  have hmapGμ : Measure.map G μ = μ := by
+    calc Measure.map G μ
+        = Measure.map G (Measure.sum (fun o => μ.restrict (S o))) := by rw [← hμS]
+      _ = Measure.sum (fun o => Measure.map G (μ.restrict (S o))) :=
+          Measure.map_sum hGmeas.aemeasurable
+      _ = Measure.sum (fun o => μ.restrict (T o)) := by rw [funext hmapG]
+      _ = μ := hμT.symm
+  have hmapG'μ : Measure.map G' μ = μ := by
+    calc Measure.map G' μ
+        = Measure.map G' (Measure.sum (fun o => μ.restrict (T o))) := by rw [← hμT]
+      _ = Measure.sum (fun o => Measure.map G' (μ.restrict (T o))) :=
+          Measure.map_sum hG'meas.aemeasurable
+      _ = Measure.sum (fun o => μ.restrict (S o)) := by rw [funext hmapG']
+      _ = μ := hμS.symm
+  refine ⟨⟨G, G', hGmeas, hG'meas, hmapGμ, hmapG'μ, ?_, ?_⟩, ?_⟩
+  · show (fun x => G' (G x)) =ᵐ[μ] id
+    have key : ∀ o, ∀ᵐ x ∂(μ.restrict (S o)), G' (G x) = x := by
+      intro o
+      have h1 : ∀ᵐ x ∂(μ.restrict (S o)), G x = (σ o).toFun x :=
+        (ae_restrict_iff' (hSmeas o)).mpr (Filter.Eventually.of_forall (hGeqS o))
+      have h2 : ∀ᵐ x ∂(μ.restrict (S o)), (σ o).toFun x ∈ T o := by
+        have hnull : (μ.restrict (S o)) {a | (σ o).toFun a ∉ T o} = 0 := by
+          have hpre : {a | (σ o).toFun a ∉ T o} = (σ o).toFun ⁻¹' (T o)ᶜ := rfl
+          rw [hpre, ← Measure.map_apply (σ o).measurable_toFun (hTmeas o).compl, (σ o).map_toFun,
+            Measure.restrict_apply (hTmeas o).compl, Set.compl_inter_self, measure_empty]
+        rw [ae_iff]; exact hnull
+      have h3 : ∀ᵐ x ∂(μ.restrict (S o)), (σ o).invFun ((σ o).toFun x) = x := (σ o).left_inv_ae
+      filter_upwards [h1, h2, h3] with x hx1 hx2 hx3
+      rw [hx1, hGeqT o _ hx2]; exact hx3
+    have hfull : ∀ᵐ x ∂μ, G' (G x) = x := by
+      rw [hμS, Measure.ae_sum_iff]; exact key
+    exact hfull
+  · show (fun y => G (G' y)) =ᵐ[μ] id
+    have key : ∀ o, ∀ᵐ y ∂(μ.restrict (T o)), G (G' y) = y := by
+      intro o
+      have h1 : ∀ᵐ y ∂(μ.restrict (T o)), G' y = (σ o).invFun y :=
+        (ae_restrict_iff' (hTmeas o)).mpr (Filter.Eventually.of_forall (hGeqT o))
+      have h2 : ∀ᵐ y ∂(μ.restrict (T o)), (σ o).invFun y ∈ S o := by
+        have hnull : (μ.restrict (T o)) {a | (σ o).invFun a ∉ S o} = 0 := by
+          have hpre : {a | (σ o).invFun a ∉ S o} = (σ o).invFun ⁻¹' (S o)ᶜ := rfl
+          rw [hpre, ← Measure.map_apply (σ o).measurable_invFun (hSmeas o).compl, (σ o).map_invFun,
+            Measure.restrict_apply (hSmeas o).compl, Set.compl_inter_self, measure_empty]
+        rw [ae_iff]; exact hnull
+      have h3 : ∀ᵐ y ∂(μ.restrict (T o)), (σ o).toFun ((σ o).invFun y) = y := (σ o).right_inv_ae
+      filter_upwards [h1, h2, h3] with y hy1 hy2 hy3
+      rw [hy1, hGeqS o _ hy2]; exact hy3
+    have hfull : ∀ᵐ y ∂μ, G (G' y) = y := by
+      rw [hμT, Measure.ae_sum_iff]; exact key
+    exact hfull
+  · intro i
+    rw [ae_iff]
+    have hset : {x | ¬ (x ∈ ι_S i → G x ∈ ι_T i)} = ι_S i ∩ G ⁻¹' (ι_T i)ᶜ := by
+      ext x
+      simp only [Set.mem_setOf_eq, Set.mem_inter_iff, Set.mem_preimage, Set.mem_compl_iff]
+      tauto
+    rw [hset, Set.inter_comm, ← Measure.restrict_apply (hGmeas (hmeasT i).compl),
+      ← Measure.map_apply hGmeas (hmeasT i).compl, hmapCell i,
+      Measure.restrict_apply (hmeasT i).compl, Set.compl_inter_self, measure_empty]
+
+end Mod0Alignment
+
 /-- **Controlled cell alignment (corrected Rokhlin consequence 3).** Given injective indexed
 families of cells from two partitions with *matching measures*, over an *atomless* standard
 Borel probability space, there is a measure-preserving bijection mapping each cell `ι_S i`
@@ -1129,7 +1420,12 @@ theorem MeasurePreserving.exists_controlled_cell_alignment [StandardBorelSpace �
     (h_meas : ∀ i, μ (ι_S i) = μ (ι_T i)) :
     ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
       ∀ i, ∀ᵐ x ∂μ, x ∈ ι_S i → e x ∈ ι_T i := by
-  sorry
+  obtain ⟨f, hf⟩ :=
+    exists_mod0_self_iso_aligning_cells P Q ι_S ι_T hS hT hS_inj hT_inj h_meas
+  obtain ⟨e, he, hae, _⟩ := f.toMeasurableEquiv
+  refine ⟨e, he, fun i => ?_⟩
+  filter_upwards [hae, hf i] with x hx hbound hmem
+  rw [hx]; exact hbound hmem
 
 /-- Cut norm difference is invariant under applying the same MeasurableEquiv to both graphons.
 
