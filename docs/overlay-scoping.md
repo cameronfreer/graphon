@@ -155,26 +155,48 @@ pair. Define the **coupling matrix**
 
    Slack `3ε/8`.
 
-## 5. Work plan (campaign R3; est. 300–600 lines, all in CutDistance.lean as private helpers)
+## 5. Work plan (campaign R3; reviewed & corrected 2026-07-09; est. 500–800 lines)
 
-- **O1 — matrix carving** (~80–120 lines): given finitely many disjoint measurable cells
-  `C_j` and prescribed masses `λ_{j·} ≥ 0` with `∑ λ_{j·} = μ(C_j)`, produce disjoint
-  measurable `C_{j·} ⊆ C_j` of exactly those masses (iterate
-  `exists_measurable_subset_of_measure`, `Regularity.lean:4669`; `NoAtoms` available).
-- **O2 — step-overlay transfer** (~150–250 lines, the bulk): the §4 double-alignment lemma.
-  Inputs: two `stepify` graphons + MP pair; output `σ : α ≃ᵐ α` MP with
-  `cutNormDiff (pullback U' σ) W' ≤ cutNormDiff (pullback U' φ) (pullback W' ψ)`.
-  Bulk is `MeasurablePartition` plumbing ((i,k)-indexed refinements, waste cells, index
-  injectivity) and a.e. cell-membership bookkeeping — both mirror the Compactness net proof.
-  May need a small `cutNormDiff_congr_ae` helper if not already present (the net proof did
-  this dance, so at worst it is extracted, not invented). Note `stepify` values are
-  `rectAverage`s, but O2 only needs constancy on cells, never the numeric values.
-- **O3 — assembly** (~80–120 lines): fill `exists_mpEquiv_cutNormDiff_lt_add` by the §4
-  budget. Removes the last live Rokhlin sorry; unlocks `complete`/`compact` and the
-  InverseCounting chain.
+**Architectural corrections from review (all verified against the codebase):**
+- **New file `Graphon/Overlay.lean` importing `Graphon.Regularity`** — O1–O3 cannot live in
+  CutDistance.lean: `Regularity → Approximation → CutDistance` in the import graph, so
+  `regularity`/`stepify`/`exists_measurable_subset_of_measure` are unavailable there.
+  Compactness (which imports both) switches to `import Graphon.Overlay`.
+- **Relocate the public theorem**: once O2 compiles, delete the sorried
+  `exists_mpEquiv_cutNormDiff_lt_add` from CutDistance.lean and redeclare it (identical name,
+  statement, docstring) in Overlay.lean. This also fixes declaration order:
+  `cutDistance_lt_add_of_pos` (:1806) and `cutDistance_triangle` (:1836) sit *after* the
+  current sorry (:1773) in CutDistance.lean.
+- **Filter zero coupling cells**: `exists_controlled_cell_alignment` requires
+  `Function.Injective` cell families; multiple `λ_{ik} = 0` pieces may all be `∅`. Align only
+  `good := {(i,k) | λ_{ik} ≠ 0}` and discard the finite null union a.e. — exactly the
+  positive-cell filtering pattern at `Compactness.lean:1980`.
+- **No `cutNormDiff_congr_ae` helper**: prove actual graphon *equalities* via
+  `Graphon.ext`/`SymmKernel.ext`/`AEEqFun.ext` + `pullback_ae`/`stepify_ae`, then `rw` and
+  apply `cutNormDiff_pullback_measurableEquiv`.
 
-Commit discipline as in R2: O1/O2 land only sorry-free, O3's commit removes the crux sorry,
-axiom check (standard axioms only) before each commit.
+**Units:**
+- **O1 — finite carving + waste partitions**: for `r : Fin n → ℝ≥0∞` with `∑ i, r i ≤ μ C`,
+  produce measurable pairwise-disjoint `A i ⊆ C` with `μ (A i) = r i` (iterate
+  `exists_measurable_subset_of_measure`, `Regularity.lean:4669`). Plus a helper assembling a
+  `MeasurablePartition` from finitely many disjoint cells + a waste cell.
+- **O2 — exact step overlay** (the bulk): the §4 double-alignment lemma, shaped
+  `∃ σ hσ, cutNormDiff (pullback (stepify P U) σ hσ) (stepify Q W) =
+    cutNormDiff (pullback (stepify P U) φ hφ) (pullback (stepify Q W) ψ hψ)`.
+  Enumerate cells, define `λ_{ik}`, prove marginals, carve both refinements (O1), filter
+  `λ_{ik} ≠ 0`, apply controlled alignment twice (σ = answer, τ = proof-only transfer).
+  `stepify` values are `rectAverage`s but O2 only needs constancy on cells.
+- **O3 — assembly + relocation**: `regularity` at `ε/8` for both graphons; near-optimal MP
+  maps `(φ, ψ)` **for the original `U, W`** at `ε/8` (`cutDistance_lt_add_of_pos`); use the
+  same maps in O2; bound both step-approximation errors under `φ, ψ` via the proved
+  contraction `cutNormDiff_pullback_le` + `cutNormDiff_triangle` (no `cutDistance U' W'`
+  detour needed): total `cutDistance U W + 5ε/8 < cutDistance U W + ε`. Removes the last
+  live Rokhlin sorry; unlocks `complete`/`compact` and the InverseCounting chain.
+
+Commit discipline as in R2: O1/O2 land only sorry-free (the old sorry stays put until O3),
+O3's commit removes the crux sorry; `lake build` + sorry scan + `#print axioms` on the
+overlay theorem and its completeness/compactness consumers before each commit. Note: `.olean`
+files may be stale at campaign start — rebuild before trusting LSP elaboration/axiom checks.
 
 **Ingredient inventory (all verified to exist by name):**
 
