@@ -3,7 +3,20 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
-import Mathlib
+import Mathlib.Analysis.SpecialFunctions.Trigonometric.Arctan
+import Mathlib.Dynamics.Ergodic.MeasurePreserving
+import Mathlib.MeasureTheory.Constructions.Polish.Basic
+import Mathlib.MeasureTheory.Constructions.Polish.EmbeddingReal
+import Mathlib.MeasureTheory.MeasurableSpace.Embedding
+import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
+import Mathlib.MeasureTheory.Measure.Stieltjes
+import Mathlib.MeasureTheory.Measure.Support
+import Mathlib.MeasureTheory.Measure.Typeclasses.NoAtoms
+import Mathlib.Probability.CDF
+import Mathlib.SetTheory.Cardinal.Aleph
+import Mathlib.Topology.MetricSpace.CantorScheme
+import Mathlib.Topology.Metrizable.CompletelyMetrizable
+import Mathlib.Topology.Order.LeftRightLim
 
 /-!
 # The atomless standard-Borel measure-isomorphism theorem (Rokhlin campaign, R1)
