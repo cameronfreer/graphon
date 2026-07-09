@@ -184,3 +184,30 @@ measure-preserving since the patch region is null. Fiddly (~150–250 lines).
 equal-measure cells, transported through the iso); (2) core 4; (3) core 1 (mod-0 maps directly);
 (4) core 2 (analytic, last). Cores 1 & 2 are independent of the upgrade — core 1 is the cleanest
 first API test if a warm-up is wanted before the upgrade.
+
+### R2 progress (Path A, three bricks — user-directed 2026-07-08)
+
+The upgrade is staged into three bricks in `MeasureIso.lean` (graphon-independent):
+- **Brick 1 `Mod0MeasureIso.toMeasurableEquiv_of_null_reservoirs`** — DONE, axiom-clean, pushed
+  (commit 4faccdf). The pure null-patch gluing: given a null uncountable reservoir on each side,
+  removes them from the a.e.-inverse locus so both defect sets are uncountable standard-Borel,
+  patches via `measurableEquivOfNotCountable`, glues onto the honest `↥S ≃ᵐ ↥T` bijection with
+  `sumCompl`/`sumCongr`; the result agrees with `toFun`/`invFun` a.e. hence is MP. (Reservoirs
+  need NOT lie inside any prescribed set — Brick 1 removes them regardless.)
+- **Brick 2 `exists_uncountable_null_measurableSet`** — IN PROGRESS (delegated). Atomless
+  standard-Borel prob space has an uncountable Borel null set. No Mathlib shortcut; pulling a
+  fixed null set through a mod-0 iso fails on defect alignment (a fixed null set can sit inside
+  the iso's fixed null defect, killing uncountability). Route: intrinsic compact Cantor scheme
+  (atomless splitting at support points via shrinking balls → nullity; FIP nonempty
+  intersections + diam→0 → uncountable branch injection of `ℕ→Bool`).
+- **Brick 3 `Mod0MeasureIso.toMeasurableEquiv`** — assembly DONE & validated (compiles with only
+  Brick 2's sorry). Four lines: two reservoirs from Brick 2 + Brick 1.
+
+**R2.1 `exists_controlled_cell_alignment` plan (cleaner than per-cell `≃ᵐ` gluing):** build ONE
+mod-0 self-iso `f : Mod0MeasureIso α α μ μ` whose `f.toFun` maps each `ι_S i` into `ι_T i` (and
+the leftover `(⋃ι_S i)ᶜ` into `(⋃ι_T i)ᶜ`, equal measure) — assembled from per-cell mod-0
+measure-preserving maps (via `atomless_standardBorel_mod0MeasureIso_unitInterval` composed;
+scale each equal-measure cell pair to probability), which is much easier than gluing genuine
+bijections. Then apply Brick 3 once: `e =ᵐ f.toFun` gives the a.e. cell-mapping conclusion, and
+Brick 3 supplies the everywhere `≃ᵐ` + MP. **R2.2 `exists_common_coupling_maps`** and **R2.4
+`cutNormDiff_pullback_le`** are independent of the upgrade (mod-0 maps / disintegration).

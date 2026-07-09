@@ -952,4 +952,19 @@ theorem exists_uncountable_null_measurableSet
     exact Cardinal.cantor _
   exact hunc.not_countable hcount
 
+/-- **Brick 3 — the mod-0 → measure-preserving `MeasurableEquiv` upgrade (R2.0).** Every mod-0
+isomorphism between atomless standard-Borel probability spaces upgrades to a genuine everywhere
+measure-preserving `MeasurableEquiv` that still agrees with the original maps almost everywhere.
+Assembled from Brick 2 (a null uncountable reservoir on each side) and Brick 1 (the null-patch
+gluing). This is the graphon-independent theorem the R2 cell-alignment/`mpEquiv` cores consume. -/
+theorem Mod0MeasureIso.toMeasurableEquiv
+    {α β : Type*} [MeasurableSpace α] [StandardBorelSpace α]
+    [MeasurableSpace β] [StandardBorelSpace β]
+    {μ : Measure α} {ν : Measure β} [IsProbabilityMeasure μ] [IsProbabilityMeasure ν]
+    [NoAtoms μ] [NoAtoms ν] (e : Mod0MeasureIso α β μ ν) :
+    ∃ φ : α ≃ᵐ β, MeasurePreserving φ μ ν ∧ φ =ᵐ[μ] e.toFun ∧ φ.symm =ᵐ[ν] e.invFun := by
+  obtain ⟨A₀, hA₀, hA₀0, hA₀c⟩ := exists_uncountable_null_measurableSet μ
+  obtain ⟨B₀, hB₀, hB₀0, hB₀c⟩ := exists_uncountable_null_measurableSet ν
+  exact e.toMeasurableEquiv_of_null_reservoirs A₀ hA₀ hA₀0 hA₀c B₀ hB₀ hB₀0 hB₀c
+
 end Graphon.MeasureIso
