@@ -1392,7 +1392,7 @@ private theorem exists_graphon_with_limiting_rect_integrals
 Given a sequence of graphons `A_k` with summable consecutive `cutNormDiff` bounds,
 there exists a limit graphon `L` with `cutNormDiff(A_k, L) → 0`.
 
-**Proof**: Uses `exists_graphon_with_limiting_rect_integrals` (sorry'd — Radon-Nikodym)
+**Proof**: Uses `exists_graphon_with_limiting_rect_integrals` (Radon–Nikodym construction)
 to get a limit graphon L whose rectangle integrals are within tail sum of A(n)'s.
 Then `cutNormDiff(A_n, L) ≤ ∑' k, δ(n+k) → 0` by bounding the iSup defining cutNormDiff.
 
@@ -1451,8 +1451,8 @@ to cut-norm-difference convergence via realignment.
 maps with summable consecutive cutNormDiff bounds, then `exists_cutNormDiff_limit_of_summable`
 extracts the limit.
 
-**Depends on**: `exists_cutNormDiff_limit_of_summable` (via `exists_graphon_with_limiting_rect_integrals`
-sorry — Radon-Nikodym construction). -/
+**Depends on**: `exists_cutNormDiff_limit_of_summable` (via
+`exists_graphon_with_limiting_rect_integrals`, Radon–Nikodym construction). -/
 private theorem exists_cutNormDiff_limit_of_cutDistance_rapid [NoAtoms μ]
     (V : ℕ → Graphon α μ)
     (h_rapid : ∀ k : ℕ, cutDistance (V (k + 1)) (V k) ≤ 1 / 2 ^ k + 1 / 3 ^ k) :
@@ -1483,11 +1483,10 @@ measure-preserving maps `e_k` and a limit graphon `V` such that
 
 (b) *cutNormDiff limit* (via `exists_cutNormDiff_limit_of_cutDistance_rapid`):
     Given summable consecutive cutDistance, realign and extract limit with
-    cutNormDiff convergence. Now proved modulo `exists_graphon_with_limiting_rect_integrals`
-    (Radon-Nikodym sorry).
+    cutNormDiff convergence.
 
-**Depends on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin axiom),
-`exists_graphon_with_limiting_rect_integrals` (Radon-Nikodym sorry). -/
+**Depends on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core, proved in
+campaign R2) and `exists_graphon_with_limiting_rect_integrals` (Radon–Nikodym) — fully proved. -/
 private theorem exists_aligned_cutNormDiff_limit [NoAtoms μ]
     (W : ℕ → Graphon α μ)
     (h_rapid : ∀ k : ℕ, cutDistance (W (k + 1)) (W k) ≤ 1 / 2 ^ k) :
@@ -1593,7 +1592,7 @@ private theorem exists_aligned_cutNormDiff_limit [NoAtoms μ]
     -- e (k+1) = e_next k (build k).1 (build k).2 and he (k+1) = he_next k ...
     -- The bound follows directly from h_bound
     exact h_bound k (build k).1 (build k).2
-  -- Step 2: Apply the limit extraction (sorry'd)
+  -- Step 2: Apply the limit extraction
   let V_seq : ℕ → Graphon α μ := fun k => pullback (W k) (e k) (he k)
   obtain ⟨L, f, hf, hconv⟩ := exists_cutNormDiff_limit_of_cutDistance_rapid V_seq h_chain
   -- Step 3: Compose alignment maps: final e_k = e_k ∘ f_k
@@ -1645,7 +1644,7 @@ limit construction for rapidly converging sequences. Then show the full Cauchy
 sequence converges to the same limit using the triangle inequality.
 
 **Depends on**: `exists_limit_of_rapid_convergence` (proved from
-`exists_aligned_cutNormDiff_limit`, sorry'd), `cutDistance_triangle` (proved modulo Rokhlin). -/
+`exists_aligned_cutNormDiff_limit`) and `cutDistance_triangle` — fully proved. -/
 @[blueprint "thm:complete"
   (title := /-- Completeness of graphon space -/)]
 theorem complete [NoAtoms μ] (W : ℕ → Graphon α μ) (hW : IsCauchy W) :
@@ -1738,8 +1737,8 @@ It follows from total boundedness (regularity lemma) and completeness.
 **Structure**: This is sequential compactness, equivalent to compactness
 for metric spaces (which graphon space is, modulo weak isomorphism).
 
-**Depends on**: `totallyBounded` (sorry), `complete` (sorry), `cutDistance_triangle`
-(proved modulo Rokhlin sorry). -/
+**Depends on**: `totallyBounded`, `complete`, `cutDistance_triangle` — all fully proved
+(Rokhlin campaigns R0–R3). -/
 theorem compact [NoAtoms μ] :
     ∀ (W : ℕ → Graphon α μ), ∃ (V : Graphon α μ) (φ : ℕ → ℕ),
       StrictMono φ ∧ ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W (φ n)) V < ε := by
@@ -1802,8 +1801,8 @@ theorem compact [NoAtoms μ] :
   --
   -- Claim: ∃ φ : ℕ → ℕ strictly increasing, W ∘ φ is Cauchy.
   -- Proof: by the standard diagonal argument with nested subsequences.
-  -- Since the proof is a standard real analysis exercise and the key mathematical
-  -- content is in totallyBounded and complete, we sorry the extraction and apply complete.
+  -- The key mathematical content is in totallyBounded and complete; the extraction is a
+  -- standard diagonal argument, proved below, and we conclude by applying complete.
   suffices h_cauchy : ∃ (φ : ℕ → ℕ), StrictMono φ ∧ IsCauchy (W ∘ φ) by
     obtain ⟨φ, hφ_mono, hφ_cauchy⟩ := h_cauchy
     obtain ⟨V, hV⟩ := complete (W ∘ φ) hφ_cauchy
@@ -1934,9 +1933,8 @@ variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
 coefficient matrix (moved here from `Graphon/InverseCounting.lean`, 2026-07-07, and
 de-privatized: it is the API boundary for the sampling layer's frequency-term bound).
 
-NOTE: this lemma carries the repo-wide Rokhlin `sorryAx` trace — its proof uses
-`MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin) for partition
-alignment. -/
+NOTE: its proof uses `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core,
+proved in campaign R2) for partition alignment; fully axiom-clean. -/
 theorem cutDistance_step_weight_le {K : ℕ}
     (P Q : MeasurablePartition α μ)
     (c_P c_Q : Set α → Set α → ℝ)
@@ -1972,7 +1970,7 @@ theorem cutDistance_step_weight_le {K : ℕ}
       exists_measurable_subset_of_measure (μ := μ) hQ_meas (min_le_right _ _)
     exact ⟨MP_i, MQ_i, hMP_m, hMQ_m, hMP_s, hMQ_s, hMP_e, hMQ_e⟩
   choose M_P M_Q hM_P_meas hM_Q_meas hM_P_sub hM_Q_sub hM_P_eq hM_Q_eq using h_matched
-  -- Step 2: Sorry the alignment — traces to Rokhlin/exists_controlled_cell_alignment
+  -- Step 2: Align via the (proved) Rokhlin core exists_controlled_cell_alignment
   -- We need e : α ≃ᵐ α, MP, mapping M_Q i into M_P i a.e.
   have h_align : ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
       ∀ i : Fin K, ∀ᵐ x ∂μ, x ∈ M_Q i → e x ∈ M_P i := by
