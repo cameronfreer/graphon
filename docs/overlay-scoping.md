@@ -1,6 +1,12 @@
 # Overlay scoping for `exists_mpEquiv_cutNormDiff_lt_add`
 
-**Status (2026-07-09).** R2 has discharged three of the four corrected Rokhlin cores:
+> **OUTCOME (2026-07-09, campaign R3 COMPLETE).** The plan below was executed the same day
+> in `Graphon/Overlay.lean` (commits 1d0aa32 O1, 08cb8e4 O2, 85768ea O3): the theorem is
+> **proved and axiom-clean**, and with it `complete`, `compact`, `cutDistance_triangle`,
+> `first_sampling_lemma`, and `cutDistance_zero_of_homDensity_eq` all verify with standard
+> axioms only. The Rokhlin gap is closed; the project has no live sorries.
+
+**Status (2026-07-09, at scoping time).** R2 has discharged three of the four corrected Rokhlin cores:
 
 - `MeasurePreserving.exists_controlled_cell_alignment`
 - `MeasurePreserving.exists_common_coupling_maps`
