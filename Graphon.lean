@@ -28,6 +28,7 @@ import Graphon.MatrixDetermination
 import Graphon.SamplingICL
 import Graphon.SamplingConcentration
 import Graphon.SamplingRounding
+import Graphon.SamplingPointwise
 import Graphon.SamplingLemma
 import Graphon.InverseCounting
 import Graphon.Convergence
@@ -46,7 +47,9 @@ in Lean 4 using Mathlib.
 * `Graphon.HomDensity` — Homomorphism density definition
 * `Graphon.CutNorm` — Cut norm, graphon integrability
 * `Graphon.Approximation` — Rectangle averages, cut norm approximation
-* `Graphon.CutDistance` — Cut distance, pseudometric properties
+* `Graphon.CutDistance` — Cut distance, pseudometric properties, three of the four Rokhlin cores
+* `Graphon.MeasureIso` — Atomless standard-Borel measure-isomorphism theorem (graphon-independent; mod-0 iso + everywhere upgrade)
+* `Graphon.Overlay` — Overlay theorem: an MP bijection nearly achieves the cut distance (fourth Rokhlin core)
 * `Graphon.Regularity` — Energy increment, Frieze–Kannan weak regularity lemma
 * `Graphon.Counting` — Homomorphism density, counting lemma
 * `Graphon.Compactness` — Total boundedness, completeness
@@ -59,6 +62,7 @@ in Lean 4 using Mathlib.
 * `Graphon.SamplingICL` — Sampling route to the partition-size-independent quantitative inverse counting lemma
 * `Graphon.SamplingConcentration` — Concentration scaffold for the First Sampling Lemma (conditional distribution, weighted sample, two-stage reduction)
 * `Graphon.SamplingRounding` — The rounding half of the First Sampling Lemma, proved (cut certificate + finite Chernoff)
+* `Graphon.SamplingPointwise` — The pointwise half of the First Sampling Lemma: AFKK cut-guessing bound, McDiarmid-at-MGF + soft-max infrastructure
 * `Graphon.SamplingLemma` — The First Sampling Lemma, assembled from the two proved concentration events
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
@@ -67,5 +71,5 @@ in Lean 4 using Mathlib.
 
 * `Graphon.Operations` — Pointwise product (direct sum and operator product are future work)
 * `Graphon.Operator` — Kernel operator pointwise definition (full L² API is future work)
-* `Graphon.Sampling` — W-random graph distribution (`sampleMass`) and expected edge density (concentration bounds are future work)
+* `Graphon.Sampling` — W-random graph distribution (`sampleMass`) and expected edge density (concentration is proved in the `Sampling*` modules above, culminating in `Graphon.SamplingLemma`)
 -/
