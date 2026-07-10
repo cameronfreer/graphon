@@ -54,6 +54,7 @@ AUDITED_DECLS = {
     "GraphonSpace.mixturePMF_map_comap",
     "GraphonSpace.continuous_mixturePMF_apply_toReal",
     "GraphonSpace.exists_subseq_tendsto",
+    "Graphon.homDensity_sum",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
