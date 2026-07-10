@@ -241,4 +241,116 @@ noncomputable def sampleLaw (W : Graphon α μ) (k : ℕ) :
 
 end Law
 
+/-! ### Relabeling and arbitrary-injection consistency of the sample law -/
+
+section Consistency
+
+variable [IsProbabilityMeasure μ] {k l : ℕ}
+
+open scoped Classical
+
+/-- PMF extensionality through the upper transform: two PMFs on `SimpleGraph (Fin k)`
+agree as soon as all their supergraph masses agree. -/
+theorem pmf_ext_of_upperSum {p q : PMF (SimpleGraph (Fin k))}
+    (h : ∀ F, upperSum (fun G => (p G).toReal) F =
+      upperSum (fun G => (q G).toReal) F) : p = q := by
+  apply PMF.ext
+  intro G
+  exact (ENNReal.toReal_eq_toReal_iff' (p.apply_ne_top G) (q.apply_ne_top G)).mp
+    (congrFun (upperSum_injective h) G)
+
+/-- Normalization of the upper transform of a mapped PMF: pull the pushforward inside
+the sum. -/
+private theorem upperSum_pmf_map (f : SimpleGraph (Fin l) → SimpleGraph (Fin k))
+    (p : PMF (SimpleGraph (Fin l))) (F : SimpleGraph (Fin k)) :
+    upperSum (fun G => ((p.map f) G).toReal) F =
+      ∑ H : SimpleGraph (Fin l), if F ≤ f H then (p H).toReal else 0 := by
+  have hmap : ∀ G, ((p.map f) G).toReal =
+      ∑ H : SimpleGraph (Fin l), if G = f H then (p H).toReal else 0 := by
+    intro G
+    have hfin : ∀ H ∈ Finset.univ, (if G = f H then p H else 0) ≠ (⊤ : ℝ≥0∞) := by
+      intro H _
+      split
+      exacts [p.apply_ne_top H, ENNReal.zero_ne_top]
+    rw [PMF.map_apply, tsum_fintype, ENNReal.toReal_sum hfin]
+    exact Finset.sum_congr rfl fun H _ => by split <;> simp
+  have hcollapse : ∀ H : SimpleGraph (Fin l),
+      (∑ G : SimpleGraph (Fin k),
+        if F ≤ G then (if G = f H then (p H).toReal else 0) else 0) =
+      if F ≤ f H then (p H).toReal else 0 := by
+    intro H
+    have hswap : ∀ G : SimpleGraph (Fin k),
+        (if F ≤ G then (if G = f H then (p H).toReal else 0) else 0) =
+        if G = f H then (if F ≤ f H then (p H).toReal else 0) else 0 := by
+      intro G
+      by_cases h1 : G = f H
+      · subst h1; simp
+      · simp [h1]
+    rw [Finset.sum_congr rfl fun G _ => hswap G]
+    exact Finset.sum_ite_eq' Finset.univ (f H) _ |>.trans (if_pos (Finset.mem_univ _))
+  calc upperSum (fun G => ((p.map f) G).toReal) F
+      = ∑ G : SimpleGraph (Fin k), if F ≤ G then
+          (∑ H : SimpleGraph (Fin l), if G = f H then (p H).toReal else 0) else 0 := by
+        rw [upperSum]; exact Finset.sum_congr rfl fun G _ => by rw [hmap]
+    _ = ∑ G : SimpleGraph (Fin k), ∑ H : SimpleGraph (Fin l),
+          if F ≤ G then (if G = f H then (p H).toReal else 0) else 0 := by
+        refine Finset.sum_congr rfl fun G _ => ?_
+        split <;> simp
+    _ = ∑ H : SimpleGraph (Fin l), ∑ G : SimpleGraph (Fin k),
+          if F ≤ G then (if G = f H then (p H).toReal else 0) else 0 := Finset.sum_comm
+    _ = ∑ H : SimpleGraph (Fin l), if F ≤ f H then (p H).toReal else 0 :=
+        Finset.sum_congr rfl fun H _ => hcollapse H
+
+/-- The upper mass of the sample PMF is the homomorphism density. -/
+theorem upperSum_samplePMF (W : Graphon α μ) (F : SimpleGraph (Fin k)) :
+    upperSum (fun G => (samplePMF W k G).toReal) F = homDensity F W := by
+  have hfun : (fun G : SimpleGraph (Fin k) => (samplePMF W k G).toReal) = sampleMass W :=
+    funext fun G => samplePMF_apply_toReal W k G
+  rw [hfun, upperSum_sampleMass]
+
+/-- **Arbitrary-injection consistency of the sample law**: restricting the `l`-vertex
+`W`-random graph along any injection `Fin k ↪ Fin l` yields the `k`-vertex `W`-random
+graph. (Prefix restriction and relabeling-compatible restrictions are special cases.)
+Proof: upper masses of both sides are `homDensity F W`, via the Galois connection
+`map_le_iff_le_comap` and `homDensity_map_embedding`; `upperSum_injective` finishes. -/
+theorem samplePMF_map_comap (W : Graphon α μ) (e : Fin k ↪ Fin l) :
+    (samplePMF W l).map (fun H => H.comap e) = samplePMF W k := by
+  apply pmf_ext_of_upperSum
+  intro F
+  rw [upperSum_pmf_map]
+  have h1 : (∑ H : SimpleGraph (Fin l),
+        if F ≤ H.comap e then (samplePMF W l H).toReal else 0)
+      = upperSum (fun H => (samplePMF W l H).toReal) (F.map e) := by
+    rw [upperSum]
+    exact Finset.sum_congr rfl fun H _ =>
+      if_congr (SimpleGraph.map_le_iff_le_comap e F H).symm rfl rfl
+  rw [h1, upperSum_samplePMF, upperSum_samplePMF]
+  exact (homDensity_congr_decRel (F.map e) _ _ W).trans
+    (homDensity_map_embedding F e W)
+
+/-- **Relabeling invariance of the sample law** (PMF form). -/
+theorem samplePMF_map_relabel (W : Graphon α μ) (σ : Equiv.Perm (Fin k)) :
+    (samplePMF W k).map (fun G => G.map σ.toEmbedding) = samplePMF W k := by
+  have hfun : (fun G : SimpleGraph (Fin k) => G.comap σ.symm.toEmbedding) =
+      (fun G => G.map σ.toEmbedding) :=
+    funext fun G => SimpleGraph.comap_symm G σ
+  rw [← hfun]
+  exact samplePMF_map_comap W σ.symm.toEmbedding
+
+/-- Arbitrary-injection consistency, measure form. -/
+theorem sampleLaw_map_comap (W : Graphon α μ) (e : Fin k ↪ Fin l) :
+    (sampleLaw W l : Measure (SimpleGraph (Fin l))).map (fun H => H.comap e) =
+      (sampleLaw W k : Measure (SimpleGraph (Fin k))) := by
+  rw [sampleLaw, sampleLaw, ProbabilityMeasure.coe_mk, ProbabilityMeasure.coe_mk,
+    PMF.toMeasure_map _ _ (SimpleGraph.measurable_comap ⇑e), samplePMF_map_comap]
+
+/-- Relabeling invariance, measure form. -/
+theorem sampleLaw_map_relabel (W : Graphon α μ) (σ : Equiv.Perm (Fin k)) :
+    (sampleLaw W k : Measure (SimpleGraph (Fin k))).map (fun G => G.map σ.toEmbedding) =
+      (sampleLaw W k : Measure (SimpleGraph (Fin k))) := by
+  rw [sampleLaw, ProbabilityMeasure.coe_mk,
+    PMF.toMeasure_map _ _ (SimpleGraph.measurable_map_equiv σ), samplePMF_map_relabel]
+
+end Consistency
+
 end Graphon

@@ -30,6 +30,7 @@ import Graphon.SamplingConcentration
 import Graphon.SamplingRounding
 import Graphon.SamplingPointwise
 import Graphon.SamplingLemma
+import Graphon.SamplingLaw
 import Graphon.InverseCounting
 import Graphon.Convergence
 
@@ -64,6 +65,7 @@ in Lean 4 using Mathlib.
 * `Graphon.SamplingRounding` — The rounding half of the First Sampling Lemma, proved (cut certificate + finite Chernoff)
 * `Graphon.SamplingPointwise` — The pointwise half of the First Sampling Lemma: AFKK cut-guessing bound, McDiarmid-at-MGF + soft-max infrastructure
 * `Graphon.SamplingLemma` — The First Sampling Lemma, assembled from the two proved concentration events
+* `Graphon.SamplingLaw` — The finite sample law of a graphon: `samplePMF`/`sampleLaw`, Möbius/upper-transform engine, relabeling invariance, arbitrary-injection consistency
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 
