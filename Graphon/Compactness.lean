@@ -1281,8 +1281,8 @@ Given `ν ≤ μ × μ` with symmetric rectangle values, Radon-Nikodym gives den
 - `L(x,y) = L(y,x)` a.e. (from rectangle symmetry + π-λ uniqueness)
 - `∫_{S×T} L = ν(S×T).toReal` for all measurable S, T
 
-**Sorry**: Requires Radon-Nikodym derivative extraction (`ν.rnDeriv (μ.prod μ)`),
-density bound proof, and symmetry via π-λ uniqueness. -/
+**Proof**: Radon–Nikodym derivative extraction (`ν.rnDeriv (μ.prod μ)`), density
+bound, and symmetry via π-λ uniqueness. -/
 private theorem exists_graphon_of_bounded_measure
     (ν : Measure (α × α)) (hν : ν ≤ μ.prod μ)
     (h_symm : ∀ (S T : Set α), MeasurableSet S → MeasurableSet T →

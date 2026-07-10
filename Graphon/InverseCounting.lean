@@ -34,7 +34,7 @@ convergence of all homomorphism densities.
 
 The proof uses:
 1. Algebraic determination for step graphons (`MatrixDetermination.lean`)
-2. Partition alignment via Rokhlin's theorem (`CutDistance.lean`)
+2. Partition alignment via the Rokhlin cell-alignment core (`CutDistance.lean`, proved)
 3. Regularity lemma for step approximation
 4. Compactness of graphon space
 
@@ -56,7 +56,7 @@ namespace Graphon
 The algebraic core: step graphons on the same partition with equal hom densities
 for all graphs have cut distance zero. This connects the measure-theoretic
 `homDensity` to the finite `weightedHomSum` and uses `matrix_quotient_of_weightedHomSum_eq`
-(the algebraic determination axiom) plus partition alignment (Rokhlin). -/
+(the algebraic determination theorem, proved) plus partition alignment (Rokhlin core, proved). -/
 
 section StepInverseCounting
 
@@ -274,7 +274,7 @@ k cells enumerated by `ι : Fin k → Set α`, and a permutation `π : Equiv.Per
 such that `μ(ι i) = μ(ι (π i))` for all i, there exists a MP bijection
 `e : α ≃ᵐ α` that maps each cell `ι i` a.e. to `ι (π i)`.
 
-**Sorry traces to**: `MeasurePreserving.exists_controlled_cell_alignment` (corrected Rokhlin cell-alignment core).
+**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin cell-alignment core, proved in campaign R2).
 The construction proceeds by applying Rokhlin's theorem to each pair of equal-measure
 cells `(ι i, ι (π i))` independently, producing a MP bijection on each cell, then
 assembling them into a global bijection. -/
@@ -427,7 +427,7 @@ private theorem mkStepGraphon_eq_of_ae_coeff
 if type class weight sums match, there exists a MP bijection mapping each
 sub-enumerated cell to a cell in the corresponding type class.
 
-**Sorry traces to**: `MeasurePreserving.exists_controlled_cell_alignment` (corrected Rokhlin cell-alignment core).
+**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin cell-alignment core, proved in campaign R2).
 Requires `[NoAtoms μ]` for mass redistribution within type classes. -/
 private theorem exists_type_class_mp_bijection
     (P : MeasurablePartition α μ) {k k' : ℕ} (ι : Fin k → Set α)
@@ -726,7 +726,7 @@ Given step graphons on the same partition with equal homomorphism densities for
 all graphs, there exists a measure-preserving bijection `e` that makes the
 pullback of one step graphon equal the other.
 
-The proof decomposes into three steps, each depending on a sorry'd axiom:
+The proof decomposes into three steps (all inputs now proved):
 
 1. **homDensity → weightedHomSum bridge**: Decompose the pi-integral defining
    `homDensity` over partition cells. For a step graphon `mkStepGraphon P c`,
@@ -746,7 +746,7 @@ The proof decomposes into three steps, each depending on a sorry'd axiom:
    across type classes, the pullback `pullback (mkStepGraphon P c') e` then
    equals `mkStepGraphon P c` a.e.
 
-**Sorry traces to**: `MeasurePreserving.exists_controlled_cell_alignment` (corrected Rokhlin cell-alignment core)
+**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin cell-alignment core, proved in campaign R2)
 only — the algebraic core `matrix_quotient_of_weightedHomSum_eq` (Lovász [2012]
 Theorem 5.30) is PROVED as of 2026-07-06 (axiom-clean). -/
 private theorem exists_pullback_eq_of_step_homDensity_eq
@@ -975,7 +975,7 @@ measure-preserving bijection `e` with `pullback (mkStepGraphon P c') e = mkStepG
 Then `cutDistance_pullback_eq_zero` gives `cutDistance W' (pullback W' e) = 0`,
 and substituting the pullback equality yields the result.
 
-**Sorry traces to**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin) only —
+**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core, proved in R2) only —
 the algebraic core is PROVED as of 2026-07-06. -/
 private theorem cutDistance_zero_of_step_homDensity_eq
     (P : MeasurablePartition α μ) (c c' : Set α → Set α → ℝ)
@@ -1040,7 +1040,7 @@ For partitions with at most K cells, the quantitative step ICL gives parameters
 as delta decreases, this constrains delta from below. A solution always exists
 because for fixed K, the step ICL gives fixed positive delta_step.
 
-**Sorry traces to**: `MeasurePreserving.exists_controlled_cell_alignment` (corrected Rokhlin cell-alignment core)
+**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin cell-alignment core, proved in campaign R2)
 only, via `cutDistance_zero_of_step_homDensity_eq` — the algebraic core
 `matrix_quotient_of_weightedHomSum_eq` (Lovasz [2012] Theorem 5.30) is PROVED as of
 2026-07-06 (axiom-clean). The simultaneous regularity is a standard extension of
@@ -1260,7 +1260,7 @@ give step graphons with equal hom densities but cutDistance >= ε, contradicting
 
 **Depends on**: `cutDistance_zero_of_step_homDensity_eq` which traces to
 `matrix_quotient_of_weightedHomSum_eq` (algebraic core) +
-`MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin). -/
+`MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core, proved in R2). -/
 private theorem step_quantitative_icl
     (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ (δ : ℝ) (_ : δ > 0) (m : ℕ),
@@ -1660,8 +1660,8 @@ Given partition P with k ≤ K cells (padded to Fin K) and partition Q with K ce
 if the coefficient matrices agree (matching rectAverage of V on active P cells),
 then the cutDistance is bounded by twice the sum of weight differences.
 
-**Sorry traces to**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin) via
-`exists_controlled_cell_alignment` for cell alignment between the intermediate
+**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core, proved in
+R2) via `exists_controlled_cell_alignment` for cell alignment between the intermediate
 partition P_mid and P. -/
 private theorem cutDistance_cross_partition_weight_le {K : ℕ}
     (P : MeasurablePartition α μ) (V : Graphon α μ) (hP_le : P.parts.card ≤ K)
@@ -2349,7 +2349,7 @@ private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0
           exact mul_lt_mul_of_pos_right (by linarith : (↑K : ℝ) < ↑K + 1)
             (div_pos hε (by positivity))
       _ = ε / 4 := by field_simp; ring
-  -- **Sorry traces to**: `cutDistance_step_weight_le` → `exists_controlled_cell_alignment` (Rokhlin).
+  -- **Rests on**: `cutDistance_step_weight_le` → `exists_controlled_cell_alignment` (proved).
   -- Proof sketch: triangle through P_mid (built via exists_partition_with_measures with
   -- weights w_seq(ψm)). Part 1: cutDistance(stepify, G_mid) = 0 via cell alignment (Rokhlin).
   -- Part 2: cutDistance(G_mid, G_Um) ≤ 2*∑|w_seq-w_lim| < ε/4 by h_weight_bound.
@@ -2479,8 +2479,9 @@ private theorem stepify_homDensity_transfer
     _ ≤ (m * m : ℝ) * δ + (m * m : ℝ) * δ := add_le_add hUside hWside
     _ = 2 * (m * m : ℝ) * δ := by ring
 
-/-- **THE headline parameter selection** — the single remaining gap in the assembly of
-`cutDistance_zero_of_homDensity_eq`.
+/-- **THE headline parameter selection** — formerly the single remaining gap in the assembly
+of `cutDistance_zero_of_homDensity_eq`, discharged via the sampling route (First Sampling
+Lemma, proved 2026-07-08); the whole chain is now fully axiom-clean.
 
 It demands, for each accuracy `ε`, a regularity quality `δ`, a density tolerance
 `δ_step`, and a graph size `m` such that (a) `δ ≤ ε/3`, (b) the counting-bridge
@@ -2561,9 +2562,9 @@ step ICL gives `cutDistance(stepify P U, stepify P W) < ε/3`; two triangle ineq
 with `cutDistance_le_cutNormDiff` finish `cutDistance U W < ε`. Nonnegativity converts
 `∀ ε > 0, < ε` into `= 0`.
 
-**Sorry traces to**: `headline_parameter_selection` (see its docstring — sampling route)
-+ `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin, through
-`step_quantitative_icl_bounded` if the selection lemma is discharged through it). -/
+**Rests on**: `headline_parameter_selection` (sampling route, proved) and
+`MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core, proved in R2) —
+fully axiom-clean. -/
 theorem cutDistance_zero_of_homDensity_eq [StandardBorelSpace α] [NoAtoms μ]
     (U W : Graphon α μ)
     (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],

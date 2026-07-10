@@ -1,6 +1,16 @@
 # Rokhlin scoping memo: what `exists_common_extension` actually needs to say
 
-**Status**: pre-campaign scoping (2026-07-08), per the directive: *"scope whether the
+> **OUTCOME (2026-07-09): CAMPAIGN COMPLETE — R0 through R3 all landed.** The plan below was
+> fully executed: the false monolith was deleted (R0, PR #13), the measure-isomorphism theorem
+> and the mod-0→everywhere upgrade were proved (`Graphon/MeasureIso.lean`, R1 + R2.0), all four
+> corrected cores were proved (R2 in `Graphon/CutDistance.lean`; the R3 overlay in
+> `Graphon/Overlay.lean`, see `docs/overlay-scoping.md`), and the whole graphon program —
+> `complete`, `compact`, `cutDistance_triangle`, `first_sampling_lemma`,
+> `cutDistance_zero_of_homDensity_eq` — is axiom-clean with **zero live sorries**.
+> Everything below is the historical scoping record; status phrases like "live sorry" or
+> "IN PROGRESS" describe the state at writing time.
+
+**Status**: pre-campaign scoping (2026-07-08, historical), per the directive: *"scope whether the
 graphon route needs the full `MeasurePreserving.exists_common_extension` or only a
 specialized common-extension lemma sufficient for `cutDistance_triangle` and partition
 alignment."*
@@ -11,8 +21,8 @@ whose common core is the measure isomorphism theorem (absent from Mathlib).**
 
 ## 1. The stub and its consumers
 
-`MeasurePreserving.exists_common_extension` (`Graphon/CutDistance.lean:1065`, the
-project's single live sorry) bundles three conjuncts. Hypotheses: `[StandardBorelSpace α]`,
+`MeasurePreserving.exists_common_extension` (`Graphon/CutDistance.lean:1065`, then the
+project's single live sorry; since deleted in R0) bundles three conjuncts. Hypotheses: `[StandardBorelSpace α]`,
 `μ` a probability measure — **note: `[NoAtoms μ]` is NOT assumed**.
 
 | Conjunct | Content | Sole consumers |
@@ -152,7 +162,8 @@ through the iso: interval rearrangement (→ core 3), joining via `condKernel` r
 
 ## R1 COMPLETE (2026-07-08) — `Mod0MeasureIso` + `atomless_standardBorel_mod0MeasureIso_unitInterval`
 
-`Graphon/MeasureIso.lean` (graphon-independent, `import Mathlib` only, all axiom-clean): R1b
+`Graphon/MeasureIso.lean` (graphon-independent, all axiom-clean; imports later narrowed
+from `import Mathlib` to 14 targeted modules): R1b
 `continuous_cdf_of_noAtoms`, R1c `cdf_map_eq_volume_restrict` (the crux), R1d `cdfQuantile` +
 `map_cdfQuantile_volume_restrict` + a.e. inverses, R1e the `Mod0MeasureIso` structure (`.trans`,
 `realMod0MeasureIso`, `embeddingRealMod0MeasureIso`) and the main theorem
@@ -194,7 +205,7 @@ The upgrade is staged into three bricks in `MeasureIso.lean` (graphon-independen
   patches via `measurableEquivOfNotCountable`, glues onto the honest `↥S ≃ᵐ ↥T` bijection with
   `sumCompl`/`sumCongr`; the result agrees with `toFun`/`invFun` a.e. hence is MP. (Reservoirs
   need NOT lie inside any prescribed set — Brick 1 removes them regardless.)
-- **Brick 2 `exists_uncountable_null_measurableSet`** — IN PROGRESS (delegated). Atomless
+- **Brick 2 `exists_uncountable_null_measurableSet`** — PROVED (62e7fa0). Atomless
   standard-Borel prob space has an uncountable Borel null set. No Mathlib shortcut; pulling a
   fixed null set through a mod-0 iso fails on defect alignment (a fixed null set can sit inside
   the iso's fixed null defect, killing uncountability). Route: intrinsic compact Cantor scheme

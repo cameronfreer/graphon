@@ -23,10 +23,11 @@ import Mathlib.Topology.Order.LeftRightLim
 
 This file builds, from the ground up, the measure-theoretic core that the graphon program's
 four corrected Rokhlin cores (`exists_common_coupling_maps`, `cutNormDiff_pullback_le`,
-`exists_controlled_cell_alignment`, `exists_mpEquiv_cutNormDiff_lt_add` in
-`Graphon/CutDistance.lean`) all reduce to (see `docs/rokhlin-scoping.md` §7–8). As of R2
-(2026-07-09) the first three are proved from this file's theorems; the fourth — the overlay
-theorem — is the sole live obligation, scoped in `docs/overlay-scoping.md`:
+`exists_controlled_cell_alignment` in `Graphon/CutDistance.lean`;
+`exists_mpEquiv_cutNormDiff_lt_add` in `Graphon/Overlay.lean`) all reduce to (see
+`docs/rokhlin-scoping.md` §7–8). **All four are proved** (campaigns R2 + R3, 2026-07-09;
+see `docs/overlay-scoping.md` for the overlay), so the graphon program carries no live
+measure-theory obligation:
 
 > An atomless standard-Borel probability space `(α, μ)` is measure-preservingly isomorphic
 > mod 0 to `([0,1], Lebesgue)`.
@@ -39,12 +40,16 @@ plausible upstreaming target.
 * **R1b** `continuous_cdf_of_noAtoms` — the CDF of an atomless probability measure on `ℝ` is
   continuous. **PROVED.**
 * **R1c** `cdf_map_eq_volume_restrict` — the *probability integral transform*: the CDF pushes
-  an atomless probability measure on `ℝ` to Lebesgue measure on `[0,1]`. *(the crux; stated)*
+  an atomless probability measure on `ℝ` to Lebesgue measure on `[0,1]`. **PROVED.**
 * **R1d** the quantile map is a mod-0 inverse of the CDF (a.e. inverse both directions).
+  **PROVED.**
 * **R1e** transport a general atomless standard-Borel probability space to the real line via
-  `embeddingReal`, then assemble the everywhere `≃ᵐ`.
+  `embeddingReal`, then assemble the mod-0 iso
+  (`atomless_standardBorel_mod0MeasureIso_unitInterval`). **PROVED.**
+* **R2.0** the mod-0 → everywhere upgrade (`Mod0MeasureIso.toMeasurableEquiv`), via
+  null-reservoir patching and `exists_uncountable_null_measurableSet`. **PROVED.**
 
-Then **R2** derives the four cores by conjugating through the isomorphism.
+**R2/R3** then derive the four cores by conjugating through the isomorphism — all complete.
 -/
 
 open MeasureTheory ProbabilityTheory Filter Topology Set Function
