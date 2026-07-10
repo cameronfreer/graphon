@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.CutNorm
 import Graphon.HomDensity
+import Mathlib.Probability.Independence.Basic
 
 /-!
 # Sampling Random Graphs from Graphons
@@ -153,6 +154,28 @@ private theorem top_edgeFinset_card_le :
           calc (k + 1) * k ≤ 2 * k * k :=
                 Nat.mul_le_mul_right k (by omega : k + 1 ≤ 2 * k)
             _ = 2 * (k * k) := by ring
+
+/-- A.e. transfer from the product measure to a pair of distinct sampled coordinates:
+if `Φ` holds `μ.prod μ`-a.e., it holds a.e. at `(x a, x b)` for i.i.d. samples `x` and
+`a ≠ b`. (Generalized from `SamplingPointwise` — needs only a probability measure, no
+standard-Borel or atomlessness hypotheses.) -/
+theorem ae_pairMap_of_prod {k : ℕ} (a b : Fin k) (hab : a ≠ b) {Φ : α × α → Prop}
+    (h : ∀ᵐ p ∂(μ.prod μ), Φ p) :
+    ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ), Φ (x a, x b) := by
+  have h_indep : ProbabilityTheory.iIndepFun (fun l (x : Fin k → α) ↦ x l)
+      (Measure.pi (fun _ : Fin k ↦ μ)) :=
+    ProbabilityTheory.iIndepFun_pi (fun _ ↦ aemeasurable_id)
+  have h_indep_pair := h_indep.indepFun hab
+  have h_map : Measure.map (fun x : Fin k → α ↦ (x a, x b)) (Measure.pi (fun _ : Fin k ↦ μ))
+      = μ.prod μ := by
+    rw [ProbabilityTheory.indepFun_iff_map_prod_eq_prod_map_map
+      (measurable_pi_apply _).aemeasurable (measurable_pi_apply _).aemeasurable] at h_indep_pair
+    rw [h_indep_pair, (MeasureTheory.measurePreserving_eval (fun _ : Fin k ↦ μ) a).map_eq,
+      (MeasureTheory.measurePreserving_eval (fun _ : Fin k ↦ μ) b).map_eq]
+  have h_qmp : Measure.QuasiMeasurePreserving (fun x : Fin k → α ↦ (x a, x b))
+      (Measure.pi (fun _ : Fin k ↦ μ)) (μ.prod μ) :=
+    ⟨(measurable_pi_apply a).prodMk (measurable_pi_apply b), by rw [h_map]⟩
+  exact h_qmp.ae h
 
 /-- The integrand of the sampled-graph mass: edges of `G` contribute `W`, non-edges
 contribute `1 − W`. -/
