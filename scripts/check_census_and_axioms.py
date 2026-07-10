@@ -43,6 +43,9 @@ AUDITED_DECLS = {
     "Graphon.first_sampling_lemma",
     "Graphon.cutDistance_zero_of_homDensity_eq",
     "Graphon.homDensity_eq_sum_sampleMass",
+    "Graphon.sampleMass_map_perm",
+    "Graphon.samplePMF_map_comap",
+    "Graphon.sampleLaw_map_comap",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

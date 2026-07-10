@@ -39,6 +39,16 @@ corollaries above (`exists_simpleGraph_cutDistance_lt_of_large_k`,
 
 ## S2: bundle the finite random-graph law
 
+> **Status (2026-07-10): core implemented.** The forward Möbius identity (PR #27,
+> `Graphon/Sampling.lean`) and the S2 core (PR #28, `Graphon/SamplingLaw.lean`:
+> `upperSum`/Möbius engine, `relabelOrderIso`, `sampleMass_map_perm`,
+> `samplePMF`/`sampleLaw`, arbitrary-injection consistency `samplePMF_map_comap`) are done.
+> Remaining: #21 (constant graphon = `binomialRandom`; layout: `constGraphon` +
+> `Nonempty (Graphon α μ)` in `Basic.lean`, generalized `ae_pairMap_of_prod` low in the
+> sampling stack, the law itself in a new `SamplingExamples.lean`), and — after #23 — the
+> joining theorem `(∀ k, samplePMF U k = samplePMF W k) ↔ WeaklyIsomorphic U W`, which
+> cleanly connects S2 and S3 and is far lower risk than starting Aldous–Hoover directly.
+
 `sampleMass W G` is currently a family of reals. Bundle it as a probability measure on
 `SimpleGraph (Fin k)` (likely via `ProbabilityMeasure`), then prove:
 

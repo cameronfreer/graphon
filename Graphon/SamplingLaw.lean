@@ -3,7 +3,6 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
-import Architect
 import Graphon.Sampling
 import Mathlib.Combinatorics.Enumerative.IncidenceAlgebra
 import Mathlib.Probability.ProbabilityMassFunction.Constructions
@@ -122,13 +121,23 @@ variable [IsProbabilityMeasure μ] {k : ℕ}
 
 open scoped Classical
 
-/-- The upper transform of the sample mass is the homomorphism density: the forward
-Möbius identity, restated through `upperSum`. -/
-theorem upperSum_sampleMass (W : Graphon α μ) (F : SimpleGraph (Fin k)) :
+/-- Classical-instance core of `upperSum_sampleMass`. -/
+private theorem upperSum_sampleMass_classical (W : Graphon α μ) (F : SimpleGraph (Fin k)) :
     upperSum (sampleMass W) F = homDensity F W := by
   rw [upperSum]
   exact (homDensity_eq_sum_sampleMass W F).symm
 
+/-- The upper transform of the sample mass is the homomorphism density: the forward
+Möbius identity, restated through `upperSum`. Accepts an ambient `[DecidableRel F.Adj]`
+(bridged to the classical core by `homDensity_congr_decRel`). -/
+theorem upperSum_sampleMass (W : Graphon α μ) (F : SimpleGraph (Fin k))
+    [DecidableRel F.Adj] :
+    upperSum (sampleMass W) F = homDensity F W :=
+  (upperSum_sampleMass_classical W F).trans (homDensity_congr_decRel F _ _ W)
+
+section
+-- Scoped to `sampleMass_map_perm` only: the `relabelOrderIso`/`homDensity` instance
+-- unification in the calc below exceeds the default heartbeat budget.
 set_option maxHeartbeats 1600000
 
 /-- **Relabeling invariance of the sample mass**: the law of the `W`-random graph is
@@ -151,12 +160,14 @@ theorem sampleMass_map_perm (W : Graphon α μ) (σ : Equiv.Perm (Fin k))
       exact if_congr e.le_iff_le.symm rfl rfl
     calc upperSum (fun G => sampleMass W (e G)) F
         = upperSum (sampleMass W) (e F) := hre
-      _ = homDensity (e F) W := upperSum_sampleMass W (e F)
+      _ = homDensity (e F) W := upperSum_sampleMass_classical W (e F)
       _ = homDensity F W :=
           (homDensity_congr_decRel (e F) _ _ W).trans
             (homDensity_map_embedding F σ.toEmbedding W)
-      _ = upperSum (sampleMass W) F := (upperSum_sampleMass W F).symm
+      _ = upperSum (sampleMass W) F := (upperSum_sampleMass_classical W F).symm
   exact congrFun key G
+
+end
 
 end Relabel
 
@@ -214,6 +225,10 @@ noncomputable def samplePMF (W : Graphon α μ) (k : ℕ) : PMF (SimpleGraph (Fi
 @[simp] theorem samplePMF_apply (W : Graphon α μ) (k : ℕ) (G : SimpleGraph (Fin k)) :
     samplePMF W k G = ENNReal.ofReal (sampleMass W G) := rfl
 
+/-- Point mass of the sample PMF as a real number. Composed with
+`sampleMass_eq_sum_homDensity` (`Graphon/Sampling.lean`), this IS the reverse
+Möbius/inclusion–exclusion identity at the PMF level — the intended API for expanding
+PMF point masses into signed homomorphism densities (#22). -/
 @[simp] theorem samplePMF_apply_toReal (W : Graphon α μ) (k : ℕ)
     (G : SimpleGraph (Fin k)) :
     (samplePMF W k G).toReal = sampleMass W G := by
@@ -301,12 +316,19 @@ private theorem upperSum_pmf_map (f : SimpleGraph (Fin l) → SimpleGraph (Fin k
     _ = ∑ H : SimpleGraph (Fin l), if F ≤ f H then (p H).toReal else 0 :=
         Finset.sum_congr rfl fun H _ => hcollapse H
 
-/-- The upper mass of the sample PMF is the homomorphism density. -/
-theorem upperSum_samplePMF (W : Graphon α μ) (F : SimpleGraph (Fin k)) :
+/-- Classical-instance core of `upperSum_samplePMF`. -/
+private theorem upperSum_samplePMF_classical (W : Graphon α μ) (F : SimpleGraph (Fin k)) :
     upperSum (fun G => (samplePMF W k G).toReal) F = homDensity F W := by
   have hfun : (fun G : SimpleGraph (Fin k) => (samplePMF W k G).toReal) = sampleMass W :=
     funext fun G => samplePMF_apply_toReal W k G
-  rw [hfun, upperSum_sampleMass]
+  rw [hfun, upperSum_sampleMass_classical]
+
+/-- The upper mass of the sample PMF is the homomorphism density. Accepts an ambient
+`[DecidableRel F.Adj]`. -/
+theorem upperSum_samplePMF (W : Graphon α μ) (F : SimpleGraph (Fin k))
+    [DecidableRel F.Adj] :
+    upperSum (fun G => (samplePMF W k G).toReal) F = homDensity F W :=
+  (upperSum_samplePMF_classical W F).trans (homDensity_congr_decRel F _ _ W)
 
 /-- **Arbitrary-injection consistency of the sample law**: restricting the `l`-vertex
 `W`-random graph along any injection `Fin k ↪ Fin l` yields the `k`-vertex `W`-random
@@ -324,7 +346,7 @@ theorem samplePMF_map_comap (W : Graphon α μ) (e : Fin k ↪ Fin l) :
     rw [upperSum]
     exact Finset.sum_congr rfl fun H _ =>
       if_congr (SimpleGraph.map_le_iff_le_comap e F H).symm rfl rfl
-  rw [h1, upperSum_samplePMF, upperSum_samplePMF]
+  rw [h1, upperSum_samplePMF_classical, upperSum_samplePMF_classical]
   exact (homDensity_congr_decRel (F.map e) _ _ W).trans
     (homDensity_map_embedding F e W)
 

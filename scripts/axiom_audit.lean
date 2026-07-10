@@ -16,3 +16,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.first_sampling_lemma
 #print axioms Graphon.cutDistance_zero_of_homDensity_eq
 #print axioms Graphon.homDensity_eq_sum_sampleMass
+#print axioms Graphon.sampleMass_map_perm
+#print axioms Graphon.samplePMF_map_comap
+#print axioms Graphon.sampleLaw_map_comap
