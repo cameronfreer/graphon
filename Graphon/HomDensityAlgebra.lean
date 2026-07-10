@@ -20,10 +20,11 @@ first two bricks:
 * `Graphon.homDensity_sum` — **multiplicativity over disjoint unions**:
   `homDensity (F ⊕g H) W = homDensity F W * homDensity H W`. Proof: `F ⊕g H` is the sup
   of the two vertex-embedded copies, whose edge sets are disjoint, so the integrand
-  factors pointwise (no `Quot.out` orientation issues); the pi integral over `V ⊕ V'`
-  splits by `measurePreserving_sumPiEquivProdPi_symm` and `integral_prod_mul`, and each
-  factor is `homDensity` of a mapped graph, which `homDensity_map_embedding` reduces to
-  the original;
+  factors pointwise (`Quot.out` orientation is absorbed by the range lemma
+  `out_mem_range_of_mem_edgeFinset_map` and by `homDensity_map_embedding`); the pi
+  integral over `V ⊕ V'` splits by `measurePreserving_sumPiEquivProdPi_symm` and
+  `integral_prod_mul`, and each factor is `homDensity` of a mapped graph, which
+  `homDensity_map_embedding` reduces to the original;
 * `Graphon.homDensity_sum_finAdd` — the `Fin (k + l)` corollary via
   `finSumFinEquiv`, keeping the coordinate algebra indexed by graphs on `Fin n`.
 
@@ -65,6 +66,7 @@ private theorem out_mem_range_of_mem_edgeFinset_map {V W' : Type*} [Fintype V]
 
 variable {V V' : Type*} [Fintype V] [Fintype V'] [DecidableEq V] [DecidableEq V']
 
+omit [Fintype V] [Fintype V'] [DecidableEq V] [DecidableEq V'] in
 /-- The disjoint sum of graphs is the sup of the two vertex-embedded copies. -/
 private theorem sum_eq_map_sup_map (F : SimpleGraph V) (H : SimpleGraph V') :
     F ⊕g H = F.map Function.Embedding.inl ⊔ H.map Function.Embedding.inr := by
@@ -109,7 +111,7 @@ theorem homDensity_sum (F : SimpleGraph V) [DecidableRel F.Adj]
     simp only [homDensityIntegrand]
     refine (Finset.prod_congr (Finset.ext fun e => ?_) fun _ _ => rfl).trans
       (Finset.prod_union (disjoint_edgeFinset_map_inl_inr F H))
-    simp [SimpleGraph.edgeSet_sup]
+    simp
   -- The left factor depends only on the `inl` coordinates, the right only on `inr`.
   set eqv := MeasurableEquiv.sumPiEquivProdPi (fun _ : V ⊕ V' => α) with heqv
   have hleft : ∀ (y : V → α) (z z' : V' → α),
