@@ -4013,13 +4013,13 @@ all required dependencies (`tupleEquivSimple_restrict_along`,
 
 **Mathematical content**: `η ↦ B(η a, η a)` is orbit-invariant. The
 proof reduces to the K=1 case (via `tupleEquivSimple_restrict_along`)
-which routes through `rooted_profiles_separate_vertex_orbits` (#77
-paper-root). This collapses #79's diagonal observable into the #77
-spectral chain, more direct than the rank-theorem route. -/
+which routes through `rooted_profiles_separate_vertex_orbits` — PROVED via
+`rootedProfileEquiv_imp_vertexOrbitRel` (the rank-theorem route; the historical
+#77 closed-walk route was refuted and removed). -/
 
 -- The n=0 loop bridge from `tupleEquivSimple` follows by combining:
 --   1. existing `multiLabeledEvalK_tupleEquiv_invariant_n_zero` (off-diagonal),
---   2. `diagonal_observable_of_tupleEquivSimple` (closed modulo #77),
+--   2. `diagonal_observable_of_tupleEquivSimple` (proved, via the rank-theorem route),
 --   3. `multiLabeledEvalKLoop_n_zero_of_diag` (assembly).
 -- Wiring deferred (avoids motive-not-type-correct issues with naive rw
 -- on Fin.mk constructions during off-diagonal extraction).
@@ -13013,7 +13013,11 @@ The `m + 3` offset (length ≥ 3) is required because length-2 closed
 walks `∑_v W(v) B(i,v)²` are inherently multigraph evaluations (edge
 multiplicity 2) and cannot be realized by simple graphs. -/
 
-/-- **K=1 spectral closing lemma** (named paper-root for #77).
+/-! ### Removed refuted conjecture: `vertex_orbit_of_closed_walks_eq`
+
+Deleted as a `sorry` stub (2026-07-10, issue #19); the refutation documentation is
+retained below, and the former statement is quoted for the record. Do NOT reintroduce.
+ **K=1 spectral closing lemma** (named paper-root for #77).
 
 If two vertices have matching closed-walk profiles at all lengths
 ≥ 3, then they lie in the same `(B, W)`-vertex orbit (under twin-free
@@ -13036,8 +13040,9 @@ have identical (S^m)[i, i] for all m but lie in different orbits
 `scripts/spectral_orbit_validation.py`.
 
 **Implications**:
-- This theorem is FALSE as stated. The sorry'd statement is retained
-  for architectural documentation; it should NOT be assumed downstream.
+- This theorem is FALSE as stated. The statement was retained for a time as a `sorry`
+  stub for architectural documentation and has now been removed (this block preserves
+  the record); it must NOT be assumed downstream.
 - `closed_walk_profiles_separate_vertex_orbits` (proved below via
   contrapositive of this) inherits the issue; its statement is also
   false in this form.
@@ -13057,7 +13062,10 @@ have identical (S^m)[i, i] for all m but lie in different orbits
 **Salvaged content**: the bridge theorems `rootedProfile_rootedCycleGraph_eq_closedWalkProfile`
 and `closedWalkProfile_eq_symAdjIter_diag` (in Spectral.lean) are
 still valuable. They translate between representations; what's wrong
-is the orbit-upgrade INFERENCE from closed walks alone. -/
+is the orbit-upgrade INFERENCE from closed walks alone.
+
+Former statement (removed):
+```
 theorem vertex_orbit_of_closed_walks_eq {T : ℕ}
     (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i)
     (_W : Fin T → ℝ) (_hW : ∀ i, 0 < _W i)
@@ -13065,29 +13073,38 @@ theorem vertex_orbit_of_closed_walks_eq {T : ℕ}
     {i j : Fin T}
     (_h : ∀ m : ℕ, closedWalkProfile _B _W i (m + 3) =
                    closedWalkProfile _B _W j (m + 3)) :
-    vertexOrbitRel _B _W i j := by
-  sorry
+    vertexOrbitRel _B _W i j := ...
+```
+-/
 
-/-- **#77** — REFUTED 2026-05-18.
+/-! ### Removed refuted conjecture: `closed_walk_profiles_separate_vertex_orbits`
+
+Deleted as a `sorry` stub (2026-07-10, issue #19); the refutation documentation is
+retained below, and the former statement is quoted for the record. Do NOT reintroduce.
+ **#77** — REFUTED 2026-05-18.
 
 Statement is FALSE: the double-pin tree (T=9) has twin-free B + W = 1
 with two non-orbit vertices (1, 5) whose closed-walk profiles agree
-for all m. Retained as a sorry'd statement to document the
-counterexample and prevent accidental downstream use.
+for all m. It was retained for a time as a sorry'd statement to document the
+counterexample and has now been removed (this block preserves the record).
 
 The proof previously routed through `vertex_orbit_of_closed_walks_eq`
 (also REFUTED). Do not assume this theorem in downstream work.
 
 Counterexample: edges (0,1)(1,2)(2,3)(3,7)(0,4)(4,5)(5,6)(4,8); vertices
 1 and 5 are spectrally equivalent (closed walks match for all m) but
-|Aut| = 1, so they are in different orbits. -/
+|Aut| = 1, so they are in different orbits.
+
+Former statement (removed):
+```
 theorem closed_walk_profiles_separate_vertex_orbits {T : ℕ}
     (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i) (_W : Fin T → ℝ)
     (_hW : ∀ i, 0 < _W i)
     (_htwin : ∀ i j, i ≠ j → _B i ≠ _B j)
     {i j : Fin T} (_h : ¬ vertexOrbitRel _B _W i j) :
-    ∃ m : ℕ, closedWalkProfile _B _W i (m + 3) ≠ closedWalkProfile _B _W j (m + 3) := by
-  sorry
+    ∃ m : ℕ, closedWalkProfile _B _W i (m + 3) ≠ closedWalkProfile _B _W j (m + 3) := ...
+```
+-/
 
 /-- **Rooted cycle graph** at length `m + 2`. Edges are consecutive
 pairs `(j, j+1)` plus the wrap edge `(0, m+1)`. The K=1 label placement
@@ -13533,17 +13550,15 @@ specialized to vertex (single-label) tuples.
 - The full rooted simple-graph family (paths + cycles + trees +
   arbitrary connected) suffices in all tested cases.
 
-**STATUS (2026-05-18)**: PAPER-ROOT (was: proved via closed walks,
-REFUTED).
+**STATUS**: PROVED, via `rootedProfileEquiv_imp_vertexOrbitRel` — the FULL rooted
+simple-graph family (paths, trees, asymmetric shapes), i.e. the Lovász §3 rank
+theorem content.
 
-Previous proof routed through `closed_walk_profiles_separate_vertex_orbits`
-+ the `rootedCycleGraph` bridge. That route is INVALID — the
-double-pin tree counterexample (2026-05-18) shows closed walks alone
-are insufficient even under twin-free + W > 0.
-
-The THEOREM itself is TRUE (Lovász Lemma 2.4 K=1 specialization), but
-proving it requires the FULL rooted simple-graph family (paths, trees,
-asymmetric shapes), which is the Lovász §3 rank theorem content. -/
+Historical note: an earlier proof routed through
+`closed_walk_profiles_separate_vertex_orbits` + the `rootedCycleGraph` bridge.
+That route is INVALID — the double-pin tree counterexample (2026-05-18) shows
+closed walks alone are insufficient even under twin-free + W > 0; the refuted
+closed-walk conjectures were removed (issue #19). -/
 theorem rooted_profiles_separate_vertex_orbits {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
@@ -13600,15 +13615,13 @@ theorem orbit_separation_by_simple_graph_K1 {T : ℕ}
 For K=1, the diagonal observable `B(ξ 0, ξ 0) = B(ξ' 0, ξ' 0)` follows
 from `tupleEquivSimple B W ξ ξ'` via:
 1. `tupleEquivSimple` at K=1 ⟹ all rooted profiles agree at (ξ 0, ξ' 0).
-2. Contrapositive of `rooted_profiles_separate_vertex_orbits` (proved
-   modulo #77) ⟹ `vertexOrbitRel B W (ξ 0) (ξ' 0)`.
+2. Contrapositive of `rooted_profiles_separate_vertex_orbits` (PROVED via
+   `rootedProfileEquiv_imp_vertexOrbitRel`) ⟹ `vertexOrbitRel B W (ξ 0) (ξ' 0)`.
 3. Vertex orbit relation gives `σ` automorphism with `σ (ξ 0) = ξ' 0`.
 4. `B(ξ 0, ξ 0) = B(σ (ξ 0), σ (ξ 0)) = B(ξ' 0, ξ' 0)` by aut B-preservation.
 
-**Status**: proved modulo #77 (closed_walk_profiles_separate, K=1 spectral
-paper-root). Note this reduces `diagonal_observable_of_tupleEquivSimple`
-at K=1 to a paper-root we already have (#77) rather than to the rank
-theorem. -/
+**Status**: PROVED (the separation input comes from the rank-theorem route;
+the historical #77 closed-walk paper-root was refuted and removed). -/
 theorem diagonal_observable_K1 {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i)
