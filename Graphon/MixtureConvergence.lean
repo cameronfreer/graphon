@@ -11,16 +11,11 @@ import Mathlib.MeasureTheory.Measure.LevyProkhorovMetric
 /-!
 # Weak convergence of graphon mixtures (issue #33, analytic layer)
 
-The compactness/continuity infrastructure for the Diaconis–Janson representation
-theorem (steps 3–4 of the #33 plan):
+The compactness infrastructure for the Diaconis–Janson representation theorem (steps
+3–4 of the #33 plan; the integral bridge `mixturePMF_apply_toReal` and the weak
+continuity `continuous_mixturePMF_apply_toReal` live with the mixture definitions in
+`Graphon/ExchangeableGraphLaw.lean`):
 
-* `GraphonSpace.mixturePMF_toReal_eq_integral` — the mixture marginal masses are Bochner
-  integrals of the continuous coordinates `sampleMassCoord`;
-* `GraphonSpace.sampleMassCoordBCF` — the coordinates as bounded continuous functions
-  (the graphon space is compact);
-* `GraphonSpace.continuous_integral_sampleMassCoord` — the mixture coordinates
-  `P ↦ ∫ sampleMassCoord G dP` are continuous in the topology of weak convergence, so
-  the marginals of a weak limit are the limits of the marginals;
 * `GraphonSpace.exists_subseq_tendsto` — **Prokhorov extraction**: every sequence of
   mixing measures on the compact metrizable graphon space has a weakly convergent
   subsequence (Mathlib's `CompactSpace (ProbabilityMeasure _)` + metrizability);
@@ -40,38 +35,6 @@ namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
   [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
-
-/-- The mixture marginal masses are Bochner integrals of the scalar coordinates. -/
-theorem mixturePMF_toReal_eq_integral (P : ProbabilityMeasure (GraphonSpace α μ))
-    (k : ℕ) (G : SimpleGraph (Fin k)) :
-    ((mixturePMF P k) G).toReal =
-      ∫ x, sampleMassCoord G x ∂(P : Measure (GraphonSpace α μ)) := by
-  rw [mixturePMF_apply,
-    ← MeasureTheory.integral_toReal (measurable_finiteSampleLaw_apply k G).aemeasurable
-      (Eventually.of_forall fun x => (finiteSampleLaw k x).apply_lt_top G)]
-  exact integral_congr_ae (Eventually.of_forall fun x =>
-    (sampleMassCoord_eq_toReal G x).symm)
-
-/-- The scalar coordinates as bounded continuous functions on the compact graphon
-space. -/
-noncomputable def sampleMassCoordBCF {k : ℕ} (G : SimpleGraph (Fin k)) :
-    BoundedContinuousFunction (GraphonSpace α μ) ℝ :=
-  BoundedContinuousFunction.mkOfCompact ⟨sampleMassCoord G, continuous_sampleMassCoord G⟩
-
-@[simp] theorem sampleMassCoordBCF_apply {k : ℕ} (G : SimpleGraph (Fin k))
-    (x : GraphonSpace α μ) : sampleMassCoordBCF G x = sampleMassCoord G x := rfl
-
-/-- **The mixture coordinates are weakly continuous**: `P ↦ ∫ sampleMassCoord G dP` is
-continuous on `ProbabilityMeasure (GraphonSpace α μ)` with the topology of weak
-convergence. Consequently the marginals of a weak limit of mixing measures are the
-limits of the marginals. -/
-theorem continuous_integral_sampleMassCoord {k : ℕ} (G : SimpleGraph (Fin k)) :
-    Continuous fun P : ProbabilityMeasure (GraphonSpace α μ) =>
-      ∫ x, sampleMassCoord G x ∂(P : Measure (GraphonSpace α μ)) := by
-  rw [continuous_iff_continuousAt]
-  intro P
-  exact ProbabilityMeasure.tendsto_iff_forall_integral_tendsto.mp
-    tendsto_id (sampleMassCoordBCF G)
 
 /-- **Prokhorov extraction**: every sequence of mixing measures on the compact
 metrizable graphon space has a weakly convergent subsequence. -/

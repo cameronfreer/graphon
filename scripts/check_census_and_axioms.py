@@ -52,7 +52,7 @@ AUDITED_DECLS = {
     "Graphon.samplePMF_eq_all_iff_weaklyIsomorphic",
     "GraphonSpace.isClosedEmbedding_sampleCoordinates",
     "GraphonSpace.mixturePMF_map_comap",
-    "GraphonSpace.continuous_integral_sampleMassCoord",
+    "GraphonSpace.continuous_mixturePMF_apply_toReal",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

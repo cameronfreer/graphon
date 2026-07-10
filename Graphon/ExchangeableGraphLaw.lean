@@ -46,14 +46,23 @@ structure ExchangeableGraphLaw where
   consistent : ∀ {k l : ℕ} (e : Fin k ↪ Fin l),
     (law l).map (fun G => G.comap e) = law k
 
+@[ext] theorem ExchangeableGraphLaw.ext {L M : ExchangeableGraphLaw}
+    (h : ∀ k, L.law k = M.law k) : L = M := by
+  cases L
+  cases M
+  simp only [ExchangeableGraphLaw.mk.injEq]
+  exact funext h
+
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
   [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
 
+omit [StandardBorelSpace α] [NoAtoms μ] in
 /-- The sample laws of a fixed graphon form an exchangeable graph law. -/
 noncomputable def sampleExchangeableLaw (W : Graphon α μ) : ExchangeableGraphLaw where
   law k := samplePMF W k
   consistent e := samplePMF_map_comap W e
 
+omit [StandardBorelSpace α] [NoAtoms μ] in
 @[simp] theorem sampleExchangeableLaw_law (W : Graphon α μ) (k : ℕ) :
     (sampleExchangeableLaw W).law k = samplePMF W k := rfl
 
@@ -83,7 +92,7 @@ noncomputable def mixturePMF (P : ProbabilityMeasure (GraphonSpace α μ)) (k : 
   PMF.ofFintype
     (fun G => ∫⁻ x, (finiteSampleLaw k x) G ∂(P : Measure (GraphonSpace α μ)))
     (by
-      rw [← MeasureTheory.lintegral_finset_sum _
+      rw [← MeasureTheory.lintegral_finsetSum _
         fun G _ => measurable_finiteSampleLaw_apply k G]
       have h1 : ∀ x : GraphonSpace α μ,
           ∑ G : SimpleGraph (Fin k), (finiteSampleLaw k x) G = 1 := by
@@ -108,6 +117,33 @@ noncomputable def mixturePMF (P : ProbabilityMeasure (GraphonSpace α μ)) (k : 
   rw [mixturePMF_apply]
   exact lintegral_dirac' x (measurable_finiteSampleLaw_apply k G)
 
+/-- The mixture marginal masses are Bochner integrals of the scalar coordinates
+`sampleMassCoord`. -/
+theorem mixturePMF_apply_toReal (P : ProbabilityMeasure (GraphonSpace α μ)) (k : ℕ)
+    (G : SimpleGraph (Fin k)) :
+    (mixturePMF P k G).toReal =
+      ∫ x, sampleMassCoord G x ∂(P : Measure (GraphonSpace α μ)) := by
+  rw [mixturePMF_apply,
+    ← MeasureTheory.integral_toReal (measurable_finiteSampleLaw_apply k G).aemeasurable
+      (Filter.Eventually.of_forall fun x => (finiteSampleLaw k x).apply_lt_top G)]
+  exact integral_congr_ae (Filter.Eventually.of_forall fun x =>
+    (sampleMassCoord_eq_toReal G x).symm)
+
+/-- **The mixture coordinates are weakly continuous** in the mixing measure: the exact
+interface for identifying Prokhorov limits (marginals of a weak limit are the limits of
+the marginals). -/
+theorem continuous_mixturePMF_apply_toReal (k : ℕ) (G : SimpleGraph (Fin k)) :
+    Continuous fun P : ProbabilityMeasure (GraphonSpace α μ) =>
+      (mixturePMF P k G).toReal := by
+  have h : (fun P : ProbabilityMeasure (GraphonSpace α μ) => (mixturePMF P k G).toReal) =
+      fun P : ProbabilityMeasure (GraphonSpace α μ) =>
+        ∫ x, sampleMassCoord G x ∂(P : Measure (GraphonSpace α μ)) := by
+    funext P
+    exact mixturePMF_apply_toReal P k G
+  rw [h]
+  exact ProbabilityMeasure.continuous_integral_continuousMap
+    (⟨sampleMassCoord G, continuous_sampleMassCoord G⟩ : C(GraphonSpace α μ, ℝ))
+
 /-- **Graphon mixtures are exchangeable**: the mixture marginals are consistent under
 every injection of labels. -/
 theorem mixturePMF_map_comap (P : ProbabilityMeasure (GraphonSpace α μ))
@@ -127,7 +163,7 @@ theorem mixturePMF_map_comap (P : ProbabilityMeasure (GraphonSpace α μ))
     _ = ∫⁻ x, ∑ H : SimpleGraph (Fin l),
           (if G = H.comap e then (finiteSampleLaw l x) H else 0)
           ∂(P : Measure (GraphonSpace α μ)) := by
-        rw [MeasureTheory.lintegral_finset_sum]
+        rw [MeasureTheory.lintegral_finsetSum]
         intro H _
         split
         · exact measurable_finiteSampleLaw_apply l H
