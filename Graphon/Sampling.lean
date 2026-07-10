@@ -471,9 +471,10 @@ private theorem sum_supergraph_sampleIntegrand (W : Graphon α μ)
   rw [← Finset.prod_add]
   simp [homDensityIntegrand]
 
-/-- **The forward Möbius / supergraph-mass identity** (filtered form): the total sample
-mass of the supergraphs of `F` is exactly the homomorphism density of `F`. -/
-theorem sum_sampleMass_supergraph_eq_homDensity (W : Graphon α μ)
+/-- Classical-instance core of `sum_sampleMass_supergraph_eq_homDensity` (the public
+wrapper accepts an ambient `[DecidableRel F.Adj]` and bridges via
+`homDensity_congr_decRel`). -/
+private theorem sum_sampleMass_supergraph_eq_homDensity_classical (W : Graphon α μ)
     (F : SimpleGraph (Fin k)) :
     (∑ G ∈ Finset.univ.filter (F ≤ ·), sampleMass W G) = homDensity F W := by
   classical
@@ -489,15 +490,33 @@ theorem sum_sampleMass_supergraph_eq_homDensity (W : Graphon α μ)
       rw [← sum_supergraph_sampleIntegrand W F x, ← Finset.sum_filter]
     _ = homDensity F W := (homDensity_eq_integral F W).symm
 
-/-- **The forward Möbius / supergraph-mass identity** (issue #20 orientation):
-`t(F, W) = ∑_{G ⊇ F} sampleMass W G` on a common labeled vertex set. -/
-theorem homDensity_eq_sum_sampleMass (W : Graphon α μ)
+/-- Classical-instance core of `homDensity_eq_sum_sampleMass`. -/
+private theorem homDensity_eq_sum_sampleMass_classical (W : Graphon α μ)
     (F : SimpleGraph (Fin k)) :
     homDensity F W =
       ∑ G : SimpleGraph (Fin k), (if F ≤ G then sampleMass W G else 0) := by
   classical
   rw [← Finset.sum_filter]
-  exact (sum_sampleMass_supergraph_eq_homDensity W F).symm
+  exact (sum_sampleMass_supergraph_eq_homDensity_classical W F).symm
+
+/-- **The forward Möbius / supergraph-mass identity** (filtered form): the total sample
+mass of the supergraphs of `F` is exactly the homomorphism density of `F`. Accepts an
+ambient `[DecidableRel F.Adj]` (bridged to the classical core by
+`homDensity_congr_decRel`). -/
+theorem sum_sampleMass_supergraph_eq_homDensity (W : Graphon α μ)
+    (F : SimpleGraph (Fin k)) [DecidableRel F.Adj] :
+    (∑ G ∈ Finset.univ.filter (F ≤ ·), sampleMass W G) = homDensity F W :=
+  (sum_sampleMass_supergraph_eq_homDensity_classical W F).trans
+    (homDensity_congr_decRel F _ _ W)
+
+/-- **The forward Möbius / supergraph-mass identity** (issue #20 orientation):
+`t(F, W) = ∑_{G ⊇ F} sampleMass W G` on a common labeled vertex set. Accepts an ambient
+`[DecidableRel F.Adj]`. -/
+theorem homDensity_eq_sum_sampleMass (W : Graphon α μ)
+    (F : SimpleGraph (Fin k)) [DecidableRel F.Adj] :
+    homDensity F W =
+      ∑ G : SimpleGraph (Fin k), (if F ≤ G then sampleMass W G else 0) :=
+  (homDensity_congr_decRel F _ _ W).trans (homDensity_eq_sum_sampleMass_classical W F)
 
 /-- **Mass closeness from hom-density closeness**: if all hom densities of graphs on
 `Fin k` agree within `δ`, each sampled-graph mass agrees within `2^(k·k) · δ`. -/
