@@ -246,6 +246,27 @@ noncomputable def one : Graphon α μ where
     rw [hp]
     exact ⟨zero_le_one, le_refl 1⟩
 
+/-- The constant graphon with value `p ∈ [0, 1]`, representing the limit of
+Erdős–Rényi graphs `G(n, p)`. Specializes to `zero` and `one` at the endpoints. -/
+noncomputable def constGraphon (p : Set.Icc (0 : ℝ) 1) : Graphon α μ where
+  toAEEqFun := AEEqFun.const (α × α) (p : ℝ)
+  symm' := by
+    filter_upwards [AEEqFun.coeFn_const (α × α) (p : ℝ),
+      ae_prod_swap (AEEqFun.coeFn_const (α × α) (p : ℝ))] with z hz hzswap
+    rw [hz, hzswap]
+    rfl
+  ae_mem_Icc := by
+    filter_upwards [AEEqFun.coeFn_const (α × α) (p : ℝ)] with z hz
+    rw [hz]
+    exact p.property
+
+/-- The underlying `AEEqFun` of a constant graphon. -/
+theorem constGraphon_toAEEqFun (p : Set.Icc (0 : ℝ) 1) :
+    (constGraphon p : Graphon α μ).toAEEqFun = AEEqFun.const (α × α) (p : ℝ) := rfl
+
+/-- Graphons exist on every probability space (e.g. the constant graphon `0`). -/
+instance : Nonempty (Graphon α μ) := ⟨constGraphon 0⟩
+
 /-- The underlying `AEEqFun` of the zero graphon is the constant 0 function. -/
 theorem zero_toAEEqFun : (zero : Graphon α μ).toAEEqFun = AEEqFun.const (α × α) 0 := rfl
 
