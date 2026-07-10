@@ -71,11 +71,13 @@ block model law. This turns the sampling code into a clean finite-marginal API.
 > isomorphism), `CompactSpace`, Borel/Polish/standard-Borel stack, `StandardGraphonSpace`
 > alias. The S2–S3 joining theorem
 > `(∀ k, samplePMF U k = samplePMF W k) ↔ WeaklyIsomorphic U W` (+ its `GraphonSpace.mk`
-> form) is implemented in `Graphon/SamplingDetermination.lean`. Next: package the finite
-> sample laws as point-separating coordinates on `GraphonSpace` and prove their
-> continuity — a compact coordinate embedding into the product of finite probability
-> simplices, the Lovász-style bridge toward exchangeable infinite graph laws (preferred
-> over jumping directly to the Aldous–Hoover/Kolmogorov-extension layer).
+> form) is implemented in `Graphon/SamplingDetermination.lean`. The continuous
+> point-separating sample-law coordinates and the compact coordinate embedding are
+> implemented in `Graphon/SamplingCoordinates.lean` (issue #32). Next: the
+> Diaconis–Janson graphon-mixture correspondence (issue #33 — `ExchangeableGraphLaw`,
+> unique mixture representation via Prokhorov + Stone–Weierstrass, dissociated ↔ Dirac
+> extremality; the Austin functional array theorem stays a separate follow-on, see the
+> comment on #33).
 
 Implemented route (`Graphon/GraphonSpace.lean`): `cutDistance` is installed as a
 `PseudoMetricSpace` on raw `Graphon α μ`, and

@@ -68,6 +68,7 @@ Three `sorry` statements are deliberately retained as documentation of refuted c
 | `Graphon/SamplingLaw.lean` | Core | Finite sample law: `samplePMF`/`sampleLaw`, Möbius/upper-transform engine, relabeling invariance, arbitrary-injection consistency |
 | `Graphon/SamplingExamples.lean` | Core | Constant graphon samples the binomial random graph `G(V, p)` (`sampleLaw_const_eq_binomial`) |
 | `Graphon/SamplingDetermination.lean` | Core | Sample laws determine the graphon (`samplePMF_eq_all_iff_weaklyIsomorphic`, `GraphonSpace` form) |
+| `Graphon/SampleCoordinates.lean` | Core | Continuous point-separating sample-law coordinates; compact coordinate embedding of the graphon space |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
