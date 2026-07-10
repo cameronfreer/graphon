@@ -23,3 +23,4 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms GraphonSpace.mk_eq_mk_iff
 #print axioms GraphonSpace.instCompactSpace
 #print axioms Graphon.samplePMF_eq_all_iff_weaklyIsomorphic
+#print axioms GraphonSpace.isClosedEmbedding_sampleCoordinates
