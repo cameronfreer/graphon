@@ -53,6 +53,7 @@ AUDITED_DECLS = {
     "GraphonSpace.isClosedEmbedding_sampleCoordinates",
     "GraphonSpace.mixturePMF_map_comap",
     "GraphonSpace.continuous_mixturePMF_apply_toReal",
+    "GraphonSpace.exists_subseq_tendsto",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
