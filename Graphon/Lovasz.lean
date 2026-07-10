@@ -13040,8 +13040,9 @@ have identical (S^m)[i, i] for all m but lie in different orbits
 `scripts/spectral_orbit_validation.py`.
 
 **Implications**:
-- This theorem is FALSE as stated. The sorry'd statement is retained
-  for architectural documentation; it should NOT be assumed downstream.
+- This theorem is FALSE as stated. The statement was retained for a time as a `sorry`
+  stub for architectural documentation and has now been removed (this block preserves
+  the record); it must NOT be assumed downstream.
 - `closed_walk_profiles_separate_vertex_orbits` (proved below via
   contrapositive of this) inherits the issue; its statement is also
   false in this form.
@@ -13084,8 +13085,8 @@ retained below, and the former statement is quoted for the record. Do NOT reintr
 
 Statement is FALSE: the double-pin tree (T=9) has twin-free B + W = 1
 with two non-orbit vertices (1, 5) whose closed-walk profiles agree
-for all m. Retained as a sorry'd statement to document the
-counterexample and prevent accidental downstream use.
+for all m. It was retained for a time as a sorry'd statement to document the
+counterexample and has now been removed (this block preserves the record).
 
 The proof previously routed through `vertex_orbit_of_closed_walks_eq`
 (also REFUTED). Do not assume this theorem in downstream work.
