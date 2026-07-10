@@ -5,7 +5,7 @@
    literals from every `Graphon/*.lean` file, finds every `sorry` / `admit` token
    (any form: standalone, `by sorry`, `:= sorry`, ...), maps each to its enclosing
    declaration, and requires the resulting set of (file, declaration) pairs to equal
-   EXACTLY the seven documented frozen known-false stubs.
+   EXACTLY the documented frozen known-false stubs (allowlist below).
 2. **Axiom audit.** Runs `lake env lean scripts/axiom_audit.lean` and requires that
    (a) exactly the intended declaration list was printed, (b) every reported axiom is
    a member of the allowed set {propext, Classical.choice, Quot.sound} (a declaration
@@ -19,15 +19,12 @@ import subprocess
 import sys
 from pathlib import Path
 
-# The seven deliberately-retained refuted-conjecture stubs.
+# The deliberately-retained refuted-conjecture stubs (issue #19: shrinking to empty;
+# the Lovasz/Spectral public stubs were removed 2026-07-10, PR 1 of 2).
 ALLOWED_STUBS = {
-    ("Graphon/Lovasz.lean", "vertex_orbit_of_closed_walks_eq"),
-    ("Graphon/Lovasz.lean", "closed_walk_profiles_separate_vertex_orbits"),
     ("Graphon/MatrixDetermination.lean", "labeledEvalK_separates"),
     ("Graphon/MatrixDetermination.lean", "vertexOrbit_of_star0_tri0_eq"),
     ("Graphon/MatrixDetermination.lean", "pairOrbit_of_vertexOrbits_and_path"),
-    ("Graphon/Spectral.lean", "same_diag_powers_imp_vertex_orbit"),
-    ("Graphon/Spectral.lean", "stable_imp_vertexOrbitRel"),
 }
 
 # The load-bearing declarations whose axiom profile is enforced

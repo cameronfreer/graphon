@@ -1109,6 +1109,8 @@ relatively-independent joining of `ψ₁, φ₂` over their common factor on `α
 it onto `α` via the measure-isomorphism theorem — which needs `[NoAtoms μ]`. Interface for
 `cutDistance_triangle` (used together with the pullback contraction
 `cutNormDiff_pullback_le`, since `χ₁, χ₂` are maps, not measure-preserving bijections). -/
+@[blueprint "thm:coupling-maps"
+  (title := /-- Common coupling by measure-preserving maps -/)]
 theorem MeasurePreserving.exists_common_coupling_maps [StandardBorelSpace α] [NoAtoms μ]
     (ψ₁ : α → α) (hψ₁ : MeasurePreserving ψ₁ μ μ)
     (φ₂ : α → α) (hφ₂ : MeasurePreserving φ₂ μ μ) :
@@ -1543,6 +1545,8 @@ stub: it adds `[NoAtoms μ]` (necessary — see the atom counterexample in the s
 `mp_maps_into_forces_measure_le`) and is now a standalone obligation resting only on the
 measure-isomorphism theorem (campaign phase R1), not on the unprovable monolithic stub. It is
 the sole cell-matching interface used by the inverse-counting route. -/
+@[blueprint "thm:cell-alignment"
+  (title := /-- Controlled cell alignment (equal-measure cells) -/)]
 theorem MeasurePreserving.exists_controlled_cell_alignment [StandardBorelSpace α] [NoAtoms μ]
     (P Q : MeasurablePartition α μ)
     {k : ℕ} (ι_S ι_T : Fin k → Set α)
@@ -1632,6 +1636,8 @@ probability `E[1_S ∣ φ] ∈ [0,1]`, so the pulled-back cut norm is a *weighte
 `[0,1]`-weights, which the cut norm dominates (`abs_weighted_integral_diff_le`). This is the
 map-level companion the corrected coupling triangle needs; it rests on the standard-Borel
 disintegration (campaign phase R1/R2). -/
+@[blueprint "thm:pullback-contraction"
+  (title := /-- Cut-norm contraction under measure-preserving pullback -/)]
 theorem cutNormDiff_pullback_le [StandardBorelSpace α] (U W : Graphon α μ)
     (φ : α → α) (hφ : MeasurePreserving φ μ μ) :
     cutNormDiff (pullback U φ hφ) (pullback W φ hφ) ≤ cutNormDiff U W := by

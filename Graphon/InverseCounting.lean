@@ -2566,6 +2566,8 @@ with `cutDistance_le_cutNormDiff` finish `cutDistance U W < ε`. Nonnegativity c
 **Rests on**: `headline_parameter_selection` (sampling route, proved) and
 `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core, proved in R2) —
 fully axiom-clean. -/
+@[blueprint "thm:determination"
+  (title := /-- Determination: equal homomorphism densities force cut distance zero -/)]
 theorem cutDistance_zero_of_homDensity_eq [StandardBorelSpace α] [NoAtoms μ]
     (U W : Graphon α μ)
     (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],

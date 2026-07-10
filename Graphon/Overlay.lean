@@ -431,6 +431,8 @@ graphons at `ε/8` (`regularity`); take `ε/8`-optimal maps `(φ, ψ)` for the o
 *exactly* by an MP bijection (`exists_mpEquiv_pullback_stepify_eq`); transfer the step
 approximation errors through the pullback contraction `cutNormDiff_pullback_le` and the
 bijection invariance `cutNormDiff_pullback_measurableEquiv`. Total budget `5ε/8 < ε`. -/
+@[blueprint "thm:overlay"
+  (title := /-- Overlay theorem: an MP bijection nearly achieves the cut distance -/)]
 theorem exists_mpEquiv_cutNormDiff_lt_add [StandardBorelSpace α] [NoAtoms μ]
     (U W : Graphon α μ) {ε : ℝ} (hε : 0 < ε) :
     ∃ (σ : α ≃ᵐ α) (hσ : MeasurePreserving σ μ μ),
