@@ -452,26 +452,7 @@ theorem chosenStep_eq_mkStepGraphon (W : Graphon α μ) (ε' : ℝ) :
         ((chosenPartition W ε').measurableSet_part hS)
         ((chosenPartition W ε').measurableSet_part hT)) := rfl
 
-/-- Transfer an a.e. (over `μ.prod μ`) property to the sampled pair `(x a, x b)` for two
-distinct coordinates: the pushforward of the product measure under `x ↦ (x a, x b)` is
-`μ.prod μ` (independent coordinates). -/
-theorem ae_pairMap_of_prod {k : ℕ} (a b : Fin k) (hab : a ≠ b) {Φ : α × α → Prop}
-    (h : ∀ᵐ p ∂(μ.prod μ), Φ p) :
-    ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ), Φ (x a, x b) := by
-  have h_indep : ProbabilityTheory.iIndepFun (fun l (x : Fin k → α) ↦ x l)
-      (Measure.pi (fun _ : Fin k ↦ μ)) :=
-    ProbabilityTheory.iIndepFun_pi (fun _ ↦ aemeasurable_id)
-  have h_indep_pair := h_indep.indepFun hab
-  have h_map : Measure.map (fun x : Fin k → α ↦ (x a, x b)) (Measure.pi (fun _ : Fin k ↦ μ))
-      = μ.prod μ := by
-    rw [ProbabilityTheory.indepFun_iff_map_prod_eq_prod_map_map
-      (measurable_pi_apply _).aemeasurable (measurable_pi_apply _).aemeasurable] at h_indep_pair
-    rw [h_indep_pair, (MeasureTheory.measurePreserving_eval (fun _ : Fin k ↦ μ) a).map_eq,
-      (MeasureTheory.measurePreserving_eval (fun _ : Fin k ↦ μ) b).map_eq]
-  have h_qmp : Measure.QuasiMeasurePreserving (fun x : Fin k → α ↦ (x a, x b))
-      (Measure.pi (fun _ : Fin k ↦ μ)) (μ.prod μ) :=
-    ⟨(measurable_pi_apply a).prodMk (measurable_pi_apply b), by rw [h_map]⟩
-  exact h_qmp.ae h
+-- `ae_pairMap_of_prod` now lives, generalized, in `Graphon/Sampling.lean`.
 
 /-- For a.e. sampled `x`, every sampled point lies in some part of `P`. -/
 theorem ae_forall_sample_mem_part (P : MeasurablePartition α μ) {k : ℕ} [NeZero k] :
