@@ -1,6 +1,16 @@
 # Rokhlin scoping memo: what `exists_common_extension` actually needs to say
 
-**Status**: pre-campaign scoping (2026-07-08), per the directive: *"scope whether the
+> **OUTCOME (2026-07-09): CAMPAIGN COMPLETE — R0 through R3 all landed.** The plan below was
+> fully executed: the false monolith was deleted (R0, PR #13), the measure-isomorphism theorem
+> and the mod-0→everywhere upgrade were proved (`Graphon/MeasureIso.lean`, R1 + R2.0), all four
+> corrected cores were proved (R2 in `Graphon/CutDistance.lean`; the R3 overlay in
+> `Graphon/Overlay.lean`, see `docs/overlay-scoping.md`), and the whole graphon program —
+> `complete`, `compact`, `cutDistance_triangle`, `first_sampling_lemma`,
+> `cutDistance_zero_of_homDensity_eq` — is axiom-clean with **zero live sorries**.
+> Everything below is the historical scoping record; status phrases like "live sorry" or
+> "IN PROGRESS" describe the state at writing time.
+
+**Status**: pre-campaign scoping (2026-07-08, historical), per the directive: *"scope whether the
 graphon route needs the full `MeasurePreserving.exists_common_extension` or only a
 specialized common-extension lemma sufficient for `cutDistance_triangle` and partition
 alignment."*
@@ -11,8 +21,8 @@ whose common core is the measure isomorphism theorem (absent from Mathlib).**
 
 ## 1. The stub and its consumers
 
-`MeasurePreserving.exists_common_extension` (`Graphon/CutDistance.lean:1065`, the
-project's single live sorry) bundles three conjuncts. Hypotheses: `[StandardBorelSpace α]`,
+`MeasurePreserving.exists_common_extension` (`Graphon/CutDistance.lean:1065`, then the
+project's single live sorry; since deleted in R0) bundles three conjuncts. Hypotheses: `[StandardBorelSpace α]`,
 `μ` a probability measure — **note: `[NoAtoms μ]` is NOT assumed**.
 
 | Conjunct | Content | Sole consumers |
@@ -149,3 +159,66 @@ Effort: R1c is the load-bearing classical lemma (Stieltjes π-system argument); 
 standard but fiddly. Mathlib-upstreaming grade. **R2** then derives the four cores by conjugating
 through the iso: interval rearrangement (→ core 3), joining via `condKernel` re-typed by the iso
 (→ core 1), CDF-weighting/disintegration (→ core 2), bijection-achieves-cutdistance (→ core 4).
+
+## R1 COMPLETE (2026-07-08) — `Mod0MeasureIso` + `atomless_standardBorel_mod0MeasureIso_unitInterval`
+
+`Graphon/MeasureIso.lean` (graphon-independent, all axiom-clean; imports later narrowed
+from `import Mathlib` to 14 targeted modules): R1b
+`continuous_cdf_of_noAtoms`, R1c `cdf_map_eq_volume_restrict` (the crux), R1d `cdfQuantile` +
+`map_cdfQuantile_volume_restrict` + a.e. inverses, R1e the `Mod0MeasureIso` structure (`.trans`,
+`realMod0MeasureIso`, `embeddingRealMod0MeasureIso`) and the main theorem
+`atomless_standardBorel_mod0MeasureIso_unitInterval`. This is a **mod-0** iso: mutual a.e.-inverse
+measurable maps with matching pushforwards — NOT an everywhere `≃ᵐ`.
+
+## R2 scoping (the four cores split by what they need)
+
+Cores categorized by their conclusion's requirement:
+- **Core 1 `exists_common_coupling_maps`** — `∃ χ₁ χ₂ : α → α` (MP **maps**). Needs only mod-0
+  maps; Mod0MeasureIso supplies them directly. Good first API test.
+- **Core 2 `cutNormDiff_pullback_le`** — inequality about pullback by an MP **map** `φ`. Analytic
+  (disintegration/conditional-expectation weighting); does NOT need a bijection.
+- **Core 3 `exists_controlled_cell_alignment`** — `∃ e : α ≃ᵐ α` (everywhere MP **bijection**).
+- **Core 4 `exists_mpEquiv_cutNormDiff_lt_add`** — `∃ σ : α ≃ᵐ α` (everywhere MP **bijection**).
+
+**Key finding:** cores 3 & 4 need a genuine measure-preserving `MeasurableEquiv`, but
+`Mod0MeasureIso` is only mod-0. Mathlib has `PolishSpace.measurableEquivOfNotCountable` (Borel
+iso between uncountable std Borel spaces) but **no** measure-preserving `≃ᵐ` / strong-iso result.
+So the foundational R2 brick is the **mod-0 → everywhere upgrade**:
+`Mod0MeasureIso α β μ ν → ∃ e : α ≃ᵐ β, MeasurePreserving e μ ν` (μ,ν atomless prob), via the
+classical null-patch: find conull `A ⊆ α`, `B ⊆ β` with `toFun : A ≃ B` a measure-preserving
+bijection; enlarge the null complements to uncountable null Borel sets (atomless ⟹ can carve
+null pieces) and patch them via `measurableEquivOfNotCountable`; assemble a piecewise `≃ᵐ`,
+measure-preserving since the patch region is null. Fiddly (~150–250 lines).
+
+**Recommended R2 order (revised):** (0) build the strong-iso upgrade `mod0_to_mpEquiv` [enables
+3,4]; (1) core 3 `exists_controlled_cell_alignment` (upgrade + interval rearrangement of matched
+equal-measure cells, transported through the iso); (2) core 4; (3) core 1 (mod-0 maps directly);
+(4) core 2 (analytic, last). Cores 1 & 2 are independent of the upgrade — core 1 is the cleanest
+first API test if a warm-up is wanted before the upgrade.
+
+### R2 progress (Path A, three bricks — user-directed 2026-07-08)
+
+The upgrade is staged into three bricks in `MeasureIso.lean` (graphon-independent):
+- **Brick 1 `Mod0MeasureIso.toMeasurableEquiv_of_null_reservoirs`** — DONE, axiom-clean, pushed
+  (commit 4faccdf). The pure null-patch gluing: given a null uncountable reservoir on each side,
+  removes them from the a.e.-inverse locus so both defect sets are uncountable standard-Borel,
+  patches via `measurableEquivOfNotCountable`, glues onto the honest `↥S ≃ᵐ ↥T` bijection with
+  `sumCompl`/`sumCongr`; the result agrees with `toFun`/`invFun` a.e. hence is MP. (Reservoirs
+  need NOT lie inside any prescribed set — Brick 1 removes them regardless.)
+- **Brick 2 `exists_uncountable_null_measurableSet`** — PROVED (62e7fa0). Atomless
+  standard-Borel prob space has an uncountable Borel null set. No Mathlib shortcut; pulling a
+  fixed null set through a mod-0 iso fails on defect alignment (a fixed null set can sit inside
+  the iso's fixed null defect, killing uncountability). Route: intrinsic compact Cantor scheme
+  (atomless splitting at support points via shrinking balls → nullity; FIP nonempty
+  intersections + diam→0 → uncountable branch injection of `ℕ→Bool`).
+- **Brick 3 `Mod0MeasureIso.toMeasurableEquiv`** — assembly DONE & validated (compiles with only
+  Brick 2's sorry). Four lines: two reservoirs from Brick 2 + Brick 1.
+
+**R2.1 `exists_controlled_cell_alignment` plan (cleaner than per-cell `≃ᵐ` gluing):** build ONE
+mod-0 self-iso `f : Mod0MeasureIso α α μ μ` whose `f.toFun` maps each `ι_S i` into `ι_T i` (and
+the leftover `(⋃ι_S i)ᶜ` into `(⋃ι_T i)ᶜ`, equal measure) — assembled from per-cell mod-0
+measure-preserving maps (via `atomless_standardBorel_mod0MeasureIso_unitInterval` composed;
+scale each equal-measure cell pair to probability), which is much easier than gluing genuine
+bijections. Then apply Brick 3 once: `e =ᵐ f.toFun` gives the a.e. cell-mapping conclusion, and
+Brick 3 supplies the everywhere `≃ᵐ` + MP. **R2.2 `exists_common_coupling_maps`** and **R2.4
+`cutNormDiff_pullback_le`** are independent of the upgrade (mod-0 maps / disintegration).

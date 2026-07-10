@@ -1,8 +1,13 @@
 # The AFKK cut-guessing step: informal proof for `guessBlock_integral_le_cutNormDiff`
 
-**Status**: mathematical backbone for the Layer-3 campaign of PR #11A (point-sampling).
-Target: the single remaining `sorry` in `Graphon/SamplingPointwise.lean`,
-`guessBlock_integral_le_cutNormDiff`.
+> **OUTCOME (2026-07-08): the campaign succeeded.** `guessBlock_integral_le_cutNormDiff` and
+> the whole First Sampling Lemma chain (`first_sampling_lemma`, `Graphon/SamplingLemma.lean`)
+> are proved and axiom-clean; `Graphon/SamplingPointwise.lean` is sorry-free. This note is the
+> historical mathematical backbone; status language below describes the state at writing time.
+
+**Status**: mathematical backbone for the Layer-3 campaign of PR #11A (point-sampling,
+historical). Target: what was then the single remaining `sorry` in
+`Graphon/SamplingPointwise.lean`, `guessBlock_integral_le_cutNormDiff`.
 
 **Sources**: Fekete–Kunszenti-Kovács, *The cut norm and Sampling Lemmas for unbounded
 kernels*, arXiv:2203.07581, §6.2 and Appendix §10 (Lemmas 6.2, 6.3, 10.1); Alon–Fernandez de
