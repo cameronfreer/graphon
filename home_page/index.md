@@ -17,7 +17,7 @@ A Lean 4 formalization of **graphons** &mdash; the theory of limits of dense gra
 The formalization covers:
 
 - **Graphon infrastructure** &mdash; Graphons as symmetric measurable functions on probability spaces, with AE equivalence classes (`Graphon`).
-- **Cut distance** &mdash; Cut norm, cut distance as infimum over measure-preserving couplings (`cutNormDiff`, `cutDistance`), pseudometric properties including the triangle inequality via Rokhlin's theorem.
+- **Cut distance** &mdash; Cut norm, cut distance as infimum over measure-preserving couplings (`cutNormDiff`, `cutDistance`), pseudometric properties including the triangle inequality via the proved Rokhlin coupling cores.
 - **Step graphons** &mdash; Measurable partitions (`MeasurablePartition`), step functions, stepification, and partition operations (splitting, refinement).
 - **Regularity** &mdash; Energy of partitions, energy increment under refinement, the Frieze&ndash;Kannan weak regularity lemma (`regularity`).
 - **Homomorphism densities** &mdash; Graph homomorphism density (`homDensity`), the counting lemma (`homDensity_sub_le`), and weighted homomorphism sums.
@@ -26,16 +26,16 @@ The formalization covers:
 
 ## Proof Status
 
-Two live `sorry` blockers remain, both driven by one missing mathematical input: a Rokhlin-style alignment theorem. No custom axioms are introduced; these are `sorry`s that will be replaced with proofs.
+**The advertised program is fully proved.** No live `sorry` remains: every headline theorem &mdash; the determination theorem `cutDistance_zero_of_homDensity_eq`, compactness (`totallyBounded`, `complete`, `compact`), the triangle inequality `cutDistance_triangle`, and the First Sampling Lemma `first_sampling_lemma` &mdash; verifies with the standard axioms only (`propext`, `Classical.choice`, `Quot.sound`). No custom axioms are introduced, and CI enforces the axiom audit and the `sorry` census.
 
-| Pending result | `sorry` location | Used by | Progress |
-|----------------|-----------------|---------|----------|
-| **Rokhlin's theorem** (isomorphism of standard Borel probability spaces) | `exists_common_extension` | Cut distance triangle inequality, partition alignment, compactness | Mathlib has `PolishSpace.measurableEquiv` but not the measure-preserving version; proving this is in progress |
-| **First Sampling Lemma** (Lov&aacute;sz Lemma 10.16 / BCLSV Thm 4.6) | `first_sampling_lemma` (`Graphon/SamplingICL.lean`) | Quantitative inverse counting (`sampling_quantitative_icl`), headline parameter selection, determination theorem, convergence equivalence | Everything downstream is proved via the event-intersection argument; the remaining content is the analytic concentration bound, uniform in the graphon |
+| Formerly pending | Resolution |
+|------------------|------------|
+| **Rokhlin-style alignment** (was `exists_common_extension`) | The original monolith was shown unprovable as stated and replaced by four corrected cores, all proved from the atomless standard-Borel measure-isomorphism theorem built in `Graphon/MeasureIso.lean`; the final overlay core (`exists_mpEquiv_cutNormDiff_lt_add`) is proved in `Graphon/Overlay.lean` |
+| **First Sampling Lemma** (Lov&aacute;sz Lemma 10.16 / BCLSV Thm 4.6) | Proved (`first_sampling_lemma`, `Graphon/SamplingLemma.lean`) by recombining the pointwise AFKK cut-guessing bound (`Graphon/SamplingPointwise.lean`) with the finite rounding certificate (`Graphon/SamplingRounding.lean`) |
 
 **Algebraic determination is PROVED** (2026-07-06): `matrix_quotient_of_weightedHomSum_eq` (Lov&aacute;sz Theorem 5.30, k&ge;2 positive-weight case) is axiom-clean, via the twin-free bijection and the cross-matrix super-surjective transfer (`Graphon/CrossSuper.lean`).
 
-Seven further `sorry` statements are deliberately retained as documentation of refuted conjectures (each marked FALSE/REFUTED in its docstring); no live or public theorem depends on them (a few private off-axis helpers still do &mdash; they are quarantined with their roots). Only the two above are live. All other declarations contain no additional `sorry`s.
+Seven `sorry` statements are deliberately retained as documentation of refuted conjectures (each marked FALSE/REFUTED in its docstring); no live or public theorem depends on them (a few private off-axis helpers still do &mdash; they are quarantined with their roots). These are the project's only `sorry`s.
 
 ## Components
 
@@ -47,7 +47,9 @@ Seven further `sorry` statements are deliberately retained as documentation of r
 | `Graphon/HomDensity.lean` | Core | Homomorphism density definition and basic properties |
 | `Graphon/CutNorm.lean` | Core | Cut norm, graphon integrability |
 | `Graphon/Approximation.lean` | Core | Rectangle averages, cut norm approximation, partition splitting |
-| `Graphon/CutDistance.lean` | Core | Cut distance, pseudometric properties, Rokhlin interface |
+| `Graphon/CutDistance.lean` | Core | Cut distance, pseudometric properties, three of the four Rokhlin cores |
+| `Graphon/MeasureIso.lean` | Core | Atomless standard-Borel measure-isomorphism theorem (graphon-independent; mod-0 iso + everywhere upgrade) |
+| `Graphon/Overlay.lean` | Core | Overlay theorem: an MP bijection nearly achieves the cut distance (fourth Rokhlin core) |
 | `Graphon/Regularity.lean` | Core | Energy, energy increment, Frieze&ndash;Kannan weak regularity lemma |
 | `Graphon/Counting.lean` | Core | Homomorphism density, counting lemma |
 | `Graphon/Compactness.lean` | Core | Total boundedness, completeness, limit construction |
@@ -60,6 +62,8 @@ Seven further `sorry` statements are deliberately retained as documentation of r
 | `Graphon/SamplingICL.lean` | Core | Sampling route: finite-graph embedding, good mass, First Sampling Lemma interface, K-independent quantitative ICL |
 | `Graphon/SamplingConcentration.lean` | Core | Concentration scaffold: conditional edge distribution, weighted sampled graphon, two-stage reduction of the First Sampling Lemma |
 | `Graphon/SamplingRounding.lean` | Core | Rounding half of the First Sampling Lemma, PROVED: deterministic cut certificate + finite Chernoff/union bound (`rounding_event_of_large_k`) |
+| `Graphon/SamplingPointwise.lean` | Core | Pointwise half of the First Sampling Lemma: AFKK / Lov&aacute;sz-10.7 cut-guessing bound (`point_sampling_event_of_large_k`), McDiarmid-at-MGF + soft-max infrastructure |
+| `Graphon/SamplingLemma.lean` | Core | First Sampling Lemma (`first_sampling_lemma`): recombination of the two concentration events; K-independent quantitative ICL |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |

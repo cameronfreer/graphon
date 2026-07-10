@@ -1,7 +1,9 @@
 # Post-R3 mainline completion plan
 
-**Status:** proposed execution plan, 2026-07-10  
-**Execution base:** `master` after PR #14 is merged  
+**Status:** execution plan, 2026-07-10; **PR #14 was merged the same day**
+(merge commit `4cec913`), so §3's pre-merge gates are historical — they were satisfied.
+The docs-closeout/CI work package is implemented in PR #15 (`docs-closeout-ci`).  
+**Execution base:** `master` after PR #14 is merged (now current `master`)  
 **Purpose:** finish and harden the work already in progress; do not start a new graphon-theory
 campaign under the cover of “cleanup.”
 
@@ -486,7 +488,7 @@ continuing.
 
 ## 12. Final acceptance checklist
 
-- [ ] PR #14 merged and the `master` build/Pages deployment is green.
+- [x] PR #14 merged and the `master` build/Pages deployment is green (2026-07-10, `4cec913`).
 - [ ] Root module docs, README, homepage, blueprint, and API inventory agree.
 - [ ] Blueprint includes the measure-isomorphism, coupling, overlay, sampling, and determination
       dependencies.

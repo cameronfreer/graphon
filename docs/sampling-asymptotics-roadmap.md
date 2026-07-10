@@ -31,8 +31,11 @@ Immediate corollaries:
 - every graphon is the cut-distance limit of a sequence of finite simple graphs;
 - `G(k, W) → W` in probability, uniformly over `W`.
 
-Low risk, mathematically visible, straight from Lovász's sampling theory. **This is the next
-PR** (branch `sampling-asymptotics`).
+Low risk, mathematically visible, straight from Lovász's sampling theory.
+**Status: implemented — PR #16 (branch `sampling-asymptotics`), in review**, together with the
+corollaries above (`exists_simpleGraph_cutDistance_lt_of_large_k`,
+`exists_simpleGraph_cutDistance_lt` (successor-indexed), and
+`exists_tendsto_cutDistance_ofSimpleGraphOn`).
 
 ## S2: bundle the finite random-graph law
 
@@ -92,3 +95,10 @@ Formalization ladder:
 Steps 1–4 are plausible medium-sized campaigns. Steps 6–9 are substantial probability theory
 (reverse martingales, invariant/tail σ-algebras, measurable selection/kernels, ergodic
 decomposition) — a multi-month direction, not the next PR.
+
+**Boundary note (Tau Ceti).** Sequence exchangeability (de Finetti-style, as in
+mrdouglasny/TauCeti) is *not* the vertex-exchangeable graph symmetry needed here: graph
+exchangeability is invariance of a doubly-indexed edge array under a *single* permutation
+acting simultaneously on both indices, a genuinely two-dimensional (Aldous–Hoover) notion.
+When generalized-exchangeability infrastructure becomes available upstream, *consume* it —
+do not copy sequence-exchangeability code and attempt to adapt it.
