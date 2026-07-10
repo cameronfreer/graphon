@@ -329,6 +329,176 @@ theorem sampleMass_sum_eq_one (W : Graphon α μ) :
         exact sum_sampleIntegrand_eq_one W x
     _ = 1 := by simp
 
+/-! ### The forward Möbius / supergraph-mass identity (issue #20)
+
+`homDensity F W = ∑_{G ⊇ F} sampleMass W G`: the homomorphism density of `F` is exactly
+the probability that the sampled graph contains every edge of `F`. This is the forward
+companion of the inclusion–exclusion expansion `sampleMass_eq_sum_homDensity` above.
+Proof route (vetted 2026-07-10): at fixed vertex positions, supergraphs of `F` are in
+bijection with subsets of the optional edges `⊤.edgeFinset \ F.edgeFinset`; summing the
+Bernoulli integrand over the Boolean cube via `Finset.prod_add` collapses each optional
+factor to `w e + (1 - w e) = 1`, leaving the plain edge product of `F`. -/
+
+omit [IsProbabilityMeasure μ] in
+/-- `edgeFinset` of `fromEdgeSet` on a diagonal-free finite edge set. Stated only for
+subsets of `⊤.edgeFinset` (loop-free by construction). -/
+private theorem edgeFinset_fromEdgeSet_eq_of_subset_top
+    (S : Finset (Sym2 (Fin k)))
+    (hS : S ⊆ (⊤ : SimpleGraph (Fin k)).edgeFinset) :
+    (SimpleGraph.fromEdgeSet (↑S : Set (Sym2 (Fin k)))).edgeFinset = S := by
+  ext e
+  simp only [SimpleGraph.mem_edgeFinset, SimpleGraph.edgeSet_fromEdgeSet,
+    Set.mem_sdiff, Finset.mem_coe, Sym2.mem_diagSet]
+  exact ⟨fun h ↦ h.1, fun h ↦ ⟨h, fun hdiag ↦
+    (⊤ : SimpleGraph (Fin k)).not_isDiag_of_mem_edgeSet
+      (SimpleGraph.mem_edgeFinset.mp (hS h)) hdiag⟩⟩
+
+omit [IsProbabilityMeasure μ] in
+/-- The supergraph sum reindexed over the Boolean cube of optional edges. The bijection
+sends `G` to its extra edges `G.edgeFinset \ F.edgeFinset`; the inverse rebuilds the
+graph with `fromEdgeSet`. NOTE: the summand formula is proved from the variable graph
+`G`, never by rewriting `sampleIntegrand` at a freshly constructed `fromEdgeSet` graph
+(edge-set `Fintype` instance diamonds make that rewrite fail). -/
+private theorem sampleIntegrand_sum_supergraph_bij (W : Graphon α μ)
+    (F : SimpleGraph (Fin k)) (x : Fin k → α) :
+    ∑ G ∈ Finset.univ.filter (F ≤ ·), sampleIntegrand W G x =
+      ∑ S ∈ ((⊤ : SimpleGraph (Fin k)).edgeFinset \ F.edgeFinset).powerset,
+        (∏ e ∈ F.edgeFinset,
+            W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+          ((∏ e ∈ S,
+              W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)) *
+            ∏ e ∈ ((⊤ : SimpleGraph (Fin k)).edgeFinset \ F.edgeFinset) \ S,
+              (1 - W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2))) := by
+  classical
+  let w : Sym2 (Fin k) → ℝ :=
+    fun e ↦ W.toAEEqFun (x (Quot.out e).1, x (Quot.out e).2)
+  have hFtop : F.edgeFinset ⊆ (⊤ : SimpleGraph (Fin k)).edgeFinset :=
+    SimpleGraph.edgeFinset_mono le_top
+  refine Finset.sum_nbij'
+    (fun G ↦ G.edgeFinset \ F.edgeFinset)
+    (fun S ↦ SimpleGraph.fromEdgeSet (↑(F.edgeFinset ∪ S) : Set (Sym2 (Fin k))))
+    ?_ ?_ ?_ ?_ ?_
+  · intro G hG
+    rw [Finset.mem_filter] at hG
+    rw [Finset.mem_powerset]
+    intro e he
+    rw [Finset.mem_sdiff] at he ⊢
+    exact ⟨SimpleGraph.edgeFinset_mono le_top he.1, he.2⟩
+  · intro S hS
+    rw [Finset.mem_filter]
+    refine ⟨Finset.mem_univ _, ?_⟩
+    rw [← SimpleGraph.edgeFinset_subset_edgeFinset,
+      edgeFinset_fromEdgeSet_eq_of_subset_top]
+    · exact Finset.subset_union_left
+    · exact Finset.union_subset hFtop
+        ((Finset.mem_powerset.mp hS).trans Finset.sdiff_subset)
+  · intro G hG
+    rw [Finset.mem_filter] at hG
+    apply SimpleGraph.edgeFinset_inj.mp
+    rw [edgeFinset_fromEdgeSet_eq_of_subset_top]
+    · exact Finset.union_sdiff_of_subset
+        (SimpleGraph.edgeFinset_mono hG.2)
+    · exact Finset.union_subset hFtop
+        ((Finset.sdiff_subset).trans (SimpleGraph.edgeFinset_mono le_top))
+  · intro S hS
+    ext e
+    simp only [Finset.mem_sdiff, SimpleGraph.mem_edgeFinset,
+      SimpleGraph.edgeSet_fromEdgeSet, Set.mem_sdiff, Finset.mem_coe,
+      Finset.mem_union, Sym2.mem_diagSet]
+    have hSsub := Finset.mem_powerset.mp hS
+    constructor
+    · rintro ⟨⟨heF | heS, _⟩, hnF⟩
+      · exact (hnF heF).elim
+      · exact heS
+    · intro heS
+      have heSDiff := hSsub heS
+      refine ⟨⟨Or.inr heS,
+        (⊤ : SimpleGraph (Fin k)).not_isDiag_of_mem_edgeSet
+          (SimpleGraph.mem_edgeFinset.mp (Finset.sdiff_subset heSDiff))⟩, ?_⟩
+      intro heFset
+      exact (Finset.mem_sdiff.mp heSDiff).2
+        (SimpleGraph.mem_edgeFinset.mpr heFset)
+  · intro G hG
+    rw [Finset.mem_filter] at hG
+    have hFG : F.edgeFinset ⊆ G.edgeFinset :=
+      SimpleGraph.edgeFinset_mono hG.2
+    have hunion :
+        F.edgeFinset ∪ (G.edgeFinset \ F.edgeFinset) = G.edgeFinset :=
+      Finset.union_sdiff_of_subset hFG
+    have hdisj : Disjoint F.edgeFinset (G.edgeFinset \ F.edgeFinset) :=
+      Finset.disjoint_sdiff
+    have hdiff :
+        (⊤ : SimpleGraph (Fin k)).edgeFinset \ G.edgeFinset =
+          ((⊤ : SimpleGraph (Fin k)).edgeFinset \ F.edgeFinset) \
+            (G.edgeFinset \ F.edgeFinset) := by
+      ext e
+      simp only [Finset.mem_sdiff]
+      tauto
+    have hprod :
+        (∏ e ∈ G.edgeFinset, w e) =
+          (∏ e ∈ F.edgeFinset, w e) *
+            ∏ e ∈ G.edgeFinset \ F.edgeFinset, w e := by
+      calc
+        (∏ e ∈ G.edgeFinset, w e) =
+            ∏ e ∈ F.edgeFinset ∪ (G.edgeFinset \ F.edgeFinset), w e := by
+              exact congrArg
+                (fun s : Finset (Sym2 (Fin k)) ↦ ∏ e ∈ s, w e) hunion.symm
+        _ = (∏ e ∈ F.edgeFinset, w e) *
+              ∏ e ∈ G.edgeFinset \ F.edgeFinset, w e :=
+            Finset.prod_union hdisj
+    rw [sampleIntegrand]
+    change (∏ e ∈ G.edgeFinset, w e) *
+        ∏ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset \ G.edgeFinset, (1 - w e) =
+      (∏ e ∈ F.edgeFinset, w e) *
+        ((∏ e ∈ G.edgeFinset \ F.edgeFinset, w e) *
+          ∏ e ∈ ((⊤ : SimpleGraph (Fin k)).edgeFinset \ F.edgeFinset) \
+              (G.edgeFinset \ F.edgeFinset), (1 - w e))
+    rw [hprod, hdiff]
+    ring
+
+omit [IsProbabilityMeasure μ] in
+/-- Pointwise forward identity: summing the sampled-graph integrand over all supergraphs
+of `F` collapses, edge by optional edge, to the homomorphism-density integrand of `F`. -/
+private theorem sum_supergraph_sampleIntegrand (W : Graphon α μ)
+    (F : SimpleGraph (Fin k)) (x : Fin k → α) :
+    (∑ G : SimpleGraph (Fin k),
+      (if F ≤ G then sampleIntegrand W G x else 0)) =
+      homDensityIntegrand F W x := by
+  classical
+  rw [← Finset.sum_filter]
+  rw [sampleIntegrand_sum_supergraph_bij]
+  rw [← Finset.mul_sum]
+  rw [← Finset.prod_add]
+  simp [homDensityIntegrand]
+
+/-- **The forward Möbius / supergraph-mass identity** (filtered form): the total sample
+mass of the supergraphs of `F` is exactly the homomorphism density of `F`. -/
+theorem sum_sampleMass_supergraph_eq_homDensity (W : Graphon α μ)
+    (F : SimpleGraph (Fin k)) :
+    (∑ G ∈ Finset.univ.filter (F ≤ ·), sampleMass W G) = homDensity F W := by
+  classical
+  calc
+    (∑ G ∈ Finset.univ.filter (F ≤ ·), sampleMass W G) =
+        ∫ x : Fin k → α,
+          ∑ G ∈ Finset.univ.filter (F ≤ ·), sampleIntegrand W G x
+            ∂Measure.pi (fun _ ↦ μ) := by
+      exact (integral_finsetSum _ fun G _ ↦ sampleIntegrand_integrable W G).symm
+    _ = ∫ x : Fin k → α, homDensityIntegrand F W x
+          ∂Measure.pi (fun _ ↦ μ) := by
+      refine integral_congr_ae (Filter.Eventually.of_forall fun x ↦ ?_)
+      rw [← sum_supergraph_sampleIntegrand W F x, ← Finset.sum_filter]
+    _ = homDensity F W := (homDensity_eq_integral F W).symm
+
+/-- **The forward Möbius / supergraph-mass identity** (issue #20 orientation):
+`t(F, W) = ∑_{G ⊇ F} sampleMass W G` on a common labeled vertex set. -/
+theorem homDensity_eq_sum_sampleMass (W : Graphon α μ)
+    (F : SimpleGraph (Fin k)) :
+    homDensity F W =
+      ∑ G : SimpleGraph (Fin k), (if F ≤ G then sampleMass W G else 0) := by
+  classical
+  rw [← Finset.sum_filter]
+  exact (sum_sampleMass_supergraph_eq_homDensity W F).symm
+
 /-- **Mass closeness from hom-density closeness**: if all hom densities of graphs on
 `Fin k` agree within `δ`, each sampled-graph mass agrees within `2^(k·k) · δ`. -/
 theorem sampleMass_close_of_homDensity_close (U W : Graphon α μ) (δ : ℝ)
