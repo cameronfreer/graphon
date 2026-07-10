@@ -70,6 +70,7 @@ Three `sorry` statements are deliberately retained as documentation of refuted c
 | `Graphon/SamplingDetermination.lean` | Core | Sample laws determine the graphon (`samplePMF_eq_all_iff_weaklyIsomorphic`, `GraphonSpace` form) |
 | `Graphon/SamplingCoordinates.lean` | Core | Continuous point-separating sample-law coordinates; compact coordinate embedding of the graphon space |
 | `Graphon/ExchangeableGraphLaw.lean` | Core | Exchangeable graph laws (consistent finite marginals), graphon mixtures, mixtures are exchangeable |
+| `Graphon/MixtureConvergence.lean` | Core | Weak-convergence layer: mixture coordinates as integrals, Prokhorov extraction, empirical mixing measures |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
