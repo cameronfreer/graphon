@@ -14,30 +14,30 @@ natural limit objects for convergent sequences of dense graphs.
 
 \section{Proof Status}
 
-Three remaining \texttt{sorry} declarations, driven by two main missing
-mathematical inputs (no custom axioms are introduced):
+\textbf{The advertised program is fully proved} (2026-07-10): no live \texttt{sorry}
+remains, and every headline theorem verifies with the standard axioms only
+(\texttt{propext}, \texttt{Classical.choice}, \texttt{Quot.sound}). The three items
+formerly tracked here were each resolved:
 \begin{enumerate}
-  \item \textbf{Rokhlin's theorem}
-    (\texttt{MeasurePreserving.exists\_common\_extension}):
-    any two standard Borel probability spaces admit a common
-    measure-preserving extension.  Mathlib provides
-    \texttt{PolishSpace.measurableEquiv} (the measurable isomorphism)
-    but not the measure-preserving version; proving this is in progress.
-    Used by: cut distance triangle inequality, partition alignment,
-    compactness.
+  \item \textbf{Rokhlin / measure-isomorphism input}: the original
+    \texttt{exists\_common\_extension} stub was shown unprovable as stated and replaced
+    by four corrected cores, all proved from the atomless standard-Borel
+    measure-isomorphism theorem, built from scratch in \texttt{Graphon/MeasureIso.lean}
+    (mod-0 isomorphism with $([0,1],\lambda)$ plus a mod-0-to-everywhere upgrade); the
+    final overlay core is proved in \texttt{Graphon/Overlay.lean}.
+    Used by: cut distance triangle inequality, partition alignment, compactness.
   \item \textbf{Algebraic determination} for $k \ge 2$
-    (\texttt{matrix\_quotient\_of\_weightedHomSum\_eq}, positive-weight case):
-    Lov\'asz~\cite[Theorem~5.30]{lovasz2012}, quotient form.
-    The $k = 1$ case is fully proved; the $k \ge 2$ case requires graph
-    algebra separation arguments that are partially built.
-    Used by: inverse counting lemma core.
-  \item \textbf{Determination pending theorem}
-    (\texttt{cutDistance\_zero\_of\_homDensity\_eq}):
-    depends on both of the above.
-    Used by: convergence equivalence.
+    (\texttt{matrix\_quotient\_of\_weightedHomSum\_eq}): proved 2026-07-06 via the
+    twin-free bijection and the cross-matrix super transfer
+    (\texttt{Graphon/CrossSuper.lean}).
+  \item \textbf{Determination theorem}
+    (\texttt{cutDistance\_zero\_of\_homDensity\_eq}): proved, via the First Sampling
+    Lemma (proved 2026-07-08, \texttt{Graphon/SamplingLemma.lean}) and the
+    $K$-independent quantitative inverse counting lemma.
 \end{enumerate}
-All other declarations contain no additional \texttt{sorry}s.
-These three \texttt{sorry}s will be replaced with proofs.
+Seven \texttt{sorry} declarations are deliberately retained as documentation of
+\emph{refuted} conjectures (each marked FALSE/REFUTED in its docstring; none on any
+live path).
 
 \section{Main Results}
 

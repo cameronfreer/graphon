@@ -26,8 +26,9 @@ the equal-measure `k`-partition):
 
 `sampleGoodMassOn_of_events` (PROVED) recombines the two stages into the good-mass
 bound demanded by `first_sampling_lemma`; the deterministic triangle route
-`cutDistance_ofSimpleGraphOn_le` is the gluing inequality. What remains of
-`first_sampling_lemma` is exactly: establish the two events with `W`-uniform `k`.
+`cutDistance_ofSimpleGraphOn_le` is the gluing inequality. Both events were established
+with `W`-uniform `k` (`point_sampling_event_of_large_k`, `rounding_event_of_large_k`),
+completing `first_sampling_lemma` (2026-07-08, `Graphon/SamplingLemma.lean`).
 
 ## Main declarations
 

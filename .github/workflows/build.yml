@@ -43,6 +43,9 @@ jobs:
           use-github-cache: true
           use-mathlib-cache: true
 
+      - name: Check frozen-stub census and headline axiom audit
+        run: bash scripts/check_census_and_axioms.sh
+
       - name: Install blueprint dependencies
         run: |
           sudo apt-get update

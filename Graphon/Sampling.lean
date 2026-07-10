@@ -42,7 +42,9 @@ The sampling process for G(n, W) is:
 This is a two-level randomness: first the positions, then the edges.
 
 The key result established here is that the expected edge density equals the
-integral of the graphon. Concentration and convergence results are future work.
+integral of the graphon. Concentration is proved in `Graphon/SamplingConcentration.lean`
+/ `SamplingPointwise.lean` / `SamplingRounding.lean`, culminating in the First Sampling
+Lemma (`Graphon/SamplingLemma.lean`); convergence in `Graphon/Convergence.lean`.
 
 ## References
 
