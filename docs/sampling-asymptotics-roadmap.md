@@ -73,7 +73,7 @@ block model law. This turns the sampling code into a clean finite-marginal API.
 > `(∀ k, samplePMF U k = samplePMF W k) ↔ WeaklyIsomorphic U W` (+ its `GraphonSpace.mk`
 > form) is implemented in `Graphon/SamplingDetermination.lean`. The continuous
 > point-separating sample-law coordinates and the compact coordinate embedding are
-> implemented in `Graphon/SampleCoordinates.lean` (issue #32). Next: the
+> implemented in `Graphon/SamplingCoordinates.lean` (issue #32). Next: the
 > Diaconis–Janson graphon-mixture correspondence (issue #33 — `ExchangeableGraphLaw`,
 > unique mixture representation via Prokhorov + Stone–Weierstrass, dissociated ↔ Dirac
 > extremality; the Austin functional array theorem stays a separate follow-on, see the
