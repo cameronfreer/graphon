@@ -28,3 +28,4 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms GraphonSpace.continuous_mixturePMF_apply_toReal
 #print axioms GraphonSpace.exists_subseq_tendsto
 #print axioms Graphon.homDensity_sum
+#print axioms GraphonSpace.mixtureExchangeableLaw_injective
