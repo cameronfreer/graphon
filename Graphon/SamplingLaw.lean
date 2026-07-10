@@ -161,3 +161,84 @@ theorem sampleMass_map_perm (W : Graphon α μ) (σ : Equiv.Perm (Fin k))
 end Relabel
 
 end Graphon
+
+/-! ### Measurable-space plumbing for simple graphs (Mathlib candidates) -/
+
+namespace SimpleGraph
+
+/-- The canonical measurable space on `SimpleGraph V` is discrete for countable `V`:
+singletons are measurable. (Mathlib supplies the measurable space in
+`Mathlib.MeasureTheory.Constructions.SimpleGraph` but not this instance.) -/
+instance {V : Type*} [Countable V] :
+    MeasurableSingletonClass (SimpleGraph V) where
+  measurableSet_singleton G := by
+    have h : MeasurableSet ({G.edgeSet} : Set (Set (Sym2 V))) :=
+      MeasurableSet.singleton G.edgeSet
+    have hp := h.preimage measurable_edgeSet
+    convert hp using 1
+    ext H
+    simp only [Set.mem_singleton_iff, Set.mem_preimage]
+    exact edgeSet_injective.eq_iff.symm
+
+theorem measurable_comap {V W : Type*} (f : V → W) :
+    Measurable (fun G : SimpleGraph W ↦ G.comap f) := by
+  rw [measurable_iff_adj]
+  intro u v
+  simp only [comap_adj]
+  fun_prop
+
+theorem measurable_map_equiv {V W : Type*} (e : V ≃ W) :
+    Measurable (fun G : SimpleGraph V ↦ G.map e.toEmbedding) := by
+  simp_rw [← comap_symm]
+  exact measurable_comap e.symm
+
+end SimpleGraph
+
+namespace Graphon
+
+/-! ### The bundled sample law -/
+
+section Law
+
+variable [IsProbabilityMeasure μ] {k : ℕ}
+
+/-- **The finite sample law of a graphon, as a PMF**: the distribution of the `W`-random
+graph `G(k, W)` on `SimpleGraph (Fin k)` (`PMF.ofFintype` over `sampleMass`; the masses
+are nonnegative and sum to one). The PMF is the finite algebraic API; `sampleLaw` below
+is its thin measurable wrapper. -/
+noncomputable def samplePMF (W : Graphon α μ) (k : ℕ) : PMF (SimpleGraph (Fin k)) :=
+  PMF.ofFintype (fun G ↦ ENNReal.ofReal (sampleMass W G)) (by
+    rw [← ENNReal.ofReal_sum_of_nonneg (fun G _ ↦ sampleMass_nonneg W G),
+      sampleMass_sum_eq_one, ENNReal.ofReal_one])
+
+@[simp] theorem samplePMF_apply (W : Graphon α μ) (k : ℕ) (G : SimpleGraph (Fin k)) :
+    samplePMF W k G = ENNReal.ofReal (sampleMass W G) := rfl
+
+@[simp] theorem samplePMF_apply_toReal (W : Graphon α μ) (k : ℕ)
+    (G : SimpleGraph (Fin k)) :
+    (samplePMF W k G).toReal = sampleMass W G := by
+  rw [samplePMF_apply, ENNReal.toReal_ofReal (sampleMass_nonneg W G)]
+
+/-- **The finite sample law of a graphon, as a probability measure** on the canonical
+measurable space of `SimpleGraph (Fin k)`. -/
+noncomputable def sampleLaw (W : Graphon α μ) (k : ℕ) :
+    ProbabilityMeasure (SimpleGraph (Fin k)) :=
+  ⟨(samplePMF W k).toMeasure, inferInstance⟩
+
+@[simp] theorem sampleLaw_singleton (W : Graphon α μ) (k : ℕ)
+    (G : SimpleGraph (Fin k)) :
+    (sampleLaw W k : Measure (SimpleGraph (Fin k))) {G}
+      = ENNReal.ofReal (sampleMass W G) := by
+  rw [sampleLaw, ProbabilityMeasure.coe_mk, PMF.toMeasure_apply_singleton,
+    samplePMF_apply]
+  exact MeasurableSet.singleton G
+
+@[simp] theorem sampleLaw_singleton_toReal (W : Graphon α μ) (k : ℕ)
+    (G : SimpleGraph (Fin k)) :
+    ((sampleLaw W k : Measure (SimpleGraph (Fin k))) {G}).toReal =
+      sampleMass W G := by
+  rw [sampleLaw_singleton, ENNReal.toReal_ofReal (sampleMass_nonneg W G)]
+
+end Law
+
+end Graphon
