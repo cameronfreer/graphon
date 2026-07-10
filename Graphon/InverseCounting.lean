@@ -100,11 +100,12 @@ over partition cell products. The integrand is constant on each product
 `∏ v, ι(σ(v))`, and the integral over such a product equals `∏ v, w(σ(v))`.
 Summing over all cell assignments `σ : Fin n → Fin k` gives `weightedHomSum`.
 
-**Sorry**: This is a non-trivial integration identity involving `Measure.pi` and
-piecewise-constant functions. It does not introduce any new axiom; it is
-standard measure theory that would follow from disintegration of product
-measures over finite partitions. -/
-private theorem homDensity_mkStepGraphon_eq_weightedHomSum
+**Proof**: a non-trivial but fully proved integration identity involving `Measure.pi`
+and piecewise-constant functions: the pi integral decomposes over partition cell
+products, on each of which the integrand is constant. Public since the exact
+finite-sampling formula (`Graphon/SamplingFinite.lean`, Diaconis–Janson existence half)
+specializes it to the equipartition. -/
+theorem homDensity_mkStepGraphon_eq_weightedHomSum
     (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
     (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
     (hc_mem : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T ∈ Set.Icc 0 1)

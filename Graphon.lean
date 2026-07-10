@@ -38,6 +38,7 @@ import Graphon.SamplingCoordinates
 import Graphon.ExchangeableGraphLaw
 import Graphon.MixtureConvergence
 import Graphon.HomDensityAlgebra
+import Graphon.SamplingFinite
 import Graphon.InverseCounting
 import Graphon.Convergence
 
@@ -80,6 +81,7 @@ in Lean 4 using Mathlib.
 * `Graphon.ExchangeableGraphLaw` — Exchangeable graph laws (consistent finite marginals) and graphon mixtures; mixtures are exchangeable
 * `Graphon.MixtureConvergence` — Weak-convergence layer: mixture coordinates as integrals, Prokhorov extraction, empirical mixing measures
 * `Graphon.HomDensityAlgebra` — Hom-density coordinates on the graphon space; multiplicativity over disjoint unions (`homDensity_sum`)
+* `Graphon.SamplingFinite` — The exact finite-sampling formula: sampling from an embedded finite graph is uniform vertex-map pullback
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 
