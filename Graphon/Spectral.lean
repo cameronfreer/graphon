@@ -230,15 +230,16 @@ mapping i to j.
          (0,4), (4,5), (5,6), (4,8) — arm 2 (extra leaf at 4)
   Vertices 1, 5 are cospectral (equal moments) but not orbit-related.
 
-**Architectural impact**: any downstream Lemma proved via this
-sorry'd conjecture is on shaky ground. Specifically affected:
-- closed_walk_profiles_separate_vertex_orbits (Lovasz.lean #77)
-- rooted_profiles_separate_vertex_orbits (proved via the above)
-- diagonal_observable_K1 + _of_tupleEquivSimple (proved via the above)
+**Architectural impact (historical, since resolved)**: the downstream lemmas that
+once routed through this conjecture were all re-proved through
+`rootedProfileEquiv_imp_vertexOrbitRel` (the full rooted simple-graph family /
+Lovász §3 rank-theorem route in `Lovasz.lean`):
+- `closed_walk_profiles_separate_vertex_orbits` — refuted and removed alongside this one;
+- `rooted_profiles_separate_vertex_orbits` — PROVED via the rank-theorem route;
+- `diagonal_observable_K1` + `_of_tupleEquivSimple` — PROVED via the above.
 
-The "rooted_profiles_separate" THEOREM is still TRUE (Lovász Lemma 2.4
-K=1) — just its proof route via closed walks is invalid. Need to
-re-prove via the FULL rooted simple-graph family.
+The "rooted_profiles_separate" THEOREM is TRUE (Lovász Lemma 2.4 K=1) and is now
+proved by the valid route; only the historical closed-walk route was invalid.
 
 Former statement (removed):
 ```

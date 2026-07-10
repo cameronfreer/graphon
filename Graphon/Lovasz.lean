@@ -4013,13 +4013,13 @@ all required dependencies (`tupleEquivSimple_restrict_along`,
 
 **Mathematical content**: `η ↦ B(η a, η a)` is orbit-invariant. The
 proof reduces to the K=1 case (via `tupleEquivSimple_restrict_along`)
-which routes through `rooted_profiles_separate_vertex_orbits` (#77
-paper-root). This collapses #79's diagonal observable into the #77
-spectral chain, more direct than the rank-theorem route. -/
+which routes through `rooted_profiles_separate_vertex_orbits` — PROVED via
+`rootedProfileEquiv_imp_vertexOrbitRel` (the rank-theorem route; the historical
+#77 closed-walk route was refuted and removed). -/
 
 -- The n=0 loop bridge from `tupleEquivSimple` follows by combining:
 --   1. existing `multiLabeledEvalK_tupleEquiv_invariant_n_zero` (off-diagonal),
---   2. `diagonal_observable_of_tupleEquivSimple` (closed modulo #77),
+--   2. `diagonal_observable_of_tupleEquivSimple` (proved, via the rank-theorem route),
 --   3. `multiLabeledEvalKLoop_n_zero_of_diag` (assembly).
 -- Wiring deferred (avoids motive-not-type-correct issues with naive rw
 -- on Fin.mk constructions during off-diagonal extraction).
@@ -13550,17 +13550,15 @@ specialized to vertex (single-label) tuples.
 - The full rooted simple-graph family (paths + cycles + trees +
   arbitrary connected) suffices in all tested cases.
 
-**STATUS (2026-05-18)**: PAPER-ROOT (was: proved via closed walks,
-REFUTED).
+**STATUS**: PROVED, via `rootedProfileEquiv_imp_vertexOrbitRel` — the FULL rooted
+simple-graph family (paths, trees, asymmetric shapes), i.e. the Lovász §3 rank
+theorem content.
 
-Previous proof routed through `closed_walk_profiles_separate_vertex_orbits`
-+ the `rootedCycleGraph` bridge. That route is INVALID — the
-double-pin tree counterexample (2026-05-18) shows closed walks alone
-are insufficient even under twin-free + W > 0.
-
-The THEOREM itself is TRUE (Lovász Lemma 2.4 K=1 specialization), but
-proving it requires the FULL rooted simple-graph family (paths, trees,
-asymmetric shapes), which is the Lovász §3 rank theorem content. -/
+Historical note: an earlier proof routed through
+`closed_walk_profiles_separate_vertex_orbits` + the `rootedCycleGraph` bridge.
+That route is INVALID — the double-pin tree counterexample (2026-05-18) shows
+closed walks alone are insufficient even under twin-free + W > 0; the refuted
+closed-walk conjectures were removed (issue #19). -/
 theorem rooted_profiles_separate_vertex_orbits {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
@@ -13617,15 +13615,13 @@ theorem orbit_separation_by_simple_graph_K1 {T : ℕ}
 For K=1, the diagonal observable `B(ξ 0, ξ 0) = B(ξ' 0, ξ' 0)` follows
 from `tupleEquivSimple B W ξ ξ'` via:
 1. `tupleEquivSimple` at K=1 ⟹ all rooted profiles agree at (ξ 0, ξ' 0).
-2. Contrapositive of `rooted_profiles_separate_vertex_orbits` (proved
-   modulo #77) ⟹ `vertexOrbitRel B W (ξ 0) (ξ' 0)`.
+2. Contrapositive of `rooted_profiles_separate_vertex_orbits` (PROVED via
+   `rootedProfileEquiv_imp_vertexOrbitRel`) ⟹ `vertexOrbitRel B W (ξ 0) (ξ' 0)`.
 3. Vertex orbit relation gives `σ` automorphism with `σ (ξ 0) = ξ' 0`.
 4. `B(ξ 0, ξ 0) = B(σ (ξ 0), σ (ξ 0)) = B(ξ' 0, ξ' 0)` by aut B-preservation.
 
-**Status**: proved modulo #77 (closed_walk_profiles_separate, K=1 spectral
-paper-root). Note this reduces `diagonal_observable_of_tupleEquivSimple`
-at K=1 to a paper-root we already have (#77) rather than to the rank
-theorem. -/
+**Status**: PROVED (the separation input comes from the rank-theorem route;
+the historical #77 closed-walk paper-root was refuted and removed). -/
 theorem diagonal_observable_K1 {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i)
