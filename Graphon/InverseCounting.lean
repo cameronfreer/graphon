@@ -2514,7 +2514,8 @@ NOT proved by regularity bookkeeping for exactly this reason):
 **DISCHARGED (2026-07-07)** via route 1: `sampling_quantitative_icl`
 (`Graphon/SamplingICL.lean`) is the `K`-independent quantitative ICL — for ALL graphon
 pairs, not just step pairs — proved from the sampled-graph distribution by the
-event-intersection argument, modulo the single analytic sorry `first_sampling_lemma`.
+event-intersection argument; `first_sampling_lemma` itself was subsequently proved
+(2026-07-08, `Graphon/SamplingLemma.lean`), so the chain is fully axiom-clean.
 The partition-cardinality clause below is vacuously satisfied (never consulted). -/
 private theorem headline_parameter_selection (ε : ℝ) (hε : 0 < ε) :
     ∃ (δ : ℝ) (_ : 0 < δ) (δ_step : ℝ) (_ : 0 < δ_step) (m : ℕ),

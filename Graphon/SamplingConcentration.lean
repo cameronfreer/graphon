@@ -26,8 +26,9 @@ the equal-measure `k`-partition):
 
 `sampleGoodMassOn_of_events` (PROVED) recombines the two stages into the good-mass
 bound demanded by `first_sampling_lemma`; the deterministic triangle route
-`cutDistance_ofSimpleGraphOn_le` is the gluing inequality. What remains of
-`first_sampling_lemma` is exactly: establish the two events with `W`-uniform `k`.
+`cutDistance_ofSimpleGraphOn_le` is the gluing inequality. Both events were established
+with `W`-uniform `k` (`point_sampling_event_of_large_k`, `rounding_event_of_large_k`),
+completing `first_sampling_lemma` (2026-07-08, `Graphon/SamplingLemma.lean`).
 
 ## Main declarations
 
@@ -144,7 +145,8 @@ def PointSamplingEvent (W : Graphon α μ) (k : ℕ) [NeZero k] (ε η : ℝ) : 
 
 /-- **Stage 2 — rounding concentration** (event form): for a.e. sampled points, the
 Bernoulli edge rounding lands `ε`-close to the weighted sampled graphon with conditional
-probability `≥ 1 − η`. A finite union bound over cuts (future work; the a.e. qualifier
+probability `≥ 1 − η`. A finite union bound over cuts (proved:
+`rounding_event_of_large_k`, `Graphon/SamplingRounding.lean`; the a.e. qualifier
 absorbs the pointwise pathologies of the `L⁰` representative). -/
 def RoundingEvent (W : Graphon α μ) (k : ℕ) [NeZero k] (ε η : ℝ) : Prop :=
   ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ),
@@ -154,9 +156,10 @@ def RoundingEvent (W : Graphon α μ) (k : ℕ) [NeZero k] (ε η : ℝ) : Prop 
       sampleMassAt W x G
 
 /-- **The recombination** (PROVED): the two concentration events at accuracy `ε/2` yield
-the good-mass bound demanded by `first_sampling_lemma` at accuracy `ε`. Establishing
-`PointSamplingEvent` and `RoundingEvent` with `W`-uniform `k` is therefore EXACTLY what
-remains of the First Sampling Lemma — no new independent assumption is introduced. -/
+the good-mass bound demanded by `first_sampling_lemma` at accuracy `ε`. Both events were
+subsequently established with `W`-uniform `k` (`point_sampling_event_of_large_k`,
+`rounding_event_of_large_k`), completing the First Sampling Lemma — no new independent
+assumption is introduced anywhere in the chain. -/
 theorem sampleGoodMassOn_of_events (W : Graphon α μ) (k : ℕ) [NeZero k] (ε η₁ η₂ : ℝ)
     (hη₂ : 0 ≤ η₂)
     (hpt : PointSamplingEvent W k (ε / 2) η₁)
