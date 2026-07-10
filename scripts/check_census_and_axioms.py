@@ -49,6 +49,7 @@ AUDITED_DECLS = {
     "Graphon.sampleLaw_const_eq_binomial",
     "GraphonSpace.mk_eq_mk_iff",
     "GraphonSpace.instCompactSpace",
+    "Graphon.samplePMF_eq_all_iff_weaklyIsomorphic",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

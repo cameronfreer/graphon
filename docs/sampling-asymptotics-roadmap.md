@@ -69,8 +69,13 @@ block model law. This turns the sampling code into a clean finite-marginal API.
 > **Status (2026-07-10): implemented** (`Graphon/GraphonSpace.lean`): `PseudoMetricSpace`
 > on raw graphons, `GraphonSpace := SeparationQuotient`, `mk_eq_mk_iff` (= weak
 > isomorphism), `CompactSpace`, Borel/Polish/standard-Borel stack, `StandardGraphonSpace`
-> alias. Next: the S2–S3 joining theorem
-> `(∀ k, samplePMF U k = samplePMF W k) ↔ WeaklyIsomorphic U W`.
+> alias. The S2–S3 joining theorem
+> `(∀ k, samplePMF U k = samplePMF W k) ↔ WeaklyIsomorphic U W` (+ its `GraphonSpace.mk`
+> form) is implemented in `Graphon/SamplingDetermination.lean`. Next: package the finite
+> sample laws as point-separating coordinates on `GraphonSpace` and prove their
+> continuity — a compact coordinate embedding into the product of finite probability
+> simplices, the Lovász-style bridge toward exchangeable infinite graph laws (preferred
+> over jumping directly to the Aldous–Hoover/Kolmogorov-extension layer).
 
 Implemented route (`Graphon/GraphonSpace.lean`): `cutDistance` is installed as a
 `PseudoMetricSpace` on raw `Graphon α μ`, and
