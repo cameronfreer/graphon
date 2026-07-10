@@ -68,7 +68,7 @@ theorem continuous_sampleMass {k : ℕ} (G : SimpleGraph (Fin k)) :
     funext W
     exact sampleMass_eq_sum_homDensity W G
   rw [h]
-  exact continuous_finset_sum _ fun S _ => continuous_const.mul (continuous_homDensity _)
+  exact continuous_finsetSum _ fun S _ => continuous_const.mul (continuous_homDensity _)
 
 end Graphon
 
@@ -137,7 +137,7 @@ theorem continuous_finiteSampleLaw_apply (k : ℕ) (G : SimpleGraph (Fin k)) :
 mass-function spaces. -/
 noncomputable def sampleCoordinates (x : GraphonSpace α μ) :
     Π k : ℕ, SimpleGraph (Fin k) → ℝ :=
-  fun k G => sampleMassCoord G x
+  fun _ G => sampleMassCoord G x
 
 @[simp] theorem sampleCoordinates_apply (x : GraphonSpace α μ) (k : ℕ)
     (G : SimpleGraph (Fin k)) :
@@ -145,7 +145,7 @@ noncomputable def sampleCoordinates (x : GraphonSpace α μ) :
 
 theorem continuous_sampleCoordinates :
     Continuous (sampleCoordinates : GraphonSpace α μ → Π k, SimpleGraph (Fin k) → ℝ) :=
-  continuous_pi fun k => continuous_pi fun G => continuous_sampleMassCoord G
+  continuous_pi fun _ => continuous_pi fun G => continuous_sampleMassCoord G
 
 theorem injective_sampleCoordinates :
     Function.Injective
