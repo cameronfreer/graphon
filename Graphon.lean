@@ -35,6 +35,7 @@ import Graphon.SamplingLaw
 import Graphon.SamplingExamples
 import Graphon.SamplingDetermination
 import Graphon.SamplingCoordinates
+import Graphon.ExchangeableGraphLaw
 import Graphon.InverseCounting
 import Graphon.Convergence
 
@@ -73,7 +74,8 @@ in Lean 4 using Mathlib.
 * `Graphon.SamplingLaw` — The finite sample law of a graphon: `samplePMF`/`sampleLaw`, Möbius/upper-transform engine, relabeling invariance, arbitrary-injection consistency
 * `Graphon.SamplingExamples` — The constant graphon samples Mathlib's binomial random graph `G(V, p)`
 * `Graphon.SamplingDetermination` — The sample laws determine the graphon: `(∀ k, samplePMF U k = samplePMF W k) ↔ WeaklyIsomorphic U W`, and its `GraphonSpace` form
-* `Graphon.SampleCoordinates` — Continuous point-separating sample-law coordinates on the graphon space; compact coordinate embedding
+* `Graphon.SamplingCoordinates` — Continuous point-separating sample-law coordinates on the graphon space; compact coordinate embedding
+* `Graphon.ExchangeableGraphLaw` — Exchangeable graph laws (consistent finite marginals) and graphon mixtures; mixtures are exchangeable
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 
