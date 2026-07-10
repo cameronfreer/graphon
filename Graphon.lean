@@ -34,7 +34,7 @@ import Graphon.SamplingLemma
 import Graphon.SamplingLaw
 import Graphon.SamplingExamples
 import Graphon.SamplingDetermination
-import Graphon.SampleCoordinates
+import Graphon.SamplingCoordinates
 import Graphon.InverseCounting
 import Graphon.Convergence
 
