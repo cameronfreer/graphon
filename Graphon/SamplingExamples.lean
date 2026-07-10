@@ -97,8 +97,9 @@ theorem sampleMass_constGraphon (p : Set.Icc (0 : ℝ) 1) (G : SimpleGraph (Fin 
 `SimpleGraph.binomialRandom_singleton` is reused from Mathlib; the graphon-side
 computation is `sampleMass_constGraphon`. -/
 theorem sampleLaw_const_eq_binomial (p : Set.Icc (0 : ℝ) 1) (k : ℕ) :
-    (samplePMF (constGraphon (α := α) (μ := μ) p) k).toMeasure =
+    (sampleLaw (constGraphon (α := α) (μ := μ) p) k : Measure (SimpleGraph (Fin k))) =
       SimpleGraph.binomialRandom (Fin k) p := by
+  change (samplePMF (constGraphon (α := α) (μ := μ) p) k).toMeasure = _
   refine Measure.ext_of_singleton fun G => ?_
   rw [PMF.toMeasure_apply_singleton _ _ (MeasurableSet.singleton G), samplePMF_apply,
     sampleMass_constGraphon, SimpleGraph.binomialRandom_singleton]
@@ -118,14 +119,14 @@ theorem sampleLaw_const_eq_binomial (p : Set.Icc (0 : ℝ) 1) (k : ℕ) :
 
 /-- At `p = 0` the sample law is the point mass at the empty graph. -/
 @[simp] theorem sampleLaw_const_zero (k : ℕ) :
-    (samplePMF (constGraphon (α := α) (μ := μ) 0) k).toMeasure =
+    (sampleLaw (constGraphon (α := α) (μ := μ) 0) k : Measure (SimpleGraph (Fin k))) =
       Measure.dirac (⊥ : SimpleGraph (Fin k)) := by
   rw [sampleLaw_const_eq_binomial]
   exact SimpleGraph.binomialRandom_zero (Fin k)
 
 /-- At `p = 1` the sample law is the point mass at the complete graph. -/
 @[simp] theorem sampleLaw_const_one (k : ℕ) :
-    (samplePMF (constGraphon (α := α) (μ := μ) 1) k).toMeasure =
+    (sampleLaw (constGraphon (α := α) (μ := μ) 1) k : Measure (SimpleGraph (Fin k))) =
       Measure.dirac (⊤ : SimpleGraph (Fin k)) := by
   rw [sampleLaw_const_eq_binomial]
   exact SimpleGraph.binomialRandom_one (Fin k)

@@ -267,6 +267,14 @@ theorem constGraphon_toAEEqFun (p : Set.Icc (0 : ℝ) 1) :
 /-- Graphons exist on every probability space (e.g. the constant graphon `0`). -/
 instance : Nonempty (Graphon α μ) := ⟨constGraphon 0⟩
 
+@[simp] theorem constGraphon_zero : (constGraphon 0 : Graphon α μ) = zero := by
+  apply Graphon.ext
+  rfl
+
+@[simp] theorem constGraphon_one : (constGraphon 1 : Graphon α μ) = one := by
+  apply Graphon.ext
+  rfl
+
 /-- The underlying `AEEqFun` of the zero graphon is the constant 0 function. -/
 theorem zero_toAEEqFun : (zero : Graphon α μ).toAEEqFun = AEEqFun.const (α × α) 0 := rfl
 
