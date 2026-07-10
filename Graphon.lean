@@ -33,6 +33,7 @@ import Graphon.SamplingPointwise
 import Graphon.SamplingLemma
 import Graphon.SamplingLaw
 import Graphon.SamplingExamples
+import Graphon.SamplingDetermination
 import Graphon.InverseCounting
 import Graphon.Convergence
 
@@ -70,6 +71,7 @@ in Lean 4 using Mathlib.
 * `Graphon.SamplingLemma` — The First Sampling Lemma, assembled from the two proved concentration events
 * `Graphon.SamplingLaw` — The finite sample law of a graphon: `samplePMF`/`sampleLaw`, Möbius/upper-transform engine, relabeling invariance, arbitrary-injection consistency
 * `Graphon.SamplingExamples` — The constant graphon samples Mathlib's binomial random graph `G(V, p)`
+* `Graphon.SamplingDetermination` — The sample laws determine the graphon: `(∀ k, samplePMF U k = samplePMF W k) ↔ WeaklyIsomorphic U W`, and its `GraphonSpace` form
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 

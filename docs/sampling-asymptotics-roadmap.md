@@ -46,9 +46,9 @@ corollaries above (`exists_simpleGraph_cutDistance_lt_of_large_k`,
 > #21 is implemented in PR #29 (constant graphon = `binomialRandom`:
 > `constGraphon` + `Nonempty (Graphon α μ)` in `Basic.lean`, `ae_pairMap_of_prod`
 > generalized low in the sampling stack, the law in `SamplingExamples.lean`).
-> Remaining: the
-> joining theorem `(∀ k, samplePMF U k = samplePMF W k) ↔ WeaklyIsomorphic U W`, which
-> cleanly connects S2 and S3 and is far lower risk than starting Aldous–Hoover directly.
+> The joining theorem
+> `(∀ k, samplePMF U k = samplePMF W k) ↔ WeaklyIsomorphic U W` is implemented in
+> `Graphon/SamplingDetermination.lean`, cleanly connecting S2 and S3.
 
 `sampleMass W G` is currently a family of reals. Bundle it as a probability measure on
 `SimpleGraph (Fin k)` (likely via `ProbabilityMeasure`), then prove:
@@ -69,8 +69,13 @@ block model law. This turns the sampling code into a clean finite-marginal API.
 > **Status (2026-07-10): implemented** (`Graphon/GraphonSpace.lean`): `PseudoMetricSpace`
 > on raw graphons, `GraphonSpace := SeparationQuotient`, `mk_eq_mk_iff` (= weak
 > isomorphism), `CompactSpace`, Borel/Polish/standard-Borel stack, `StandardGraphonSpace`
-> alias. Next: the S2–S3 joining theorem
-> `(∀ k, samplePMF U k = samplePMF W k) ↔ WeaklyIsomorphic U W`.
+> alias. The S2–S3 joining theorem
+> `(∀ k, samplePMF U k = samplePMF W k) ↔ WeaklyIsomorphic U W` (+ its `GraphonSpace.mk`
+> form) is implemented in `Graphon/SamplingDetermination.lean`. Next: package the finite
+> sample laws as point-separating coordinates on `GraphonSpace` and prove their
+> continuity — a compact coordinate embedding into the product of finite probability
+> simplices, the Lovász-style bridge toward exchangeable infinite graph laws (preferred
+> over jumping directly to the Aldous–Hoover/Kolmogorov-extension layer).
 
 Implemented route (`Graphon/GraphonSpace.lean`): `cutDistance` is installed as a
 `PseudoMetricSpace` on raw `Graphon α μ`, and
