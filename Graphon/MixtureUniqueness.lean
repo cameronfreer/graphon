@@ -3,7 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
-import Graphon.MixtureConvergence
+import Graphon.ExchangeableGraphLaw
 import Graphon.HomDensityAlgebra
 import Mathlib.MeasureTheory.Measure.FiniteMeasureExt
 
@@ -61,20 +61,9 @@ theorem one_mem_homDensityGenerators :
   obtain ⟨W, rfl⟩ := surjective_mk x
   simp only [BoundedContinuousFunction.coe_one, Pi.one_apply, homDensityCoordBCF_apply,
     homDensityCoord_mk]
-  refine (?_ : Graphon.homDensity (⊥ : SimpleGraph (Fin 0)) W = 1).symm
-  rw [Graphon.homDensity_eq_integral]
-  have hint : (fun y : Fin 0 → α =>
-      Graphon.homDensityIntegrand (⊥ : SimpleGraph (Fin 0)) W y) = fun _ => (1 : ℝ) := by
-    funext y
-    simp only [Graphon.homDensityIntegrand]
-    have hempty : ∀ (s : Finset (Sym2 (Fin 0))) (g : Sym2 (Fin 0) → ℝ),
-        ∏ e ∈ s, g e = 1 := by
-      intro s g
-      rw [Finset.eq_empty_of_isEmpty s]
-      exact Finset.prod_empty
-    exact hempty _ _
-  rw [hint]
-  simp
+  exact ((Graphon.homDensity_congr_decRel
+      (⊥ : SimpleGraph (Fin 0)) _ _ W).trans
+      (Graphon.homDensity_bot W)).symm
 
 /-- The generators are closed under multiplication (`homDensity_sum_finAdd`). -/
 theorem mul_mem_homDensityGenerators
