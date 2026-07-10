@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Mathlib.Analysis.SpecialFunctions.Trigonometric.Arctan
 import Mathlib.Dynamics.Ergodic.MeasurePreserving
 import Mathlib.MeasureTheory.Constructions.Polish.Basic
@@ -33,7 +34,8 @@ measure-theory obligation:
 > mod 0 to `([0,1], Lebesgue)`.
 
 It is deliberately **independent of graphons** — pure Mathlib-style measure theory, and a
-plausible upstreaming target.
+plausible upstreaming target (the `Architect` import supplies only the `@[blueprint]`
+annotation attribute; strip it when upstreaming).
 
 ## Roadmap (R1)
 
@@ -532,6 +534,8 @@ noncomputable def embeddingRealMod0MeasureIso (α) [MeasurableSpace α] [Standar
 standard-Borel probability space `(α, μ)` is measure-preservingly isomorphic mod 0 to
 `([0,1], Lebesgue)`. Assembled by embedding `α` into `ℝ` and composing with the real-line
 CDF/quantile isomorphism of the (atomless, probability) pushforward measure. -/
+@[blueprint "thm:measure-iso"
+  (title := /-- Atomless standard-Borel measure-isomorphism theorem (mod 0) -/)]
 theorem atomless_standardBorel_mod0MeasureIso_unitInterval (α) [MeasurableSpace α]
     [StandardBorelSpace α] (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ] :
     Nonempty (Mod0MeasureIso α ℝ μ (volume.restrict (Set.Icc 0 1))) := by
@@ -977,6 +981,8 @@ isomorphism between atomless standard-Borel probability spaces upgrades to a gen
 measure-preserving `MeasurableEquiv` that still agrees with the original maps almost everywhere.
 Assembled from Brick 2 (a null uncountable reservoir on each side) and Brick 1 (the null-patch
 gluing). This is the graphon-independent theorem the R2 cell-alignment/`mpEquiv` cores consume. -/
+@[blueprint "thm:mod0-upgrade"
+  (title := /-- Mod-0 isomorphism upgrades to a measure-preserving equivalence -/)]
 theorem Mod0MeasureIso.toMeasurableEquiv
     {α β : Type*} [MeasurableSpace α] [StandardBorelSpace α]
     [MeasurableSpace β] [StandardBorelSpace β]
