@@ -87,6 +87,8 @@ accuracy `ε/2` and failure probabilities `η/4`:
 `rounding_event_of_large_k` (the finite union bound over cuts), each with `W`-uniform
 threshold. Classical reference: Lovász, *Large Networks and Graph Limits*, Lemma 10.16;
 BCLSV, "Convergent sequences I", Thm 4.6. -/
+@[blueprint "thm:first-sampling"
+  (title := /-- First Sampling Lemma -/)]
 theorem first_sampling_lemma (ε η : ℝ) (hε : 0 < ε) (hη : 0 < η) :
     ∃ k : ℕ, ∀ W : Graphon α μ, 1 - η < sampleGoodMassOn W (k + 1) ε := by
   obtain ⟨K, hK⟩ := first_sampling_lemma_of_large_k (α := α) (μ := μ) ε η hε hη

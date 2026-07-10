@@ -134,6 +134,45 @@ Pullback by a measure-preserving bijection preserves cut distance
 
 \inputleannode{thm:cutDistance-pullback-eq-zero}
 
+\section{The Measure-Isomorphism Theorem and the Rokhlin Cores}
+
+The measure-theoretic engine behind the pseudometric and compactness theory is the
+classical fact that every atomless standard Borel probability space is
+measure-preservingly isomorphic mod~0 to $([0,1],\lambda)$, built from scratch in
+\texttt{Graphon/MeasureIso.lean} via the probability integral transform and a
+quantile inverse.
+
+\inputleannode{thm:measure-iso}
+
+A mod-0 isomorphism upgrades to an everywhere-defined measure-preserving measurable
+equivalence by patching the defect sets through uncountable Borel null reservoirs
+(a compact Cantor scheme provides the reservoirs).
+
+\inputleannode{thm:mod0-upgrade}
+
+Four consumer-shaped corollaries --- the \emph{Rokhlin cores} --- carry all of the
+graphon program's alignment needs.  Any two measure-preserving maps admit a common
+coupling by measure-preserving maps:
+
+\inputleannode{thm:coupling-maps}
+
+Pullback along a single measure-preserving map contracts the cut norm:
+
+\inputleannode{thm:pullback-contraction}
+
+Equal-measure measurable cell families can be aligned by a measure-preserving
+bijection (almost everywhere):
+
+\inputleannode{thm:cell-alignment}
+
+Finally, the overlay theorem: on an atomless space the cut distance --- an infimum
+over \emph{pairs of maps} --- is achieved up to any $\varepsilon$ by a single
+measure-preserving \emph{bijection}, leaving the second graphon bare.  The proof
+realizes the coupling matrix of two step approximations exactly, by prescribed-mass
+carving and two controlled cell alignments.
+
+\inputleannode{thm:overlay}
+
 
 \chapter{Partitions and Step Graphons}
 
@@ -255,6 +294,19 @@ core, the step-graphon core via the proved algebraic determination theorem, and 
 parameter selection via the proved First Sampling Lemma.
 
 \inputleannode{thm:inverse-counting}
+
+\section{The First Sampling Lemma and Determination}
+
+The parameter selection behind the quantitative inverse counting lemma is supplied by
+the First Sampling Lemma (Lov\'asz~\cite[Lemma~10.16]{lovasz2012}): one sample size
+works for \emph{every} graphon on the space simultaneously.
+
+\inputleannode{thm:first-sampling}
+
+Together these give the determination theorem: equal homomorphism densities for all
+finite simple graphs force cut distance zero.
+
+\inputleannode{thm:determination}
 
 \section{Convergence Equivalence}
 
