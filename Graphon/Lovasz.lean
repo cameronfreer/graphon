@@ -13013,7 +13013,11 @@ The `m + 3` offset (length ≥ 3) is required because length-2 closed
 walks `∑_v W(v) B(i,v)²` are inherently multigraph evaluations (edge
 multiplicity 2) and cannot be realized by simple graphs. -/
 
-/-- **K=1 spectral closing lemma** (named paper-root for #77).
+/-! ### Removed refuted conjecture: `vertex_orbit_of_closed_walks_eq`
+
+Deleted as a `sorry` stub (2026-07-10, issue #19); the refutation documentation is
+retained below, and the former statement is quoted for the record. Do NOT reintroduce.
+ **K=1 spectral closing lemma** (named paper-root for #77).
 
 If two vertices have matching closed-walk profiles at all lengths
 ≥ 3, then they lie in the same `(B, W)`-vertex orbit (under twin-free
@@ -13057,7 +13061,10 @@ have identical (S^m)[i, i] for all m but lie in different orbits
 **Salvaged content**: the bridge theorems `rootedProfile_rootedCycleGraph_eq_closedWalkProfile`
 and `closedWalkProfile_eq_symAdjIter_diag` (in Spectral.lean) are
 still valuable. They translate between representations; what's wrong
-is the orbit-upgrade INFERENCE from closed walks alone. -/
+is the orbit-upgrade INFERENCE from closed walks alone.
+
+Former statement (removed):
+```
 theorem vertex_orbit_of_closed_walks_eq {T : ℕ}
     (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i)
     (_W : Fin T → ℝ) (_hW : ∀ i, 0 < _W i)
@@ -13065,10 +13072,15 @@ theorem vertex_orbit_of_closed_walks_eq {T : ℕ}
     {i j : Fin T}
     (_h : ∀ m : ℕ, closedWalkProfile _B _W i (m + 3) =
                    closedWalkProfile _B _W j (m + 3)) :
-    vertexOrbitRel _B _W i j := by
-  sorry
+    vertexOrbitRel _B _W i j := ...
+```
+-/
 
-/-- **#77** — REFUTED 2026-05-18.
+/-! ### Removed refuted conjecture: `closed_walk_profiles_separate_vertex_orbits`
+
+Deleted as a `sorry` stub (2026-07-10, issue #19); the refutation documentation is
+retained below, and the former statement is quoted for the record. Do NOT reintroduce.
+ **#77** — REFUTED 2026-05-18.
 
 Statement is FALSE: the double-pin tree (T=9) has twin-free B + W = 1
 with two non-orbit vertices (1, 5) whose closed-walk profiles agree
@@ -13080,14 +13092,18 @@ The proof previously routed through `vertex_orbit_of_closed_walks_eq`
 
 Counterexample: edges (0,1)(1,2)(2,3)(3,7)(0,4)(4,5)(5,6)(4,8); vertices
 1 and 5 are spectrally equivalent (closed walks match for all m) but
-|Aut| = 1, so they are in different orbits. -/
+|Aut| = 1, so they are in different orbits.
+
+Former statement (removed):
+```
 theorem closed_walk_profiles_separate_vertex_orbits {T : ℕ}
     (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i) (_W : Fin T → ℝ)
     (_hW : ∀ i, 0 < _W i)
     (_htwin : ∀ i j, i ≠ j → _B i ≠ _B j)
     {i j : Fin T} (_h : ¬ vertexOrbitRel _B _W i j) :
-    ∃ m : ℕ, closedWalkProfile _B _W i (m + 3) ≠ closedWalkProfile _B _W j (m + 3) := by
-  sorry
+    ∃ m : ℕ, closedWalkProfile _B _W i (m + 3) ≠ closedWalkProfile _B _W j (m + 3) := ...
+```
+-/
 
 /-- **Rooted cycle graph** at length `m + 2`. Edges are consecutive
 pairs `(j, j+1)` plus the wrap edge `(0, m+1)`. The K=1 label placement
