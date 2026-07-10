@@ -48,8 +48,9 @@ open scoped Classical
 uniformly over all graphons on the space.
 
 For every accuracy `ε` and failure probability `η` there is a threshold `K` such that at
-EVERY sample size `k ≥ K` and for EVERY graphon `W` simultaneously, the sampled graph
-`G(k, W)` lies within cut distance `ε` of `W` with probability greater than `1 − η`.
+EVERY nonzero sample size `k ≥ K` (the `NeZero k` hypothesis; `sampleGoodMassOn` needs a
+vertex to exist) and for EVERY graphon `W` simultaneously, the sampled graph `G(k, W)`
+lies within cut distance `ε` of `W` with probability greater than `1 − η`.
 
 Both concentration halves (`point_sampling_event_of_large_k`,
 `rounding_event_of_large_k`) already hold for all sufficiently large `k` uniformly in
@@ -105,8 +106,8 @@ theorem exists_cutDistance_lt_of_sampleGoodMassOn_pos {W : Graphon α μ} {k : �
 
 /-- **Finite approximation at every sufficiently large size, uniformly**: for every
 `ε > 0` there is a threshold `K` such that every graphon is within cut distance `ε` of
-(the embedded graphon of) some simple graph on exactly `k` vertices, for every `k ≥ K`
-simultaneously. -/
+(the embedded graphon of) some simple graph on exactly `k` vertices, for every nonzero
+`k ≥ K` simultaneously (the `NeZero k` hypothesis). -/
 theorem exists_simpleGraph_cutDistance_lt_of_large_k {ε : ℝ} (hε : 0 < ε) :
     ∃ K : ℕ, ∀ k, K ≤ k → ∀ (_ : NeZero k), ∀ W : Graphon α μ,
       ∃ G : SimpleGraph (Fin k), cutDistance W (ofSimpleGraphOn G) < ε := by
@@ -117,13 +118,14 @@ theorem exists_simpleGraph_cutDistance_lt_of_large_k {ε : ℝ} (hε : 0 < ε) :
   exact exists_cutDistance_lt_of_sampleGoodMassOn_pos (by linarith)
 
 /-- **Finite approximation**: every graphon is within any positive cut distance of the
-embedded graphon of a finite simple graph. -/
+embedded graphon of a finite simple graph (successor-indexed, so no `NeZero` witness is
+threaded through the existential — matching the `first_sampling_lemma` interface). -/
 theorem exists_simpleGraph_cutDistance_lt (W : Graphon α μ) {ε : ℝ} (hε : 0 < ε) :
-    ∃ (k : ℕ) (_ : NeZero k) (G : SimpleGraph (Fin k)),
+    ∃ (k : ℕ) (G : SimpleGraph (Fin (k + 1))),
       cutDistance W (ofSimpleGraphOn G) < ε := by
   obtain ⟨K, hK⟩ := exists_simpleGraph_cutDistance_lt_of_large_k (α := α) (μ := μ) hε
   obtain ⟨G, hG⟩ := hK (K + 1) (Nat.le_succ _) ⟨Nat.succ_ne_zero _⟩ W
-  exact ⟨K + 1, ⟨Nat.succ_ne_zero _⟩, G, hG⟩
+  exact ⟨K, G, hG⟩
 
 /-- **Every graphon is a cut-distance limit of finite simple graphs**: there is a
 sequence of simple graphs, the `k`-th on `k + 1` vertices, whose embedded graphons
@@ -133,7 +135,7 @@ theorem exists_tendsto_cutDistance_ofSimpleGraphOn (W : Graphon α μ) :
       Filter.Tendsto (fun k ↦ cutDistance W (ofSimpleGraphOn (G k)))
         Filter.atTop (nhds 0) := by
   -- Take a cut-distance-minimizing graph at every size.
-  choose G hGmem hGmin using fun k : ℕ ↦
+  choose G _hGmem hGmin using fun k : ℕ ↦
     Finset.exists_min_image (Finset.univ : Finset (SimpleGraph (Fin (k + 1))))
       (fun G ↦ cutDistance W (ofSimpleGraphOn G)) ⟨⊥, Finset.mem_univ _⟩
   refine ⟨G, Metric.tendsto_atTop.mpr fun ε hε ↦ ?_⟩
