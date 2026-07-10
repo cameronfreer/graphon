@@ -66,6 +66,12 @@ block model law. This turns the sampling code into a clean finite-marginal API.
 
 ## S3: package the graphon space
 
+> **Status (2026-07-10): implemented** (`Graphon/GraphonSpace.lean`): `PseudoMetricSpace`
+> on raw graphons, `GraphonSpace := SeparationQuotient`, `mk_eq_mk_iff` (= weak
+> isomorphism), `CompactSpace`, Borel/Polish/standard-Borel stack, `StandardGraphonSpace`
+> alias. Next: the S2–S3 joining theorem
+> `(∀ k, samplePMF U k = samplePMF W k) ↔ WeaklyIsomorphic U W`.
+
 `WeaklyIsomorphic` is a predicate and `compact` a sequential-compactness theorem; there is no
 bundled quotient space. Define
 

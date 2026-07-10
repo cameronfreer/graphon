@@ -20,3 +20,5 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.samplePMF_map_comap
 #print axioms Graphon.sampleLaw_map_comap
 #print axioms Graphon.sampleLaw_const_eq_binomial
+#print axioms GraphonSpace.mk_eq_mk_iff
+#print axioms GraphonSpace.instCompactSpace
