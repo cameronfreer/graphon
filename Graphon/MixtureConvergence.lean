@@ -3,7 +3,6 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
-import Architect
 import Graphon.ExchangeableGraphLaw
 import Mathlib.MeasureTheory.Measure.Prokhorov
 import Mathlib.MeasureTheory.Measure.LevyProkhorovMetric
@@ -54,7 +53,9 @@ noncomputable def graphClass {n : ℕ} [NeZero n] (G : SimpleGraph (Fin n)) :
 
 /-- **The empirical mixing measure** of an exchangeable graph law at size `n`: sample
 `Gₙ ∼ L.law n` and take its graphon class. Step 3 of the #33 plan; Prokhorov extraction
-applies to the sequence `empiricalMixing L n`. -/
+applies to the sequence `fun n => empiricalMixing L (n + 1)` — downstream statements use
+the successor form so the `NeZero` hypothesis discharges definitionally instead of
+recurring as bookkeeping. -/
 noncomputable def empiricalMixing (L : Graphon.ExchangeableGraphLaw) (n : ℕ) [NeZero n] :
     ProbabilityMeasure (GraphonSpace α μ) :=
   ⟨((L.law n).toMeasure).map (graphClass (α := α) (μ := μ)),
