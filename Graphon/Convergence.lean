@@ -172,7 +172,7 @@ theorem converges_iff_homDensity [StandardBorelSpace α] [NoAtoms μ] (W : ℕ �
     exact hL_F ε hε
 
 /-- Convergent sequences are Cauchy. -/
-theorem IsConvergent.isCauchy [StandardBorelSpace α] (W : ℕ → Graphon α μ) (h : IsConvergent W) :
+theorem IsConvergent.isCauchy [StandardBorelSpace α] [NoAtoms μ] (W : ℕ → Graphon α μ) (h : IsConvergent W) :
     IsCauchy W := by
   obtain ⟨V, hV⟩ := h
   intro ε hε
@@ -186,13 +186,13 @@ theorem IsConvergent.isCauchy [StandardBorelSpace α] (W : ℕ → Graphon α μ
     _ = ε := add_halves ε
 
 /-- Cauchy sequences are convergent (completeness). -/
-theorem IsCauchy.isConvergent [StandardBorelSpace α] (W : ℕ → Graphon α μ) (h : IsCauchy W) :
+theorem IsCauchy.isConvergent [StandardBorelSpace α] [NoAtoms μ] (W : ℕ → Graphon α μ) (h : IsCauchy W) :
     IsConvergent W := by
   obtain ⟨V, hV⟩ := complete W h
   exact ⟨V, hV⟩
 
 /-- Cauchy ⟺ Convergent (on standard Borel spaces). -/
-theorem isCauchy_iff_isConvergent [StandardBorelSpace α] (W : ℕ → Graphon α μ) :
+theorem isCauchy_iff_isConvergent [StandardBorelSpace α] [NoAtoms μ] (W : ℕ → Graphon α μ) :
     IsCauchy W ↔ IsConvergent W :=
   ⟨IsCauchy.isConvergent W, fun h => h.isCauchy W⟩
 
@@ -205,14 +205,14 @@ section CompactnessChar
 variable [IsProbabilityMeasure μ] [StandardBorelSpace α]
 
 /-- Every sequence has a convergent subsequence (sequential compactness). -/
-theorem exists_convergent_subsequence (W : ℕ → Graphon α μ) :
+theorem exists_convergent_subsequence [NoAtoms μ] (W : ℕ → Graphon α μ) :
     ∃ (V : Graphon α μ) (φ : ℕ → ℕ), StrictMono φ ∧
       ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W (φ n)) V < ε :=
   compact W
 
 omit [StandardBorelSpace α] in
 /-- The limit of a convergent sequence is unique up to weak isomorphism. -/
-theorem limit_unique [StandardBorelSpace α] (W : ℕ → Graphon α μ) (U V : Graphon α μ)
+theorem limit_unique [StandardBorelSpace α] [NoAtoms μ] (W : ℕ → Graphon α μ) (U V : Graphon α μ)
     (hU : ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) U < ε)
     (hV : ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε) :
     WeaklyIsomorphic U V :=

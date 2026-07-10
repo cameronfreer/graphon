@@ -1032,82 +1032,96 @@ theorem cutDistance_le_one (U W : Graphon α μ) : cutDistance U W ≤ 1 := by
       ≤ cutNormDiff U W := csInf_le h_bdd h_in_set
     _ ≤ 1 := cutNormDiff_le_one U W
 
-/-- **Rokhlin consequence**: Two measure-preserving maps into a standard Borel
-probability space can be "aligned" via measure-preserving bijections, and
-any two measurable partitions can be aligned by a measure-preserving bijection.
+/-! ### Scoping: the former `exists_common_extension` monolith was unprovable as stated
 
-This is a consequence of Rokhlin's theorem: every standard Borel probability
-space is measure-theoretically isomorphic to [0,1] with Lebesgue measure.
+See `docs/rokhlin-scoping.md`. The old monolithic Rokhlin stub bundled three conjuncts, **two
+of which are false as written**; it has now been **deleted** and replaced by four corrected,
+consumer-shaped cores (`exists_common_coupling_maps`, `cutNormDiff_pullback_le`,
+`exists_controlled_cell_alignment`, `exists_mpEquiv_cutNormDiff_lt_add`), each a standard
+consequence of the atomless standard-Borel measure-isomorphism theorem. The two lemmas below
+certify the "measure-obvious" necessity facts that forced those corrections; the historical
+counterexamples:
 
-The theorem provides two outputs:
-1. **Map alignment**: Given MP maps ψ₁, φ₂ : α → α, there exist MP bijections
-   χ₁, χ₂ such that ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂.
-2. **Partition alignment**: Given measurable partitions P, Q, there exists a
-   MP bijection e mapping each P-cell a.e. into some Q-cell.
+* **Map alignment via bijections is FALSE.** `(α, μ) = ([0,1], λ)`, `ψ₁ = id`, `φ₂ = ` the
+  doubling map `x ↦ 2x mod 1`: the demanded a.e.-injective `χ₁` with `χ₁ =ᵐ φ₂ ∘ χ₂` cannot
+  equal the essentially 2-to-1 `φ₂ ∘ χ₂`. The honest fact is a coupling with measure-preserving
+  *maps* (`exists_common_coupling_maps`), used with the pullback contraction
+  `cutNormDiff_pullback_le`.
+* **Arbitrary-partition alignment is FALSE** unless the cell measures match — certified by
+  `mp_align_forces_equal_measure`. The honest form is equal-measure cell alignment
+  (`exists_controlled_cell_alignment`, `[NoAtoms μ]`).
+* **Controlled cell alignment needs `[NoAtoms μ]`** (atom counterexample; one-sided necessity
+  by `mp_maps_into_forces_measure_le`).
 
-Both follow from the fact that (α, μ) ≅ ([0,1], λ). Map alignment is
-Kechris [1995], Theorem 17.41. Partition alignment follows because any
-finite measurable partition of [0,1] can be mapped to any other by a
-measure-preserving bijection (rearranging intervals).
+* **Conjunct 1 (map alignment via bijections) is FALSE.** Take `(α, μ) = ([0,1], λ)`,
+  `ψ₁ = id`, `φ₂ = ` the doubling map `x ↦ 2x mod 1` (both measure-preserving). The
+  conclusion demands a measurable-equiv (a.e.-injective) `χ₁` with `χ₁ =ᵐ φ₂ ∘ χ₂`, but
+  `φ₂ ∘ χ₂` is essentially 2-to-1, so on the conull agreement set a positive-measure set of
+  collision pairs contradicts injectivity. The classical fact is a *coupling* statement with
+  measure-preserving maps (not automorphisms of `α`). The doubling counterexample is left as
+  prose (formalizing the doubling map's 2-to-1-ness is not cheap and off the critical path).
 
-**Sorry**: Requires Rokhlin's theorem, which is not yet in Mathlib. This is
-well-established mathematics. This is one of three `sorry` declarations in
-the formalization and the only one that requires genuinely new Mathlib
-infrastructure. All other Rokhlin consequences (partition transfer,
-alignment chains, controlled cell alignment) are derived from this.
+* **Conjunct 2 (arbitrary-partition alignment) is FALSE** unless the cell measures match —
+  certified by `mp_align_forces_equal_measure` below. Counterexample: `P = {A, Aᶜ}` with
+  `μ A = 1/2` and `Q = trivialPartition` (whose only cell has measure `1`).
 
-The conclusion has three parts:
-1. **Coupling**: The two MP maps can be aligned via MP bijections.
-2. **Partition alignment**: Each cell of P maps a.e. to some cell of Q.
-3. **Controlled cell alignment**: Given a specific measure-matching
-   correspondence between cells, the alignment can be chosen to realize it.
-   This follows from Rokhlin's classification theorem applied cell-by-cell. -/
-theorem MeasurePreserving.exists_common_extension [StandardBorelSpace α]
-    (ψ₁ : α → α) (hψ₁ : MeasurePreserving ψ₁ μ μ)
-    (φ₂ : α → α) (hφ₂ : MeasurePreserving φ₂ μ μ)
-    (P Q : MeasurablePartition α μ) :
-    (∃ (χ₁ χ₂ : α ≃ᵐ α)
-      (hχ₁ : MeasurePreserving χ₁ μ μ) (hχ₂ : MeasurePreserving χ₂ μ μ),
-      ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂) ∧
-    (∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
-      ∀ S ∈ P.parts, ∃ T ∈ Q.parts, μ (S \ e ⁻¹' T) = 0 ∧ μ (e ⁻¹' T \ S) = 0) ∧
-    (∀ {k : ℕ} (ι_S ι_T : Fin k → Set α),
-      (∀ i, ι_S i ∈ P.parts) → (∀ i, ι_T i ∈ Q.parts) →
-      Function.Injective ι_S → Function.Injective ι_T →
-      (∀ i, μ (ι_S i) = μ (ι_T i)) →
-      ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
-        ∀ i, ∀ᵐ x ∂μ, x ∈ ι_S i → e x ∈ ι_T i) := by
-  sorry
+* **Conjunct 3 (controlled cell alignment) needs `[NoAtoms μ]`.** With atoms it fails even at
+  equal measures: on `{a,b,c}` with `μ = (1/2, 1/4, 1/4)`, no measure-preserving bijection
+  maps the two-atom cell `{b,c}` into the one-atom cell `{a}`. `mp_maps_into_forces_measure_le`
+  certifies the one-sided measure necessity that underlies the cell-matching hypotheses. -/
 
-/-- Map-alignment consequence of `exists_common_extension`: given two MP maps,
-there exist MP bijections aligning them. This is the interface used by
-`cutDistance_triangle`. -/
-theorem MeasurePreserving.exists_common_extension_maps [StandardBorelSpace α]
+/-- **Refutation support (conjunct 2).** A measure-preserving `e` that aligns `S` with `T`
+symmetrically (`μ(S \ e⁻¹T) = 0` and `μ(e⁻¹T \ S) = 0`) forces `μ S = μ T`. Hence partition
+alignment is impossible unless the two partitions have matching cell measures. -/
+theorem mp_align_forces_equal_measure
+    {e : α ≃ᵐ α} (he : MeasurePreserving e μ μ) {S T : Set α} (hT : MeasurableSet T)
+    (h1 : μ (S \ e ⁻¹' T) = 0) (h2 : μ (e ⁻¹' T \ S) = 0) :
+    μ S = μ T := by
+  have hae : S =ᵐ[μ] e ⁻¹' T := by rw [ae_eq_set]; exact ⟨h1, h2⟩
+  rw [measure_congr hae, he.measure_preimage hT.nullMeasurableSet]
+
+/-- **Refutation support (conjunct 3).** If a measure-preserving `e` maps `S` a.e. into `T`,
+then `μ S ≤ μ T`. For injective cell families whose measures sum to the whole space this forces
+equality; with atoms present, equal measures are not enough to realize the map (see the scoping
+note above), which is why the corrected cell-alignment lemma assumes `[NoAtoms μ]`. -/
+theorem mp_maps_into_forces_measure_le
+    {e : α ≃ᵐ α} (he : MeasurePreserving e μ μ) {S T : Set α} (hT : MeasurableSet T)
+    (h : ∀ᵐ x ∂μ, x ∈ S → e x ∈ T) :
+    μ S ≤ μ T := by
+  have hsub : S ≤ᵐ[μ] e ⁻¹' T := h
+  calc μ S ≤ μ (e ⁻¹' T) := measure_mono_ae hsub
+    _ = μ T := he.measure_preimage hT.nullMeasurableSet
+
+/-- **Common coupling of two measure-preserving maps (corrected Rokhlin consequence 1).**
+Given measure-preserving maps `ψ₁, φ₂ : α → α` on an *atomless* standard Borel probability
+space, there are measure-preserving **maps** `χ₁, χ₂ : α → α` with `ψ₁ ∘ χ₁ =ᵐ φ₂ ∘ χ₂`.
+
+This replaces the false `exists_common_extension_maps`: demanding `χ₁, χ₂` be **bijections**
+is unprovable (take `ψ₁ = id`, `φ₂ = ` doubling — a bijection cannot equal an essentially
+2-to-1 map a.e.; see the scoping note). The honest statement is a coupling: build the
+relatively-independent joining of `ψ₁, φ₂` over their common factor on `α × α`, then re-type
+it onto `α` via the measure-isomorphism theorem — which needs `[NoAtoms μ]`. Interface for
+`cutDistance_triangle` (used together with the pullback contraction
+`cutNormDiff_pullback_le`, since `χ₁, χ₂` are maps, not measure-preserving bijections). -/
+theorem MeasurePreserving.exists_common_coupling_maps [StandardBorelSpace α] [NoAtoms μ]
     (ψ₁ : α → α) (hψ₁ : MeasurePreserving ψ₁ μ μ)
     (φ₂ : α → α) (hφ₂ : MeasurePreserving φ₂ μ μ) :
-    ∃ (χ₁ χ₂ : α ≃ᵐ α)
+    ∃ (χ₁ χ₂ : α → α)
       (hχ₁ : MeasurePreserving χ₁ μ μ) (hχ₂ : MeasurePreserving χ₂ μ μ),
       ψ₁ ∘ χ₁ =ᵐ[μ] φ₂ ∘ χ₂ := by
-  have ⟨h, _, _⟩ := MeasurePreserving.exists_common_extension ψ₁ hψ₁ φ₂ hφ₂
-    (trivialPartition (α := α) (μ := μ)) (trivialPartition (α := α) (μ := μ))
-  exact h
+  sorry
 
-/-- Partition-alignment consequence of `exists_common_extension`: given two
-measurable partitions, there exists a MP bijection mapping each cell of the
-first a.e. into a cell of the second. -/
-theorem MeasurePreserving.exists_partition_alignment [StandardBorelSpace α]
-    (P Q : MeasurablePartition α μ) :
-    ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
-      ∀ S ∈ P.parts, ∃ T ∈ Q.parts, μ (S \ e ⁻¹' T) = 0 ∧ μ (e ⁻¹' T \ S) = 0 := by
-  have ⟨_, h, _⟩ := MeasurePreserving.exists_common_extension id (MeasurePreserving.id μ)
-    id (MeasurePreserving.id μ) P Q
-  exact h
+/-- **Controlled cell alignment (corrected Rokhlin consequence 3).** Given injective indexed
+families of cells from two partitions with *matching measures*, over an *atomless* standard
+Borel probability space, there is a measure-preserving bijection mapping each cell `ι_S i`
+a.e. into `ι_T i`.
 
-/-- Controlled cell alignment: given indexed families of cells from two partitions
-with matching measures, there exists a MP bijection mapping each cell a.e. to the
-corresponding cell. This is a direct consequence of the third conjunct of
-`exists_common_extension`. -/
-theorem MeasurePreserving.exists_controlled_cell_alignment [StandardBorelSpace α]
+This is the honest, true form of the third conjunct of the old `exists_common_extension`
+stub: it adds `[NoAtoms μ]` (necessary — see the atom counterexample in the scoping note and
+`mp_maps_into_forces_measure_le`) and is now a standalone obligation resting only on the
+measure-isomorphism theorem (campaign phase R1), not on the unprovable monolithic stub. It is
+the sole cell-matching interface used by the inverse-counting route. -/
+theorem MeasurePreserving.exists_controlled_cell_alignment [StandardBorelSpace α] [NoAtoms μ]
     (P Q : MeasurablePartition α μ)
     {k : ℕ} (ι_S ι_T : Fin k → Set α)
     (hS : ∀ i, ι_S i ∈ P.parts) (hT : ∀ i, ι_T i ∈ Q.parts)
@@ -1115,9 +1129,7 @@ theorem MeasurePreserving.exists_controlled_cell_alignment [StandardBorelSpace �
     (h_meas : ∀ i, μ (ι_S i) = μ (ι_T i)) :
     ∃ (e : α ≃ᵐ α) (he : MeasurePreserving e μ μ),
       ∀ i, ∀ᵐ x ∂μ, x ∈ ι_S i → e x ∈ ι_T i := by
-  have ⟨_, _, h_controlled⟩ := MeasurePreserving.exists_common_extension
-    id (MeasurePreserving.id μ) id (MeasurePreserving.id μ) P Q
-  exact h_controlled ι_S ι_T hS hT hS_inj hT_inj h_meas
+  sorry
 
 /-- Cut norm difference is invariant under applying the same MeasurableEquiv to both graphons.
 
@@ -1183,6 +1195,40 @@ theorem cutNormDiff_pullback_measurableEquiv (U W : Graphon α μ)
         ← rect_eq hS₀ hT₀]
     exact abs_rectIntegralDiff_le (pullback U e he) (pullback W e he) hS₀ hT₀
 
+/-- **Pullback contracts the cut norm.** For a measure-preserving *map* `φ` (not necessarily a
+bijection), `‖U^φ − W^φ‖_□ ≤ ‖U − W‖_□`.
+
+Unlike `cutNormDiff_pullback_measurableEquiv` (equality, for bijections), this only requires
+`φ` to be measure-preserving. Proof idea: writing the rectangle integrals of the pulled-back
+kernels via the disintegration of `μ` along `φ`, each indicator `1_S` becomes the conditional
+probability `E[1_S ∣ φ] ∈ [0,1]`, so the pulled-back cut norm is a *weighted* cut norm with
+`[0,1]`-weights, which the cut norm dominates (`abs_weighted_integral_diff_le`). This is the
+map-level companion the corrected coupling triangle needs; it rests on the standard-Borel
+disintegration (campaign phase R1/R2). -/
+theorem cutNormDiff_pullback_le [StandardBorelSpace α] (U W : Graphon α μ)
+    (φ : α → α) (hφ : MeasurePreserving φ μ μ) :
+    cutNormDiff (pullback U φ hφ) (pullback W φ hφ) ≤ cutNormDiff U W := by
+  sorry
+
+/-- **An MP bijection nearly achieves the cut distance (corrected Rokhlin consequence 4).**
+On an *atomless* standard Borel probability space, the cut distance — an infimum over pairs of
+measure-preserving *maps* — is achieved up to any `ε` by pulling back `U` along a single
+measure-preserving **bijection**, leaving `W` bare.
+
+This is the honest, true replacement for the false `cutDistance_lt_add_of_pos_equiv`
+(Compactness) whose bijection witness was derived from the unprovable
+`exists_common_extension_maps`. It is genuinely needed by the completeness/compactness
+telescope: coherent frames require a bare reference, which forces invertibility (a coupling of
+maps cannot make a graphon bare without re-pulling the whole history). It is a standard
+consequence of the measure-isomorphism theorem (campaign phase R1); the value of `ε`-optimal
+maps comes from `cutDistance_lt_add_of_pos`, then one map is inverted onto a bijection via the
+measure iso. -/
+theorem exists_mpEquiv_cutNormDiff_lt_add [StandardBorelSpace α] [NoAtoms μ]
+    (U W : Graphon α μ) {ε : ℝ} (hε : 0 < ε) :
+    ∃ (σ : α ≃ᵐ α) (hσ : MeasurePreserving σ μ μ),
+      cutNormDiff (pullback U σ hσ) W < cutDistance U W + ε := by
+  sorry
+
 /-- Cut distance from a graphon to its pullback by a MP bijection is zero.
 
 For any graphon V and measure-preserving bijection e, `δ□(V, V^e) = 0`.
@@ -1236,10 +1282,11 @@ This is the key property making cut distance a pseudometric.
    d(U,W) ≤ d(U,V) + d(V,W) + 2ε
 5. Take ε → 0.
 
-**Depends on**: `MeasurePreserving.exists_common_extension` (Rokhlin sorry). -/
+**Depends on**: `MeasurePreserving.exists_common_coupling_maps` (corrected coupling, needs
+`[NoAtoms μ]`) and `cutNormDiff_pullback_le` (pullback contraction). -/
 @[blueprint "thm:cutDistance-triangle"
   (title := /-- Triangle inequality for cut distance -/)]
-theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
+theorem cutDistance_triangle [StandardBorelSpace α] [NoAtoms μ] (U V W : Graphon α μ) :
     cutDistance U W ≤ cutDistance U V + cutDistance V W := by
   -- Suffices to show: for all ε > 0, d(U,W) ≤ d(U,V) + d(V,W) + ε
   rw [← sub_nonneg]
@@ -1251,27 +1298,27 @@ theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
   -- Choose near-optimal maps for d(U,V) and d(V,W) with error δ/2
   obtain ⟨φ₁, ψ₁, hφ₁, hψ₁, h_UV⟩ := cutDistance_lt_add_of_pos U V (half_pos hδ_pos)
   obtain ⟨φ₂, ψ₂, hφ₂, hψ₂, h_VW⟩ := cutDistance_lt_add_of_pos V W (half_pos hδ_pos)
-  -- Rokhlin alignment — find bijections χ₁, χ₂ with ψ₁ ∘ χ₁ =ᵐ φ₂ ∘ χ₂
+  -- Coupling alignment — find MP maps χ₁, χ₂ with ψ₁ ∘ χ₁ =ᵐ φ₂ ∘ χ₂
   obtain ⟨χ₁, χ₂, hχ₁, hχ₂, h_align⟩ :=
-    MeasurePreserving.exists_common_extension_maps ψ₁ hψ₁ φ₂ hφ₂
+    MeasurePreserving.exists_common_coupling_maps ψ₁ hψ₁ φ₂ hφ₂
   -- Compose maps: (φ₁ ∘ χ₁, ψ₂ ∘ χ₂) are measure-preserving
   have hφ₁χ₁ : MeasurePreserving (φ₁ ∘ χ₁) μ μ := hφ₁.comp hχ₁
   have hψ₂χ₂ : MeasurePreserving (ψ₂ ∘ χ₂) μ μ := hψ₂.comp hχ₂
   -- d(U,W) ≤ ‖U^(φ₁∘χ₁) − W^(ψ₂∘χ₂)‖_□ (definition of inf)
   have h_inf_le : cutDistance U W ≤
-      cutNormDiff (pullback U (φ₁ ∘ ↑χ₁) hφ₁χ₁) (pullback W (ψ₂ ∘ ↑χ₂) hψ₂χ₂) := by
+      cutNormDiff (pullback U (φ₁ ∘ χ₁) hφ₁χ₁) (pullback W (ψ₂ ∘ χ₂) hψ₂χ₂) := by
     unfold cutDistance
     apply csInf_le
     · use 0; intro d ⟨φ, ψ, hφ, hψ, hd⟩; rw [hd]; exact cutNormDiff_nonneg _ _
     · exact ⟨φ₁ ∘ χ₁, ψ₂ ∘ χ₂, hφ₁χ₁, hψ₂χ₂, rfl⟩
   -- Triangle inequality for cutNormDiff
-  have hψ₁χ₁ : MeasurePreserving (ψ₁ ∘ ↑χ₁) μ μ := hψ₁.comp hχ₁
-  have hφ₂χ₂ : MeasurePreserving (φ₂ ∘ ↑χ₂) μ μ := hφ₂.comp hχ₂
+  have hψ₁χ₁ : MeasurePreserving (ψ₁ ∘ χ₁) μ μ := hψ₁.comp hχ₁
+  have hφ₂χ₂ : MeasurePreserving (φ₂ ∘ χ₂) μ μ := hφ₂.comp hχ₂
   -- V^(ψ₁∘χ₁) = V^(φ₂∘χ₂) by alignment
-  have h_V_ae : pullback V (ψ₁ ∘ ↑χ₁) hψ₁χ₁ = pullback V (φ₂ ∘ ↑χ₂) hφ₂χ₂ := by
+  have h_V_ae : pullback V (ψ₁ ∘ χ₁) hψ₁χ₁ = pullback V (φ₂ ∘ χ₂) hφ₂χ₂ := by
     apply Graphon.ext; apply SymmKernel.ext; apply AEEqFun.ext
-    have h1 := pullback_ae V (ψ₁ ∘ ↑χ₁) hψ₁χ₁
-    have h2 := pullback_ae V (φ₂ ∘ ↑χ₂) hφ₂χ₂
+    have h1 := pullback_ae V (ψ₁ ∘ χ₁) hψ₁χ₁
+    have h2 := pullback_ae V (φ₂ ∘ χ₂) hφ₂χ₂
     have h_prod_ae : ∀ᵐ p ∂(μ.prod μ),
         (ψ₁ (χ₁ p.1), ψ₁ (χ₁ p.2)) = (φ₂ (χ₂ p.1), φ₂ (χ₂ p.2)) := by
       have h_fst : ∀ᵐ p ∂(μ.prod μ), ψ₁ (χ₁ p.1) = φ₂ (χ₂ p.1) :=
@@ -1282,31 +1329,30 @@ theorem cutDistance_triangle [StandardBorelSpace α] (U V W : Graphon α μ) :
       exact Prod.ext hp1 hp2
     filter_upwards [h1, h2, h_prod_ae] with p hp1 hp2 hp_eq
     rw [hp1, hp2]; simp only [Function.comp_apply] at hp_eq ⊢; rw [hp_eq]
-  -- Key bounds using pullback_pullback and cutNormDiff_pullback_measurableEquiv
-  -- Term 1: ‖U^(φ₁∘χ₁) − V^(ψ₁∘χ₁)‖ = ‖(U^φ₁)^χ₁ − (V^ψ₁)^χ₁‖ = ‖U^φ₁ − V^ψ₁‖
-  have h1 : cutNormDiff (pullback U (φ₁ ∘ ↑χ₁) hφ₁χ₁) (pullback V (ψ₁ ∘ ↑χ₁) hψ₁χ₁) =
+  -- Key bounds using pullback_pullback and the pullback CONTRACTION (χ₁, χ₂ are maps)
+  -- Term 1: ‖U^(φ₁∘χ₁) − V^(ψ₁∘χ₁)‖ = ‖(U^φ₁)^χ₁ − (V^ψ₁)^χ₁‖ ≤ ‖U^φ₁ − V^ψ₁‖
+  have h1 : cutNormDiff (pullback U (φ₁ ∘ χ₁) hφ₁χ₁) (pullback V (ψ₁ ∘ χ₁) hψ₁χ₁) ≤
       cutNormDiff (pullback U φ₁ hφ₁) (pullback V ψ₁ hψ₁) := by
-    rw [show pullback U (φ₁ ∘ ↑χ₁) hφ₁χ₁ = pullback (pullback U φ₁ hφ₁) χ₁ hχ₁ from
-        (pullback_pullback U φ₁ hφ₁ (↑χ₁) hχ₁).symm,
-      show pullback V (ψ₁ ∘ ↑χ₁) hψ₁χ₁ = pullback (pullback V ψ₁ hψ₁) χ₁ hχ₁ from
-        (pullback_pullback V ψ₁ hψ₁ (↑χ₁) hχ₁).symm]
-    exact cutNormDiff_pullback_measurableEquiv _ _ χ₁ hχ₁
+    rw [show pullback U (φ₁ ∘ χ₁) hφ₁χ₁ = pullback (pullback U φ₁ hφ₁) χ₁ hχ₁ from
+        (pullback_pullback U φ₁ hφ₁ χ₁ hχ₁).symm,
+      show pullback V (ψ₁ ∘ χ₁) hψ₁χ₁ = pullback (pullback V ψ₁ hψ₁) χ₁ hχ₁ from
+        (pullback_pullback V ψ₁ hψ₁ χ₁ hχ₁).symm]
+    exact cutNormDiff_pullback_le _ _ χ₁ hχ₁
   -- Term 2: ‖V^(ψ₁∘χ₁) − W^(ψ₂∘χ₂)‖ = ‖V^(φ₂∘χ₂) − W^(ψ₂∘χ₂)‖
-  --       = ‖(V^φ₂)^χ₂ − (W^ψ₂)^χ₂‖ = ‖V^φ₂ − W^ψ₂‖
-  have h2 : cutNormDiff (pullback V (ψ₁ ∘ ↑χ₁) hψ₁χ₁) (pullback W (ψ₂ ∘ ↑χ₂) hψ₂χ₂) =
+  --       = ‖(V^φ₂)^χ₂ − (W^ψ₂)^χ₂‖ ≤ ‖V^φ₂ − W^ψ₂‖
+  have h2 : cutNormDiff (pullback V (ψ₁ ∘ χ₁) hψ₁χ₁) (pullback W (ψ₂ ∘ χ₂) hψ₂χ₂) ≤
       cutNormDiff (pullback V φ₂ hφ₂) (pullback W ψ₂ hψ₂) := by
     rw [h_V_ae,
-      show pullback V (φ₂ ∘ ↑χ₂) hφ₂χ₂ = pullback (pullback V φ₂ hφ₂) χ₂ hχ₂ from
-        (pullback_pullback V φ₂ hφ₂ (↑χ₂) hχ₂).symm,
-      show pullback W (ψ₂ ∘ ↑χ₂) hψ₂χ₂ = pullback (pullback W ψ₂ hψ₂) χ₂ hχ₂ from
-        (pullback_pullback W ψ₂ hψ₂ (↑χ₂) hχ₂).symm]
-    exact cutNormDiff_pullback_measurableEquiv _ _ χ₂ hχ₂
+      show pullback V (φ₂ ∘ χ₂) hφ₂χ₂ = pullback (pullback V φ₂ hφ₂) χ₂ hχ₂ from
+        (pullback_pullback V φ₂ hφ₂ χ₂ hχ₂).symm,
+      show pullback W (ψ₂ ∘ χ₂) hψ₂χ₂ = pullback (pullback W ψ₂ hψ₂) χ₂ hχ₂ from
+        (pullback_pullback W ψ₂ hψ₂ χ₂ hχ₂).symm]
+    exact cutNormDiff_pullback_le _ _ χ₂ hχ₂
   -- Combine via cutNormDiff triangle and the inf bound
   have h_tri := cutNormDiff_triangle
-    (pullback U (φ₁ ∘ ↑χ₁) hφ₁χ₁) (pullback V (ψ₁ ∘ ↑χ₁) hψ₁χ₁) (pullback W (ψ₂ ∘ ↑χ₂) hψ₂χ₂)
-  rw [h1, h2] at h_tri
-  -- Now: d(U,W) ≤ ‖...‖ ≤ ‖U^φ₁ − V^ψ₁‖ + ‖V^φ₂ − W^ψ₂‖
-  --            < (d(U,V) + δ/2) + (d(V,W) + δ/2) = d(U,V) + d(V,W) + δ
+    (pullback U (φ₁ ∘ χ₁) hφ₁χ₁) (pullback V (ψ₁ ∘ χ₁) hψ₁χ₁) (pullback W (ψ₂ ∘ χ₂) hψ₂χ₂)
+  -- Now: d(U,W) ≤ ‖...‖ ≤ ‖U^(φ₁χ₁) − V^(ψ₁χ₁)‖ + ‖V^(ψ₁χ₁) − W^(ψ₂χ₂)‖
+  --            ≤ ‖U^φ₁ − V^ψ₁‖ + ‖V^φ₂ − W^ψ₂‖ < (d(U,V) + δ/2) + (d(V,W) + δ/2)
   -- But δ = d(U,W) − d(U,V) − d(V,W), so d(U,W) < d(U,W), contradiction.
   linarith
 
