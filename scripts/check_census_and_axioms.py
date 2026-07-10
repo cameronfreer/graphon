@@ -46,6 +46,7 @@ AUDITED_DECLS = {
     "Graphon.sampleMass_map_perm",
     "Graphon.samplePMF_map_comap",
     "Graphon.sampleLaw_map_comap",
+    "Graphon.sampleLaw_const_eq_binomial",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
