@@ -60,6 +60,7 @@ import Graphon.EmpiricalGraphon
 import Graphon.InfiniteExtremality
 import Graphon.InfiniteSampler
 import Graphon.DissociatedSampler
+import Graphon.VertexTail
 import Graphon.Convergence
 
 /-!
@@ -122,6 +123,7 @@ in Lean 4 using Mathlib.
 * `Graphon.AlmostSureSampling` — Almost-sure convergence of the sampled empirical graphons to the class of `W` (Lovász Prop 11.32; Borel–Cantelli over the concentration tails)
 * `Graphon.LimitGraphon` — The empirical graphon limit as a universal measurable random variable: `limitGraphon` with law `infiniteMixtureLawEquiv.symm M` under every exchangeable law
 * `Graphon.DissociatedSampler` — Functional Aldous–Hoover for dissociated laws: an infinite exchangeable law is dissociated iff it is the law of the explicit `W`-random graph (`isDissociated_iff_exists_sampler`)
+* `Graphon.VertexTail` — Vertex-tail infrastructure: the tail shift and σ-algebras, finite-deletion stability of empirical limits, and vertex-tail measurability of `limitGraphon`
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 

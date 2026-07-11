@@ -92,6 +92,7 @@ The project contains **zero `sorry` statements** (issue #19, completed 2026-07-1
 | `Graphon/AlmostSureSampling.lean` | Core | Almost-sure convergence of the sampled empirical graphons (Prop 11.32) |
 | `Graphon/LimitGraphon.lean` | Core | The empirical graphon limit as a universal measurable random variable |
 | `Graphon/DissociatedSampler.lean` | Core | Functional Aldous–Hoover for dissociated laws: dissociated = law of an explicit W-random graph |
+| `Graphon/VertexTail.lean` | Core | Vertex-tail shift + σ-algebras; deletion stability; limitGraphon is tail-measurable |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
