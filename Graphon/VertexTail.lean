@@ -142,6 +142,15 @@ arbitrarily late vertex tails. -/
 @[reducible] noncomputable def vertexTailAlgebra : MeasurableSpace InfiniteGraph :=
   ⨅ k, tailAlgebra k
 
+/-- The tail σ-algebras are antitone: a deeper tail carries less information. -/
+theorem tailAlgebra_antitone : Antitone (tailAlgebra : ℕ → MeasurableSpace InfiniteGraph) := by
+  intro k l hkl s hs
+  obtain ⟨t, ht, rfl⟩ := hs
+  refine ⟨drop (l - k) ⁻¹' t, measurable_drop (l - k) ht, ?_⟩
+  ext G
+  simp only [Set.mem_preimage, drop_drop]
+  rw [Nat.sub_add_cancel hkl]
+
 theorem vertexTailAlgebra_le_tailAlgebra (k : ℕ) :
     vertexTailAlgebra ≤ tailAlgebra k :=
   iInf_le _ k
