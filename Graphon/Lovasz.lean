@@ -21,6 +21,20 @@ import Mathlib.Tactic.Ring
 /-!
 # Lovász §3 — Connection-matrix algebra and the multigraph bridge
 
+> **Historical note (resolved).** The header below describes this module's
+> original scaffolding mission (2026-05) and is retained as the design
+> record. Every obligation it presents as live has since been **proved in
+> this file, sorry-free** (the CI census enforces zero `sorry` tokens
+> repository-wide): the §4 bridge `multiLabeledEvalK_tupleEquiv_invariant`
+> (general, non-twin-free) and its twin-free corollary, the §2/§3 "stubs"
+> (`MultiLabeledGraph.empty`/`add`/`glue`, `multiLabeledEvalK_empty`/`_glue`,
+> `tupleEquivMulti`), the connection-matrix rank theorem
+> (`connection_matrix_rank_theorem`) and the simple-graph Lemma 2.4
+> (`tupleEquivSimple_implies_orbit`, closed 2026-07-02 via the Cai–Govorov
+> descent, #70). The counterpart in `MatrixDetermination.lean` is likewise
+> proved. Also, the module now imports `Graphon.CaiGovorov`, so the
+> "self-contained, no `Graphon.*` dependencies" line below is historical.
+
 This module is **forward-looking infrastructure** for closing the
 canonical algebraic root in `Graphon/MatrixDetermination.lean`:
 
@@ -32,7 +46,7 @@ at `MatrixDetermination.lean:7150`. That sorry is the precise Lovász
 TR-2004-82 §3 content: simple-graph `tupleEquiv` ⟹ all multigraph
 evaluations agree.
 
-## Module status
+## Module status (historical — see note above)
 
 **Scaffolding stage**: this module mirrors the multigraph carrier
 (`MultiLabeledGraph`, `multiLabeledEvalK`, `MultiLabeledGraph.ofSimple`)
@@ -76,9 +90,9 @@ adapter, since the types live in different namespaces).
 * `tupleEquivMulti` — multigraph version of `tupleEquiv`.
 * `multiLabeledEvalK_trace_closure` — Lovász eq. 6, page 7.
 
-### §4 — The bridge theorem (DECLARED, sorry'd)
+### §4 — The bridge theorem (DECLARED, sorry'd — since PROVED)
 
-* `multiLabeledEvalK_tupleEquiv_invariant` — bridge.
+* `multiLabeledEvalK_tupleEquiv_invariant` — bridge (now proved below).
 
 ## References
 
@@ -1906,7 +1920,13 @@ algebraic burden.
 
 For now, #86 remains the canonical paper-root. Stating step 1
 separately would just add a sorry without progress — defer to a focused
-Lagrange session where the proof can actually close. -/
+Lagrange session where the proof can actually close.
+
+**Historical note (resolved)**: the plan above describes the state as of
+2026-06. Both steps have since been proved — Step 1 as
+`of_const_on_tupleEquivSimple` (§3.9 below), Step 2 via
+`multigraphEval_in_simpleProfileClosure` and the Cai–Govorov descent —
+and #86 is closed. -/
 
 /-! ### §3.9 — Lagrange fullness (Step 1 toward #86) -/
 
@@ -2567,7 +2587,9 @@ Trade-off: requires `h_orbit` (Lemma 2.4), which itself has an
 architectural sorry at the "both non-surj" branch. But the existing
 dispatcher chain ALSO depends on this same sorry (via the K=1 rank
 theorem's reliance on `k1_orbit_sep_aux` → Lemma 2.4 at K=1). So net
-no new sorries.
+no new sorries. (Historical note, resolved: the "both non-surj" branch
+was subsequently proved — `tupleEquivSimple_implies_orbit`, closed
+2026-07-02 via the Cai–Govorov descent — so `h_orbit` is sorry-free.)
 
 Caveats addressed:
   - W-product invariance: ∏ W(σ σ_var v) = ∏ W(σ_var v) by W-aut.
@@ -2708,10 +2730,12 @@ theorem label_unlabeled_square_with_background_descends {T K : ℕ}
 doubled edge `(i, j)` with both `i, j` unlabeled (val ≥ K), and no
 other edges touch `i` or `j`. All other multiplicities ≤ 1.
 
-**Status**: algebraically closable (ξ-independent scalar prefactor
+**Status**: PROVED (ξ-independent scalar prefactor
 `∑_{s,t} W(s)W(t) B(s,t)²` times a simple-graph evaluation on the
-remaining vertices). Sorry'd pending the σ-sum factorization
-infrastructure (~200 LOC of Equiv-based Fin reindexing). -/
+remaining vertices). An earlier revision of this docstring said
+"sorry'd pending the σ-sum factorization infrastructure"; that
+infrastructure (~200 LOC of Equiv-based Fin reindexing) has since
+landed and the proof below is complete. -/
 private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends
     {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
@@ -2964,7 +2988,8 @@ private theorem multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descend
   -- Step 7 application: instantiate h_simple at F_rest. This gives the
   -- equality of F_rest's evaluation at ξ vs ξ' for free.
   have h_simple_F_rest := h_simple (n - 2) F_rest
-  -- Step 7 named local lemma h_rest_eval (statement only; body sorry'd).
+  -- Step 7 named local lemma h_rest_eval (an earlier draft left the body
+  -- sorry'd; it is now proved below).
   -- Parameterized by α : Fin 2 → Fin T so τ is fully defined via
   -- σ = splitSigma.symm (α, ρ); no `default : Fin T` needed (Path 2).
   have h_rest_eval : ∀ (α : Fin 2 → Fin T) (η : Fin K → Fin T),
@@ -4061,7 +4086,10 @@ already proved in `Graphon/MatrixDetermination.lean` as
 `tupleEquiv_restrict` / `tupleEquiv_extend` / `tupleEquiv_bijective_case`
 / `tupleEquiv_surjective_case` / `tupleEquiv_implies_tupleOrbitRel`, but
 adapted to the inline `tupleEquivSimple` predicate to avoid the import
-cycle with `MatrixDetermination`. The current status:
+cycle with `MatrixDetermination`. The status list below is **historical**
+(it described the state at the time): every item, including the then-named
+sub-sorry `product_trace_identity_simple` and the non-surjective branch,
+has since been fully proved. The status at the time:
 
 * **Claim 4.1** (`tupleEquivSimple_restrict`) — proved.
 * **Claim 4.2** (`tupleEquivSimple_extend`) — proved MODULO the named
@@ -4405,14 +4433,16 @@ Three lemmas drive the assembly:
 * `coeffRestrictSimple_equiv` — class constancy: simple-equivalence
   of `ξ` and `ξ'` transfers `coeffRestrictSimple B W μ ξ =
   coeffRestrictSimple B W μ ξ'`. PROVED via `functional_span_zero`
-  + `product_trace_identity_simple` (the latter is a focused
-  sub-sorry capturing the Lovász §3 deep content).
+  + `product_trace_identity_simple` (the latter was a focused
+  sub-sorry capturing the Lovász §3 deep content at the time; it has
+  since been proved in §3.9.3).
 * `exists_extension_of_coeffRestrictSimple_pos` — from positivity, some
   `t` makes the indicator true, yielding the extension.
 
-The class-constancy step is now proved structurally. The single
-remaining architectural hurdle is the LIST-product trace identity
-`product_trace_identity_simple` (Lovász §3 / DecLabeledGraph). -/
+The class-constancy step is now proved structurally. What was then the
+single remaining architectural hurdle — the LIST-product trace identity
+`product_trace_identity_simple` (Lovász §3 / DecLabeledGraph) — has
+since been proved. -/
 
 /-- **Restriction-weight coefficient** for a `(k+1)`-tuple `μ`
 at a level-`k` base `ξ`. Sums `W t` over `t : Fin T` such that the
@@ -4600,16 +4630,16 @@ private theorem functional_span_zero {Q : Type*} [Fintype Q] [DecidableEq Q]
       · exact absurd (sub_eq_zero.mp hcase) hi_sep.symm
 
 /-! ### §3.9.3 — Simple-graph evaluation, single-graph trace identity, and
-    the product trace identity (named focused sorry).
+    the product trace identity (formerly a named focused sorry; since PROVED).
 
 We package the simple-graph evaluation body that appears inside
 `tupleEquivSimple` as a noncomputable definition `simpleEvalAt`, prove
 the single-graph trace identity directly from
-`multiLabeledEvalK_sum_last_label`, and state the LIST-product trace
-identity as a focused sorry. The product identity is the genuine
-Lovász §3 content (it requires the connection-matrix / DecLabeledGraph
-machinery in `MatrixDetermination.lean`, ~3000 lines), and is the SOLE
-remaining gap for `coeffRestrictSimple_equiv` below. -/
+`multiLabeledEvalK_sum_last_label`, and prove the LIST-product trace
+identity (originally stated here as a focused sorry — the genuine
+Lovász §3 content, then the SOLE remaining gap for
+`coeffRestrictSimple_equiv` below; it has since been proved in this
+section). -/
 
 /-- Simple-graph evaluation extracted as a named definition (matching the
 body of `tupleEquivSimple` and the RHS of `multiLabeledEvalK_ofSimple`). -/
@@ -6674,8 +6704,9 @@ simple-graph evaluations at `ξ` and `ξ'` agree, then `ξ'` is in the weighted-
 orbit of `ξ` — with NO surjectivity hypothesis on either tuple. Route: match an extension of
 `ξ'` against the super-surjective `superExt ξ` on all test moments (chunk 4F), run the
 moment-form super-case (chunk 4A) at level `K + T·2T²`, and restrict the resulting
-automorphism to the first `K` labels. This is the statement of the sorry'd
-`tupleEquivSimple_implies_orbit` (`Lovasz.lean` §3.10), proved downstream. -/
+automorphism to the first `K` labels. This is the statement of
+`tupleEquivSimple_implies_orbit` (`Lovasz.lean` §3.10; formerly sorry'd at
+its non-surjective branch, now proved via this theorem), proved downstream. -/
 theorem tupleEquivSimple_implies_orbit_general {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (hW : ∀ v, 0 < W v)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j) (ξ ξ' : Fin K → Fin T)
@@ -7033,7 +7064,11 @@ counts of simple graphs.
      infrastructure for the multigraph algebra `𝒜_K`).
 
 Step 1 (`of_const_on_tupleEquivSimple`, Lagrange fullness) is PROVED.
-The only remaining sorry is inside `multigraphEval_unlabeled_excess_descends`. -/
+
+**Historical note (resolved)**: at the time of writing, the only remaining
+sorry was inside `multigraphEval_unlabeled_excess_descends`; that lemma was
+subsequently proved (Cai–Govorov orbit route, 2026-07-02), so this chain is
+sorry-free. -/
 theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -7060,7 +7095,9 @@ theorem multigraphEval_in_simpleProfileClosure {T K n : ℕ}
   -- Descent: multiLabeledEvalK is constant on inlined-tupleEquivSimple classes.
   -- Case split on n and multiplicities, matching the existing
   -- `multiLabeledEvalK_tupleEquiv_invariant` (#62) wrapper structure.
-  -- The mult ≥ 2 case is the substantive Lovász §3 content (sorry'd here).
+  -- The mult ≥ 2 case is the substantive Lovász §3 content (formerly
+  -- sorry'd here; now dispatched to the proved
+  -- `multigraphEval_unlabeled_excess_descends`).
   match n, M with
   | 0, M => exact multiLabeledEvalK_tupleEquiv_invariant_n_zero B hB W M
               (fun n' F hF => h_equiv n' F)
@@ -7230,8 +7267,8 @@ theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
   exact multiLabeledEvalK_eq_of_orbit B hB W M ⟨σ, hσ_aut.1, hσ_aut.2, hconj⟩
 
 
-/-- **Product trace identity (named focused sorry)** —
-the LIST-product analog of `simpleEvalAt_trace_eq` below.
+/-- **Product trace identity (formerly a named focused sorry; since PROVED
+below)** — the LIST-product analog of `simpleEvalAt_trace_eq` below.
 
 For any list `L` of `(k+1)`-labeled simple graphs and any tuples `ξ ξ'`
 simple-equivalent at level `k`, the W-weighted last-label sum of the
@@ -7241,18 +7278,19 @@ product `∏ simpleEvalAt F_i (snoc ξ t)` is equal for `ξ` and `ξ'`.
 `MatrixDetermination.lean` it is `product_trace_identity` (L10390),
 proved via a long chain ending in
 `DecLabeledGraph.trace_eval_tupleEquiv_invariant` (~3000 lines of
-decorated-labeled-graph machinery). Porting that here is out of
-scope; we name this as a focused architectural sorry, which is the
-SOLE missing piece for `coeffRestrictSimple_equiv`.
+decorated-labeled-graph machinery). Porting that here was out of
+scope; this was originally named as a focused architectural sorry —
+then the SOLE missing piece for `coeffRestrictSimple_equiv` — and has
+since been proved (see the proof below).
 
 Note: the single-graph case (`L = [⟨n, F⟩]`) is provable directly via
 `multiLabeledEvalK_sum_last_label` (see `simpleEvalAt_trace_eq` below).
 The empty list `L = []` is trivial. The non-trivial content is the
 binary case (`L = L₁ ++ L₂`), which is genuinely a multigraph trace
 statement that does not reduce to `tupleEquivSimple` at level `k`
-alone — it needs either the bridge theorem (currently sorry in
-`multiLabeledEvalK_tupleEquiv_invariant`) or the DecLabeledGraph
-machinery. -/
+alone — it needs either the bridge theorem
+(`multiLabeledEvalK_tupleEquiv_invariant`, sorry'd at the time this
+was written and since proved) or the DecLabeledGraph machinery. -/
 private theorem product_trace_identity_simple {T k : ℕ}
     (_B : Fin T → Fin T → ℝ) (_hB : ∀ i j, _B i j = _B j i) (_W : Fin T → ℝ)
     (_hW : ∀ i, 0 < _W i) (_htwin : ∀ i j, i ≠ j → _B i ≠ _B j)
@@ -7352,9 +7390,11 @@ by `ξ'`.
    separation from the definition of `tupleEquivSimple`; orthogonality
    from `product_trace_identity_simple`.
 
-**Modulo**: the named architectural sorry `product_trace_identity_simple`
-(the genuine Lovász §3 content; ~3000 lines via DecLabeledGraph in
-`MatrixDetermination.lean`). Everything else is closed. -/
+**Modulo** (historical): this was originally proved modulo the then-named
+architectural sorry `product_trace_identity_simple` (the genuine Lovász §3
+content; ~3000 lines via DecLabeledGraph in `MatrixDetermination.lean`).
+That identity has since been proved above, so this theorem is
+unconditionally sorry-free. -/
 theorem coeffRestrictSimple_equiv {T k : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i)
@@ -7506,8 +7546,10 @@ such that `μ` and `ν` are simple-equivalent at level `k+1`.
 * Positivity yields some `a` with `tupleEquivSimple μ (snoc ξ' a)`
   (`exists_extension_of_coeffRestrictSimple_pos`); take `ν = snoc ξ' a`.
 
-**Modulo**: the named sorry `coeffRestrictSimple_equiv` (the class
-constancy step — the IH-free Lovász §4 core). -/
+**Modulo** (historical): this was originally proved modulo the then-named
+sorry `coeffRestrictSimple_equiv` (the class constancy step — the IH-free
+Lovász §4 core), which has since been proved above; the chain is
+sorry-free. -/
 theorem tupleEquivSimple_extend {T k : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -8232,7 +8274,14 @@ theorem tupleEquivSimple_ext_eq_of_surj {T k : ℕ}
       _ = B b (α j) := key
       _ = B (α j) b := hB _ _
 
-/-! ### §3.95 — Connection-matrix rank theorem (canonical architectural sorry)
+/-! ### §3.95 — Connection-matrix rank theorem (formerly the canonical
+architectural sorry; since PROVED)
+
+**Historical note (resolved)**: the status prose below describes the state
+when this section was the project's canonical sorry. The rank theorem and
+its contrapositive `orbit_separation_by_simple_graph` have since been
+proved (`connection_matrix_rank_theorem`; closed 2026-07-02 via the
+Cai–Govorov descent).
 
 This subsection introduces the **connection matrix** `N(K, B, W)` over
 k-labeled (multi-)graphs and states the **rank theorem** (Lovász
@@ -8267,11 +8316,12 @@ Theorem 2.2 ("rk N(K, B, W) = orb_K(B, W)") in the equivalence-class
 form: distinct rank = distinct orbit, so row equality forces orbit
 equality.
 
-**Status**: SORRY'd at the rank theorem. All downstream content
-(`tupleEquivSimple_implies_orbit`, `tupleEquivMulti_implies_orbit`, the
-twin-free multigraph bridge corollary) routes through this single named
-sorry. The remaining sorry (general non-twin-free `n+1` multigraph
-bridge, `multiLabeledEvalK_tupleEquiv_invariant`) is independent.
+**Status (historical; both items since proved)**: SORRY'd at the rank
+theorem. All downstream content (`tupleEquivSimple_implies_orbit`,
+`tupleEquivMulti_implies_orbit`, the twin-free multigraph bridge
+corollary) routes through this single named sorry. The remaining sorry
+(general non-twin-free `n+1` multigraph bridge,
+`multiLabeledEvalK_tupleEquiv_invariant`) is independent.
 
 **Reduction to the deep paper content**: the proof structure mirrors the
 strong induction + deficit-induction in
@@ -8301,9 +8351,9 @@ that may be left as an off-axis generalization.
 
 Under twin-free `B` and strictly positive `W`, the rank theorem
 states `tupleEquivSimple ⟹ tupleOrbitRel`. The **separation**
-contrapositive (`orbit_separation_by_simple_graph` below) is the
-canonical primary sorry; the rank theorem is a short contradiction
-proof from it. -/
+contrapositive (`orbit_separation_by_simple_graph` below) was the
+canonical primary sorry (since proved); the rank theorem is a short
+contradiction proof from it. -/
 
 /-! ### Lovász §3 — Idempotent decomposition: orbit indicators
 
@@ -8313,9 +8363,10 @@ that orbit indicators lie in the ℝ-span of simple-graph evaluations
 (Lovász §3 multigraph-algebra fullness, restricted to simple graphs
 under twin-free `B`).
 
-The canonical primary sorry of the Lovász chain is *migrated* from
+The canonical primary sorry of the Lovász chain was *migrated* from
 `orbit_separation_by_simple_graph` to `orbitIndicator_mem_simpleGraphSpan`
-— a cleaner ℝ-linear-algebra statement that captures the same content. -/
+— a cleaner ℝ-linear-algebra statement that captures the same content.
+(Both have since been proved; closed 2026-07-02.) -/
 
 /-- **`tupleOrbitRel` is reflexive.**
 
@@ -8478,7 +8529,8 @@ participates in 2 distinct 5-cycles in C₅ but 0 in C₆. Found by
 `scripts/separator_search.py cycles`.
 
 **Implication**: edge + degree profiles are insufficient. The
-canonical primary sorry must reflect this — restore
+canonical primary sorry must reflect this (historical directive;
+`orbit_separation_by_simple_graph` has since been proved) — restore
 `orbit_separation_by_simple_graph` as the abstract primary, with
 explicit acknowledgment that the separator family includes rooted
 cycles / paths / trees of unbounded size. -/
@@ -8839,7 +8891,9 @@ private theorem map_emb₂_adj_iff {n₁ n₂ : ℕ} (F₂ : SimpleGraph (Fin (n
 /-- **Multigraph correspondence**: the `ofSimple` of a rooted product equals
 the multigraph glue of the individual `ofSimple` graphs.
 
-**Status**: structural sorry. Proof skeleton: `refine MultiLabeledGraph.mk.injEq .. |>.mpr ?_`,
+**Status**: PROVED (an earlier revision of this docstring said "structural
+sorry ... reverted to clean sorry pending careful one-shot rewrite"; the
+rewrite below has since landed). Proof skeleton: `refine MultiLabeledGraph.mk.injEq .. |>.mpr ?_`,
 `funext e`, `induction e with | h a b => simp only [Sym2.lift_mk]; ...`
 followed by 6 region-case branches using the helpers
 `map_emb₁_adj_iff`, `map_emb₂_adj_iff`, `rootedProductEmb_*_val_*`,
@@ -8852,9 +8906,10 @@ Cases by (a-region, b-region) where each can be {root, F₁-only, F₂-only}:
 - (F₁, *), (F₂, *): symmetric.
 - (F₁, F₂) or (F₂, F₁): cross-region — no edge in rooted product.
 
-Closure barrier in attempted impl: `omega` calls inside `Fin.ext`-applications
-needed explicit hypothesis references rather than ambient context. ~330 LOC
-spent in attempt; reverted to clean sorry pending careful one-shot rewrite. -/
+Closure barrier in the first attempted impl (historical): `omega` calls
+inside `Fin.ext`-applications needed explicit hypothesis references rather
+than ambient context; ~330 LOC were spent before reverting to a clean sorry.
+The careful one-shot rewrite subsequently succeeded — see the proof below. -/
 theorem ofSimple_rootedProduct_eq_glue {n₁ n₂ : ℕ}
     (F₁ : SimpleGraph (Fin (n₁ + 1))) [DecidableRel F₁.Adj]
     (F₂ : SimpleGraph (Fin (n₂ + 1))) [DecidableRel F₂.Adj] :
@@ -9374,7 +9429,7 @@ theorem orbit_separation_id {T : ℕ}
 under twin-free `B` and `W > 0`, `tupleEquivSimple ⟹ tupleOrbitRel`.
 
 Proved as a contradiction proof from `orbit_separation_by_simple_graph`
-(the contrapositive form, where the canonical sorry now lives). -/
+(the contrapositive form — formerly the canonical sorry, since proved). -/
 theorem connection_matrix_rank_theorem {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i)
@@ -12250,9 +12305,12 @@ in the rooted-profile ℝ-span.
 5. Express `f` as a linear combination of orbit indicators (its values
    on orbit representatives).
 
-**Status**: named sorry. Once `InRootedProfileSpan.mul` is proved (which
-depends on `simpleEvalAt_rootedProduct`), this closing lemma becomes
-pure finite-dimensional linear algebra (~100 LOC).
+**Status (historical; since resolved)**: named sorry at the time. The
+plan was: once `InRootedProfileSpan.mul` is proved (which depends on
+`simpleEvalAt_rootedProduct`), this closing lemma becomes pure
+finite-dimensional linear algebra (~100 LOC). Both
+`InRootedProfileSpan.mul` and `InRootedProfileSpan.of_const_on_orbit`
+have since been proved.
 
 **Note**: stating the rank theorem with `vertexOrbitRel` (not
 `rootedProfileEquiv`) avoids a circular dependency on Lemma 2.4 — the
@@ -12260,8 +12318,8 @@ proof requires only the forward direction (orbit ⟹ rpe), which is
 trivial, plus the separation of distinct orbits by rooted profiles. -/
 /- **K=1 orbit separation auxiliary**: distinct orbits are separated by some
 rooted profile. Routes through `tupleEquivSimple_implies_orbit` at K=1
-(which is sorry-dependent on #70 via `connection_matrix_rank_theorem`,
-but #70 is an unrelated sorry leaf that doesn't depend on this chain). -/
+(formerly sorry-dependent on #70 via `connection_matrix_rank_theorem`;
+#70 has since been proved, so this chain is sorry-free). -/
 private theorem k1_orbit_sep_aux {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i)
@@ -13664,18 +13722,19 @@ For each label position `a : Fin K`, fix the embedding `r : Fin 1 ↪ Fin K`
 sending `0 ↦ a`. Restriction gives `tupleEquivSimple` at K=1 for the
 single coordinate. Apply `diagonal_observable_K1` to conclude.
 
-**Status**: proved modulo #77 (the K=1 spectral paper-root). This replaces
-the earlier sorry-stub `diagonal_observable_of_tupleEquivSimple` that
-was a placeholder pending the rank-theorem path. Routing through the
-K=1 spectral chain (#77) is more direct than the rank theorem.
+**Status**: PROVED — the separation input comes from
+`diagonal_observable_K1`, whose `rooted_profiles_separate_vertex_orbits`
+input is proved via `rootedProfileEquiv_imp_vertexOrbitRel` (the
+rank-theorem route). This replaces the earlier sorry-stub
+`diagonal_observable_of_tupleEquivSimple` that was a placeholder pending
+the rank-theorem path.
 
-**Architectural consequence**: #79's diagonal observable now reduces
-to #77 (K=1 spectral paper-root) rather than to a separate rank theorem.
-This collapses two paper-roots into one.
-
-**Downstream**: any consumer of `diagonal_observable_of_tupleEquivSimple`
-(e.g., the n=0 loop bridge `multiLabeledEvalKLoop_n_zero_of_diag`)
-inherits dependency on #77. -/
+**Historical note**: earlier revisions of this docstring said "proved
+modulo #77 (the K=1 spectral paper-root)" and that consumers "inherit
+dependency on #77"; the #77 closed-walk route was refuted and removed
+(issue #19), and the theorem is now unconditionally proved via the
+rank-theorem route. Consumers (e.g., the n=0 loop bridge
+`multiLabeledEvalKLoop_n_zero_of_diag`) inherit no open dependency. -/
 theorem diagonal_observable_of_tupleEquivSimple {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
@@ -13699,10 +13758,12 @@ theorem diagonal_observable_of_tupleEquivSimple {T K : ℕ}
 
 -- **Lovász Lemma 2.5, reverse direction** (multi-equivalence ⟹ orbit) is now
 -- `tupleEquivMulti_implies_orbit` (defined earlier via the honest multigraph Lemma 2.4 chain —
--- Claims 4.1–4.4 — conditional only on the diagonal residue `tupleEquivMulti_preserves_diagonal`,
--- NOT the simple-graph `tupleEquivSimple_implies_orbit` sorry). The old simple-routed stub is removed.
+-- Claims 4.1–4.4 — conditional only on the diagonal residue `tupleEquivMulti_preserves_diagonal`
+-- (since proved), NOT the simple-graph `tupleEquivSimple_implies_orbit`, which was sorry'd when
+-- this was written and has also since been proved). The old simple-routed stub is removed.
 
-/-! ### §4 — The bridge theorem (canonical sorry)
+/-! ### §4 — The bridge theorem (formerly the canonical sorry; since PROVED
+— see `multiLabeledEvalK_tupleEquiv_invariant` above)
 
 Stated abstractly: for any pair `ξ ξ'` such that ALL simple-graph
 evaluations agree (the simple-graph `tupleEquiv` predicate), every
@@ -13718,7 +13779,8 @@ follows by chaining through the orbit relation:
   `tupleEquivSimple` → orbit (via `tupleEquivSimple_implies_orbit`)
   → multi-eval-equality (via `multiLabeledEvalK_orbit_invariant`).
 
-This avoids the `n+1` sorry of the general bridge. It does NOT
+This avoids the `n+1` case of the general bridge (sorry'd when this
+was written; since proved). It does NOT
 subsume `multiLabeledEvalK_tupleEquiv_invariant`: the latter must hold
 for all `B` (including `B` with twins), while this version requires
 twin-freeness.
@@ -13745,7 +13807,8 @@ theorem multiLabeledEvalK_tupleEquiv_invariant_twinFree {T K n : ℕ}
     {ξ ξ' : Fin K → Fin T}
     (h : tupleEquivSimple B W ξ ξ') :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
-  -- Step 1: simple-equivalence ⟹ orbit (the canonical sorry).
+  -- Step 1: simple-equivalence ⟹ orbit (formerly the canonical sorry;
+  -- proved).
   obtain ⟨σ, hW_eq, hB_eq, hξ_eq⟩ :=
     tupleEquivSimple_implies_orbit B hB W hW htwin h
   -- Step 2: orbit ⟹ multi-eval-equality (orbit-invariance, fully proved).
