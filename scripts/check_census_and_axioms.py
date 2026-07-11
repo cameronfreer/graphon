@@ -66,6 +66,7 @@ AUDITED_DECLS = {
     "Graphon.ExchangeableGraphLaw.infiniteLaw_map_relabel",
     "Graphon.exchangeableGraphLawEquivInfinite",
     "GraphonSpace.infiniteMixtureLawEquiv",
+    "GraphonSpace.isClosedEmbedding_infiniteSampleLaw",
     "GraphonSpace.empiricalGraphon_tendsto",
 }
 
