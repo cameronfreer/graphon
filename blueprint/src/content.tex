@@ -332,6 +332,29 @@ simplices.
 
 \inputleannode{thm:sample-coordinate-embedding}
 
+\section{The Graphon-Mixture Representation}
+
+Exchangeable graph laws — families of finite graph laws consistent under every
+injection of labels — are exactly the mixtures of graphon sample laws
+(Diaconis--Janson~\cite[Theorem~5.3]{diaconisjanson2008}). Mixing over a probability
+measure on the graphon space is injective: the hom-density coordinates span a
+point-separating subalgebra of the bounded continuous functions, so the mixing measure
+is determined by its integrals against them, which are marginal quantities.
+
+\inputleannode{thm:mixture-uniqueness}
+
+Conversely, every exchangeable law arises: the empirical mixing measures (the law of
+the graphon class of an $n$-vertex sample) admit a Prokhorov subsequential limit by
+compactness, and a quantitative collision estimate — injective vertex maps contribute
+exact marginal masses by consistency, non-injective ones at most a $k^2/n$ proportion —
+identifies the limit's marginals.
+
+\inputleannode{thm:mixture-existence}
+
+Together:
+
+\inputleannode{thm:graphon-mixture-representation}
+
 \section{Convergence Equivalence}
 
 A sequence of graphons converges in cut distance if and only if all
