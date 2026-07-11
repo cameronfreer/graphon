@@ -59,6 +59,8 @@ AUDITED_DECLS = {
     "GraphonSpace.graphon_mixture_representation",
     "GraphonSpace.isDissociated_mixtureExchangeableLaw_iff",
     "GraphonSpace.isDissociated_iff_exists_sampleExchangeableLaw",
+    "GraphonSpace.empiricalMixing_tendsto_representingMeasure",
+    "GraphonSpace.abs_mixturePMF_empiricalMixing_sub_le",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
