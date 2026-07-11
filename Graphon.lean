@@ -50,6 +50,7 @@ import Graphon.InfiniteLaw
 import Graphon.InfiniteExchangeability
 import Graphon.InfiniteRepresentation
 import Graphon.InfiniteSampleLaw
+import Graphon.InfiniteExtremality
 import Graphon.Convergence
 
 /-!
@@ -102,6 +103,7 @@ in Lean 4 using Mathlib.
 * `Graphon.InfiniteExchangeability` — Exchangeability of the infinite law under every relabeling; the equivalence `ExchangeableGraphLaw ≃ InfiniteExchangeableGraphLaw` (Aldous–Hoover brick A3)
 * `Graphon.InfiniteRepresentation` — The infinite Diaconis–Janson/Aldous–Hoover correspondence: `ProbabilityMeasure (GraphonSpace α μ) ≃ InfiniteExchangeableGraphLaw` (`infiniteMixtureLawEquiv`)
 * `Graphon.InfiniteSampleLaw` — The canonical infinite law of a graphon class: quotient descent, finite-restriction marginals, weak continuity, closed embedding into infinite laws
+* `Graphon.InfiniteExtremality` — Extremality for infinite exchangeable laws: dissociated ↔ canonical law of a single graphon class ↔ Dirac representing measure
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 
