@@ -54,3 +54,5 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.measureReal_abs_homDensity_sampled_sub_le
 #print axioms InfiniteGraph.tsum_samplerSource_homDensity_tail_ne_top
 #print axioms InfiniteGraph.sampledEmpiricalGraphon_tendsto_ae
+#print axioms GraphonSpace.ae_tendsto_empiricalGraphon_infiniteSampleLaw
+#print axioms GraphonSpace.map_limitGraphon_law

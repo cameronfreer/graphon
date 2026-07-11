@@ -54,6 +54,7 @@ import Graphon.InfiniteSamplingConvergence
 import Graphon.McDiarmid
 import Graphon.SampleExposure
 import Graphon.AlmostSureSampling
+import Graphon.LimitGraphon
 import Graphon.InfiniteSampleLaw
 import Graphon.EmpiricalGraphon
 import Graphon.InfiniteExtremality
@@ -118,6 +119,7 @@ in Lean 4 using Mathlib.
 * `Graphon.McDiarmid` — Bounded-differences concentration at MGF level, packaged as `HasSubgaussianMGF` (Mathlib-upstreaming candidate)
 * `Graphon.SampleExposure` — The padded vertex-exposure sampler and the fixed-`F` exponential hom-density tail `2·exp(−ε²k/(2q²))` for `G(k, W)` (Lovász Cor 10.4 form), with the explicit-sampler tail and Borel–Cantelli summability bridge
 * `Graphon.AlmostSureSampling` — Almost-sure convergence of the sampled empirical graphons to the class of `W` (Lovász Prop 11.32; Borel–Cantelli over the concentration tails)
+* `Graphon.LimitGraphon` — The empirical graphon limit as a universal measurable random variable: `limitGraphon` with law `infiniteMixtureLawEquiv.symm M` under every exchangeable law
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 
