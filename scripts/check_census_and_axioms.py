@@ -65,6 +65,10 @@ AUDITED_DECLS = {
     "Graphon.ExchangeableGraphLaw.infiniteLaw_map_restrictFin",
     "Graphon.ExchangeableGraphLaw.infiniteLaw_map_relabel",
     "Graphon.exchangeableGraphLawEquivInfinite",
+    "GraphonSpace.infiniteMixtureLawEquiv",
+    "GraphonSpace.isClosedEmbedding_infiniteSampleLaw",
+    "InfiniteGraph.map_sampleInfinite_restrictFin",
+    "InfiniteGraph.map_sampleInfinite",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
