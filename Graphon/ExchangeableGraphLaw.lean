@@ -9,8 +9,11 @@ import Graphon.SamplingCoordinates
 # Exchangeable graph laws and graphon mixtures (issue #33, foundations)
 
 An exchangeable (infinite) random graph is presented by its consistent finite marginals —
-deliberately avoiding laws on `SimpleGraph ℕ` (Mathlib's general Kolmogorov extension is
-still unfinished; the consistent-finite-laws form captures the content cleanly):
+the form in which the Diaconis–Janson content is cleanest. (Historically this also
+side-stepped laws on `SimpleGraph ℕ` while no extension theorem was available; the
+equivalent infinite formulation now exists — `Graphon/InfiniteLaw.lean` constructs the
+unique extension by compactness, and `Graphon/InfiniteExchangeability.lean` packages
+`ExchangeableGraphLaw ≃ InfiniteExchangeableGraphLaw`.)
 
 * `Graphon.ExchangeableGraphLaw` — a family `law k : PMF (SimpleGraph (Fin k))`
   consistent under every injection of labels (which subsumes relabeling invariance);

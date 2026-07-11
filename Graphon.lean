@@ -47,6 +47,7 @@ import Graphon.MixtureExistence
 import Graphon.MixtureRepresentation
 import Graphon.MixtureExtremality
 import Graphon.InfiniteLaw
+import Graphon.InfiniteExchangeability
 import Graphon.Convergence
 
 /-!
@@ -96,6 +97,7 @@ in Lean 4 using Mathlib.
 * `Graphon.MixtureRepresentation` — The Diaconis–Janson representation theorem: exchangeable graph laws = graphon mixtures, uniquely (`graphon_mixture_representation`, `mixtureExchangeableLawEquiv`)
 * `Graphon.MixtureExtremality` — Diaconis–Janson extremality: dissociated exchangeable laws are exactly the Dirac mixtures (`isDissociated_mixtureExchangeableLaw_iff`)
 * `Graphon.InfiniteLaw` — The infinite exchangeable graph law: unique extension of consistent finite marginals to `InfiniteGraph`, via Prokhorov compactness (Aldous–Hoover brick A2)
+* `Graphon.InfiniteExchangeability` — Exchangeability of the infinite law under every relabeling; the equivalence `ExchangeableGraphLaw ≃ InfiniteExchangeableGraphLaw` (Aldous–Hoover brick A3)
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 

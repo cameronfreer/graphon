@@ -369,6 +369,24 @@ when the law samples a single fixed graphon.
 
 \inputleannode{thm:mixture-extremality}
 
+\section{The Infinite Exchangeable Graph Law}
+
+The consistent finite marginals extend uniquely to a probability law on simple graphs
+with vertex set $\mathbb{N}$: the space of such graphs is a compact metrizable
+zero-dimensional Polish space (an arbitrary Boolean assignment on off-diagonal pairs),
+so a Prokhorov subsequential limit of padded finite laws provides the extension, and
+finite-restriction measure extensionality gives uniqueness — a specialized Kolmogorov
+extension with no general projective-limit machinery.
+
+\inputleannode{thm:infinite-law}
+
+The infinite law is invariant under every relabeling of $\mathbb{N}$ (finite images lie
+in initial segments, where injection consistency applies), and conversely the finite
+restrictions of any relabeling-invariant law are consistent, giving the equivalence of
+the finite and infinite formulations — layers 1--2 of the Aldous--Hoover realization.
+
+\inputleannode{thm:infinite-exchangeable-equivalence}
+
 \section{Convergence Equivalence}
 
 A sequence of graphons converges in cut distance if and only if all

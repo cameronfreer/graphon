@@ -63,6 +63,8 @@ AUDITED_DECLS = {
     "GraphonSpace.abs_mixturePMF_empiricalMixing_sub_le",
     "InfiniteGraph.probabilityMeasure_ext_of_map_restrictFin",
     "Graphon.ExchangeableGraphLaw.infiniteLaw_map_restrictFin",
+    "Graphon.ExchangeableGraphLaw.infiniteLaw_map_relabel",
+    "Graphon.exchangeableGraphLawEquivInfinite",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
