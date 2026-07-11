@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Mathlib.Probability.ProbabilityMassFunction.Integrals
 import Graphon.MixtureConvergence
 import Graphon.MixtureUniqueness
@@ -294,6 +295,8 @@ exchangeable graph law is the mixture law of a probability measure on the grapho
 space, obtained as a Prokhorov subsequential limit of the empirical mixing measures.
 Weak convergence and the collision estimate identify every hom-density integral of the
 limit, and upper-sum injectivity identifies the marginals. -/
+@[blueprint "thm:mixture-existence"
+  (title := /-- Existence of the graphon mixture -/)]
 theorem exists_mixtureExchangeableLaw_eq (L : Graphon.ExchangeableGraphLaw) :
     ∃ P : ProbabilityMeasure (GraphonSpace α μ),
       mixtureExchangeableLaw (α := α) (μ := μ) P = L := by

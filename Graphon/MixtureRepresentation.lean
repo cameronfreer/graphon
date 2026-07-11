@@ -49,7 +49,7 @@ noncomputable def mixtureExchangeableLawEquiv :
     (P : ProbabilityMeasure (GraphonSpace α μ)) :
     mixtureExchangeableLawEquiv (α := α) (μ := μ) P = mixtureExchangeableLaw P := rfl
 
-@[simp] theorem mixtureExchangeableLaw_equiv_symm_apply
+@[simp] theorem mixtureExchangeableLawEquiv_symm_apply
     (L : Graphon.ExchangeableGraphLaw) :
     mixtureExchangeableLaw ((mixtureExchangeableLawEquiv (α := α) (μ := μ)).symm L) =
       L :=
