@@ -78,6 +78,8 @@ AUDITED_DECLS = {
     "Graphon.measureReal_abs_homDensity_sampled_sub_le",
     "InfiniteGraph.tsum_samplerSource_homDensity_tail_ne_top",
     "InfiniteGraph.sampledEmpiricalGraphon_tendsto_ae",
+    "GraphonSpace.ae_tendsto_empiricalGraphon_infiniteSampleLaw",
+    "GraphonSpace.map_limitGraphon_law",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
