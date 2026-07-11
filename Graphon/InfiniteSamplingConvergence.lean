@@ -24,9 +24,9 @@ of `W` in probability:
   manuscript's Second Sampling Lemma, Lovász Lemma 10.16 — see the crosswalk in
   issue #18) drives it to zero.
 
-The almost-sure strengthening is deliberately deferred (issue #71): it requires a
-quantitative summable tail bound or a ratio-one subsequence with gap-filling, to be
-scouted first.
+The almost-sure strengthening (issue #71, the manuscript's Proposition 11.32) is proved
+in `Graphon/AlmostSureSampling.lean`, via the exponential hom-density concentration of
+`Graphon/SampleExposure.lean` and Borel–Cantelli.
 -/
 
 open MeasureTheory InfiniteGraph Filter

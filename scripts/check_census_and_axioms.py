@@ -77,6 +77,7 @@ AUDITED_DECLS = {
     "ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences'",
     "Graphon.measureReal_abs_homDensity_sampled_sub_le",
     "InfiniteGraph.tsum_samplerSource_homDensity_tail_ne_top",
+    "InfiniteGraph.sampledEmpiricalGraphon_tendsto_ae",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

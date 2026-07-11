@@ -90,6 +90,7 @@ The project contains zero `sorry` statements (issue #19, completed 2026-07-11): 
 | `Graphon/InfiniteSamplingConvergence.lean` | Core | Convergence in probability of the sampled empirical graphons |
 | `Graphon/McDiarmid.lean` | Core | Bounded-differences concentration as `HasSubgaussianMGF` |
 | `Graphon/SampleExposure.lean` | Core | Fixed-`F` exponential hom-density concentration for `G(k,W)` + summability bridge |
+| `Graphon/AlmostSureSampling.lean` | Core | Almost-sure convergence of the sampled empirical graphons (Prop 11.32) |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
