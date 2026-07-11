@@ -3,7 +3,9 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.InfiniteExchangeability
+import Graphon.InfiniteSampleLaw
 import Graphon.Sampling
 import Mathlib.Probability.ProductMeasure
 
@@ -21,9 +23,14 @@ sampler from those sources to the infinite graph space:
   the clamped graphon value at the `Quot.out`-representative endpoint positions
   (matching `sampleIntegrand`'s orientation): measurable in the sources.
 
-The finite marginal identification with `samplePMF W k` and the A2-uniqueness
-conclusion `map (sampleInfinite W) source = infiniteLaw (sampleExchangeableLaw W)`
-are the next bricks of issue #51.
+* `InfiniteGraph.map_sampleInfinite_restrictFin` — **the finite marginal
+  identification**: the sampler's level-`k` law is exactly `samplePMF W k` (upper-event
+  route: `F ≤ G` needs only the edges of `F`, so conditional edge integration produces
+  the plain `W`-product; `upperSum_injective` closes);
+* `InfiniteGraph.map_sampleInfinite` — **the explicit realization theorem**: the
+  sampler's law is `infiniteLaw (sampleExchangeableLaw W)` (A2 uniqueness), with
+  relabeling invariance (`map_sampleInfinite_relabel`) and the canonical-class form
+  (`map_sampleInfinite_eq_infiniteSampleLaw_mk`) as corollaries.
 -/
 
 open MeasureTheory
@@ -456,6 +463,8 @@ theorem map_sampleInfinite_restrictFin (W : Graphon α μ) [IsProbabilityMeasure
 /-- **The sampler realizes the infinite exchangeable law** (issue #51): the pushforward
 of the sampler source under `sampleInfinite W` is the (A2-unique) infinite law of the
 sample exchangeable law of `W`. -/
+@[blueprint "thm:explicit-sampler"
+  (title := /-- The explicit sampler realizes the infinite law -/)]
 theorem map_sampleInfinite (W : Graphon α μ) [IsProbabilityMeasure μ] :
     ((samplerSource μ).map (sampleInfinite W)) =
       ((Graphon.ExchangeableGraphLaw.infiniteLaw (Graphon.sampleExchangeableLaw W) :
@@ -482,5 +491,15 @@ theorem map_sampleInfinite_relabel (W : Graphon α μ) [IsProbabilityMeasure μ]
   rw [map_sampleInfinite, Graphon.ExchangeableGraphLaw.infiniteLaw_map_relabel]
 
 end Marginal
+
+/-- The canonical-class form of the realization theorem: the sampler's law is the
+canonical infinite law of the graphon class of `W`. -/
+theorem map_sampleInfinite_eq_infiniteSampleLaw_mk {α : Type*} [MeasurableSpace α]
+    {μ : Measure α} [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+    (W : Graphon α μ) :
+    (samplerSource μ).map (sampleInfinite W) =
+      (GraphonSpace.infiniteSampleLaw (GraphonSpace.mk W) :
+        Measure InfiniteGraph) := by
+  rw [map_sampleInfinite, GraphonSpace.infiniteSampleLaw_mk]
 
 end InfiniteGraph
