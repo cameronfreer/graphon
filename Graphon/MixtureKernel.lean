@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.InfiniteSampleLaw
 import Graphon.InfiniteRepresentation
 
@@ -16,8 +17,9 @@ fiber laws, as a `Measure.bind` construction:
   a measurable family of measures (Dynkin induction over the cylinder π-system, using
   the measurable finite sample-law masses);
 * `GraphonSpace.mixtureInfiniteLaw` — the barycenter
-  `(P : Measure _).bind (fun x => infiniteSampleLaw x)`, characterized on measurable
-  sets by `mixtureInfiniteLaw_apply : ... = ∫⁻ x, infiniteSampleLaw x A ∂P`;
+  `(P : Measure _).bind (fun x => infiniteSampleLaw x)`, bundled as a probability
+  measure and characterized on measurable sets by
+  `mixtureInfiniteLaw_apply : ... = ∫⁻ x, infiniteSampleLaw x A ∂P`;
 * `GraphonSpace.mixtureInfiniteLaw_eq` — **the barycenter identification**:
   `mixtureInfiniteLaw P = (infiniteMixtureLawEquiv P).law` (every cylinder marginal is
   the mixture marginal `mixturePMF P k`, and finite-restriction extensionality
@@ -75,35 +77,43 @@ theorem measurable_infiniteSampleLaw_toMeasure :
     simp only [hval]
     exact Measurable.tsum ihf
 
-/-- **The barycenter of the canonical infinite laws** over a mixing measure. -/
+/-- **The barycenter of the canonical infinite laws** over a mixing measure, as a
+probability measure. -/
 noncomputable def mixtureInfiniteLaw (P : ProbabilityMeasure (GraphonSpace α μ)) :
-    Measure InfiniteGraph :=
-  (P : Measure (GraphonSpace α μ)).bind
-    fun x => (infiniteSampleLaw x : Measure InfiniteGraph)
+    ProbabilityMeasure InfiniteGraph :=
+  ⟨(P : Measure (GraphonSpace α μ)).bind
+      fun x => (infiniteSampleLaw x : Measure InfiniteGraph), by
+    constructor
+    rw [Measure.bind_apply MeasurableSet.univ
+      measurable_infiniteSampleLaw_toMeasure.aemeasurable]
+    simp [measure_univ]⟩
+
+@[simp] theorem mixtureInfiniteLaw_coe (P : ProbabilityMeasure (GraphonSpace α μ)) :
+    (mixtureInfiniteLaw P : Measure InfiniteGraph) =
+      (P : Measure (GraphonSpace α μ)).bind
+        fun x => (infiniteSampleLaw x : Measure InfiniteGraph) := rfl
 
 /-- The barycenter, characterized on measurable sets. -/
 theorem mixtureInfiniteLaw_apply (P : ProbabilityMeasure (GraphonSpace α μ))
     {A : Set InfiniteGraph} (hA : MeasurableSet A) :
-    mixtureInfiniteLaw P A =
+    (mixtureInfiniteLaw P : Measure InfiniteGraph) A =
       ∫⁻ x, (infiniteSampleLaw x : Measure InfiniteGraph) A
         ∂(P : Measure (GraphonSpace α μ)) :=
   Measure.bind_apply hA measurable_infiniteSampleLaw_toMeasure.aemeasurable
 
-instance (P : ProbabilityMeasure (GraphonSpace α μ)) :
-    IsProbabilityMeasure (mixtureInfiniteLaw P) := by
-  constructor
-  rw [mixtureInfiniteLaw_apply P MeasurableSet.univ]
-  simp [measure_univ]
-
 /-- **The barycenter identification** (issue #54): the represented infinite law of a
 mixing measure is the mixture of the canonical fiber laws — every cylinder marginal is
 the mixture marginal, and finite-restriction extensionality concludes. -/
+@[blueprint "thm:mixture-barycenter"
+  (title := /-- The infinite mixture is the barycenter of the fiber laws -/)]
 theorem mixtureInfiniteLaw_eq (P : ProbabilityMeasure (GraphonSpace α μ)) :
-    mixtureInfiniteLaw P =
-      ((infiniteMixtureLawEquiv (α := α) (μ := μ) P).law : Measure InfiniteGraph) := by
-  apply InfiniteGraph.ext_of_map_restrictFin
+    mixtureInfiniteLaw P = (infiniteMixtureLawEquiv (α := α) (μ := μ) P).law := by
+  apply InfiniteGraph.probabilityMeasure_ext_of_map_restrictFin
   intro k
-  rw [infiniteMixtureLawEquiv_law_map_restrictFin]
+  show ((mixtureInfiniteLaw P : Measure InfiniteGraph)).map (restrictFin k) = _
+  rw [show ((infiniteMixtureLawEquiv (α := α) (μ := μ) P).law :
+    Measure InfiniteGraph).map (restrictFin k) = (mixturePMF P k).toMeasure from
+    infiniteMixtureLawEquiv_law_map_restrictFin P k]
   ext S hS
   rw [Measure.map_apply (measurable_restrictFin k) hS,
     mixtureInfiniteLaw_apply P ((measurable_restrictFin k) hS),
