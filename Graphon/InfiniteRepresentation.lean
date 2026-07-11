@@ -44,7 +44,7 @@ noncomputable def infiniteMixtureLawEquiv :
     (infiniteMixtureLawEquiv (α := α) (μ := μ) P).law =
       Graphon.ExchangeableGraphLaw.infiniteLaw (mixtureExchangeableLaw P) := rfl
 
-@[simp] theorem toExchangeableGraphLaw_infiniteMixtureLawEquiv_symm
+@[simp] theorem mixtureExchangeableLaw_infiniteMixtureLawEquiv_symm
     (M : Graphon.InfiniteExchangeableGraphLaw) :
     mixtureExchangeableLaw ((infiniteMixtureLawEquiv (α := α) (μ := μ)).symm M) =
       M.toExchangeableGraphLaw := by
