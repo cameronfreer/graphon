@@ -37,6 +37,7 @@ import Graphon.SamplingDetermination
 import Graphon.SamplingCoordinates
 import Graphon.ExchangeableGraphLaw
 import Graphon.MixtureConvergence
+import Graphon.MixtureCoordinates
 import Graphon.HomDensityAlgebra
 import Graphon.MixtureUniqueness
 import Graphon.InverseCounting
@@ -85,6 +86,7 @@ in Lean 4 using Mathlib.
 * `Graphon.ExchangeableGraphLaw` — Exchangeable graph laws (consistent finite marginals) and graphon mixtures; mixtures are exchangeable
 * `Graphon.MixtureConvergence` — Weak-convergence layer: mixture coordinates as integrals, Prokhorov extraction, empirical mixing measures
 * `Graphon.HomDensityAlgebra` — Hom-density coordinates on the graphon space; multiplicativity over disjoint unions (`homDensity_sum`)
+* `Graphon.MixtureCoordinates` — Shared mixture-coordinate layer: hom-density coordinates as bounded continuous functions; their integrals are mixture upper masses
 * `Graphon.MixtureUniqueness` — Uniqueness of the graphon mixture: the coordinate StarSubalgebra separates points; `mixtureExchangeableLaw` is injective
 * `Graphon.SamplingFinite` — The exact finite-sampling formula: sampling from an embedded finite graph is uniform vertex-map pullback
 * `Graphon.MixtureExistence` — Existence of the graphon mixture: the collision estimate for empirical mixing measures; every exchangeable law is a mixture (`exists_mixtureExchangeableLaw_eq`)

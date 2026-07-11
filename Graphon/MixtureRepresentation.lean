@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Architect
 import Graphon.MixtureExistence
+import Graphon.MixtureUniqueness
 
 /-!
 # The Diaconis–Janson graphon-mixture representation theorem (issue #33)
