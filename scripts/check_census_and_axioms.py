@@ -80,6 +80,8 @@ AUDITED_DECLS = {
     "InfiniteGraph.sampledEmpiricalGraphon_tendsto_ae",
     "GraphonSpace.ae_tendsto_empiricalGraphon_infiniteSampleLaw",
     "GraphonSpace.map_limitGraphon_law",
+    "InfiniteGraph.isDissociated_iff_exists_sampler",
+    "InfiniteGraph.sampleInfinite_adj",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

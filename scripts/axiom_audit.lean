@@ -56,3 +56,5 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms InfiniteGraph.sampledEmpiricalGraphon_tendsto_ae
 #print axioms GraphonSpace.ae_tendsto_empiricalGraphon_infiniteSampleLaw
 #print axioms GraphonSpace.map_limitGraphon_law
+#print axioms InfiniteGraph.isDissociated_iff_exists_sampler
+#print axioms InfiniteGraph.sampleInfinite_adj
