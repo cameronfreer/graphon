@@ -14,8 +14,8 @@ Cashing out the empirical convergence theorem at the infinite level:
   of an infinite graph (successor indexing discharges `NeZero`);
 * `GraphonSpace.map_empiricalGraphon` — its law under an infinite exchangeable law `M`
   is exactly the empirical mixing measure of `M`'s finite marginals;
-* `GraphonSpace.empiricalGraphon_tendsto` — **the empirical graphons converge in
-  distribution to the representing measure** `infiniteMixtureLawEquiv.symm M`
+* `GraphonSpace.empiricalGraphon_law_tendsto` — **the laws of the empirical graphons
+  converge weakly to the representing measure** `infiniteMixtureLawEquiv.symm M`
   (immediate from `empiricalMixing_tendsto_representingMeasure`).
 -/
 
@@ -38,7 +38,7 @@ theorem measurable_empiricalGraphon (n : ℕ) :
 
 /-- **The law of the empirical graphon is the empirical mixing measure** of the finite
 marginals. -/
-theorem map_empiricalGraphon (M : Graphon.InfiniteExchangeableGraphLaw) (n : ℕ) :
+@[simp] theorem map_empiricalGraphon (M : Graphon.InfiniteExchangeableGraphLaw) (n : ℕ) :
     (M.law : Measure InfiniteGraph).map (empiricalGraphon (α := α) (μ := μ) n) =
       (empiricalMixing (α := α) (μ := μ) M.toExchangeableGraphLaw (n + 1) :
         Measure (GraphonSpace α μ)) := by
@@ -48,7 +48,7 @@ theorem map_empiricalGraphon (M : Graphon.InfiniteExchangeableGraphLaw) (n : ℕ
 
 /-- **Empirical graphons converge in distribution to the representing measure**: the
 distributional cash-out of the empirical convergence theorem at the infinite level. -/
-theorem empiricalGraphon_tendsto (M : Graphon.InfiniteExchangeableGraphLaw) :
+theorem empiricalGraphon_law_tendsto (M : Graphon.InfiniteExchangeableGraphLaw) :
     Tendsto (fun n => M.law.map
         (measurable_empiricalGraphon (α := α) (μ := μ) n).aemeasurable) atTop
       (nhds ((infiniteMixtureLawEquiv (α := α) (μ := μ)).symm M)) := by
