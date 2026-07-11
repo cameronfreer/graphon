@@ -2,18 +2,58 @@
 
 **Status:** proposed campaign ladder, 2026-07-10 (post-R3; advisor-reviewed).
 
-> **CAMPAIGN COMPLETE (Diaconis–Janson arc), 2026-07-11.** Issue #33 is fully formalized
-> and merged: the graphon space (compact Polish standard-Borel quotient), the joining
-> theorem, point-separating sample coordinates and the compact embedding, exchangeable
-> graph laws and mixtures, the exact finite-sampling formula, the collision estimate,
-> **the representation theorem** `graphon_mixture_representation` (`∃!` mixing measure;
-> packaged equivalence `mixtureExchangeableLawEquiv`), and **extremality**
-> `isDissociated_mixtureExchangeableLaw_iff` / `isDissociated_iff_exists_sampleExchangeableLaw`
-> (dissociated ↔ Dirac ↔ fixed-graphon sample law) — PRs #25–#42, all axiom-clean.
-> A full explicit Aldous–Hoover construction (infinite-product random-array realization)
-> remains the possible sequel; the current theorems are its graphon-mixture content in
-> finitary form. Next capstone in flight: `empiricalMixing_tendsto_representingMeasure`
-> (full-sequence empirical convergence).
+> **RELEASE-QUALITY MILESTONE, 2026-07-11 (master `4877311`).** The formalization is at a
+> coherent release boundary:
+> - **Diaconis–Janson representation** (issue #33, PRs #25–#43): the graphon space
+>   (compact Polish standard-Borel quotient), the joining theorem, point-separating
+>   sample coordinates and the compact embedding, exchangeable graph laws and mixtures,
+>   the exact finite-sampling formula, the collision estimate,
+>   `graphon_mixture_representation` (`∃!` mixing measure) and the packaged equivalence
+>   `mixtureExchangeableLawEquiv`;
+> - **extremality**: `isDissociated_mixtureExchangeableLaw_iff` and
+>   `isDissociated_iff_exists_sampleExchangeableLaw` (dissociated ↔ Dirac ↔
+>   fixed-graphon sample law);
+> - **full empirical convergence** (PR #44): `empiricalMixing_tendsto_representingMeasure`
+>   — the whole empirical mixing sequence converges weakly to the representing measure;
+> - **quantitative finite-marginal estimate** (PR #45):
+>   `abs_mixturePMF_empiricalMixing_sub_le` (`≤ k²/(n+1)`), alongside the collision
+>   estimate;
+> - **zero `sorry`/`admit` proof placeholders** repository-wide (issue #19 complete,
+>   PR #46; the CI census enforces strictly zero), with the 34-declaration axiom audit
+>   green (`{propext, Classical.choice, Quot.sound}` only).
+> Feature work pauses here; the next campaign is the explicit Aldous–Hoover realization
+> layer (see the section below), which is deliberately separated from the already-proved
+> mixture theorem.
+
+## Next campaign: explicit Aldous–Hoover realization (proposed, not started)
+
+The mixture theorem above is the graphon-mixture content of Aldous–Hoover. What remains
+is infinite-array realization infrastructure — kept deliberately separate from the
+already-proved finitary results. Five layers, in dependency order:
+
+1. **Infinite law from consistent marginals.** A probability law on `SimpleGraph ℕ`
+   constructed from an `ExchangeableGraphLaw`'s consistent finite marginals
+   (Kolmogorov-extension / projective-limit layer over the countable edge-indexed
+   product; Mathlib's projective-limit / Ionescu-Tulcea infrastructure is the intended
+   base).
+2. **Exchangeability of the infinite law.** Invariance of that law under every
+   finitely-supported (equivalently, arbitrary) permutation of `ℕ` — the
+   infinite-arrays counterpart of the finite consistency field.
+3. **Explicit random-graphon sampling.** The two-stage randomization: global randomness
+   (a mixing draw from `ProbabilityMeasure (GraphonSpace α μ)`), vertex randomness
+   (i.i.d. latent variables `X i ~ μ`), and edge randomness (independent
+   `Bernoulli (W (X i, X j))` coins) — an explicit kernel-composition construction of a
+   law on `SimpleGraph ℕ`.
+4. **Marginal identification.** Equality of all finite marginals of the layer-3
+   construction with the given `ExchangeableGraphLaw` (via `sampleMass`/`samplePMF` and
+   the representation theorem), hence equality with the layer-1 law by uniqueness of
+   the extension.
+5. **Dissociated/ergodic specialization.** Under `IsDissociated` (equivalently, by
+   extremality, a Dirac mixing measure), the global randomness collapses: the law is
+   sampling from one deterministic graphon — the ergodic case of Aldous–Hoover.
+
+Layers 1–2 are pure countable-product measure theory (candidates for TauCeti
+upstreaming, cf. issue #24); layers 3–5 connect it to the existing graphon API.
 **Relation to other plans:** `docs/post-r3-mainline-completion-plan.md` is the release-hardening
 track (documentation, CI, census enforcement) and explicitly excludes new mathematics; this
 document is the *next mathematical campaign* track. The parked `70-twinfree-common-host`
