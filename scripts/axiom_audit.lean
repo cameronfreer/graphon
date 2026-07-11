@@ -48,3 +48,4 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms InfiniteGraph.map_sampleInfinite_restrictFin
 #print axioms InfiniteGraph.map_sampleInfinite
 #print axioms GraphonSpace.mixtureInfiniteLaw_eq
+#print axioms InfiniteGraph.sampledEmpiricalGraphon_tendstoInMeasure

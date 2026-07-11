@@ -72,6 +72,7 @@ AUDITED_DECLS = {
     "InfiniteGraph.map_sampleInfinite_restrictFin",
     "InfiniteGraph.map_sampleInfinite",
     "GraphonSpace.mixtureInfiniteLaw_eq",
+    "InfiniteGraph.sampledEmpiricalGraphon_tendstoInMeasure",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
