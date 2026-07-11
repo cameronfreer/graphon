@@ -34,7 +34,7 @@ and the First Sampling Lemma — verifies with the standard axioms only
 `twinfree_bijection_of_weightedHomSum_eq` and the cross-matrix super transfer
 (`Graphon/CrossSuper.lean`).
 
-Three `sorry` statements are deliberately retained as **documentation of refuted conjectures** (private dead-route declarations in `MatrixDetermination.lean`); each is marked FALSE/REFUTED in its docstring, and no live or public theorem depends on them. The four formerly-retained public stubs in `Lovasz.lean` and `Spectral.lean` were deleted (their refutation documentation remains as prose). These are the project's only sorries; their removal is tracked in issue #19. No custom axioms are introduced.
+The project contains **zero `sorry` statements** (issue #19, completed 2026-07-11): the formerly-retained known-false stubs in `MatrixDetermination.lean`, `Lovasz.lean`, and `Spectral.lean` were all deleted, with their refutation documentation kept as prose. The CI census enforces strictly zero sorry/admit tokens. No custom axioms are introduced.
 
 ## Files
 
