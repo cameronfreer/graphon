@@ -61,3 +61,93 @@ theorem graphClass_comap_perm {n : ℕ} [NeZero n] (σ : Equiv.Perm (Fin n))
   rfl
 
 end GraphonSpace
+
+/-! ### Tail restriction and the vertex-tail σ-algebra -/
+
+namespace InfiniteGraph
+
+/-- **Tail restriction**: the graph induced on the vertices `{k, k+1, …}`, reindexed
+to `ℕ`. -/
+def drop (k : ℕ) (G : InfiniteGraph) : InfiniteGraph :=
+  ((G : SimpleGraph ℕ).comap (· + k) : SimpleGraph ℕ)
+
+@[simp] theorem drop_adj (k : ℕ) (G : InfiniteGraph) (a b : ℕ) :
+    (drop k G : SimpleGraph ℕ).Adj a b ↔ (G : SimpleGraph ℕ).Adj (a + k) (b + k) :=
+  Iff.rfl
+
+@[simp] theorem drop_zero (G : InfiniteGraph) : drop 0 G = G := by
+  show ((G : SimpleGraph ℕ).comap (· + 0) : SimpleGraph ℕ) = (G : SimpleGraph ℕ)
+  ext a b
+  simp
+
+/-- Tail restrictions compose additively. -/
+theorem drop_drop (k l : ℕ) (G : InfiniteGraph) :
+    drop k (drop l G) = drop (k + l) G := by
+  show (((G : SimpleGraph ℕ).comap (· + l)).comap (· + k) : SimpleGraph ℕ) =
+    (G : SimpleGraph ℕ).comap (· + (k + l))
+  ext a b
+  simp
+
+/-- Edge membership under tail restriction, in `Sym2` form. -/
+theorem mem_edgeSet_drop (k : ℕ) (G : InfiniteGraph) (s : Sym2 ℕ) :
+    s ∈ (drop k G : SimpleGraph ℕ).edgeSet ↔
+      Sym2.map (· + k) s ∈ (G : SimpleGraph ℕ).edgeSet := by
+  induction s using Sym2.ind with
+  | _ a b => simp [SimpleGraph.mem_edgeSet, drop]
+
+/-- The edge-index action of the tail shift. -/
+def dropEdgeIndexMap (k : ℕ) (e : EdgeIndex) : EdgeIndex :=
+  ⟨Sym2.map (· + k) (e : Sym2 ℕ), by
+    obtain ⟨s, hs⟩ := e
+    induction s using Sym2.ind with
+    | _ a b =>
+      simp only [Sym2.map_mk, Sym2.mk_isDiag_iff] at hs ⊢
+      omega⟩
+
+/-- Tail restriction is continuous: each output edge coordinate is an input edge
+coordinate. -/
+theorem continuous_drop (k : ℕ) : Continuous (drop k) := by
+  rw [continuous_induced_rng]
+  rw [show (coordEquiv ∘ drop k : InfiniteGraph → EdgeIndex → Bool) =
+      fun G e => coordEquiv G (dropEdgeIndexMap k e) from
+    funext fun G => funext fun e => by
+      simp only [Function.comp_apply, coordEquiv_apply, dropEdgeIndexMap,
+        mem_edgeSet_drop]]
+  exact continuous_pi fun e =>
+    (continuous_apply (dropEdgeIndexMap k e)).comp coordHomeomorph.continuous
+
+theorem measurable_drop (k : ℕ) : Measurable (drop k) :=
+  (continuous_drop k).measurable
+
+/-- **The window identity**: the first `m` vertices of the `k`-tail form the graph
+induced on the vertices `{k, …, m + k − 1}` of the original graph. -/
+theorem restrictFin_drop (m k : ℕ) (G : InfiniteGraph) :
+    restrictFin m (drop k G) = (restrictFin (m + k) G).comap (Fin.addNatEmb k) := by
+  ext a b
+  simp [restrictFin, drop, SimpleGraph.comap_adj]
+
+/-- **The tail σ-algebra at level `k`**: events depending only on the graph induced on
+the vertices `{k, k+1, …}` (the tail restriction `drop k` sees exactly the tail-induced
+subgraph, reindexed). -/
+@[reducible] noncomputable def tailAlgebra (k : ℕ) : MeasurableSpace InfiniteGraph :=
+  MeasurableSpace.comap (drop k) inferInstance
+
+/-- Each tail σ-algebra is a sub-σ-algebra of the Borel σ-algebra. -/
+theorem tailAlgebra_le (k : ℕ) :
+    tailAlgebra k ≤ (inferInstance : MeasurableSpace InfiniteGraph) :=
+  measurable_iff_comap_le.mp (measurable_drop k)
+
+/-- **The vertex-tail σ-algebra** `⋂ₖ σ(G|{k, k+1, …})`: events depending only on
+arbitrarily late vertex tails. -/
+@[reducible] noncomputable def vertexTailAlgebra : MeasurableSpace InfiniteGraph :=
+  ⨅ k, tailAlgebra k
+
+theorem vertexTailAlgebra_le_tailAlgebra (k : ℕ) :
+    vertexTailAlgebra ≤ tailAlgebra k :=
+  iInf_le _ k
+
+theorem vertexTailAlgebra_le :
+    vertexTailAlgebra ≤ (inferInstance : MeasurableSpace InfiniteGraph) :=
+  (vertexTailAlgebra_le_tailAlgebra 0).trans (tailAlgebra_le 0)
+
+end InfiniteGraph
