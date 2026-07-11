@@ -126,29 +126,32 @@ noncomputable def homDensityStarSubalgebra :
     f ∈ homDensityStarSubalgebra (α := α) (μ := μ) ↔
       f ∈ homDensityCoordSpan (α := α) (μ := μ) := Iff.rfl
 
+/-- **The integral of a hom-density coordinate against a mixing measure is the upper
+mass of `F` under the corresponding mixture marginal** (the coordinate is a finite upper
+sum of `sampleMassCoord`s, whose integrals are the marginal masses). -/
+theorem integral_homDensityCoord (R : ProbabilityMeasure (GraphonSpace α μ)) {k : ℕ}
+    (F : SimpleGraph (Fin k)) :
+    ∫ x, homDensityCoord F x ∂(R : Measure (GraphonSpace α μ)) =
+      ∑ G : SimpleGraph (Fin k), if F ≤ G then (mixturePMF R k G).toReal else 0 := by
+  rw [integral_congr_ae (Filter.Eventually.of_forall
+    (fun x => homDensityCoord_eq_sum_sampleMassCoord F x)),
+    integral_finsetSum _ (fun G _ => ?_)]
+  · refine Finset.sum_congr rfl fun G _ => ?_
+    split
+    · rw [mixturePMF_apply_toReal]
+    · simp
+  · split
+    · exact (BoundedContinuousFunction.mkOfCompact
+        ⟨sampleMassCoord G, continuous_sampleMassCoord G⟩).integrable _
+    · exact integrable_zero _ _ _
+
 /-- Equal mixture marginals give equal integrals of every generator. -/
 private theorem integral_homDensityCoord_eq
     {P Q : ProbabilityMeasure (GraphonSpace α μ)}
     (h : ∀ k, mixturePMF P k = mixturePMF Q k) {k : ℕ} (F : SimpleGraph (Fin k)) :
     ∫ x, homDensityCoord F x ∂(P : Measure (GraphonSpace α μ)) =
       ∫ x, homDensityCoord F x ∂(Q : Measure (GraphonSpace α μ)) := by
-  have key : ∀ R : ProbabilityMeasure (GraphonSpace α μ),
-      ∫ x, homDensityCoord F x ∂(R : Measure (GraphonSpace α μ)) =
-        ∑ G : SimpleGraph (Fin k),
-          if F ≤ G then (mixturePMF R k G).toReal else 0 := by
-    intro R
-    rw [integral_congr_ae (Filter.Eventually.of_forall
-      (fun x => homDensityCoord_eq_sum_sampleMassCoord F x)),
-      integral_finsetSum _ (fun G _ => ?_)]
-    · refine Finset.sum_congr rfl fun G _ => ?_
-      split
-      · rw [mixturePMF_apply_toReal]
-      · simp
-    · split
-      · exact (BoundedContinuousFunction.mkOfCompact
-          ⟨sampleMassCoord G, continuous_sampleMassCoord G⟩).integrable _
-      · exact integrable_zero _ _ _
-  rw [key P, key Q]
+  rw [integral_homDensityCoord P F, integral_homDensityCoord Q F]
   refine Finset.sum_congr rfl fun G _ => ?_
   split
   · rw [h k]

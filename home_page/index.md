@@ -74,6 +74,7 @@ Three `sorry` statements are deliberately retained as documentation of refuted c
 | `Graphon/HomDensityAlgebra.lean` | Core | Hom-density coordinates on the graphon space; multiplicativity over disjoint unions |
 | `Graphon/MixtureUniqueness.lean` | Core | Uniqueness of the graphon mixture: coordinate algebra separates points; `mixtureExchangeableLaw` injective |
 | `Graphon/SamplingFinite.lean` | Core | Exact finite-sampling formula: sampling an embedded finite graph = uniform vertex-map pullback |
+| `Graphon/MixtureExistence.lean` | Core | Existence of the graphon mixture: collision estimate for empirical mixing measures; every exchangeable law is a mixture |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |

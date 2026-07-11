@@ -41,6 +41,7 @@ import Graphon.HomDensityAlgebra
 import Graphon.MixtureUniqueness
 import Graphon.InverseCounting
 import Graphon.SamplingFinite
+import Graphon.MixtureExistence
 import Graphon.Convergence
 
 /-!
@@ -84,6 +85,7 @@ in Lean 4 using Mathlib.
 * `Graphon.HomDensityAlgebra` — Hom-density coordinates on the graphon space; multiplicativity over disjoint unions (`homDensity_sum`)
 * `Graphon.MixtureUniqueness` — Uniqueness of the graphon mixture: the coordinate StarSubalgebra separates points; `mixtureExchangeableLaw` is injective
 * `Graphon.SamplingFinite` — The exact finite-sampling formula: sampling from an embedded finite graph is uniform vertex-map pullback
+* `Graphon.MixtureExistence` — Existence of the graphon mixture: the collision estimate for empirical mixing measures; every exchangeable law is a mixture (`exists_mixtureExchangeableLaw_eq`)
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 
