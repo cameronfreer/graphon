@@ -290,25 +290,23 @@ theorem abs_integral_homDensityCoord_empiricalMixing_sub_le
         _ = (k : ℝ) * k * ((n : ℝ) + 1) ^ k := by
             rw [mul_assoc, ← pow_succ, Nat.sub_add_cancel hk]
 
-/-- **The existence half of the Diaconis–Janson correspondence** (issue #33): every
-exchangeable graph law is the mixture law of a probability measure on the graphon
-space, obtained as a Prokhorov subsequential limit of the empirical mixing measures.
-Weak convergence and the collision estimate identify every hom-density integral of the
-limit, and upper-sum injectivity identifies the marginals. -/
-@[blueprint "thm:mixture-existence"
-  (title := /-- Existence of the graphon mixture -/)]
-theorem exists_mixtureExchangeableLaw_eq (L : Graphon.ExchangeableGraphLaw) :
-    ∃ P : ProbabilityMeasure (GraphonSpace α μ),
-      mixtureExchangeableLaw (α := α) (μ := μ) P = L := by
-  obtain ⟨P, φ, hφ, hconv⟩ := exists_subseq_tendsto
-    (fun m => empiricalMixing (α := α) (μ := μ) L (m + 1))
-  refine ⟨P, Graphon.ExchangeableGraphLaw.ext fun k => ?_⟩
+/-- **Every weak limit of empirical mixing measures along a diverging index sequence
+represents the law**: weak convergence and the collision estimate identify every
+hom-density integral of the limit, and upper-sum injectivity identifies the
+marginals. -/
+theorem mixtureExchangeableLaw_eq_of_tendsto_empiricalMixing
+    (L : Graphon.ExchangeableGraphLaw) {P : ProbabilityMeasure (GraphonSpace α μ)}
+    {φ : ℕ → ℕ} (hφ : Filter.Tendsto φ Filter.atTop Filter.atTop)
+    (hconv : Filter.Tendsto (fun m => empiricalMixing (α := α) (μ := μ) L (φ m + 1))
+      Filter.atTop (nhds P)) :
+    mixtureExchangeableLaw (α := α) (μ := μ) P = L := by
+  refine Graphon.ExchangeableGraphLaw.ext fun k => ?_
   rw [mixtureExchangeableLaw_law]
   refine Graphon.pmf_ext_of_upperSum fun F => ?_
   -- weak convergence: the empirical hom-density integrals converge to the limit's
   have hconv' := ProbabilityMeasure.tendsto_iff_forall_integral_tendsto.mp hconv
     (homDensityCoordBCF (α := α) (μ := μ) F)
-  simp only [Function.comp_apply, homDensityCoordBCF_apply] at hconv'
+  simp only [homDensityCoordBCF_apply] at hconv'
   -- the collision estimate: the same integrals converge to the upper mass of the law
   have hbound : ∀ m : ℕ,
       |(∫ x, homDensityCoord F x
@@ -320,7 +318,7 @@ theorem exists_mixtureExchangeableLaw_eq (L : Graphon.ExchangeableGraphLaw) :
       Filter.atTop (nhds 0) :=
     Filter.Tendsto.div_atTop tendsto_const_nhds
       (Filter.tendsto_atTop_add_const_right _ 1
-        (tendsto_natCast_atTop_atTop.comp hφ.tendsto_atTop))
+        (tendsto_natCast_atTop_atTop.comp hφ))
   have hlim : Filter.Tendsto (fun m : ℕ => ∫ x, homDensityCoord F x
       ∂(empiricalMixing (α := α) (μ := μ) L (φ m + 1) : Measure (GraphonSpace α μ)))
       Filter.atTop
@@ -332,5 +330,18 @@ theorem exists_mixtureExchangeableLaw_eq (L : Graphon.ExchangeableGraphLaw) :
   have hint := tendsto_nhds_unique hconv' hlim
   rw [integral_homDensityCoord P F] at hint
   simpa only [Graphon.upperSum] using hint
+
+/-- **The existence half of the Diaconis–Janson correspondence** (issue #33): every
+exchangeable graph law is the mixture law of a probability measure on the graphon
+space, obtained as a Prokhorov subsequential limit of the empirical mixing measures. -/
+@[blueprint "thm:mixture-existence"
+  (title := /-- Existence of the graphon mixture -/)]
+theorem exists_mixtureExchangeableLaw_eq (L : Graphon.ExchangeableGraphLaw) :
+    ∃ P : ProbabilityMeasure (GraphonSpace α μ),
+      mixtureExchangeableLaw (α := α) (μ := μ) P = L := by
+  obtain ⟨P, φ, hφ, hconv⟩ := exists_subseq_tendsto
+    (fun m => empiricalMixing (α := α) (μ := μ) L (m + 1))
+  refine ⟨P, mixtureExchangeableLaw_eq_of_tendsto_empiricalMixing L hφ.tendsto_atTop ?_⟩
+  simpa only [Function.comp_def] using hconv
 
 end GraphonSpace
