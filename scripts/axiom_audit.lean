@@ -38,3 +38,4 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms GraphonSpace.empiricalMixing_tendsto_representingMeasure
 #print axioms GraphonSpace.abs_mixturePMF_empiricalMixing_sub_le
 #print axioms InfiniteGraph.probabilityMeasure_ext_of_map_restrictFin
+#print axioms Graphon.ExchangeableGraphLaw.infiniteLaw_map_restrictFin
