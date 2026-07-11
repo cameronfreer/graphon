@@ -161,4 +161,50 @@ theorem ae_tendsto_empiricalGraphon_limitGraphon (M : Graphon.InfiniteExchangeab
   rw [limitGraphon_eq_of_tendsto hx]
   exact hx
 
+/-- **The distributional identification** (issue #58): under any infinite exchangeable
+law `M`, the law of the universal empirical limit is exactly the representing mixing
+measure `infiniteMixtureLawEquiv.symm M`. Fiberwise, the limit is almost surely the
+fiber point, so each fiber gives the preimage of a measurable set indicator mass; the
+barycenter integrates the indicator back to the mixing measure. -/
+@[blueprint "thm:limit-graphon"
+  (title := /-- The empirical graphon limit as a random variable -/)]
+theorem map_limitGraphon_law (M : Graphon.InfiniteExchangeableGraphLaw) :
+    M.law.map measurable_limitGraphon.aemeasurable =
+      (infiniteMixtureLawEquiv (α := unitInterval) (μ := volume)).symm M := by
+  apply ProbabilityMeasure.toMeasure_injective
+  rw [ProbabilityMeasure.toMeasure_map]
+  ext S hS
+  rw [Measure.map_apply measurable_limitGraphon hS, law_eq_bind_infiniteSampleLaw M,
+    Measure.bind_apply (measurable_limitGraphon hS)
+      measurable_infiniteSampleLaw_toMeasure.aemeasurable]
+  have hfiber : ∀ x : StandardGraphonSpace,
+      (infiniteSampleLaw x : Measure InfiniteGraph) (limitGraphon ⁻¹' S) =
+        S.indicator 1 x := by
+    intro x
+    have hlim : ∀ᵐ G ∂(infiniteSampleLaw x : Measure InfiniteGraph),
+        limitGraphon G = x :=
+      (ae_tendsto_empiricalGraphon_infiniteSampleLaw x).mono fun G hG =>
+        limitGraphon_eq_of_tendsto hG
+    by_cases hx : x ∈ S
+    · rw [Set.indicator_of_mem hx, Pi.one_apply]
+      refine (prob_compl_eq_zero_iff (measurable_limitGraphon hS)).mp ?_
+      have hae : ∀ᵐ G ∂(infiniteSampleLaw x : Measure InfiniteGraph),
+          G ∈ limitGraphon ⁻¹' S := hlim.mono fun G hG => by
+        rw [Set.mem_preimage, hG]; exact hx
+      exact mem_ae_iff.mp hae
+    · rw [Set.indicator_of_notMem hx]
+      have hae : ∀ᵐ G ∂(infiniteSampleLaw x : Measure InfiniteGraph),
+          G ∈ (limitGraphon ⁻¹' S)ᶜ := hlim.mono fun G hG => by
+        rw [Set.mem_compl_iff, Set.mem_preimage, hG]; exact hx
+      exact compl_mem_ae_iff.mp hae
+  rw [lintegral_congr hfiber, lintegral_indicator_one hS]
+
+/-- The distributional identification, as an equality of raw pushforward measures. -/
+theorem map_limitGraphon_law_coe (M : Graphon.InfiniteExchangeableGraphLaw) :
+    (M.law : Measure InfiniteGraph).map limitGraphon =
+      ((infiniteMixtureLawEquiv (α := unitInterval) (μ := volume)).symm M :
+        Measure StandardGraphonSpace) := by
+  rw [← ProbabilityMeasure.toMeasure_map M.law measurable_limitGraphon.aemeasurable,
+    map_limitGraphon_law M]
+
 end GraphonSpace
