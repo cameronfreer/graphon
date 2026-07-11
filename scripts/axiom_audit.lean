@@ -47,3 +47,4 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms GraphonSpace.isDissociated_iff_exists_infiniteSampleExchangeableLaw
 #print axioms InfiniteGraph.map_sampleInfinite_restrictFin
 #print axioms InfiniteGraph.map_sampleInfinite
+#print axioms GraphonSpace.mixtureInfiniteLaw_eq

@@ -71,6 +71,7 @@ AUDITED_DECLS = {
     "GraphonSpace.isDissociated_iff_exists_infiniteSampleExchangeableLaw",
     "InfiniteGraph.map_sampleInfinite_restrictFin",
     "InfiniteGraph.map_sampleInfinite",
+    "GraphonSpace.mixtureInfiniteLaw_eq",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

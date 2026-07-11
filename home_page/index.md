@@ -86,6 +86,7 @@ The project contains zero `sorry` statements (issue #19, completed 2026-07-11): 
 | `Graphon/EmpiricalGraphon.lean` | Core | Empirical graphons of an infinite exchangeable graph: distributional convergence to the representing measure |
 | `Graphon/InfiniteExtremality.lean` | Core | Extremality for infinite exchangeable laws: dissociated ↔ single-class canonical law ↔ Dirac |
 | `Graphon/InfiniteSampler.lean` | Core | Explicit infinite sampler for a fixed graphon: explicit sampler realizes the infinite law exactly |
+| `Graphon/MixtureKernel.lean` | Core | Barycenter interpretation: the represented infinite law = Measure.bind mixture of fiber laws |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
