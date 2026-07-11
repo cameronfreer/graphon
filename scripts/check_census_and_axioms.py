@@ -73,6 +73,10 @@ AUDITED_DECLS = {
     "InfiniteGraph.map_sampleInfinite",
     "GraphonSpace.mixtureInfiniteLaw_eq",
     "InfiniteGraph.sampledEmpiricalGraphon_tendstoInMeasure",
+    "ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences",
+    "ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences'",
+    "Graphon.measureReal_abs_homDensity_sampled_sub_le",
+    "InfiniteGraph.tsum_samplerSource_homDensity_tail_ne_top",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
@@ -174,10 +178,12 @@ def axiom_audit() -> bool:
         print("axiom audit: FAIL (lean invocation failed)")
         return False
     reported = {}
-    for m in re.finditer(r"'([^']+)' depends on axioms: \[([^\]]*)\]", out, re.DOTALL):
+    # Lazy `(.+?)` (not `[^']+`) so that primed declaration names, e.g.
+    # `hasSubgaussianMGF_of_bounded_differences'`, keep their trailing prime.
+    for m in re.finditer(r"'(.+?)' depends on axioms: \[([^\]]*)\]", out, re.DOTALL):
         axioms = {a.strip() for a in m.group(2).replace("\n", " ").split(",") if a.strip()}
         reported[m.group(1)] = axioms
-    for m in re.finditer(r"'([^']+)' does not depend on any axioms", out):
+    for m in re.finditer(r"'(.+?)' does not depend on any axioms", out):
         reported[m.group(1)] = set()
     ok = True
     if set(reported) != AUDITED_DECLS:
