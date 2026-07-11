@@ -28,6 +28,21 @@ harmless padding.
   updating a single exposed vertex moves the hom-density of a fixed `F` on `q` vertices
   by at most `q / k` (only vertex maps whose range contains the updated vertex can
   change status).
+
+Feeding the oscillation bound to `ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences`
+and moving the center from the sample mean to `homDensity F W` by the public collision
+estimate (`GraphonSpace.abs_integral_homDensityCoord_empiricalMixing_sub_le`, specialized
+to `sampleExchangeableLaw W`) yields the public tail (issue #72 item 1, toward
+Lovász Cor 10.4; consumed by the Borel–Cantelli assembly of issue #71):
+
+* `Graphon.measureReal_abs_homDensity_sampled_sub_le` — **exponential concentration of
+  the sampled hom-density at fixed `F`**: for `2q² ≤ εk`, the `samplePMF W k`-probability
+  that `|t(F, G(k,W)) − t(F,W)| ≥ ε` is at most `2 exp(−ε²k / (2q²))`;
+* `InfiniteGraph.samplerSource_abs_homDensity_restrictFin_sub_le` — the same tail for
+  the explicit sampler `restrictFin k ∘ sampleInfinite W`;
+* `InfiniteGraph.tsum_samplerSource_homDensity_tail_ne_top` — **the summability
+  bridge**: for each fixed `ε > 0` the tail masses at sizes `n + 1` have finite total,
+  in the exact shape consumed by Borel–Cantelli (`MeasureTheory.ae_eventually_notMem`).
 -/
 
 open MeasureTheory
@@ -511,5 +526,297 @@ theorem abs_homDensity_exposedSample_update_le (W : Graphon α μ) {k : ℕ} [Ne
     exact le_of_eq heq
 
 end Oscillation
+
+/-! ### The fixed-`F` exponential concentration tail -/
+
+section ConcentrationTail
+
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+
+omit [StandardBorelSpace α] [NoAtoms μ] in
+/-- Hom-densities of a graph on no vertices are constantly `1` (empty edge product). -/
+private theorem homDensity_fin_zero (F : SimpleGraph (Fin 0)) [DecidableRel F.Adj]
+    (X : Graphon α μ) : Graphon.homDensity F X = 1 := by
+  have hemp : F.edgeFinset = ∅ :=
+    Finset.eq_empty_of_forall_notMem fun e he => (Quot.out e).1.elim0
+  simp [Graphon.homDensity_eq_integral, Graphon.homDensityIntegrand, hemp]
+
+/-- The exposure expectation of the embedded hom-density is its expectation under the
+finite sample law (change of variables along the law identification). -/
+private theorem integral_homDensity_exposedSample (W : Graphon α μ) {q : ℕ}
+    (F : SimpleGraph (Fin q)) [DecidableRel F.Adj] (k : ℕ) [NeZero k] :
+    (∫ x, Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+        (exposedSample W k x)) ∂exposureMeasure μ k) =
+      ∫ G, Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ) G)
+        ∂(Graphon.samplePMF W k).toMeasure := by
+  have hg : Measurable fun G : SimpleGraph (Fin k) =>
+      Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ) G) :=
+    measurable_of_countable _
+  rw [← map_exposedSample W k,
+    integral_map (measurable_exposedSample W k).aemeasurable hg.aestronglyMeasurable]
+
+/-- **The bias bound**: the mean of the embedded hom-density under the finite sample
+law at size `n + 1` is within `q² / (n + 1)` of `homDensity F W` — the public collision
+estimate specialized to `sampleExchangeableLaw W`, whose upper-mass side is
+`homDensity F W` by the forward Möbius identity `upperSum_sampleMass`. -/
+private theorem abs_integral_homDensity_samplePMF_sub_le (W : Graphon α μ) {q : ℕ}
+    (F : SimpleGraph (Fin q)) [DecidableRel F.Adj] (n : ℕ) :
+    |(∫ G, Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ) G)
+        ∂(Graphon.samplePMF W (n + 1)).toMeasure) - Graphon.homDensity F W| ≤
+      (q * q : ℝ) / (n + 1) := by
+  have hcol := GraphonSpace.abs_integral_homDensityCoord_empiricalMixing_sub_le
+    (α := α) (μ := μ) (Graphon.sampleExchangeableLaw W) n F
+  have hcoord : ∀ G : SimpleGraph (Fin (n + 1)),
+      GraphonSpace.homDensityCoord F (GraphonSpace.graphClass (α := α) (μ := μ) G) =
+        Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ) G) := by
+    intro G
+    show GraphonSpace.homDensityCoord F
+      (GraphonSpace.mk (Graphon.ofSimpleGraphOn G)) = _
+    rw [GraphonSpace.homDensityCoord_mk]
+    exact Graphon.homDensity_congr_decRel F _ _ _
+  have h1 : (∫ x, GraphonSpace.homDensityCoord F x
+      ∂(GraphonSpace.empiricalMixing (α := α) (μ := μ)
+        (Graphon.sampleExchangeableLaw W) (n + 1) : Measure (GraphonSpace α μ))) =
+      ∫ G, Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ) G)
+        ∂(Graphon.samplePMF W (n + 1)).toMeasure := by
+    rw [GraphonSpace.empiricalMixing_coe,
+      integral_map (measurable_of_countable _).aemeasurable
+        (GraphonSpace.continuous_homDensityCoord F).aestronglyMeasurable]
+    simp only [hcoord]
+    rfl
+  have h2 : (∑ G : SimpleGraph (Fin q),
+      if F ≤ G then ((Graphon.sampleExchangeableLaw W).law q G).toReal else 0) =
+      Graphon.homDensity F W := by
+    rw [← Graphon.upperSum_sampleMass W F, Graphon.upperSum]
+    refine Finset.sum_congr rfl fun G _ => ?_
+    split_ifs
+    · exact Graphon.samplePMF_apply_toReal W q G
+    · rfl
+  rw [h1, h2] at hcol
+  exact hcol
+
+/-- **Exponential concentration of the sampled hom-density, fixed `F`** (issue #72,
+item 1; toward Lovász Cor 10.4): for a fixed graph `F` on `q` vertices and a sample
+size `k` with `2q² ≤ εk` (so that the collision bias `q²/k` is at most `ε/2`), the
+probability under the sample law `G(k, W)` that the hom-density of `F` deviates from
+`t(F, W)` by at least `ε` is at most `2 exp(−ε²k / (2q²))`.
+
+Both tails come from `ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences`
+applied to the padded vertex exposure (variance proxy `q²/(4k)`), centered at the
+sample mean; the center moves to `t(F, W)` by the collision estimate. For `q = 0`
+the density is constantly `1` and the tail set is empty. -/
+theorem _root_.Graphon.measureReal_abs_homDensity_sampled_sub_le (W : Graphon α μ)
+    {q : ℕ} (F : SimpleGraph (Fin q)) [DecidableRel F.Adj] {ε : ℝ} (hε : 0 < ε)
+    {k : ℕ} [NeZero k] (hk : 2 * (q : ℝ) ^ 2 ≤ ε * k) :
+    ((Graphon.samplePMF W k).toMeasure).real
+      {G | ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ) G) -
+        Graphon.homDensity F W|} ≤
+      2 * Real.exp (-(ε ^ 2 * k) / (2 * (q : ℝ) ^ 2)) := by
+  rcases Nat.eq_zero_or_pos q with hq | hq
+  · -- `q = 0`: the density is constantly 1 and the tail set is empty.
+    subst hq
+    have hset : {G : SimpleGraph (Fin k) |
+        ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ) G) -
+          Graphon.homDensity F W|} = ∅ := by
+      refine Set.eq_empty_iff_forall_notMem.mpr fun G hG => ?_
+      rw [Set.mem_setOf_eq, homDensity_fin_zero F, homDensity_fin_zero F, sub_self,
+        abs_zero] at hG
+      exact absurd hG (not_le.mpr hε)
+    rw [hset, measureReal_empty]
+    positivity
+  · obtain ⟨n, rfl⟩ := Nat.exists_eq_succ_of_ne_zero (NeZero.ne k)
+    have hq0 : ((q : ℝ)) ≠ 0 := Nat.cast_ne_zero.mpr (Nat.pos_iff_ne_zero.mp hq)
+    have hn0 : (((n + 1 : ℕ) : ℝ)) ≠ 0 := Nat.cast_ne_zero.mpr (Nat.succ_ne_zero n)
+    have hn0' : (0 : ℝ) < ((n + 1 : ℕ) : ℝ) := by positivity
+    -- The centered hom-density of the exposed sample is sub-Gaussian.
+    have hsub := ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences
+      (exposureVertexMeasure μ (n + 1))
+      (fun x => Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+        (exposedSample W (n + 1) x)))
+      (measurable_homDensity_exposedSample W F)
+      ((q : ℝ) / ((n + 1 : ℕ) : ℝ)) (by positivity)
+      (fun x i b => abs_homDensity_exposedSample_update_le W F x i b)
+    rw [show (Measure.pi fun _ : Fin (n + 1) => exposureVertexMeasure μ (n + 1)) =
+      exposureMeasure μ (n + 1) from rfl] at hsub
+    -- Chernoff, both tails, at deviation `ε / 2`.
+    have htail₁ := hsub.measure_ge_le (ε := ε / 2) (le_of_lt (half_pos hε))
+    have htail₂ := hsub.neg.measure_ge_le (ε := ε / 2) (le_of_lt (half_pos hε))
+    -- The exponent, explicitly.
+    have hc₀ : ((((n + 1 : ℕ) : ℝ≥0) *
+        (Real.toNNReal ((q : ℝ) / ((n + 1 : ℕ) : ℝ)) / 2) ^ 2 : ℝ≥0) : ℝ) =
+        ((n + 1 : ℕ) : ℝ) * (((q : ℝ) / ((n + 1 : ℕ) : ℝ)) / 2) ^ 2 := by
+      rw [NNReal.coe_mul, NNReal.coe_pow, NNReal.coe_div,
+        Real.coe_toNNReal _ (by positivity : (0 : ℝ) ≤ (q : ℝ) / ((n + 1 : ℕ) : ℝ)),
+        NNReal.coe_natCast, NNReal.coe_ofNat]
+    have hexp : -(ε / 2) ^ 2 / (2 * ((((n + 1 : ℕ) : ℝ≥0) *
+        (Real.toNNReal ((q : ℝ) / ((n + 1 : ℕ) : ℝ)) / 2) ^ 2 : ℝ≥0) : ℝ)) =
+        -(ε ^ 2 * ((n + 1 : ℕ) : ℝ)) / (2 * (q : ℝ) ^ 2) := by
+      rw [hc₀]
+      field_simp
+    -- The bias: the sample mean is within `ε / 2` of `t(F, W)`.
+    have hbias : |(∫ y, Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+        (exposedSample W (n + 1) y)) ∂exposureMeasure μ (n + 1)) -
+        Graphon.homDensity F W| ≤ ε / 2 := by
+      rw [integral_homDensity_exposedSample W F (n + 1)]
+      refine le_trans (abs_integral_homDensity_samplePMF_sub_le W F n) ?_
+      rw [div_le_iff₀ (by positivity : (0 : ℝ) < (n : ℝ) + 1)]
+      push_cast at hk ⊢
+      nlinarith [hk]
+    -- Transfer to the exposure source and split into the two tails.
+    have hA : MeasurableSet {G : SimpleGraph (Fin (n + 1)) |
+        ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ) G) -
+          Graphon.homDensity F W|} := (Set.to_countable _).measurableSet
+    rw [← map_exposedSample W (n + 1),
+      map_measureReal_apply (measurable_exposedSample W (n + 1)) hA]
+    have hincl : exposedSample W (n + 1) ⁻¹'
+        {G | ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ) G) -
+          Graphon.homDensity F W|} ⊆
+        {x | ε / 2 ≤ Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+            (exposedSample W (n + 1) x)) -
+          ∫ y, Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+            (exposedSample W (n + 1) y)) ∂exposureMeasure μ (n + 1)} ∪
+        {x | ε / 2 ≤ -(Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+            (exposedSample W (n + 1) x)) -
+          ∫ y, Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+            (exposedSample W (n + 1) y)) ∂exposureMeasure μ (n + 1))} := by
+      intro x hx
+      rw [Set.mem_preimage, Set.mem_setOf_eq] at hx
+      set fx := Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+        (exposedSample W (n + 1) x)) with hfx
+      set I := ∫ y, Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+        (exposedSample W (n + 1) y)) ∂exposureMeasure μ (n + 1) with hI
+      have habs : ε / 2 ≤ |fx - I| := by
+        have htri : |fx - Graphon.homDensity F W| ≤ |fx - I| +
+            |I - Graphon.homDensity F W| := abs_sub_le _ _ _
+        have := abs_nonneg (fx - I)
+        linarith [hbias, hx]
+      rcases le_abs.mp habs with h | h
+      · exact Or.inl h
+      · exact Or.inr h
+    calc (exposureMeasure μ (n + 1)).real (exposedSample W (n + 1) ⁻¹'
+        {G | ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ) G) -
+          Graphon.homDensity F W|})
+        ≤ (exposureMeasure μ (n + 1)).real
+            ({x | ε / 2 ≤ Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+                (exposedSample W (n + 1) x)) -
+              ∫ y, Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+                (exposedSample W (n + 1) y)) ∂exposureMeasure μ (n + 1)} ∪
+            {x | ε / 2 ≤ -(Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+                (exposedSample W (n + 1) x)) -
+              ∫ y, Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+                (exposedSample W (n + 1) y)) ∂exposureMeasure μ (n + 1))}) :=
+          measureReal_mono hincl
+      _ ≤ (exposureMeasure μ (n + 1)).real
+            {x | ε / 2 ≤ Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+                (exposedSample W (n + 1) x)) -
+              ∫ y, Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+                (exposedSample W (n + 1) y)) ∂exposureMeasure μ (n + 1)} +
+          (exposureMeasure μ (n + 1)).real
+            {x | ε / 2 ≤ -(Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+                (exposedSample W (n + 1) x)) -
+              ∫ y, Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+                (exposedSample W (n + 1) y)) ∂exposureMeasure μ (n + 1))} :=
+          measureReal_union_le _ _
+      _ ≤ Real.exp (-(ε / 2) ^ 2 / (2 * ((((n + 1 : ℕ) : ℝ≥0) *
+              (Real.toNNReal ((q : ℝ) / ((n + 1 : ℕ) : ℝ)) / 2) ^ 2 : ℝ≥0) : ℝ))) +
+          Real.exp (-(ε / 2) ^ 2 / (2 * ((((n + 1 : ℕ) : ℝ≥0) *
+              (Real.toNNReal ((q : ℝ) / ((n + 1 : ℕ) : ℝ)) / 2) ^ 2 : ℝ≥0) : ℝ))) :=
+          add_le_add htail₁ htail₂
+      _ = 2 * Real.exp (-(ε ^ 2 * ((n + 1 : ℕ) : ℝ)) / (2 * (q : ℝ) ^ 2)) := by
+          rw [hexp]
+          ring
+
+/-- The fixed-`F` tail for the **explicit sampler**: the same bound for the event that
+the hom-density of the first-`k`-vertices restriction of the sampled infinite graph
+deviates from `t(F, W)`, via the finite marginal identification
+`map_sampleInfinite_restrictFin`. -/
+theorem samplerSource_abs_homDensity_restrictFin_sub_le (W : Graphon α μ)
+    {q : ℕ} (F : SimpleGraph (Fin q)) [DecidableRel F.Adj] {ε : ℝ} (hε : 0 < ε)
+    {k : ℕ} [NeZero k] (hk : 2 * (q : ℝ) ^ 2 ≤ ε * k) :
+    (samplerSource μ).real
+      {ω | ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+        (restrictFin k (sampleInfinite W ω))) - Graphon.homDensity F W|} ≤
+      2 * Real.exp (-(ε ^ 2 * k) / (2 * (q : ℝ) ^ 2)) := by
+  have hmeas : Measurable (restrictFin k ∘ sampleInfinite W) :=
+    (measurable_restrictFin k).comp (measurable_sampleInfinite W)
+  have hA : MeasurableSet {G : SimpleGraph (Fin k) |
+      ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ) G) -
+        Graphon.homDensity F W|} := (Set.to_countable _).measurableSet
+  have h := Graphon.measureReal_abs_homDensity_sampled_sub_le W F hε (k := k) hk
+  rw [← map_sampleInfinite_restrictFin W k, map_measureReal_apply hmeas hA] at h
+  exact h
+
+/-- **The summability bridge** (issue #72, item 1; consumed by the Borel–Cantelli
+assembly of issue #71 via `MeasureTheory.ae_eventually_notMem`): for each fixed `ε > 0`,
+the total sampler-source mass of the fixed-`F` deviation events at sizes `n + 1` is
+finite — finitely many initial terms are bounded by `1`, the rest decay geometrically. -/
+theorem tsum_samplerSource_homDensity_tail_ne_top (W : Graphon α μ)
+    {q : ℕ} (F : SimpleGraph (Fin q)) [DecidableRel F.Adj] {ε : ℝ} (hε : 0 < ε) :
+    (∑' n : ℕ, samplerSource μ
+      {ω | ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+        (restrictFin (n + 1) (sampleInfinite W ω))) - Graphon.homDensity F W|}) ≠ ∞ := by
+  have hofReal : ∀ n : ℕ, samplerSource μ
+      {ω | ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+        (restrictFin (n + 1) (sampleInfinite W ω))) - Graphon.homDensity F W|} =
+      ENNReal.ofReal ((samplerSource μ).real
+        {ω | ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+          (restrictFin (n + 1) (sampleInfinite W ω))) - Graphon.homDensity F W|}) :=
+    fun n => (ENNReal.ofReal_toReal (measure_ne_top _ _)).symm
+  have hsummable : Summable fun n : ℕ => (samplerSource μ).real
+      {ω | ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+        (restrictFin (n + 1) (sampleInfinite W ω))) - Graphon.homDensity F W|} := by
+    rcases Nat.eq_zero_or_pos q with hq | hq
+    · -- `q = 0`: every deviation event is empty.
+      subst hq
+      have hzero : ∀ n : ℕ, (samplerSource μ).real
+          {ω | ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+            (restrictFin (n + 1) (sampleInfinite W ω))) - Graphon.homDensity F W|} = 0 := by
+        intro n
+        have hset : {ω : (ℕ → α) × (EdgeIndex → ℝ) |
+            ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+              (restrictFin (n + 1) (sampleInfinite W ω))) - Graphon.homDensity F W|} =
+            ∅ := by
+          refine Set.eq_empty_iff_forall_notMem.mpr fun ω hω => ?_
+          rw [Set.mem_setOf_eq, homDensity_fin_zero F, homDensity_fin_zero F, sub_self,
+            abs_zero] at hω
+          exact absurd hω (not_le.mpr hε)
+        rw [hset, measureReal_empty]
+      exact (summable_congr fun n => (hzero n).symm).mp summable_zero
+    · -- `q ≥ 1`: geometric decay beyond the bias threshold.
+      have hq0 : ((q : ℝ)) ≠ 0 := Nat.cast_ne_zero.mpr (Nat.pos_iff_ne_zero.mp hq)
+      set N := ⌈2 * (q : ℝ) ^ 2 / ε⌉₊ with hN
+      rw [← summable_nat_add_iff N]
+      refine Summable.of_nonneg_of_le
+        (f := fun n : ℕ => 2 * Real.exp (-(ε ^ 2 * ((n + N + 1 : ℕ) : ℝ)) /
+          (2 * (q : ℝ) ^ 2)))
+        (fun n => measureReal_nonneg) (fun n => ?_) ?_
+      · -- the tail bound applies at size `n + N + 1`
+        refine samplerSource_abs_homDensity_restrictFin_sub_le W F hε ?_
+        have h1 : 2 * (q : ℝ) ^ 2 / ε ≤ (N : ℝ) := Nat.le_ceil _
+        have h2 : (N : ℝ) ≤ ((n + N + 1 : ℕ) : ℝ) := by push_cast; linarith
+        have h3 := (div_le_iff₀ hε).mp (le_trans h1 h2)
+        linarith
+      · -- summability of the geometric bound
+        have hcpos : (0 : ℝ) < ε ^ 2 / (2 * (q : ℝ) ^ 2) := by positivity
+        have hsum := Real.summable_exp_nat_mul_of_ge
+          (c := -(ε ^ 2 / (2 * (q : ℝ) ^ 2))) (neg_lt_zero.mpr hcpos)
+          (f := fun i : ℕ => (i : ℝ) + N + 1)
+          (fun i => by linarith [Nat.cast_nonneg (α := ℝ) N])
+        refine ((hsum.mul_left 2).congr fun n => ?_)
+        have harg : -(ε ^ 2 / (2 * (q : ℝ) ^ 2)) * ((n : ℝ) + N + 1) =
+            -(ε ^ 2 * ((n + N + 1 : ℕ) : ℝ)) / (2 * (q : ℝ) ^ 2) := by
+          push_cast
+          ring
+        rw [harg]
+  calc (∑' n : ℕ, samplerSource μ
+      {ω | ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+        (restrictFin (n + 1) (sampleInfinite W ω))) - Graphon.homDensity F W|})
+      = ∑' n : ℕ, ENNReal.ofReal ((samplerSource μ).real
+          {ω | ε ≤ |Graphon.homDensity F (Graphon.ofSimpleGraphOn (α := α) (μ := μ)
+            (restrictFin (n + 1) (sampleInfinite W ω))) - Graphon.homDensity F W|}) :=
+        tsum_congr hofReal
+    _ ≠ ∞ := hsummable.tsum_ofReal_ne_top
+
+end ConcentrationTail
 
 end InfiniteGraph
