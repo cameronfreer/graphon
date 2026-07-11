@@ -68,6 +68,7 @@ AUDITED_DECLS = {
     "GraphonSpace.infiniteMixtureLawEquiv",
     "GraphonSpace.isClosedEmbedding_infiniteSampleLaw",
     "GraphonSpace.empiricalGraphon_law_tendsto",
+    "GraphonSpace.isDissociated_iff_exists_infiniteSampleExchangeableLaw",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
