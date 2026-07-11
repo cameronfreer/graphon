@@ -37,8 +37,8 @@ import Graphon.SamplingDetermination
 import Graphon.SamplingCoordinates
 import Graphon.ExchangeableGraphLaw
 import Graphon.MixtureConvergence
-import Graphon.MixtureCoordinates
 import Graphon.HomDensityAlgebra
+import Graphon.MixtureCoordinates
 import Graphon.MixtureUniqueness
 import Graphon.InverseCounting
 import Graphon.SamplingFinite
