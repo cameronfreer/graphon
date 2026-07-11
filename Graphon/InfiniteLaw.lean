@@ -24,7 +24,7 @@ general projective-limit machinery:
   subsequential limit of the padded laws. Weak convergence against the continuous
   finite restrictions identifies every marginal (`infiniteLaw_map_restrictFin`), and
   finite-restriction measure extensionality gives uniqueness
-  (`infiniteLaw_unique` / `eq_infiniteLaw_of_map_restrictFin`).
+  (`unique_of_map_restrictFin` / `eq_infiniteLaw_of_map_restrictFin`).
 
 Brick A3 (exchangeability of `infiniteLaw` under every permutation of `ℕ`, and the
 packaged equivalence with `ExchangeableGraphLaw`) builds on this.
