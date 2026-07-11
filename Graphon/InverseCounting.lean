@@ -2744,8 +2744,7 @@ theorem cutDistance_le_of_homDensity_close [StandardBorelSpace α] [NoAtoms μ] 
 This is the fundamental characterization of graph limit convergence. -/
 @[blueprint "thm:convergence-equiv"
   (title := /-- Convergence equivalence -/)]
-theorem cutDistance_tendsto_iff_homDensity_tendsto [StandardBorelSpace α] [NoAtoms μ]
-    (W : ℕ → Graphon α μ) (V : Graphon α μ) :
+theorem cutDistance_tendsto_iff_homDensity_tendsto (W : ℕ → Graphon α μ) (V : Graphon α μ) :
     (∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε) ↔
     (∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
      ∀ ε > 0, ∃ N, ∀ n ≥ N, |homDensity F (W n) - homDensity F V| < ε) := by
