@@ -19,6 +19,7 @@ import Graphon.Regularity
 import Graphon.Overlay
 import Graphon.Compactness
 import Graphon.GraphonSpace
+import Graphon.InfiniteGraph
 import Graphon.Sampling
 import Graphon.CaiGovorov
 import Graphon.Lovasz
@@ -68,6 +69,7 @@ in Lean 4 using Mathlib.
 * `Graphon.Counting` — Homomorphism density, counting lemma
 * `Graphon.Compactness` — Total boundedness, completeness
 * `Graphon.GraphonSpace` — The graphon space: compact Polish standard-Borel metric quotient under weak isomorphism (`GraphonSpace`, `StandardGraphonSpace`)
+* `Graphon.InfiniteGraph` — The infinite graph space: `SimpleGraph ℕ` as a compact Polish standard-Borel space; continuous finite restrictions, cylinder π-system, finite-restriction measure extensionality (Aldous–Hoover brick A1)
 * `Graphon.CaiGovorov` — Graph-free Vandermonde argument (Cai–Govorov §4), for #70 orbit separation
 * `Graphon.Lovasz` — Connection-matrix algebra scaffolding (Lovász §3), incl. the Cai–Govorov #70 orbit theorem and rank theorem
 * `Graphon.CrossSuper` — Cross-matrix super-surjective transfer (Cai–Govorov Lemma 5.1, two-matrix partition form)

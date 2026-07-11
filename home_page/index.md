@@ -54,6 +54,7 @@ The project contains zero `sorry` statements (issue #19, completed 2026-07-11): 
 | `Graphon/Counting.lean` | Core | Homomorphism density, counting lemma |
 | `Graphon/Compactness.lean` | Core | Total boundedness, completeness, limit construction |
 | `Graphon/GraphonSpace.lean` | Core | Graphon space: compact Polish standard-Borel metric quotient under weak isomorphism |
+| `Graphon/InfiniteGraph.lean` | Core | Infinite graph space: compact Polish standard-Borel; finite restrictions + measure extensionality (A–H brick A1) |
 | `Graphon/CaiGovorov.lean` | Core | Graph-free Vandermonde argument (Cai&ndash;Govorov &sect;4) |
 | `Graphon/Lovasz.lean` | Core | Connection-matrix algebra (Lov&aacute;sz &sect;3), orbit separation, rank theorem |
 | `Graphon/CrossSuper.lean` | Core | Cross-matrix super-surjective transfer (Cai&ndash;Govorov Lemma 5.1, partition form) |

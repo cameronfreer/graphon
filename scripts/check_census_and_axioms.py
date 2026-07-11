@@ -61,6 +61,7 @@ AUDITED_DECLS = {
     "GraphonSpace.isDissociated_iff_exists_sampleExchangeableLaw",
     "GraphonSpace.empiricalMixing_tendsto_representingMeasure",
     "GraphonSpace.abs_mixturePMF_empiricalMixing_sub_le",
+    "InfiniteGraph.probabilityMeasure_ext_of_map_restrictFin",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
