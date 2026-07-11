@@ -17,8 +17,6 @@ masses, quantitatively:
 * `Graphon.ExchangeableGraphLaw.sum_upperEvent_comap` — the restriction identity from
   consistency, in `ℝ≥0∞`: for every injection `e`, the upper-event mass of the
   `n`-vertex law along `e` is the upper mass of the `k`-vertex law;
-* `GraphonSpace.card_not_injective_le` — the union (birthday) bound on non-injective
-  vertex maps;
 * `GraphonSpace.abs_integral_homDensityCoord_empiricalMixing_sub_le` — **the collision
   estimate**: for every exchangeable law `L`,
   `|∫ homDensityCoord F d(empiricalMixing L (n+1)) − ∑_{G ⊇ F} (L.law k G).toReal|
@@ -90,8 +88,9 @@ variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
   [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
 
 /-- **The union (birthday) bound**: at most a `k²/m` proportion of vertex maps
-`Fin k → Fin m` are non-injective. -/
-theorem card_not_injective_le (k m : ℕ) :
+`Fin k → Fin m` are non-injective. (Private: pure finite combinatorics, kept internal
+pending a polished upstream version.) -/
+private theorem card_not_injective_le (k m : ℕ) :
     ((Finset.univ.filter fun f : Fin k → Fin m => ¬ Function.Injective f).card : ℝ) ≤
       (k * k : ℝ) * (m : ℝ) ^ (k - 1) := by
   classical
