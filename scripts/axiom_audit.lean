@@ -30,3 +30,5 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.homDensity_sum
 #print axioms GraphonSpace.mixtureExchangeableLaw_injective
 #print axioms Graphon.sampleMass_ofSimpleGraphOn
+#print axioms GraphonSpace.abs_integral_homDensityCoord_empiricalMixing_sub_le
+#print axioms GraphonSpace.exists_mixtureExchangeableLaw_eq
