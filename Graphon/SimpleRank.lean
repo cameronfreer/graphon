@@ -12,6 +12,17 @@ This module is the FRESH-PROJECT scaffold for the K=1 simple-graph rank theorem
 (Lovász TR-2004-82 §3/§4.2 for *simple* rooted profiles), the last open paper-root
 after #62/#73 (multigraph reconstruction) closed sorry-free.
 
+> **Historical note (resolved 2026-07-02).** The narrative below describes the
+> scaffold as designed and is retained as the design/history record. The two
+> results it marks "SORRY" have both since been PROVED in
+> `Graphon/CycleKrylov.lean`: the #70 paper-root
+> `vertexOrbitRel_of_rootedProfileEquiv` (item 3) and
+> `classwise_sqMoment_descends` (item 4) — the focused bridge
+> `tupleEquivMulti_of_rootedProfileEquiv` landed, closing #70. The
+> "triangular cycle" sorry at the "both non-surjective" branch of Lemma 2.4
+> K=1 (`Lovasz.lean`) was closed by the Cai–Govorov descent. This file itself
+> is sorry-free (see the inventory at the end of this header).
+
 ## The problem
 
 `Graphon/Lovasz.lean` proves `InRootedProfileSpan.of_const_on_orbit` (orbit-invariant
@@ -37,7 +48,8 @@ Replace orbit-separators (which need the cycle) by **definitional** separators:
    (`InRootedProfileSpan.of_const_on_rpe`). Both PROVED below, non-circularly —
    only `hB` (symmetry) is needed, no `hW`/`htwin`.
 
-3. **The hard theorem** (the genuine #70 content, SORRY):
+3. **The hard theorem** (the genuine #70 content, SORRY at the time; since
+   PROVED in `Graphon/CycleKrylov.lean`):
    `vertexOrbitRel_of_rootedProfileEquiv` : atoms = orbits, i.e.
    `rootedProfileEquiv B W i j → vertexOrbitRel B W i j` (twin-free `B`, `W > 0`).
    Once proved, `of_const_on_orbit` is re-derived non-circularly
@@ -53,7 +65,8 @@ Replace orbit-separators (which need the cycle) by **definitional** separators:
    `⟨ε, M^q u⟩_W`; rpe kills them for `q ≥ 1`; `u = M (D_W⁻¹ (e i + e j)) ∈ Im M`
    and self-adjointness give `u ∈ span{M^q u : q ≥ 1}`; hence
    `gap = ⟨ε, u⟩_W = 0`. Needs only `hB`, `hW` — no twin-freeness. The classwise
-   form (`classwise_sqMoment_descends`, SORRY) is reduced by the same argument
+   form (`classwise_sqMoment_descends`, SORRY at the time; since PROVED in
+   `Graphon/CycleKrylov.lean`) is reduced by the same argument
    (palindromic decorated cycles) to the **singular-`M` stratum**:
    `gap_g = ⟨D_g ε, P_ker(M) (D_g u)⟩_W`, zero whenever `det B ≠ 0`.
 
@@ -80,8 +93,9 @@ Replace orbit-separators (which need the cycle) by **definitional** separators:
 
 This file is now SORRY-FREE. The #70 paper-root `vertexOrbitRel_of_rootedProfileEquiv`
 (and `classwise_sqMoment_descends`) were relocated to `Graphon/CycleKrylov.lean`,
-where #70 is reduced — via the proved multigraph Lemma 2.4 — to the single focused
-bridge `tupleEquivMulti_of_rootedProfileEquiv` (simple-rpe ⟹ multigraph equivalence).
+where #70 was reduced — via the proved multigraph Lemma 2.4 — to the single focused
+bridge `tupleEquivMulti_of_rootedProfileEquiv` (simple-rpe ⟹ multigraph equivalence);
+that bridge has since been PROVED there, closing #70 (2026-07-02).
 -/
 
 namespace Graphon.Lovasz

@@ -4,6 +4,15 @@
 **Statement resolved**: `sqMoment_descends_of_rootedProfileEquiv` (`Graphon/SimpleRank.lean`)
 **Scripts**: `scripts/falsify_classwise_sqmoment.py`, `scripts/validate_sqmoment_cycle_krylov.py`
 
+> **Status update (2026-07-11):** the formalization described below is complete.
+> `sqMoment_descends_of_rootedProfileEquiv` now lives in `Graphon/CycleKrylov.lean`
+> (relocated from `SimpleRank.lean`), and every item in §6 "What remains" has since
+> been resolved: `classwise_sqMoment_descends` is proved (no twin-freeness, no
+> singular-`B` caveat), the cycle–Krylov proof is fully formalized, and the lift to
+> the full rank theorem `vertexOrbitRel_of_rootedProfileEquiv` closed #70
+> (2026-07-02) — see `Graphon/CycleKrylov.lean` §7 and `Graphon/Lovasz.lean`
+> § RankTheorem. This document is retained as the design/history record.
+
 ## 1. The question
 
 The K=1 simple-graph rank theorem (#70) asks: if two vertices `i, j` of a weighted graph
@@ -146,17 +155,18 @@ loop observed. A separately run 2-atom stratum analysis corroborates analyticall
 the triangle difference is literally `W₀ ε₀ · gap`, and the stratum-constrained LM search
 collapsed to twins (`a = b = c`), as that identity forces.
 
-## 6. What remains
+## 6. What remains (historical — all items since resolved; see status update at top)
 
-- **Classwise form** (`classwise_sqMoment_descends`, still sorry'd): for atom-invariant
+- **Classwise form** (`classwise_sqMoment_descends`, still sorry'd at the time; since
+  proved in `Graphon/CycleKrylov.lean`): for atom-invariant
   `g`, palindromic decorated cycles give `⟨ε, D_g M^q D_g u⟩_W = 0`, reducing the
   classwise gap to `⟨D_g ε, P_{ker M}(D_g u)⟩_W` — zero whenever `det B ≠ 0`. The
   singular-`B` stratum is the only open case.
 - **Formalization** of the cycle–Krylov proof: the rooted-cycle evaluation identity
   (`rootedCycleGraph` and `weightedAdj`/`weightedAdjIter` already exist in
   `Graphon/Lovasz.lean`; the evaluation bridge
-  `rootedProfile_rootedCycleGraph_eq_closedWalkProfile` is an existing focused sorry
-  there) plus the finite-dimensional spectral step
+  `rootedProfile_rootedCycleGraph_eq_closedWalkProfile` was a focused sorry
+  there at the time, since proved) plus the finite-dimensional spectral step
   (`Matrix.IsHermitian.spectral_theorem`), in a separate analysis-importing file to
   avoid the known simp-pollution issue.
 - **The lift to the full rank theorem** (`vertexOrbitRel_of_rootedProfileEquiv`): higher
