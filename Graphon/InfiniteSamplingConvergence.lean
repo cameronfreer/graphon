@@ -20,7 +20,9 @@ of `W` in probability:
   probability**: for every `ε > 0` the probability that the empirical graphon is
   `ε`-far from `mk W` tends to `0`. The bad event is the pullback of the complement of
   the `sampleGoodMassOn` event; its measure is `1 − sampleGoodMassOn W (n+1) ε` by the
-  marginal identification, and the asymptotic First Sampling Lemma drives it to zero.
+  marginal identification, and the project's `first_sampling_lemma_of_large_k` (the
+  manuscript's Second Sampling Lemma, Lovász Lemma 10.16 — see the crosswalk in
+  issue #18) drives it to zero.
 
 The almost-sure strengthening is deliberately deferred (issue #71): it requires a
 quantitative summable tail bound or a ratio-one subsequence with gap-filling, to be
@@ -87,7 +89,8 @@ theorem sampledEmpiricalGraphon_tendstoInMeasure (W : Graphon α μ) :
     · rfl
     · exact ENNReal.ofReal_zero.symm
   simp only [hbad, hmass]
-  -- the asymptotic First Sampling Lemma drives the bad mass to zero
+  -- first_sampling_lemma_of_large_k (the manuscript's Second Sampling Lemma)
+  -- drives the bad mass to zero
   rw [ENNReal.tendsto_nhds_zero]
   intro η hη
   rcases eq_or_ne η ⊤ with rfl | hηtop
