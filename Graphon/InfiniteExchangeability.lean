@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.InfiniteLaw
 
 /-!
@@ -204,6 +205,8 @@ open Graphon.ExchangeableGraphLaw in
 /-- **The headline equivalence** (Aldous–Hoover layers 1–2): exchangeable graph laws
 and infinite exchangeable graph laws are the same data, with finite marginals and the
 infinite extension as inverse maps. -/
+@[blueprint "thm:infinite-exchangeable-equivalence"
+  (title := /-- Exchangeable graph laws are infinite exchangeable laws -/)]
 noncomputable def exchangeableGraphLawEquivInfinite :
     Graphon.ExchangeableGraphLaw ≃ Graphon.InfiniteExchangeableGraphLaw where
   toFun L := ⟨infiniteLaw L, infiniteLaw_map_relabel L⟩

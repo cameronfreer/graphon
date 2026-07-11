@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.InfiniteGraph
 import Graphon.ExchangeableGraphLaw
 import Mathlib.MeasureTheory.Measure.Prokhorov
@@ -135,6 +136,8 @@ noncomputable def infiniteLaw (L : Graphon.ExchangeableGraphLaw) :
 
 /-- **The marginal identification**: each finite restriction of the infinite law is the
 corresponding finite marginal. -/
+@[blueprint "thm:infinite-law"
+  (title := /-- The infinite exchangeable graph law -/)]
 theorem infiniteLaw_map_restrictFin (L : Graphon.ExchangeableGraphLaw) (k : ℕ) :
     (infiniteLaw L : Measure InfiniteGraph).map (restrictFin k) =
       (L.law k).toMeasure :=

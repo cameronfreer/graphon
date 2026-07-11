@@ -25,7 +25,18 @@
 > layer (see the section below), which is deliberately separated from the already-proved
 > mixture theorem.
 
-## Next campaign: explicit Aldous–Hoover realization (proposed, not started)
+> **UPDATE 2026-07-11 (later):** layers 1–2 below are **complete** — PRs #48 (the
+> infinite graph space: compact Polish standard-Borel, cylinder π-system, measure
+> extensionality), #49 (`infiniteLaw`: unique compactness-based Kolmogorov extension of
+> the consistent marginals), #50 (exchangeability under every relabeling +
+> `exchangeableGraphLawEquivInfinite : ExchangeableGraphLaw ≃
+> InfiniteExchangeableGraphLaw`). The axiom audit stands at 38 declarations. Next chunk:
+> the explicit infinite sampler for a **fixed raw graphon** via `Measure.infinitePi`
+> (vertex + edge randomness), identified with `infiniteLaw (sampleExchangeableLaw W)`
+> by A2 uniqueness; quotient-valued mixing stays a later, separate measurable-selection
+> campaign.
+
+## Next campaign: explicit Aldous–Hoover realization (layers 1–2 complete)
 
 The mixture theorem above is the graphon-mixture content of Aldous–Hoover. What remains
 is infinite-array realization infrastructure — kept deliberately separate from the
