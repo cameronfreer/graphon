@@ -103,4 +103,62 @@ theorem measurable_limitGraphon : Measurable limitGraphon := by
     rw [h0]
     exact measurable_const
 
+/-- **The per-class fiber theorem** (every class, not just almost every): under the
+canonical infinite law of ANY graphon class `x`, the empirical graphons converge to `x`
+almost surely — the almost-sure sampling theorem (issue #71) transported along the
+explicit-sampler realization (issue #51) of the fiber law. -/
+theorem ae_tendsto_empiricalGraphon_infiniteSampleLaw (x : StandardGraphonSpace) :
+    ∀ᵐ G ∂(infiniteSampleLaw x : Measure InfiniteGraph),
+      Filter.Tendsto (fun n => empiricalGraphon n G) Filter.atTop (nhds x) := by
+  obtain ⟨W, rfl⟩ := surjective_mk x
+  rw [← InfiniteGraph.map_sampleInfinite_eq_infiniteSampleLaw_mk W,
+    MeasureTheory.ae_map_iff (InfiniteGraph.measurable_sampleInfinite W).aemeasurable
+      (measurableSet_tendsto (nhds (mk W)) fun n => measurable_empiricalGraphon n)]
+  exact InfiniteGraph.sampledEmpiricalGraphon_tendsto_ae W
+
+/-- The barycenter form of an infinite exchangeable law at the canonical instance:
+`M.law` is the mixture of the canonical fiber laws over the representing mixing
+measure `infiniteMixtureLawEquiv.symm M` (the coerced form of the barycenter
+identification `mixtureInfiniteLaw_eq` of issue #54). -/
+theorem law_eq_bind_infiniteSampleLaw (M : Graphon.InfiniteExchangeableGraphLaw) :
+    (M.law : Measure InfiniteGraph) =
+      ((infiniteMixtureLawEquiv (α := unitInterval) (μ := volume)).symm M :
+          Measure StandardGraphonSpace).bind
+        fun x => (infiniteSampleLaw x : Measure InfiniteGraph) := by
+  have h : mixtureInfiniteLaw
+      ((infiniteMixtureLawEquiv (α := unitInterval) (μ := volume)).symm M) = M.law := by
+    rw [mixtureInfiniteLaw_eq, Equiv.apply_symm_apply]
+  rw [← h, mixtureInfiniteLaw_coe]
+
+/-- **The convergence set is conull under every infinite exchangeable law**: by the
+barycenter identification, its complement has zero mass in every fiber (the per-class
+fiber theorem), hence zero mass in the mixture. -/
+theorem ae_mem_empiricalConvergenceSet (M : Graphon.InfiniteExchangeableGraphLaw) :
+    ∀ᵐ G ∂(M.law : Measure InfiniteGraph), G ∈ empiricalConvergenceSet := by
+  have hmem : ∀ x : StandardGraphonSpace,
+      ∀ᵐ G ∂(infiniteSampleLaw x : Measure InfiniteGraph),
+        G ∈ empiricalConvergenceSet := fun x =>
+    (ae_tendsto_empiricalGraphon_infiniteSampleLaw x).mono fun G hG => ⟨x, hG⟩
+  have hzero : ∀ x : StandardGraphonSpace,
+      (infiniteSampleLaw x : Measure InfiniteGraph) empiricalConvergenceSetᶜ = 0 :=
+    fun x => by simpa using mem_ae_iff.mp (hmem x)
+  rw [ae_iff, law_eq_bind_infiniteSampleLaw M,
+    show {G : InfiniteGraph | ¬G ∈ empiricalConvergenceSet} =
+      empiricalConvergenceSetᶜ from rfl,
+    Measure.bind_apply measurableSet_empiricalConvergenceSet.compl
+      measurable_infiniteSampleLaw_toMeasure.aemeasurable]
+  simp only [hzero]
+  exact lintegral_zero
+
+/-- **Almost-sure convergence to the universal limit**: under every infinite
+exchangeable law, the empirical graphons converge to `limitGraphon` almost surely. -/
+theorem ae_tendsto_empiricalGraphon_limitGraphon (M : Graphon.InfiniteExchangeableGraphLaw) :
+    ∀ᵐ G ∂(M.law : Measure InfiniteGraph),
+      Filter.Tendsto (fun n => empiricalGraphon n G) Filter.atTop
+        (nhds (limitGraphon G)) := by
+  filter_upwards [ae_mem_empiricalConvergenceSet M] with G hG
+  obtain ⟨x, hx⟩ := hG
+  rw [limitGraphon_eq_of_tendsto hx]
+  exact hx
+
 end GraphonSpace
