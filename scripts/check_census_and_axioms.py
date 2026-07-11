@@ -56,6 +56,7 @@ AUDITED_DECLS = {
     "GraphonSpace.exists_subseq_tendsto",
     "Graphon.homDensity_sum",
     "GraphonSpace.mixtureExchangeableLaw_injective",
+    "Graphon.sampleMass_ofSimpleGraphOn",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
