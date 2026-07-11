@@ -59,6 +59,7 @@ AUDITED_DECLS = {
     "Graphon.sampleMass_ofSimpleGraphOn",
     "GraphonSpace.abs_integral_homDensityCoord_empiricalMixing_sub_le",
     "GraphonSpace.exists_mixtureExchangeableLaw_eq",
+    "GraphonSpace.graphon_mixture_representation",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

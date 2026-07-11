@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.ExchangeableGraphLaw
 import Graphon.HomDensityAlgebra
 import Mathlib.MeasureTheory.Measure.FiniteMeasureExt
@@ -195,6 +196,8 @@ theorem separatesPoints_homDensityStarSubalgebra :
 
 /-- **Uniqueness of the graphon mixture** (Diaconis–Janson, uniqueness half): the
 mixing measure is determined by its exchangeable graph law. -/
+@[blueprint "thm:mixture-uniqueness"
+  (title := /-- Uniqueness of the graphon mixture -/)]
 theorem mixtureExchangeableLaw_injective :
     Function.Injective (mixtureExchangeableLaw :
       ProbabilityMeasure (GraphonSpace α μ) → Graphon.ExchangeableGraphLaw) := by
