@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Mathlib.Probability.ProbabilityMassFunction.Integrals
 import Graphon.InfiniteLaw
 
@@ -23,7 +24,7 @@ sampler required (issue #51 later supplies a raw realization):
   extraction and marginal identification (compactness + uniqueness);
 * `GraphonSpace.injective_infiniteSampleLaw` and
   `GraphonSpace.isClosedEmbedding_infiniteSampleLaw` — the graphon space embeds as a
-  compact set of infinite exchangeable laws.
+  compact set of probability laws on `InfiniteGraph`.
 
 This removes representatives from all subsequent law-level arguments.
 -/
@@ -137,8 +138,13 @@ theorem injective_infiniteSampleLaw :
   apply PMF.toMeasure_injective
   rw [← infiniteSampleLaw_map_restrictFin x k, ← infiniteSampleLaw_map_restrictFin y k, h]
 
-/-- **The graphon space embeds as a compact set of infinite laws**: continuous
-injection from a compact space into a Hausdorff space. -/
+/-- **The graphon space embeds as a compact set of probability laws on
+`InfiniteGraph`**: continuous injection from a compact space into a Hausdorff space
+(the infinite analogue of the finite coordinate embedding
+`isClosedEmbedding_sampleCoordinates`; the image consists of exchangeable laws, but the
+codomain is `ProbabilityMeasure InfiniteGraph`). -/
+@[blueprint "thm:infinite-sample-law-embedding"
+  (title := /-- The graphon space embeds into laws on infinite graphs -/)]
 theorem isClosedEmbedding_infiniteSampleLaw :
     Topology.IsClosedEmbedding
       (infiniteSampleLaw : GraphonSpace α μ → ProbabilityMeasure InfiniteGraph) :=
