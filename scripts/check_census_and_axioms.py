@@ -60,6 +60,8 @@ AUDITED_DECLS = {
     "GraphonSpace.abs_integral_homDensityCoord_empiricalMixing_sub_le",
     "GraphonSpace.exists_mixtureExchangeableLaw_eq",
     "GraphonSpace.graphon_mixture_representation",
+    "GraphonSpace.isDissociated_mixtureExchangeableLaw_iff",
+    "GraphonSpace.isDissociated_iff_exists_sampleExchangeableLaw",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
