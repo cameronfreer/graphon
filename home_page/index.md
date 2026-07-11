@@ -83,6 +83,7 @@ The project contains zero `sorry` statements (issue #19, completed 2026-07-11): 
 | `Graphon/InfiniteExchangeability.lean` | Core | Exchangeability of the infinite law; `ExchangeableGraphLaw ≃ InfiniteExchangeableGraphLaw` (A–H brick A3) |
 | `Graphon/InfiniteRepresentation.lean` | Core | Infinite Diaconis–Janson/Aldous–Hoover correspondence: mixing measures ≃ infinite exchangeable laws |
 | `Graphon/InfiniteSampleLaw.lean` | Core | Canonical infinite law of a graphon class: marginals, continuity, closed embedding |
+| `Graphon/MixtureKernel.lean` | Core | Barycenter interpretation: the represented infinite law = Measure.bind mixture of fiber laws |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
