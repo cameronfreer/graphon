@@ -23,7 +23,9 @@ factorization:
   each coordinate is a.s. constant; a countable intersection and point separation of the
   coordinates collapse the mixing measure to a point.
 * `GraphonSpace.isDissociated_sampleExchangeableLaw` — the exchangeable law of a fixed
-  graphon is dissociated (it is the Dirac mixture at its class).
+  graphon is dissociated (it is the Dirac mixture at its class);
+* `GraphonSpace.isDissociated_iff_exists_sampleExchangeableLaw` — the arbitrary-law
+  form: an exchangeable law is dissociated iff it is the sample law of a fixed graphon.
 
 This proves the extremality criterion without formalizing the convex extreme-point
 structure itself.
@@ -157,17 +159,37 @@ theorem isDissociated_mixtureExchangeableLaw_iff
     rw [integral_dirac, integral_dirac, integral_dirac]
     exact homDensityCoord_sum_finAdd F H x
 
+/-- The sample law of a fixed graphon is the Dirac mixture at its graphon class. -/
+theorem sampleExchangeableLaw_eq_mixture_diracProba (W : Graphon α μ) :
+    Graphon.sampleExchangeableLaw W =
+      mixtureExchangeableLaw (α := α) (μ := μ) (diracProba (mk W)) := by
+  refine Graphon.ExchangeableGraphLaw.ext fun k => ?_
+  rw [mixtureExchangeableLaw_law, Graphon.sampleExchangeableLaw_law]
+  exact ((mixturePMF_dirac (mk W) k).trans (finiteSampleLaw_mk k W)).symm
+
 /-- The exchangeable law of a fixed graphon is dissociated: it is the Dirac mixture at
 its graphon class. -/
 theorem isDissociated_sampleExchangeableLaw (W : Graphon α μ) :
     (Graphon.sampleExchangeableLaw W).IsDissociated := by
-  have h : Graphon.sampleExchangeableLaw W =
-      mixtureExchangeableLaw (α := α) (μ := μ) (diracProba (mk W)) := by
-    refine Graphon.ExchangeableGraphLaw.ext fun k => ?_
-    rw [mixtureExchangeableLaw_law, Graphon.sampleExchangeableLaw_law]
-    exact ((mixturePMF_dirac (mk W) k).trans (finiteSampleLaw_mk k W)).symm
-  rw [h]
+  rw [sampleExchangeableLaw_eq_mixture_diracProba]
   intro k l F H
   exact (isDissociated_mixtureExchangeableLaw_iff _).mpr ⟨mk W, rfl⟩ F H
+
+/-- **Extremality for arbitrary exchangeable laws**: a law is dissociated iff it is the
+sample law of a fixed graphon (the Dirac characterization, transported along the
+representation and `surjective_mk`). -/
+theorem isDissociated_iff_exists_sampleExchangeableLaw
+    (L : Graphon.ExchangeableGraphLaw) :
+    L.IsDissociated ↔ ∃ W : Graphon α μ, Graphon.sampleExchangeableLaw W = L := by
+  constructor
+  · intro hdiss
+    obtain ⟨P, hP⟩ := exists_mixtureExchangeableLaw_eq (α := α) (μ := μ) L
+    have hPdiss : (mixtureExchangeableLaw P).IsDissociated := by
+      rw [hP]; exact hdiss
+    obtain ⟨x, rfl⟩ := (isDissociated_mixtureExchangeableLaw_iff P).mp hPdiss
+    obtain ⟨W, rfl⟩ := surjective_mk x
+    exact ⟨W, (sampleExchangeableLaw_eq_mixture_diracProba W).trans hP⟩
+  · rintro ⟨W, rfl⟩
+    exact isDissociated_sampleExchangeableLaw W
 
 end GraphonSpace

@@ -34,3 +34,4 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms GraphonSpace.exists_mixtureExchangeableLaw_eq
 #print axioms GraphonSpace.graphon_mixture_representation
 #print axioms GraphonSpace.isDissociated_mixtureExchangeableLaw_iff
+#print axioms GraphonSpace.isDissociated_iff_exists_sampleExchangeableLaw
