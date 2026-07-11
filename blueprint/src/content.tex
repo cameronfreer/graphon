@@ -35,11 +35,10 @@ formerly tracked here were each resolved:
     Lemma (proved 2026-07-08, \texttt{Graphon/SamplingLemma.lean}) and the
     $K$-independent quantitative inverse counting lemma.
 \end{enumerate}
-Three \texttt{sorry} declarations are deliberately retained as documentation of
-\emph{refuted} conjectures (private dead-route declarations in
-\texttt{MatrixDetermination.lean}, each marked FALSE/REFUTED in its docstring; none on
-any live path); the four formerly-retained public stubs were deleted with their
-refutation documentation kept as prose.
+The repository contains \emph{zero} \texttt{sorry}/\texttt{admit} proof placeholders
+(enforced by the CI census with an empty allowlist since issue \#19 closed); the
+formerly-retained refuted-conjecture stubs were deleted, with their refutation
+documentation kept as prose.
 
 \section{Main Results}
 
@@ -417,6 +416,14 @@ in probability (the almost-sure strengthening — the manuscript's Proposition 1
 awaits the quantitative sampling layer).
 
 \inputleannode{thm:sampler-convergence-in-probability}
+
+For a fixed simple graph $F$ on $q$ vertices, the homomorphism density of the sampled
+graph concentrates exponentially around $t(F,W)$: an eventual fixed-$F$
+Corollary-10.4-style tail $2\exp(-\varepsilon^2 k/(2q^2))$, valid once
+$2q^2 \le \varepsilon k$. This is the summable fixed-$F$ ingredient that
+Borel--Cantelli upgrades to almost-sure convergence.
+
+\inputleannode{thm:hom-density-concentration}
 
 In fact the convergence is almost sure (the manuscript's Proposition 11.32): the
 exponential hom-density concentration of the sample makes every coordinate converge

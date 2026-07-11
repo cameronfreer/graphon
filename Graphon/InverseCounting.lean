@@ -1057,7 +1057,7 @@ The proof runs the Frieze-Kannan energy increment for both graphons simultaneous
 at each step, if either graphon has large cut norm difference, refine the partition.
 The key observation is that `energy_increment_pair` guarantees that refining for one
 graphon does not decrease the other's energy (monotonicity of energy under refinement). -/
-private theorem simultaneous_regularity [StandardBorelSpace α]
+private theorem simultaneous_regularity
     (U W : Graphon α μ) (δ : ℝ) (hδ : δ > 0) :
     ∃ P : MeasurablePartition α μ,
       P.parts.card ≤ 4 ^ (2 * (Nat.ceil (1 / δ ^ 2) + 1)) ∧
@@ -2571,7 +2571,7 @@ with `cutDistance_le_cutNormDiff` finish `cutDistance U W < ε`. Nonnegativity c
 fully axiom-clean. -/
 @[blueprint "thm:determination"
   (title := /-- Determination: equal homomorphism densities force cut distance zero -/)]
-theorem cutDistance_zero_of_homDensity_eq [StandardBorelSpace α] [NoAtoms μ]
+theorem cutDistance_zero_of_homDensity_eq
     (U W : Graphon α μ)
     (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
          homDensity F U = homDensity F W) :
@@ -2613,7 +2613,7 @@ For any ε > 0, there exists δ > 0 and a finite set of graphs F₁,...,Fₖ
 such that if |t(Fᵢ, U) - t(Fᵢ, W)| < δ for all i, then δ□(U, W) < ε. -/
 @[blueprint "thm:inverse-counting"
   (title := /-- Inverse counting lemma -/)]
-theorem cutDistance_le_of_homDensity_close [StandardBorelSpace α] [NoAtoms μ] (ε : ℝ) (hε : ε > 0) :
+theorem cutDistance_le_of_homDensity_close (ε : ℝ) (hε : ε > 0) :
     ∃ (δ : ℝ) (_ : δ > 0) (k : ℕ),
     ∀ (U W : Graphon α μ),
       (∀ (F : SimpleGraph (Fin k)) [DecidableRel F.Adj], |homDensity F U - homDensity F W| < δ) →

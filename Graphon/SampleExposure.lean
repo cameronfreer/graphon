@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.InfiniteSampler
 import Graphon.MixtureExistence
 import Graphon.McDiarmid
@@ -596,15 +597,19 @@ private theorem abs_integral_homDensity_samplePMF_sub_le (W : Graphon α μ) {q 
   exact hcol
 
 /-- **Exponential concentration of the sampled hom-density, fixed `F`** (issue #72,
-item 1; toward Lovász Cor 10.4): for a fixed graph `F` on `q` vertices and a sample
-size `k` with `2q² ≤ εk` (so that the collision bias `q²/k` is at most `ε/2`), the
-probability under the sample law `G(k, W)` that the hom-density of `F` deviates from
-`t(F, W)` by at least `ε` is at most `2 exp(−ε²k / (2q²))`.
+item 1): an **eventual fixed-`F` Corollary 10.4-style bound** — not the exact manuscript
+Corollary 10.4: this theorem assumes `2q² ≤ εk` (which holds eventually in `k` for fixed
+`F` and `ε`, and makes the collision bias `q²/k` at most `ε/2`) and carries a different,
+stronger exponent. For a fixed graph `F` on `q` vertices, the probability under the
+sample law `G(k, W)` that the hom-density of `F` deviates from `t(F, W)` by at least `ε`
+is at most `2 exp(−ε²k / (2q²))`.
 
 Both tails come from `ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences`
 applied to the padded vertex exposure (variance proxy `q²/(4k)`), centered at the
 sample mean; the center moves to `t(F, W)` by the collision estimate. For `q = 0`
 the density is constantly `1` and the tail set is empty. -/
+@[blueprint "thm:hom-density-concentration"
+  (title := /-- Exponential hom-density concentration for sampled graphs -/)]
 theorem _root_.Graphon.measureReal_abs_homDensity_sampled_sub_le (W : Graphon α μ)
     {q : ℕ} (F : SimpleGraph (Fin q)) [DecidableRel F.Adj] {ε : ℝ} (hε : 0 < ε)
     {k : ℕ} [NeZero k] (hk : 2 * (q : ℝ) ^ 2 ≤ ε * k) :
