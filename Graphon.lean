@@ -55,11 +55,11 @@ import Graphon.McDiarmid
 import Graphon.SampleExposure
 import Graphon.AlmostSureSampling
 import Graphon.LimitGraphon
-import Graphon.DissociatedSampler
 import Graphon.InfiniteSampleLaw
 import Graphon.EmpiricalGraphon
 import Graphon.InfiniteExtremality
 import Graphon.InfiniteSampler
+import Graphon.DissociatedSampler
 import Graphon.Convergence
 
 /-!

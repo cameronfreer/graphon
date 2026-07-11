@@ -10,8 +10,9 @@ import Graphon.InfiniteExtremality
 /-!
 # Functional Aldous–Hoover for dissociated laws (issue #64)
 
-The ergodic case of the functional Aldous–Hoover theorem needs **no measurable
-selection**: a raw representative is chosen only after the graphon class is fixed.
+The dissociated/extreme case of the functional Aldous–Hoover theorem — classically
+equivalent to the ergodic case; the formal equivalence is issue #59 — needs **no
+measurable selection**: a raw representative is chosen only after the graphon class is fixed.
 
 * `InfiniteGraph.sampleInfinite_adj` — the sampler's literal coordinates:
   `X_{ij} = 1{U_{ij} ≤ W(U_i, U_j)}` (one uniform per unordered pair, evaluated at the
@@ -54,7 +55,8 @@ theorem sampleInfinite_adj (W : Graphon α μ) (ω : (ℕ → α) × (EdgeIndex 
     rw [if_neg hmem, if_pos hle] at h
     simp at h
 
-/-- **Functional Aldous–Hoover for dissociated laws** (issue #64, the ergodic case):
+/-- **Functional Aldous–Hoover for dissociated laws** (issue #64, the dissociated/
+extreme case; classically equivalent to ergodic — formalized in issue #59):
 an infinite exchangeable graph law is dissociated iff it is the law of the explicit
 `W`-random infinite graph `X_{ij} = 1{U_{ij} ≤ W(U_i, U_j)}` for some raw graphon `W`.
 No measurable selection in the class variable is needed: extremality fixes a single
