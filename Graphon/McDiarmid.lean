@@ -18,17 +18,21 @@ moment-generating function with variance proxy `n * (c / 2) ^ 2`. Coordinate-pee
 induction over `Measure.pi (fun _ : Fin n ↦ ν)`, each peeled coordinate handled by
 Hoeffding's lemma.
 
-* `ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences` — the public result,
-  packaged as Mathlib's `ProbabilityTheory.HasSubgaussianMGF`, so that the one-sided
-  Chernoff bound `HasSubgaussianMGF.measure_ge_le` and the reflected tail via
+* `ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences'` — the primary public
+  result, over an arbitrary `Fintype` index, packaged as Mathlib's
+  `ProbabilityTheory.HasSubgaussianMGF`, so that the one-sided Chernoff bound
+  `HasSubgaussianMGF.measure_ge_le` and the reflected tail via
   `HasSubgaussianMGF.neg` are immediately available.
+* `ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences` — the `Fin n` special
+  case.
 
 The intermediate lemmas (`Graphon.McDiarmid.abs_sub_le_of_boundedDiff`, the `Fin n`
-induction `Graphon.McDiarmid.integral_exp_mul_centered_le_pi_fin`) are private. They
-are adapted from the private H13a family in `Graphon/SamplingPointwise.lean` §(II)
-("McDiarmid at MGF level on finite product measures"); a later dedup can consolidate
-`SamplingPointwise.lean` onto this module (the copies are kept verbatim-close to make
-that mechanical). This module deliberately imports Mathlib only.
+induction `Graphon.McDiarmid.integral_exp_mul_centered_le_pi_fin`, and its
+`Fintype.equivFin`/`measurePreserving_piCongrLeft` transport
+`Graphon.McDiarmid.integral_exp_mul_centered_le_pi`) are private. This module owns the
+single project implementation of the peeling induction:
+`Graphon/SamplingPointwise.lean` §(II) consumes the public theorems. This module
+deliberately imports Mathlib only.
 -/
 
 open MeasureTheory
@@ -38,11 +42,13 @@ open scoped ENNReal NNReal
 namespace Graphon.McDiarmid
 
 /-- Bounded-difference: if `f` changes by at most `c` when a single coordinate is altered,
-then `|f x - f x'| ≤ m · c` for any two points (each differing coordinate contributes `c`). -/
-private theorem abs_sub_le_of_boundedDiff {β : Type*} {c : ℝ} {m : ℕ} (f : (Fin m → β) → ℝ)
-    (hbd : ∀ (i : Fin m) (x x' : Fin m → β), (∀ l, l ≠ i → x l = x' l) → |f x - f x'| ≤ c)
-    (x x' : Fin m → β) : |f x - f x'| ≤ (m : ℝ) * c := by
-  have key : ∀ (s : Finset (Fin m)) (y y' : Fin m → β),
+then `|f x - f x'| ≤ card ι · c` for any two points (each differing coordinate
+contributes `c`). -/
+private theorem abs_sub_le_of_boundedDiff {ι : Type*} [Fintype ι] [DecidableEq ι]
+    {β : Type*} {c : ℝ} (f : (ι → β) → ℝ)
+    (hbd : ∀ (i : ι) (x x' : ι → β), (∀ l, l ≠ i → x l = x' l) → |f x - f x'| ≤ c)
+    (x x' : ι → β) : |f x - f x'| ≤ (Fintype.card ι : ℝ) * c := by
+  have key : ∀ (s : Finset ι) (y y' : ι → β),
       (∀ l ∉ s, y l = y' l) → |f y - f y'| ≤ (s.card : ℝ) * c := by
     intro s
     induction s using Finset.induction with
@@ -110,6 +116,7 @@ private theorem integral_exp_mul_centered_le_pi_fin {β : Type*} [MeasurableSpac
       have hMf : ∀ x, |f x| ≤ M := by
         intro x
         have h1 := abs_sub_le_of_boundedDiff (c := c) f hbd x x₀
+        rw [Fintype.card_fin] at h1
         calc |f x| = |(f x - f x₀) + f x₀| := by ring_nf
           _ ≤ |f x - f x₀| + |f x₀| := abs_add_le _ _
           _ ≤ M := by rw [hM]; push_cast at h1 ⊢; linarith
@@ -272,23 +279,66 @@ private theorem integral_exp_mul_centered_le_pi_fin {β : Type*} [MeasurableSpac
         _ = Real.exp (((n + 1 : ℕ) : ℝ) * (c / 2) ^ 2 * t ^ 2 / 2) := by
             rw [← Real.exp_add]; congr 1; push_cast; ring
 
+/-- Transport of `integral_exp_mul_centered_le_pi_fin` to an arbitrary finite index type,
+via `Fintype.equivFin` and `measurePreserving_piCongrLeft`. -/
+private theorem integral_exp_mul_centered_le_pi {ι : Type*} [Fintype ι] {β : Type*}
+    [MeasurableSpace β] (ν : Measure β) [IsProbabilityMeasure ν] (f : (ι → β) → ℝ)
+    (hf : Measurable f) {c : ℝ} (hc : 0 ≤ c)
+    (hbd : ∀ (i : ι) (x x' : ι → β), (∀ l, l ≠ i → x l = x' l) → |f x - f x'| ≤ c)
+    (t : ℝ) :
+    ∫ x, Real.exp (t * (f x - ∫ x', f x' ∂Measure.pi (fun _ : ι ↦ ν)))
+        ∂Measure.pi (fun _ : ι ↦ ν)
+      ≤ Real.exp ((Fintype.card ι : ℝ) * (c / 2) ^ 2 * t ^ 2 / 2) := by
+  set N := Fintype.card ι with hN
+  set e := Fintype.equivFin ι with he
+  set φ := MeasurableEquiv.piCongrLeft (fun _ : ι ↦ β) e.symm with hφ
+  have mp : MeasurePreserving φ (Measure.pi (fun _ : Fin N ↦ ν))
+      (Measure.pi (fun _ : ι ↦ ν)) :=
+    measurePreserving_piCongrLeft (α := fun _ : ι ↦ β) (μ := fun _ : ι ↦ ν) e.symm
+  have hcoord : ∀ (w : Fin N → β) (l : ι), φ w l = w (e l) := by
+    intro w l
+    have h := MeasurableEquiv.piCongrLeft_apply_apply (β := fun _ : ι ↦ β) e.symm w (e l)
+    rwa [e.symm_apply_apply] at h
+  have hbdF : ∀ (i : Fin N) (w w' : Fin N → β),
+      (∀ l, l ≠ i → w l = w' l) → |f (φ w) - f (φ w')| ≤ c := by
+    intro i w w' hww'
+    apply hbd (e.symm i)
+    intro l hl
+    rw [hcoord w l, hcoord w' l]
+    refine hww' (e l) (fun hcontra => hl ?_)
+    rw [← e.symm_apply_apply l, hcontra]
+  have key := integral_exp_mul_centered_le_pi_fin ν (fun w ↦ f (φ w)) (hf.comp φ.measurable)
+    hc hbdF t
+  have hI : (∫ x', f x' ∂Measure.pi (fun _ : ι ↦ ν))
+      = ∫ w', f (φ w') ∂Measure.pi (fun _ : Fin N ↦ ν) := (mp.integral_comp' f).symm
+  have hOuter : (∫ x, Real.exp (t * (f x - ∫ x', f x' ∂Measure.pi (fun _ : ι ↦ ν)))
+        ∂Measure.pi (fun _ : ι ↦ ν))
+      = ∫ w, Real.exp (t * (f (φ w) - ∫ x', f x' ∂Measure.pi (fun _ : ι ↦ ν)))
+        ∂Measure.pi (fun _ : Fin N ↦ ν) :=
+    (mp.integral_comp'
+      (fun x ↦ Real.exp (t * (f x - ∫ x', f x' ∂Measure.pi (fun _ : ι ↦ ν))))).symm
+  rw [hOuter, hI]
+  exact key
+
 end Graphon.McDiarmid
 
 /-- **McDiarmid's bounded-differences inequality at MGF level** on a finite i.i.d.
-product: if the measurable `f` changes by at most `c` under any single-coordinate
-update, then the centered `f` has a sub-Gaussian moment-generating function with
-variance proxy `n * (c / 2) ^ 2` under `Measure.pi (fun _ : Fin n ↦ ν)`. The
-one-sided Chernoff tail is then `ProbabilityTheory.HasSubgaussianMGF.measure_ge_le`;
-the reflected tail follows via `ProbabilityTheory.HasSubgaussianMGF.neg`. -/
-theorem ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences
-    {n : ℕ} {β : Type*} [MeasurableSpace β] (ν : Measure β) [IsProbabilityMeasure ν]
-    (f : (Fin n → β) → ℝ) (hf : Measurable f) (c : ℝ) (hc : 0 ≤ c)
-    (hosc : ∀ (x : Fin n → β) (i : Fin n) (b : β),
+product over an arbitrary finite index type: if the measurable `f` changes by at most
+`c` under any single-coordinate update, then the centered `f` has a sub-Gaussian
+moment-generating function with variance proxy `card ι * (c / 2) ^ 2` under
+`Measure.pi (fun _ : ι ↦ ν)`. The one-sided Chernoff tail is then
+`ProbabilityTheory.HasSubgaussianMGF.measure_ge_le`; the reflected tail follows via
+`ProbabilityTheory.HasSubgaussianMGF.neg`. -/
+theorem ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences'
+    {ι : Type*} [Fintype ι] [DecidableEq ι] {β : Type*} [MeasurableSpace β]
+    (ν : Measure β) [IsProbabilityMeasure ν]
+    (f : (ι → β) → ℝ) (hf : Measurable f) (c : ℝ) (hc : 0 ≤ c)
+    (hosc : ∀ (x : ι → β) (i : ι) (b : β),
       |f (Function.update x i b) - f x| ≤ c) :
     ProbabilityTheory.HasSubgaussianMGF
-      (fun x ↦ f x - ∫ y, f y ∂Measure.pi (fun _ : Fin n ↦ ν))
-      ((n : ℝ≥0) * (c.toNNReal / 2) ^ 2)
-      (Measure.pi (fun _ : Fin n ↦ ν)) := by
+      (fun x ↦ f x - ∫ y, f y ∂Measure.pi (fun _ : ι ↦ ν))
+      ((Fintype.card ι : ℝ≥0) * (c.toNNReal / 2) ^ 2)
+      (Measure.pi (fun _ : ι ↦ ν)) := by
   haveI : Nonempty β := by
     by_contra h
     rw [not_nonempty_iff] at h
@@ -296,7 +346,7 @@ theorem ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences
     have h2 : ν Set.univ = 0 := by rw [h1]; simp
     rw [measure_univ] at h2; exact one_ne_zero h2
   -- Two-point bounded differences from the one-point update oscillation.
-  have hbd : ∀ (i : Fin n) (x x' : Fin n → β), (∀ l, l ≠ i → x l = x' l) →
+  have hbd : ∀ (i : ι) (x x' : ι → β), (∀ l, l ≠ i → x l = x' l) →
       |f x - f x'| ≤ c := by
     intro i x x' hxx'
     have hx' : x' = Function.update x i (x' i) := by
@@ -306,11 +356,11 @@ theorem ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences
       · rw [Function.update_of_ne hl]; exact (hxx' l hl).symm
     rw [hx', abs_sub_comm]
     exact hosc x i (x' i)
-  set π : Measure (Fin n → β) := Measure.pi (fun _ : Fin n ↦ ν) with hπ
+  set π : Measure (ι → β) := Measure.pi (fun _ : ι ↦ ν) with hπ
   set I : ℝ := ∫ y, f y ∂π with hI
   -- Uniform boundedness of `f` (hence of the centered exponential).
-  set x₀ : Fin n → β := fun _ ↦ Classical.arbitrary β with hx0
-  set M : ℝ := (n : ℝ) * c + |f x₀| with hM
+  set x₀ : ι → β := fun _ ↦ Classical.arbitrary β with hx0
+  set M : ℝ := (Fintype.card ι : ℝ) * c + |f x₀| with hM
   have hMf : ∀ x, |f x| ≤ M := by
     intro x
     have h1 := Graphon.McDiarmid.abs_sub_le_of_boundedDiff (c := c) f hbd x x₀
@@ -331,9 +381,27 @@ theorem ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences
                 rw [sub_eq_add_neg, ← abs_neg I]; exact abs_add_le _ _
             _ ≤ M + |I| := by linarith [hMf x]
   refine ⟨hint, fun t ↦ ?_⟩
-  have hkey := Graphon.McDiarmid.integral_exp_mul_centered_le_pi_fin ν f hf hc hbd t
-  have hcoe : (((n : ℝ≥0) * (c.toNNReal / 2) ^ 2 : ℝ≥0) : ℝ) = (n : ℝ) * (c / 2) ^ 2 := by
+  have hkey := Graphon.McDiarmid.integral_exp_mul_centered_le_pi ν f hf hc hbd t
+  have hcoe : (((Fintype.card ι : ℝ≥0) * (c.toNNReal / 2) ^ 2 : ℝ≥0) : ℝ)
+      = (Fintype.card ι : ℝ) * (c / 2) ^ 2 := by
     push_cast [Real.coe_toNNReal c hc]
     ring
   rw [ProbabilityTheory.mgf, hcoe]
   exact hkey
+
+/-- **McDiarmid's bounded-differences inequality at MGF level** on a finite i.i.d.
+product over `Fin n`: the special case `ι := Fin n` of
+`ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences'`. The one-sided Chernoff
+tail is then `ProbabilityTheory.HasSubgaussianMGF.measure_ge_le`; the reflected tail
+follows via `ProbabilityTheory.HasSubgaussianMGF.neg`. -/
+theorem ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences
+    {n : ℕ} {β : Type*} [MeasurableSpace β] (ν : Measure β) [IsProbabilityMeasure ν]
+    (f : (Fin n → β) → ℝ) (hf : Measurable f) (c : ℝ) (hc : 0 ≤ c)
+    (hosc : ∀ (x : Fin n → β) (i : Fin n) (b : β),
+      |f (Function.update x i b) - f x| ≤ c) :
+    ProbabilityTheory.HasSubgaussianMGF
+      (fun x ↦ f x - ∫ y, f y ∂Measure.pi (fun _ : Fin n ↦ ν))
+      ((n : ℝ≥0) * (c.toNNReal / 2) ^ 2)
+      (Measure.pi (fun _ : Fin n ↦ ν)) := by
+  simpa only [Fintype.card_fin] using
+    ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences' ν f hf c hc hosc

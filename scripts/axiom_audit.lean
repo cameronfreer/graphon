@@ -50,5 +50,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms GraphonSpace.mixtureInfiniteLaw_eq
 #print axioms InfiniteGraph.sampledEmpiricalGraphon_tendstoInMeasure
 #print axioms ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences
+#print axioms ProbabilityTheory.hasSubgaussianMGF_of_bounded_differences'
 #print axioms Graphon.measureReal_abs_homDensity_sampled_sub_le
 #print axioms InfiniteGraph.tsum_samplerSource_homDensity_tail_ne_top
