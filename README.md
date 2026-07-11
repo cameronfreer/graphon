@@ -75,6 +75,7 @@ Three `sorry` statements are deliberately retained as **documentation of refuted
 | `Graphon/SamplingFinite.lean` | Core | Exact finite-sampling formula: sampling an embedded finite graph = uniform vertex-map pullback |
 | `Graphon/MixtureExistence.lean` | Core | Existence of the graphon mixture: collision estimate for empirical mixing measures; every exchangeable law is a mixture |
 | `Graphon/MixtureRepresentation.lean` | Core | Diaconis–Janson representation theorem: exchangeable graph laws = graphon mixtures, uniquely |
+| `Graphon/MixtureExtremality.lean` | Core | Diaconis–Janson extremality: dissociated exchangeable laws = Dirac mixtures |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
