@@ -41,3 +41,4 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.ExchangeableGraphLaw.infiniteLaw_map_restrictFin
 #print axioms Graphon.ExchangeableGraphLaw.infiniteLaw_map_relabel
 #print axioms Graphon.exchangeableGraphLawEquivInfinite
+#print axioms GraphonSpace.infiniteMixtureLawEquiv
