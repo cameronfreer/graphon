@@ -6,7 +6,7 @@ Authors: Cameron Freer
 import Architect
 import Mathlib.Probability.ProbabilityMassFunction.Integrals
 import Graphon.MixtureConvergence
-import Graphon.MixtureUniqueness
+import Graphon.MixtureCoordinates
 import Graphon.SamplingFinite
 
 /-!

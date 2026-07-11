@@ -1,6 +1,19 @@
 # Sampling asymptotics roadmap: from the First Sampling Lemma to Aldous–Hoover
 
 **Status:** proposed campaign ladder, 2026-07-10 (post-R3; advisor-reviewed).
+
+> **CAMPAIGN COMPLETE (Diaconis–Janson arc), 2026-07-11.** Issue #33 is fully formalized
+> and merged: the graphon space (compact Polish standard-Borel quotient), the joining
+> theorem, point-separating sample coordinates and the compact embedding, exchangeable
+> graph laws and mixtures, the exact finite-sampling formula, the collision estimate,
+> **the representation theorem** `graphon_mixture_representation` (`∃!` mixing measure;
+> packaged equivalence `mixtureExchangeableLawEquiv`), and **extremality**
+> `isDissociated_mixtureExchangeableLaw_iff` / `isDissociated_iff_exists_sampleExchangeableLaw`
+> (dissociated ↔ Dirac ↔ fixed-graphon sample law) — PRs #25–#42, all axiom-clean.
+> A full explicit Aldous–Hoover construction (infinite-product random-array realization)
+> remains the possible sequel; the current theorems are its graphon-mixture content in
+> finitary form. Next capstone in flight: `empiricalMixing_tendsto_representingMeasure`
+> (full-sequence empirical convergence).
 **Relation to other plans:** `docs/post-r3-mainline-completion-plan.md` is the release-hardening
 track (documentation, CI, census enforcement) and explicitly excludes new mathematics; this
 document is the *next mathematical campaign* track. The parked `70-twinfree-common-host`
