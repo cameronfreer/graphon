@@ -385,4 +385,28 @@ theorem limitGraphon_drop (k : ℕ) (G : InfiniteGraph) :
       hG ((mem_empiricalConvergenceSet_drop_iff k G).mp h)
     simp only [limitGraphon, dif_neg hG, dif_neg hG']
 
+/-! ### Tail measurability of the universal empirical limit -/
+
+/-- **The universal empirical limit is measurable with respect to every tail
+σ-algebra**: `limitGraphon` factors pointwise through `drop k` (`limitGraphon_drop`),
+so every preimage is a `drop k`-preimage of a Borel set. -/
+theorem measurable_limitGraphon_tailAlgebra (k : ℕ) :
+    @Measurable InfiniteGraph StandardGraphonSpace (InfiniteGraph.tailAlgebra k) _
+      limitGraphon := fun S hS =>
+  MeasurableSpace.measurableSet_comap.mpr ⟨limitGraphon ⁻¹' S,
+    measurable_limitGraphon hS, by
+      ext G
+      simp only [Set.mem_preimage, limitGraphon_drop]⟩
+
+/-- **The empirical limit is vertex-tail measurable** (issue #97): `limitGraphon` is
+measurable with respect to the vertex-tail σ-algebra `⋂ₖ σ(G|{k, k+1, …})` — the key
+input for the tail-triviality step of issue #91. -/
+@[blueprint "thm:limit-graphon-tail"
+  (title := /-- The empirical limit is vertex-tail measurable -/)]
+theorem measurable_limitGraphon_vertexTailAlgebra :
+    @Measurable InfiniteGraph StandardGraphonSpace InfiniteGraph.vertexTailAlgebra _
+      limitGraphon := fun _ hS =>
+  MeasurableSpace.measurableSet_iInf.mpr fun k =>
+    measurable_limitGraphon_tailAlgebra k hS
+
 end GraphonSpace
