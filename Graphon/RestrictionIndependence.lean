@@ -7,6 +7,7 @@ import Architect
 import Graphon.VertexTail
 import Graphon.InfiniteExtremality
 import Mathlib.MeasureTheory.Measure.Support
+import Mathlib.Probability.Independence.ZeroOne
 
 /-!
 # Toward the five-way extremality theorem (Diaconis–Janson Theorem 5.5, issue #91)
@@ -97,6 +98,27 @@ theorem initialAlgebra_le (k : ℕ) :
     initialAlgebra k ≤ (inferInstance : MeasurableSpace InfiniteGraph) :=
   measurable_iff_comap_le.mp (measurable_restrictFin k)
 
+/-- The initial σ-algebras are monotone in the number of vertices. -/
+theorem initialAlgebra_mono : Monotone initialAlgebra := by
+  intro k l h
+  refine measurable_iff_comap_le.mp ?_
+  rw [show restrictFin k = (fun H : SimpleGraph (Fin l) => H.comap (Fin.castLEEmb h)) ∘
+      restrictFin l from funext fun G => restrictFin_comap h G]
+  exact (SimpleGraph.measurable_comap _).comp
+    (@Measurable.of_comap_le _ _ (initialAlgebra l) _ (restrictFin l) le_rfl)
+
+/-- **The initial σ-algebras generate the Borel σ-algebra**: the initial cylinders are
+a generating family. -/
+theorem iSup_initialAlgebra_eq :
+    (⨆ k, initialAlgebra k) = (inferInstance : MeasurableSpace InfiniteGraph) := by
+  refine le_antisymm (iSup_le initialAlgebra_le) ?_
+  rw [← generateFrom_cylinders_eq]
+  refine MeasurableSpace.generateFrom_le fun t ht => ?_
+  simp only [cylinders, Set.mem_iUnion, Set.mem_range] at ht
+  obtain ⟨k, S, rfl⟩ := ht
+  exact le_iSup initialAlgebra k _
+    (MeasurableSpace.measurableSet_comap.mpr ⟨S, (Set.to_countable S).measurableSet, rfl⟩)
+
 end InfiniteGraph
 
 namespace Graphon.InfiniteExchangeableGraphLaw
@@ -128,6 +150,39 @@ def VertexTailTrivial (M : Graphon.InfiniteExchangeableGraphLaw) : Prop :=
   ∀ s, MeasurableSet[InfiniteGraph.vertexTailAlgebra] s →
     (M.law : Measure InfiniteGraph) s = 0 ∨ (M.law : Measure InfiniteGraph) s = 1
 
+open ProbabilityTheory in
+/-- **Restriction independence**: for every `k`, the graph on the first `k` vertices is
+independent of the graph on the remaining vertices. -/
+def RestrictionIndependent (M : Graphon.InfiniteExchangeableGraphLaw) : Prop :=
+  ∀ k, Indep (InfiniteGraph.initialAlgebra k) (InfiniteGraph.tailAlgebra k)
+    (M.law : Measure InfiniteGraph)
+
+open ProbabilityTheory in
+/-- **Restriction independence implies vertex-tail triviality**: a vertex-tail event is
+independent of every initial σ-algebra, hence — the initial σ-algebras generating the
+Borel σ-algebra — independent of itself, so has measure `0` or `1`. -/
+theorem vertexTailTrivial_of_restrictionIndependent
+    {M : Graphon.InfiniteExchangeableGraphLaw} (hM : M.RestrictionIndependent) :
+    M.VertexTailTrivial := by
+  haveI : IsProbabilityMeasure (M.law : Measure InfiniteGraph) := M.law.2
+  intro s hs
+  -- the vertex-tail σ-algebra is independent of every initial σ-algebra
+  have hindep : ∀ k, Indep (InfiniteGraph.initialAlgebra k)
+      InfiniteGraph.vertexTailAlgebra (M.law : Measure InfiniteGraph) := fun k =>
+    indep_of_indep_of_le_right (hM k) (InfiniteGraph.vertexTailAlgebra_le_tailAlgebra k)
+  -- hence independent of their supremum, which is the whole Borel σ-algebra
+  have hsup : Indep (⨆ k, InfiniteGraph.initialAlgebra k)
+      InfiniteGraph.vertexTailAlgebra (M.law : Measure InfiniteGraph) :=
+    indep_iSup_of_directed_le hindep InfiniteGraph.initialAlgebra_le
+      InfiniteGraph.vertexTailAlgebra_le
+      (Monotone.directed_le InfiniteGraph.initialAlgebra_mono)
+  rw [InfiniteGraph.iSup_initialAlgebra_eq] at hsup
+  -- restrict to the vertex-tail σ-algebra: it is independent of itself
+  have hself : Indep InfiniteGraph.vertexTailAlgebra InfiniteGraph.vertexTailAlgebra
+      (M.law : Measure InfiniteGraph) :=
+    indep_of_indep_of_le_left hsup InfiniteGraph.vertexTailAlgebra_le
+  exact measure_eq_zero_or_one_of_indep_self hself hs
+
 end Graphon.InfiniteExchangeableGraphLaw
 
 /-! ### Vertex-tail triviality implies dissociation -/
@@ -151,6 +206,8 @@ theorem representing_dirac_of_vertexTailTrivial
 
 /-- **Vertex-tail triviality implies dissociation** (a Diaconis–Janson Theorem 5.5
 arc): a law whose vertex-tail σ-algebra is trivial is dissociated. -/
+@[blueprint "thm:vertex-tail-dissociation"
+  (title := /-- Vertex-tail triviality implies dissociation -/)]
 theorem isDissociated_of_vertexTailTrivial
     {M : Graphon.InfiniteExchangeableGraphLaw} (hM : M.VertexTailTrivial) :
     M.IsDissociated :=

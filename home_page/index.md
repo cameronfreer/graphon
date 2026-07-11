@@ -94,6 +94,7 @@ The project contains zero `sorry` statements (issue #19, completed 2026-07-11): 
 | `Graphon/LimitGraphon.lean` | Core | The empirical graphon limit as a universal measurable random variable |
 | `Graphon/DissociatedSampler.lean` | Core | Functional Aldous–Hoover for dissociated laws: dissociated = law of an explicit W-random graph |
 | `Graphon/VertexTail.lean` | Core | Vertex-tail shift + σ-algebras; deletion stability; limitGraphon is tail-measurable |
+| `Graphon/RestrictionIndependence.lean` | Core | Vertex-tail σ-algebra + restriction independence ⟹ dissociation; generic Polish Dirac criterion |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |

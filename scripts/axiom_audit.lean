@@ -60,3 +60,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms InfiniteGraph.sampleInfinite_adj
 #print axioms GraphonSpace.tendsto_empiricalGraphon_drop_iff
 #print axioms GraphonSpace.measurable_limitGraphon_vertexTailAlgebra
+#print axioms MeasureTheory.ProbabilityMeasure.eq_dirac_of_forall_measure_eq_zero_or_one
+#print axioms Graphon.InfiniteExchangeableGraphLaw.vertexTailTrivial_of_restrictionIndependent
+#print axioms GraphonSpace.isDissociated_of_vertexTailTrivial
