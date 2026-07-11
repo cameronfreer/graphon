@@ -35,7 +35,7 @@ The formalization covers:
 
 **Algebraic determination is PROVED** (2026-07-06): `matrix_quotient_of_weightedHomSum_eq` (Lov&aacute;sz Theorem 5.30, k&ge;2 positive-weight case) is axiom-clean, via the twin-free bijection and the cross-matrix super-surjective transfer (`Graphon/CrossSuper.lean`).
 
-Three `sorry` statements are deliberately retained as documentation of refuted conjectures (private dead-route declarations in `MatrixDetermination.lean`; each marked FALSE/REFUTED in its docstring); no live or public theorem depends on them. The four formerly-retained public stubs in `Lovasz.lean` and `Spectral.lean` were deleted, with their refutation documentation kept as prose. These are the project's only `sorry`s (removal tracked in issue #19).
+The project contains zero `sorry` statements (issue #19, completed 2026-07-11): the formerly-retained known-false stubs in `MatrixDetermination.lean`, `Lovasz.lean`, and `Spectral.lean` were all deleted, with their refutation documentation kept as prose. The CI census enforces strictly zero sorry/admit tokens.
 
 ## Components
 

@@ -4180,89 +4180,18 @@ private theorem eval2Span_eq_edgeFree_sup_mulByEdge {T : ℕ}
   · exact sup_le (edgeFreeEvalSpan_le_eval2Span B W)
       (mulByEdge_edgeFreeEvalSpan_le_eval2Span B W hB)
 
-/-! ### CT-1 bridge: indistinguishability relations -/
-
-/-- Two pairs are edge-free indistinguishable if every edge-free 2-labeled evaluation
-agrees on them. -/
-private def edgeFreeIndist {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (p q : Fin T × Fin T) : Prop :=
-  ∀ f ∈ edgeFreeEvalSet B W, f p.1 p.2 = f q.1 q.2
-
-/-- Two pairs are fully indistinguishable if they are edge-free indistinguishable
-and have the same direct edge value B(i,j). -/
-private def fullIndist {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (p q : Fin T × Fin T) : Prop :=
-  edgeFreeIndist B W p q ∧ B p.1 p.2 = B q.1 q.2
-
-private theorem edgeFreeIndist_refl {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (p : Fin T × Fin T) : edgeFreeIndist B W p p :=
-  fun _ _ => rfl
-
-private theorem edgeFreeIndist_symm {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    {p q : Fin T × Fin T} (h : edgeFreeIndist B W p q) : edgeFreeIndist B W q p :=
-  fun f hf => (h f hf).symm
-
-private theorem fullIndist_refl {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (p : Fin T × Fin T) : fullIndist B W p p :=
-  ⟨edgeFreeIndist_refl B W p, rfl⟩
-
-/-- Functions in edgeFreeEvalSpan are constant on edgeFreeIndist-classes. -/
-private theorem edgeFreeEvalSpan_constant_on_edgeFreeIndist {T : ℕ}
-    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    {f : Fin T → Fin T → ℝ} (hf : f ∈ edgeFreeEvalSpan B W)
-    {p q : Fin T × Fin T} (hpq : edgeFreeIndist B W p q) :
-    f p.1 p.2 = f q.1 q.2 := by
-  refine Submodule.span_induction ?_ ?_ ?_ ?_ hf
-  · intro g hg; exact hpq g hg
-  · rfl
-  · intro g₁ g₂ _ _ h₁ h₂; simp only [Pi.add_apply]; rw [h₁, h₂]
-  · intro r g _ hg; simp only [Pi.smul_apply, smul_eq_mul]; rw [hg]
-
-/-- Functions in eval2Span are constant on fullIndist-classes. -/
-private theorem eval2Span_constant_on_fullIndist {T : ℕ}
-    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    (hB : ∀ i j, B i j = B j i)
-    {f : Fin T → Fin T → ℝ} (hf : f ∈ eval2Span B W)
-    {p q : Fin T × Fin T} (hpq : fullIndist B W p q) :
-    f p.1 p.2 = f q.1 q.2 := by
-  rw [eval2Span_eq_edgeFree_sup_mulByEdge B W hB] at hf
-  obtain ⟨g, hg, h, hh, rfl⟩ := Submodule.mem_sup.mp hf
-  obtain ⟨h₀, hh₀, rfl⟩ := Submodule.mem_map.mp hh
-  simp only [Pi.add_apply, mulByEdgeLM, LinearMap.coe_mk, AddHom.coe_mk]
-  rw [edgeFreeEvalSpan_constant_on_edgeFreeIndist hg hpq.1,
-      edgeFreeEvalSpan_constant_on_edgeFreeIndist hh₀ hpq.1, hpq.2]
-
-/-- Orbit-related pairs are fully indistinguishable (easy direction of CT-1). -/
-private theorem pairOrbitRel_implies_fullIndist {T : ℕ}
-    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    (hB : ∀ i j, B i j = B j i)
-    {p q : Fin T × Fin T} (h : pairOrbitRel B W p q) :
-    fullIndist B W p q := by
-  obtain ⟨π, ⟨hw, hc⟩, h1, h2⟩ := h
-  constructor
-  · -- Edge-free indist: each edge-free evaluation is Aut-invariant
-    intro f ⟨n, F, inst, hF, hf⟩
-    rw [hf, ← h1, ← h2]
-    exact (labeledEval2_perm_eq n F B W π hc hw p.1 p.2).symm
-  · -- Edge value preserved by automorphism
-    rw [← h1, ← h2]; exact (hc p.1 p.2).symm
-
 /-! ### Lovász TR-2004-82 k-labeled infrastructure
 
-The 5-motif route below (starting at the "Explicit separating motifs" header)
-was refuted by the `C₅ ⊔ C₆` counterexample (`scripts/counterexample_C5_C6.py`).
-This section installs the **honest book path** from Lovász's
+The former 5-motif route (see the "Refuted 5-motif route" note below) was refuted
+by the `C₅ ⊔ C₆` counterexample (`scripts/counterexample_C5_C6.py`) and deleted in
+issue #19. This section installs the **honest book path** from Lovász's
 *The rank of connection matrices and the dimension of graph algebras*
 (Microsoft Research Technical Report TR-2004-82, August 2004;
 <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2004-82.pdf>;
-book form: *Large Networks and Graph Limits*, AMS Colloquium Publications 60).
-
-This is **Session A** of the pivot: k-labeled evaluation, equivalence, orbit
-relation, cheap consistency/invariance lemmas, and Claim 4.1 (restriction).
-Claim 4.2 (trace-extension) is installed as the new honest frontier sorry.
-The existing CT-1 chain (line 5200) and downstream theorems still route
-through the known-false motif subclaims for now; rewiring is deferred to a
-later session after Lemma 2.4 itself has landed.
+book form: *Large Networks and Graph Limits*, AMS Colloquium Publications 60):
+k-labeled evaluation, equivalence, orbit relation, cheap consistency/invariance
+lemmas, and Claims 4.1 (restriction) / 4.2 (trace-extension). The chain is now
+fully proved (no `sorry`).
 -/
 
 /-- **Lovász TR-2004-82 eq. (1)**, p. 4. Normalized k-labeled hom count.
@@ -6070,8 +5999,8 @@ induction on `L`.
 The no-LL preservation of `labeledEvalK_glue`'s witness requires reasoning
 about the construction inside the `∃`, which currently isn't exposed — a
 small strengthening of `labeledEvalK_glue`'s conclusion (or a companion
-lemma) unlocks this proof. Left as sorry this session; the interface is
-landed. -/
+lemma) unlocks this proof. (Historical note: initially left as a stub;
+since fully proved.) -/
 private theorem labeledEvalK_prod_no_LL {K : ℕ}
     (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + K))))
     (hL : ∀ p ∈ L, ∀ a b : Fin (p.1 + K), a.val < K → b.val < K → ¬ p.2.Adj a b) :
@@ -6912,21 +6841,17 @@ restructure cannot eliminate the content; what's needed is either:
        of the A_k algebra argument with specific trace structure).
   (b') Pivot to explicit Lovász A_k / connection-matrix machinery.
   (c') Accept current state, with the algebraic chain wired through a
-       single semantic root. [Census updated 2026-07-02: this file now
-       carries 6 sorries — 2 frozen C₅⊔C₆ motifs (`star0_tri0`,
-       `pairOrbit_of_vertexOrbits_and_path`; `star1_tri1` now delegates),
-       1 known-false off-path (`labeledEvalK_separates`), and
-       3 architectural (this σ-sum frontier, the private
-       `tupleEquiv_implies_tupleOrbitRel` non-surjective branch,
-       `twinfree_bijection_of_weightedHomSum_eq`). `labeledEvalK_glue`
-       is fully PROVED.]
+       single semantic root. [Census note: as of 2026-07-02 this file
+       carried 6 sorries; all have since been proved or — for the
+       known-false motif/separation stubs — deleted (issue #19).
+       The file is now sorry-free.]
 
 **OFF-AXIS** (post-bridge consolidation): this theorem is **no longer**
 the canonical root. The active chain now routes through
 `multiLabeledEvalK_tupleEquiv_invariant` (the multigraph bridge,
 L7150). This `Dtr` theorem remains in the file as a documented
-generalization with its own narrowed sorry (`∃ a, lu0Mult a ≥ 1`
-case at the σ-sum level), but is not on the active proof axis. Future
+generalization (its formerly narrowed `∃ a, lu0Mult a ≥ 1` case has
+since been proved), but is not on the active proof axis. Future
 sessions: do NOT route new content through this theorem. -/
 /-! **Restricted invariance theorem** (with `h_noDiag` hypothesis) — the theorem itself
 MOVED below the multigraph bridge (2026-07-02) and is PROVED there; this note retains the
@@ -7175,8 +7100,8 @@ private theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
   let M' : Graphon.Lovasz.MultiLabeledGraph K n :=
     { mult := M.mult, multNoLoop := M.multNoLoop }
   -- Route via h_orbit (Lovász Lemma 2.4 via Lemma 2.5 + change-of-variables).
-  -- Uses `tupleEquivSimple_implies_orbit_via_2_5` (cycle-free; depends only
-  -- on Lemma 2.5's sorry) rather than `tupleEquivSimple_implies_orbit`
+  -- Uses `tupleEquivSimple_implies_orbit_via_2_5` (cycle-free; depended only
+  -- on Lemma 2.5, itself since proved) rather than `tupleEquivSimple_implies_orbit`
   -- (depends on the triangular cycle Lemma 2.4 ↔ k1_orbit_sep_aux ↔
   -- of_const_on_orbit).
   have h_simple_lovasz : Graphon.Lovasz.tupleEquivSimple B W ξ ξ' := by
@@ -8335,9 +8260,9 @@ multigraph evaluations follows from this structural closure. Closing
 - `coeffRestrict_equiv` is proved modulo `product_trace_identity` (and
   hence modulo the extension theorem).
 - `tupleEquiv_extend` is proved modulo `coeffRestrict_equiv`.
-- The non-surjective branch of `tupleEquiv_implies_tupleOrbitRel` still
-  carries its own sorry (retained because closing it additionally
-  requires the WF induction architecture refactor on `(deficit, size)`).
+- The non-surjective branch of `tupleEquiv_implies_tupleOrbitRel`
+  carried its own sorry at the time; it has since been closed via the
+  Lovász-module bridge.
   With the extension theorem and `tupleEquiv_extend` unblocked, the
   Lovász extend-and-recurse closes that branch: pick
   `r ∉ range α ∪ {a, b}`, apply `tupleEquiv_extend` to produce
@@ -8345,8 +8270,8 @@ multigraph evaluations follows from this structural closure. Closing
   recurse via the WF measure, and restrict back.
 
 This section isolates the reduction; the central theorem itself
-(`DecLabeledGraphTr.eval_tupleEquiv_invariant`) retains its sorry body
-at its existing location above. -/
+(`DecLabeledGraphTr.eval_tupleEquiv_invariant`) was still sorry'd at the
+time of this note and has since been proved. -/
 
 /-- **Reduction 1** (`product_trace_identity` → extension theorem).
 If `DecLabeledGraphTr.eval_tupleEquiv_invariant` holds — i.e., every
@@ -8369,9 +8294,8 @@ level `K` — then `product_trace_identity` follows by the
    `D.trace.eval B W ξ = D.trace.eval B W ξ'`.
 6. Apply `trace_eval` again (symmetrically for `ξ'`) and conclude.
 
-The proof body is `sorry` because the assembly — while routine —
-is mechanical `DecLabeledGraph`-algebra that belongs to a proving
-session rather than a design session. -/
+The proof body — mechanical `DecLabeledGraph`-algebra — was initially
+left as a stub and has since been completed. -/
 private theorem product_trace_identity_of_eval_tupleEquiv_invariant
     {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ)
@@ -8485,8 +8409,8 @@ instead *extending* from deficit-0 size-T instances — i.e., consuming
 `tupleEquiv_extend` rather than restriction. Proving them requires the
 extension theorem (Level 1) to be in place first.
 
-Each stub below is named, typed, and documented. The `sorry` bodies are
-placeholders for future proving sessions; no new algebra is landed here. -/
+Each stub below is named, typed, and documented. (Historical: the stub
+bodies were placeholders at the time; all have since been proved.) -/
 
 /-! #### Level 1 stubs — power-sum / moment invariance
 
@@ -8513,8 +8437,8 @@ Infrastructure for Path (d) — the Lovász A_k algebra argument — following
 the user's bounded "infrastructure only" directive. Defines the
 tupleEquiv-quotient, the simple-graph evaluation subalgebra on it, and
 the three structural facts (constants / multiplication / point-separation).
-Fullness is stated as a dual of `functional_span_zero` and left sorry'd
-for the follow-up proving session. -/
+Fullness is stated as a dual of `functional_span_zero` (initially a
+stub; since proved). -/
 
 /-- **Step 1 (setoid)**: tupleEquiv as a setoid on `Fin K → Fin T`. -/
 private def tupleClassSetoid (T K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
@@ -8971,16 +8895,16 @@ descends through the level-K tupleEquiv**, i.e., iff
 **The canonical semantic root** (`tr_k_descends_to_A_k` below): this
 descent property holds for every class function `f`. All three
 "frontier" theorems in this file are restatements of this content:
-  - `DecLabeledGraphTr.eval_tupleEquiv_invariant` (L6902, sorry'd):
-    applies `tr_k`'s descent to a specific `g` built from `Dtr`.
+  - `DecLabeledGraphTr.eval_tupleEquiv_invariant` (L6902, then sorry'd;
+    since proved): applies `tr_k`'s descent to a specific `g` from `Dtr`.
   - `traceMeasure_eq_of_tupleEquiv` (L7944, proved modulo cycle):
     pointwise equivalent to `tr_k`'s descent via `simpleGraphEvalOn_spans`.
   - `starMultigraphEval_tupleEquiv_invariant_direct` (L8670, proved
     modulo cycle): applies `tr_k`'s descent to `g := starKernelClass`.
 
-**Current status**: this canonical root is the single live sorry under
-the A_k framing. The three frontiers above are semantically equivalent
-restatements — renaming does not eliminate the content. -/
+**Status (historical)**: this canonical root was the single live sorry
+under the A_k framing and has since been proved. The three frontiers
+above are semantically equivalent restatements. -/
 
 /-- **Trace operator** `tr_k` on class functions: pushforward of `t`
 along `Fin.snoc ξ`. Output is a function on raw tuples `Fin K → Fin T`
@@ -9066,9 +8990,9 @@ Equivalently (via `traceMeasure_pushforward`):
   ∑ t, W t · (L.map (fun p => labeledEvalK p.1 p.2 B W (Fin.snoc ξ t))).prod =
   ∑ t, W t · (L.map (fun p => labeledEvalK p.1 p.2 B W (Fin.snoc ξ' t))).prod.
 ```
-This is the **canonical sorry** going forward. All downstream theorems
-(`tr_k_descends_to_A_k` by wrapper, and the three current frontiers by
-corollary chain) route through `tr_k_generator_descends` below.
+This was the **canonical sorry** at the time (since proved). All
+downstream theorems (`tr_k_descends_to_A_k` by wrapper, and the three
+frontiers by corollary chain) route through `tr_k_generator_descends` below.
 
 **Requires** `hB`: symmetric B (same reason as `starKernel_tupleEquiv_invariant`). -/
 
@@ -9190,10 +9114,10 @@ private abbrev AkFun (T K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → �
 /-! ##### Connection-matrix view — paper-faithful frontier
 
 Per user directive (post-`Ak_trace_stable_generators` session): the
-actual mathematical content of the remaining sorry is Lovász's
-connection-matrix trace-stability theorem. Name it in those terms by
-introducing the **column view** `connCol` and phrasing the sorry as a
-weighted inner product of two columns.
+actual mathematical content of the then-remaining sorry is Lovász's
+connection-matrix trace-stability theorem (since proved). Name it in
+those terms by introducing the **column view** `connCol` and phrasing
+the claim as a weighted inner product of two columns.
 
 **Column view.** For a list `L` of `(K+1)`-labeled simple graphs,
 ```
@@ -9227,8 +9151,8 @@ case through `tr_k_binary_product_descends`, which routes through
 `weightedInnerProduct_descends`. The cycle confirms this is the
 *precise* Lovász connection-matrix frontier — not a Lean bookkeeping
 artifact. Further progress requires the paper-faithful connection-matrix
-argument (or the graph-gadget route via `labeledEvalK_glue`, itself
-sorry'd).
+argument (or the graph-gadget route via `labeledEvalK_glue`) — both
+since proved.
 
 **Wiring.** `Ak_trace_stable_generators` (below) is now a proved
 corollary of `weightedInnerProduct_descends` via pointwise reshape of
@@ -9278,8 +9202,8 @@ private lemma connCol_singleton {T K : ℕ}
 Per user directive: build the closure of `weightedInnerProduct_descends`
 via the `DecLabeledGraph.ofSimple` / `mul` / `trace` layer, landing the
 descent claim at the existing `DecLabeledGraphTr.eval_tupleEquiv_invariant`
-sorry (L6913). This collapses two equivalent live sorries into one
-canonical Lovász §3 frontier theorem.
+sorry (L6913; since proved). This collapsed two equivalent live sorries
+into one canonical Lovász §3 frontier theorem.
 
 Pipeline:
 1. `connListD L`: fold the list into a single `DecLabeledGraph (K+1) N`
@@ -9292,7 +9216,8 @@ Pipeline:
 4. `DecLabeledGraph.trace_eval`: `∑_t W(t) · D.eval (snoc ξ t) = D.trace.eval ξ`
    (requires `noSelfLastLL`).
 5. `DecLabeledGraphTr.eval_tupleEquiv_invariant`: `D.trace.eval` descends
-   through `tupleEquiv` at level `K`. (This is the canonical sorry.) -/
+   through `tupleEquiv` at level `K`. (This was the canonical sorry;
+   since proved.) -/
 
 /-- **Existence of a decorated-graph carrier for a list of `(K+1)`-labeled
 simple graphs.** Built by list induction using `DecLabeledGraph.one`,
@@ -9363,8 +9288,8 @@ product of connection matrices.
 
 **Status.** PROVED via the assembly route through the
 `DecLabeledGraph.ofSimple` / `mul` / `trace` layer; the sole live
-sorry in the chain is now `DecLabeledGraphTr.eval_tupleEquiv_invariant`
-(L6913) — the canonical Lovász §3 frontier theorem.
+sorry in the chain was `DecLabeledGraphTr.eval_tupleEquiv_invariant`
+(L6913; since proved) — the canonical Lovász §3 frontier theorem.
 
 **Falsification gate** (see `scripts/falsify_weighted_inner_product.py`):
 1.13M random tests across `K ∈ {1, 2}`, `T ∈ {2, 3, 4}`, with
@@ -9382,8 +9307,8 @@ positivity hypothesis `hW : ∀ i, 0 < W i`.
 3. `DecLabeledGraph.trace_eval`: `∑_t W(t) · D.eval (snoc ξ t) = D.trace.eval ξ`
    (uses the `noSelfLastLL` hypothesis).
 4. `DecLabeledGraphTr.eval_tupleEquiv_invariant`: descent of the
-   traced object at level `K`. **(Sorry'd at L6913 — canonical Lovász
-   §3 frontier.)** -/
+   traced object at level `K`. **(Then sorry'd at L6913 — canonical
+   Lovász §3 frontier; since proved.)** -/
 private theorem weightedInnerProduct_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -9580,8 +9505,8 @@ private theorem Ak_trace_stable {T K : ℕ}
 /-- **Binary product descent** — now PROVED as a direct specialization
 of `Ak_trace_stable` to generator arguments.
 
-See `Ak_trace_stable` (above) for the actual sorry, and the Lovász
-connection-matrix framing of the remaining content. -/
+See `Ak_trace_stable` (above) for what was then the actual sorry
+(since proved), and the Lovász connection-matrix framing. -/
 private theorem tr_k_binary_product_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -9597,8 +9522,8 @@ private theorem tr_k_binary_product_descends {T K : ℕ}
   - `L = p :: rest` multi-element: induction via
     `simpleGraphEvalOn_append` + `tr_k_binary_product_descends`.
 
-The "multi-element sorry" has been pushed into `tr_k_binary_product_descends`,
-which is the actual semantic root per the pass-3 analysis. -/
+The "multi-element sorry" was pushed into `tr_k_binary_product_descends`
+(since proved), the actual semantic root per the pass-3 analysis. -/
 private theorem tr_k_generator_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -9831,8 +9756,8 @@ descends for every `g`, by pairing against the `simpleGraphEvalOn`
 generator family and `simpleGraphEvalOn_spans`. The current proof
 goes through `traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv` →
 `product_trace_identity_of_eval_tupleEquiv_invariant` →
-`DecLabeledGraphTr.eval_tupleEquiv_invariant` (L6902, sorry'd) — the
-"cycle" manifesting as three names for one theorem. -/
+`DecLabeledGraphTr.eval_tupleEquiv_invariant` (L6902, then sorry'd;
+since proved) — the "cycle" manifesting as three names for one theorem. -/
 private theorem traceMeasure_eq_of_tupleEquiv {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -9909,7 +9834,7 @@ NOT the frontier.
 
 **Dependency reorganization (as of this commit)**:
 ```
-  starMultigraphEval_tupleEquiv_invariant_direct    [FRONTIER, sorry]
+  starMultigraphEval_tupleEquiv_invariant_direct    [FRONTIER, then sorry'd; since proved]
     ↓ (quotient descent + simpleGraphEvalOn_spans)
   starMultigraphEval_in_simpleGraphSpan             [proved]
     ↓
@@ -10164,8 +10089,8 @@ explicit `K = 1` type to make downstream attacks concrete.
 
 **Status after analysis**: reduces to the same multigraph A_k content as
 the general frontier (see docstring of the parent section). K=1 is NOT
-genuinely easier. Leaving as a sorry'd stub so the structure is
-explicit for future sessions. -/
+genuinely easier. (Originally left as a sorry'd stub so the structure
+was explicit; since proved.) -/
 private theorem starMultigraphEval_tupleEquiv_invariant_direct_K1 {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) (r : ℕ)
@@ -10254,7 +10179,7 @@ unlabeled with an edge between them) — neither of which reduces to
       **Blocked at two layers**:
         - `tupleEquiv_extend` depends on `coeffRestrict_equiv` →
           `product_trace_identity` → `eval_tupleEquiv_invariant` (the
-          frontier). Using it re-introduces the very sorry we are trying
+          frontier). Using it re-introduced the very sorry we were trying
           to break down.
         - Even assuming we had some extension-free `ν`, the RHS features
           `ν_last` as a free Classical.choose witness. No auxiliary
@@ -10476,8 +10401,8 @@ private theorem tupleEquiv_polynomial_moment_invariance {T K n : ℕ}
 declared **after** `tupleEquiv_implies_tupleOrbitRel` (the main theorem)
 since they delegate to it directly. The original Claim 4.3/4.4 ext design
 called for an upward-extension proof avoiding deficit-1 IHs, but with
-the main theorem available (modulo the non-surjective architectural
-sorry), direct delegation is the simplest closure. -/
+the main theorem available (its non-surjective branch since proved via
+the Lovász-module bridge), direct delegation is the simplest closure. -/
 
 /-! #### Level 5 — main theorem via WF induction
 
@@ -10569,8 +10494,8 @@ back to the weighted-sum equality via class decomposition.
 
 **IH-free**: the automorphism-based argument (requiring Lemma 2.4 at
 level k) is replaced entirely by `functional_span_zero` +
-`product_trace_identity`. The single remaining combinatorial sorry is
-localized to `product_trace_identity`. -/
+`product_trace_identity`. The single combinatorial sorry was localized
+to `product_trace_identity` (since proved). -/
 private theorem coeffRestrict_equiv {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) {k : ℕ}
@@ -10824,8 +10749,8 @@ there is an equivalent extension `ν` of `ψ`.
 
 Assembled from `coeffRestrict_pos_at_restrict`, `coeffRestrict_equiv`,
 and `exists_extension_of_coeffRestrict_pos`. IH-free modulo
-`product_trace_identity` (the combinatorial sorry inside
-`coeffRestrict_equiv`); no Lemma-2.4 input needed. -/
+`product_trace_identity` (formerly the combinatorial sorry inside
+`coeffRestrict_equiv`; since proved); no Lemma-2.4 input needed. -/
 private theorem tupleEquiv_extend {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -10842,93 +10767,13 @@ private theorem tupleEquiv_extend {T : ℕ}
   -- Extract a witness.
   exact exists_extension_of_coeffRestrict_pos B W hW μ ψ hpos_ψ
 
-/-- **⚠ KNOWN-FALSE — OFF THE CRITICAL PATH.**
-
-Counterexample: `T=3`, `K=1`, `α(0)=0`, `W` uniform, `B = I` (identity on `Fin 3`).
-Twin-free holds, case B hypothesis `∀ j, B(α j, s₁) = B(α j, s₂)` holds for `s₁=1, s₂=2`,
-but no graph separates because the transposition `(1 2)` is a `(B, W)`-automorphism, so
-every evaluation is symmetric in `1` and `2`.
-
-**Why this does not break Lemma 2.4**: in the counterexample, `tupleEquiv` holds (both
-extensions give the same evaluations) AND `tupleOrbitRel` holds (with `σ = (1 2)`). The
-correct Lovász route for the non-surjective case of Lemma 2.4 constructs the automorphism
-directly via Claim 4.4 + extension (see `tupleEquiv_implies_tupleOrbitRel`), bypassing any
-separation argument. Case A below is still true and a useful helper, but Case B is false.
-
-This declaration is retained only to document the failed approach. Do NOT depend on it. -/
-private theorem labeledEvalK_separates {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
-    (hB : ∀ i j, B i j = B j i)
-    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    {K : ℕ} (α : Fin K → Fin T) {s₁ s₂ : Fin T} (hs : s₁ ≠ s₂) :
-    ∃ (n : ℕ) (F : SimpleGraph (Fin (n + (K + 1)))) (_ : DecidableRel F.Adj),
-      labeledEvalK (K + 1) n F B W (Fin.snoc α s₁) ≠
-      labeledEvalK (K + 1) n F B W (Fin.snoc α s₂) := by
-  -- Case A: ∃ j ∈ Fin K with B(α j, s₁) ≠ B(α j, s₂). Single-edge separates.
-  -- Case B: ∀ j, B(α j, s₁) = B(α j, s₂). Twin-free witness is outside im(α),
-  --         requires graph-product algebra + functional_span_zero.
-  by_cases hcase : ∃ j : Fin K, B (α j) s₁ ≠ B (α j) s₂
-  · -- Case A: obtain separating j directly.
-    obtain ⟨j, hjr⟩ := hcase
-    -- Define the edge endpoints in Fin (0 + (K+1)).
-    let u : Fin (0 + (K + 1)) := ⟨j.val, by omega⟩
-    let v : Fin (0 + (K + 1)) := ⟨K, by omega⟩
-    have hne : u ≠ v := by simp only [ne_eq, Fin.mk.injEq, u, v]; have := j.isLt; omega
-    -- Build F inline.
-    let F : SimpleGraph (Fin (0 + (K + 1))) :=
-      { Adj := fun x y => (x = u ∧ y = v) ∨ (x = v ∧ y = u)
-        symm.symm := fun _ _ h => h.elim (fun ⟨h1, h2⟩ => Or.inr ⟨h2, h1⟩)
-                                          (fun ⟨h1, h2⟩ => Or.inl ⟨h2, h1⟩)
-        loopless.irrefl := fun _ h => by
-          rcases h with ⟨h1, h2⟩ | ⟨h1, h2⟩
-          · exact hne (h1.symm.trans h2)
-          · exact hne (h2.symm.trans h1) }
-    haveI : DecidableRel F.Adj := fun x y =>
-      if h₁ : x = u ∧ y = v then .isTrue (.inl h₁)
-      else if h₂ : x = v ∧ y = u then .isTrue (.inr h₂)
-      else .isFalse (fun h => h.elim (fun a => h₁ a) (fun a => h₂ a))
-    have hedge : F.edgeFinset = {s(u, v)} := by
-      apply Finset.eq_singleton_iff_unique_mem.mpr; constructor
-      · rw [SimpleGraph.mem_edgeFinset]; exact Or.inl ⟨rfl, rfl⟩
-      · intro e he; rw [SimpleGraph.mem_edgeFinset] at he
-        exact Sym2.ind (fun a b (hadj : F.Adj a b) => by
-          rcases hadj with ⟨h1, h2⟩ | ⟨h1, h2⟩
-          · rw [h1, h2]
-          · rw [h1, h2, Sym2.eq_swap]) e he
-    refine ⟨0, F, inferInstance, ?_⟩
-    -- Evaluate: both sides equal B(α j) s_i via labeledEvalK_singleEdge.
-    rw [labeledEvalK_singleEdge F hne hedge B hB W (Fin.snoc α s₁),
-        labeledEvalK_singleEdge F hne hedge B hB W (Fin.snoc α s₂)]
-    -- (Fin.snoc α s_i) ⟨j.val, _⟩ = α j (since j.val < K), and at ⟨K, _⟩ = s_i.
-    have hu_cs : (⟨u.val, (by omega : u.val < K + 1)⟩ : Fin (K + 1)) = Fin.castSucc j := Fin.ext rfl
-    have hv_la : (⟨v.val, (by omega : v.val < K + 1)⟩ : Fin (K + 1)) = Fin.last K := Fin.ext rfl
-    rw [hu_cs, hv_la, Fin.snoc_castSucc, Fin.snoc_last, Fin.snoc_castSucc, Fin.snoc_last]
-    -- Goal: B (α j) s₁ ≠ B (α j) s₂ — this is exactly hjr.
-    exact hjr
-  · -- Case B: ∀ j ∈ Fin K, B(α j, s₁) = B(α j, s₂). Twin-free ⟹ ∃ r ∉ im(α),
-    -- B(r, s₁) ≠ B(r, s₂). Define d(t) := B s₁ t - B s₂ t; then d(α j) = 0 for all j,
-    -- d ≢ 0, d supported on C := Fin T \ im(α).
-    --
-    -- **Proof structure (Lovász connection-matrix argument)**:
-    --
-    -- Step 1: For each multiset m : Fin K → ℕ, the evaluation of the n=1 graph with
-    --   edge from last label K to unlabeled, and edges from labels in m's support to
-    --   unlabeled, gives E_m(t) = ∑_s W(s) B(t, s) ∏_j B(α j, s)^{m j}.
-    --   Via labeledEvalK_glue, arbitrary products of these are realizable.
-    --
-    -- Step 2: If ∀ n F, E_F(s₁) = E_F(s₂), then ∑_s W(s) d(s) g(s) = 0 for all g in
-    --   the algebra generated by {1, B(α j, ·) : j ∈ Fin K}. Contradiction with d ≢ 0
-    --   requires the algebra to SEPARATE POINTS of C = Fin T \ im(α).
-    --
-    -- Step 3: For twin-free B, the algebra DOES separate points — either directly via
-    --   the B(α j, ·) rows on C, or via longer chain evaluations (BW·1, (BW)²·1, ...)
-    --   that the graph product provides. Apply functional_span_zero with d' = W·d on
-    --   C (viewed as the full support of d').
-    --
-    -- This is the remaining algebra-intensive step (~150-200 lines). The infrastructure
-    -- (labeledEvalK_glue, functional_span_zero, B_quot_out_eq) is all in place.
-    push Not at hcase
-    sorry
+/-! **Refuted separation route (removed, issue #19).** A known-false stub
+`labeledEvalK_separates` claimed that for twin-free `B` any two distinct
+snoc-extensions of a base tuple are separated by some `labeledEvalK` evaluation.
+FALSE: with `T = 3`, `K = 1`, `B = I`, uniform `W`, the transposition `(1 2)` is a
+`(B, W)`-automorphism, so every evaluation is symmetric in `1` and `2`. Lemma 2.4's
+non-surjective case instead constructs the automorphism directly via Claim 4.4 +
+extension (`tupleEquiv_implies_tupleOrbitRel`), needing no separation argument. -/
 
 /-! ### Surjective-base extension uniqueness -/
 
@@ -11029,9 +10874,8 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
 /-! #### Level 4 ext stubs — delegations to the main theorem
 
 These were originally architectural placeholders for an upward-extension
-proof. With `tupleEquiv_implies_tupleOrbitRel` available (modulo the
-non-surjective architectural sorry inside its strong induction), both
-ext theorems become trivial delegations. The bijective and surjective
+proof. With `tupleEquiv_implies_tupleOrbitRel` available (fully proved),
+both ext theorems become trivial delegations. The bijective and surjective
 cases are fully closed inside the main theorem's strong-rec body. -/
 
 /-- **Level-4 closure** (`tupleEquiv_bijective_case_ext`). Direct
@@ -11057,972 +10901,31 @@ private theorem tupleEquiv_surjective_case_ext {T : ℕ}
     tupleOrbitRel B W φ ψ :=
   tupleEquiv_implies_tupleOrbitRel B W hW hB htwin h
 
-/-! ### Explicit separating motifs
-
-**⚠ KNOWN-FALSE-FOR-SPARSE-B — retained to prevent cascade.**
-
-The 5-motif `pairProfile` route below is refuted by the `C₅ ⊔ C₆`
-counterexample (`scripts/counterexample_C5_C6.py`): that is a twin-free
-positive-weight matrix where `(0, 0)` and `(5, 5)` have identical 5-motif
-profiles but lie in different pair orbits under `Aut(C₅ ⊔ C₆) = D₅ × D₆`.
-
-This section is kept intact during the Lovász pivot (Sessions A–E) only
-so that the live CT-1 chain (lines 4926, 5200) and downstream uses do not
-cascade. The sorries at `vertexOrbit_of_star0_tri0_eq` and
-`pairOrbit_of_vertexOrbits_and_path` are **known-false** as stated
-and must not be relied upon for any general claim. They will be deleted
-in a future session once the Lovász-based replacement is wired in.
-
-Five edge-free 2-labeled graphs whose evaluations form the `pairProfile` — a
-5-tuple that (conjecturally, and confirmed by computation up to T=10 on
-**dense** matrices, but FALSE on sparse matrices like `C₅ ⊔ C₆`)
-determines pair orbits for twin-free matrices with positive weights.
-
-- **star0** `{0,2}`: weighted row sum at label-0 vertex, `∑ W(m) B(i,m)`
-- **star1** `{1,2}`: weighted row sum at label-1 vertex, `∑ W(m) B(j,m)`
-- **path01** `{0,2},{1,2}`: weighted inner product, `∑ W(m) B(i,m) B(m,j)`
-- **tri0** `{0,2},{0,3},{2,3}`: cubic self-interaction at label-0, depends on i only
-- **tri1** `{1,2},{1,3},{2,3}`: cubic self-interaction at label-1, depends on j only
--/
-
-/-- The star-0 evaluation: `∑ m, W m * B i m` (depends on i only). -/
-private noncomputable def star0Eval {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (i j : Fin T) : ℝ := ∑ m, W m * B i m
-
-/-- The star-1 evaluation: `∑ m, W m * B j m` (depends on j only). -/
-private noncomputable def star1Eval {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (i j : Fin T) : ℝ := ∑ m, W m * B j m
-
-/-- The path evaluation: `∑ m, W m * B i m * B m j`. -/
-private noncomputable def pathEval {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (i j : Fin T) : ℝ := ∑ m, W m * B i m * B m j
-
-/-- The triangle-0 evaluation: `∑ m₁ m₂, W m₁ * W m₂ * B i m₁ * B i m₂ * B m₁ m₂`
-(depends on i only). -/
-private noncomputable def tri0Eval {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (i j : Fin T) : ℝ := ∑ m₁, ∑ m₂, W m₁ * W m₂ * B i m₁ * B i m₂ * B m₁ m₂
-
-/-- The triangle-1 evaluation: `∑ m₁ m₂, W m₁ * W m₂ * B j m₁ * B j m₂ * B m₁ m₂`
-(depends on j only). -/
-private noncomputable def tri1Eval {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (i j : Fin T) : ℝ := ∑ m₁, ∑ m₂, W m₁ * W m₂ * B j m₁ * B j m₂ * B m₁ m₂
-
-/-- The pair profile: 5-tuple of motif evaluations that (conjecturally) determines
-pair orbits for twin-free matrices. -/
-private noncomputable def pairProfile {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (p : Fin T × Fin T) : Fin 5 → ℝ := fun k =>
-  match k with
-  | 0 => star0Eval B W p.1 p.2
-  | 1 => star1Eval B W p.1 p.2
-  | 2 => pathEval B W p.1 p.2
-  | 3 => tri0Eval B W p.1 p.2
-  | 4 => tri1Eval B W p.1 p.2
-
-/-- The pair profile is orbit-invariant: automorphisms preserve all 5 motif evaluations.
-Proof: each component is a sum reindexed under π using `hw`, `hc`. -/
-private theorem pairProfile_eq_of_pairOrbitRel {T : ℕ}
-    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    {p q : Fin T × Fin T} (h : pairOrbitRel B W p q) :
-    pairProfile B W p = pairProfile B W q := by
-  obtain ⟨π, ⟨hw, hc⟩, h1, h2⟩ := h
-  -- Each component is proved by: rewrite with h1/h2, then reindex sum via Equiv.sum_comp π
-  have sum1 : ∀ a, ∑ m, W m * B a m = ∑ m, W m * B (π a) m :=
-    fun a => (congr_arg _ (funext fun m => by rw [hw, hc])).trans (Equiv.sum_comp π _)
-  have sum_path : ∀ a b, ∑ m, W m * B a m * B m b = ∑ m, W m * B (π a) m * B m (π b) :=
-    fun a b => (congr_arg _ (funext fun m => by rw [hw, hc, hc])).trans (Equiv.sum_comp π _)
-  have sum2 : ∀ a, ∑ m₁, ∑ m₂, W m₁ * W m₂ * B a m₁ * B a m₂ * B m₁ m₂ =
-      ∑ m₁, ∑ m₂, W m₁ * W m₂ * B (π a) m₁ * B (π a) m₂ * B m₁ m₂ := fun a => by
-    have htf : ∀ m₁ m₂, W (π m₁) * W (π m₂) * B (π a) (π m₁) * B (π a) (π m₂) *
-        B (π m₁) (π m₂) = W m₁ * W m₂ * B a m₁ * B a m₂ * B m₁ m₂ :=
-      fun m₁ m₂ => by rw [hw, hw, hc, hc, hc]
-    calc ∑ m₁, ∑ m₂, W m₁ * W m₂ * B a m₁ * B a m₂ * B m₁ m₂
-        = ∑ m₁, ∑ m₂, W (π m₁) * W (π m₂) * B (π a) (π m₁) * B (π a) (π m₂) *
-            B (π m₁) (π m₂) := by
-          congr 1; ext m₁; congr 1; ext m₂; exact (htf m₁ m₂).symm
-      _ = ∑ m₁, ∑ m₂, W (π m₁) * W m₂ * B (π a) (π m₁) * B (π a) m₂ *
-            B (π m₁) m₂ := by
-          congr 1; ext m₁
-          exact Equiv.sum_comp π
-            (fun m₂ => W (π m₁) * W m₂ * B (π a) (π m₁) * B (π a) m₂ * B (π m₁) m₂)
-      _ = ∑ m₁, ∑ m₂, W m₁ * W m₂ * B (π a) m₁ * B (π a) m₂ * B m₁ m₂ :=
-          Equiv.sum_comp π
-            (fun m₁ => ∑ m₂, W m₁ * W m₂ * B (π a) m₁ * B (π a) m₂ * B m₁ m₂)
-  ext k; fin_cases k <;>
-    simp only [pairProfile, star0Eval, star1Eval, pathEval, tri0Eval, tri1Eval, ← h1, ← h2]
-  · exact sum1 p.1
-  · exact sum1 p.2
-  · exact sum_path p.1 p.2
-  · exact sum2 p.1
-  · exact sum2 p.2
-
-/-! #### Three-subclaim decomposition of pair orbit determination
-
-Rather than attacking `pairOrbitRel_of_pairProfile_eq` directly, we factor it
-through three smaller lemmas:
-
-- **(L)** `vertexOrbit_of_star0_tri0_eq`: (star0, tri0) equal ⟹ left vertex
-  orbit equal.
-- **(R)** `vertexOrbit_of_star1_tri1_eq`: (star1, tri1) equal ⟹ right
-  vertex orbit equal.
-- **(C)** `pairOrbit_of_vertexOrbits_and_path`: individually vertex-orbit-
-  related endpoints + equal `pathEval` ⟹ joint pair orbit.
-
-`pairOrbitRel_of_pairProfile_eq` is assembled from the three.
-
-**⚠ Correctness warning**: Subclaim (L) is **FALSE** as stated, and
-consequently `pairOrbitRel_of_pairProfile_eq` is also **FALSE** as stated.
-Counterexample: `C₅ ⊔ C₆` (disjoint union of a 5-cycle and a 6-cycle, as a
-`{0,1}`-matrix on `Fin 11` with uniform weights `W = 1/11`). This matrix is
-symmetric, twin-free, has positive weights, yet every vertex has
-`star0 = 2/11` and `tri0 = 0` (no triangles), so the 5-motif `pairProfile`
-cannot distinguish any two vertices. In particular, pairs `(0,0)` and `(5,5)`
-have identical profiles but lie in different pair orbits under
-`Aut(C₅ ⊔ C₆) = D₅ × D₆`.
-
-The earlier computational validation (`scripts/vertex_orbit_subclaim.py` and
-`scripts/cross_term_coherence.py`) missed this because it tested only dense
-matrices with entries in `[0.1, 0.9]`. For such dense matrices the subclaims
-empirically hold, but the proof route cannot extend to the sparse case
-without strengthening the hypothesis (e.g., requiring `∀ i j, 0 < B i j`) or
-switching to a richer, infinite family of test graphs (see
-`Graphon/LovaszScratch.lean` on the `lovasz-feasibility` branch for the
-Lovász TR-2004-82 route — itself blocked by the trace-operator
-infrastructure).
-
-The subclaim sorries below are kept in place for documentation and because
-removing them would cascade through CT-1 and downstream theorems, but
-they should be understood as **known-false-for-sparse-twin-free-B** and not
-relied upon for any general claim. A future session must either:
-- Strengthen the hypotheses of the top-level conjecture, or
-- Abandon the finite-motif route and build the Lovász algebra layer, or
-- Find an entirely different proof approach.
--/
-
-/-- **Subclaim (L)**: left vertex orbit determination via (star0, tri0).
-For twin-free B with positive W, if two vertices `i₁, i₂ : Fin T` have equal
-weighted row sum (`star0Eval`) and equal weighted cubic self-interaction
-(`tri0Eval`), then there is an automorphism of `(B, W)` mapping `i₁` to `i₂`.
-
-**Status**: partial. The trivial case `i₁ = i₂` is handled directly.
-The nontrivial case `i₁ ≠ i₂` remains as a sorry, computationally validated on
-random T=3..8 and structured cases up to T=10 with |Aut|=14400
-(`scripts/vertex_orbit_subclaim.py`). -/
-private theorem vertexOrbit_of_star0_tri0_eq {T : ℕ}
-    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    {i₁ i₂ : Fin T}
-    (hstar : ∑ m, W m * B i₁ m = ∑ m, W m * B i₂ m)
-    (htri : ∑ m₁, ∑ m₂, W m₁ * W m₂ * B i₁ m₁ * B i₁ m₂ * B m₁ m₂ =
-            ∑ m₁, ∑ m₂, W m₁ * W m₂ * B i₂ m₁ * B i₂ m₂ * B m₁ m₂) :
-    ∃ σ : Equiv.Perm (Fin T), IsWeightedAutomorphism B W σ ∧ σ i₁ = i₂ := by
-  -- Trivial case: i₁ = i₂, use the identity automorphism.
-  by_cases h : i₁ = i₂
-  · exact ⟨1, ⟨fun _ => rfl, fun _ _ => rfl⟩, by rw [h]; rfl⟩
-  -- Nontrivial case: i₁ ≠ i₂. This is the genuine frontier.
-  sorry
-
-/-- **Subclaim (R)**: right vertex orbit determination via (star1, tri1).
-Mirror of `vertexOrbit_of_star0_tri0_eq` — structurally identical after
-renaming `j₁, j₂` to `i₁, i₂`, so it delegates directly to (L). -/
-private theorem vertexOrbit_of_star1_tri1_eq {T : ℕ}
-    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    {j₁ j₂ : Fin T}
-    (hstar : ∑ m, W m * B j₁ m = ∑ m, W m * B j₂ m)
-    (htri : ∑ m₁, ∑ m₂, W m₁ * W m₂ * B j₁ m₁ * B j₁ m₂ * B m₁ m₂ =
-            ∑ m₁, ∑ m₂, W m₁ * W m₂ * B j₂ m₁ * B j₂ m₂ * B m₁ m₂) :
-    ∃ σ : Equiv.Perm (Fin T), IsWeightedAutomorphism B W σ ∧ σ j₁ = j₂ :=
-  vertexOrbit_of_star0_tri0_eq hB hW htwin hstar htri
-
-/-- **Subclaim (C)**: cross-term coherence. Given that the two endpoints of
-`(i₁, j₁)` and `(i₂, j₂)` are *individually* related by automorphisms of
-`(B, W)` (not necessarily the same one), and that `pathEval` agrees on the
-pairs, there exists a single automorphism that does both.
-
-**Status**: partial. Two trivial cases are handled directly (when one of the
-given automorphisms already does both). The genuinely new content is the
-hard case `σ_L j₁ ≠ j₂ ∧ σ_R i₁ ≠ i₂`, which remains as a sorry.
-Computationally validated on the same test corpus as (L), (R)
-(`scripts/cross_term_coherence.py`). -/
-private theorem pairOrbit_of_vertexOrbits_and_path {T : ℕ}
-    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    {i₁ j₁ i₂ j₂ : Fin T}
-    {σ_L σ_R : Equiv.Perm (Fin T)}
-    (hL : IsWeightedAutomorphism B W σ_L) (hL_eq : σ_L i₁ = i₂)
-    (hR : IsWeightedAutomorphism B W σ_R) (hR_eq : σ_R j₁ = j₂)
-    (hpath : ∑ m, W m * B i₁ m * B m j₁ = ∑ m, W m * B i₂ m * B m j₂) :
-    pairOrbitRel B W (i₁, j₁) (i₂, j₂) := by
-  -- Trivial case A: σ_L already sends j₁ to j₂, so σ_L does both maps.
-  by_cases hσL_j : σ_L j₁ = j₂
-  · exact ⟨σ_L, hL, hL_eq, hσL_j⟩
-  -- Trivial case B: σ_R already sends i₁ to i₂, so σ_R does both maps.
-  by_cases hσR_i : σ_R i₁ = i₂
-  · exact ⟨σ_R, hR, hσR_i, hR_eq⟩
-  -- Hard case: neither given automorphism does both. Requires constructing
-  -- a new automorphism in the coset σ_L · Stab(i₁) — specifically, a τ ∈
-  -- Stab(i₁) with τ j₁ = σ_L⁻¹ j₂. Existence of such τ is equivalent to
-  -- showing σ_L⁻¹ j₂ and j₁ lie in the same Stab(i₁)-orbit, which is what
-  -- the path equality constrains.
-  sorry
-
-/-- **Pair orbit separation**: for twin-free B with positive W, if two pairs have
-the same 5-motif profile, they are in the same pair orbit.
-
-Assembled from three subclaims:
-- `vertexOrbit_of_star0_tri0_eq` gives a left-side automorphism `σ_L`.
-- `vertexOrbit_of_star1_tri1_eq` gives a right-side automorphism `σ_R`.
-- `pairOrbit_of_vertexOrbits_and_path` combines them with the path constraint.
-
-**⚠ Known FALSE as stated** (see the section comment above). Counterexample:
-`C₅ ⊔ C₆` on `Fin 11` with uniform weights. This is twin-free with positive W,
-yet `(0, 0)` and `(5, 5)` have identical 5-motif profiles but lie in different
-pair orbits. The assembly proof below routes through `vertexOrbit_of_star0_tri0_eq`,
-which is itself false for this example.
-
-The earlier computational evidence (twin-free examples up to T=10 with
-|Aut(B,W)| ≤ 14400) missed this because it tested only dense matrices with
-entries in `[0.1, 0.9]`. For dense enough B the 5-motif profile empirically
-suffices, but no clean hypothesis capturing "dense enough" is currently known.
-
-Also false without twin-free (separate counterexample: block-diagonal B with
-twin rows). -/
-private theorem pairOrbitRel_of_pairProfile_eq {T : ℕ}
-    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    {p q : Fin T × Fin T} (h : pairProfile B W p = pairProfile B W q) :
-    pairOrbitRel B W p q := by
-  have h_star0 : star0Eval B W p.1 p.2 = star0Eval B W q.1 q.2 := congr_fun h 0
-  have h_star1 : star1Eval B W p.1 p.2 = star1Eval B W q.1 q.2 := congr_fun h 1
-  have h_path  : pathEval  B W p.1 p.2 = pathEval  B W q.1 q.2 := congr_fun h 2
-  have h_tri0  : tri0Eval  B W p.1 p.2 = tri0Eval  B W q.1 q.2 := congr_fun h 3
-  have h_tri1  : tri1Eval  B W p.1 p.2 = tri1Eval  B W q.1 q.2 := congr_fun h 4
-  simp only [star0Eval, star1Eval, pathEval, tri0Eval, tri1Eval] at h_star0 h_star1 h_path h_tri0 h_tri1
-  -- (L): left vertex orbit via (star0, tri0)
-  obtain ⟨σ_L, hσ_L, hσ_L_eq⟩ :=
-    vertexOrbit_of_star0_tri0_eq hB hW htwin (i₁ := p.1) (i₂ := q.1) h_star0 h_tri0
-  -- (R): right vertex orbit via (star1, tri1)
-  obtain ⟨σ_R, hσ_R, hσ_R_eq⟩ :=
-    vertexOrbit_of_star1_tri1_eq hB hW htwin (j₁ := p.2) (j₂ := q.2) h_star1 h_tri1
-  -- (C): combine with pathEval
-  exact pairOrbit_of_vertexOrbits_and_path hB hW htwin
-    hσ_L hσ_L_eq hσ_R hσ_R_eq h_path
-
-/-! #### Explicit motif graphs
-
-Each of the five profile components is realized as the `labeledEval2` of a specific
-edge-free 2-labeled graph. The graphs are:
-- `star0Graph`: `{0,2}` on `Fin 3` (1 unlabeled vertex)
-- `star1Graph`: `{1,2}` on `Fin 3`
-- `pathGraph01`: `{0,2},{1,2}` on `Fin 3`
-- `tri0Graph`: `{0,2},{0,3},{2,3}` on `Fin 4` (2 unlabeled vertices)
-- `tri1Graph`: `{1,2},{1,3},{2,3}` on `Fin 4`
--/
-
-/-- Star graph with center at label-0: edge `{0,2}` on `Fin 3`. -/
-private def star0Graph : SimpleGraph (Fin 3) := SimpleGraph.fromEdgeSet {s(0, 2)}
-
-/-- Star graph with center at label-1: edge `{1,2}` on `Fin 3`. -/
-private def star1Graph : SimpleGraph (Fin 3) := SimpleGraph.fromEdgeSet {s(1, 2)}
-
-/-- Path graph: edges `{0,2},{1,2}` on `Fin 3`. -/
-private def pathGraph01 : SimpleGraph (Fin 3) := SimpleGraph.fromEdgeSet {s(0, 2), s(1, 2)}
-
-/-- Triangle graph rooted at label-0: edges `{0,2},{0,3},{2,3}` on `Fin 4`. -/
-private def tri0Graph : SimpleGraph (Fin 4) :=
-  SimpleGraph.fromEdgeSet {s(0, 2), s(0, 3), s(2, 3)}
-
-/-- Triangle graph rooted at label-1: edges `{1,2},{1,3},{2,3}` on `Fin 4`. -/
-private def tri1Graph : SimpleGraph (Fin 4) :=
-  SimpleGraph.fromEdgeSet {s(1, 2), s(1, 3), s(2, 3)}
-
-private instance : DecidableRel star0Graph.Adj :=
-  inferInstanceAs (DecidableRel (SimpleGraph.fromEdgeSet _).Adj)
-
-private instance : DecidableRel star1Graph.Adj :=
-  inferInstanceAs (DecidableRel (SimpleGraph.fromEdgeSet _).Adj)
-
-private instance : DecidableRel pathGraph01.Adj :=
-  inferInstanceAs (DecidableRel (SimpleGraph.fromEdgeSet _).Adj)
-
-private instance : DecidableRel tri0Graph.Adj :=
-  inferInstanceAs (DecidableRel (SimpleGraph.fromEdgeSet _).Adj)
-
-private instance : DecidableRel tri1Graph.Adj :=
-  inferInstanceAs (DecidableRel (SimpleGraph.fromEdgeSet _).Adj)
-
-private lemma star0Graph_edgeFree : ¬ star0Graph.Adj 0 1 := by
-  simp [star0Graph, SimpleGraph.fromEdgeSet_adj, Sym2.eq_iff]
-
-private lemma star1Graph_edgeFree : ¬ star1Graph.Adj 0 1 := by
-  simp [star1Graph, SimpleGraph.fromEdgeSet_adj, Sym2.eq_iff]
-
-private lemma pathGraph01_edgeFree : ¬ pathGraph01.Adj 0 1 := by
-  simp [pathGraph01, SimpleGraph.fromEdgeSet_adj, Sym2.eq_iff]
-
-private lemma tri0Graph_edgeFree : ¬ tri0Graph.Adj 0 1 := by
-  simp [tri0Graph, SimpleGraph.fromEdgeSet_adj, Sym2.eq_iff]
-
-private lemma tri1Graph_edgeFree : ¬ tri1Graph.Adj 0 1 := by
-  simp [tri1Graph, SimpleGraph.fromEdgeSet_adj, Sym2.eq_iff]
-
-/-- The edge finset of `star0Graph` is `{s(0, 2)}`. -/
-private lemma star0Graph_edgeFinset : star0Graph.edgeFinset = {s((0 : Fin 3), 2)} := by
-  ext e
-  simp only [SimpleGraph.mem_edgeFinset, star0Graph, SimpleGraph.edgeSet_fromEdgeSet,
-    Finset.mem_singleton, Set.mem_sdiff, Set.mem_singleton_iff,
-    Sym2.mem_diagSet]
-  refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
-  rw [he, Sym2.mk_isDiag_iff]
-  decide
-
-/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 3 → Fin T` at index 0 is `i`. -/
-private lemma finCons3_zero {T : ℕ} (i j : Fin T) (σ : Fin 1 → Fin T) :
-    (Fin.cons i (Fin.cons j σ) : Fin 3 → Fin T) 0 = i := Fin.cons_zero _ _
-
-/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 3 → Fin T` at index 1 is `j`. -/
-private lemma finCons3_one {T : ℕ} (i j : Fin T) (σ : Fin 1 → Fin T) :
-    (Fin.cons i (Fin.cons j σ) : Fin 3 → Fin T) 1 = j := by
-  rw [show (1 : Fin 3) = Fin.succ 0 from rfl, Fin.cons_succ]
-  exact Fin.cons_zero _ _
-
-/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 3 → Fin T` at index 2 is `σ 0`. -/
-private lemma finCons3_two {T : ℕ} (i j : Fin T) (σ : Fin 1 → Fin T) :
-    (Fin.cons i (Fin.cons j σ) : Fin 3 → Fin T) 2 = σ 0 := by
-  rw [show (2 : Fin 3) = Fin.succ 1 from rfl, Fin.cons_succ]
-  rw [show (1 : Fin 2) = Fin.succ 0 from rfl, Fin.cons_succ]
-
-/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T` at index 0 is `i`. -/
-private lemma finCons4_zero {T : ℕ} (i j : Fin T) (σ : Fin 2 → Fin T) :
-    (Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T) 0 = i := Fin.cons_zero _ _
-
-/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T` at index 1 is `j`. -/
-private lemma finCons4_one {T : ℕ} (i j : Fin T) (σ : Fin 2 → Fin T) :
-    (Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T) 1 = j := by
-  rw [show (1 : Fin 4) = Fin.succ 0 from rfl, Fin.cons_succ]
-  exact Fin.cons_zero _ _
-
-/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T` at index 2 is `σ 0`. -/
-private lemma finCons4_two {T : ℕ} (i j : Fin T) (σ : Fin 2 → Fin T) :
-    (Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T) 2 = σ 0 := by
-  rw [show (2 : Fin 4) = Fin.succ 1 from rfl, Fin.cons_succ]
-  rw [show (1 : Fin 3) = Fin.succ 0 from rfl, Fin.cons_succ]
-
-/-- `τ := Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T` at index 3 is `σ 1`. -/
-private lemma finCons4_three {T : ℕ} (i j : Fin T) (σ : Fin 2 → Fin T) :
-    (Fin.cons i (Fin.cons j σ) : Fin 4 → Fin T) 3 = σ 1 := by
-  rw [show (3 : Fin 4) = Fin.succ 2 from rfl, Fin.cons_succ]
-  rw [show (2 : Fin 3) = Fin.succ 1 from rfl, Fin.cons_succ]
-
-/-- `labeledEval2` of `star0Graph` equals `star0Eval`. -/
-private theorem labeledEval2_star0Graph {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) :
-    labeledEval2 1 star0Graph B W i j = star0Eval B W i j := by
-  simp only [labeledEval2, star0Eval]
-  rw [star0Graph_edgeFinset]
-  simp only [Finset.prod_singleton, Fin.prod_univ_one]
-  -- Reindex σ : Fin 1 → Fin T as m : Fin T
-  rw [← (Equiv.funUnique (Fin 1) (Fin T)).symm.sum_comp]
-  congr 1; ext m
-  -- After reindex, σ = (fun _ => m) and σ 0 = m
-  have hσ : ((Equiv.funUnique (Fin 1) (Fin T)).symm m : Fin 1 → Fin T) = fun _ => m := by
-    ext k; simp [Equiv.funUnique]
-  rw [hσ]
-  -- Goal: W m * B (τ (Quot.out s(0,2)).1) (τ (Quot.out s(0,2)).2) = W m * B i m
-  -- where τ = Fin.cons i (Fin.cons j (fun _ => m))
-  congr 1
-  set p := Quot.out s((0 : Fin 3), 2) with hp_def
-  have hout : s(p.1, p.2) = s((0 : Fin 3), 2) := Quot.out_eq _
-  have key : (p.1 = 0 ∧ p.2 = 2) ∨ (p.1 = 2 ∧ p.2 = 0) := by
-    rw [Sym2.eq_iff] at hout
-    rcases hout with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
-  rcases key with ⟨ha, hb⟩ | ⟨ha, hb⟩
-  · rw [ha, hb, finCons3_zero, finCons3_two]
-  · rw [ha, hb, finCons3_zero, finCons3_two, hB]
-
-/-- The edge finset of `star1Graph` is `{s(1, 2)}`. -/
-private lemma star1Graph_edgeFinset : star1Graph.edgeFinset = {s((1 : Fin 3), 2)} := by
-  ext e
-  simp only [SimpleGraph.mem_edgeFinset, star1Graph, SimpleGraph.edgeSet_fromEdgeSet,
-    Finset.mem_singleton, Set.mem_sdiff, Set.mem_singleton_iff,
-    Sym2.mem_diagSet]
-  refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
-  rw [he, Sym2.mk_isDiag_iff]
-  decide
-
-/-- `labeledEval2` of `star1Graph` equals `star1Eval`. -/
-private theorem labeledEval2_star1Graph {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) :
-    labeledEval2 1 star1Graph B W i j = star1Eval B W i j := by
-  simp only [labeledEval2, star1Eval]
-  rw [star1Graph_edgeFinset]
-  simp only [Finset.prod_singleton, Fin.prod_univ_one]
-  rw [← (Equiv.funUnique (Fin 1) (Fin T)).symm.sum_comp]
-  congr 1; ext m
-  have hσ : ((Equiv.funUnique (Fin 1) (Fin T)).symm m : Fin 1 → Fin T) = fun _ => m := by
-    ext k; simp [Equiv.funUnique]
-  rw [hσ]
-  congr 1
-  set p := Quot.out s((1 : Fin 3), 2) with hp_def
-  have hout : s(p.1, p.2) = s((1 : Fin 3), 2) := Quot.out_eq _
-  have key : (p.1 = 1 ∧ p.2 = 2) ∨ (p.1 = 2 ∧ p.2 = 1) := by
-    rw [Sym2.eq_iff] at hout
-    rcases hout with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
-  rcases key with ⟨ha, hb⟩ | ⟨ha, hb⟩
-  · rw [ha, hb, finCons3_one, finCons3_two]
-  · rw [ha, hb, finCons3_one, finCons3_two, hB]
-
-/-- The edge finset of `pathGraph01` is `{s(0,2), s(1,2)}`. -/
-private lemma pathGraph01_edgeFinset :
-    pathGraph01.edgeFinset = {s((0 : Fin 3), 2), s((1 : Fin 3), 2)} := by
-  ext e
-  simp only [SimpleGraph.mem_edgeFinset, pathGraph01, SimpleGraph.edgeSet_fromEdgeSet,
-    Finset.mem_insert, Finset.mem_singleton, Set.mem_sdiff, Set.mem_insert_iff,
-    Set.mem_singleton_iff, Sym2.mem_diagSet]
-  refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
-  rcases he with he | he <;> rw [he, Sym2.mk_isDiag_iff] <;> decide
-
-/-- `labeledEval2` of `pathGraph01` equals `pathEval`. -/
-private theorem labeledEval2_pathGraph01 {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) :
-    labeledEval2 1 pathGraph01 B W i j = pathEval B W i j := by
-  simp only [labeledEval2, pathEval]
-  rw [pathGraph01_edgeFinset]
-  -- The edge set has two elements: s(0,2) and s(1,2).
-  simp_rw [Finset.prod_pair (by decide : s((0 : Fin 3), 2) ≠ s((1 : Fin 3), 2)),
-    Fin.prod_univ_one]
-  -- Reindex σ : Fin 1 → Fin T as m : Fin T
-  rw [← (Equiv.funUnique (Fin 1) (Fin T)).symm.sum_comp]
-  congr 1; ext m
-  have hσ : ((Equiv.funUnique (Fin 1) (Fin T)).symm m : Fin 1 → Fin T) = fun _ => m := by
-    ext k; simp [Equiv.funUnique]
-  rw [hσ]
-  -- Goal: W m * (B τ(out s(0,2)).1 τ(out s(0,2)).2 * B τ(out s(1,2)).1 τ(out s(1,2)).2)
-  --     = W m * B i m * B m j
-  -- Resolve both Quot.outs
-  set p0 := Quot.out s((0 : Fin 3), 2) with hp0_def
-  set p1 := Quot.out s((1 : Fin 3), 2) with hp1_def
-  have hout0 : s(p0.1, p0.2) = s((0 : Fin 3), 2) := Quot.out_eq _
-  have hout1 : s(p1.1, p1.2) = s((1 : Fin 3), 2) := Quot.out_eq _
-  have key0 : (p0.1 = 0 ∧ p0.2 = 2) ∨ (p0.1 = 2 ∧ p0.2 = 0) := by
-    rw [Sym2.eq_iff] at hout0
-    rcases hout0 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
-  have key1 : (p1.1 = 1 ∧ p1.2 = 2) ∨ (p1.1 = 2 ∧ p1.2 = 1) := by
-    rw [Sym2.eq_iff] at hout1
-    rcases hout1 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
-  -- Case analysis on both orientations; use hB to normalize
-  let τ : Fin 3 → Fin T := Fin.cons i (Fin.cons j (fun _ => m))
-  have hτ0 : τ 0 = i := finCons3_zero i j _
-  have hτ1 : τ 1 = j := finCons3_one i j _
-  have hτ2 : τ 2 = m := finCons3_two i j _
-  have hval0 : B (τ p0.1) (τ p0.2) = B i m := by
-    rcases key0 with ⟨ha, hb⟩ | ⟨ha, hb⟩
-    · rw [ha, hb, hτ0, hτ2]
-    · rw [ha, hb, hτ0, hτ2, hB]
-  have hval1 : B (τ p1.1) (τ p1.2) = B m j := by
-    rcases key1 with ⟨ha, hb⟩ | ⟨ha, hb⟩
-    · rw [ha, hb, hτ1, hτ2, hB]
-    · rw [ha, hb, hτ1, hτ2]
-  rw [hval0, hval1]
-  ring
-
-/-- The edge finset of `tri0Graph` is `{s(0,2), s(0,3), s(2,3)}`. -/
-private lemma tri0Graph_edgeFinset :
-    tri0Graph.edgeFinset =
-      {s((0 : Fin 4), 2), s((0 : Fin 4), 3), s((2 : Fin 4), 3)} := by
-  ext e
-  simp only [SimpleGraph.mem_edgeFinset, tri0Graph, SimpleGraph.edgeSet_fromEdgeSet,
-    Finset.mem_insert, Finset.mem_singleton, Set.mem_sdiff, Set.mem_insert_iff,
-    Set.mem_singleton_iff, Sym2.mem_diagSet]
-  refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
-  rcases he with he | he | he <;> rw [he, Sym2.mk_isDiag_iff] <;> decide
-
-/-- `labeledEval2` of `tri0Graph` equals `tri0Eval`. -/
-private theorem labeledEval2_tri0Graph {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) :
-    labeledEval2 2 tri0Graph B W i j = tri0Eval B W i j := by
-  simp only [labeledEval2, tri0Eval]
-  rw [tri0Graph_edgeFinset]
-  -- Expand the 3-edge product via prod_insert + prod_pair
-  have hne1 : s((0 : Fin 4), 2) ∉ ({s((0 : Fin 4), 3), s((2 : Fin 4), 3)} : Finset _) := by
-    decide
-  have hne2 : s((0 : Fin 4), 3) ≠ s((2 : Fin 4), 3) := by decide
-  simp_rw [Finset.prod_insert hne1, Finset.prod_pair hne2, Fin.prod_univ_two]
-  -- Reindex σ : Fin 2 → Fin T as (m₁, m₂) via piFinTwoEquiv
-  rw [← (piFinTwoEquiv (fun _ => Fin T)).symm.sum_comp, ← Fintype.sum_prod_type']
-  congr 1; ext ⟨m₁, m₂⟩
-  -- σ from equiv: σ 0 = m₁, σ 1 = m₂
-  have hσ : ((piFinTwoEquiv fun _ => Fin T).symm (m₁, m₂) : Fin 2 → Fin T) =
-      ![m₁, m₂] := by
-    ext k; fin_cases k <;> simp [piFinTwoEquiv]
-  rw [hσ]
-  -- Now τ = Fin.cons i (Fin.cons j ![m₁, m₂])
-  -- τ 0 = i, τ 1 = j, τ 2 = m₁, τ 3 = m₂
-  -- Resolve all three Quot.outs
-  set τ : Fin 4 → Fin T := Fin.cons i (Fin.cons j ![m₁, m₂]) with hτ_def
-  have hτ0 : τ 0 = i := finCons4_zero i j _
-  have hτ2 : τ 2 = m₁ := by
-    show (Fin.cons i (Fin.cons j ![m₁, m₂]) : Fin 4 → Fin T) 2 = m₁
-    rw [finCons4_two]; rfl
-  have hτ3 : τ 3 = m₂ := by
-    show (Fin.cons i (Fin.cons j ![m₁, m₂]) : Fin 4 → Fin T) 3 = m₂
-    rw [finCons4_three]; rfl
-  -- Edge s(0, 2)
-  set p02 := Quot.out s((0 : Fin 4), 2) with hp02_def
-  have hout02 : s(p02.1, p02.2) = s((0 : Fin 4), 2) := Quot.out_eq _
-  have key02 : (p02.1 = 0 ∧ p02.2 = 2) ∨ (p02.1 = 2 ∧ p02.2 = 0) := by
-    rw [Sym2.eq_iff] at hout02
-    rcases hout02 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
-  -- Edge s(0, 3)
-  set p03 := Quot.out s((0 : Fin 4), 3) with hp03_def
-  have hout03 : s(p03.1, p03.2) = s((0 : Fin 4), 3) := Quot.out_eq _
-  have key03 : (p03.1 = 0 ∧ p03.2 = 3) ∨ (p03.1 = 3 ∧ p03.2 = 0) := by
-    rw [Sym2.eq_iff] at hout03
-    rcases hout03 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
-  -- Edge s(2, 3)
-  set p23 := Quot.out s((2 : Fin 4), 3) with hp23_def
-  have hout23 : s(p23.1, p23.2) = s((2 : Fin 4), 3) := Quot.out_eq _
-  have key23 : (p23.1 = 2 ∧ p23.2 = 3) ∨ (p23.1 = 3 ∧ p23.2 = 2) := by
-    rw [Sym2.eq_iff] at hout23
-    rcases hout23 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
-  -- Compute each edge's B value
-  have hv02 : B (τ p02.1) (τ p02.2) = B i m₁ := by
-    rcases key02 with ⟨ha, hb⟩ | ⟨ha, hb⟩
-    · rw [ha, hb, hτ0, hτ2]
-    · rw [ha, hb, hτ0, hτ2, hB]
-  have hv03 : B (τ p03.1) (τ p03.2) = B i m₂ := by
-    rcases key03 with ⟨ha, hb⟩ | ⟨ha, hb⟩
-    · rw [ha, hb, hτ0, hτ3]
-    · rw [ha, hb, hτ0, hτ3, hB]
-  have hv23 : B (τ p23.1) (τ p23.2) = B m₁ m₂ := by
-    rcases key23 with ⟨ha, hb⟩ | ⟨ha, hb⟩
-    · rw [ha, hb, hτ2, hτ3]
-    · rw [ha, hb, hτ2, hτ3, hB]
-  -- Substitute and compute
-  show W ((![m₁, m₂] : Fin 2 → Fin T) 0) * W ((![m₁, m₂] : Fin 2 → Fin T) 1) *
-      (B (τ p02.1) (τ p02.2) * (B (τ p03.1) (τ p03.2) * B (τ p23.1) (τ p23.2))) =
-    W m₁ * W m₂ * B i m₁ * B i m₂ * B m₁ m₂
-  rw [hv02, hv03, hv23]
-  show W m₁ * W m₂ * (B i m₁ * (B i m₂ * B m₁ m₂)) =
-    W m₁ * W m₂ * B i m₁ * B i m₂ * B m₁ m₂
-  ring
-
-/-- The edge finset of `tri1Graph` is `{s(1,2), s(1,3), s(2,3)}`. -/
-private lemma tri1Graph_edgeFinset :
-    tri1Graph.edgeFinset =
-      {s((1 : Fin 4), 2), s((1 : Fin 4), 3), s((2 : Fin 4), 3)} := by
-  ext e
-  simp only [SimpleGraph.mem_edgeFinset, tri1Graph, SimpleGraph.edgeSet_fromEdgeSet,
-    Finset.mem_insert, Finset.mem_singleton, Set.mem_sdiff, Set.mem_insert_iff,
-    Set.mem_singleton_iff, Sym2.mem_diagSet]
-  refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
-  rcases he with he | he | he <;> rw [he, Sym2.mk_isDiag_iff] <;> decide
-
-/-- `labeledEval2` of `tri1Graph` equals `tri1Eval`. -/
-private theorem labeledEval2_tri1Graph {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) :
-    labeledEval2 2 tri1Graph B W i j = tri1Eval B W i j := by
-  simp only [labeledEval2, tri1Eval]
-  rw [tri1Graph_edgeFinset]
-  have hne1 : s((1 : Fin 4), 2) ∉ ({s((1 : Fin 4), 3), s((2 : Fin 4), 3)} : Finset _) := by
-    decide
-  have hne2 : s((1 : Fin 4), 3) ≠ s((2 : Fin 4), 3) := by decide
-  simp_rw [Finset.prod_insert hne1, Finset.prod_pair hne2, Fin.prod_univ_two]
-  rw [← (piFinTwoEquiv (fun _ => Fin T)).symm.sum_comp, ← Fintype.sum_prod_type']
-  congr 1; ext ⟨m₁, m₂⟩
-  have hσ : ((piFinTwoEquiv fun _ => Fin T).symm (m₁, m₂) : Fin 2 → Fin T) =
-      ![m₁, m₂] := by
-    ext k; fin_cases k <;> simp [piFinTwoEquiv]
-  rw [hσ]
-  set τ : Fin 4 → Fin T := Fin.cons i (Fin.cons j ![m₁, m₂]) with hτ_def
-  have hτ1 : τ 1 = j := finCons4_one i j _
-  have hτ2 : τ 2 = m₁ := by
-    show (Fin.cons i (Fin.cons j ![m₁, m₂]) : Fin 4 → Fin T) 2 = m₁
-    rw [finCons4_two]; rfl
-  have hτ3 : τ 3 = m₂ := by
-    show (Fin.cons i (Fin.cons j ![m₁, m₂]) : Fin 4 → Fin T) 3 = m₂
-    rw [finCons4_three]; rfl
-  -- Resolve the three Quot.outs
-  set p12 := Quot.out s((1 : Fin 4), 2) with hp12_def
-  have hout12 : s(p12.1, p12.2) = s((1 : Fin 4), 2) := Quot.out_eq _
-  have key12 : (p12.1 = 1 ∧ p12.2 = 2) ∨ (p12.1 = 2 ∧ p12.2 = 1) := by
-    rw [Sym2.eq_iff] at hout12
-    rcases hout12 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
-  set p13 := Quot.out s((1 : Fin 4), 3) with hp13_def
-  have hout13 : s(p13.1, p13.2) = s((1 : Fin 4), 3) := Quot.out_eq _
-  have key13 : (p13.1 = 1 ∧ p13.2 = 3) ∨ (p13.1 = 3 ∧ p13.2 = 1) := by
-    rw [Sym2.eq_iff] at hout13
-    rcases hout13 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
-  set p23 := Quot.out s((2 : Fin 4), 3) with hp23_def
-  have hout23 : s(p23.1, p23.2) = s((2 : Fin 4), 3) := Quot.out_eq _
-  have key23 : (p23.1 = 2 ∧ p23.2 = 3) ∨ (p23.1 = 3 ∧ p23.2 = 2) := by
-    rw [Sym2.eq_iff] at hout23
-    rcases hout23 with ⟨h₁, h₂⟩ | ⟨h₁, h₂⟩ <;> [left; right] <;> exact ⟨h₁, h₂⟩
-  have hv12 : B (τ p12.1) (τ p12.2) = B j m₁ := by
-    rcases key12 with ⟨ha, hb⟩ | ⟨ha, hb⟩
-    · rw [ha, hb, hτ1, hτ2]
-    · rw [ha, hb, hτ1, hτ2, hB]
-  have hv13 : B (τ p13.1) (τ p13.2) = B j m₂ := by
-    rcases key13 with ⟨ha, hb⟩ | ⟨ha, hb⟩
-    · rw [ha, hb, hτ1, hτ3]
-    · rw [ha, hb, hτ1, hτ3, hB]
-  have hv23 : B (τ p23.1) (τ p23.2) = B m₁ m₂ := by
-    rcases key23 with ⟨ha, hb⟩ | ⟨ha, hb⟩
-    · rw [ha, hb, hτ2, hτ3]
-    · rw [ha, hb, hτ2, hτ3, hB]
-  show W ((![m₁, m₂] : Fin 2 → Fin T) 0) * W ((![m₁, m₂] : Fin 2 → Fin T) 1) *
-      (B (τ p12.1) (τ p12.2) * (B (τ p13.1) (τ p13.2) * B (τ p23.1) (τ p23.2))) =
-    W m₁ * W m₂ * B j m₁ * B j m₂ * B m₁ m₂
-  rw [hv12, hv13, hv23]
-  show W m₁ * W m₂ * (B j m₁ * (B j m₂ * B m₁ m₂)) =
-    W m₁ * W m₂ * B j m₁ * B j m₂ * B m₁ m₂
-  ring
-
-/-- Each `pairProfile` component lies in `edgeFreeEvalSet` directly as a graph evaluation. -/
-private theorem pairProfile_component_mem_edgeFreeEvalSet {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (k : Fin 5) :
-    (fun i j => pairProfile B W (i, j) k) ∈ edgeFreeEvalSet B W := by
-  fin_cases k
-  · -- star0
-    refine ⟨1, star0Graph, inferInstance, star0Graph_edgeFree, ?_⟩
-    funext i j; exact (labeledEval2_star0Graph B hB W i j).symm
-  · -- star1
-    refine ⟨1, star1Graph, inferInstance, star1Graph_edgeFree, ?_⟩
-    funext i j; exact (labeledEval2_star1Graph B hB W i j).symm
-  · -- path
-    refine ⟨1, pathGraph01, inferInstance, pathGraph01_edgeFree, ?_⟩
-    funext i j; exact (labeledEval2_pathGraph01 B hB W i j).symm
-  · -- tri0
-    refine ⟨2, tri0Graph, inferInstance, tri0Graph_edgeFree, ?_⟩
-    funext i j; exact (labeledEval2_tri0Graph B hB W i j).symm
-  · -- tri1
-    refine ⟨2, tri1Graph, inferInstance, tri1Graph_edgeFree, ?_⟩
-    funext i j; exact (labeledEval2_tri1Graph B hB W i j).symm
-
-/-- For twin-free B with positive W, distinct pair orbits are separated by some
-edge-free evaluation. Follows from `pairOrbitRel_of_pairProfile_eq` by contrapositive:
-profiles differ at some component, and each component is directly an `edgeFreeEvalSet` member. -/
-private theorem pairOrbit_separated_by_edgeFreeEval {T : ℕ}
-    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    {p q : Fin T × Fin T} (h : ¬ pairOrbitRel B W p q) :
-    ∃ g ∈ edgeFreeEvalSet B W, g p.1 p.2 ≠ g q.1 q.2 := by
-  -- Contrapositive: ¬pairOrbit → ¬(profile p = profile q) → some component differs
-  have hne : pairProfile B W p ≠ pairProfile B W q :=
-    fun heq => h (pairOrbitRel_of_pairProfile_eq hB hW htwin heq)
-  have ⟨k, hk⟩ : ∃ k : Fin 5, pairProfile B W p k ≠ pairProfile B W q k := by
-    by_contra hall; push Not at hall; exact hne (funext hall)
-  -- Return the corresponding motif graph from edgeFreeEvalSet
-  refine ⟨fun i j => pairProfile B W (i, j) k,
-    pairProfile_component_mem_edgeFreeEvalSet B W hB k, ?_⟩
-  -- The pair `p` has `p = (p.1, p.2)` by eta, and same for q
-  change pairProfile B W (p.1, p.2) k ≠ pairProfile B W (q.1, q.2) k
-  rw [show (p.1, p.2) = p from rfl, show (q.1, q.2) = q from rfl]
-  exact hk
-
-/-- **CT-1 core**: edge-free indistinguishable pairs are in the same orbit
-(for twin-free matrices). Follows directly from `pairOrbit_separated_by_edgeFreeEval`. -/
-private theorem edgeFreeIndist_implies_pairOrbitRel {T : ℕ}
-    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    {p q : Fin T × Fin T} (h : edgeFreeIndist B W p q) :
-    pairOrbitRel B W p q := by
-  by_contra h_neg
-  obtain ⟨g, hg_mem, hg_ne⟩ := pairOrbit_separated_by_edgeFreeEval hB hW htwin h_neg
-  exact hg_ne (h g hg_mem)
-
-/-- Fully indistinguishable pairs are in the same orbit (for twin-free matrices).
-Follows from the stronger edge-free indistinguishability theorem. -/
-private theorem fullIndist_implies_pairOrbitRel {T : ℕ}
-    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    {p q : Fin T × Fin T} (h : fullIndist B W p q) :
-    pairOrbitRel B W p q :=
-  edgeFreeIndist_implies_pairOrbitRel hB hW htwin h.1
-
-/-! ### Edge-free indistinguishability span characterization -/
-
-private theorem edgeFreeIndist_trans {T : ℕ} {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    {p q r : Fin T × Fin T} (hpq : edgeFreeIndist B W p q) (hqr : edgeFreeIndist B W q r) :
-    edgeFreeIndist B W p r :=
-  fun f hf => (hpq f hf).trans (hqr f hf)
-
-/-- The setoid induced by `edgeFreeIndist`. -/
-private def edgeFreeIndistSetoid {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
-    Setoid (Fin T × Fin T) where
-  r := edgeFreeIndist B W
-  iseqv := ⟨edgeFreeIndist_refl B W, fun h => edgeFreeIndist_symm h,
-    fun h1 h2 => edgeFreeIndist_trans h1 h2⟩
-
-/-- The submodule of functions constant on `edgeFreeIndist`-classes. -/
-private noncomputable def constantOnEdgeFreeIndist {T : ℕ} (B : Fin T → Fin T → ℝ)
-    (W : Fin T → ℝ) : Submodule ℝ (Fin T → Fin T → ℝ) where
-  carrier := {f | ∀ p q, edgeFreeIndist B W p q → f p.1 p.2 = f q.1 q.2}
-  zero_mem' := fun _ _ _ => rfl
-  add_mem' {f g} hf hg p q hpq := by
-    simp only [Pi.add_apply]; rw [hf p q hpq, hg p q hpq]
-  smul_mem' r f hf p q hpq := by
-    simp only [Pi.smul_apply]; rw [hf p q hpq]
-
-/-- `edgeFreeEvalSpan` is contained in `constantOnEdgeFreeIndist`. -/
-private theorem edgeFreeEvalSpan_le_constantOnEdgeFreeIndist {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
-    edgeFreeEvalSpan B W ≤ constantOnEdgeFreeIndist B W := by
-  intro f hf p q hpq
-  exact edgeFreeEvalSpan_constant_on_edgeFreeIndist hf hpq
-
-/-- Pointwise product of finitely many elements of `edgeFreeEvalSpan` is in `edgeFreeEvalSpan`. -/
-private theorem prod_mem_edgeFreeEvalSpan {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (hB : ∀ i j, B i j = B j i) {ι : Type*} [DecidableEq ι] (s : Finset ι)
-    (f : ι → Fin T → Fin T → ℝ)
-    (hf : ∀ x ∈ s, f x ∈ edgeFreeEvalSpan B W) :
-    (fun i j => ∏ x ∈ s, f x i j) ∈ edgeFreeEvalSpan B W := by
-  induction s using Finset.induction with
-  | empty =>
-    have : (fun i j => ∏ x ∈ (∅ : Finset ι), f x i j) = fun _ _ => 1 := by ext; simp
-    rw [this]; exact one_mem_edgeFreeEvalSpan B W
-  | @insert a s' ha ih =>
-    simp only [Finset.prod_insert ha]
-    exact mul_mem_edgeFreeEvalSpan B W hB
-      (hf a (Finset.mem_insert_self a s'))
-      (ih (fun x hx => hf x (Finset.mem_insert_of_mem hx)))
-
-/-- A normalized affine function of a generator lies in `edgeFreeEvalSpan`. -/
-private theorem lagrange_factor_mem_edgeFreeEvalSpan {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (g : Fin T → Fin T → ℝ) (hg : g ∈ edgeFreeEvalSet B W) (a b : ℝ) :
-    (fun i j => (a - b)⁻¹ * (g i j - b)) ∈ edgeFreeEvalSpan B W := by
-  have hg_span : g ∈ edgeFreeEvalSpan B W := Submodule.subset_span hg
-  have heq : (fun i j => (a - b)⁻¹ * (g i j - b)) =
-      (a - b)⁻¹ • g + (-(a - b)⁻¹ * b) • (fun _ _ => (1 : ℝ)) := by
-    ext i j; simp only [Pi.add_apply, Pi.smul_apply, smul_eq_mul]; ring
-  rw [heq]
-  exact Submodule.add_mem _ (Submodule.smul_mem _ _ hg_span)
-    (Submodule.smul_mem _ _ (one_mem_edgeFreeEvalSpan B W))
-
-open Classical in
-/-- For each `edgeFreeIndist`-class, its indicator function (1 on class, 0 elsewhere)
-lies in `edgeFreeEvalSpan`, via Lagrange interpolation over quotient classes. -/
-private theorem edgeFreeIndist_class_indicator_mem {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
-    (o : Quotient (edgeFreeIndistSetoid B W)) :
-    (fun i j => if Quotient.mk (edgeFreeIndistSetoid B W) (i, j) = o then 1 else 0) ∈
-      edgeFreeEvalSpan B W := by
-  set p₀ := o.out with hp₀_def
-  have sep : ∀ q : Quotient (edgeFreeIndistSetoid B W), q ≠ o →
-      ∃ g ∈ edgeFreeEvalSet B W, g p₀.1 p₀.2 ≠ g q.out.1 q.out.2 := by
-    intro q hqo
-    have hne : ¬ edgeFreeIndist B W p₀ q.out := by
-      intro h
-      apply hqo
-      have heq : Quotient.mk (edgeFreeIndistSetoid B W) q.out =
-                 Quotient.mk (edgeFreeIndistSetoid B W) p₀ :=
-        @Quotient.sound _ (edgeFreeIndistSetoid B W) _ _ (edgeFreeIndist_symm h)
-      rw [← Quotient.out_eq q, heq, hp₀_def]
-      exact Quotient.out_eq o
-    simp only [edgeFreeIndist] at hne
-    push Not at hne
-    exact hne
-  let gSep : ∀ q : Quotient (edgeFreeIndistSetoid B W), q ≠ o → Fin T → Fin T → ℝ :=
-    fun q hqo => Classical.choose (sep q hqo)
-  have hSep_mem : ∀ q (hqo : q ≠ o), gSep q hqo ∈ edgeFreeEvalSet B W :=
-    fun q hqo => (Classical.choose_spec (sep q hqo)).1
-  have hSep_ne : ∀ q (hqo : q ≠ o),
-      gSep q hqo p₀.1 p₀.2 ≠ gSep q hqo q.out.1 q.out.2 :=
-    fun q hqo => (Classical.choose_spec (sep q hqo)).2
-  have lagFac_mem : ∀ q (hqo : q ≠ o),
-      (fun i j => (gSep q hqo p₀.1 p₀.2 - gSep q hqo q.out.1 q.out.2)⁻¹ *
-        (gSep q hqo i j - gSep q hqo q.out.1 q.out.2)) ∈ edgeFreeEvalSpan B W :=
-    fun q hqo => lagrange_factor_mem_edgeFreeEvalSpan B W (gSep q hqo)
-      (hSep_mem q hqo) _ _
-  have heq : (fun i j => if Quotient.mk (edgeFreeIndistSetoid B W) (i, j) = o then 1 else 0) =
-      fun i j => ∏ q ∈ Finset.univ.filter (fun q => q ≠ o),
-        (if h : q ≠ o then
-          (gSep q h p₀.1 p₀.2 - gSep q h q.out.1 q.out.2)⁻¹ *
-          (gSep q h i j - gSep q h q.out.1 q.out.2)
-        else 1) := by
-    ext i j
-    by_cases hor : Quotient.mk (edgeFreeIndistSetoid B W) (i, j) = o
-    · simp only [hor, ite_true]
-      symm
-      apply Finset.prod_eq_one
-      intro q hq
-      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hq
-      simp only [dif_pos hq]
-      have hind : edgeFreeIndist B W (i, j) p₀ :=
-        @Quotient.exact _ (edgeFreeIndistSetoid B W) _ _
-          (by rw [hor, hp₀_def]; exact (Quotient.out_eq o).symm)
-      rw [hind (gSep q hq) (hSep_mem q hq),
-          inv_mul_cancel₀ (sub_ne_zero.mpr (hSep_ne q hq))]
-    · simp only [hor, ite_false]
-      set r := Quotient.mk (edgeFreeIndistSetoid B W) (i, j)
-      symm
-      apply Finset.prod_eq_zero (Finset.mem_filter.mpr ⟨Finset.mem_univ r, hor⟩)
-      simp only [dif_pos hor]
-      have hind : edgeFreeIndist B W (i, j) r.out :=
-        @Quotient.exact _ (edgeFreeIndistSetoid B W) _ _ (Quotient.out_eq r).symm
-      rw [hind (gSep r hor) (hSep_mem r hor), sub_self, mul_zero]
-  rw [heq]
-  exact prod_mem_edgeFreeEvalSpan B W hB _ _ (fun q hq => by
-    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hq
-    simp only [dif_pos hq]
-    exact lagFac_mem q hq)
-
-open Classical in
-/-- Every function constant on `edgeFreeIndist`-classes is in `edgeFreeEvalSpan`.
-Decompose `f = ∑_o f(rep_o) • indicator_o` and use `edgeFreeIndist_class_indicator_mem`. -/
-private theorem constantOnEdgeFreeIndist_le_edgeFreeEvalSpan {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) :
-    constantOnEdgeFreeIndist B W ≤ edgeFreeEvalSpan B W := by
-  intro f hf
-  have hf_eq : ∀ p q : Fin T × Fin T, edgeFreeIndist B W p q → f p.1 p.2 = f q.1 q.2 := hf
-  rw [show f = ∑ o : Quotient (edgeFreeIndistSetoid B W),
-      (f o.out.1 o.out.2) •
-        (fun i j : Fin T => if Quotient.mk (edgeFreeIndistSetoid B W) (i, j) = o then (1 : ℝ) else 0)
-      from ?_]
-  · exact Submodule.sum_mem _ fun o _ =>
-      Submodule.smul_mem _ _ (edgeFreeIndist_class_indicator_mem B W hB o)
-  · ext i j
-    simp only [Finset.sum_apply, Pi.smul_apply, smul_eq_mul]
-    rw [Finset.sum_eq_single (Quotient.mk (edgeFreeIndistSetoid B W) (i, j))]
-    · simp only [ite_true, mul_one]
-      exact hf_eq (i, j) _ (@Quotient.exact _ (edgeFreeIndistSetoid B W) _ _ (Quotient.out_eq _).symm)
-    · intro q _ hne; simp [Ne.symm hne]
-    · intro h; exact absurd (Finset.mem_univ _) h
-
-/-- `edgeFreeEvalSpan` equals the submodule of functions constant on `edgeFreeIndist`-classes. -/
-private theorem edgeFreeEvalSpan_eq_constantOnEdgeFreeIndist {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hB : ∀ i j, B i j = B j i) :
-    edgeFreeEvalSpan B W = constantOnEdgeFreeIndist B W :=
-  le_antisymm (edgeFreeEvalSpan_le_constantOnEdgeFreeIndist B W)
-    (constantOnEdgeFreeIndist_le_edgeFreeEvalSpan B W hB)
-
-/-! ### CT-1 assembly -/
-
-/-- Edge-free indistinguishability equals the orbit relation for twin-free matrices.
-Combines the easy direction (orbit ⟹ ef-indist) with the hard direction (ef-indist ⟹ orbit). -/
-private theorem pairOrbitRel_iff_edgeFreeIndist {T : ℕ}
-    {B : Fin T → Fin T → ℝ} {W : Fin T → ℝ}
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    (p q : Fin T × Fin T) :
-    pairOrbitRel B W p q ↔ edgeFreeIndist B W p q :=
-  ⟨fun h => (pairOrbitRel_implies_fullIndist hB h).1,
-   fun h => edgeFreeIndist_implies_pairOrbitRel hB hW htwin h⟩
-
-open Classical in
-/-- For twin-free B with positive W, each pair orbit indicator lies in `edgeFreeEvalSpan`.
-Built by Lagrange interpolation using separators from `pairOrbit_separated_by_edgeFreeEval`.
-Each separator g ∈ edgeFreeEvalSet is Aut(B,W)-invariant (`labeledEval2_perm_eq`), so the
-Lagrange product is 1 on the target orbit and 0 on all others. -/
-private theorem pairOrbit_indicator_mem_edgeFreeEvalSpan {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    (o : Quotient (pairOrbitSetoid B W)) :
-    pairOrbitIndicator B W o ∈ edgeFreeEvalSpan B W := by
-  set p₀ := o.out with hp₀_def
-  -- For each orbit q ≠ o, find a separating evaluation
-  have sep : ∀ q : Quotient (pairOrbitSetoid B W), q ≠ o →
-      ∃ g ∈ edgeFreeEvalSet B W, g p₀.1 p₀.2 ≠ g q.out.1 q.out.2 := by
-    intro q hqo
-    apply pairOrbit_separated_by_edgeFreeEval hB hW htwin
-    intro h
-    apply hqo
-    have heq : Quotient.mk (pairOrbitSetoid B W) q.out =
-               Quotient.mk (pairOrbitSetoid B W) p₀ :=
-      @Quotient.sound _ (pairOrbitSetoid B W) _ _ (pairOrbitRel_symm h)
-    rw [← Quotient.out_eq q, heq, hp₀_def]
-    exact Quotient.out_eq o
-  let gSep : ∀ q : Quotient (pairOrbitSetoid B W), q ≠ o → Fin T → Fin T → ℝ :=
-    fun q hqo => Classical.choose (sep q hqo)
-  have hSep_mem : ∀ q (hqo : q ≠ o), gSep q hqo ∈ edgeFreeEvalSet B W :=
-    fun q hqo => (Classical.choose_spec (sep q hqo)).1
-  have hSep_ne : ∀ q (hqo : q ≠ o),
-      gSep q hqo p₀.1 p₀.2 ≠ gSep q hqo q.out.1 q.out.2 :=
-    fun q hqo => (Classical.choose_spec (sep q hqo)).2
-  -- Build Lagrange factors and prove membership
-  have lagFac_mem : ∀ q (hqo : q ≠ o),
-      (fun i j => (gSep q hqo p₀.1 p₀.2 - gSep q hqo q.out.1 q.out.2)⁻¹ *
-        (gSep q hqo i j - gSep q hqo q.out.1 q.out.2)) ∈ edgeFreeEvalSpan B W :=
-    fun q hqo => lagrange_factor_mem_edgeFreeEvalSpan B W (gSep q hqo)
-      (hSep_mem q hqo) _ _
-  -- The orbit indicator equals the product of all Lagrange factors.
-  -- Key: each gSep is orbit-invariant (labeledEval2_perm_eq), so
-  --   on orbit o: gSep(i,j) = gSep(p₀) → each factor = 1 → product = 1
-  --   on orbit q₀ ≠ o: gSep_{q₀}(i,j) = gSep_{q₀}(q₀.out) → that factor = 0 → product = 0
-  have heq : (fun i j => if Quotient.mk (pairOrbitSetoid B W) (i, j) = o then 1 else 0) =
-      fun i j => ∏ q ∈ Finset.univ.filter (fun q => q ≠ o),
-        (if h : q ≠ o then
-          (gSep q h p₀.1 p₀.2 - gSep q h q.out.1 q.out.2)⁻¹ *
-          (gSep q h i j - gSep q h q.out.1 q.out.2)
-        else 1) := by
-    ext i j
-    by_cases hor : Quotient.mk (pairOrbitSetoid B W) (i, j) = o
-    · simp only [hor, ite_true]
-      symm
-      apply Finset.prod_eq_one
-      intro q hq
-      simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hq
-      simp only [dif_pos hq]
-      -- (i,j) is in orbit o, so gSep(i,j) = gSep(p₀) by orbit-invariance
-      have horb : pairOrbitRel B W (i, j) p₀ :=
-        @Quotient.exact _ (pairOrbitSetoid B W) _ _
-          (by rw [hor, hp₀_def]; exact (Quotient.out_eq o).symm)
-      obtain ⟨π, haut, h1, h2⟩ := horb
-      have hg_mem := hSep_mem q hq
-      obtain ⟨n, F, inst, hF, hg_eq⟩ := hg_mem
-      have hg_val : ∀ a b, gSep q hq a b = @labeledEval2 T n F inst B W a b :=
-        fun a b => congr_fun (congr_fun hg_eq a) b
-      rw [show gSep q hq i j = gSep q hq p₀.1 p₀.2 from by
-        rw [hg_val, hg_val, ← h1, ← h2]
-        exact (@labeledEval2_perm_eq T n F inst B W π haut.2 haut.1 i j).symm]
-      rw [inv_mul_cancel₀ (sub_ne_zero.mpr (hSep_ne q hq))]
-    · simp only [hor, ite_false]
-      set r := Quotient.mk (pairOrbitSetoid B W) (i, j)
-      symm
-      apply Finset.prod_eq_zero (Finset.mem_filter.mpr ⟨Finset.mem_univ r, hor⟩)
-      simp only [dif_pos hor]
-      -- (i,j) is in orbit r = q₀, so gSep_{q₀}(i,j) = gSep_{q₀}(q₀.out)
-      have horb : pairOrbitRel B W (i, j) r.out :=
-        @Quotient.exact _ (pairOrbitSetoid B W) _ _ (Quotient.out_eq r).symm
-      obtain ⟨π, haut, h1, h2⟩ := horb
-      have hg_mem := hSep_mem r hor
-      obtain ⟨n, F, inst, hF, hg_eq⟩ := hg_mem
-      have hg_val : ∀ a b, gSep r hor a b = @labeledEval2 T n F inst B W a b :=
-        fun a b => congr_fun (congr_fun hg_eq a) b
-      rw [show gSep r hor i j = gSep r hor r.out.1 r.out.2 from by
-        rw [hg_val, hg_val, ← h1, ← h2]
-        exact (@labeledEval2_perm_eq T n F inst B W π haut.2 haut.1 i j).symm]
-      rw [sub_self, mul_zero]
-  rw [show pairOrbitIndicator B W o = fun i j =>
-      if Quotient.mk (pairOrbitSetoid B W) (i, j) = o then 1 else 0
-    from rfl]
-  rw [heq]
-  exact prod_mem_edgeFreeEvalSpan B W hB _ _ (fun q hq => by
-    simp only [Finset.mem_filter, Finset.mem_univ, true_and] at hq
-    simp only [dif_pos hq]
-    exact lagFac_mem q hq)
-
-/-- CT-1: the 2-labeled evaluation span equals the pair-invariant subspace
-(for twin-free matrices with positive weights). -/
-private theorem eval2Span_eq_pairInvariantSubspace {T : ℕ}
-    (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
-    (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
-    (htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j) :
-    eval2Span B W = pairInvariantSubspace B W := by
-  apply le_antisymm (eval2Span_le_pairInvariantSubspace B W)
-  apply pairInvariantSubspace_le_of_orbitIndicators
-  intro o
-  exact edgeFreeEvalSpan_le_eval2Span B W
-    (pairOrbit_indicator_mem_edgeFreeEvalSpan B W hB hW htwin o)
+/-! ### Refuted 5-motif route (removed, issue #19)
+
+This file formerly contained a "pair profile" CT-1 route here: five edge-free
+2-labeled motif evaluations (`star0Eval`, `star1Eval`, `pathEval`, `tri0Eval`,
+`tri1Eval`) were conjectured to determine pair orbits for twin-free matrices with
+positive weights (`pairOrbitRel_of_pairProfile_eq`, assembled from the subclaim
+stubs `vertexOrbit_of_star0_tri0_eq` and `pairOrbit_of_vertexOrbits_and_path`).
+
+The route is **refuted** by the `C₅ ⊔ C₆` counterexample
+(`scripts/counterexample_C5_C6.py`): the disjoint union of a 5-cycle and a 6-cycle,
+as a `{0,1}`-matrix on `Fin 11` with uniform weights, is symmetric, twin-free, and
+positively weighted, yet every vertex has `star0 = 2/11` and `tri0 = 0` (no
+triangles), so the 5-motif profile cannot distinguish the pairs `(0, 0)` and
+`(5, 5)`, which lie in different pair orbits under `Aut(C₅ ⊔ C₆) = D₅ × D₆`.
+(Earlier computational validation missed this by testing only dense matrices with
+entries in `[0.1, 0.9]`.)
+
+The known-false stubs and their dead consumers (`vertexOrbit_of_star1_tri1_eq`,
+`pairOrbit_separated_by_edgeFreeEval`, `edgeFreeIndist_implies_pairOrbitRel`,
+`fullIndist_implies_pairOrbitRel`, `pairOrbitRel_iff_edgeFreeIndist`,
+`pairOrbit_indicator_mem_edgeFreeEvalSpan`, `eval2Span_eq_pairInvariantSubspace`,
+and the supporting motif-graph and `edgeFreeIndist`-span sections) were deleted in
+issue #19. The live proof of `matrix_quotient_of_weightedHomSum_eq` routes through
+the Lovász TR-2004-82 machinery above and the cross-matrix transport chain below
+and never depended on them. -/
 
 /-! ### Cross-matrix transport (Lovász §5.2 / Cai–Govorov bridge)
 
