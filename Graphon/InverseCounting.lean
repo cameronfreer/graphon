@@ -20,6 +20,8 @@ homomorphism densities for all graphs, then they are close in cut distance.
 
 * `Graphon.cutDistance_zero_of_homDensity_eq` - Equal hom densities ⟹ cutDistance = 0
 * `Graphon.cutDistance_le_of_homDensity_close` - The quantitative inverse counting lemma
+* `Graphon.homDensity_mkStepGraphon_eq_weightedHomSum` - Step-graphon hom densities are
+  weighted homomorphism sums (public: specialized by `Graphon/SamplingFinite.lean`)
 
 ## Implementation notes
 
