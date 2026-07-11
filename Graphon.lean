@@ -52,6 +52,7 @@ import Graphon.InfiniteRepresentation
 import Graphon.InfiniteSampleLaw
 import Graphon.EmpiricalGraphon
 import Graphon.InfiniteExtremality
+import Graphon.InfiniteSampler
 import Graphon.Convergence
 
 /-!
@@ -106,6 +107,7 @@ in Lean 4 using Mathlib.
 * `Graphon.InfiniteSampleLaw` — The canonical infinite law of a graphon class: quotient descent, finite-restriction marginals, weak continuity, closed embedding into infinite laws
 * `Graphon.EmpiricalGraphon` — Empirical graphons of an infinite exchangeable graph: their law is the empirical mixing measure; convergence in distribution to the representing measure
 * `Graphon.InfiniteExtremality` — Extremality for infinite exchangeable laws: dissociated ↔ canonical law of a single graphon class ↔ Dirac representing measure
+* `Graphon.InfiniteSampler` — Explicit infinite sampler for a fixed graphon: i.i.d. sources via `Measure.infinitePi`; the measurable sampler realizes `infiniteLaw (sampleExchangeableLaw W)` exactly
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 
