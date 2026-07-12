@@ -100,6 +100,8 @@ AUDITED_DECLS = {
     "RelSignature.RelStructure.restrictLE_restrictFin",
     "RelSignature.generateFrom_cylinders_eq",
     "RelSignature.RelStructure.ext_of_map_restrictFin",
+    "InfiniteDigraph.digraphEquiv",
+    "InfiniteDigraph.ext_of_map_restrictFin",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

@@ -7,6 +7,7 @@ Authors: Cameron Freer
 import Graphon.RelationalSignature
 import Graphon.RelationalStructure
 import Graphon.RelationalTopology
+import Graphon.InfiniteDigraph
 import Graphon.Basic
 import Graphon.Step
 import Graphon.HomDensity
@@ -137,6 +138,7 @@ in Lean 4 using Mathlib.
 * `Graphon.ErgodicDecomposition` — The ergodic-decomposition form of extremality (#59 part 2): the six-way equivalence `tfae_ergodic_extremality` adjoining ergodicity under the finite-permutation action, and `invariant_ae_eq_limitGraphon_classifier` — `limitGraphon` generates the invariant σ-algebra modulo null sets; built from fixed-fiber ergodicity (block swap + initial-cylinder approximation)
 * `Graphon.RelationalSignature` — Generic AHK program (umbrella #103), R0 design checkpoint (#110): purely relational multi-sorted `RelSignature`, the `RelCoord`/`RelStructure` carriers, external `NoNullary`, finite/infinite value carriers, the sortwise `RelCoord.map`/`RelStructure.comap` action, and worked digraph/bipartite/ternary examples (the ternary `(i,i,j)` exercising repeated coordinates); no topology/probability yet
 * `Graphon.RelationalStructure` — Generic AHK program R1a (#104): sortwise actions on relational structures — `map`/`comap` functoriality, `restrict`/`relabel`, finite restrictions `restrictFin`/`restrictLE`, padding `pad` with the section `restrict_pad`, and restriction composition `restrictLE_restrictFin`/`restrictLE_restrictLE`; still no topology/measure (that is R1b)
+* `Graphon.InfiniteDigraph` — Directed umbrella (#84) D1 (#85): `InfiniteDigraph` as the one-sort binary R1 instance (`digraphSig`) — inheriting compact/standard-Borel, measurable finite restrictions, and measure extensionality — with `coordPairEquiv` (coordinates = ordered vertex pairs) and the measurable equivalence `digraphEquiv` to Mathlib's `Digraph ℕ`; no exchangeable-law theory (that is D2)
 * `Graphon.RelationalTopology` — Generic AHK program R1b (#104): the Boolean-product topology / σ-algebra on `RelStructure` — compact/Polish/standard-Borel instances, measurability of the finite restrictions, the cylinder π-system `cylinders` generating the product σ-algebra (`generateFrom_cylinders_eq`; = Borel under the countability giving Polish), and finite-restriction measure extensionality (`ext_of_map_restrictFin`); no projective extension (that is R2)
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
