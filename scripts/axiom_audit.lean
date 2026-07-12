@@ -63,3 +63,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.InfiniteExchangeableGraphLaw.law_map_drop
 #print axioms Graphon.InfiniteExchangeableGraphLaw.vertexTailTrivial_of_restrictionIndependent
 #print axioms GraphonSpace.isDissociated_of_vertexTailTrivial
+#print axioms Graphon.InfiniteExchangeableGraphLaw.restrictionIndependent_of_isDissociated
+#print axioms Graphon.InfiniteExchangeableGraphLaw.isDissociated_iff_vertexTailTrivial
+#print axioms Graphon.InfiniteExchangeableGraphLaw.tfae_extremality
