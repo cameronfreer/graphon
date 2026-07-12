@@ -84,7 +84,7 @@ AUDITED_DECLS = {
     "InfiniteGraph.sampleInfinite_adj",
     "GraphonSpace.tendsto_empiricalGraphon_drop_iff",
     "GraphonSpace.measurable_limitGraphon_vertexTailAlgebra",
-    "MeasureTheory.ProbabilityMeasure.eq_dirac_of_forall_measure_eq_zero_or_one",
+    "Graphon.InfiniteExchangeableGraphLaw.law_map_drop",
     "Graphon.InfiniteExchangeableGraphLaw.vertexTailTrivial_of_restrictionIndependent",
     "GraphonSpace.isDissociated_of_vertexTailTrivial",
 }
