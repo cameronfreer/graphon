@@ -465,6 +465,23 @@ equivalent --- the Diaconis--Janson five-way extremality theorem.
 
 \inputleannode{thm:dj-five-five}
 
+Adjoining the finite-permutation action gives the ergodic-decomposition form: a law is
+ergodic under the finitely supported relabelings of $\mathbb{N}$ (every permutation-invariant
+event has measure $0$ or $1$) exactly when it is extreme. Restriction independence forces
+ergodicity by an approximate-independence estimate --- approximate an invariant event by an
+initial cylinder, push it onto a disjoint tail block, and compare --- while ergodicity forces
+vertex-tail triviality because every vertex-tail event is invariant. The empirical limit
+$\mathrm{limitGraphon}$ thus generates the invariant $\sigma$-algebra modulo null sets.
+
+\inputleannode{thm:dj-five-five-ergodic}
+
+Because every permutation-invariant event is null or conull in each sampled fiber and the
+empirical limit converges almost surely there, an invariant event coincides, modulo a null
+set, with a preimage under $\mathrm{limitGraphon}$ of a Borel classifier on graphon space ---
+so $\mathrm{limitGraphon}$ generates the invariant $\sigma$-algebra up to null sets.
+
+\inputleannode{thm:invariant-generates}
+
 \section{Convergence Equivalence}
 
 A sequence of graphons converges in cut distance if and only if all

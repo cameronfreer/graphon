@@ -97,6 +97,7 @@ The project contains zero `sorry` statements (issue #19, completed 2026-07-11): 
 | `Graphon/RestrictionIndependence.lean` | Core | Vertex-tail σ-algebra + restriction independence ⟹ dissociation |
 | `Graphon/RestrictionIndependenceReverse.lean` | Core | Dissociation ⟹ restriction independence; the five-way DJ Theorem 5.5 extremality equivalence |
 | `Graphon/InvariantAction.lean` | Core | Finite-permutation invariance of `limitGraphon`; invariant σ-algebra; `IsErgodic` (issue #59 part 1) |
+| `Graphon/ErgodicDecomposition.lean` | Core | Fixed-fiber ergodicity: `RestrictionIndependent ⟺ IsErgodic ⟺ dissociated`; the six-way ergodic-decomposition DJ Theorem 5.5; `limitGraphon` generates the invariant σ-algebra mod null (issue #59 part 2) |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |

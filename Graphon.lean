@@ -64,6 +64,7 @@ import Graphon.VertexTail
 import Graphon.InvariantAction
 import Graphon.RestrictionIndependence
 import Graphon.RestrictionIndependenceReverse
+import Graphon.ErgodicDecomposition
 import Graphon.Convergence
 
 /-!
@@ -130,6 +131,7 @@ in Lean 4 using Mathlib.
 * `Graphon.RestrictionIndependence` — Toward DJ Theorem 5.5: the vertex-tail σ-algebra and restriction independence; `RestrictionIndependent ⟹ VertexTailTrivial ⟹ dissociated` (via the tail-measurable empirical limit)
 * `Graphon.RestrictionIndependenceReverse` — The reverse arc closing DJ Theorem 5.5: dissociation ⟹ restriction independence (two-block Möbius factorization), and the five-way extremality `tfae_extremality`
 * `Graphon.InvariantAction` — The finite-permutation action toward ergodic decomposition (#59): `limitGraphon` is invariant under every finite relabeling, hence invariant-σ-algebra measurable; `IsErgodic`
+* `Graphon.ErgodicDecomposition` — The ergodic-decomposition form of extremality (#59 part 2): the six-way equivalence `tfae_ergodic_extremality` adjoining ergodicity under the finite-permutation action, and `invariant_ae_eq_limitGraphon_classifier` — `limitGraphon` generates the invariant σ-algebra modulo null sets; built from fixed-fiber ergodicity (block swap + initial-cylinder approximation)
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 
