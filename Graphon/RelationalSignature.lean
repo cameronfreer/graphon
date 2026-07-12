@@ -54,15 +54,17 @@ easy to revise.
 ## External representation theorem this program targets (R0 acceptance item)
 
 The functional representation formalized in R4 (#107) is the Aldous–Hoover–Kallenberg
-theorem in the form of **Kallenberg, *Probabilistic Symmetries and Invariance Principles*
-(Springer, 2005), Theorem 7.22** — the representation of a jointly exchangeable array
-`X : ℕ^d → E` as `X_J = f((ξ_{J'})_{J' ⊆ J})` for a measurable `f` and i.i.d. `U[0,1]`
-latents `ξ` indexed by the **subsets** `J' ⊆ J` of each coordinate set; the separately
-exchangeable form is the companion result in the same section (Aldous 1981, Hoover 1979 for
-the two-dimensional graph case). For relational structures the latents are indexed by finite
-subsets of *tagged vertices* `Σ s : S.Srt, ℕ` (R4/#107), with the empty subset `ξ_∅`
-adjoined only for the general mixture (R5/#108). Confirming this exact theorem number and
-its indexing convention against the printing is part of R0's acceptance.
+theorem. In **Kallenberg, *Probabilistic Symmetries and Invariance Principles* (Springer,
+2005), §7.5**: **Theorem 7.22** is the *jointly* exchangeable representation of an array
+`X : ℕ^d → E` as `X_J = f((ξ_{J'})_{J' ⊆ J})` (measurable `f`, i.i.d. `U[0,1]` latents `ξ`
+indexed by the **subsets** `J' ⊆ J`), and **Corollary 7.23** is its *separately*
+exchangeable, fixed-dimensional consequence. The general multi-sorted action here **mixes
+joint and separate symmetries**, so it is not literally either single statement — R1/R2 make
+the exact mixture explicit. For relational structures the latents are indexed by finite
+subsets of *tagged vertices* `Σ s : S.Srt, ℕ`; **R4 formalizes the dissociated
+specialization without the empty-subset latent `ξ_∅`**, and R5 (#108) restores the full
+general-law form with `ξ_∅`. Locating and confirming these exact statements against the
+printing is part of R0's acceptance.
 -/
 
 universe u v w
@@ -163,11 +165,22 @@ abbrev ternaryRepeated (i j : ℕ) : RelCoord ternarySig (Vinfinite ternarySig) 
 /-- The repeated coordinate really does carry the same vertex in positions `0` and `1`. -/
 example (i j : ℕ) : (ternaryRepeated i j).2 0 = (ternaryRepeated i j).2 1 := rfl
 
-/-- A sortwise map **preserves** the equality pattern: positions `0` and `1` remain equal
-after `RelCoord.map`. This is the property R4's representing functions must respect. -/
+/-- A sortwise map **preserves existing equalities**: positions `0` and `1` were equal in
+`(i, i, j)`, so they stay equal after `RelCoord.map`. (A noninjective map may also *create*
+new coincidences; it does not preserve the exact partition — that needs injectivity, below.) -/
 example (f : ℕ → ℕ) (i j : ℕ) :
     (RelCoord.map (S := ternarySig) (fun _ => f) (ternaryRepeated i j)).2 0 =
       (RelCoord.map (S := ternarySig) (fun _ => f) (ternaryRepeated i j)).2 1 := rfl
+
+/-- **An injective sortwise map preserves the exact equality partition**: two argument
+positions are equal after mapping iff they were equal before (`Function.Injective.eq_iff`).
+This is the property R4's representing functions rely on. -/
+example {f : ℕ → ℕ} (hf : Function.Injective f) (i j : ℕ) (a b : Fin 3) :
+    ((RelCoord.map (S := ternarySig) (fun _ => f) (ternaryRepeated i j)).2 a =
+        (RelCoord.map (S := ternarySig) (fun _ => f) (ternaryRepeated i j)).2 b) ↔
+      ((ternaryRepeated i j).2 a = (ternaryRepeated i j).2 b) := by
+  simp only [RelCoord.map]
+  exact hf.eq_iff
 
 /-- The digraph, bipartite, and ternary signatures satisfy arity positivity. -/
 example : NoNullary digraphSig := fun _ => by show 0 < 2; decide

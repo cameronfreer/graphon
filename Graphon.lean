@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 
+import Graphon.RelationalSignature
 import Graphon.Basic
 import Graphon.Step
 import Graphon.HomDensity
@@ -65,7 +66,6 @@ import Graphon.InvariantAction
 import Graphon.RestrictionIndependence
 import Graphon.RestrictionIndependenceReverse
 import Graphon.ErgodicDecomposition
-import Graphon.RelationalSignature
 import Graphon.Convergence
 
 /-!
