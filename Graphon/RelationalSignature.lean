@@ -91,8 +91,9 @@ abbrev RelCoord (S : RelSignature) (V : S.Srt → Type v) : Type _ :=
   Σ R : S.Rel, (i : Fin (S.arity R)) → V (S.argSort R i)
 
 /-- **A relational structure** over the value family `V`: a Boolean value at every
-coordinate (whether the tuple stands in the relation). -/
-def RelStructure (S : RelSignature) (V : S.Srt → Type v) : Type _ := RelCoord S V → Bool
+coordinate (whether the tuple stands in the relation). Reducible so that it transparently
+inherits the Boolean-product topology and measurable-space structure (R1b). -/
+abbrev RelStructure (S : RelSignature) (V : S.Srt → Type v) : Type _ := RelCoord S V → Bool
 
 /-- **Arity positivity**, kept as an external predicate rather than a field of
 `RelSignature`, so nullary relations can be added later without changing the signature. -/

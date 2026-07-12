@@ -98,6 +98,8 @@ AUDITED_DECLS = {
     "Graphon.InfiniteExchangeableGraphLaw.invariant_ae_eq_limitGraphon_classifier",
     "RelSignature.RelStructure.restrict_pad",
     "RelSignature.RelStructure.restrictLE_restrictFin",
+    "RelSignature.generateFrom_cylinders_eq",
+    "RelSignature.RelStructure.ext_of_map_restrictFin",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
@@ -186,7 +188,36 @@ def census() -> bool:
     return ok
 
 
+def parse_axiom_report(out: str) -> dict:
+    """Parse `#print axioms` output into {declaration: set-of-axioms}.
+
+    Lazy `(.+?)` (not `[^']+`) so that primed declaration names, e.g.
+    `hasSubgaussianMGF_of_bounded_differences'`, keep their trailing prime. No `re.DOTALL`:
+    the name must stay single-line, otherwise a preceding "does not depend on any axioms"
+    line is swallowed into the next name; the multi-line axiom list is still captured
+    because `[^\\]]*` matches newlines."""
+    reported = {}
+    for m in re.finditer(r"'(.+?)' depends on axioms: \[([^\]]*)\]", out):
+        reported[m.group(1)] = {a.strip() for a in m.group(2).replace("\n", " ").split(",")
+                                if a.strip()}
+    for m in re.finditer(r"'(.+?)' does not depend on any axioms", out):
+        reported[m.group(1)] = set()
+    return reported
+
+
+def _regression_check_axiom_parse() -> None:
+    """Regression fixture (issue #104 R1b): an axiom-free line immediately followed by a
+    with-axioms line must parse as two distinct declarations, not one swallowed name."""
+    sample = ("'A.free' does not depend on any axioms\n"
+              "'A.used' depends on axioms: [propext,\n Classical.choice,\n Quot.sound]\n")
+    rep = parse_axiom_report(sample)
+    assert set(rep) == {"A.free", "A.used"}, f"axiom-parse regression: {set(rep)}"
+    assert rep["A.free"] == set()
+    assert rep["A.used"] == {"propext", "Classical.choice", "Quot.sound"}
+
+
 def axiom_audit() -> bool:
+    _regression_check_axiom_parse()
     proc = subprocess.run(
         ["lake", "env", "lean", "scripts/axiom_audit.lean"],
         capture_output=True,
@@ -198,14 +229,7 @@ def axiom_audit() -> bool:
     if proc.returncode != 0:
         print("axiom audit: FAIL (lean invocation failed)")
         return False
-    reported = {}
-    # Lazy `(.+?)` (not `[^']+`) so that primed declaration names, e.g.
-    # `hasSubgaussianMGF_of_bounded_differences'`, keep their trailing prime.
-    for m in re.finditer(r"'(.+?)' depends on axioms: \[([^\]]*)\]", out, re.DOTALL):
-        axioms = {a.strip() for a in m.group(2).replace("\n", " ").split(",") if a.strip()}
-        reported[m.group(1)] = axioms
-    for m in re.finditer(r"'(.+?)' does not depend on any axioms", out):
-        reported[m.group(1)] = set()
+    reported = parse_axiom_report(out)
     ok = True
     if set(reported) != AUDITED_DECLS:
         print("FAIL: printed declaration set differs from the intended audit list.")

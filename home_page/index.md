@@ -100,6 +100,7 @@ The project contains zero `sorry` statements (issue #19, completed 2026-07-11): 
 | `Graphon/ErgodicDecomposition.lean` | Core | Fixed-fiber ergodicity: `RestrictionIndependent ⟺ IsErgodic ⟺ dissociated`; the six-way ergodic-decomposition DJ Theorem 5.5; `limitGraphon` generates the invariant σ-algebra mod null (issue #59 part 2) |
 | `Graphon/RelationalSignature.lean` | Foundation | Generic AHK program (umbrella #103) R0 checkpoint: multi-sorted `RelSignature`, `RelCoord`/`RelStructure` carriers, external `NoNullary`, sortwise `map`/`comap`, digraph/bipartite/ternary examples (issue #110) |
 | `Graphon/RelationalStructure.lean` | Foundation | Generic AHK program R1a: sortwise actions on relational structures — `map`/`comap` functoriality, `restrict`/`relabel`, finite restrictions `restrictFin`/`restrictLE`, padding `pad` (+ `restrict_pad`), restriction composition (issue #104) |
+| `Graphon/RelationalTopology.lean` | Foundation | Generic AHK program R1b: Boolean-product topology/σ-algebra on `RelStructure` — compact (no countability) + Polish/standard-Borel (countable coords), measurable restrictions, cylinder π-system generating the product σ-algebra, finite-restriction measure extensionality (issue #104) |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
