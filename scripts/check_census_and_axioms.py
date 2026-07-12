@@ -103,6 +103,8 @@ AUDITED_DECLS = {
     "digraphStructureEquiv",
     "finiteDigraphEquiv",
     "InfiniteDigraph.ext_of_map_restrictFin",
+    "RelSignature.continuous_restrictFin",
+    "RelSignature.continuous_pad",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

@@ -79,3 +79,5 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms digraphStructureEquiv
 #print axioms finiteDigraphEquiv
 #print axioms InfiniteDigraph.ext_of_map_restrictFin
+#print axioms RelSignature.continuous_restrictFin
+#print axioms RelSignature.continuous_pad
