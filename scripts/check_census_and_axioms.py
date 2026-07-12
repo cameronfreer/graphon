@@ -96,6 +96,8 @@ AUDITED_DECLS = {
     "Graphon.InfiniteExchangeableGraphLaw.measure_invariant_eq_zero_or_one_of_restrictionIndependent",
     "Graphon.InfiniteExchangeableGraphLaw.tfae_ergodic_extremality",
     "Graphon.InfiniteExchangeableGraphLaw.invariant_ae_eq_limitGraphon_classifier",
+    "RelSignature.RelStructure.restrict_pad",
+    "RelSignature.RelStructure.restrictLE_restrictFin",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

@@ -72,3 +72,5 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.InfiniteExchangeableGraphLaw.measure_invariant_eq_zero_or_one_of_restrictionIndependent
 #print axioms Graphon.InfiniteExchangeableGraphLaw.tfae_ergodic_extremality
 #print axioms Graphon.InfiniteExchangeableGraphLaw.invariant_ae_eq_limitGraphon_classifier
+#print axioms RelSignature.RelStructure.restrict_pad
+#print axioms RelSignature.RelStructure.restrictLE_restrictFin
