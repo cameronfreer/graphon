@@ -28,6 +28,10 @@ agrees with the Borel σ-algebra of the topology.
 * `RelSignature.RelStructure.ext_of_map_restrictFin` — **finite-restriction measure
   extensionality**: two finite measures on the infinite structure space agree once all their
   finite-restriction pushforwards agree.
+* `RelSignature.continuous_comap` and its corollaries `continuous_restrict` /
+  `continuous_relabel` / `continuous_restrictFin` / `continuous_restrictLE`, plus
+  `continuous_pad` / `measurable_pad` — continuity (and measurability) of the sortwise
+  actions, needed for the R2 compactness-extension route.
 
 No projective extension here — that is R2.
 -/
@@ -156,5 +160,56 @@ theorem RelStructure.ext_of_map_restrictFin {μ ν : Measure (RelStructure S (Vi
   · have h0 := congrArg (fun m : Measure (RelStructure S (Vfinite fun _ => 0)) => m Set.univ)
       (h (fun _ => 0))
     simpa [Measure.map_apply (measurable_restrictFin (fun _ => 0)) MeasurableSet.univ] using h0
+
+/-! ### Continuity of the sortwise actions
+
+Needed by R2's compactness-extension route: identifying the finite marginals of a weak limit
+uses continuity of the restriction maps, not just measurability. -/
+
+/-- **The sortwise pullback is continuous**: `comap f σ = σ ∘ RelCoord.map f` is a
+precomposition, hence continuous coordinatewise. This is the reusable primitive. -/
+theorem continuous_comap {V W : S.Srt → Type*} (f : ∀ s, V s → W s) :
+    Continuous (RelStructure.comap f) := by
+  apply continuous_pi
+  intro c
+  exact continuous_apply (RelCoord.map f c)
+
+/-- Restriction to a sub-carrier is continuous. -/
+theorem continuous_restrict {V W : S.Srt → Type*} (e : ∀ s, V s ↪ W s) :
+    Continuous (RelStructure.restrict e) := continuous_comap _
+
+/-- Relabelling is continuous. -/
+theorem continuous_relabel {V : S.Srt → Type*} (σ : ∀ s, Equiv.Perm (V s)) :
+    Continuous (RelStructure.relabel σ) := continuous_comap _
+
+/-- Finite restriction is continuous. -/
+theorem continuous_restrictFin (n : S.Srt → ℕ) :
+    Continuous (RelStructure.restrictFin (S := S) n) := continuous_comap _
+
+/-- Restriction between size vectors is continuous. -/
+theorem continuous_restrictLE {n m : S.Srt → ℕ} (h : ∀ s, n s ≤ m s) :
+    Continuous (RelStructure.restrictLE h) := continuous_comap _
+
+open scoped Classical in
+/-- **Padding is continuous**: for each coordinate the padded value is, on a fixed
+membership condition, either a coordinate evaluation or the constant `false`. -/
+theorem continuous_pad {V W : S.Srt → Type*} (e : ∀ s, V s ↪ W s) :
+    Continuous (RelStructure.pad e) := by
+  apply continuous_pi
+  intro d
+  by_cases h : ∀ i, d.2 i ∈ Set.range (e (S.argSort d.1 i))
+  · simp only [RelStructure.pad, dif_pos h]; exact continuous_apply _
+  · simp only [RelStructure.pad, dif_neg h]; exact continuous_const
+
+open scoped Classical in
+/-- **Padding is measurable** (over the product σ-algebra; no countability needed) — the
+measurable counterpart of `continuous_pad`. -/
+theorem measurable_pad {V W : S.Srt → Type*} (e : ∀ s, V s ↪ W s) :
+    Measurable (RelStructure.pad e) := by
+  apply measurable_pi_iff.mpr
+  intro d
+  by_cases h : ∀ i, d.2 i ∈ Set.range (e (S.argSort d.1 i))
+  · simp only [RelStructure.pad, dif_pos h]; exact measurable_pi_apply _
+  · simp only [RelStructure.pad, dif_neg h]; exact measurable_const
 
 end RelSignature
