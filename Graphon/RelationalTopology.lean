@@ -80,6 +80,14 @@ theorem measurable_restrictLE {n m : S.Srt → ℕ} (h : ∀ s, n s ≤ m s) :
   intro c
   exact measurable_eval _
 
+/-- **Restriction along a sortwise family of embeddings is measurable** (over the product
+σ-algebra; no countability needed). -/
+theorem measurable_restrict {V W : S.Srt → Type*} (e : ∀ s, V s ↪ W s) :
+    Measurable (RelStructure.restrict e) := by
+  rw [measurable_pi_iff]
+  intro c
+  exact measurable_eval _
+
 /-! ### The finite-restriction cylinders -/
 
 /-- **The finite-restriction cylinders**: preimages of measurable finite-level events. -/

@@ -16,12 +16,10 @@ analogue of `Graphon.ExchangeableGraphLaw`.
 
 Crucially the finite marginals are `ProbabilityMeasure (RelStructure S (Vfinite n))`, **not
 `PMF`**: with countably many relation symbols a finite vertex carrier still has infinitely
-many Boolean coordinates, so `RelStructure S (Vfinite n)` is an (uncountable) standard-Borel
+many Boolean coordinates, so `RelStructure S (Vfinite n)` can be an (uncountable) standard-Borel
 space and the law can be non-atomic. (D2 recovers `PMF`s in the finite-signature case.)
 
-* `RelSignature.measurable_restrict` — the sortwise restriction is measurable (so the
-  consistency pushforward is meaningful), countability-free;
-* `RelSignature.exists_const_ge` — because `Σ.Sort` is finite, the **diagonal** size vectors
+* `RelSignature.exists_const_ge` — because `S.Srt` is finite, the **diagonal** size vectors
   are cofinal (every size vector is bounded by a constant one);
 * `RelSignature.RelExchangeableLaw` — the structure: probability marginals + arbitrary
   sortwise-injection consistency;
@@ -39,15 +37,7 @@ namespace RelSignature
 
 variable {S : RelSignature}
 
-/-- **The sortwise restriction is measurable** (over the product σ-algebra; no countability
-needed) — each of its coordinates is a coordinate evaluation. -/
-theorem measurable_restrict {V W : S.Srt → Type*} (e : ∀ s, V s ↪ W s) :
-    Measurable (RelStructure.restrict e) := by
-  apply measurable_pi_iff.mpr
-  intro c
-  exact measurable_pi_apply _
-
-/-- **Diagonal cofinality**: since `Σ.Sort` is finite, every size vector is bounded above by
+/-- **Diagonal cofinality**: since `S.Srt` is finite, every size vector is bounded above by
 a constant (diagonal) size vector — so diagonal marginals suffice for the extension. -/
 theorem exists_const_ge [Fintype S.Srt] (n : S.Srt → ℕ) : ∃ N : ℕ, ∀ s, n s ≤ N :=
   ⟨Finset.univ.sup n, fun s => Finset.le_sup (Finset.mem_univ s)⟩
@@ -76,10 +66,10 @@ theorem marginal_map_restrictLE {n m : S.Srt → ℕ} (h : ∀ s, n s ≤ m s) :
 /-- **Finite exchangeability**: each marginal is invariant under the sortwise permutations of
 its finite vertex sets — the special case `n = m`, `e` a permutation. -/
 theorem marginal_map_perm {n : S.Srt → ℕ} (σ : ∀ s, Equiv.Perm (Fin (n s))) :
-    (L.marginal n : Measure (RelStructure S (Vfinite n))).map
-        (RelStructure.restrict fun s => (σ s).toEmbedding) =
-      (L.marginal n : Measure (RelStructure S (Vfinite n))) :=
-  L.consistent _
+    (L.marginal n : Measure (RelStructure S (Vfinite n))).map (RelStructure.relabel σ) =
+      (L.marginal n : Measure (RelStructure S (Vfinite n))) := by
+  simpa [RelStructure.relabel, RelStructure.restrict] using
+    L.consistent (fun s => (σ s).toEmbedding)
 
 end RelExchangeableLaw
 
