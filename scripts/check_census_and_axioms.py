@@ -88,6 +88,7 @@ AUDITED_DECLS = {
     "Graphon.InfiniteExchangeableGraphLaw.vertexTailTrivial_of_restrictionIndependent",
     "GraphonSpace.isDissociated_of_vertexTailTrivial",
     "Graphon.InfiniteExchangeableGraphLaw.restrictionIndependent_of_isDissociated",
+    "Graphon.InfiniteExchangeableGraphLaw.isDissociated_iff_vertexTailTrivial",
     "Graphon.InfiniteExchangeableGraphLaw.tfae_extremality",
 }
 

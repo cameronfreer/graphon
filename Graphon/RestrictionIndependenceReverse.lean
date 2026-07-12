@@ -339,6 +339,15 @@ theorem isDissociated_iff_restrictionIndependent
     fun hR => GraphonSpace.isDissociated_of_vertexTailTrivial
       (vertexTailTrivial_of_restrictionIndependent hR)⟩
 
+/-- **Dissociation ↔ vertex-tail triviality** (the tail formulation of extremality, as a
+direct pairwise equivalence). -/
+theorem isDissociated_iff_vertexTailTrivial
+    (M : Graphon.InfiniteExchangeableGraphLaw) :
+    M.IsDissociated ↔ M.VertexTailTrivial :=
+  ⟨fun hM => vertexTailTrivial_of_restrictionIndependent
+      (restrictionIndependent_of_isDissociated M hM),
+    GraphonSpace.isDissociated_of_vertexTailTrivial⟩
+
 /-- **Diaconis–Janson Theorem 5.5** (the five-way extremality theorem). -/
 @[blueprint "thm:dj-five-five"
   (title := /-- The five-way extremality theorem (Diaconis–Janson 5.5) -/)]
