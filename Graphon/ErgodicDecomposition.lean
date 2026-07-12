@@ -6,6 +6,7 @@ Authors: Cameron Freer
 import Architect
 import Graphon.InvariantAction
 import Graphon.RestrictionIndependence
+import Graphon.RestrictionIndependenceReverse
 import Mathlib.MeasureTheory.Measure.MeasuredSets
 
 /-!
@@ -328,5 +329,47 @@ theorem vertexTailTrivial_of_isErgodic
     {M : Graphon.InfiniteExchangeableGraphLaw} (hM : M.IsErgodic) :
     M.VertexTailTrivial := fun s hs =>
   hM s (InfiniteGraph.vertexTailAlgebra_le_invariantAlgebra s hs)
+
+/-! ### The ergodicity links of the extremality equivalence (#59) -/
+
+/-- **Ergodicity ↔ dissociation**: closing `RestrictionIndependent ⟹ IsErgodic ⟹
+VertexTailTrivial` against the #91 equivalences. -/
+theorem isErgodic_iff_isDissociated (M : Graphon.InfiniteExchangeableGraphLaw) :
+    M.IsErgodic ↔ M.IsDissociated :=
+  ⟨fun hM => (isDissociated_iff_vertexTailTrivial M).mpr (vertexTailTrivial_of_isErgodic hM),
+    fun hM => isErgodic_of_restrictionIndependent
+      ((isDissociated_iff_restrictionIndependent M).mp hM)⟩
+
+/-- **Ergodicity ↔ restriction independence**. -/
+theorem isErgodic_iff_restrictionIndependent (M : Graphon.InfiniteExchangeableGraphLaw) :
+    M.IsErgodic ↔ M.RestrictionIndependent :=
+  (isErgodic_iff_isDissociated M).trans (isDissociated_iff_restrictionIndependent M)
+
+/-- **Ergodicity ↔ vertex-tail triviality**. -/
+theorem isErgodic_iff_vertexTailTrivial (M : Graphon.InfiniteExchangeableGraphLaw) :
+    M.IsErgodic ↔ M.VertexTailTrivial :=
+  (isErgodic_iff_isDissociated M).trans (isDissociated_iff_vertexTailTrivial M)
+
+/-- **The ergodic-decomposition form of Diaconis–Janson Theorem 5.5** (#59): the six-way
+extremality equivalence, adjoining ergodicity under the finite-permutation action to the
+five-way `tfae_extremality`. -/
+@[blueprint "thm:dj-five-five-ergodic"
+  (title := /-- The ergodic-decomposition form of extremality (#59) -/)]
+theorem tfae_ergodic_extremality (M : Graphon.InfiniteExchangeableGraphLaw) :
+    List.TFAE
+      [(∃ x : StandardGraphonSpace,
+          (GraphonSpace.infiniteMixtureLawEquiv (α := unitInterval) (μ := volume)).symm M
+            = MeasureTheory.diracProba x),
+        (∃ x : StandardGraphonSpace, M = GraphonSpace.infiniteSampleExchangeableLaw x),
+        M.IsDissociated,
+        M.RestrictionIndependent,
+        M.VertexTailTrivial,
+        M.IsErgodic] := by
+  tfae_have 3 ↔ 1 := GraphonSpace.isDissociated_iff_representing_dirac M
+  tfae_have 3 ↔ 2 := GraphonSpace.isDissociated_iff_exists_infiniteSampleExchangeableLaw M
+  tfae_have 3 ↔ 4 := isDissociated_iff_restrictionIndependent M
+  tfae_have 3 ↔ 5 := isDissociated_iff_vertexTailTrivial M
+  tfae_have 3 ↔ 6 := (isErgodic_iff_isDissociated M).symm
+  tfae_finish
 
 end Graphon.InfiniteExchangeableGraphLaw
