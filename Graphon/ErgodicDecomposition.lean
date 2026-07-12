@@ -39,6 +39,14 @@ Fixed-fiber ergodicity:
   approximate-independence estimate);
 * `isErgodic_of_restrictionIndependent` and `vertexTailTrivial_of_isErgodic` — the two new
   links closing `RestrictionIndependent ⟹ IsErgodic ⟹ VertexTailTrivial`.
+
+Packaging and the generation statement:
+* `isErgodic_iff_isDissociated` (and the restriction-independent / vertex-tail corollaries)
+  and `tfae_ergodic_extremality` — the six-way ergodic-decomposition form of Diaconis–Janson
+  Theorem 5.5;
+* `invariant_ae_eq_limitGraphon_classifier` — **`limitGraphon` generates the invariant
+  σ-algebra modulo null sets**: every invariant event agrees `M.law`-a.e. with a
+  `limitGraphon`-preimage (the barycenter / fiber-ergodicity identification).
 -/
 
 open MeasureTheory Set
@@ -371,5 +379,81 @@ theorem tfae_ergodic_extremality (M : Graphon.InfiniteExchangeableGraphLaw) :
   tfae_have 3 ↔ 5 := isDissociated_iff_vertexTailTrivial M
   tfae_have 3 ↔ 6 := (isErgodic_iff_isDissociated M).symm
   tfae_finish
+
+/-! ### `limitGraphon` generates the invariant σ-algebra modulo null sets (#59) -/
+
+/-- **The empirical limit generates the invariant σ-algebra modulo null sets** (#59): every
+finite-permutation-invariant event `A` agrees, up to an `M.law`-null set, with the
+`limitGraphon`-preimage of the classifier `{x | A is conull in the fiber sampled from x}`.
+Via the barycenter `M.law = ∫ (infiniteSampleLaw x) dP(x)`, in each fiber `A` is null or
+conull (fiber ergodicity) and `limitGraphon = x` almost surely, so the classifier and `A`
+have zero fiber-symmetric-difference; integrating gives `M.law (A ∆ classifier) = 0`. -/
+theorem invariant_ae_eq_limitGraphon_classifier
+    (M : Graphon.InfiniteExchangeableGraphLaw) {A : Set InfiniteGraph}
+    (hA : MeasurableSet[invariantAlgebra] A) :
+    A =ᵐ[(M.law : Measure InfiniteGraph)]
+      GraphonSpace.limitGraphon ⁻¹'
+        {x : StandardGraphonSpace |
+          (GraphonSpace.infiniteSampleLaw x : Measure InfiniteGraph) A = 1} := by
+  classical
+  have hA_meas : MeasurableSet A := hA.1
+  set cls : Set StandardGraphonSpace :=
+    {x | (GraphonSpace.infiniteSampleLaw x : Measure InfiniteGraph) A = 1} with hcls
+  have hcls_meas : MeasurableSet cls :=
+    ((Measure.measurable_coe hA_meas).comp
+      GraphonSpace.measurable_infiniteSampleLaw_toMeasure) (measurableSet_singleton 1)
+  set C : Set InfiniteGraph := GraphonSpace.limitGraphon ⁻¹' cls with hC
+  have hC_meas : MeasurableSet C := GraphonSpace.measurable_limitGraphon hcls_meas
+  rw [← MeasureTheory.measure_symmDiff_eq_zero_iff, GraphonSpace.law_eq_bind_infiniteSampleLaw M,
+    Measure.bind_apply (hA_meas.symmDiff hC_meas)
+      GraphonSpace.measurable_infiniteSampleLaw_toMeasure.aemeasurable]
+  have hf : Measurable (fun a : StandardGraphonSpace =>
+      (GraphonSpace.infiniteSampleLaw a : Measure InfiniteGraph) (A ∆ C)) :=
+    (Measure.measurable_coe (hA_meas.symmDiff hC_meas)).comp
+      GraphonSpace.measurable_infiniteSampleLaw_toMeasure
+  rw [MeasureTheory.lintegral_eq_zero_iff hf]
+  refine Filter.Eventually.of_forall fun x => ?_
+  simp only [Pi.zero_apply]
+  set νx : Measure InfiniteGraph := (GraphonSpace.infiniteSampleLaw x : Measure InfiniteGraph)
+    with hνx
+  haveI : IsProbabilityMeasure νx := by rw [hνx]; exact (GraphonSpace.infiniteSampleLaw x).2
+  -- fiber ergodicity: `A` is null or conull under `νx`
+  have herg : νx A = 0 ∨ νx A = 1 := by
+    have hE : (GraphonSpace.infiniteSampleExchangeableLaw x).IsErgodic :=
+      (isErgodic_iff_isDissociated _).mpr
+        (GraphonSpace.isDissociated_infiniteSampleExchangeableLaw x)
+    have h := hE A hA
+    rw [GraphonSpace.infiniteSampleExchangeableLaw_law] at h
+    rw [hνx]; exact h
+  -- a.e. `G`, the empirical limit equals `x`
+  have hlim : ∀ᵐ G ∂νx, GraphonSpace.limitGraphon G = x := by
+    rw [hνx]
+    filter_upwards [GraphonSpace.ae_tendsto_empiricalGraphon_infiniteSampleLaw x] with G hG
+    exact GraphonSpace.limitGraphon_eq_of_tendsto hG
+  -- a.e. `G`, membership in `C` is the constant condition `νx A = 1`
+  have hCmem : ∀ G, GraphonSpace.limitGraphon G = x → (G ∈ C ↔ νx A = 1) := fun G hG => by
+    rw [hC, Set.mem_preimage, hcls, Set.mem_setOf_eq, hG, ← hνx]
+  rw [MeasureTheory.measure_symmDiff_eq_zero_iff]
+  rcases herg with h0 | h1
+  · -- `A` and `C` are both null
+    have hAnull : ∀ᵐ G ∂νx, G ∉ A := by
+      rw [MeasureTheory.ae_iff]
+      simpa only [not_not, Set.setOf_mem_eq] using h0
+    have hCnull : ∀ᵐ G ∂νx, G ∉ C := by
+      filter_upwards [hlim] with G hG
+      rw [hCmem G hG, h0]
+      simp
+    filter_upwards [hAnull, hCnull] with G hGA hGC
+    exact propext (iff_of_false hGA hGC)
+  · -- `A` and `C` are both conull
+    have hAconull : ∀ᵐ G ∂νx, G ∈ A := by
+      rw [MeasureTheory.ae_iff, show {G | ¬ G ∈ A} = Aᶜ from rfl,
+        MeasureTheory.measure_compl hA_meas (measure_ne_top _ _), measure_univ, h1]
+      simp
+    have hCconull : ∀ᵐ G ∂νx, G ∈ C := by
+      filter_upwards [hlim] with G hG
+      rw [hCmem G hG]; exact h1
+    filter_upwards [hAconull, hCconull] with G hGA hGC
+    exact propext (iff_of_true hGA hGC)
 
 end Graphon.InfiniteExchangeableGraphLaw
