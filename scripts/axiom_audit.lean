@@ -68,3 +68,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.InfiniteExchangeableGraphLaw.tfae_extremality
 #print axioms GraphonSpace.limitGraphon_relabel
 #print axioms GraphonSpace.measurable_limitGraphon_invariantAlgebra
+#print axioms InfiniteGraph.vertexTailAlgebra_le_invariantAlgebra
+#print axioms Graphon.InfiniteExchangeableGraphLaw.measure_invariant_eq_zero_or_one_of_restrictionIndependent
+#print axioms Graphon.InfiniteExchangeableGraphLaw.tfae_ergodic_extremality
+#print axioms Graphon.InfiniteExchangeableGraphLaw.invariant_ae_eq_limitGraphon_classifier

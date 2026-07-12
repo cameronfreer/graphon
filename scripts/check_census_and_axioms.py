@@ -92,6 +92,10 @@ AUDITED_DECLS = {
     "Graphon.InfiniteExchangeableGraphLaw.tfae_extremality",
     "GraphonSpace.limitGraphon_relabel",
     "GraphonSpace.measurable_limitGraphon_invariantAlgebra",
+    "InfiniteGraph.vertexTailAlgebra_le_invariantAlgebra",
+    "Graphon.InfiniteExchangeableGraphLaw.measure_invariant_eq_zero_or_one_of_restrictionIndependent",
+    "Graphon.InfiniteExchangeableGraphLaw.tfae_ergodic_extremality",
+    "Graphon.InfiniteExchangeableGraphLaw.invariant_ae_eq_limitGraphon_classifier",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
