@@ -107,6 +107,9 @@ AUDITED_DECLS = {
     "RelSignature.continuous_pad",
     "RelSignature.measurable_restrict",
     "RelSignature.RelExchangeableLaw.marginal_map_restrictLE",
+    "RelSignature.restrict_comp_pad",
+    "RelSignature.RelExchangeableLaw.paddedLaw_map_restrictFin",
+    "RelSignature.RelExchangeableLaw.infiniteLaw_map_restrictFin",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
