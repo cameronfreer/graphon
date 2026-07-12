@@ -114,3 +114,101 @@ theorem sum_map_le_iff {k m : ℕ} (F : SimpleGraph (Fin k)) (H : SimpleGraph (F
       exact this
 
 end InfiniteGraph
+
+namespace Graphon
+
+/-- Constants factor out of the upper transform (left). -/
+theorem upperSum_const_mul {k : ℕ} (c : ℝ) (p : SimpleGraph (Fin k) → ℝ)
+    (F : SimpleGraph (Fin k)) :
+    upperSum (fun G => c * p G) F = c * upperSum p F := by
+  simp only [upperSum, Finset.mul_sum]
+  refine Finset.sum_congr rfl fun G _ => ?_
+  split <;> simp
+
+/-- Constants factor out of the upper transform (right). -/
+theorem upperSum_mul_const {k : ℕ} (c : ℝ) (p : SimpleGraph (Fin k) → ℝ)
+    (F : SimpleGraph (Fin k)) :
+    upperSum (fun G => p G * c) F = upperSum p F * c := by
+  simp only [upperSum, Finset.sum_mul]
+  refine Finset.sum_congr rfl fun G _ => ?_
+  split <;> simp
+
+/-- The real-valued joint mass of the two exact block events under the `(k+m)`-vertex
+law. -/
+noncomputable def blockJoint (L : Graphon.ExchangeableGraphLaw) (k m : ℕ)
+    (F : SimpleGraph (Fin k)) (H : SimpleGraph (Fin m)) : ℝ :=
+  ∑ K : SimpleGraph (Fin (k + m)),
+    if K.comap (InfiniteGraph.blockInit k m) = F ∧
+        K.comap (InfiniteGraph.blockTail k m) = H
+      then (L.law (k + m) K).toReal else 0
+
+/-- **Joint side** of the two-block factorization: the double upper transform of the
+block joint mass is the upper mass of the mapped disjoint union (cross-block edges
+unrestricted). -/
+theorem upperSum₂_blockJoint (L : Graphon.ExchangeableGraphLaw) (k m : ℕ)
+    (F₀ : SimpleGraph (Fin k)) (H₀ : SimpleGraph (Fin m)) :
+    upperSum₂ (blockJoint L k m) F₀ H₀ =
+      L.upperMass ((F₀ ⊕g H₀).map finSumFinEquiv.toEmbedding) := by
+  classical
+  -- expand the double upper transform to a triple sum, then collapse to a single sum
+  -- over `K`
+  have hLHS : upperSum₂ (blockJoint L k m) F₀ H₀ =
+      ∑ K : SimpleGraph (Fin (k + m)),
+        if F₀ ≤ K.comap (InfiniteGraph.blockInit k m) ∧
+            H₀ ≤ K.comap (InfiniteGraph.blockTail k m)
+          then (L.law (k + m) K).toReal else 0 := by
+    have hpull : ∀ {ι : Type} [Fintype ι] (c : Prop) [Decidable c] (f : ι → ℝ),
+        (if c then ∑ x, f x else 0) = ∑ x, if c then f x else 0 := by
+      intro ι _ c _ f; split_ifs with h <;> simp
+    simp only [upperSum₂, upperSum, blockJoint, hpull]
+    -- now a triple sum ∑_F ∑_H ∑_K; reorder to ∑_K ∑_F ∑_H and collapse
+    rw [Finset.sum_congr rfl (fun F _ => Finset.sum_comm), Finset.sum_comm]
+    refine Finset.sum_congr rfl fun K _ => ?_
+    -- inner: ∑_F ∑_H (if F₀≤F then if H₀≤H then if K.cInit=F ∧ K.cTail=H then Lr else 0) collapses
+    rw [Finset.sum_eq_single (K.comap (InfiniteGraph.blockInit k m))]
+    · rw [Finset.sum_eq_single (K.comap (InfiniteGraph.blockTail k m))]
+      · simp only [and_self, ite_true, true_and]
+        by_cases hF : F₀ ≤ K.comap (InfiniteGraph.blockInit k m) <;>
+          by_cases hH : H₀ ≤ K.comap (InfiniteGraph.blockTail k m) <;>
+          simp [hF, hH]
+      · intro H hH hHne
+        simp only [and_iff_right rfl]
+        by_cases hF : F₀ ≤ K.comap (InfiniteGraph.blockInit k m) <;>
+          by_cases hH0 : H₀ ≤ H <;> simp [hF, hH0, hHne.symm, Ne.symm hHne]
+      · intro h; exact absurd (Finset.mem_univ _) h
+    · intro F hF hFne
+      apply Finset.sum_eq_zero
+      intro H _
+      by_cases hF0 : F₀ ≤ F <;> by_cases hH0 : H₀ ≤ H <;>
+        simp [hF0, hH0, hFne, Ne.symm hFne]
+    · intro h; exact absurd (Finset.mem_univ _) h
+  rw [hLHS]
+  simp only [Graphon.ExchangeableGraphLaw.upperMass, upperSum]
+  exact Finset.sum_congr rfl fun K _ =>
+    if_congr (InfiniteGraph.sum_map_le_iff F₀ H₀ K).symm rfl rfl
+
+/-- **Product side** of the two-block factorization: the upper transform of the product
+of the two marginal masses is the product of their upper masses. -/
+theorem upperSum₂_prod (L : Graphon.ExchangeableGraphLaw) (k m : ℕ)
+    (F₀ : SimpleGraph (Fin k)) (H₀ : SimpleGraph (Fin m)) :
+    upperSum₂ (fun F H => (L.law k F).toReal * (L.law m H).toReal) F₀ H₀ =
+      L.upperMass F₀ * L.upperMass H₀ := by
+  rw [upperSum₂]
+  simp only [upperSum_const_mul]
+  rw [upperSum_mul_const]
+  rfl
+
+/-- **The exact two-block factorization** (the combinatorial heart of the reverse arc):
+for a dissociated law, the joint mass of the two exact block events factors as the
+product of the two marginal masses. -/
+theorem blockJoint_eq_prod {L : Graphon.ExchangeableGraphLaw} (hL : L.IsDissociated)
+    (k m : ℕ) (F : SimpleGraph (Fin k)) (H : SimpleGraph (Fin m)) :
+    blockJoint L k m F H = (L.law k F).toReal * (L.law m H).toReal := by
+  have hpq : blockJoint L k m =
+      fun F H => (L.law k F).toReal * (L.law m H).toReal := by
+    refine upperSum₂_injective fun F₀ H₀ => ?_
+    rw [upperSum₂_blockJoint, upperSum₂_prod]
+    exact hL F₀ H₀
+  exact congrFun (congrFun hpq F) H
+
+end Graphon
