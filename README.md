@@ -95,6 +95,7 @@ The project contains **zero `sorry` statements** (issue #19, completed 2026-07-1
 | `Graphon/VertexTail.lean` | Core | Vertex-tail shift + σ-algebras; deletion stability; limitGraphon is tail-measurable |
 | `Graphon/RestrictionIndependence.lean` | Core | Vertex-tail σ-algebra + restriction independence ⟹ dissociation |
 | `Graphon/RestrictionIndependenceReverse.lean` | Core | Dissociation ⟹ restriction independence; the five-way DJ Theorem 5.5 extremality equivalence |
+| `Graphon/InvariantAction.lean` | Core | Finite-permutation invariance of `limitGraphon`; invariant σ-algebra; `IsErgodic` (issue #59 part 1) |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |

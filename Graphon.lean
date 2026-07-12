@@ -55,6 +55,7 @@ import Graphon.McDiarmid
 import Graphon.SampleExposure
 import Graphon.AlmostSureSampling
 import Graphon.LimitGraphon
+import Graphon.InvariantAction
 import Graphon.InfiniteSampleLaw
 import Graphon.EmpiricalGraphon
 import Graphon.InfiniteExtremality
@@ -128,6 +129,7 @@ in Lean 4 using Mathlib.
 * `Graphon.VertexTail` — Vertex-tail infrastructure: the tail shift and σ-algebras, finite-deletion stability of empirical limits, and vertex-tail measurability of `limitGraphon`
 * `Graphon.RestrictionIndependence` — Toward DJ Theorem 5.5: the vertex-tail σ-algebra and restriction independence; `RestrictionIndependent ⟹ VertexTailTrivial ⟹ dissociated` (via the tail-measurable empirical limit)
 * `Graphon.RestrictionIndependenceReverse` — The reverse arc closing DJ Theorem 5.5: dissociation ⟹ restriction independence (two-block Möbius factorization), and the five-way extremality `tfae_extremality`
+* `Graphon.InvariantAction` — The finite-permutation action toward ergodic decomposition (#59): `limitGraphon` is invariant under every finite relabeling, hence invariant-σ-algebra measurable; `IsErgodic`
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 

@@ -66,3 +66,5 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.InfiniteExchangeableGraphLaw.restrictionIndependent_of_isDissociated
 #print axioms Graphon.InfiniteExchangeableGraphLaw.isDissociated_iff_vertexTailTrivial
 #print axioms Graphon.InfiniteExchangeableGraphLaw.tfae_extremality
+#print axioms GraphonSpace.limitGraphon_relabel
+#print axioms GraphonSpace.measurable_limitGraphon_invariantAlgebra
