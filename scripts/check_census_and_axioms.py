@@ -87,6 +87,8 @@ AUDITED_DECLS = {
     "Graphon.InfiniteExchangeableGraphLaw.law_map_drop",
     "Graphon.InfiniteExchangeableGraphLaw.vertexTailTrivial_of_restrictionIndependent",
     "GraphonSpace.isDissociated_of_vertexTailTrivial",
+    "Graphon.InfiniteExchangeableGraphLaw.restrictionIndependent_of_isDissociated",
+    "Graphon.InfiniteExchangeableGraphLaw.tfae_extremality",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
