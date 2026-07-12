@@ -358,11 +358,11 @@ theorem isErgodic_iff_vertexTailTrivial (M : Graphon.InfiniteExchangeableGraphLa
     M.IsErgodic ↔ M.VertexTailTrivial :=
   (isErgodic_iff_isDissociated M).trans (isDissociated_iff_vertexTailTrivial M)
 
-/-- **The ergodic-decomposition form of Diaconis–Janson Theorem 5.5** (#59): the six-way
-extremality equivalence, adjoining ergodicity under the finite-permutation action to the
-five-way `tfae_extremality`. -/
+/-- **The ergodic-decomposition form of Diaconis–Janson Theorem 5.5** (issue 59): the
+six-way extremality equivalence, adjoining ergodicity under the finite-permutation action
+to the five-way `tfae_extremality`. -/
 @[blueprint "thm:dj-five-five-ergodic"
-  (title := /-- The ergodic-decomposition form of extremality (#59) -/)]
+  (title := /-- The ergodic-decomposition form of extremality -/)]
 theorem tfae_ergodic_extremality (M : Graphon.InfiniteExchangeableGraphLaw) :
     List.TFAE
       [(∃ x : StandardGraphonSpace,
@@ -382,12 +382,14 @@ theorem tfae_ergodic_extremality (M : Graphon.InfiniteExchangeableGraphLaw) :
 
 /-! ### `limitGraphon` generates the invariant σ-algebra modulo null sets (#59) -/
 
-/-- **The empirical limit generates the invariant σ-algebra modulo null sets** (#59): every
-finite-permutation-invariant event `A` agrees, up to an `M.law`-null set, with the
+/-- **The empirical limit generates the invariant σ-algebra modulo null sets** (issue 59):
+every finite-permutation-invariant event `A` agrees, up to an `M.law`-null set, with the
 `limitGraphon`-preimage of the classifier `{x | A is conull in the fiber sampled from x}`.
 Via the barycenter `M.law = ∫ (infiniteSampleLaw x) dP(x)`, in each fiber `A` is null or
 conull (fiber ergodicity) and `limitGraphon = x` almost surely, so the classifier and `A`
 have zero fiber-symmetric-difference; integrating gives `M.law (A ∆ classifier) = 0`. -/
+@[blueprint "thm:invariant-generates"
+  (title := /-- The empirical limit determines every invariant event modulo null sets -/)]
 theorem invariant_ae_eq_limitGraphon_classifier
     (M : Graphon.InfiniteExchangeableGraphLaw) {A : Set InfiniteGraph}
     (hA : MeasurableSet[invariantAlgebra] A) :
