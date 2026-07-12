@@ -105,6 +105,8 @@ AUDITED_DECLS = {
     "InfiniteDigraph.ext_of_map_restrictFin",
     "RelSignature.continuous_restrictFin",
     "RelSignature.continuous_pad",
+    "RelSignature.measurable_restrict",
+    "RelSignature.RelExchangeableLaw.marginal_map_restrictLE",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
