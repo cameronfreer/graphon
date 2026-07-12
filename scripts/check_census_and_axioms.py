@@ -98,6 +98,8 @@ AUDITED_DECLS = {
     "Graphon.InfiniteExchangeableGraphLaw.invariant_ae_eq_limitGraphon_classifier",
     "RelSignature.RelStructure.restrict_pad",
     "RelSignature.RelStructure.restrictLE_restrictFin",
+    "RelSignature.generateFrom_cylinders_eq",
+    "RelSignature.RelStructure.ext_of_map_restrictFin",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
@@ -201,7 +203,10 @@ def axiom_audit() -> bool:
     reported = {}
     # Lazy `(.+?)` (not `[^']+`) so that primed declaration names, e.g.
     # `hasSubgaussianMGF_of_bounded_differences'`, keep their trailing prime.
-    for m in re.finditer(r"'(.+?)' depends on axioms: \[([^\]]*)\]", out, re.DOTALL):
+    # No `re.DOTALL`: the name must stay single-line, otherwise a preceding
+    # "does not depend on any axioms" line is swallowed into the next name; the
+    # multi-line axiom list is still captured because `[^\]]*` matches newlines.
+    for m in re.finditer(r"'(.+?)' depends on axioms: \[([^\]]*)\]", out):
         axioms = {a.strip() for a in m.group(2).replace("\n", " ").split(",") if a.strip()}
         reported[m.group(1)] = axioms
     for m in re.finditer(r"'(.+?)' does not depend on any axioms", out):
