@@ -65,6 +65,7 @@ import Graphon.InvariantAction
 import Graphon.RestrictionIndependence
 import Graphon.RestrictionIndependenceReverse
 import Graphon.ErgodicDecomposition
+import Graphon.RelationalSignature
 import Graphon.Convergence
 
 /-!
@@ -132,6 +133,7 @@ in Lean 4 using Mathlib.
 * `Graphon.RestrictionIndependenceReverse` — The reverse arc closing DJ Theorem 5.5: dissociation ⟹ restriction independence (two-block Möbius factorization), and the five-way extremality `tfae_extremality`
 * `Graphon.InvariantAction` — The finite-permutation action toward ergodic decomposition (#59): `limitGraphon` is invariant under every finite relabeling, hence invariant-σ-algebra measurable; `IsErgodic`
 * `Graphon.ErgodicDecomposition` — The ergodic-decomposition form of extremality (#59 part 2): the six-way equivalence `tfae_ergodic_extremality` adjoining ergodicity under the finite-permutation action, and `invariant_ae_eq_limitGraphon_classifier` — `limitGraphon` generates the invariant σ-algebra modulo null sets; built from fixed-fiber ergodicity (block swap + initial-cylinder approximation)
+* `Graphon.RelationalSignature` — Generic AHK program (umbrella #103), R0 design checkpoint (#110): purely relational multi-sorted `RelSignature`, the `RelCoord`/`RelStructure` carriers, external `NoNullary`, finite/infinite value carriers, the sortwise `RelCoord.map`/`RelStructure.comap` action, and worked digraph/bipartite/ternary examples (the ternary `(i,i,j)` exercising repeated coordinates); no topology/probability yet
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
 
