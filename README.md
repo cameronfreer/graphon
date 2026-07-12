@@ -100,6 +100,7 @@ The project contains **zero `sorry` statements** (issue #19, completed 2026-07-1
 | `Graphon/RelationalSignature.lean` | Foundation | Generic AHK program (umbrella #103) R0 checkpoint: multi-sorted `RelSignature`, `RelCoord`/`RelStructure` carriers, external `NoNullary`, sortwise `map`/`comap`, digraph/bipartite/ternary examples (issue #110) |
 | `Graphon/RelationalStructure.lean` | Foundation | Generic AHK program R1a: sortwise actions on relational structures — `map`/`comap` functoriality, `restrict`/`relabel`, finite restrictions `restrictFin`/`restrictLE`, padding `pad` (+ `restrict_pad`), restriction composition (issue #104) |
 | `Graphon/RelationalTopology.lean` | Foundation | Generic AHK program R1b: Boolean-product topology/σ-algebra on `RelStructure` — compact (no countability) + Polish/standard-Borel (countable coords), measurable restrictions, cylinder π-system generating the product σ-algebra, finite-restriction measure extensionality (issue #104) |
+| `Graphon/InfiniteDigraph.lean` | Directed | D1 (#84/#85): `InfiniteDigraph` as the one-sort binary R1 instance — inherits compact/standard-Borel + measure extensionality; `Adj`(Prop)/`adjBit`(Bool); `digraphStructureEquiv V` plain carrier equivalence with `Digraph V` (infinite + finite bridges for D2) |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
