@@ -11,9 +11,10 @@ import Mathlib.MeasureTheory.Measure.MeasuredSets
 /-!
 # Ergodic decomposition of exchangeable graph laws (issue #59, part 2)
 
-Commit 1: the geometric and approximation infrastructure for the fixed-fiber ergodicity
-argument (a permutation-invariant event has `M.law`-measure `0` or `1`).
+The fixed-fiber ergodicity argument: a permutation-invariant event has `M.law`-measure
+`0` or `1`, giving the ergodicity links of the DJ 5.5 / #59 equivalence.
 
+Infrastructure:
 * `InfiniteGraph.FinSupp.one` / `.inv` / `.mul` — the finitely supported permutations of
   `ℕ` are closed under identity, inverse, and composition (a subgroup of `Equiv.Perm ℕ`);
 * `InfiniteGraph.swapBlock k` — the involution swapping the block `[0, k)` with `[k, 2k)`
@@ -28,6 +29,15 @@ argument (a permutation-invariant event has `M.law`-measure `0` or `1`).
   `M.law`-measure by an event depending on only finitely many vertices (via
   `exists_measure_symmDiff_lt_of_generateFrom_isSetRing`, the initial cylinders being a
   set-ring that generates the Borel σ-algebra).
+
+Fixed-fiber ergodicity:
+* `InfiniteGraph.vertexTailAlgebra_le_invariantAlgebra` — every vertex-tail event is
+  finite-permutation invariant;
+* `Graphon.InfiniteExchangeableGraphLaw.measure_invariant_eq_zero_or_one_of_restrictionIndependent`
+  — under restriction independence, every invariant event is null or conull (the `4ε`
+  approximate-independence estimate);
+* `isErgodic_of_restrictionIndependent` and `vertexTailTrivial_of_isErgodic` — the two new
+  links closing `RestrictionIndependent ⟹ IsErgodic ⟹ VertexTailTrivial`.
 -/
 
 open MeasureTheory Set
@@ -164,5 +174,159 @@ theorem exists_initialAlgebra_measure_symmDiff_lt (M : Graphon.InfiniteExchangea
     InfiniteGraph.generateFrom_iUnion_initialAlgebra hs hε
   obtain ⟨k, hk⟩ := Set.mem_iUnion.mp ht
   exact ⟨k, t, hk, hlt⟩
+
+end Graphon.InfiniteExchangeableGraphLaw
+
+/-! ### Fixed-fiber ergodicity: invariant events are trivial -/
+
+namespace InfiniteGraph
+
+/-- A permutation supported below `N` acts trivially past the `N`-tail:
+`drop N ∘ relabel σ = drop N`. -/
+theorem drop_comp_relabel_of_finSupp {σ : Equiv.Perm ℕ} {N : ℕ}
+    (hN : ∀ x, N ≤ x → σ x = x) : drop N ∘ relabel σ = drop N := by
+  funext G
+  show ((((G : SimpleGraph ℕ).comap σ).comap (· + N)) : SimpleGraph ℕ) =
+    (((G : SimpleGraph ℕ).comap (· + N)) : SimpleGraph ℕ)
+  ext a b
+  simp only [SimpleGraph.comap_adj]
+  rw [hN (a + N) (Nat.le_add_left N a), hN (b + N) (Nat.le_add_left N b)]
+
+/-- **Every vertex-tail event is permutation-invariant**: the vertex-tail σ-algebra is a
+sub-σ-algebra of the finite-permutation-invariant σ-algebra. A finitely supported
+permutation acts trivially on all sufficiently late tails. -/
+theorem vertexTailAlgebra_le_invariantAlgebra :
+    vertexTailAlgebra ≤ invariantAlgebra := fun s hs =>
+  ⟨vertexTailAlgebra_le s hs, fun σ hσ => by
+    obtain ⟨N, hN⟩ := hσ
+    obtain ⟨T, _hT, hTs⟩ := vertexTailAlgebra_le_tailAlgebra N s hs
+    rw [← hTs, ← Set.preimage_comp, drop_comp_relabel_of_finSupp hN]⟩
+
+end InfiniteGraph
+
+namespace Graphon.InfiniteExchangeableGraphLaw
+
+open InfiniteGraph MeasureTheory
+
+open scoped ENNReal symmDiff
+
+/-- **Fixed-fiber ergodicity**: under restriction independence, every finite-permutation-
+invariant event has `M.law`-measure `0` or `1`. Approximate the invariant `A` by an
+initial cylinder `B`, move `B` to a disjoint tail block `B' = relabel (swapBlock k) ⁻¹' B`
+(invariance keeps `μ (A ∆ B') < ε`, exchangeability keeps `μ B' = μ B`, independence gives
+`μ (B ∩ B') = μ B · μ B'`); comparing `A` with `B ∩ B'` yields `|a − a²| ≤ 4ε` for every
+`ε`, where `a = μ.real A`, so `a` is a fixed point of `t ↦ t²`. -/
+theorem measure_invariant_eq_zero_or_one_of_restrictionIndependent
+    {M : Graphon.InfiniteExchangeableGraphLaw} (hM : M.RestrictionIndependent)
+    {A : Set InfiniteGraph} (hA : MeasurableSet[invariantAlgebra] A) :
+    (M.law : Measure InfiniteGraph) A = 0 ∨ (M.law : Measure InfiniteGraph) A = 1 := by
+  classical
+  set μ : Measure InfiniteGraph := (M.law : Measure InfiniteGraph) with hμ
+  haveI : IsProbabilityMeasure μ := M.law.2
+  obtain ⟨hA_meas, hA_inv⟩ := hA
+  have hex : ∀ τ : Equiv.Perm ℕ, μ.map (relabel τ) = μ := fun τ => by
+    rw [hμ]; exact M.exchangeable τ
+  set a : ℝ := μ.real A with ha
+  have ha0 : 0 ≤ a := measureReal_nonneg
+  have ha1 : a ≤ 1 := measureReal_le_one
+  -- the key fixed-point estimate: |a - a²| ≤ 4ε for every ε > 0
+  have hbound : ∀ ε : ℝ, 0 < ε → |a - a * a| ≤ 4 * ε := by
+    intro ε hε
+    obtain ⟨k, B, hB_init, hBA⟩ :=
+      M.exists_initialAlgebra_measure_symmDiff_lt hA_meas (ENNReal.ofReal_pos.mpr hε)
+    rw [← hμ] at hBA
+    have hB_meas : MeasurableSet B := initialAlgebra_le k B hB_init
+    set σ : Equiv.Perm ℕ := swapBlock k with hσdef
+    have hσ : FinSupp σ := finSupp_swapBlock k
+    set B' : Set InfiniteGraph := relabel σ ⁻¹' B with hB'def
+    have hB'_tail : MeasurableSet[tailAlgebra k] B' :=
+      relabel_swapBlock_preimage_mem_tailAlgebra k hB_init
+    have hB'_meas : MeasurableSet B' := measurable_relabel σ hB_meas
+    have hμB' : μ B' = μ B := by
+      rw [hB'def, ← Measure.map_apply (measurable_relabel σ) hB_meas, hex σ]
+    have hBB' : μ (B ∩ B') = μ B * μ B' :=
+      (ProbabilityTheory.Indep_iff (initialAlgebra k) (tailAlgebra k) μ).mp
+        (by rw [hμ]; exact hM k) B B' hB_init hB'_tail
+    have hAB' : μ (A ∆ B') < ENNReal.ofReal ε := by
+      have hpre : A ∆ B' = relabel σ ⁻¹' (A ∆ B) := by
+        rw [Set.preimage_symmDiff, hA_inv σ hσ, hB'def]
+      rw [hpre, ← Measure.map_apply (measurable_relabel σ) (hA_meas.symmDiff hB_meas), hex σ,
+        symmDiff_comm]
+      exact hBA
+    -- pass to real measures
+    have hμreal_B' : μ.real B' = μ.real B := congrArg ENNReal.toReal hμB'
+    have hbb : μ.real (B ∩ B') = μ.real B * μ.real B' := by
+      show (μ (B ∩ B')).toReal = (μ B).toReal * (μ B').toReal
+      rw [hBB', ENNReal.toReal_mul]
+    set b : ℝ := μ.real B with hb
+    rw [hμreal_B'] at hbb
+    have hb0 : 0 ≤ b := measureReal_nonneg
+    have hb1 : b ≤ 1 := measureReal_le_one
+    have hdAB : μ.real (A ∆ B) < ε := by
+      have h : μ (A ∆ B) < ENNReal.ofReal ε := by rw [symmDiff_comm]; exact hBA
+      exact ENNReal.toReal_lt_of_lt_ofReal h
+    have hdAB' : μ.real (A ∆ B') < ε := ENNReal.toReal_lt_of_lt_ofReal hAB'
+    have hab : |a - b| ≤ μ.real (A ∆ B) :=
+      abs_measureReal_sub_le_measureReal_symmDiff hA_meas.nullMeasurableSet
+        hB_meas.nullMeasurableSet
+    have hsub : A ∆ (B ∩ B') ⊆ (A ∆ B) ∪ (A ∆ B') := by
+      intro x hx
+      simp only [Set.mem_symmDiff, Set.mem_inter_iff, Set.mem_union] at hx ⊢
+      tauto
+    have hdint : μ.real (A ∆ (B ∩ B')) ≤ μ.real (A ∆ B) + μ.real (A ∆ B') :=
+      (measureReal_mono hsub).trans (measureReal_union_le _ _)
+    have habb : |a - b * b| ≤ μ.real (A ∆ (B ∩ B')) := by
+      rw [← hbb]
+      exact abs_measureReal_sub_le_measureReal_symmDiff hA_meas.nullMeasurableSet
+        (hB_meas.inter hB'_meas).nullMeasurableSet
+    have h1 : |a - b * b| ≤ 2 * ε := by
+      calc |a - b * b| ≤ μ.real (A ∆ (B ∩ B')) := habb
+        _ ≤ μ.real (A ∆ B) + μ.real (A ∆ B') := hdint
+        _ ≤ 2 * ε := by linarith
+    have hab' : |a - b| ≤ ε := le_of_lt (lt_of_le_of_lt hab hdAB)
+    have h2 : |b * b - a * a| ≤ 2 * ε := by
+      have hprod : |b * b - a * a| = |a - b| * (a + b) := by
+        rw [show b * b - a * a = -((a - b) * (a + b)) by ring, abs_neg, abs_mul,
+          abs_of_nonneg (show (0 : ℝ) ≤ a + b by linarith)]
+      rw [hprod]
+      calc |a - b| * (a + b) ≤ ε * 2 :=
+            mul_le_mul hab' (by linarith) (by positivity) (le_of_lt hε)
+        _ = 2 * ε := by ring
+    calc |a - a * a| ≤ |a - b * b| + |b * b - a * a| := abs_sub_le a (b * b) (a * a)
+      _ ≤ 2 * ε + 2 * ε := by linarith
+      _ = 4 * ε := by ring
+  -- the fixed-point estimate forces a = a²
+  have hle0 : |a - a * a| ≤ 0 := by
+    by_contra h
+    rw [not_le] at h
+    have := hbound (|a - a * a| / 8) (by linarith)
+    linarith
+  have hfix : a = a * a := by
+    have := abs_nonpos_iff.mp hle0
+    linarith
+  -- a ∈ {0, 1}, hence μ A ∈ {0, 1}
+  have hfin : μ A ≠ ∞ := measure_ne_top μ A
+  have ha01' : a = 0 ∨ a = 1 := by
+    have hz : a * (1 - a) = 0 := by nlinarith [hfix]
+    rcases mul_eq_zero.mp hz with h | h
+    · exact Or.inl h
+    · exact Or.inr (by linarith)
+  rcases ha01' with h0 | h1
+  · exact Or.inl (((ENNReal.toReal_eq_zero_iff (μ A)).mp h0).resolve_right hfin)
+  · exact Or.inr (by rw [← ENNReal.ofReal_toReal hfin, show (μ A).toReal = (1 : ℝ) from h1,
+      ENNReal.ofReal_one])
+
+/-- **Restriction independence implies ergodicity** (a link of the DJ 5.5 / #59 chain). -/
+theorem isErgodic_of_restrictionIndependent
+    {M : Graphon.InfiniteExchangeableGraphLaw} (hM : M.RestrictionIndependent) :
+    M.IsErgodic := fun _ hs =>
+  measure_invariant_eq_zero_or_one_of_restrictionIndependent hM hs
+
+/-- **Ergodicity implies vertex-tail triviality**: every vertex-tail event is
+permutation-invariant (`vertexTailAlgebra_le_invariantAlgebra`). -/
+theorem vertexTailTrivial_of_isErgodic
+    {M : Graphon.InfiniteExchangeableGraphLaw} (hM : M.IsErgodic) :
+    M.VertexTailTrivial := fun s hs =>
+  hM s (InfiniteGraph.vertexTailAlgebra_le_invariantAlgebra s hs)
 
 end Graphon.InfiniteExchangeableGraphLaw
