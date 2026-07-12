@@ -94,7 +94,7 @@ noncomputable def RelStructure.pad {V W : S.Srt → Type*} (e : ∀ s, V s ↪ W
 
 /-- **Restriction undoes padding** (`restrictFin_padFin` analog): padding a structure along a
 sortwise embedding family and then restricting back recovers the original structure. -/
-theorem RelStructure.restrict_pad {V W : S.Srt → Type*} (e : ∀ s, V s ↪ W s)
+@[simp] theorem RelStructure.restrict_pad {V W : S.Srt → Type*} (e : ∀ s, V s ↪ W s)
     (σ : RelStructure S V) : RelStructure.restrict e (RelStructure.pad e σ) = σ := by
   classical
   funext c
@@ -130,7 +130,7 @@ theorem RelStructure.restrictLE_restrictFin {n m : S.Srt → ℕ} (h : ∀ s, n 
 
 /-- Finite restriction is `restrict` along the value embeddings, so padding along them is a
 section of `restrictFin`. -/
-theorem RelStructure.restrictFin_pad (n : S.Srt → ℕ) (σ : RelStructure S (Vfinite n)) :
+@[simp] theorem RelStructure.restrictFin_pad (n : S.Srt → ℕ) (σ : RelStructure S (Vfinite n)) :
     RelStructure.restrictFin n
         (RelStructure.pad (fun s => (Fin.valEmbedding : Fin (n s) ↪ ℕ)) σ) = σ :=
   RelStructure.restrict_pad _ σ
