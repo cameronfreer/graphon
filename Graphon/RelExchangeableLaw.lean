@@ -45,7 +45,7 @@ theorem exists_const_ge [Fintype S.Srt] (n : S.Srt → ℕ) : ∃ N : ℕ, ∀ s
 /-- **An exchangeable relational law**: a size-vector-indexed family of probability marginals
 on the finite structure spaces, consistent under every **sortwise injection**
 `∀ s, Fin (n s) ↪ Fin (m s)` (the `m`-marginal restricts to the `n`-marginal). -/
-structure RelExchangeableLaw (S : RelSignature) where
+@[ext] structure RelExchangeableLaw (S : RelSignature) where
   /-- The probability marginal on structures over the size vector `n`. -/
   marginal : (n : S.Srt → ℕ) → ProbabilityMeasure (RelStructure S (Vfinite n))
   /-- Consistency under every sortwise injection. -/
