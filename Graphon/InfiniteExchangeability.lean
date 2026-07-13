@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Architect
 import Graphon.InfiniteLaw
+import Graphon.PermutationExtension
 
 /-!
 # Exchangeability of the infinite law, and the packaged equivalence (brick A3)
@@ -81,34 +82,11 @@ theorem restrictFin_relabel {k n : ℕ} (σ : Equiv.Perm ℕ) (e : Fin k ↪ Fin
   ext a b
   simp [restrictFin, relabel, SimpleGraph.comap_adj, he]
 
-/-- **Every injection of an initial segment into `ℕ` extends to a permutation**: the
-complements are cofinite, hence equivalent, and `Equiv.Set.compl` assembles the
-permutation. -/
+/-- **Every injection of an initial segment into `ℕ` extends to a permutation** — the shared
+graph-independent `_root_.exists_perm_extend` (`Graphon.PermutationExtension`). -/
 theorem exists_perm_extend {k : ℕ} (g : Fin k ↪ ℕ) :
-    ∃ σ : Equiv.Perm ℕ, ∀ a : Fin k, σ ↑a = g a := by
-  classical
-  let e₀ : (Set.range ((↑) : Fin k → ℕ) : Set ℕ) ≃ (Set.range g : Set ℕ) :=
-    (Equiv.ofInjective _ Fin.val_injective).symm.trans (Equiv.ofInjective g g.injective)
-  have hsc : ((Set.range ((↑) : Fin k → ℕ))ᶜ : Set ℕ).Infinite :=
-    (Set.finite_range _).infinite_compl
-  have htc : ((Set.range g)ᶜ : Set ℕ).Infinite := (Set.finite_range _).infinite_compl
-  haveI := hsc.to_subtype
-  haveI := htc.to_subtype
-  haveI : Denumerable ((Set.range ((↑) : Fin k → ℕ))ᶜ : Set ℕ) :=
-    Denumerable.ofEncodableOfInfinite _
-  haveI : Denumerable ((Set.range g)ᶜ : Set ℕ) := Denumerable.ofEncodableOfInfinite _
-  obtain ⟨σ, hσ⟩ := (Equiv.Set.compl e₀).symm
-    ((Denumerable.eqv _).trans (Denumerable.eqv _).symm)
-  refine ⟨σ, fun a => ?_⟩
-  have h := hσ ⟨(↑a : ℕ), ⟨a, rfl⟩⟩
-  rw [h]
-  have h1 : (Equiv.ofInjective _ Fin.val_injective).symm ⟨(↑a : ℕ), ⟨a, rfl⟩⟩ = a := by
-    rw [Equiv.symm_apply_eq]
-    rfl
-  show ((Equiv.ofInjective g g.injective)
-    ((Equiv.ofInjective _ Fin.val_injective).symm ⟨(↑a : ℕ), ⟨a, rfl⟩⟩) : ℕ) = g a
-  rw [h1]
-  rfl
+    ∃ σ : Equiv.Perm ℕ, ∀ a : Fin k, σ ↑a = g a :=
+  _root_.exists_perm_extend g
 
 end InfiniteGraph
 
@@ -180,7 +158,7 @@ noncomputable def toExchangeableGraphLaw (M : InfiniteExchangeableGraphLaw) :
         ((M.law : Measure InfiniteGraph).map (restrictFin m)) := fun m =>
       Measure.isProbabilityMeasure_map (measurable_restrictFin m).aemeasurable
     apply PMF.toMeasure_injective
-    obtain ⟨σ, hσ⟩ := exists_perm_extend (e.trans Fin.valEmbedding)
+    obtain ⟨σ, hσ⟩ := _root_.exists_perm_extend (e.trans Fin.valEmbedding)
     rw [← PMF.toMeasure_map _ _ (SimpleGraph.measurable_comap ⇑e),
       Measure.toPMF_toMeasure, Measure.toPMF_toMeasure,
       Measure.map_map (SimpleGraph.measurable_comap ⇑e) (measurable_restrictFin l),

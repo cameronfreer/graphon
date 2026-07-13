@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelInfiniteLaw
+import Graphon.PermutationExtension
 
 /-!
 # The finite/infinite exchangeable relational law equivalence (AHK umbrella #103, R2c)
@@ -19,9 +20,9 @@ The exchangeability, uniqueness, and finite/infinite-law equivalence completing 
   space invariant under every sortwise `Equiv.Perm ℕ`;
 * `RelExchangeableLaw.infiniteLaw_map_relabel` / `toInfinite` — the infinite law is
   exchangeable, giving the forward map;
-* `RelSignature.exists_perm_extend` — every `Fin k ↪ ℕ` extends to a permutation of `ℕ`;
 * `InfiniteRelExchangeableLaw.toFinite` — the reverse map (finite marginals of an
-  exchangeable infinite law, consistent by the permutation extension);
+  exchangeable infinite law, consistent by the permutation extension `exists_perm_extend`,
+  now shared from `Graphon.PermutationExtension`);
 * `RelSignature.relExchangeableLawEquiv` — the equivalence
   `RelExchangeableLaw S ≃ InfiniteRelExchangeableLaw S`.
 -/
@@ -31,39 +32,6 @@ open MeasureTheory Filter Topology
 namespace RelSignature
 
 variable {S : RelSignature}
-
-/-- **Relabelling is measurable** (over the product σ-algebra; no countability needed). -/
-theorem measurable_relabel {V : S.Srt → Type*} (σ : ∀ s, Equiv.Perm (V s)) :
-    Measurable (RelStructure.relabel σ) := by
-  apply measurable_pi_iff.mpr
-  intro c
-  exact measurable_pi_apply _
-
-/-- **Every injection `Fin k ↪ ℕ` extends to a permutation of `ℕ`** (the complements are
-cofinite, hence equivalent). -/
-theorem exists_perm_extend {k : ℕ} (g : Fin k ↪ ℕ) :
-    ∃ σ : Equiv.Perm ℕ, ∀ a : Fin k, σ ↑a = g a := by
-  classical
-  let e₀ : (Set.range ((↑) : Fin k → ℕ) : Set ℕ) ≃ (Set.range g : Set ℕ) :=
-    (Equiv.ofInjective _ Fin.val_injective).symm.trans (Equiv.ofInjective g g.injective)
-  have hsc : ((Set.range ((↑) : Fin k → ℕ))ᶜ : Set ℕ).Infinite :=
-    (Set.finite_range _).infinite_compl
-  have htc : ((Set.range g)ᶜ : Set ℕ).Infinite := (Set.finite_range _).infinite_compl
-  haveI := hsc.to_subtype
-  haveI := htc.to_subtype
-  haveI : Denumerable ((Set.range ((↑) : Fin k → ℕ))ᶜ : Set ℕ) :=
-    Denumerable.ofEncodableOfInfinite _
-  haveI : Denumerable ((Set.range g)ᶜ : Set ℕ) := Denumerable.ofEncodableOfInfinite _
-  obtain ⟨σ, hσ⟩ := (Equiv.Set.compl e₀).symm
-    ((Denumerable.eqv _).trans (Denumerable.eqv _).symm)
-  refine ⟨σ, fun a => ?_⟩
-  have h := hσ ⟨(↑a : ℕ), ⟨a, rfl⟩⟩
-  rw [h]
-  have h1 : (Equiv.ofInjective _ Fin.val_injective).symm ⟨(↑a : ℕ), ⟨a, rfl⟩⟩ = a := by
-    rw [Equiv.symm_apply_eq]; rfl
-  show ((Equiv.ofInjective g g.injective)
-    ((Equiv.ofInjective _ Fin.val_injective).symm ⟨(↑a : ℕ), ⟨a, rfl⟩⟩) : ℕ) = g a
-  rw [h1]; rfl
 
 /-- **A probability law on the infinite structure space invariant under every sortwise
 permutation of `ℕ`.** -/
