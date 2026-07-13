@@ -93,3 +93,9 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms digraphLawEquiv
 #print axioms exchangeableDigraphLawEquiv
 #print axioms exchangeableDigraphLawEquiv_marginal_toPMF
+#print axioms MeasureTheory.Digraphon.ext
+#print axioms MeasureTheory.Digraphon.measurable_simplexRep
+#print axioms MeasureTheory.Digraphon.simplexRep_nonneg
+#print axioms MeasureTheory.Digraphon.simplexRep_sum_eq_one
+#print axioms MeasureTheory.Digraphon.simplexRep_swap
+#print axioms MeasureTheory.Digraphon.simplexRep_ae_eq

@@ -117,6 +117,12 @@ AUDITED_DECLS = {
     "digraphLawEquiv",
     "exchangeableDigraphLawEquiv",
     "exchangeableDigraphLawEquiv_marginal_toPMF",
+    "MeasureTheory.Digraphon.ext",
+    "MeasureTheory.Digraphon.measurable_simplexRep",
+    "MeasureTheory.Digraphon.simplexRep_nonneg",
+    "MeasureTheory.Digraphon.simplexRep_sum_eq_one",
+    "MeasureTheory.Digraphon.simplexRep_swap",
+    "MeasureTheory.Digraphon.simplexRep_ae_eq",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
