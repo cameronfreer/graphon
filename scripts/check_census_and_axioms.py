@@ -113,6 +113,10 @@ AUDITED_DECLS = {
     "RelSignature.RelExchangeableLaw.infiniteLaw_map_restrict",
     "RelSignature.RelExchangeableLaw.infiniteLaw_map_relabel",
     "RelSignature.relExchangeableLawEquiv",
+    "digraphStructureEquiv_comap",
+    "digraphLawEquiv",
+    "exchangeableDigraphLawEquiv",
+    "exchangeableDigraphLawEquiv_law_map_restrictFin",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

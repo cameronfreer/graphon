@@ -89,3 +89,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.RelExchangeableLaw.infiniteLaw_map_restrict
 #print axioms RelSignature.RelExchangeableLaw.infiniteLaw_map_relabel
 #print axioms RelSignature.relExchangeableLawEquiv
+#print axioms digraphStructureEquiv_comap
+#print axioms digraphLawEquiv
+#print axioms exchangeableDigraphLawEquiv
+#print axioms exchangeableDigraphLawEquiv_law_map_restrictFin

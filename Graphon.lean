@@ -11,7 +11,9 @@ import Graphon.RelationalTopology
 import Graphon.RelExchangeableLaw
 import Graphon.RelInfiniteLaw
 import Graphon.RelLawEquivalence
+import Graphon.DigraphMaps
 import Graphon.InfiniteDigraph
+import Graphon.InfiniteDigraphLaw
 import Graphon.Basic
 import Graphon.Step
 import Graphon.HomDensity
@@ -147,6 +149,8 @@ in Lean 4 using Mathlib.
 * `Graphon.RelInfiniteLaw` — Generic AHK program R2b (#105): the compactness-based infinite extension **realizing the marginals** — diagonal padded laws (`paddedLaw`), Prokhorov subsequence extraction on the compact metrizable structure space, and marginal identification via continuity, giving `infiniteLaw` with `infiniteLaw_map_restrictFin`; exchangeability/uniqueness/equivalence is R2c
 * `Graphon.RelLawEquivalence` — Generic AHK program R2c (#105): the finite/infinite exchangeable relational law equivalence — the arbitrary-injection marginal theorem, exchangeability of `infiniteLaw`, `InfiniteRelExchangeableLaw`, the permutation extension, and `relExchangeableLawEquiv : RelExchangeableLaw S ≃ InfiniteRelExchangeableLaw S`
 * `Graphon.InfiniteDigraph` — Directed umbrella (#84) D1 (#85): `InfiniteDigraph` as the one-sort binary R1 instance (`digraphSig`) — inheriting compact/standard-Borel, measurable finite restrictions, and measure extensionality (all topology on `InfiniteDigraph`); `Adj` (Prop) / `adjBit` (Bool); `digraphStructureEquiv V` the plain carrier equivalence with Mathlib's `Digraph V`, giving both the infinite `digraphEquiv` and the finite `finiteDigraphEquiv` (for D2); no exchangeable-law theory (that is D2)
+* `Graphon.DigraphMaps` — the minimal `Digraph.comap` pullback API for Mathlib's `Digraph` (mirroring `SimpleGraph.comap`; a Mathlib-upstream candidate tracked on #24), used by the D2 directed-law bridge
+* `Graphon.InfiniteDigraphLaw` — Directed umbrella (#84) D2 (#86): the `PMF`-based finite directed law `ExchangeableDigraphLaw` (consistent under `Digraph.comap`), the finite bridge `digraphLawEquiv : ExchangeableDigraphLaw ≃ RelExchangeableLaw digraphSig` (via `finiteDigraphEquiv` + `PMF.toMeasure`/`Measure.toPMF`), and the headline `exchangeableDigraphLawEquiv : ExchangeableDigraphLaw ≃ InfiniteExchangeableDigraphLaw` composing with R2c — measurable structure stays on the relational carrier
 * `Graphon.RelationalTopology` — Generic AHK program R1b (#104): the Boolean-product topology / σ-algebra on `RelStructure` — compact/Polish/standard-Borel instances, measurability of the finite restrictions, the cylinder π-system `cylinders` generating the product σ-algebra (`generateFrom_cylinders_eq`; = Borel under the countability giving Polish), and finite-restriction measure extensionality (`ext_of_map_restrictFin`); no projective extension (that is R2)
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization
