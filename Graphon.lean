@@ -16,6 +16,8 @@ import Graphon.InfiniteDigraph
 import Graphon.InfiniteDigraphLaw
 import Graphon.ExchangeableLawBlueprint
 import Graphon.Digraphon
+import Graphon.SamplerSources
+import Graphon.DigraphSampler
 import Graphon.Basic
 import Graphon.Step
 import Graphon.HomDensity
@@ -154,6 +156,8 @@ in Lean 4 using Mathlib.
 * `Graphon.DigraphMaps` — the minimal `Digraph.comap` pullback API for Mathlib's `Digraph` (mirroring `SimpleGraph.comap`; a Mathlib-upstream candidate tracked on #24), used by the D2 directed-law bridge
 * `Graphon.InfiniteDigraphLaw` — Directed umbrella (#84) D2 (#86): the `PMF`-based finite directed law `ExchangeableDigraphLaw` (consistent under `Digraph.comap`), the finite bridge `digraphLawEquiv : ExchangeableDigraphLaw ≃ RelExchangeableLaw digraphSig` (via `finiteDigraphEquiv` + `PMF.toMeasure`/`Measure.toPMF`), and the headline `exchangeableDigraphLawEquiv : ExchangeableDigraphLaw ≃ InfiniteExchangeableDigraphLaw` composing with R2c — measurable structure stays on the relational carrier
 * `Graphon.ExchangeableLawBlueprint` — annotation-only blueprint wrappers for the R2c relational (`relExchangeableLawEquiv`) and D2 directed (`exchangeableDigraphLawEquiv`) equivalences, keeping `Architect` out of the reusable foundational modules
+* `Graphon.SamplerSources` — generic i.i.d. random sources (`uniform01`, `iidVertexSource`, `iidUniformSource`) shared by the graph and directed samplers
+* `Graphon.DigraphSampler` — Directed umbrella (#84) D3b step 2 (#87): the per-pair four-state distribution `Digraphon.pairPMF` and the one-uniform categorical map `catOutcome` with its **exact four-state law** `uniform01_map_catOutcome` (pushforward of the uniform under `catOutcome` = `pairPMF`); the finite/infinite samplers are the next step
 * `Graphon.Digraphon` — Directed umbrella (#84) D3a (#87): the five-component CAF `Digraphon` (four reciprocal-edge pair kernels + Bool loop, a.e. probability-vector + transpose law) with `ext`; measurable representatives; the transpose-symmetrized `pairSym`; and the **everywhere-valid 3-simplex representative** `simplexRep` (measurable, nonneg/sum-one/transpose-compatible everywhere, a.e.-equal to `pairProb`) — the prerequisite for the D3b sampler; no random sources yet
 * `Graphon.RelationalTopology` — Generic AHK program R1b (#104): the Boolean-product topology / σ-algebra on `RelStructure` — compact/Polish/standard-Borel instances, measurability of the finite restrictions, the cylinder π-system `cylinders` generating the product σ-algebra (`generateFrom_cylinders_eq`; = Borel under the countability giving Polish), and finite-restriction measure extensionality (`ext_of_map_restrictFin`); no projective extension (that is R2)
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence

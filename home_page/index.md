@@ -108,6 +108,8 @@ The project contains zero `sorry` statements (issue #19, completed 2026-07-11): 
 | `Graphon/DigraphMaps.lean` | Directed | Minimal `Digraph.comap` pullback API for Mathlib's `Digraph` (mirrors `SimpleGraph.comap`; Mathlib-upstream candidate #24) |
 | `Graphon/InfiniteDigraphLaw.lean` | Directed | D2 (#84/#86): `PMF`-based `ExchangeableDigraphLaw`, the finite bridge `digraphLawEquiv` to `RelExchangeableLaw digraphSig`, and the headline `exchangeableDigraphLawEquiv` composing with R2c (measurable structure stays on the relational carrier) |
 | `Graphon/Digraphon.lean` | Directed | D3a (#84/#87): the five-component CAF `Digraphon` (four reciprocal-edge pair kernels + Bool loop) with `ext`, measurable representatives, and the everywhere-valid 3-simplex representative `simplexRep` (measurable, nonneg/sum-one/transpose everywhere, a.e.-equal to the kernels) — prerequisite for the D3b sampler |
+| `Graphon/SamplerSources.lean` | Directed | Generic i.i.d. random sources (`uniform01`, `iidVertexSource`, `iidUniformSource`) shared by the graph and directed samplers |
+| `Graphon/DigraphSampler.lean` | Directed | D3b step 2 (#84/#87): the per-pair four-state PMF `Digraphon.pairPMF` and the one-uniform categorical map `catOutcome` with its exact four-state law `uniform01_map_catOutcome` |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
