@@ -123,6 +123,9 @@ AUDITED_DECLS = {
     "MeasureTheory.Digraphon.simplexRep_sum_eq_one",
     "MeasureTheory.Digraphon.simplexRep_swap",
     "MeasureTheory.Digraphon.simplexRep_ae_eq",
+    "MeasureTheory.Digraphon.pairPMF_apply",
+    "MeasureTheory.Digraphon.measurable_catOutcome",
+    "MeasureTheory.Digraphon.uniform01_map_catOutcome",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
