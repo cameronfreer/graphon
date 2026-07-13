@@ -482,6 +482,30 @@ so $\mathrm{limitGraphon}$ generates the invariant $\sigma$-algebra up to null s
 
 \inputleannode{thm:invariant-generates}
 
+\section{The Generic Relational and Directed Exchangeable-Law Equivalences}
+
+The finite/infinite exchangeable-law correspondence is not special to simple graphs. For an
+arbitrary multi-sorted relational signature with finitely many sorts and countably many
+relation symbols, the structure space is again a compact zero-dimensional Polish space (an
+arbitrary Boolean assignment on relational coordinates), so the same Prokhorov extension and
+finite-restriction extensionality identify the size-vector-indexed families of consistent
+probability marginals with the probability laws on the infinite structure space invariant under
+every sortwise relabeling of $\mathbb{N}$ --- the generic Aldous--Hoover--Kallenberg
+finite-marginal $\leftrightarrow$ infinite-law layer.
+
+\inputleannode{thm:rel-exchangeable-law-equivalence}
+
+Directed graphs are the one-sort, single-binary-relation, ordered-argument, diagonal-permitted
+case. Because the signature is finite, a finite directed law over $\mathrm{Fin}\,k$ is a genuine
+probability mass function on $\mathrm{Digraph}(\mathrm{Fin}\,k)$, and the carrier equivalence
+with the relational structure (which carries all the measurable structure --- Mathlib's
+$\mathrm{Digraph}$ gets none) commutes with $\mathrm{comap}$/restriction. Transporting the
+$\mathrm{PMF}$ marginals across it and composing with the generic equivalence yields the
+directed finite/infinite exchangeable-law equivalence. (This is the projective-law equivalence;
+the directed \emph{representation} theorem, a mixture over digraphons, comes later.)
+
+\inputleannode{thm:directed-exchangeable-law-equivalence}
+
 \section{Convergence Equivalence}
 
 A sequence of graphons converges in cut distance if and only if all
