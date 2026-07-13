@@ -39,14 +39,11 @@ The finite `PMF` ↔ `ProbabilityMeasure` conversions are localized to the bridg
 
 open MeasureTheory RelSignature
 
--- The finite `PMF` ↔ `ProbabilityMeasure` conversions unfold instance-heavy product-space
--- structure on the relational carrier; give the elaborator generous headroom.
-set_option maxHeartbeats 1000000
-
-/-- **`toPMF` transports `map` to `Measure.map`** (finite-conversion helper, stated over abstract
-countable spaces so that instance resolution stays cheap): the measure of the pushed-forward PMF
-is the pushed-forward measure. -/
-theorem MeasureTheory.toPMF_map_toMeasure {α β : Type*} [MeasurableSpace α] [MeasurableSpace β]
+/-- **`toPMF` transports `map` to `Measure.map`** (private finite-conversion helper, stated over
+abstract countable spaces so that instance resolution stays cheap — a generic PMF/measure fact,
+tracked as a Mathlib-upstream candidate on #24): the measure of the pushed-forward PMF is the
+pushed-forward measure. -/
+private theorem toPMF_map_toMeasure {α β : Type*} [MeasurableSpace α] [MeasurableSpace β]
     [Countable α] [MeasurableSingletonClass α] (μ : Measure α) [IsProbabilityMeasure μ]
     (f : α → β) (hf : Measurable f) : (μ.toPMF.map f).toMeasure = μ.map f := by
   rw [← PMF.toMeasure_map _ _ hf, Measure.toPMF_toMeasure]
@@ -103,6 +100,12 @@ structure ExchangeableDigraphLaw where
 @[ext] theorem ExchangeableDigraphLaw.ext {L M : ExchangeableDigraphLaw}
     (h : ∀ k, L.law k = M.law k) : L = M := by
   cases L; cases M; simp only [ExchangeableDigraphLaw.mk.injEq]; exact funext h
+
+-- The finite `PMF` ↔ `ProbabilityMeasure` conversions unfold instance-heavy product-space
+-- structure on the relational carrier; scope the elaborator headroom to this bridge region
+-- only (so later declarations do not silently inherit it).
+section PMFBridge
+set_option maxHeartbeats 1000000
 
 /-- The measure-side marginals of a `PMF`-based directed law: transport each `PMF (Digraph (Fin k))`
 across `finiteDigraphEquiv.symm` and read it as a probability measure on the relational carrier. -/
@@ -200,10 +203,11 @@ on the relational carrier, so this is the `digraphSig` specialization of
 `InfiniteRelExchangeableLaw`. -/
 abbrev InfiniteExchangeableDigraphLaw : Type := InfiniteRelExchangeableLaw digraphSig
 
-/-- **The headline directed equivalence** (Aldous–Hoover–Kallenberg, directed case): `PMF`-based
-exchangeable directed-graph laws are the same data as relabelling-invariant laws on the infinite
-digraph space — the finite bridge `digraphLawEquiv` composed with the R2c relational equivalence
-`relExchangeableLawEquiv`. -/
+/-- **The directed finite/infinite exchangeable-law equivalence**: `PMF`-based exchangeable
+directed-graph laws are the same data as relabelling-invariant laws on the infinite digraph
+space — the finite bridge `digraphLawEquiv` composed with the R2c relational equivalence
+`relExchangeableLawEquiv`. (This is the projective-law equivalence; the directed *representation*
+theorem — a mixture over digraphons — is later, D3/D4.) -/
 noncomputable def exchangeableDigraphLawEquiv :
     ExchangeableDigraphLaw ≃ InfiniteExchangeableDigraphLaw :=
   digraphLawEquiv.trans relExchangeableLawEquiv
@@ -211,10 +215,35 @@ noncomputable def exchangeableDigraphLawEquiv :
 @[simp] theorem exchangeableDigraphLawEquiv_apply_law (D : ExchangeableDigraphLaw) :
     (exchangeableDigraphLawEquiv D).law = D.toRel.infiniteLaw := rfl
 
-/-- The infinite directed law realizes the finite `PMF`-marginals: restricting to the first `k`
-vertices and reading off the finite digraph recovers `D.law k`. -/
-theorem exchangeableDigraphLawEquiv_law_map_restrictFin (D : ExchangeableDigraphLaw) (k : ℕ) :
-    ((exchangeableDigraphLawEquiv D).law : Measure (RelStructure digraphSig (Vinfinite digraphSig))).map
-        (RelStructure.restrictFin (fun _ => k))
-      = (D.toRel.marginal (fun _ => k) : Measure (RelStructure digraphSig (Vfinite (fun _ => k)))) :=
-  D.toRel.infiniteLaw_map_restrictFin (fun _ => k)
+/-- **The infinite directed law realizes the finite `PMF`-marginals**: restricting the infinite
+law to the first `k` vertices, reading it as a probability mass function (`Measure.toPMF`, the
+finite carrier is countable) and transporting it across `finiteDigraphEquiv` recovers `D.law k` —
+the genuine `PMF (Digraph (Fin k))`, with no measurable structure placed on `Digraph`. -/
+theorem exchangeableDigraphLawEquiv_marginal_toPMF (D : ExchangeableDigraphLaw) (k : ℕ) :
+    (((exchangeableDigraphLawEquiv D).law.map
+          (RelSignature.measurable_restrictFin (fun _ => k)).aemeasurable :
+        ProbabilityMeasure (RelStructure digraphSig (Vfinite (fun _ => k)))) :
+        Measure (RelStructure digraphSig (Vfinite (fun _ => k)))).toPMF.map (finiteDigraphEquiv k)
+      = D.law k := by
+  -- The restricted infinite law equals the finite relational marginal, as probability measures.
+  have hmargPM :
+      ((exchangeableDigraphLawEquiv D).law.map
+          (RelSignature.measurable_restrictFin (fun _ => k)).aemeasurable :
+        ProbabilityMeasure (RelStructure digraphSig (Vfinite (fun _ => k))))
+        = D.toRel.marginal (fun _ => k) := by
+    apply ProbabilityMeasure.toMeasure_injective
+    rw [ProbabilityMeasure.toMeasure_map]
+    exact D.toRel.infiniteLaw_map_restrictFin (fun _ => k)
+  -- Read both as PMFs and transport; the finite bridge round-trip gives back `D.law k`.
+  calc (((exchangeableDigraphLawEquiv D).law.map
+            (RelSignature.measurable_restrictFin (fun _ => k)).aemeasurable :
+          ProbabilityMeasure (RelStructure digraphSig (Vfinite (fun _ => k)))) :
+          Measure (RelStructure digraphSig (Vfinite (fun _ => k)))).toPMF.map (finiteDigraphEquiv k)
+      = (D.toRel.marginal (fun _ => k) : Measure _).toPMF.map (finiteDigraphEquiv k) :=
+        congrArg (fun P : ProbabilityMeasure (RelStructure digraphSig (Vfinite (fun _ => k))) =>
+          (P : Measure _).toPMF.map (finiteDigraphEquiv k)) hmargPM
+    _ = D.toRel.toDigraph.law k := (RelExchangeableLaw.toDigraph_law D.toRel k).symm
+    _ = D.law k := congrArg (fun L : ExchangeableDigraphLaw => L.law k)
+        (digraphLawEquiv.symm_apply_apply D)
+
+end PMFBridge

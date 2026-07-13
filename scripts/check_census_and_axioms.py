@@ -116,7 +116,7 @@ AUDITED_DECLS = {
     "digraphStructureEquiv_comap",
     "digraphLawEquiv",
     "exchangeableDigraphLawEquiv",
-    "exchangeableDigraphLawEquiv_law_map_restrictFin",
+    "exchangeableDigraphLawEquiv_marginal_toPMF",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

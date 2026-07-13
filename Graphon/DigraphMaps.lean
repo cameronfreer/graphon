@@ -25,8 +25,8 @@ protected def Digraph.comap (f : V → W) (G : Digraph W) : Digraph V :=
 
 @[simp] theorem Digraph.comap_id (G : Digraph V) : G.comap id = G := rfl
 
-theorem Digraph.comap_comp (f : U → V) (g : V → W) (G : Digraph W) :
-    G.comap (g ∘ f) = (G.comap g).comap f := rfl
+@[simp] theorem Digraph.comap_comap (f : U → V) (g : V → W) (G : Digraph W) :
+    (G.comap g).comap f = G.comap (g ∘ f) := rfl
 
 instance Digraph.decidableRelComap (f : V → W) (G : Digraph W) [DecidableRel G.Adj] :
     DecidableRel (G.comap f).Adj :=

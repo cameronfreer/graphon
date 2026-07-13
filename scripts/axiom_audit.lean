@@ -92,4 +92,4 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms digraphStructureEquiv_comap
 #print axioms digraphLawEquiv
 #print axioms exchangeableDigraphLawEquiv
-#print axioms exchangeableDigraphLawEquiv_law_map_restrictFin
+#print axioms exchangeableDigraphLawEquiv_marginal_toPMF
