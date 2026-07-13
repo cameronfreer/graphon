@@ -135,4 +135,36 @@ section of `restrictFin`. -/
         (RelStructure.pad (fun s => (Fin.valEmbedding : Fin (n s) ↪ ℕ)) σ) = σ :=
   RelStructure.restrict_pad _ σ
 
+/-- **Restriction of a padding along composable embeddings**: padding along `e` then
+restricting along `g ∘ e` recovers restriction along `g` (generalizes `restrict_pad`, the
+case `g = id`). -/
+theorem restrict_comp_pad {U V W : S.Srt → Type*} (e : ∀ s, V s ↪ W s) (g : ∀ s, U s ↪ V s)
+    (σ : RelStructure S V) :
+    RelStructure.restrict (fun s => (g s).trans (e s)) (RelStructure.pad e σ) =
+      RelStructure.restrict g σ := by
+  classical
+  funext c
+  show RelStructure.pad e σ (RelCoord.map (fun s => ((g s).trans (e s) : U s → W s)) c)
+    = σ (RelCoord.map (fun s => (g s : U s → V s)) c)
+  have hmem : ∀ i, (RelCoord.map (fun s => ((g s).trans (e s) : U s → W s)) c).2 i ∈
+      Set.range (e (S.argSort (RelCoord.map (fun s => ((g s).trans (e s) : U s → W s)) c).1 i)) :=
+    fun i => ⟨g _ (c.2 i), rfl⟩
+  rw [RelStructure.pad, dif_pos hmem]
+  congr 1
+  refine Sigma.ext rfl (heq_of_eq ?_)
+  funext i
+  exact (e _).injective (hmem i).choose_spec
+
+/-- The finite restriction of a diagonal padding is a restriction between size vectors. -/
+theorem restrictFin_pad_diag {n : S.Srt → ℕ} {N : ℕ} (h : ∀ s, n s ≤ N)
+    (σ : RelStructure S (Vfinite fun _ => N)) :
+    RelStructure.restrictFin n (RelStructure.pad (fun _ => (Fin.valEmbedding : Fin N ↪ ℕ)) σ)
+      = RelStructure.restrictLE h σ := by
+  have hemb : (fun s => (Fin.valEmbedding : Fin (n s) ↪ ℕ))
+      = (fun s => (Fin.castLEEmb (h s)).trans (Fin.valEmbedding : Fin N ↪ ℕ)) := by
+    funext s; ext x; simp [Fin.castLEEmb]
+  show RelStructure.restrict (fun s => (Fin.valEmbedding : Fin (n s) ↪ ℕ))
+      (RelStructure.pad _ σ) = RelStructure.restrictLE h σ
+  rw [hemb]; exact restrict_comp_pad _ _ σ
+
 end RelSignature

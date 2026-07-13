@@ -8,29 +8,29 @@ import Mathlib.MeasureTheory.Measure.Prokhorov
 import Mathlib.MeasureTheory.Measure.LevyProkhorovMetric
 
 /-!
-# The infinite exchangeable relational law via compactness (AHK umbrella #103, R2b)
+# The infinite relational extension via compactness (AHK umbrella #103, R2b)
 
 The compactness-based extension of a `RelExchangeableLaw` to a probability law on the
-infinite structure space (issue #105), the multi-sorted analogue of
-`Graphon.ExchangeableGraphLaw.infiniteLaw`. Assumptions: `[Fintype S.Srt] [Countable S.Rel]`
-— raw-product compactness is countability-free, but the subsequential weak compactness runs
-through the metrizable `ProbabilityMeasure` topology, which uses the countable-coordinate
-Polish structure.
+infinite structure space **realizing its marginals** (issue #105), the multi-sorted analogue
+of `Graphon.ExchangeableGraphLaw.infiniteLaw`. Assumptions: `[Fintype S.Srt] [Countable
+S.Rel]` — raw-product compactness is countability-free, but the subsequential weak
+compactness runs through the metrizable `ProbabilityMeasure` topology, which uses the
+countable-coordinate Polish structure.
 
 Route (exactly as planned): pad each **diagonal** marginal to the infinite space, extract a
 weakly convergent subsequence (the space is compact), and identify every size-vector marginal
 of the limit using continuity of the restriction (`continuous_restrictFin`), eventual
 domination (`exists_const_ge`), and consistency.
 
-* `RelSignature.restrict_comp_pad` — restriction of a padding along composable embeddings
-  (`restrict (g ∘ e) ∘ pad e = restrict g`);
 * `RelExchangeableLaw.paddedLaw` and `paddedLaw_map_restrictFin` — the diagonal padded laws
-  and their finite restrictions;
-* `RelExchangeableLaw.exists_map_restrictFin_eq` and `infiniteLaw` — **the infinite law**: a
-  weak subsequential limit whose finite restrictions are the given marginals
+  and their finite restrictions (the combinatorial `restrict_comp_pad` / `restrictFin_pad_diag`
+  identities live in `RelationalStructure.lean`);
+* `RelExchangeableLaw.exists_map_restrictFin_eq` and `infiniteLaw` — **the infinite relational
+  extension**: a weak subsequential limit whose finite restrictions are the given marginals
   (`infiniteLaw_map_restrictFin`).
 
-Uniqueness and the finite/infinite-law equivalence are **R2c**.
+Exchangeability of `infiniteLaw` is mathematically forced but is packaged and proved only in
+**R2c**, together with uniqueness and the finite/infinite-law equivalence.
 -/
 
 open MeasureTheory Filter Topology
@@ -38,38 +38,6 @@ open MeasureTheory Filter Topology
 namespace RelSignature
 
 variable {S : RelSignature}
-
-/-- **Restriction of a padding along composable embeddings**: padding along `e` then
-restricting along `g ∘ e` recovers restriction along `g` (generalizes `restrict_pad`, the
-case `g = id`). -/
-theorem restrict_comp_pad {U V W : S.Srt → Type*} (e : ∀ s, V s ↪ W s) (g : ∀ s, U s ↪ V s)
-    (σ : RelStructure S V) :
-    RelStructure.restrict (fun s => (g s).trans (e s)) (RelStructure.pad e σ) =
-      RelStructure.restrict g σ := by
-  classical
-  funext c
-  show RelStructure.pad e σ (RelCoord.map (fun s => ((g s).trans (e s) : U s → W s)) c)
-    = σ (RelCoord.map (fun s => (g s : U s → V s)) c)
-  have hmem : ∀ i, (RelCoord.map (fun s => ((g s).trans (e s) : U s → W s)) c).2 i ∈
-      Set.range (e (S.argSort (RelCoord.map (fun s => ((g s).trans (e s) : U s → W s)) c).1 i)) :=
-    fun i => ⟨g _ (c.2 i), rfl⟩
-  rw [RelStructure.pad, dif_pos hmem]
-  congr 1
-  refine Sigma.ext rfl (heq_of_eq ?_)
-  funext i
-  exact (e _).injective (hmem i).choose_spec
-
-/-- The finite restriction of a diagonal padding is a restriction between size vectors. -/
-theorem restrictFin_pad_diag {n : S.Srt → ℕ} {N : ℕ} (h : ∀ s, n s ≤ N)
-    (σ : RelStructure S (Vfinite fun _ => N)) :
-    RelStructure.restrictFin n (RelStructure.pad (fun _ => (Fin.valEmbedding : Fin N ↪ ℕ)) σ)
-      = RelStructure.restrictLE h σ := by
-  have hemb : (fun s => (Fin.valEmbedding : Fin (n s) ↪ ℕ))
-      = (fun s => (Fin.castLEEmb (h s)).trans (Fin.valEmbedding : Fin N ↪ ℕ)) := by
-    funext s; ext x; simp [Fin.castLEEmb]
-  show RelStructure.restrict (fun s => (Fin.valEmbedding : Fin (n s) ↪ ℕ))
-      (RelStructure.pad _ σ) = RelStructure.restrictLE h σ
-  rw [hemb]; exact restrict_comp_pad _ _ σ
 
 /-- **Prokhorov extraction**: on the (compact metrizable) infinite structure space, every
 sequence of probability measures has a weakly convergent subsequence. -/
@@ -138,8 +106,9 @@ theorem exists_map_restrictFin_eq :
   rw [ProbabilityMeasure.toMeasure_map] at h2
   exact h2
 
-/-- **The infinite exchangeable relational law** (compactness Kolmogorov extension): a
-probability law on the infinite structure space realizing the given marginals. -/
+/-- **The infinite relational extension** realizing the marginals (compactness Kolmogorov
+extension): a probability law on the infinite structure space whose finite restrictions are
+the given marginals. (Exchangeability is forced but is packaged/proved in R2c.) -/
 noncomputable def infiniteLaw : ProbabilityMeasure (RelStructure S (Vinfinite S)) :=
   L.exists_map_restrictFin_eq.choose
 
