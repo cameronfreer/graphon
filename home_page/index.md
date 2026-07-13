@@ -105,6 +105,8 @@ The project contains zero `sorry` statements (issue #19, completed 2026-07-11): 
 | `Graphon/RelInfiniteLaw.lean` | Foundation | Generic AHK program R2b (#105): compactness-based infinite extension realizing the marginals — diagonal padded laws, Prokhorov subsequence, marginal identification via continuity; `infiniteLaw` + `infiniteLaw_map_restrictFin` (exchangeability = R2c) |
 | `Graphon/RelLawEquivalence.lean` | Foundation | Generic AHK program R2c (#105): finite/infinite exchangeable law equivalence — arbitrary-injection marginals, exchangeability of `infiniteLaw`, `InfiniteRelExchangeableLaw`, permutation extension, `relExchangeableLawEquiv` |
 | `Graphon/InfiniteDigraph.lean` | Directed | D1 (#84/#85): `InfiniteDigraph` as the one-sort binary R1 instance — inherits compact/standard-Borel + measure extensionality; `Adj`(Prop)/`adjBit`(Bool); `digraphStructureEquiv V` plain carrier equivalence with `Digraph V` (infinite + finite bridges for D2) |
+| `Graphon/DigraphMaps.lean` | Directed | Minimal `Digraph.comap` pullback API for Mathlib's `Digraph` (mirrors `SimpleGraph.comap`; Mathlib-upstream candidate #24) |
+| `Graphon/InfiniteDigraphLaw.lean` | Directed | D2 (#84/#86): `PMF`-based `ExchangeableDigraphLaw`, the finite bridge `digraphLawEquiv` to `RelExchangeableLaw digraphSig`, and the headline `exchangeableDigraphLawEquiv` composing with R2c (measurable structure stays on the relational carrier) |
 | `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
 | `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
 | `Graphon/Operations.lean` | Experimental | Pointwise product |
