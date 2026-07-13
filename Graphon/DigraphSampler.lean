@@ -43,6 +43,20 @@ noncomputable def pairPMF (p : α × α) : PMF (Bool × Bool) :=
     W.pairPMF p ab = ENNReal.ofReal (W.simplexRep ab.1 ab.2 p) := by
   simp only [pairPMF, PMF.ofFintype_apply]
 
+/-- **Distributional transpose equivariance**: swapping the pair transposes the four-state
+distribution. (Pointwise equivariance of `catOutcome` is neither true nor needed; this
+distributional form — cashing out `simplexRep_swap` — is the statement used when `Quot.out`
+picks an arbitrary ordering of an unordered pair, and for relabeling.) -/
+theorem pairPMF_swap (p : α × α) : W.pairPMF p.swap = (W.pairPMF p).map Prod.swap := by
+  ext ab
+  rw [PMF.map_apply, pairPMF_apply, W.simplexRep_swap]
+  rw [tsum_eq_single ab.swap]
+  · rw [Prod.swap_swap, if_pos rfl, pairPMF_apply, Prod.fst_swap, Prod.snd_swap]
+  · intro cd hcd
+    rw [if_neg]
+    intro h
+    exact hcd (by rw [← Prod.swap_swap cd, ← h])
+
 /-! ### The one-uniform categorical outcome -/
 
 /-- **The one-uniform categorical map**: partition `[0,1]` into four sub-intervals of lengths
@@ -57,13 +71,27 @@ noncomputable def catOutcome (p : α × α) (u : ℝ) : Bool × Bool := by
       then (true, false)
     else (true, true)
 
-theorem measurable_catOutcome (p : α × α) : Measurable (W.catOutcome p) := by
+/-- **Joint measurability** of the categorical outcome in *both* the pair and the uniform — the
+form the sampler needs, since it evaluates `catOutcome` at `p = (Uᵢ, Uⱼ)` varying with the
+sample. Each threshold is a `simplexRep` of the pair coordinate, compared with the uniform
+coordinate. -/
+theorem measurable_catOutcome_joint :
+    Measurable (fun z : (α × α) × ℝ => W.catOutcome z.1 z.2) := by
   classical
   unfold catOutcome
-  refine Measurable.ite (measurableSet_lt measurable_id measurable_const) measurable_const ?_
-  refine Measurable.ite (measurableSet_lt measurable_id measurable_const) measurable_const ?_
-  exact Measurable.ite (measurableSet_lt measurable_id measurable_const)
-    measurable_const measurable_const
+  refine Measurable.ite (measurableSet_lt measurable_snd
+    ((W.measurable_simplexRep false false).comp measurable_fst)) measurable_const ?_
+  refine Measurable.ite (measurableSet_lt measurable_snd
+    (((W.measurable_simplexRep false false).comp measurable_fst).add
+      ((W.measurable_simplexRep false true).comp measurable_fst))) measurable_const ?_
+  exact Measurable.ite (measurableSet_lt measurable_snd
+    ((((W.measurable_simplexRep false false).comp measurable_fst).add
+      ((W.measurable_simplexRep false true).comp measurable_fst)).add
+      ((W.measurable_simplexRep true false).comp measurable_fst))) measurable_const measurable_const
+
+/-- Measurability of the categorical outcome at a fixed pair — a corollary of the joint version. -/
+theorem measurable_catOutcome (p : α × α) : Measurable (W.catOutcome p) :=
+  W.measurable_catOutcome_joint.comp (measurable_const.prodMk measurable_id)
 
 /-! ### The exact four-state law -/
 
@@ -193,6 +221,15 @@ theorem uniform01_map_catOutcome :
   | (true, true) =>
     rw [catOutcome_preimage_tt, uniform01_Ici (le_trans hc0 (le_trans hc12 hc23))]
     congr 1; simp only [c3]; linarith
+
+/-- **The exact single-event factor** consumed by the product-law proof: the uniform mass of the
+event that the categorical outcome equals `ab` is exactly `simplexRep ab`. -/
+theorem uniform01_catOutcome_singleton (ab : Bool × Bool) :
+    uniform01 {u | W.catOutcome p u = ab} = ENNReal.ofReal (W.simplexRep ab.1 ab.2 p) := by
+  rw [show {u | W.catOutcome p u = ab} = W.catOutcome p ⁻¹' {ab} from rfl,
+    ← Measure.map_apply (W.measurable_catOutcome p) (measurableSet_singleton ab),
+    W.uniform01_map_catOutcome p, PMF.toMeasure_apply_singleton _ _ (measurableSet_singleton ab),
+    pairPMF_apply]
 
 end
 

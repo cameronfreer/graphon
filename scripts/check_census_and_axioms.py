@@ -124,8 +124,11 @@ AUDITED_DECLS = {
     "MeasureTheory.Digraphon.simplexRep_swap",
     "MeasureTheory.Digraphon.simplexRep_ae_eq",
     "MeasureTheory.Digraphon.pairPMF_apply",
+    "MeasureTheory.Digraphon.pairPMF_swap",
     "MeasureTheory.Digraphon.measurable_catOutcome",
+    "MeasureTheory.Digraphon.measurable_catOutcome_joint",
     "MeasureTheory.Digraphon.uniform01_map_catOutcome",
+    "MeasureTheory.Digraphon.uniform01_catOutcome_singleton",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

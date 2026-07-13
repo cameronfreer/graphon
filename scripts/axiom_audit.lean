@@ -100,5 +100,8 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms MeasureTheory.Digraphon.simplexRep_swap
 #print axioms MeasureTheory.Digraphon.simplexRep_ae_eq
 #print axioms MeasureTheory.Digraphon.pairPMF_apply
+#print axioms MeasureTheory.Digraphon.pairPMF_swap
 #print axioms MeasureTheory.Digraphon.measurable_catOutcome
+#print axioms MeasureTheory.Digraphon.measurable_catOutcome_joint
 #print axioms MeasureTheory.Digraphon.uniform01_map_catOutcome
+#print axioms MeasureTheory.Digraphon.uniform01_catOutcome_singleton
