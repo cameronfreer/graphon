@@ -15,6 +15,14 @@ dependent. The correct object assigns to each ordered pair a probability distrib
 four reciprocal-edge states `(G i j, G j i) ∈ {0,1}²`, with a transpose symmetry, plus a
 `{0,1}`-valued loop coordinate.
 
+**Source crosswalk.** Cai–Ackerman–Freer Definition 2.1 presents a digraphon as pointwise
+`[0,1]`-valued functions on `[0,1]²` (a genuine everywhere-defined probability vector at every
+point). This formalization generalizes the domain to an arbitrary measured space `(α, μ)` and
+stores the kernels **modulo a.e. equality** (as `AEEqFun`), which is the quotient-friendly form
+the exchangeable-law theory produces; `simplexRep` then reconstructs an **everywhere-valid**
+sampling representative, recovering the source's pointwise probability-vector property (needed to
+make the categorical sampler a genuine function on all of `[0,1]`).
+
 * `Digraphon α μ` — the structure: four pair kernels `pairProb a b : α × α →ₘ[μ.prod μ] ℝ`
   (`a`, `b : Bool` the two directed-edge states) that are a.e. nonnegative, sum to one a.e., and
   satisfy the a.e. transpose law `pairProb a b (y,x) = pairProb b a (x,y)`, plus a Bool-valued
@@ -59,8 +67,10 @@ namespace Digraphon
 variable {μ}
 
 @[ext] theorem ext {W₁ W₂ : Digraphon α μ}
-    (hp : W₁.pairProb = W₂.pairProb) (hl : W₁.loop = W₂.loop) : W₁ = W₂ := by
-  cases W₁; cases W₂; simp only [mk.injEq]; exact ⟨hp, hl⟩
+    (hp : ∀ a b, W₁.pairProb a b = W₂.pairProb a b) (hl : W₁.loop = W₂.loop) : W₁ = W₂ := by
+  cases W₁; cases W₂
+  simp only [mk.injEq]
+  exact ⟨funext fun a => funext fun b => hp a b, hl⟩
 
 variable (W : Digraphon α μ)
 
@@ -89,7 +99,7 @@ theorem measurable_pairSym (a b : Bool) : Measurable (W.pairSym a b) :=
     ((W.measurable_pairRep b a).comp measurable_swap)).div_const 2)
 
 /-- **Transpose compatibility of the symmetrized kernel, everywhere.** -/
-theorem pairSym_swap (a b : Bool) (p : α × α) : W.pairSym a b p.swap = W.pairSym b a p := by
+@[simp] theorem pairSym_swap (a b : Bool) (p : α × α) : W.pairSym a b p.swap = W.pairSym b a p := by
   simp only [pairSym, Prod.swap_swap]; ring
 
 /-- The symmetrized kernel agrees a.e. with the given pair kernel (uses the a.e. transpose law). -/
@@ -157,7 +167,7 @@ theorem simplexRep_sum_eq_one (p : α × α) :
   · simp only [Fintype.sum_bool]; norm_num
 
 /-- **Transpose compatibility everywhere.** -/
-theorem simplexRep_swap (a b : Bool) (p : α × α) :
+@[simp] theorem simplexRep_swap (a b : Bool) (p : α × α) :
     W.simplexRep a b p.swap = W.simplexRep b a p := by
   classical
   unfold simplexRep
