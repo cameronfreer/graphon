@@ -86,3 +86,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.restrict_comp_pad
 #print axioms RelSignature.RelExchangeableLaw.paddedLaw_map_restrictFin
 #print axioms RelSignature.RelExchangeableLaw.infiniteLaw_map_restrictFin
+#print axioms RelSignature.RelExchangeableLaw.infiniteLaw_map_restrict
+#print axioms RelSignature.RelExchangeableLaw.infiniteLaw_map_relabel
+#print axioms RelSignature.relExchangeableLawEquiv

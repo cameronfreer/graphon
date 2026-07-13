@@ -88,6 +88,13 @@ theorem measurable_restrict {V W : S.Srt → Type*} (e : ∀ s, V s ↪ W s) :
   intro c
   exact measurable_eval _
 
+/-- **Relabelling by a sortwise family of permutations is measurable**. -/
+theorem measurable_relabel {V : S.Srt → Type*} (σ : ∀ s, Equiv.Perm (V s)) :
+    Measurable (RelStructure.relabel σ) := by
+  rw [measurable_pi_iff]
+  intro c
+  exact measurable_eval _
+
 /-! ### The finite-restriction cylinders -/
 
 /-- **The finite-restriction cylinders**: preimages of measurable finite-level events. -/
