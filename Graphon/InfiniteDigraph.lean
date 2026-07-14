@@ -98,6 +98,19 @@ noncomputable def digraphEquiv : InfiniteDigraph ≃ Digraph ℕ := digraphStruc
 noncomputable def finiteDigraphEquiv (n : ℕ) : FiniteDigraph n ≃ Digraph (Fin n) :=
   digraphStructureEquiv (Fin n)
 
+/-- **Coordinate extensionality**: two digraph structures agree once they agree at every
+ordered vertex pair — every relational coordinate of `digraphSig` is a `digraphCoord`. -/
+theorem digraphStructure_ext_iff {V : Type*} {G H : RelStructure digraphSig (fun _ => V)} :
+    G = H ↔ ∀ a b : V, G (digraphCoord a b) = H (digraphCoord a b) := by
+  refine ⟨fun h a b => h ▸ rfl, fun h => funext fun c => ?_⟩
+  obtain ⟨u, w⟩ := c
+  have hw : (digraphCoord (w 0) (w 1) : RelCoord digraphSig (fun _ => V)) = ⟨u, w⟩ := by
+    cases u
+    refine Sigma.ext rfl (heq_of_eq ?_)
+    funext i; fin_cases i <;> rfl
+  rw [← hw]
+  exact h (w 0) (w 1)
+
 namespace InfiniteDigraph
 
 /-- **Boolean adjacency**: whether the ordered pair `(a, b)` stands in the relation. -/
