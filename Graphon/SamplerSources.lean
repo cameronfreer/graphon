@@ -18,7 +18,10 @@ generically (no graph/digraph-specific index types) so the directed sampler need
   distinct vertices); `InfiniteGraph.EdgeIndex` is definitionally `OffDiagPairIndex ℕ`;
 * `uniform01` — the uniform probability measure on `[0,1]`;
 * `iidVertexSource μ` — i.i.d. positions `ℕ → α` with law `μ` (via `Measure.infinitePi`);
-* `iidUniformSource ι` — i.i.d. uniforms on `[0,1]` indexed by an arbitrary type `ι`.
+* `iidUniformSource ι` — i.i.d. uniforms on `[0,1]` indexed by an arbitrary type `ι`;
+* `Measure.infinitePi_map_comp_of_injective` — the finite-projection identity: pushing an
+  infinite product forward along precomposition with an injection from a finite index type gives
+  the finite product of the selected factors (the marginal computations of both samplers).
 
 The undirected graph sampler (`Graphon.InfiniteSampler`) and the directed digraph sampler both
 draw one vertex position per vertex (`iidVertexSource`) and one `[0,1]`-uniform per unordered pair
@@ -46,6 +49,13 @@ def OffDiagPairIndex.mk {V : Type*} {i j : V} (h : i ≠ j) : OffDiagPairIndex V
     OffDiagPairIndex.mk h.symm = OffDiagPairIndex.mk h :=
   Subtype.ext Sym2.eq_swap
 
+/-- **Injectivity of the pair index on unordered pairs**: two pair indices agree exactly when
+the underlying vertex pairs agree up to order. -/
+@[simp] theorem OffDiagPairIndex.mk_eq_mk {V : Type*} {i j i' j' : V} {h : i ≠ j}
+    {h' : i' ≠ j'} :
+    OffDiagPairIndex.mk h = OffDiagPairIndex.mk h' ↔ (i = i' ∧ j = j') ∨ (i = j' ∧ j = i') :=
+  Subtype.ext_iff.trans Sym2.eq_iff
+
 namespace MeasureTheory
 
 /-- **The uniform distribution on `[0,1]`.** -/
@@ -70,5 +80,44 @@ noncomputable def iidUniformSource (ι : Type*) : Measure (ι → ℝ) :=
 
 instance (ι : Type*) : IsProbabilityMeasure (iidUniformSource ι) := by
   rw [iidUniformSource]; infer_instance
+
+/-! ### Finite projections of infinite product sources -/
+
+/-- Pushing an infinite product of probability measures forward along precomposition
+with an injection from a finite index type gives the finite product of the selected
+factors — `Measure.infinitePi_map_restrict` for an arbitrary injection (constant-fiber
+form; Mathlib upstreaming candidate, issue #24). -/
+theorem Measure.infinitePi_map_comp_of_injective
+    {ι δ γ : Type*} [MeasurableSpace γ] (ν : ι → Measure γ)
+    [∀ i, IsProbabilityMeasure (ν i)] [Fintype δ] {f : δ → ι}
+    (hf : Function.Injective f) :
+    (Measure.infinitePi ν).map (fun (x : ι → γ) (d : δ) => x (f d)) =
+      Measure.pi fun d => ν (f d) := by
+  classical
+  refine (Measure.pi_eq fun s hs => ?_).symm
+  have hm : Measurable fun (x : ι → γ) (d : δ) => x (f d) :=
+    measurable_pi_iff.mpr fun d => measurable_pi_apply _
+  rw [Measure.map_apply hm (MeasurableSet.univ_pi hs)]
+  have hpre : (fun (x : ι → γ) (d : δ) => x (f d)) ⁻¹' Set.univ.pi s =
+      Set.pi ↑(Finset.univ.image f) (Function.extend f s fun _ => Set.univ) := by
+    ext u
+    simp only [Set.mem_preimage, Set.mem_pi, Set.mem_univ, true_implies, Finset.coe_image,
+      Finset.coe_univ, Set.image_univ, Set.mem_range, forall_exists_index]
+    constructor
+    · rintro h i d rfl
+      rw [hf.extend_apply]
+      exact h d
+    · intro h d
+      have hd := h (f d) d rfl
+      rwa [hf.extend_apply] at hd
+  have hmeas : ∀ i ∈ Finset.univ.image f,
+      MeasurableSet (Function.extend f s (fun _ => Set.univ) i) := by
+    intro i hi
+    obtain ⟨d, -, rfl⟩ := Finset.mem_image.mp hi
+    rw [hf.extend_apply]
+    exact hs d
+  rw [hpre, Measure.infinitePi_pi ν hmeas,
+    Finset.prod_image fun a _ b _ hab => hf hab]
+  exact Finset.prod_congr rfl fun d _ => by rw [hf.extend_apply]
 
 end MeasureTheory
