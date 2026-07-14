@@ -105,3 +105,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms MeasureTheory.Digraphon.measurable_catOutcome_joint
 #print axioms MeasureTheory.Digraphon.uniform01_map_catOutcome
 #print axioms MeasureTheory.Digraphon.uniform01_catOutcome_singleton
+#print axioms OffDiagPairIndex.mk_symm
+#print axioms MeasureTheory.Digraphon.sampleAdj_pair_of_lt
+#print axioms MeasureTheory.Digraphon.measurable_sampleInfinite
+#print axioms MeasureTheory.Digraphon.measurable_sampleFinite
