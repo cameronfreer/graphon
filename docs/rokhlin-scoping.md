@@ -23,7 +23,7 @@ whose common core is the measure isomorphism theorem (absent from Mathlib).**
 
 `MeasurePreserving.exists_common_extension` (`Graphon/CutDistance.lean:1065`, then the
 project's single live sorry; since deleted in R0) bundles three conjuncts. Hypotheses: `[StandardBorelSpace α]`,
-`μ` a probability measure — **note: `[NoAtoms μ]` is NOT assumed**.
+`μ` a probability measure — **note: `[NullSingletonClass μ]` is NOT assumed**.
 
 | Conjunct | Content | Sole consumers |
 |---|---|---|
@@ -46,9 +46,9 @@ COUPLING statement: the common extension lives on a fibered product / joining, w
 i.e. `P` and `e⁻¹Q` are equal mod 0 — impossible when the measure profiles differ:
 `P = {A, Aᶜ}` with `μ A = 1/2` vs `Q = trivialPartition`.
 
-**Conjunct 3 needs `[NoAtoms μ]`.** With atoms: `α = {a,b,c}`, `μ = (1/2, 1/4, 1/4)`,
+**Conjunct 3 needs `[NullSingletonClass μ]`.** With atoms: `α = {a,b,c}`, `μ = (1/2, 1/4, 1/4)`,
 cells `ι_S = ({b,c})`, `ι_T = ({a})` have matching measures `1/2`, but no bijection maps
-a two-atom cell into a one-atom cell (a.e. = everywhere on atoms). With `[NoAtoms μ]`
+a two-atom cell into a one-atom cell (a.e. = everywhere on atoms). With `[NullSingletonClass μ]`
 conjunct 3 is the honest Rokhlin consequence and is TRUE.
 
 *(Both counterexamples are paper-level; the campaign's Phase R0 should re-verify them —
@@ -70,7 +70,7 @@ restatement lands.)*
   variant. **This is the one consumer where the downstream proof itself may need
   surgery, not just a lemma swap.**
 - **InverseCounting ×3**: all three uses are measure-matched injective families —
-  corrected conjunct 3 (with `[NoAtoms μ]`, available at all three sites) suffices
+  corrected conjunct 3 (with `[NullSingletonClass μ]`, available at all three sites) suffices
   verbatim.
 
 ## 4. Mathlib inventory
@@ -85,8 +85,8 @@ restatement lands.)*
 ## 5. Recommended campaign shape
 
 - **R0 — restate.** Replace the bundled stub by three separate declarations with
-  corrected hypotheses: (i) coupling form of map alignment (MP maps, `[NoAtoms μ]`);
-  (ii) measure-matched partition alignment; (iii) conjunct 3 + `[NoAtoms μ]`. Fix the
+  corrected hypotheses: (i) coupling form of map alignment (MP maps, `[NullSingletonClass μ]`);
+  (ii) measure-matched partition alignment; (iii) conjunct 3 + `[NullSingletonClass μ]`. Fix the
   three consumer sites (mechanical for InverseCounting and probably for the triangle;
   real work possible in Compactness). Statement changes here are *corrections of a
   sorried stub's contract*, but they touch consumers — do this first and get the
@@ -94,7 +94,7 @@ restatement lands.)*
 - **R1 — the core.** `exists_measurePreserving_equiv_mod0_unitInterval`: atomless
   standard Borel probability space ≅ mod-0 `([0,1], λ)`. Construction: Borel iso to
   `[0,1]` (Mathlib) → pushforward `ν` → CDF `F(x) = ν[0,x]` pushes `ν` to `λ`
-  (continuity from `NoAtoms`) → mod-0 invertibility by discarding the null set where
+  (continuity from `NullSingletonClass`) → mod-0 invertibility by discarding the null set where
   `F` is locally constant → upgrade mod-0 iso to an everywhere `≃ᵐ` by null-set
   patching (uncountable-Borel patching, standard). **Mathlib-upstreamable.**
 - **R2 — derive.** (iii) via interval rearrangement on `[0,1]` conjugated through R1;
@@ -116,12 +116,12 @@ program axiom-clean.
 
 The monolith is deleted. The project's entire live measure-theory surface is now exactly four
 corrected, true, sorried cores in `CutDistance.lean`, each a consequence of the R1 theorem:
-1. `exists_common_coupling_maps` — common coupling of two MP maps by MP maps (`[NoAtoms μ]`).
+1. `exists_common_coupling_maps` — common coupling of two MP maps by MP maps (`[NullSingletonClass μ]`).
 2. `cutNormDiff_pullback_le` — pullback contracts the cut norm (MP maps).
 3. `exists_controlled_cell_alignment` — equal-measure cell families aligned by an MP bijection
-   (`[NoAtoms μ]`).
+   (`[NullSingletonClass μ]`).
 4. `exists_mpEquiv_cutNormDiff_lt_add` — an MP bijection achieves the cut distance up to ε
-   (`[NoAtoms μ]`).
+   (`[NullSingletonClass μ]`).
 Supporting new infrastructure proved en route (all axiom-clean): `exists_equal_chunks_inside`,
 `exists_one_over_q_chunks_with_remainder`, `exists_equipartition_almost_refining`
 (Regularity.lean); `stepGraphon_reround_to_equipartition` (Compactness.lean); the certified

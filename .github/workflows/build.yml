@@ -70,7 +70,6 @@ jobs:
 
       - name: Build API docs
         if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
-        continue-on-error: true
         run: |
           cd docbuild
           lake build Graphon:docs

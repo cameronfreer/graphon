@@ -15,7 +15,7 @@
 The only live graphon-theory core left is:
 
 ```lean
-theorem exists_mpEquiv_cutNormDiff_lt_add [StandardBorelSpace α] [NoAtoms μ]
+theorem exists_mpEquiv_cutNormDiff_lt_add [StandardBorelSpace α] [NullSingletonClass μ]
     (U W : Graphon α μ) {ε : ℝ} (hε : 0 < ε) :
     ∃ (σ : α ≃ᵐ α) (hσ : MeasurePreserving σ μ μ),
       cutNormDiff (pullback U σ hσ) W < cutDistance U W + ε
@@ -74,7 +74,7 @@ A consumer-shaped theorem sufficient for the core is:
 
 ```lean
 theorem cutDistance_maps_to_equiv_overlay
-    [StandardBorelSpace α] [NoAtoms μ]
+    [StandardBorelSpace α] [NullSingletonClass μ]
     (U W : Graphon α μ)
     (φ ψ : α → α) (hφ : MeasurePreserving φ μ μ) (hψ : MeasurePreserving ψ μ μ)
     {η : ℝ} (hη : 0 < η) :

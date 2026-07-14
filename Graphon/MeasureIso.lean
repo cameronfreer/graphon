@@ -33,6 +33,10 @@ measure-theory obligation:
 > An atomless standard-Borel probability space `(α, μ)` is measure-preservingly isomorphic
 > mod 0 to `([0,1], Lebesgue)`.
 
+Hypotheses are stated via `NullSingletonClass μ` (every singleton is null). In an arbitrary
+measurable space that is *weaker* than atomlessness; on the standard-Borel spaces of this file
+the two coincide, and the prose uses "atomless" in that sense.
+
 It is deliberately **independent of graphons** — pure Mathlib-style measure theory, and a
 plausible upstreaming target (the `Architect` import supplies only the `@[blueprint]`
 annotation attribute; strip it when upstreaming).
@@ -58,9 +62,10 @@ open MeasureTheory ProbabilityTheory Filter Topology Set Function
 
 namespace Graphon.MeasureIso
 
-/-- **R1b — CDF continuity from atomlessness.** The cumulative distribution function of an
-atomless probability measure on `ℝ` is continuous. (A general CDF is only right-continuous;
-the left jumps are exactly the atoms, `cdf ν x − leftLim (cdf ν) x = ν {x}`, which vanish.) -/
+/-- **R1b — CDF continuity from null singletons.** The cumulative distribution function of a
+null-singleton probability measure on `ℝ` is continuous. (A general CDF is only
+right-continuous; the left jumps are exactly the singleton masses,
+`cdf ν x − leftLim (cdf ν) x = ν {x}`, which vanish.) -/
 theorem continuous_cdf_of_noAtoms (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν] :
     Continuous (cdf ν) := by
   have hleft : ∀ x, leftLim (cdf ν) x = cdf ν x := by
@@ -484,8 +489,8 @@ noncomputable def realMod0MeasureIso (ν : Measure ℝ) [IsProbabilityMeasure ν
   left_inv_ae := cdfQuantile_cdf_ae ν
   right_inv_ae := cdf_cdfQuantile_ae ν
 
-/-- The pushforward of an atomless measure by a measurable embedding is atomless: each singleton
-has an at-most-singleton preimage, which is null. -/
+/-- The pushforward of a null-singleton measure by a measurable embedding again has null
+singletons: each singleton has an at-most-singleton preimage, which is null. -/
 private lemma noAtoms_map_of_injective {α β} [MeasurableSpace α] [MeasurableSpace β]
     {μ : Measure α} [NullSingletonClass μ] {f : α → β} (hf : MeasurableEmbedding f) :
     NullSingletonClass (Measure.map f μ) := by
