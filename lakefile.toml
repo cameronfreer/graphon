@@ -19,7 +19,7 @@ rev = "3d425859e73fcfbef85b9638c2a91708ef4a22d4"
 [[require]]
 name = "mathlib"
 scope = "leanprover-community"
-rev = "v4.32.0-rc1"
+rev = "v4.32.0"
 
 [[lean_lib]]
 name = "Graphon"
