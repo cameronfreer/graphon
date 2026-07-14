@@ -888,17 +888,6 @@ theorem map_sampleFinite_pair_disjoint (k l : ℕ) :
     (RelSignature.measurable_restrict _).comp (W.measurable_sampleFinite (k + l))
   refine Measure.ext_of_singleton fun P => ?_
   obtain ⟨D₁, D₂⟩ := P
-  have hev : ∀ (m : ℕ) (e : Fin m → Fin (k + l)) (he : Function.Injective e)
-      (D : FiniteDigraph m) (ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ)),
-      RelStructure.restrict (fun _ : Unit => ⟨e, he⟩) (W.sampleFinite (k + l) ω) = D ↔
-        ∀ i j : Fin m, W.sampleAdj ω (e i) (e j) = D (digraphCoord i j) := by
-    intro m e he D ω
-    rw [digraphStructure_ext_iff]
-    refine forall₂_congr fun i j => ?_
-    show W.sampleFinite (k + l) ω (RelCoord.map (fun _ => ⇑(⟨e, he⟩ : Fin m ↪ Fin (k + l)))
-        (digraphCoord i j)) = D (digraphCoord i j) ↔ _
-    rw [digraphCoord_map]
-    exact Iff.rfl
   rw [Measure.map_apply (hm₁.prodMk hm₂) (measurableSet_singleton _),
     show ({(D₁, D₂)} : Set (FiniteDigraph k × FiniteDigraph l)) = {D₁} ×ˢ {D₂} from
       (Set.singleton_prod_singleton).symm,
