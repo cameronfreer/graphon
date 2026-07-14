@@ -4,25 +4,38 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.Digraphon
+import Graphon.InfiniteDigraph
 import Graphon.SamplerSources
 import Mathlib.Probability.ProbabilityMassFunction.Constructions
 
 /-!
-# The per-pair categorical outcome of a digraphon (directed umbrella #84, D3b step 2 / #87)
+# The categorical outcome and explicit sampler of a digraphon (#84, D3b steps 2–3 / #87)
 
 The reciprocal-edge outcome of a digraphon at a fixed pair is a **single categorical draw** over
 the four states `(G i j, G j i) ∈ {0,1}²`, carrying all four probabilities — *not* two
-independent Bernoullis. This file builds that mechanism from the everywhere-valid `simplexRep`:
+independent Bernoullis. This file builds that mechanism from the everywhere-valid `simplexRep`,
+then the explicit finite and infinite digraph samplers on top of it:
 
 * `Digraphon.pairPMF p` — the four-state distribution at `p`, a `PMF (Bool × Bool)` with mass
   `ENNReal.ofReal (simplexRep a b p)` on `(a, b)`;
 * `Digraphon.catOutcome p` — the **one-uniform categorical map**: partition `[0,1]` by the four
   probabilities and read off the reciprocal-edge state from a single uniform;
 * `Digraphon.uniform01_map_catOutcome` — **the exact four-state law**: the pushforward of the
-  uniform measure under `catOutcome p` is exactly `pairPMF p`.
+  uniform measure under `catOutcome p` is exactly `pairPMF p`;
+* `Digraphon.samplerSource μ` — the sampler source: i.i.d. vertex positions (law `μ`) and one
+  `[0,1]`-uniform per off-diagonal unordered pair (`OffDiagPairIndex ℕ`), independent;
+* `Digraphon.sampleAdj` — the sampler's adjacency bit at an ordered pair, in the
+  **natural-number order**: the diagonal reads the loop coordinate; an off-diagonal pair reads
+  one coordinate of the single categorical draw at the increasing-order positions from the one
+  uniform of the unordered pair (`sampleAdj_self` / `sampleAdj_of_lt` / `sampleAdj_of_gt`);
+* `Digraphon.sampleInfinite` / `Digraphon.sampleFinite n` — the explicit infinite sampler (into
+  `InfiniteDigraph`) and its restriction to the first `n` vertices, both measurable in the
+  sources.
 
 The generic i.i.d. sources (`MeasureTheory.uniform01`, `iidVertexSource`, `iidUniformSource`) are
-reused from `Graphon.SamplerSources`; the finite/infinite samplers are the next step (D3b step 3).
+reused from `Graphon.SamplerSources`. The sampler's law (exact-event product formula,
+identification with `exchangeableDigraphLawEquiv`, exchangeability, dissociation) is the next
+step (D3b step 4).
 -/
 
 open MeasureTheory Set
@@ -232,5 +245,93 @@ theorem uniform01_catOutcome_singleton (ab : Bool × Bool) :
     pairPMF_apply]
 
 end
+
+/-! ### The sampler source -/
+
+/-- **The digraph sampler source**: i.i.d. vertex positions with law `μ` and one `[0,1]`-uniform
+per off-diagonal unordered pair, independent. -/
+noncomputable def samplerSource (μ : Measure α) :
+    Measure ((ℕ → α) × (OffDiagPairIndex ℕ → ℝ)) :=
+  (iidVertexSource μ).prod (iidUniformSource (OffDiagPairIndex ℕ))
+
+instance (μ : Measure α) [IsProbabilityMeasure μ] : IsProbabilityMeasure (samplerSource μ) := by
+  rw [samplerSource]; infer_instance
+
+/-! ### The explicit sampler (D3b step 3) -/
+
+/-- **The sampler's adjacency bit at an ordered pair** `(i, j)`, in the natural-number order:
+the diagonal reads the loop coordinate at the vertex position; an off-diagonal pair reads one
+coordinate of the *single* categorical draw at the increasing-order positions — for `i < j` the
+first coordinate of `catOutcome (xᵢ, xⱼ)`, for `j < i` the second coordinate of
+`catOutcome (xⱼ, xᵢ)` — from the one uniform attached to the unordered pair `{i, j}`. -/
+noncomputable def sampleAdj (ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ)) (i j : ℕ) : Bool :=
+  if h : i < j then (W.catOutcome (ω.1 i, ω.1 j) (ω.2 (OffDiagPairIndex.mk h.ne))).1
+  else if h' : j < i then (W.catOutcome (ω.1 j, ω.1 i) (ω.2 (OffDiagPairIndex.mk h'.ne))).2
+  else W.loopRep (ω.1 i)
+
+/-- **The diagonal coordinate** of the sampler: the loop bit at the vertex position. -/
+@[simp] theorem sampleAdj_self (ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ)) (i : ℕ) :
+    W.sampleAdj ω i i = W.loopRep (ω.1 i) := by
+  rw [sampleAdj, dif_neg (lt_irrefl i), dif_neg (lt_irrefl i)]
+
+/-- **The increasing-order coordinate** of the sampler: for `i < j`, the first component of the
+categorical draw at `(xᵢ, xⱼ)`. -/
+theorem sampleAdj_of_lt (ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ)) {i j : ℕ} (h : i < j) :
+    W.sampleAdj ω i j = (W.catOutcome (ω.1 i, ω.1 j) (ω.2 (OffDiagPairIndex.mk h.ne))).1 := by
+  rw [sampleAdj, dif_pos h]
+
+/-- **The decreasing-order coordinate** of the sampler: for `j < i`, the second component of the
+categorical draw at `(xⱼ, xᵢ)` — the *same* draw as the `(j, i)` coordinate, giving the
+reciprocal-edge dependence. -/
+theorem sampleAdj_of_gt (ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ)) {i j : ℕ} (h : j < i) :
+    W.sampleAdj ω i j = (W.catOutcome (ω.1 j, ω.1 i) (ω.2 (OffDiagPairIndex.mk h.ne))).2 := by
+  rw [sampleAdj, dif_neg (Nat.lt_asymm h), dif_pos h]
+
+/-- **Measurability of the adjacency bit** in the sources, at each fixed ordered pair — via the
+joint measurability of `catOutcome`, since the pair argument varies with the sample. -/
+theorem measurable_sampleAdj (i j : ℕ) :
+    Measurable fun ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) => W.sampleAdj ω i j := by
+  have hx : ∀ k : ℕ, Measurable fun ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) => ω.1 k :=
+    fun k => (measurable_pi_apply k).comp measurable_fst
+  have hu : ∀ e : OffDiagPairIndex ℕ,
+      Measurable fun ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) => ω.2 e :=
+    fun e => (measurable_pi_apply e).comp measurable_snd
+  rcases lt_trichotomy i j with h | rfl | h
+  · rw [funext fun ω => W.sampleAdj_of_lt ω h]
+    exact measurable_fst.comp (W.measurable_catOutcome_joint.comp
+      (((hx i).prodMk (hx j)).prodMk (hu _)))
+  · rw [funext fun ω => W.sampleAdj_self ω i]
+    exact W.measurable_loopRep.comp (hx i)
+  · rw [funext fun ω => W.sampleAdj_of_gt ω h]
+    exact measurable_snd.comp (W.measurable_catOutcome_joint.comp
+      (((hx j).prodMk (hx i)).prodMk (hu _)))
+
+/-- **The explicit infinite digraph sampler**: the relational structure whose ordered-pair
+coordinates are the sampler's adjacency bits. -/
+noncomputable def sampleInfinite (ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ)) : InfiniteDigraph :=
+  fun c => W.sampleAdj ω (c.2 0) (c.2 1)
+
+/-- The adjacency bit of the sampled infinite digraph, unfolded. -/
+@[simp] theorem adjBit_sampleInfinite (ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ)) (i j : ℕ) :
+    (W.sampleInfinite ω).adjBit i j = W.sampleAdj ω i j := rfl
+
+/-- **The infinite digraph sampler is measurable** in the sources: each ordered-pair coordinate
+is a measurable adjacency bit. -/
+theorem measurable_sampleInfinite : Measurable W.sampleInfinite :=
+  measurable_pi_iff.mpr fun c => W.measurable_sampleAdj (c.2 0) (c.2 1)
+
+/-- **The finite digraph sampler**: the restriction of the infinite sampler to the first `n`
+vertices. -/
+noncomputable def sampleFinite (n : ℕ) (ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ)) :
+    FiniteDigraph n :=
+  InfiniteDigraph.restrictFin n (W.sampleInfinite ω)
+
+/-- The ordered-pair coordinate of the sampled finite digraph, unfolded. -/
+@[simp] theorem sampleFinite_apply (n : ℕ) (ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ))
+    (i j : Fin n) :
+    W.sampleFinite n ω (digraphCoord i j) = W.sampleAdj ω i j := rfl
+
+theorem measurable_sampleFinite (n : ℕ) : Measurable (W.sampleFinite n) :=
+  (InfiniteDigraph.measurable_restrictFin n).comp W.measurable_sampleInfinite
 
 end MeasureTheory.Digraphon
