@@ -95,7 +95,7 @@ end Graphon.ExchangeableGraphLaw
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **The union (birthday) bound**: at most a `k²/m` proportion of vertex maps
 `Fin k → Fin m` are non-injective. (Private: pure finite combinatorics, kept internal

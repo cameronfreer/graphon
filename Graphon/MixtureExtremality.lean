@@ -56,7 +56,7 @@ end Graphon.ExchangeableGraphLaw
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- Pointwise disjoint-union multiplicativity of the hom-density coordinates
 (`homDensity_sum_finAdd`, descended through the quotient). -/

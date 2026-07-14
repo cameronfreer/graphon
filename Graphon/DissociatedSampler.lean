@@ -28,9 +28,9 @@ open MeasureTheory
 namespace InfiniteGraph
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
-omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- The sampler's adjacency, in the literal functional Aldous–Hoover form: distinct
 vertices `i, j` are adjacent exactly when the pair's uniform falls below the (clamped)
 graphon value at the latent positions. -/

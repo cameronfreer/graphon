@@ -29,7 +29,7 @@ open MeasureTheory
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **The graphon-mixture representation theorem** (Diaconis–Janson): every exchangeable
 graph law is the mixture law of a unique probability measure on the graphon space —

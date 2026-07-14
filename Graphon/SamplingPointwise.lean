@@ -170,7 +170,7 @@ section PointSamplingMajorant
 
 open scoped Classical
 
-variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- The chosen Frieze–Kannan partition of `W` at quality `ε'` (junk `trivialPartition`
 when `ε' ≤ 0`; all theorems below carry `0 < ε'`). -/
@@ -215,12 +215,12 @@ noncomputable def pointSamplingMajorant (W : Graphon α μ) (ε' : ℝ) (k : ℕ
 
 /-! ### Bounds and nonnegativity -/
 
-omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ] in
 theorem clampEval_nonneg (V : Graphon α μ) {k : ℕ} (x : Fin k → α) (i j : Fin k) :
     0 ≤ clampEval V x i j :=
   le_min zero_le_one (le_max_left 0 _)
 
-omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ] in
 theorem clampEval_le_one (V : Graphon α μ) {k : ℕ} (x : Fin k → α) (i j : Fin k) :
     clampEval V x i j ≤ 1 :=
   min_le_left 1 _
@@ -283,7 +283,7 @@ theorem empFreq_le_one {k : ℕ} [NeZero k] (S : Set α) (x : Fin k → α) : em
         exact_mod_cast Finset.card_filter_le _ _
     _ = k := by rw [Finset.card_univ, Fintype.card_fin]
 
-omit [IsProbabilityMeasure μ] [NoAtoms μ] in
+omit [IsProbabilityMeasure μ] [NullSingletonClass μ] in
 /-- The frequency deviation of a single cell is at most `1`. -/
 theorem abs_empFreq_sub_le_one {k : ℕ} [NeZero k] (S : Set α) (x : Fin k → α)
     (hS : (μ S).toReal ≤ 1) :
@@ -294,7 +294,7 @@ theorem abs_empFreq_sub_le_one {k : ℕ} [NeZero k] (S : Set α) (x : Fin k → 
   have h2 : 0 ≤ (μ S).toReal := ENNReal.toReal_nonneg
   constructor <;> linarith
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 theorem freqTerm_nonneg (W : Graphon α μ) (ε' : ℝ) (k : ℕ) [NeZero k] (x : Fin k → α) :
     0 ≤ freqTerm W ε' k x := by
   unfold freqTerm
@@ -313,7 +313,7 @@ theorem pointSamplingMajorant_nonneg (W : Graphon α μ) {ε' : ℝ} (hε' : 0 �
 
 /-! ### Measurability and integrability -/
 
-omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ] in
 theorem measurable_clampEval (V : Graphon α μ) {k : ℕ} (i j : Fin k) :
     Measurable (fun x : Fin k → α ↦ clampEval V x i j) := by
   unfold clampEval
@@ -337,7 +337,7 @@ theorem measurable_empFreq {k : ℕ} {S : Set α} (hS : MeasurableSet S) :
   exact Finset.measurable_sum _
     (fun i _ ↦ (measurable_const.indicator hS).comp (measurable_pi_apply i))
 
-omit [NoAtoms μ] in
+omit [NullSingletonClass μ] in
 theorem measurable_freqTerm (W : Graphon α μ) (ε' : ℝ) (k : ℕ) [NeZero k] :
     Measurable (fun x : Fin k → α ↦ freqTerm W ε' k x) := by
   unfold freqTerm
@@ -407,7 +407,7 @@ theorem integrable_pointSamplingMajorant (W : Graphon α μ) (ε' : ℝ) (k : �
 
 /-! ### A.e. domination -/
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- **Part a** (deterministic): `W` is `ε'`-close to its step approximation. -/
 theorem cutDistance_W_chosenStep_le (W : Graphon α μ) {ε' : ℝ} (hε' : 0 < ε') :
     cutDistance W (chosenStep W ε') ≤ ε' := by
@@ -463,7 +463,7 @@ theorem ae_forall_sample_mem_part (P : MeasurablePartition α μ) {k : ℕ} [NeZ
   exact (MeasureTheory.measurePreserving_eval (fun _ : Fin k ↦ μ) i).quasiMeasurePreserving.ae
     P.ae_covers
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- Graphons with a.e.-equal kernels are at cut-norm difference zero (every rectangle
 integral of the difference vanishes). -/
 theorem cutNormDiff_eq_zero_of_ae_eq (V₁ V₂ : Graphon α μ)
@@ -519,7 +519,7 @@ noncomputable def coeffOfMatrix {n : ℕ} (ι : Fin n → Set α) (M : Fin n →
     Set α → Set α → ℝ :=
   fun A B ↦ if h : (∃ i, ι i = A) ∧ (∃ j, ι j = B) then M h.1.choose h.2.choose else 0
 
-omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ] in
 theorem coeffOfMatrix_symm {n : ℕ} (ι : Fin n → Set α) (M : Fin n → Fin n → ℝ)
     (hM : ∀ i j, M i j = M j i) (A B : Set α) :
     coeffOfMatrix ι M A B = coeffOfMatrix ι M B A := by
@@ -528,7 +528,7 @@ theorem coeffOfMatrix_symm {n : ℕ} (ι : Fin n → Set α) (M : Fin n → Fin 
   · rw [dif_pos h, dif_pos ⟨h.2, h.1⟩]; exact hM _ _
   · rw [dif_neg h, dif_neg (fun hc ↦ h ⟨hc.2, hc.1⟩)]
 
-omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ] in
 theorem coeffOfMatrix_mem {n : ℕ} (ι : Fin n → Set α) (M : Fin n → Fin n → ℝ)
     (hM : ∀ i j, M i j ∈ Set.Icc (0 : ℝ) 1) (A B : Set α) :
     coeffOfMatrix ι M A B ∈ Set.Icc (0 : ℝ) 1 := by
@@ -537,7 +537,7 @@ theorem coeffOfMatrix_mem {n : ℕ} (ι : Fin n → Set α) (M : Fin n → Fin n
   · rw [dif_pos h]; exact hM _ _
   · rw [dif_neg h]; exact ⟨le_refl 0, zero_le_one⟩
 
-omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ] in
 theorem coeffOfMatrix_eq {n : ℕ} (ι : Fin n → Set α) (M : Fin n → Fin n → ℝ)
     (hι : Function.Injective ι) (a b : Fin n) :
     coeffOfMatrix ι M (ι a) (ι b) = M a b := by
@@ -983,7 +983,7 @@ theorem ae_cutDistance_le_pointSamplingMajorant (W : Graphon α μ) {ε' : ℝ} 
 
 /-! ### Layer 2: the frequency expectation bound -/
 
-omit [IsProbabilityMeasure μ] [NoAtoms μ] in
+omit [IsProbabilityMeasure μ] [NullSingletonClass μ] in
 theorem measurable_abs_empFreq_sub {k : ℕ} {S : Set α} (hS : MeasurableSet S) :
     Measurable (fun x : Fin k → α ↦ |empFreq S x - (μ S).toReal|) :=
   continuous_abs.measurable.comp ((measurable_empFreq hS).sub measurable_const)
@@ -1014,7 +1014,7 @@ private theorem sq_integral_abs_le {Ω : Type*} [MeasurableSpace Ω] {ν : Measu
   rw [e1, e2] at hv
   linarith
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- **Per-cell frequency bound** (iid variance + Cauchy–Schwarz): the mean absolute deviation
 of the empirical cell frequency from the true measure is `O(1/√k)`, uniformly over cells. The
 variance identity `E(empFreq − μS)² = μS(1−μS)/k ≤ 1/(4k)` (cross terms vanish by coordinate
@@ -1184,7 +1184,7 @@ private noncomputable def coreDiff (W : Graphon α μ) (ε' : ℝ) {k : ℕ} (x 
     (i j : Fin k) : ℝ :=
   clampEval W x i j - clampEval (chosenStep W ε') x i j
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- Each sampled difference entry has absolute value at most `1`. -/
 private theorem abs_coreDiff_le_one (W : Graphon α μ) (ε' : ℝ) {k : ℕ} (x : Fin k → α)
     (i j : Fin k) : |coreDiff W ε' x i j| ≤ 1 := by
@@ -1218,7 +1218,7 @@ private theorem coreTerm_eq_normalForm (W : Graphon α μ) (ε' : ℝ) {k : ℕ}
   refine Finset.sum_congr rfl (fun j _ ↦ ?_)
   ring
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- Rectangle bound for the difference matrix: `|∑_{i∈S} ∑_{j∈T} D| ≤ |S|·|T|`, since each
 entry has `|D| ≤ 1`. Shared by the block-split reduction and the integrability of the
 fresh-block sup. -/
@@ -1421,14 +1421,14 @@ private theorem sup'_sdiff_le_sup' {k : ℕ} [NeZero k] (m : Fin k → Fin k →
   exact Finset.le_sup' (fun AB ↦ |∑ i ∈ AB.1, ∑ j ∈ AB.2, m i j|)
     (Finset.mem_univ (AB.1 \ Q, AB.2 \ Q))
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- (H2a) The sampled difference matrix is symmetric POINTWISE (not just a.e.), by the
 `(min,max)` index normalization inside `clampEval`. -/
 private theorem coreDiff_symm (W : Graphon α μ) (ε' : ℝ) {k : ℕ} (x : Fin k → α)
     (i j : Fin k) : coreDiff W ε' x i j = coreDiff W ε' x j i := by
   simp only [coreDiff, clampEval, min_comm i j, max_comm i j]
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- (H2b) Locality: `coreDiff W ε' x i j` depends on the sample only through `x i` and
 `x j`. -/
 private theorem coreDiff_congr (W : Graphon α μ) (ε' : ℝ) {k : ℕ} {x x' : Fin k → α}
@@ -2045,7 +2045,7 @@ private theorem sup'_abs_cut_le_avg_signedRuleSup {k q : ℕ} [NeZero k] (hq : 0
   · exact (Finset.le_sup' (fun AB : Finset (Fin k) × Finset (Fin k) ↦
       ∑ i ∈ AB.1, ∑ j ∈ AB.2, m i j) (Finset.mem_univ (A, B))).trans h9a_m
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- Measurability of the sample rule value, for the integrability side conditions. -/
 private theorem measurable_ruleVal_sample (W : Graphon α μ) (ε' : ℝ) {k : ℕ}
     (s : Bool) (R R' : Finset (Fin k)) :
@@ -2083,7 +2083,7 @@ private theorem measurable_ruleVal_sample (W : Graphon α μ) (ε' : ℝ) {k : �
   · exact Measurable.ite (measurableSet_lt measurable_const (hsum j R)) measurable_const
       measurable_const
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- (H9c) **BRIDGE GATE** — the exact integrated, normalized inequality the master proof
 consumes: the fixed `guessBlock` sup integral is dominated by the double average over
 `q`-subsets of the signed-rule sup integrals, plus `2/√q`. The deterministic block is gone
@@ -2279,7 +2279,7 @@ private noncomputable def blockGlue {k : ℕ} (B : Finset (Fin k))
     (y : {l : Fin k // l ∈ B} → α) (z : {l : Fin k // ¬ l ∈ B} → α) : Fin k → α :=
   fun i ↦ if h : i ∈ B then y ⟨i, h⟩ else z ⟨i, h⟩
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- (H11a) The block-splitting equivalence, coordinatewise. -/
 private theorem piEquivPiSubtypeProd_symm_eq_blockGlue {k : ℕ} (B : Finset (Fin k))
     (y : {l : Fin k // l ∈ B} → α) (z : {l : Fin k // ¬ l ∈ B} → α) :
@@ -2303,7 +2303,7 @@ private theorem ruleVal_eq_sum_ite {k : ℕ} (m : Fin k → Fin k → ℝ) (R R'
     by_cases hQ : 0 < ∑ j' ∈ R, m j j' <;> simp [hQ]
   · simp [hP]
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- The pushforward of a product measure under the two-coordinate evaluation map at distinct
 indices `a ≠ b` (over an arbitrary finite index type) is `μ.prod μ`. Generalizes the map
 computation inside `ae_pairMap_of_prod` to an arbitrary `Fintype` index. -/
@@ -2320,7 +2320,7 @@ private theorem pairMap_map_prod {ι : Type*} [Fintype ι] {a b : ι} (hab : a �
     h_indep_pair, (MeasureTheory.measurePreserving_eval (fun _ : ι ↦ μ) a).map_eq,
     (MeasureTheory.measurePreserving_eval (fun _ : ι ↦ μ) b).map_eq]
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- (H11b, absolute version) **Fresh-pair section bound.** For a fixed signed rule generated
 inside the block `B` and a fresh ordered pair `i ≠ j`, the fresh-sample average of the
 indicator-weighted entry is a rectangle integral of `W − chosenStep W ε'` over measurable
@@ -2539,7 +2539,7 @@ private theorem abs_integral_pairRule_le (W : Graphon α μ) (ε' : ℝ) {k : �
           rw [integral_indicator (hS₂.prod hS₁)]; rfl
       _ ≤ cutNormDiff W (chosenStep W ε') := abs_rectIntegralDiff_le W _ hS₂ hS₁
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- (H11c) **Conditional mean of a fixed rule.** Classifying entries as fresh off-diagonal
 (≤ `k²`, each ≤ `cutNormDiff` by H11b), block-touching (≤ `2|B|k`, each ≤ 1), and diagonal
 (≤ `k`, each ≤ 1). -/
@@ -2707,7 +2707,7 @@ private theorem ae_integral_ruleVal_le (W : Graphon α μ) (ε' : ℝ) {k : ℕ}
         rw [e2, e3, e4]
         linarith
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- (H12) **Bounded differences.** Changing one fresh coordinate changes the rule value by at
 most `4k`: rule memberships of other coordinates are unchanged (their sign sums read only the
 block and their own coordinate), and the changed row and column each move by at most `2k`.
@@ -2902,9 +2902,9 @@ private theorem integral_sup'_le_sqrt_two_mul_log_card {Ω : Type*} [MeasurableS
         (fun r' _ ↦ Real.exp_nonneg _) hr
     have hint_sup : (∫ ω, Real.exp (t * g ω) ∂ν)
         ≤ ∫ ω, ∑ r ∈ s, Real.exp (t * Z r ω) ∂ν :=
-      integral_mono hexpg_int (integrable_finset_sum s hexpZ_int) hstep
+      integral_mono hexpg_int (integrable_finsetSum s hexpZ_int) hstep
     have hsum_int : (∫ ω, ∑ r ∈ s, Real.exp (t * Z r ω) ∂ν)
-        = ∑ r ∈ s, ∫ ω, Real.exp (t * Z r ω) ∂ν := integral_finset_sum s hexpZ_int
+        = ∑ r ∈ s, ∫ ω, Real.exp (t * Z r ω) ∂ν := integral_finsetSum s hexpZ_int
     have hsum_bd : (∑ r ∈ s, ∫ ω, Real.exp (t * Z r ω) ∂ν)
         ≤ s.card * Real.exp (σ2 * t ^ 2 / 2) := by
       calc ∑ r ∈ s, ∫ ω, Real.exp (t * Z r ω) ∂ν
@@ -2924,7 +2924,7 @@ private theorem integral_sup'_le_sqrt_two_mul_log_card {Ω : Type*} [MeasurableS
   by_cases hL : Real.log s.card = 0
   · rw [hL, mul_zero, Real.sqrt_zero]
     by_contra hSneg
-    push_neg at hSneg
+    push Not at hSneg
     have h2 := main (S / σ2) (div_pos hSneg hσ2)
     rw [hL, zero_add] at h2
     have hcontra : S * S / σ2 ≤ S * S / σ2 / 2 := by
@@ -2953,7 +2953,7 @@ private theorem integral_sup'_le_sqrt_two_mul_log_card {Ω : Type*} [MeasurableS
 
 /-! ##### Per-block assembly and rate arithmetic (Layers 2+3+4) -/
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- Mean layer, bundled: the sup' over signed rules of the conditional means is a.e. bounded
 by `k²·cutNormDiff + 2|B|k + k`, by combining the finitely many `ae_integral_ruleVal_le`
 (H11c) facts over the rule set. -/
@@ -2976,7 +2976,7 @@ private theorem ae_sup'_mean_le (W : Graphon α μ) (ε' : ℝ) {k : ℕ} [NeZer
   filter_upwards [hbundle] with y hy
   exact Finset.sup'_le _ _ (fun ρ hρ ↦ hy ρ hρ)
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- Deviation layer, per block assignment `y`: the fresh-sample integral of the sup' over
 signed rules of the centered rule values is bounded by `√(8k³(2q+1)log2)`. McDiarmid MGF
 (H13b) with bounded-difference constant `4k` (H12) feeds the soft-max (H14), and the rule
@@ -3105,7 +3105,7 @@ private theorem integral_sup'_dev_le (W : Graphon α μ) (ε' : ℝ) {k : ℕ} [
   nlinarith [mul_le_mul_of_nonneg_left (log_signedRules_card_le hQ hQ') h8]
 
 set_option maxHeartbeats 1000000 in
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- Per block assignment `y`, the fresh-sample integral of the rule sup' splits into the sup'
 of the conditional means plus a deviation integral (H12+H13b+H14+H16). -/
 private theorem integral_sup'_blockGlue_le (W : Graphon α μ) (ε' : ℝ) {k : ℕ} [NeZero k]

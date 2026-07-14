@@ -34,7 +34,7 @@ open MeasureTheory InfiniteGraph Filter
 namespace InfiniteGraph
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **The sampled empirical graphon** at level `n + 1`: sample a `W`-random infinite
 graph, restrict to the first `n + 1` vertices, take its graphon class. -/

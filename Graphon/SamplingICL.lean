@@ -47,7 +47,7 @@ variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
 
 namespace Graphon
 
-variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- Build a `MeasurablePartition` with `K` cells having prescribed measures. (Moved here
 from `Graphon/InverseCounting.lean`, 2026-07-07, and de-privatized so the sampling layer
@@ -124,7 +124,7 @@ theorem exists_partition_with_measures {K : ℕ}
         rw [Set.mem_singleton_iff] at hξ; subst hξ
         exact (hCs i hx).2 ⟨i, rfl⟩
       rw [measure_union h_disj (measurableSet_singleton _),
-          MeasureTheory.NoAtoms.measure_singleton, add_zero, hCe i]
+          MeasureTheory.NullSingletonClass.measure_singleton, add_zero, hCe i]
     -- Build MeasurablePartition
     haveI : DecidableEq (Set α) := Classical.decEq _
     set parts := Finset.image ι Finset.univ

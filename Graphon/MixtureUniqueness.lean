@@ -36,7 +36,7 @@ open scoped Classical BoundedContinuousFunction
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- The generator set of the coordinate algebra: all hom-density coordinates of finite
 graphs on `Fin k`, over all `k`. -/

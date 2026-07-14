@@ -495,7 +495,7 @@ end Marginal
 /-- The canonical-class form of the realization theorem: the sampler's law is the
 canonical infinite law of the graphon class of `W`. -/
 theorem map_sampleInfinite_eq_infiniteSampleLaw_mk {α : Type*} [MeasurableSpace α]
-    {μ : Measure α} [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+    {μ : Measure α} [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
     (W : Graphon α μ) :
     (samplerSource μ).map (sampleInfinite W) =
       (GraphonSpace.infiniteSampleLaw (GraphonSpace.mk W) :

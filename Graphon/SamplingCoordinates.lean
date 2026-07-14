@@ -36,7 +36,7 @@ open scoped Classical
 namespace Graphon
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- `dist` on raw graphons is the cut distance (definitional unfolding of
 `Graphon.instPseudoMetricSpace`). -/
@@ -75,7 +75,7 @@ end Graphon
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **The scalar mass coordinate**: the probability that the `k`-vertex sample of a
 graphon class equals `G`, as a real-valued function on the graphon space (`sampleMass`

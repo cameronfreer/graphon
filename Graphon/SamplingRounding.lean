@@ -831,7 +831,7 @@ section RoundingTheorem
 
 open scoped Classical
 
-variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- Collapse of the cell-existential choice through injectivity. -/
 theorem choose_cell_eq {k : ℕ} [NeZero k] {i : Fin k}

@@ -76,7 +76,7 @@ theorem WeaklyIsomorphic.symm {U W : Graphon α μ}
   exact h
 
 /-- Weak isomorphism is transitive (on standard Borel spaces). -/
-theorem WeaklyIsomorphic.trans [StandardBorelSpace α] [NoAtoms μ] {U V W : Graphon α μ}
+theorem WeaklyIsomorphic.trans [StandardBorelSpace α] [NullSingletonClass μ] {U V W : Graphon α μ}
     (hUV : WeaklyIsomorphic U V) (hVW : WeaklyIsomorphic V W) :
     WeaklyIsomorphic U W := by
   unfold WeaklyIsomorphic at *
@@ -87,9 +87,9 @@ theorem WeaklyIsomorphic.trans [StandardBorelSpace α] [NoAtoms μ] {U V W : Gra
 
 /-- Weak isomorphism is an equivalence relation (on standard Borel spaces).
 
-Note: Only `trans` still requires `StandardBorelSpace` and `NoAtoms` (for the triangle
+Note: Only `trans` still requires `StandardBorelSpace` and `NullSingletonClass` (for the triangle
 inequality, whose corrected coupling proof needs an atomless space). -/
-theorem weaklyIsomorphic_equivalence [StandardBorelSpace α] [NoAtoms μ] :
+theorem weaklyIsomorphic_equivalence [StandardBorelSpace α] [NullSingletonClass μ] :
     Equivalence (WeaklyIsomorphic (α := α) (μ := μ)) :=
   ⟨WeaklyIsomorphic.refl, WeaklyIsomorphic.symm, @WeaklyIsomorphic.trans _ _ _ _ _ _⟩
 
@@ -289,7 +289,7 @@ theorem cutNormDiff_mkStepGraphon_le (P : MeasurablePartition α μ)
     _ = δ := one_mul δ
 
 section  -- relocated weight-stability lemmas needed by `totallyBounded`
-variable [NoAtoms μ]
+variable [NullSingletonClass μ]
 
 /-- If two graphons agree a.e. off a "strip" `E × univ ∪ univ × E`, then their
 cut norm difference is at most `2 * (μ E).toReal`. -/
@@ -511,7 +511,7 @@ number of parts form an ε-net.
 
 @[blueprint "thm:totallyBounded"
   (title := /-- Total boundedness of graphon space -/)]
-theorem totallyBounded [NoAtoms μ] (ε : ℝ) (hε : ε > 0) :
+theorem totallyBounded [NullSingletonClass μ] (ε : ℝ) (hε : ε > 0) :
     ∃ (S : Finset (Graphon α μ)), ∀ W : Graphon α μ, ∃ V ∈ S, cutDistance W V ≤ ε := by
   -- Proof (Lovász [2012], Proposition 9.15), corrected route avoiding arbitrary-partition
   -- alignment (which is false). Fix a canonical equal-measure `q`-cell partition `E` and
@@ -806,7 +806,7 @@ pullback is summable.
 with error 1/3^k. Build f_k by `Nat.rec`: f_0 = refl, f_{k+1} = f_k.trans σ_k.
 The telescoping bound uses `pullback_pullback` + `cutNormDiff_pullback_measurableEquiv`
 to cancel f_k, yielding cutNormDiff ≤ 1/2^k + 2/3^k which is summable. -/
-private theorem exists_cutNormDiff_cauchy_realignment [NoAtoms μ]
+private theorem exists_cutNormDiff_cauchy_realignment [NullSingletonClass μ]
     (V : ℕ → Graphon α μ)
     (h_rapid : ∀ k, cutDistance (V (k + 1)) (V k) ≤ 1 / 2 ^ k + 1 / 3 ^ k) :
     ∃ (f : ℕ → α ≃ᵐ α) (hf : ∀ k, MeasurePreserving (f k) μ μ)
@@ -1453,7 +1453,7 @@ extracts the limit.
 
 **Depends on**: `exists_cutNormDiff_limit_of_summable` (via
 `exists_graphon_with_limiting_rect_integrals`, Radon–Nikodym construction). -/
-private theorem exists_cutNormDiff_limit_of_cutDistance_rapid [NoAtoms μ]
+private theorem exists_cutNormDiff_limit_of_cutDistance_rapid [NullSingletonClass μ]
     (V : ℕ → Graphon α μ)
     (h_rapid : ∀ k : ℕ, cutDistance (V (k + 1)) (V k) ≤ 1 / 2 ^ k + 1 / 3 ^ k) :
     ∃ (L : Graphon α μ) (f : (k : ℕ) → (α → α)) (hf : ∀ k, MeasurePreserving (f k) μ μ),
@@ -1487,7 +1487,7 @@ measure-preserving maps `e_k` and a limit graphon `V` such that
 
 **Depends on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core, proved in
 campaign R2) and `exists_graphon_with_limiting_rect_integrals` (Radon–Nikodym) — fully proved. -/
-private theorem exists_aligned_cutNormDiff_limit [NoAtoms μ]
+private theorem exists_aligned_cutNormDiff_limit [NullSingletonClass μ]
     (W : ℕ → Graphon α μ)
     (h_rapid : ∀ k : ℕ, cutDistance (W (k + 1)) (W k) ≤ 1 / 2 ^ k) :
     ∃ (V : Graphon α μ) (e : (k : ℕ) → (α → α)) (he : ∀ k, MeasurePreserving (e k) μ μ),
@@ -1614,7 +1614,7 @@ has a limit in cutDistance.
 aligning maps `e_k` with `cutNormDiff(pullback (W k) (e_k), V) → 0`. Then
 `cutDistance(W k, V) ≤ cutNormDiff(pullback (W k) (e_k), V) → 0`, since the maps
 `(e_k, id)` are valid witnesses in the cutDistance infimum. -/
-private theorem exists_limit_of_rapid_convergence [NoAtoms μ] (W : ℕ → Graphon α μ)
+private theorem exists_limit_of_rapid_convergence [NullSingletonClass μ] (W : ℕ → Graphon α μ)
     (h_rapid : ∀ k : ℕ, cutDistance (W (k + 1)) (W k) ≤ 1 / 2 ^ k) :
     ∃ V : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε := by
   obtain ⟨V, e, he, hconv⟩ := exists_aligned_cutNormDiff_limit W h_rapid
@@ -1647,7 +1647,7 @@ sequence converges to the same limit using the triangle inequality.
 `exists_aligned_cutNormDiff_limit`) and `cutDistance_triangle` — fully proved. -/
 @[blueprint "thm:complete"
   (title := /-- Completeness of graphon space -/)]
-theorem complete [NoAtoms μ] (W : ℕ → Graphon α μ) (hW : IsCauchy W) :
+theorem complete [NullSingletonClass μ] (W : ℕ → Graphon α μ) (hW : IsCauchy W) :
     ∃ V : Graphon α μ, ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε := by
   -- Step 1: Extract a rapidly converging subsequence.
   -- For each k, choose N_k such that d(W_m, W_n) < 1/2^k for m, n ≥ N_k.
@@ -1739,7 +1739,7 @@ for metric spaces (which graphon space is, modulo weak isomorphism).
 
 **Depends on**: `totallyBounded`, `complete`, `cutDistance_triangle` — all fully proved
 (Rokhlin campaigns R0–R3). -/
-theorem compact [NoAtoms μ] :
+theorem compact [NullSingletonClass μ] :
     ∀ (W : ℕ → Graphon α μ), ∃ (V : Graphon α μ) (φ : ℕ → ℕ),
       StrictMono φ ∧ ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W (φ n)) V < ε := by
   intro W
@@ -1927,7 +1927,7 @@ end Compactness
 
 section WeightStability
 
-variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **Weight stability for step graphons** on different partitions with the same
 coefficient matrix (moved here from `Graphon/InverseCounting.lean`, 2026-07-07, and

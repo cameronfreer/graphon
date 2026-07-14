@@ -43,7 +43,7 @@ open scoped Classical Topology
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **Permutation invariance of the graphon class of a finite graph**: relabeling the
 vertices by a permutation does not change the graphon class. Hom densities in an
@@ -227,7 +227,7 @@ private theorem abs_inv_pow_mul_sub_le {a b A S : ℝ} (q k : ℕ) (ha : 0 < a) 
     _ ≤ (q:ℝ) * k / a := div_le_div_of_nonneg_left (by positivity) ha hab
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **The counting comparison**: the hom density of a size-`(n+1)` window of the
 `k`-tail differs from that of the size-`(n+k+1)` window of the original graph by at

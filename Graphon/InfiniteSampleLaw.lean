@@ -34,7 +34,7 @@ open MeasureTheory InfiniteGraph Filter
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **The canonical infinite law of a graphon class**: the infinite extension of the
 sample laws, descended through the quotient (well-defined by the joining theorem). -/
