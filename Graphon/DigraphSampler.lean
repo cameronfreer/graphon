@@ -33,10 +33,19 @@ then the explicit finite and infinite digraph samplers on top of it:
   `InfiniteDigraph`) and its restriction to the first `n` vertices, both measurable in the
   sources.
 
-The generic i.i.d. sources (`MeasureTheory.uniform01`, `iidVertexSource`, `iidUniformSource`) are
-reused from `Graphon.SamplerSources`. The sampler's law (exact-event product formula,
-identification with `exchangeableDigraphLawEquiv`, exchangeability, dissociation) is the next
-step (D3b step 4).
+* `Digraphon.samplerSource_forall_sampleAdj` — **the exact finite-event product formula**
+  (steps 4–5), over an arbitrary injective labeling: one loop indicator per vertex and one
+  `simplexRep` mass per unordered pair, with a labeling-free right-hand side;
+* `Digraphon.sampleRelLaw` / `Digraphon.sampleDigraphLaw` — the sampled exchangeable law
+  (consistency from the labeling-free formula), and `Digraphon.map_sampleInfinite` /
+  `map_sampleInfinite_eq_equiv_law` — the sampler realizes its infinite law, identified through
+  `exchangeableDigraphLawEquiv` (D2);
+* `Digraphon.map_sampleInfinite_relabel` / `Digraphon.map_sampleFinite_pair_disjoint` —
+  exchangeability and dissociation of the sampled law.
+
+The generic i.i.d. sources (`MeasureTheory.uniform01`, `iidVertexSource`, `iidUniformSource`)
+are reused from `Graphon.SamplerSources`. Next: D3c (ordinary-graphon / tournament /
+asymmetric-kernel constructors).
 -/
 
 open MeasureTheory RelSignature Set
@@ -488,6 +497,35 @@ private theorem event_eq (hι : Function.Injective ι) (D : FiniteDigraph n) :
       exact hloop i
     · exact ((W.pair_mem_iff hι ω D ⟨(j, i), hij⟩).mpr (hpair ⟨(j, i), hij⟩)).2
 
+/-- Measurability of the decomposed exact event. -/
+private theorem measurableSet_sampleEvent (hι : Function.Injective ι) (D : FiniteDigraph n) :
+    MeasurableSet {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
+      (∀ i : Fin n, W.loopRep (ω.1 (ι i)) = D (digraphCoord i i)) ∧
+        ∀ p : {p : Fin n × Fin n // p.1 < p.2},
+          ω.2 (pairIdx hι p) ∈ W.pairCondSet ι ω.1 D p} := by
+  rw [Set.setOf_and]
+  refine MeasurableSet.inter ?_ ?_
+  · rw [Set.setOf_forall]
+    refine MeasurableSet.iInter fun i => ?_
+    exact (W.measurable_loopRep.comp
+      ((measurable_pi_apply (ι i)).comp measurable_fst)) (measurableSet_singleton _)
+  · rw [Set.setOf_forall]
+    refine MeasurableSet.iInter fun p => ?_
+    unfold pairCondSet
+    split_ifs
+    · have hinner : Measurable fun ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) =>
+          ((ω.1 (ι p.1.1), ω.1 (ι p.1.2)), ω.2 (pairIdx hι p)) :=
+        (((measurable_pi_apply _).comp measurable_fst).prodMk
+          ((measurable_pi_apply _).comp measurable_fst)).prodMk
+          ((measurable_pi_apply _).comp measurable_snd)
+      exact (W.measurable_catOutcome_joint.comp hinner) (measurableSet_singleton _)
+    · have hinner : Measurable fun ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) =>
+          ((ω.1 (ι p.1.2), ω.1 (ι p.1.1)), ω.2 (pairIdx hι p)) :=
+        (((measurable_pi_apply _).comp measurable_fst).prodMk
+          ((measurable_pi_apply _).comp measurable_fst)).prodMk
+          ((measurable_pi_apply _).comp measurable_snd)
+      exact (W.measurable_catOutcome_joint.comp hinner) (measurableSet_singleton _)
+
 /-- **The exact finite-event product formula** (D3b step 4), over an arbitrary injective
 labeling `ι` of the sampled vertices: the probability that the sampler realizes exactly `D`
 on the labels `ι` is the integral, over i.i.d. `μ`-positions, of the loop indicators times one
@@ -505,33 +543,7 @@ theorem samplerSource_forall_sampleAdj [IsProbabilityMeasure μ]
     measurable_pi_iff.mpr fun p => measurable_pi_apply _
   have hprojX : Measurable fun (x : ℕ → α) (i : Fin n) => x (ι i) :=
     measurable_pi_iff.mpr fun i => measurable_pi_apply _
-  -- measurability of the decomposed event
-  have hE : MeasurableSet {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
-      (∀ i : Fin n, W.loopRep (ω.1 (ι i)) = D (digraphCoord i i)) ∧
-        ∀ p : {p : Fin n × Fin n // p.1 < p.2},
-          ω.2 (pairIdx hι p) ∈ W.pairCondSet ι ω.1 D p} := by
-    rw [Set.setOf_and]
-    refine MeasurableSet.inter ?_ ?_
-    · rw [Set.setOf_forall]
-      refine MeasurableSet.iInter fun i => ?_
-      exact (W.measurable_loopRep.comp
-        ((measurable_pi_apply (ι i)).comp measurable_fst)) (measurableSet_singleton _)
-    · rw [Set.setOf_forall]
-      refine MeasurableSet.iInter fun p => ?_
-      unfold pairCondSet
-      split_ifs
-      · have hinner : Measurable fun ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) =>
-            ((ω.1 (ι p.1.1), ω.1 (ι p.1.2)), ω.2 (pairIdx hι p)) :=
-          (((measurable_pi_apply _).comp measurable_fst).prodMk
-            ((measurable_pi_apply _).comp measurable_fst)).prodMk
-            ((measurable_pi_apply _).comp measurable_snd)
-        exact (W.measurable_catOutcome_joint.comp hinner) (measurableSet_singleton _)
-      · have hinner : Measurable fun ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) =>
-            ((ω.1 (ι p.1.2), ω.1 (ι p.1.1)), ω.2 (pairIdx hι p)) :=
-          (((measurable_pi_apply _).comp measurable_fst).prodMk
-            ((measurable_pi_apply _).comp measurable_fst)).prodMk
-            ((measurable_pi_apply _).comp measurable_snd)
-        exact (W.measurable_catOutcome_joint.comp hinner) (measurableSet_singleton _)
+  have hE := W.measurableSet_sampleEvent hι D
   rw [W.event_eq hι D, samplerSource, Measure.prod_apply hE]
   -- the section over the uniforms, at fixed positions
   have hsec : ∀ x : ℕ → α,
@@ -684,5 +696,271 @@ theorem map_sampleInfinite_eq_equiv_law :
     (digraphLawEquiv.apply_symm_apply W.sampleRelLaw).symm
 
 end LawIdentification
+
+/-! ### Exchangeability and dissociation (D3b step 5, corollaries) -/
+
+section Dissociation
+
+variable [IsProbabilityMeasure μ]
+
+/-- **Exchangeability of the sampler's law**: invariance under every relabeling of `ℕ` — free
+from the identification with the infinite law, which is relabeling-invariant by R2c. -/
+theorem map_sampleInfinite_relabel (σ : Equiv.Perm ℕ) :
+    ((samplerSource μ).map W.sampleInfinite).map (RelStructure.relabel fun _ : Unit => σ) =
+      (samplerSource μ).map W.sampleInfinite := by
+  rw [W.map_sampleInfinite]
+  exact W.sampleRelLaw.infiniteLaw_map_relabel fun _ => σ
+
+variable {k l : ℕ} {ι₁ : Fin k → ℕ} {ι₂ : Fin l → ℕ}
+
+/-- **Independence over disjoint labels** (dissociation, event form): the exact events of the
+sampler on two disjoint label sets are independent — conditionally on the positions the two
+events use disjoint uniform coordinates, and the position integral splits over the two blocks
+of the combined labeling. -/
+theorem samplerSource_inter_disjoint (hι₁ : Function.Injective ι₁)
+    (hι₂ : Function.Injective ι₂) (hd : ∀ i j, ι₁ i ≠ ι₂ j)
+    (D₁ : FiniteDigraph k) (D₂ : FiniteDigraph l) :
+    samplerSource μ
+        ({ω | ∀ i j : Fin k, W.sampleAdj ω (ι₁ i) (ι₁ j) = D₁ (digraphCoord i j)} ∩
+          {ω | ∀ i j : Fin l, W.sampleAdj ω (ι₂ i) (ι₂ j) = D₂ (digraphCoord i j)}) =
+      samplerSource μ
+          {ω | ∀ i j : Fin k, W.sampleAdj ω (ι₁ i) (ι₁ j) = D₁ (digraphCoord i j)} *
+        samplerSource μ
+          {ω | ∀ i j : Fin l, W.sampleAdj ω (ι₂ i) (ι₂ j) = D₂ (digraphCoord i j)} := by
+  classical
+  -- the combined labeling and the combined pair index, both injective by disjointness
+  have hinj : Function.Injective (Sum.elim ι₁ ι₂) := by
+    rintro (a | a) (b | b) h
+    · exact congrArg Sum.inl (hι₁ h)
+    · exact absurd h (hd a b)
+    · exact absurd h.symm (hd b a)
+    · exact congrArg Sum.inr (hι₂ h)
+  have hginj : Function.Injective
+      (Sum.elim (pairIdx (ι := ι₁) hι₁) (pairIdx (ι := ι₂) hι₂)) := by
+    rintro (p | p) (q | q) h
+    · exact congrArg Sum.inl (pairIdx_injective hι₁ h)
+    · rcases Sym2.eq_iff.mp (congrArg Subtype.val h) with ⟨h1, -⟩ | ⟨h1, -⟩
+      · exact absurd h1 (hd _ _)
+      · exact absurd h1 (hd _ _)
+    · rcases Sym2.eq_iff.mp (congrArg Subtype.val h) with ⟨h1, -⟩ | ⟨h1, -⟩
+      · exact absurd h1.symm (hd _ _)
+      · exact absurd h1.symm (hd _ _)
+    · exact congrArg Sum.inr (pairIdx_injective hι₂ h)
+  have hprojU : Measurable fun (u : OffDiagPairIndex ℕ → ℝ)
+      (q : {p : Fin k × Fin k // p.1 < p.2} ⊕ {p : Fin l × Fin l // p.1 < p.2}) =>
+        u (Sum.elim (pairIdx (ι := ι₁) hι₁) (pairIdx (ι := ι₂) hι₂) q) :=
+    measurable_pi_iff.mpr fun q => measurable_pi_apply _
+  have hprojX : Measurable fun (x : ℕ → α) (q : Fin k ⊕ Fin l) => x (Sum.elim ι₁ ι₂ q) :=
+    measurable_pi_iff.mpr fun q => measurable_pi_apply _
+  have hE₁ := W.measurableSet_sampleEvent hι₁ D₁
+  have hE₂ := W.measurableSet_sampleEvent hι₂ D₂
+  rw [W.samplerSource_forall_sampleAdj hι₁ D₁, W.samplerSource_forall_sampleAdj hι₂ D₂,
+    W.event_eq hι₁ D₁, W.event_eq hι₂ D₂, samplerSource, Measure.prod_apply (hE₁.inter hE₂)]
+  -- the section of the intersection at fixed positions
+  have hsec : ∀ x : ℕ → α,
+      iidUniformSource (OffDiagPairIndex ℕ) (Prod.mk x ⁻¹'
+          ({ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
+              (∀ i : Fin k, W.loopRep (ω.1 (ι₁ i)) = D₁ (digraphCoord i i)) ∧
+                ∀ p : {p : Fin k × Fin k // p.1 < p.2},
+                  ω.2 (pairIdx hι₁ p) ∈ W.pairCondSet ι₁ ω.1 D₁ p} ∩
+            {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
+              (∀ i : Fin l, W.loopRep (ω.1 (ι₂ i)) = D₂ (digraphCoord i i)) ∧
+                ∀ p : {p : Fin l × Fin l // p.1 < p.2},
+                  ω.2 (pairIdx hι₂ p) ∈ W.pairCondSet ι₂ ω.1 D₂ p})) =
+        W.sampleEventIntegrand D₁ (fun i => x (ι₁ i)) *
+          W.sampleEventIntegrand D₂ (fun i => x (ι₂ i)) := by
+    intro x
+    by_cases hx₁ : ∀ i : Fin k, W.loopRep (x (ι₁ i)) = D₁ (digraphCoord i i)
+    · by_cases hx₂ : ∀ i : Fin l, W.loopRep (x (ι₂ i)) = D₂ (digraphCoord i i)
+      · -- both loop conditions hold: the section is the pi-set over the sum of pair indices
+        have hpre : Prod.mk x ⁻¹'
+            ({ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
+                (∀ i : Fin k, W.loopRep (ω.1 (ι₁ i)) = D₁ (digraphCoord i i)) ∧
+                  ∀ p : {p : Fin k × Fin k // p.1 < p.2},
+                    ω.2 (pairIdx hι₁ p) ∈ W.pairCondSet ι₁ ω.1 D₁ p} ∩
+              {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
+                (∀ i : Fin l, W.loopRep (ω.1 (ι₂ i)) = D₂ (digraphCoord i i)) ∧
+                  ∀ p : {p : Fin l × Fin l // p.1 < p.2},
+                    ω.2 (pairIdx hι₂ p) ∈ W.pairCondSet ι₂ ω.1 D₂ p}) =
+            (fun (u : OffDiagPairIndex ℕ → ℝ)
+                (q : {p : Fin k × Fin k // p.1 < p.2} ⊕ {p : Fin l × Fin l // p.1 < p.2}) =>
+                  u (Sum.elim (pairIdx (ι := ι₁) hι₁) (pairIdx (ι := ι₂) hι₂) q)) ⁻¹'
+              Set.univ.pi (Sum.elim (fun p => W.pairCondSet ι₁ x D₁ p)
+                (fun p => W.pairCondSet ι₂ x D₂ p)) := by
+          ext u
+          simp only [Set.mem_preimage, Set.mem_inter_iff, Set.mem_setOf_eq, Set.mem_pi,
+            Set.mem_univ, true_implies, hx₁, hx₂, implies_true, true_and, Sum.forall]
+          exact Iff.rfl
+        have hcond : ∀ q : {p : Fin k × Fin k // p.1 < p.2} ⊕ {p : Fin l × Fin l // p.1 < p.2},
+            MeasurableSet (Sum.elim (fun p => W.pairCondSet ι₁ x D₁ p)
+              (fun p => W.pairCondSet ι₂ x D₂ p) q) := by
+          rintro (p | p)
+          · exact W.measurableSet_pairCondSet ι₁ x D₁ p
+          · exact W.measurableSet_pairCondSet ι₂ x D₂ p
+        rw [hpre, ← Measure.map_apply hprojU (MeasurableSet.univ_pi hcond),
+          iidUniformSource, Measure.infinitePi_map_comp_of_injective _ hginj, Measure.pi_pi,
+          Fintype.prod_sum_type]
+        simp only [Sum.elim_inl, Sum.elim_inr]
+        unfold sampleEventIntegrand
+        rw [Finset.prod_congr rfl fun i _ => if_pos (hx₁ i), Finset.prod_const_one, one_mul,
+          Finset.prod_congr rfl fun i _ => if_pos (hx₂ i), Finset.prod_const_one, one_mul]
+        rw [Finset.prod_congr rfl fun p _ => W.uniform01_pairCondSet ι₁ x D₁ p,
+          Finset.prod_congr rfl fun p _ => W.uniform01_pairCondSet ι₂ x D₂ p]
+      · obtain ⟨i, hi⟩ := not_forall.mp hx₂
+        have hpre : Prod.mk x ⁻¹' ({ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
+              (∀ i : Fin k, W.loopRep (ω.1 (ι₁ i)) = D₁ (digraphCoord i i)) ∧
+                ∀ p : {p : Fin k × Fin k // p.1 < p.2},
+                  ω.2 (pairIdx hι₁ p) ∈ W.pairCondSet ι₁ ω.1 D₁ p} ∩
+            {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
+              (∀ i : Fin l, W.loopRep (ω.1 (ι₂ i)) = D₂ (digraphCoord i i)) ∧
+                ∀ p : {p : Fin l × Fin l // p.1 < p.2},
+                  ω.2 (pairIdx hι₂ p) ∈ W.pairCondSet ι₂ ω.1 D₂ p}) = ∅ := by
+          ext u
+          simp only [Set.mem_preimage, Set.mem_inter_iff, Set.mem_setOf_eq,
+            Set.mem_empty_iff_false, iff_false, not_and]
+          exact fun _ hcon _ => absurd hcon hx₂
+        rw [hpre, measure_empty]
+        unfold sampleEventIntegrand
+        rw [Finset.prod_eq_zero (Finset.mem_univ i) (if_neg hi), zero_mul, mul_zero]
+    · obtain ⟨i, hi⟩ := not_forall.mp hx₁
+      have hpre : Prod.mk x ⁻¹' ({ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
+              (∀ i : Fin k, W.loopRep (ω.1 (ι₁ i)) = D₁ (digraphCoord i i)) ∧
+                ∀ p : {p : Fin k × Fin k // p.1 < p.2},
+                  ω.2 (pairIdx hι₁ p) ∈ W.pairCondSet ι₁ ω.1 D₁ p} ∩
+          {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
+              (∀ i : Fin l, W.loopRep (ω.1 (ι₂ i)) = D₂ (digraphCoord i i)) ∧
+                ∀ p : {p : Fin l × Fin l // p.1 < p.2},
+                  ω.2 (pairIdx hι₂ p) ∈ W.pairCondSet ι₂ ω.1 D₂ p}) = ∅ := by
+        ext u
+        simp only [Set.mem_preimage, Set.mem_inter_iff, Set.mem_setOf_eq,
+          Set.mem_empty_iff_false, iff_false, not_and]
+        exact fun hcon => absurd hcon.1 hx₁
+      rw [hpre, measure_empty]
+      unfold sampleEventIntegrand
+      rw [Finset.prod_eq_zero (Finset.mem_univ i) (if_neg hi), zero_mul, zero_mul]
+  rw [lintegral_congr hsec]
+  -- split the position integral over the two blocks
+  have hmap : (iidVertexSource μ).map
+      (fun (x : ℕ → α) (q : Fin k ⊕ Fin l) => x (Sum.elim ι₁ ι₂ q)) =
+      Measure.pi fun _ : Fin k ⊕ Fin l => μ := by
+    rw [iidVertexSource]
+    exact Measure.infinitePi_map_comp_of_injective _ hinj
+  have hG : Measurable fun y : (Fin k ⊕ Fin l) → α =>
+      W.sampleEventIntegrand D₁ (fun i => y (Sum.inl i)) *
+        W.sampleEventIntegrand D₂ (fun i => y (Sum.inr i)) := by
+    refine Measurable.mul ?_ ?_
+    · exact (W.measurable_sampleEventIntegrand D₁).comp
+        (measurable_pi_iff.mpr fun i => measurable_pi_apply _)
+    · exact (W.measurable_sampleEventIntegrand D₂).comp
+        (measurable_pi_iff.mpr fun i => measurable_pi_apply _)
+  have hsplit : (∫⁻ x, W.sampleEventIntegrand D₁ (fun i => x (ι₁ i)) *
+        W.sampleEventIntegrand D₂ (fun i => x (ι₂ i)) ∂iidVertexSource μ) =
+      ∫⁻ y, W.sampleEventIntegrand D₁ (fun i => y (Sum.inl i)) *
+        W.sampleEventIntegrand D₂ (fun i => y (Sum.inr i))
+        ∂(Measure.pi fun _ : Fin k ⊕ Fin l => μ) := by
+    rw [← hmap, lintegral_map hG hprojX]
+    rfl
+  rw [hsplit, ← (measurePreserving_sumPiEquivProdPi_symm
+      (fun _ : Fin k ⊕ Fin l => μ)).lintegral_comp hG]
+  rw [show (fun z : ((Fin k → α) × (Fin l → α)) =>
+      (W.sampleEventIntegrand D₁ (fun i => ((MeasurableEquiv.sumPiEquivProdPi
+          (fun _ : Fin k ⊕ Fin l => α)).symm z) (Sum.inl i)) *
+        W.sampleEventIntegrand D₂ (fun i => ((MeasurableEquiv.sumPiEquivProdPi
+          (fun _ : Fin k ⊕ Fin l => α)).symm z) (Sum.inr i)))) =
+    fun z => W.sampleEventIntegrand D₁ z.1 * W.sampleEventIntegrand D₂ z.2 from rfl]
+  rw [lintegral_prod_mul (W.measurable_sampleEventIntegrand D₁).aemeasurable
+    (W.measurable_sampleEventIntegrand D₂).aemeasurable]
+
+/-- **Dissociation** (distributional form): the restrictions of the `(k + l)`-vertex sample to
+the first `k` and the last `l` vertices are **independent**, with the `k`- and `l`-vertex
+sample laws as marginals — the sampled law is dissociated. -/
+theorem map_sampleFinite_pair_disjoint (k l : ℕ) :
+    (samplerSource μ).map (fun ω =>
+        (RelStructure.restrict (fun _ : Unit => Fin.castAddEmb l) (W.sampleFinite (k + l) ω),
+          RelStructure.restrict (fun _ : Unit => Fin.natAddEmb k) (W.sampleFinite (k + l) ω))) =
+      ((samplerSource μ).map (W.sampleFinite k)).prod
+        ((samplerSource μ).map (W.sampleFinite l)) := by
+  have hm₁ : Measurable fun ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) =>
+      RelStructure.restrict (fun _ : Unit => Fin.castAddEmb l) (W.sampleFinite (k + l) ω) :=
+    (RelSignature.measurable_restrict _).comp (W.measurable_sampleFinite (k + l))
+  have hm₂ : Measurable fun ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) =>
+      RelStructure.restrict (fun _ : Unit => Fin.natAddEmb k) (W.sampleFinite (k + l) ω) :=
+    (RelSignature.measurable_restrict _).comp (W.measurable_sampleFinite (k + l))
+  refine Measure.ext_of_singleton fun P => ?_
+  obtain ⟨D₁, D₂⟩ := P
+  have hev : ∀ (m : ℕ) (e : Fin m → Fin (k + l)) (he : Function.Injective e)
+      (D : FiniteDigraph m) (ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ)),
+      RelStructure.restrict (fun _ : Unit => ⟨e, he⟩) (W.sampleFinite (k + l) ω) = D ↔
+        ∀ i j : Fin m, W.sampleAdj ω (e i) (e j) = D (digraphCoord i j) := by
+    intro m e he D ω
+    rw [digraphStructure_ext_iff]
+    refine forall₂_congr fun i j => ?_
+    show W.sampleFinite (k + l) ω (RelCoord.map (fun _ => ⇑(⟨e, he⟩ : Fin m ↪ Fin (k + l)))
+        (digraphCoord i j)) = D (digraphCoord i j) ↔ _
+    rw [digraphCoord_map]
+    exact Iff.rfl
+  rw [Measure.map_apply (hm₁.prodMk hm₂) (measurableSet_singleton _),
+    show ({(D₁, D₂)} : Set (FiniteDigraph k × FiniteDigraph l)) = {D₁} ×ˢ {D₂} from
+      (Set.singleton_prod_singleton).symm,
+    Set.mk_preimage_prod, Measure.prod_prod,
+    Measure.map_apply (W.measurable_sampleFinite k) (measurableSet_singleton _),
+    Measure.map_apply (W.measurable_sampleFinite l) (measurableSet_singleton _)]
+  have hev : ∀ (m : ℕ) (e : Fin m ↪ Fin (k + l)) (D : FiniteDigraph m)
+      (ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ)),
+      RelStructure.restrict (fun _ : Unit => e) (W.sampleFinite (k + l) ω) = D ↔
+        ∀ i j : Fin m, W.sampleAdj ω (e i) (e j) = D (digraphCoord i j) := by
+    intro m e D ω
+    rw [digraphStructure_ext_iff]
+    refine forall₂_congr fun i j => ?_
+    show W.sampleFinite (k + l) ω (RelCoord.map (fun _ => ⇑e) (digraphCoord i j))
+        = D (digraphCoord i j) ↔ _
+    rw [digraphCoord_map]
+    exact Iff.rfl
+  have hc₁ : Function.Injective fun i : Fin k => ((Fin.castAddEmb l i : Fin (k + l)) : ℕ) :=
+    Fin.val_injective.comp (Fin.castAddEmb l).injective
+  have hc₂ : Function.Injective fun j : Fin l => ((Fin.natAddEmb k j : Fin (k + l)) : ℕ) :=
+    Fin.val_injective.comp (Fin.natAddEmb k).injective
+  have hdisj : ∀ (i : Fin k) (j : Fin l),
+      ((Fin.castAddEmb l i : Fin (k + l)) : ℕ) ≠ ((Fin.natAddEmb k j : Fin (k + l)) : ℕ) := by
+    intro i j
+    have h1 : ((Fin.castAddEmb l i : Fin (k + l)) : ℕ) = (i : ℕ) := rfl
+    have h2 : ((Fin.natAddEmb k j : Fin (k + l)) : ℕ) = k + (j : ℕ) := rfl
+    rw [h1, h2]
+    have := i.isLt
+    omega
+  have h1 : (fun ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) =>
+      RelStructure.restrict (fun _ : Unit => Fin.castAddEmb l)
+        (W.sampleFinite (k + l) ω)) ⁻¹' {D₁} =
+      {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) | ∀ i j : Fin k,
+        W.sampleAdj ω (Fin.castAddEmb l i) (Fin.castAddEmb l j) = D₁ (digraphCoord i j)} := by
+    ext ω
+    simp only [Set.mem_preimage, Set.mem_singleton_iff, Set.mem_setOf_eq]
+    exact hev k (Fin.castAddEmb l) D₁ ω
+  have h2 : (fun ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) =>
+      RelStructure.restrict (fun _ : Unit => Fin.natAddEmb k)
+        (W.sampleFinite (k + l) ω)) ⁻¹' {D₂} =
+      {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) | ∀ i j : Fin l,
+        W.sampleAdj ω (Fin.natAddEmb k i) (Fin.natAddEmb k j) = D₂ (digraphCoord i j)} := by
+    ext ω
+    simp only [Set.mem_preimage, Set.mem_singleton_iff, Set.mem_setOf_eq]
+    exact hev l (Fin.natAddEmb k) D₂ ω
+  have h3 : W.sampleFinite k ⁻¹' {D₁} =
+      {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) | ∀ i j : Fin k,
+        W.sampleAdj ω i j = D₁ (digraphCoord i j)} := by
+    ext ω
+    simp only [Set.mem_preimage, Set.mem_singleton_iff, Set.mem_setOf_eq]
+    exact digraphStructure_ext_iff
+  have h4 : W.sampleFinite l ⁻¹' {D₂} =
+      {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) | ∀ i j : Fin l,
+        W.sampleAdj ω i j = D₂ (digraphCoord i j)} := by
+    ext ω
+    simp only [Set.mem_preimage, Set.mem_singleton_iff, Set.mem_setOf_eq]
+    exact digraphStructure_ext_iff
+  rw [h1, h2, h3, h4, W.samplerSource_inter_disjoint hc₁ hc₂ hdisj D₁ D₂,
+    W.samplerSource_forall_sampleAdj hc₁ D₁, W.samplerSource_forall_sampleAdj hc₂ D₂,
+    W.samplerSource_forall_sampleAdj Fin.val_injective D₁,
+    W.samplerSource_forall_sampleAdj Fin.val_injective D₂]
+
+end Dissociation
 
 end MeasureTheory.Digraphon
