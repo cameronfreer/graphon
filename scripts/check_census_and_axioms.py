@@ -129,6 +129,10 @@ AUDITED_DECLS = {
     "MeasureTheory.Digraphon.measurable_catOutcome_joint",
     "MeasureTheory.Digraphon.uniform01_map_catOutcome",
     "MeasureTheory.Digraphon.uniform01_catOutcome_singleton",
+    "OffDiagPairIndex.mk_symm",
+    "MeasureTheory.Digraphon.sampleAdj_pair_of_lt",
+    "MeasureTheory.Digraphon.measurable_sampleInfinite",
+    "MeasureTheory.Digraphon.measurable_sampleFinite",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

@@ -58,8 +58,8 @@ noncomputable def pairPMF (p : α × α) : PMF (Bool × Bool) :=
 
 /-- **Distributional transpose equivariance**: swapping the pair transposes the four-state
 distribution. (Pointwise equivariance of `catOutcome` is neither true nor needed; this
-distributional form — cashing out `simplexRep_swap` — is the statement used when `Quot.out`
-picks an arbitrary ordering of an unordered pair, and for relabeling.) -/
+distributional form — cashing out `simplexRep_swap` — is the statement that handles
+orientation reversal under relabeling, or any alternate ordering of an unordered pair.) -/
 theorem pairPMF_swap (p : α × α) : W.pairPMF p.swap = (W.pairPMF p).map Prod.swap := by
   ext ab
   rw [PMF.map_apply, pairPMF_apply, W.simplexRep_swap]
@@ -286,6 +286,15 @@ reciprocal-edge dependence. -/
 theorem sampleAdj_of_gt (ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ)) {i j : ℕ} (h : j < i) :
     W.sampleAdj ω i j = (W.catOutcome (ω.1 j, ω.1 i) (ω.2 (OffDiagPairIndex.mk h.ne))).2 := by
   rw [sampleAdj, dif_neg (Nat.lt_asymm h), dif_pos h]
+
+/-- **The paired coordinates at an unordered pair are the single categorical draw**: for
+`i < j`, the reciprocal-edge pair `(sampleAdj ω i j, sampleAdj ω j i)` is exactly
+`catOutcome (xᵢ, xⱼ)` at the pair's one uniform — the reciprocal dependence in one statement,
+the form the exact-event product formula consumes. -/
+theorem sampleAdj_pair_of_lt (ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ)) {i j : ℕ} (h : i < j) :
+    (W.sampleAdj ω i j, W.sampleAdj ω j i) =
+      W.catOutcome (ω.1 i, ω.1 j) (ω.2 (OffDiagPairIndex.mk h.ne)) := by
+  rw [W.sampleAdj_of_lt ω h, W.sampleAdj_of_gt ω h]
 
 /-- **Measurability of the adjacency bit** in the sources, at each fixed ordered pair — via the
 joint measurability of `catOutcome`, since the pair argument varies with the sample. -/
