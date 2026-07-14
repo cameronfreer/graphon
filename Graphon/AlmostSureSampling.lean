@@ -34,7 +34,7 @@ open MeasureTheory InfiniteGraph Filter
 namespace InfiniteGraph
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **Per-coordinate Borel–Cantelli** (issue #71, Route A, steps 1–3): for each fixed
 finite graph `F`, almost every sampled infinite graph has the hom-densities of its

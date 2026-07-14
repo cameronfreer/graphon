@@ -31,7 +31,7 @@ open scoped Classical
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- The hom-density coordinates as bounded continuous functions on the compact graphon
 space. -/

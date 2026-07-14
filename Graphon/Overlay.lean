@@ -58,7 +58,7 @@ disjoint measurable subsets of any prescribed masses `r i` with `∑ i, r i ≤ 
 This generalizes `exists_equal_chunks_inside` (equal masses `1/q`) to arbitrary prescribed
 masses; it is the finite-matrix carving step of the overlay construction
 (`docs/overlay-scoping.md` §4, step 1). -/
-theorem exists_disjoint_subsets_of_measures [StandardBorelSpace α] [NoAtoms μ] :
+theorem exists_disjoint_subsets_of_measures [StandardBorelSpace α] [NullSingletonClass μ] :
     ∀ {n : ℕ} {C : Set α}, MeasurableSet C → ∀ r : Fin n → ℝ≥0∞, ∑ i, r i ≤ μ C →
     ∃ A : Fin n → Set α, (∀ i, MeasurableSet (A i)) ∧ (∀ i, A i ⊆ C) ∧
       Pairwise (fun i j => Disjoint (A i) (A j)) ∧ ∀ i, μ (A i) = r i := by
@@ -227,7 +227,7 @@ mass exactly `λ_{ik}`. Aligning the positive-mass refined cells twice via
 a common part of `P` a.e., and `ψ ∘ τ` and `id` land in a common part of `Q` a.e.; then
 `pullback_stepify_congr` plus invariance of `cutNormDiff` under the bijection `τ` give the
 equality. No rational approximation or Birkhoff matching is needed. -/
-theorem exists_mpEquiv_pullback_stepify_eq [StandardBorelSpace α] [NoAtoms μ]
+theorem exists_mpEquiv_pullback_stepify_eq [StandardBorelSpace α] [NullSingletonClass μ]
     (P Q : MeasurablePartition α μ) (U W : Graphon α μ)
     {φ ψ : α → α} (hφ : MeasurePreserving φ μ μ) (hψ : MeasurePreserving ψ μ μ) :
     ∃ (σ : α ≃ᵐ α) (hσ : MeasurePreserving σ μ μ),
@@ -433,7 +433,7 @@ approximation errors through the pullback contraction `cutNormDiff_pullback_le` 
 bijection invariance `cutNormDiff_pullback_measurableEquiv`. Total budget `5ε/8 < ε`. -/
 @[blueprint "thm:overlay"
   (title := /-- Overlay theorem: an MP bijection nearly achieves the cut distance -/)]
-theorem exists_mpEquiv_cutNormDiff_lt_add [StandardBorelSpace α] [NoAtoms μ]
+theorem exists_mpEquiv_cutNormDiff_lt_add [StandardBorelSpace α] [NullSingletonClass μ]
     (U W : Graphon α μ) {ε : ℝ} (hε : 0 < ε) :
     ∃ (σ : α ≃ᵐ α) (hσ : MeasurePreserving σ μ μ),
       cutNormDiff (pullback U σ hσ) W < cutDistance U W + ε := by

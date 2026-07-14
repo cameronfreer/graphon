@@ -4666,7 +4666,7 @@ set_option maxHeartbeats 800000
 /-- IVT for atomless measures: any measurable set can be split at any prescribed measure.
 This is a standard result (Sierpinski's theorem). Given `[StandardBorelSpace α]`,
 we use a countable separating sequence to greedily construct the desired subset. -/
-theorem exists_measurable_subset_of_measure [StandardBorelSpace α] [NoAtoms μ]
+theorem exists_measurable_subset_of_measure [StandardBorelSpace α] [NullSingletonClass μ]
     {S : Set α} (hS : MeasurableSet S) {r : ℝ≥0∞} (hr : r ≤ μ S) :
     ∃ T : Set α, MeasurableSet T ∧ T ⊆ S ∧ μ T = r := by
   -- Obtain a countable separating sequence of measurable sets
@@ -4753,7 +4753,7 @@ theorem exists_measurable_subset_of_measure [StandardBorelSpace α] [NoAtoms μ]
       split at hy_succ
       · contradiction
       · exact iff_of_true hx_succ.2 hy_succ.2
-  -- μ(⋂ R) = 0 by NoAtoms + subsingleton
+  -- μ(⋂ R) = 0 by NullSingletonClass + subsingleton
   have hR_inter_zero : μ (⋂ n, R n) = 0 := hR_inter_sub.measure_zero μ
   -- μ(R n) → 0
   have hR_tendsto : Filter.Tendsto (μ ∘ R) Filter.atTop (nhds 0) := by
@@ -4848,7 +4848,7 @@ of the atomless subset-of-prescribed-measure carve `exists_measurable_subset_of_
 Unlike `exists_equal_measure_partition` (which splits `S` into `n` pieces of size `μS/n` that
 *cover* `S`), here the pieces have a *fixed* size `1/q` independent of `μ S` and generally leave
 a remainder — the building block for re-rounding an arbitrary partition onto an equipartition. -/
-theorem exists_equal_chunks_inside [StandardBorelSpace α] [NoAtoms μ]
+theorem exists_equal_chunks_inside [StandardBorelSpace α] [NullSingletonClass μ]
     {S : Set α} (hS : MeasurableSet S) {q : ℕ} (hq : 0 < q) :
     ∀ n : ℕ, (n : ℝ≥0∞) / q ≤ μ S →
     ∃ A : Fin n → Set α, (∀ i, MeasurableSet (A i)) ∧ (∀ i, A i ⊆ S) ∧
@@ -4894,7 +4894,7 @@ theorem exists_equal_chunks_inside [StandardBorelSpace α] [NoAtoms μ]
 (via `exists_equal_chunks_inside`) leaving a remainder of measure `< 1/q`. The immediate
 building block for the equipartition re-rounding: applied to each cell of a partition, it
 produces exact-`1/q` pieces refining that cell, with an `O(1/q)` boundary per cell. -/
-theorem exists_one_over_q_chunks_with_remainder [StandardBorelSpace α] [NoAtoms μ]
+theorem exists_one_over_q_chunks_with_remainder [StandardBorelSpace α] [NullSingletonClass μ]
     {P : Set α} (hP : MeasurableSet P) {q : ℕ} (hq : 0 < q) :
     ∃ (n : ℕ) (A : Fin n → Set α),
       (∀ i, MeasurableSet (A i)) ∧ (∀ i, A i ⊆ P) ∧
@@ -5006,7 +5006,7 @@ Construction: carve `⌊μ(S)·q⌋` disjoint `1/q`-chunks inside each cell `S` 
 for `k = P.parts.card`), then fill the leftover `bad := (⋃ chunks)ᶜ` with `q - N` more `1/q`-chunks
 (`exists_equal_chunks_inside`, which exhaust `bad` up to measure zero). The `2·(P.parts.card)`-style
 boundary control comes from the per-cell remainder being `< 1/q`. -/
-theorem exists_equipartition_almost_refining [StandardBorelSpace α] [NoAtoms μ]
+theorem exists_equipartition_almost_refining [StandardBorelSpace α] [NullSingletonClass μ]
     (P : MeasurablePartition α μ) {q : ℕ} (hq : 0 < q) :
     ∃ Q : MeasurablePartition α μ,
       Q.parts.card = q ∧
@@ -5145,7 +5145,7 @@ theorem exists_equipartition_almost_refining [StandardBorelSpace α] [NoAtoms μ
 Given a measurable set S in an atomless measure space and n ≥ 1, there exist
 n pairwise disjoint measurable subsets of S, each of measure μ(S)/n, that cover S.
 This follows from iterated application of the IVT for atomless measures. -/
-private theorem exists_equal_measure_partition [StandardBorelSpace α] [NoAtoms μ]
+private theorem exists_equal_measure_partition [StandardBorelSpace α] [NullSingletonClass μ]
     {S : Set α} (hS : MeasurableSet S) (hfin : μ S ≠ ⊤) (hne : μ S ≠ 0)
     {n : ℕ} (hn : 0 < n) :
     ∃ pieces : Finset (Set α),
@@ -5276,7 +5276,7 @@ parts (inherited from P's pairwise disjointness), and the equitability bound
 (each sub-piece has measure μ(S)/m where m = ⌈1/ε⌉₊, and the deviation from
 1/(n*m) is controlled by ε since |μ(S)/m - 1/(n*m)| = |μ(S) - 1/n|/m ≤ ε
 when the original parts already have measure ≤ 1). -/
-private theorem exists_equitable_refinement_construction [StandardBorelSpace α] [NoAtoms μ]
+private theorem exists_equitable_refinement_construction [StandardBorelSpace α] [NullSingletonClass μ]
     (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ Q : MeasurablePartition α μ,
       Refines Q P ∧
@@ -5455,9 +5455,9 @@ at most n * m parts (where n = P.parts.card) and each part has measure within
 The intermediate value theorem for atomless measures (Sierpinski's theorem) is
 proved above as `exists_measurable_subset_of_measure`.
 
-The `[NoAtoms μ]` hypothesis ensures the measure has no atoms, which is
+The `[NullSingletonClass μ]` hypothesis ensures the measure has no atoms, which is
 necessary for the existence of subsets with prescribed measure. -/
-theorem exists_equitable_refinement [StandardBorelSpace α] [NoAtoms μ] (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0) :
+theorem exists_equitable_refinement [StandardBorelSpace α] [NullSingletonClass μ] (P : MeasurablePartition α μ) (ε : ℝ) (hε : ε > 0) :
     ∃ Q : MeasurablePartition α μ,
       Refines Q P ∧
       IsEquitable Q ε ∧

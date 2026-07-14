@@ -9375,7 +9375,7 @@ theorem orbit_separation_by_simple_graph {T K : ℕ}
   -- § CaiGovorovStack above): `tupleEquivSimple` is definitionally the family of
   -- `simpleEvalAt` equalities.
   by_contra hcon
-  push_neg at hcon
+  push Not at hcon
   exact _h (tupleEquivSimple_implies_orbit_general B _hB W _hW _htwin ξ ξ'
     (fun n F inst => hcon n F inst))
 

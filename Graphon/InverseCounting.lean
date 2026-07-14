@@ -62,9 +62,9 @@ for all graphs have cut distance zero. This connects the measure-theoretic
 
 section StepInverseCounting
 
-variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
-omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- Local reproof of `mkStepFun_measurable` (which is private in Compactness.lean). -/
 private theorem mkStepFun_measurable' (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ) :
     Measurable (mkStepFun P c) := by
@@ -73,7 +73,7 @@ private theorem mkStepFun_measurable' (P : MeasurablePartition α μ) (c : Set �
   apply Finset.measurable_sum; intro T hT
   exact measurable_const.indicator ((P.measurableSet_part hS).prod (P.measurableSet_part hT))
 
-omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- Local reproof of `mkStepFun_eq_at` (which is private in Compactness.lean).
 For a point `p ∈ S ×ˢ T` with `S, T ∈ P.parts`, `mkStepFun P c p = c S T`. -/
 private theorem mkStepFun_eq_at' (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
@@ -378,7 +378,7 @@ private theorem pullback_mkStepGraphon_of_cell_perm
       (Set.mem_prod.mpr ⟨hi, hj⟩),
     h_coeff i j]
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- Two step graphons whose coefficients agree on all pairs of positive-measure cells
 are equal as Graphons (a.e. equal). -/
 private theorem mkStepGraphon_eq_of_ae_coeff
@@ -431,7 +431,7 @@ if type class weight sums match, there exists a MP bijection mapping each
 sub-enumerated cell to a cell in the corresponding type class.
 
 **Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin cell-alignment core, proved in campaign R2).
-Requires `[NoAtoms μ]` for mass redistribution within type classes. -/
+Requires `[NullSingletonClass μ]` for mass redistribution within type classes. -/
 private theorem exists_type_class_mp_bijection
     (P : MeasurablePartition α μ) {k k' : ℕ} (ι : Fin k → Set α)
     (hι : ∀ i, ι i ∈ P.parts) (hι_surj : ∀ S ∈ P.parts, ∃ i, ι i = S)
@@ -1008,7 +1008,7 @@ end StepInverseCounting
 
 section InverseCounting
 
-variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /- **Simultaneous step approximation with controlled cutDistance.**
 
@@ -1877,7 +1877,7 @@ embeds into `[0,1]^{K² × 2} × [0,1]^K` (edge weights + part measures), which 
 By contradiction, extract a sequence of counterexamples (Pₙ, Uₙ, Wₙ) with densities
 converging but cut distance bounded below. Pad all partitions to Fin K (adding zero-measure
 parts), pass to a convergent subsequence in the compact coefficient space, and construct
-limit step graphons on a common partition. The NoAtoms hypothesis ensures the limit
+limit step graphons on a common partition. The NullSingletonClass hypothesis ensures the limit
 partition can be realized as a MeasurablePartition. The existing `step_quantitative_icl`
 logic then gives the contradiction. -/
 private theorem step_quantitative_icl_bounded (K : ℕ) (ε : ℝ) (hε : ε > 0) :
@@ -2444,7 +2444,7 @@ private theorem edgeFinset_card_le_sq {m : ℕ} (F : SimpleGraph (Fin m))
                 Nat.mul_le_mul_right m (by omega : m + 1 ≤ 2 * m)
             _ = 2 * (m * m) := by ring
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- **Counting bridge for stepifications**: if both stepifications are `δ`-close to their
 originals in cut norm and the originals have exactly equal hom densities, then the
 stepifications' hom densities differ by at most `2·(m·m)·δ` for every graph on `m`
@@ -2791,7 +2791,7 @@ section Uniqueness
 variable [IsProbabilityMeasure μ]
 
 /-- If a sequence converges to two limits, they are weakly isomorphic. -/
-theorem limit_unique_upto_weakIso [StandardBorelSpace α] [NoAtoms μ]
+theorem limit_unique_upto_weakIso [StandardBorelSpace α] [NullSingletonClass μ]
     (W : ℕ → Graphon α μ) (U V : Graphon α μ)
     (hU : ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) U < ε)
     (hV : ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W n) V < ε) :
@@ -2813,7 +2813,7 @@ theorem limit_unique_upto_weakIso [StandardBorelSpace α] [NoAtoms μ]
   · exact cutDistance_nonneg U V
 
 /-- Homomorphism densities determine the graphon up to weak isomorphism. -/
-theorem weaklyIsomorphic_of_homDensity_eq [StandardBorelSpace α] [NoAtoms μ]
+theorem weaklyIsomorphic_of_homDensity_eq [StandardBorelSpace α] [NullSingletonClass μ]
     (U W : Graphon α μ)
     (h : ∀ (k : ℕ) (F : SimpleGraph (Fin k)) [DecidableRel F.Adj],
          homDensity F U = homDensity F W) :

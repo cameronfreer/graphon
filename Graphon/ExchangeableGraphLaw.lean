@@ -56,15 +56,15 @@ structure ExchangeableGraphLaw where
   exact funext h
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- The sample laws of a fixed graphon form an exchangeable graph law. -/
 noncomputable def sampleExchangeableLaw (W : Graphon α μ) : ExchangeableGraphLaw where
   law k := samplePMF W k
   consistent e := samplePMF_map_comap W e
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 @[simp] theorem sampleExchangeableLaw_law (W : Graphon α μ) (k : ℕ) :
     (sampleExchangeableLaw W).law k = samplePMF W k := rfl
 
@@ -73,7 +73,7 @@ end Graphon
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- Each `ENNReal`-valued mass coordinate is measurable on the graphon space. -/
 theorem measurable_finiteSampleLaw_apply (k : ℕ) (G : SimpleGraph (Fin k)) :

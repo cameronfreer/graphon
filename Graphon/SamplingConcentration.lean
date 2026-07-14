@@ -49,7 +49,7 @@ variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
 
 namespace Graphon
 
-variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 section ConditionalDistribution
 
@@ -64,18 +64,18 @@ noncomputable def sampleMassAt (W : Graphon α μ) (x : Fin k → α)
     (G : SimpleGraph (Fin k)) : ℝ :=
   sampleIntegrand W G x
 
-omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- The unconditional mass integrates the conditional one over the sampled points. -/
 theorem sampleMass_eq_integral_sampleMassAt (W : Graphon α μ) (G : SimpleGraph (Fin k)) :
     sampleMass W G = ∫ x : Fin k → α, sampleMassAt W x G ∂Measure.pi (fun _ ↦ μ) := rfl
 
-omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] in
+omit [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- The conditional masses form a probability distribution at every point. -/
 theorem sampleMassAt_sum_eq_one (W : Graphon α μ) (x : Fin k → α) :
     ∑ G : SimpleGraph (Fin k), sampleMassAt W x G = 1 :=
   sum_sampleIntegrand_eq_one W x
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- The conditional masses are nonnegative for a.e. sampled points. -/
 theorem sampleMassAt_nonneg_ae (W : Graphon α μ) :
     ∀ᵐ x ∂Measure.pi (fun _ : Fin k ↦ μ),

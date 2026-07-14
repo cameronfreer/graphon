@@ -27,7 +27,7 @@ def FinSupp (σ : Equiv.Perm ℕ) : Prop := ∃ N, ∀ x, N ≤ x → σ x = x
 private theorem lt_of_finSupp {σ : Equiv.Perm ℕ} {N : ℕ} (hN : ∀ x, N ≤ x → σ x = x)
     {x : ℕ} (hx : x < N) : σ x < N := by
   by_contra h
-  push_neg at h
+  push Not at h
   have := σ.injective (hN (σ x) h)
   omega
 
@@ -62,7 +62,7 @@ theorem restrictFin_relabel_eq_comap (σ : Equiv.Perm ℕ) {N : ℕ}
   simp only [restrictFin, SimpleGraph.comap_adj, relabel_adj, relabelFin_apply]
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **The empirical graphon is invariant under a finite relabeling**, past its support. -/
 theorem empiricalGraphon_relabel (σ : Equiv.Perm ℕ) {N : ℕ}

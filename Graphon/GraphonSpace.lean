@@ -14,7 +14,7 @@ Packages the proved pseudometric theory of `cutDistance` into a bundled state sp
 
 * a `PseudoMetricSpace` instance on raw `Graphon α μ` with `dist = cutDistance`
   (the triangle inequality fixes the instance boundary at
-  `[StandardBorelSpace α] [NoAtoms μ]`);
+  `[StandardBorelSpace α] [NullSingletonClass μ]`);
 * `GraphonSpace α μ := SeparationQuotient (Graphon α μ)` — Mathlib's metric separation
   quotient, NOT a hand-rolled `Quotient`: the `MetricSpace`, `CompleteSpace`, and
   `Nonempty` instances come for free, and quotient equality is exactly
@@ -39,7 +39,7 @@ open MeasureTheory
 namespace Graphon
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- The cut distance as a pseudometric on raw graphons. Not a metric: distance zero is
 weak isomorphism, not equality — hence the `SeparationQuotient` below. -/
@@ -83,13 +83,13 @@ standard-Borel metric space. -/
 @[blueprint "def:graphonSpace"
   (title := /-- The graphon space -/)]
 abbrev GraphonSpace (α : Type*) [MeasurableSpace α] (μ : Measure α)
-    [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ] :=
+    [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ] :=
   SeparationQuotient (Graphon α μ)
 
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- The class of a graphon in the graphon space. -/
 noncomputable def mk (W : Graphon α μ) : GraphonSpace α μ :=

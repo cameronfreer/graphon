@@ -24,7 +24,7 @@ open MeasureTheory InfiniteGraph Filter
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **The empirical graphon** at level `n + 1`: the graphon class of the restriction of
 an infinite graph to its first `n + 1` vertices. -/

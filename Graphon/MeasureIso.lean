@@ -12,7 +12,7 @@ import Mathlib.MeasureTheory.MeasurableSpace.Embedding
 import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 import Mathlib.MeasureTheory.Measure.Stieltjes
 import Mathlib.MeasureTheory.Measure.Support
-import Mathlib.MeasureTheory.Measure.Typeclasses.NoAtoms
+import Mathlib.MeasureTheory.Measure.Typeclasses.NullSingletonClass
 import Mathlib.Probability.CDF
 import Mathlib.SetTheory.Cardinal.Aleph
 import Mathlib.Topology.MetricSpace.CantorScheme
@@ -32,6 +32,10 @@ measure-theory obligation:
 
 > An atomless standard-Borel probability space `(α, μ)` is measure-preservingly isomorphic
 > mod 0 to `([0,1], Lebesgue)`.
+
+Hypotheses are stated via `NullSingletonClass μ` (every singleton is null). In an arbitrary
+measurable space that is *weaker* than atomlessness; on the standard-Borel spaces of this file
+the two coincide, and the prose uses "atomless" in that sense.
 
 It is deliberately **independent of graphons** — pure Mathlib-style measure theory, and a
 plausible upstreaming target (the `Architect` import supplies only the `@[blueprint]`
@@ -58,10 +62,11 @@ open MeasureTheory ProbabilityTheory Filter Topology Set Function
 
 namespace Graphon.MeasureIso
 
-/-- **R1b — CDF continuity from atomlessness.** The cumulative distribution function of an
-atomless probability measure on `ℝ` is continuous. (A general CDF is only right-continuous;
-the left jumps are exactly the atoms, `cdf ν x − leftLim (cdf ν) x = ν {x}`, which vanish.) -/
-theorem continuous_cdf_of_noAtoms (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν] :
+/-- **R1b — CDF continuity from null singletons.** The cumulative distribution function of a
+null-singleton probability measure on `ℝ` is continuous. (A general CDF is only
+right-continuous; the left jumps are exactly the singleton masses,
+`cdf ν x − leftLim (cdf ν) x = ν {x}`, which vanish.) -/
+theorem continuous_cdf_of_noAtoms (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν] :
     Continuous (cdf ν) := by
   have hleft : ∀ x, leftLim (cdf ν) x = cdf ν x := by
     intro x
@@ -79,7 +84,7 @@ theorem continuous_cdf_of_noAtoms (ν : Measure ℝ) [IsProbabilityMeasure ν] [
 analytic heart of the probability integral transform: closedness of the sublevel set (CDF
 continuity) plus the boundary value `cdf ν (sSup S) = y` (from the limit `cdf ν → 1`) pin the
 set down to `Iic (sSup S)`, whose measure is `cdf ν (sSup S) = y` via `ofReal_cdf`. -/
-private lemma cdf_sublevel_measure (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν]
+private lemma cdf_sublevel_measure (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν]
     (y : ℝ) (hy1 : y < 1) :
     ν {x | cdf ν x ≤ y} = ENNReal.ofReal y := by
   set S : Set ℝ := {x | cdf ν x ≤ y} with hS
@@ -130,7 +135,7 @@ Proof: by `ext_of_Iic` it suffices to match `(cdf ν)_* ν (Iic y)` with `volume
 1)`. For `y < 1` both equal `ENNReal.ofReal y` (`cdf_sublevel_measure`, and `Iic y ∩ Icc 0 1 =
 Icc 0 y`); for `y ≥ 1` both equal `1` (the sublevel set is `univ` since `cdf ≤ 1 ≤ y`, and
 `Iic y ∩ Icc 0 1 = Icc 0 1`). -/
-theorem cdf_map_eq_volume_restrict (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν] :
+theorem cdf_map_eq_volume_restrict (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν] :
     Measure.map (cdf ν) ν = volume.restrict (Set.Icc (0 : ℝ) 1) := by
   have hmeas : Measurable (cdf ν) := (cdf ν).mono.measurable
   haveI : IsProbabilityMeasure (Measure.map (cdf ν) ν) :=
@@ -169,20 +174,20 @@ noncomputable def cdfQuantile (ν : Measure ℝ) (u : ℝ) : ℝ := sInf {x | u 
 variable {ν : Measure ℝ}
 
 /-- The super-level set `{x | u ≤ cdf ν x}` is closed (CDF continuity). -/
-private lemma setOf_cdf_ge_isClosed (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν]
+private lemma setOf_cdf_ge_isClosed (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν]
     (u : ℝ) : IsClosed {x | u ≤ cdf ν x} := by
   have hpre : {x : ℝ | u ≤ cdf ν x} = cdf ν ⁻¹' Ici u := by ext x; simp [mem_Ici]
   rw [hpre]
   exact isClosed_Ici.preimage (continuous_cdf_of_noAtoms ν)
 
 /-- For `u < 1` the super-level set is nonempty (`cdf ν → 1` at `atTop`). -/
-private lemma setOf_cdf_ge_nonempty (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν]
+private lemma setOf_cdf_ge_nonempty (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν]
     (u : ℝ) (hu1 : u < 1) : {x | u ≤ cdf ν x}.Nonempty := by
   obtain ⟨x, hx⟩ := ((tendsto_cdf_atTop ν).eventually (eventually_gt_nhds hu1)).exists
   exact ⟨x, le_of_lt hx⟩
 
 /-- For `0 < u` the super-level set is bounded below (`cdf ν → 0` at `atBot`). -/
-private lemma setOf_cdf_ge_bddBelow (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν]
+private lemma setOf_cdf_ge_bddBelow (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν]
     (u : ℝ) (hu0 : 0 < u) : BddBelow {x | u ≤ cdf ν x} := by
   obtain ⟨M, hM⟩ :=
     eventually_atBot.mp ((tendsto_cdf_atBot ν).eventually (eventually_lt_nhds hu0))
@@ -192,13 +197,13 @@ private lemma setOf_cdf_ge_bddBelow (ν : Measure ℝ) [IsProbabilityMeasure ν]
 
 /-- Membership of the infimum in the super-level set: `u ≤ cdf ν (cdfQuantile ν u)`
 for `u ∈ Ioo 0 1`. -/
-private lemma le_cdf_cdfQuantile (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν]
+private lemma le_cdf_cdfQuantile (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν]
     (u : ℝ) (hu0 : 0 < u) (hu1 : u < 1) : u ≤ cdf ν (cdfQuantile ν u) :=
   (setOf_cdf_ge_isClosed ν u).csInf_mem (setOf_cdf_ge_nonempty ν u hu1)
     (setOf_cdf_ge_bddBelow ν u hu0)
 
 /-- The Galois characterization on `Ioo 0 1`: `cdfQuantile ν u ≤ x ↔ u ≤ cdf ν x`. -/
-private lemma cdfQuantile_le_iff (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν]
+private lemma cdfQuantile_le_iff (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν]
     (u x : ℝ) (hu0 : 0 < u) (hu1 : u < 1) : cdfQuantile ν u ≤ x ↔ u ≤ cdf ν x := by
   constructor
   · intro h
@@ -207,7 +212,7 @@ private lemma cdfQuantile_le_iff (ν : Measure ℝ) [IsProbabilityMeasure ν] [N
     exact csInf_le (setOf_cdf_ge_bddBelow ν u hu0) h
 
 /-- The quantile is `0` on `(-∞, 0]`: the super-level set is all of `ℝ` (`cdf ≥ 0 ≥ u`). -/
-private lemma cdfQuantile_of_nonpos (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν]
+private lemma cdfQuantile_of_nonpos (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν]
     (u : ℝ) (hu : u ≤ 0) : cdfQuantile ν u = 0 := by
   have huniv : {x : ℝ | u ≤ cdf ν x} = univ := by
     ext x; simp only [mem_setOf_eq, mem_univ, iff_true]
@@ -216,7 +221,7 @@ private lemma cdfQuantile_of_nonpos (ν : Measure ℝ) [IsProbabilityMeasure ν]
   rw [huniv, Real.sInf_univ]
 
 /-- The quantile is `0` on `(1, ∞)`: the super-level set is empty (`cdf ≤ 1 < u`). -/
-private lemma cdfQuantile_of_gt_one (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν]
+private lemma cdfQuantile_of_gt_one (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν]
     (u : ℝ) (hu : 1 < u) : cdfQuantile ν u = 0 := by
   have hempty : {x : ℝ | u ≤ cdf ν x} = ∅ := by
     ext x; simp only [mem_setOf_eq, mem_empty_iff_false, iff_false, not_le]
@@ -228,7 +233,7 @@ private lemma cdfQuantile_of_gt_one (ν : Measure ℝ) [IsProbabilityMeasure ν]
 continuous CDF: `cdf ν (cdfQuantile ν u) = u`. The lower bound `u ≤ cdf ν q` is membership of
 the infimum in the (closed) super-level set; the upper bound `cdf ν q ≤ u` comes from the
 left-limit of the CDF at `q`, all points below `q` lying outside the super-level set. -/
-private lemma cdf_cdfQuantile_of_mem_Ioo (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν]
+private lemma cdf_cdfQuantile_of_mem_Ioo (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν]
     (u : ℝ) (hu0 : 0 < u) (hu1 : u < 1) : cdf ν (cdfQuantile ν u) = u := by
   refine le_antisymm ?_ (le_cdf_cdfQuantile ν u hu0 hu1)
   have htend : Tendsto (cdf ν) (𝓝[<] (cdfQuantile ν u)) (𝓝 (cdf ν (cdfQuantile ν u))) :=
@@ -245,7 +250,7 @@ private lemma cdf_cdfQuantile_of_mem_Ioo (ν : Measure ℝ) [IsProbabilityMeasur
 monotone (it drops back to `0` outside `[0,1]`), each sublevel set `{u | cdfQuantile ν u ≤ c}`
 splits, by the region of `u`, into the manifestly measurable pieces coming from the constant
 value `0` on `Iic 0 ∪ Ioi 1`, the Galois identity on `Ioo 0 1`, and the single point `{1}`. -/
-theorem measurable_cdfQuantile (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν] :
+theorem measurable_cdfQuantile (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν] :
     Measurable (cdfQuantile ν) := by
   apply measurable_of_Iic
   intro c
@@ -308,7 +313,7 @@ private lemma ae_not_mem_zero_one :
 /-- **R1d — first a.e. inverse.** On `[0,1]` (equipped with Lebesgue measure) the CDF is a left
 inverse of the quantile: `cdf ν (cdfQuantile ν u) = u` for a.e. `u`, since the exceptional set
 lies in the `volume`-null pair `{0, 1}`. -/
-theorem cdf_cdfQuantile_ae (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν] :
+theorem cdf_cdfQuantile_ae (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν] :
     (fun u => cdf ν (cdfQuantile ν u)) =ᵐ[volume.restrict (Set.Icc 0 1)] id := by
   refine (ae_restrict_iff' measurableSet_Icc).mpr ?_
   filter_upwards [ae_not_mem_zero_one] with u hu huIcc
@@ -322,7 +327,7 @@ theorem cdf_cdfQuantile_ae (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms
 measure on `[0,1]` forward to `ν`. By `ext_of_Iic` it suffices to match `Iic`-measures: the
 preimage `cdfQuantile ν ⁻¹' Iic t ∩ Icc 0 1` agrees, up to the null pair `{0, 1}`, with
 `Ioc 0 (cdf ν t)` (Galois identity on `Ioo 0 1`), whose volume is `cdf ν t = ν (Iic t)`. -/
-theorem map_cdfQuantile_volume_restrict (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν] :
+theorem map_cdfQuantile_volume_restrict (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν] :
     Measure.map (cdfQuantile ν) (volume.restrict (Set.Icc (0 : ℝ) 1)) = ν := by
   have hmeas : Measurable (cdfQuantile ν) := measurable_cdfQuantile ν
   haveI : IsProbabilityMeasure (volume.restrict (Set.Icc (0 : ℝ) 1)) := by
@@ -362,7 +367,7 @@ theorem map_cdfQuantile_volume_restrict (ν : Measure ℝ) [IsProbabilityMeasure
 `{cdf ≤ 0}` is `ν`-null) we get `cdfQuantile ν (cdf ν x) ≤ x` a.e.; combined with the equal
 pushforwards `map (cdfQuantile ν ∘ cdf ν) ν = ν` (via the two transport identities) and the
 monotone bounded `arctan` test, the a.e. inequality is forced to an a.e. equality. -/
-theorem cdfQuantile_cdf_ae (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν] :
+theorem cdfQuantile_cdf_ae (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν] :
     (fun x => cdfQuantile ν (cdf ν x)) =ᵐ[ν] id := by
   have hmeasQ : Measurable (cdfQuantile ν) := measurable_cdfQuantile ν
   have hmeasCdf : Measurable (cdf ν) := (cdf ν).mono.measurable
@@ -473,7 +478,7 @@ def Mod0MeasureIso.trans {α β γ} [MeasurableSpace α] [MeasurableSpace β] [M
 
 /-- **R1e — the real-line instance.** The CDF/quantile pair of an atomless probability measure
 `ν` on `ℝ` is a mod-0 isomorphism between `(ℝ, ν)` and `([0,1], Lebesgue)`. -/
-noncomputable def realMod0MeasureIso (ν : Measure ℝ) [IsProbabilityMeasure ν] [NoAtoms ν] :
+noncomputable def realMod0MeasureIso (ν : Measure ℝ) [IsProbabilityMeasure ν] [NullSingletonClass ν] :
     Mod0MeasureIso ℝ ℝ ν (volume.restrict (Set.Icc 0 1)) where
   toFun := cdf ν
   invFun := cdfQuantile ν
@@ -484,11 +489,11 @@ noncomputable def realMod0MeasureIso (ν : Measure ℝ) [IsProbabilityMeasure ν
   left_inv_ae := cdfQuantile_cdf_ae ν
   right_inv_ae := cdf_cdfQuantile_ae ν
 
-/-- The pushforward of an atomless measure by a measurable embedding is atomless: each singleton
-has an at-most-singleton preimage, which is null. -/
+/-- The pushforward of a null-singleton measure by a measurable embedding again has null
+singletons: each singleton has an at-most-singleton preimage, which is null. -/
 private lemma noAtoms_map_of_injective {α β} [MeasurableSpace α] [MeasurableSpace β]
-    {μ : Measure α} [NoAtoms μ] {f : α → β} (hf : MeasurableEmbedding f) :
-    NoAtoms (Measure.map f μ) := by
+    {μ : Measure α} [NullSingletonClass μ] {f : α → β} (hf : MeasurableEmbedding f) :
+    NullSingletonClass (Measure.map f μ) := by
   refine ⟨fun y => ?_⟩
   rw [hf.map_apply]
   have hsub : (f ⁻¹' {y}).Subsingleton := by
@@ -537,7 +542,7 @@ CDF/quantile isomorphism of the (atomless, probability) pushforward measure. -/
 @[blueprint "thm:measure-iso"
   (title := /-- Atomless standard-Borel measure-isomorphism theorem (mod 0) -/)]
 theorem atomless_standardBorel_mod0MeasureIso_unitInterval (α) [MeasurableSpace α]
-    [StandardBorelSpace α] (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ] :
+    [StandardBorelSpace α] (μ : Measure α) [IsProbabilityMeasure μ] [NullSingletonClass μ] :
     Nonempty (Mod0MeasureIso α ℝ μ (volume.restrict (Set.Icc 0 1))) := by
   have hne : Nonempty α := by
     by_contra h
@@ -547,7 +552,7 @@ theorem atomless_standardBorel_mod0MeasureIso_unitInterval (α) [MeasurableSpace
     exact zero_ne_one h1
   haveI : IsProbabilityMeasure (Measure.map (embeddingReal α) μ) :=
     Measure.isProbabilityMeasure_map (measurableEmbedding_embeddingReal α).measurable.aemeasurable
-  haveI : NoAtoms (Measure.map (embeddingReal α) μ) :=
+  haveI : NullSingletonClass (Measure.map (embeddingReal α) μ) :=
     noAtoms_map_of_injective (measurableEmbedding_embeddingReal α)
   exact ⟨(embeddingRealMod0MeasureIso α μ).trans
     (realMod0MeasureIso (Measure.map (embeddingReal α) μ))⟩
@@ -718,7 +723,7 @@ private lemma exists_small_ball (nu : Measure α) [IsFiniteMeasure nu] (x : α)
 
 /-- Splitting primitive: a positive-measure closed set splits into two disjoint closed
 subsets of positive measure, small diameter, and each at most a quarter of the parent's mass. -/
-private lemma exists_split (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ]
+private lemma exists_split (μ : Measure α) [IsProbabilityMeasure μ] [NullSingletonClass μ]
     {S : Set α} (hS : IsClosed S) (hpos : 0 < μ S) {ε : ℝ} (hε : 0 < ε) :
     ∃ K₀ K₁ : Set α, IsClosed K₀ ∧ IsClosed K₁ ∧ K₀ ⊆ S ∧ K₁ ⊆ S ∧ Disjoint K₀ K₁ ∧
       0 < μ K₀ ∧ 0 < μ K₁ ∧ Metric.ediam K₀ ≤ ENNReal.ofReal ε ∧
@@ -730,7 +735,7 @@ private lemma exists_split (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms 
   have hnu0 : nu ≠ 0 := by
     intro h; rw [h] at hnuuniv; simp only [Measure.coe_zero, Pi.zero_apply] at hnuuniv
     exact hpos.ne' hnuuniv.symm
-  haveI : NoAtoms nu := by
+  haveI : NullSingletonClass nu := by
     refine ⟨fun z => ?_⟩
     rw [hnu, Measure.restrict_apply (measurableSet_singleton z)]
     exact measure_mono_null Set.inter_subset_left (measure_singleton z)
@@ -816,7 +821,7 @@ private lemma exists_split (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms 
 
 open scoped Classical in
 /-- The two children of `S` at level `n` (junk if `S` is not a positive-measure closed set). -/
-private noncomputable def splitPair (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ]
+private noncomputable def splitPair (μ : Measure α) [IsProbabilityMeasure μ] [NullSingletonClass μ]
     (S : Set α) (n : ℕ) : Set α × Set α :=
   if h : IsClosed S ∧ 0 < μ S then
     ((exists_split μ h.1 h.2 (show (0:ℝ) < (1/2)^(n+1) by positivity)).choose,
@@ -824,13 +829,13 @@ private noncomputable def splitPair (μ : Measure α) [IsProbabilityMeasure μ] 
   else (∅, ∅)
 
 /-- The Cantor scheme: `[]` maps to the whole space; each child is a `splitPair` component. -/
-private noncomputable def scheme (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ] :
+private noncomputable def scheme (μ : Measure α) [IsProbabilityMeasure μ] [NullSingletonClass μ] :
     List Bool → Set α
   | [] => univ
   | b :: l => bif b then (splitPair μ (scheme μ l) l.length).2
                     else (splitPair μ (scheme μ l) l.length).1
 
-private lemma splitPair_spec (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ]
+private lemma splitPair_spec (μ : Measure α) [IsProbabilityMeasure μ] [NullSingletonClass μ]
     {S : Set α} {n : ℕ} (hS : IsClosed S) (hpos : 0 < μ S) :
     IsClosed (splitPair μ S n).1 ∧ IsClosed (splitPair μ S n).2 ∧
     (splitPair μ S n).1 ⊆ S ∧ (splitPair μ S n).2 ⊆ S ∧
@@ -846,7 +851,7 @@ private lemma splitPair_spec (μ : Measure α) [IsProbabilityMeasure μ] [NoAtom
   rw [hpair]
   exact (exists_split μ hS hpos hε).choose_spec.choose_spec
 
-private lemma scheme_node (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ] :
+private lemma scheme_node (μ : Measure α) [IsProbabilityMeasure μ] [NullSingletonClass μ] :
     ∀ l : List Bool, IsClosed (scheme μ l) ∧ 0 < μ (scheme μ l) ∧
       μ (scheme μ l) ≤ (1 / 4 : ENNReal) ^ l.length := by
   intro l
@@ -863,7 +868,7 @@ private lemma scheme_node (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms �
     | false => exact ⟨h0c, h0pos, le_trans h0m hbound⟩
     | true => exact ⟨h1c, h1pos, le_trans h1m hbound⟩
 
-private lemma scheme_subset (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ]
+private lemma scheme_subset (μ : Measure α) [IsProbabilityMeasure μ] [NullSingletonClass μ]
     (l : List Bool) (b : Bool) : scheme μ (b :: l) ⊆ scheme μ l := by
   obtain ⟨hcl, hpos, _⟩ := scheme_node μ l
   obtain ⟨_, _, h0S, h1S, _⟩ := splitPair_spec μ (n := l.length) hcl hpos
@@ -871,7 +876,7 @@ private lemma scheme_subset (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms
   | false => exact h0S
   | true => exact h1S
 
-private lemma scheme_diam (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ]
+private lemma scheme_diam (μ : Measure α) [IsProbabilityMeasure μ] [NullSingletonClass μ]
     (l : List Bool) (b : Bool) :
     Metric.ediam (scheme μ (b :: l)) ≤ ENNReal.ofReal ((1 / 2) ^ (l.length + 1)) := by
   obtain ⟨hcl, hpos, _⟩ := scheme_node μ l
@@ -889,7 +894,7 @@ so the reservoir need not live inside any prescribed conull set — a strengthen
 that makes the construction cleaner.) -/
 theorem exists_uncountable_null_measurableSet
     {α : Type*} [MeasurableSpace α] [StandardBorelSpace α]
-    (μ : Measure α) [IsProbabilityMeasure μ] [NoAtoms μ] :
+    (μ : Measure α) [IsProbabilityMeasure μ] [NullSingletonClass μ] :
     ∃ R : Set α, MeasurableSet R ∧ μ R = 0 ∧ ¬ R.Countable := by
   letI := upgradeStandardBorel α
   letI := TopologicalSpace.upgradeIsCompletelyMetrizable α
@@ -987,7 +992,7 @@ theorem Mod0MeasureIso.toMeasurableEquiv
     {α β : Type*} [MeasurableSpace α] [StandardBorelSpace α]
     [MeasurableSpace β] [StandardBorelSpace β]
     {μ : Measure α} {ν : Measure β} [IsProbabilityMeasure μ] [IsProbabilityMeasure ν]
-    [NoAtoms μ] [NoAtoms ν] (e : Mod0MeasureIso α β μ ν) :
+    [NullSingletonClass μ] [NullSingletonClass ν] (e : Mod0MeasureIso α β μ ν) :
     ∃ φ : α ≃ᵐ β, MeasurePreserving φ μ ν ∧ φ =ᵐ[μ] e.toFun ∧ φ.symm =ᵐ[ν] e.invFun := by
   obtain ⟨A₀, hA₀, hA₀0, hA₀c⟩ := exists_uncountable_null_measurableSet μ
   obtain ⟨B₀, hB₀, hB₀0, hB₀c⟩ := exists_uncountable_null_measurableSet ν

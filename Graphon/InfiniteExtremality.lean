@@ -31,7 +31,7 @@ open MeasureTheory InfiniteGraph
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **The Dirac bridge**: the represented infinite law of a Dirac mixing measure is the
 canonical infinite law of its point. -/
@@ -67,7 +67,7 @@ end Graphon.InfiniteExchangeableGraphLaw
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **Extremality at the infinite level, Dirac form**: an infinite exchangeable law is
 dissociated iff its representing measure is a Dirac. -/

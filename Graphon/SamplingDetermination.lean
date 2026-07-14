@@ -36,7 +36,7 @@ open MeasureTheory
 namespace Graphon
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **The sample laws determine the graphon**: two graphons have the same `k`-vertex
 sample law for every `k` iff they are weakly isomorphic. -/

@@ -461,7 +461,7 @@ private theorem card_filter_range_mem_le (q k : ℕ) (i : Fin k) :
     _ = q * k ^ (q - 1) := by
         rw [Finset.sum_const, Finset.card_univ, Fintype.card_fin, smul_eq_mul]
 
-variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- The hom-density of the embedded exposed sample is a measurable function of the
 exposure state (any function out of the countable discrete graph space is). -/
@@ -532,9 +532,9 @@ end Oscillation
 
 section ConcentrationTail
 
-variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
-omit [StandardBorelSpace α] [NoAtoms μ] in
+omit [StandardBorelSpace α] [NullSingletonClass μ] in
 /-- Hom-densities of a graph on no vertices are constantly `1` (empty edge product). -/
 private theorem homDensity_fin_zero (F : SimpleGraph (Fin 0)) [DecidableRel F.Adj]
     (X : Graphon α μ) : Graphon.homDensity F X = 1 := by

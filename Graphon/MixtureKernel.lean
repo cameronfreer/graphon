@@ -31,7 +31,7 @@ open MeasureTheory InfiniteGraph
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **The canonical infinite law is a measurable family of measures**: measurability of
 each evaluation, by Dynkin induction over the generating cylinder π-system, where the

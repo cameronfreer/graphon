@@ -31,7 +31,7 @@ open scoped Classical
 namespace Graphon
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- The coefficient of `ofSimpleGraphOn` at a pair of equipartition cells is the
 adjacency indicator. -/

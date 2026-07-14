@@ -1054,8 +1054,8 @@ counterexamples:
   `cutNormDiff_pullback_le`.
 * **Arbitrary-partition alignment is FALSE** unless the cell measures match — certified by
   `mp_align_forces_equal_measure`. The honest form is equal-measure cell alignment
-  (`exists_controlled_cell_alignment`, `[NoAtoms μ]`).
-* **Controlled cell alignment needs `[NoAtoms μ]`** (atom counterexample; one-sided necessity
+  (`exists_controlled_cell_alignment`, `[NullSingletonClass μ]`).
+* **Controlled cell alignment needs `[NullSingletonClass μ]`** (atom counterexample; one-sided necessity
   by `mp_maps_into_forces_measure_le`).
 
 * **Conjunct 1 (map alignment via bijections) is FALSE.** Take `(α, μ) = ([0,1], λ)`,
@@ -1070,7 +1070,7 @@ counterexamples:
   certified by `mp_align_forces_equal_measure` below. Counterexample: `P = {A, Aᶜ}` with
   `μ A = 1/2` and `Q = trivialPartition` (whose only cell has measure `1`).
 
-* **Conjunct 3 (controlled cell alignment) needs `[NoAtoms μ]`.** With atoms it fails even at
+* **Conjunct 3 (controlled cell alignment) needs `[NullSingletonClass μ]`.** With atoms it fails even at
   equal measures: on `{a,b,c}` with `μ = (1/2, 1/4, 1/4)`, no measure-preserving bijection
   maps the two-atom cell `{b,c}` into the one-atom cell `{a}`. `mp_maps_into_forces_measure_le`
   certifies the one-sided measure necessity that underlies the cell-matching hypotheses. -/
@@ -1088,7 +1088,7 @@ theorem mp_align_forces_equal_measure
 /-- **Refutation support (conjunct 3).** If a measure-preserving `e` maps `S` a.e. into `T`,
 then `μ S ≤ μ T`. For injective cell families whose measures sum to the whole space this forces
 equality; with atoms present, equal measures are not enough to realize the map (see the scoping
-note above), which is why the corrected cell-alignment lemma assumes `[NoAtoms μ]`. -/
+note above), which is why the corrected cell-alignment lemma assumes `[NullSingletonClass μ]`. -/
 theorem mp_maps_into_forces_measure_le
     {e : α ≃ᵐ α} (he : MeasurePreserving e μ μ) {S T : Set α} (hT : MeasurableSet T)
     (h : ∀ᵐ x ∂μ, x ∈ S → e x ∈ T) :
@@ -1106,12 +1106,12 @@ This replaces the false `exists_common_extension_maps`: demanding `χ₁, χ₂`
 is unprovable (take `ψ₁ = id`, `φ₂ = ` doubling — a bijection cannot equal an essentially
 2-to-1 map a.e.; see the scoping note). The honest statement is a coupling: build the
 relatively-independent joining of `ψ₁, φ₂` over their common factor on `α × α`, then re-type
-it onto `α` via the measure-isomorphism theorem — which needs `[NoAtoms μ]`. Interface for
+it onto `α` via the measure-isomorphism theorem — which needs `[NullSingletonClass μ]`. Interface for
 `cutDistance_triangle` (used together with the pullback contraction
 `cutNormDiff_pullback_le`, since `χ₁, χ₂` are maps, not measure-preserving bijections). -/
 @[blueprint "thm:coupling-maps"
   (title := /-- Common coupling by measure-preserving maps -/)]
-theorem MeasurePreserving.exists_common_coupling_maps [StandardBorelSpace α] [NoAtoms μ]
+theorem MeasurePreserving.exists_common_coupling_maps [StandardBorelSpace α] [NullSingletonClass μ]
     (ψ₁ : α → α) (hψ₁ : MeasurePreserving ψ₁ μ μ)
     (φ₂ : α → α) (hφ₂ : MeasurePreserving φ₂ μ μ) :
     ∃ (χ₁ χ₂ : α → α)
@@ -1198,7 +1198,7 @@ theorem MeasurePreserving.exists_common_coupling_maps [StandardBorelSpace α] [N
     show (Ω.map Prod.snd).map Prod.snd = μ
     rw [Measure.map_map measurable_snd measurable_snd]; exact marg2
   -- ρ is atomless
-  haveI : NoAtoms ρ := by
+  haveI : NullSingletonClass ρ := by
     refine ⟨fun p ↦ ?_⟩
     have hle : ρ {p} ≤ ρ.fst {p.1} := by
       rw [Measure.fst_apply (measurableSet_singleton p.1)]
@@ -1254,7 +1254,7 @@ self-map of `α`. If `μ A = 0` both restrictions vanish and the identity works;
 normalize each to a probability measure (dividing by the common mass `μ A`) and transport through
 `[0,1]` via `atomless_standardBorel_mod0MeasureIso_unitInterval`, then unnormalize — pushforwards
 and a.e. relations are invariant under the common nonzero, finite scalar. -/
-private lemma equalMeasure_restrict_mod0iso [StandardBorelSpace α] [NoAtoms μ]
+private lemma equalMeasure_restrict_mod0iso [StandardBorelSpace α] [NullSingletonClass μ]
     {A B : Set α} (hAB : μ A = μ B) :
     Nonempty (Mod0MeasureIso α α (μ.restrict A) (μ.restrict B)) := by
   rcases eq_or_ne (μ A) 0 with hA0 | hApos
@@ -1276,11 +1276,11 @@ private lemma equalMeasure_restrict_mod0iso [StandardBorelSpace α] [NoAtoms μ]
       refine ⟨?_⟩
       rw [hνBdef, Measure.smul_apply, Measure.restrict_apply_univ, smul_eq_mul, ← hAB]
       exact ENNReal.inv_mul_cancel hApos hmtop
-    haveI : NoAtoms νA := by
+    haveI : NullSingletonClass νA := by
       refine ⟨fun x => ?_⟩
       rw [hνAdef, Measure.smul_apply, Measure.restrict_apply (measurableSet_singleton x),
         smul_eq_mul, measure_mono_null Set.inter_subset_left (measure_singleton x), mul_zero]
-    haveI : NoAtoms νB := by
+    haveI : NullSingletonClass νB := by
       refine ⟨fun x => ?_⟩
       rw [hνBdef, Measure.smul_apply, Measure.restrict_apply (measurableSet_singleton x),
         smul_eq_mul, measure_mono_null Set.inter_subset_left (measure_singleton x), mul_zero]
@@ -1318,7 +1318,7 @@ theorem needs). Built from per-cell equal-measure mod-0 isos
 (each pair `ι_S i, ι_T i` and the leftover `(⋃ ι_S)ᶜ ↔ (⋃ ι_T)ᶜ`, all equal measure) assembled
 over the disjoint cells; the everywhere-bijection difficulty is then discharged once by
 `Mod0MeasureIso.toMeasurableEquiv` in the main theorem. -/
-private theorem exists_mod0_self_iso_aligning_cells [StandardBorelSpace α] [NoAtoms μ]
+private theorem exists_mod0_self_iso_aligning_cells [StandardBorelSpace α] [NullSingletonClass μ]
     (P Q : MeasurablePartition α μ) {k : ℕ} (ι_S ι_T : Fin k → Set α)
     (hS : ∀ i, ι_S i ∈ P.parts) (hT : ∀ i, ι_T i ∈ Q.parts)
     (hS_inj : Function.Injective ι_S) (hT_inj : Function.Injective ι_T)
@@ -1541,13 +1541,13 @@ Borel probability space, there is a measure-preserving bijection mapping each ce
 a.e. into `ι_T i`.
 
 This is the honest, true form of the third conjunct of the old `exists_common_extension`
-stub: it adds `[NoAtoms μ]` (necessary — see the atom counterexample in the scoping note and
+stub: it adds `[NullSingletonClass μ]` (necessary — see the atom counterexample in the scoping note and
 `mp_maps_into_forces_measure_le`) and is now a standalone obligation resting only on the
 measure-isomorphism theorem (campaign phase R1), not on the unprovable monolithic stub. It is
 the sole cell-matching interface used by the inverse-counting route. -/
 @[blueprint "thm:cell-alignment"
   (title := /-- Controlled cell alignment (equal-measure cells) -/)]
-theorem MeasurePreserving.exists_controlled_cell_alignment [StandardBorelSpace α] [NoAtoms μ]
+theorem MeasurePreserving.exists_controlled_cell_alignment [StandardBorelSpace α] [NullSingletonClass μ]
     (P Q : MeasurablePartition α μ)
     {k : ℕ} (ι_S ι_T : Fin k → Set α)
     (hS : ∀ i, ι_S i ∈ P.parts) (hT : ∀ i, ι_T i ∈ Q.parts)
@@ -1826,10 +1826,10 @@ This is the key property making cut distance a pseudometric.
 5. Take ε → 0.
 
 **Depends on**: `MeasurePreserving.exists_common_coupling_maps` (corrected coupling, needs
-`[NoAtoms μ]`) and `cutNormDiff_pullback_le` (pullback contraction). -/
+`[NullSingletonClass μ]`) and `cutNormDiff_pullback_le` (pullback contraction). -/
 @[blueprint "thm:cutDistance-triangle"
   (title := /-- Triangle inequality for cut distance -/)]
-theorem cutDistance_triangle [StandardBorelSpace α] [NoAtoms μ] (U V W : Graphon α μ) :
+theorem cutDistance_triangle [StandardBorelSpace α] [NullSingletonClass μ] (U V W : Graphon α μ) :
     cutDistance U W ≤ cutDistance U V + cutDistance V W := by
   -- Suffices to show: for all ε > 0, d(U,W) ≤ d(U,V) + d(V,W) + ε
   rw [← sub_nonneg]

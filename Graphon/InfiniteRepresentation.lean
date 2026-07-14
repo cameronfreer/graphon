@@ -26,7 +26,7 @@ open MeasureTheory InfiniteGraph
 namespace GraphonSpace
 
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
-  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NoAtoms μ]
+  [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **The infinite Diaconis–Janson / Aldous–Hoover correspondence**: probability
 measures on the graphon space are exactly the exchangeable probability laws on infinite
