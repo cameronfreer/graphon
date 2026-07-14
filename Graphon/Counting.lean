@@ -184,7 +184,7 @@ theorem homDensity_sub_le_completeGraph_two (U W : Graphon α μ) :
   rw [← integral_sub (SymmKernel.graphon_integrable U) (SymmKernel.graphon_integrable W)]
   rw [integral_eq_rectIntegralDiff_univ U W]
   have hle := abs_rectIntegralDiff_le U W MeasurableSet.univ MeasurableSet.univ
-  have hcard : (completeGraph (Fin 2)).edgeFinset.card = 1 := by native_decide
+  have hcard : (completeGraph (Fin 2)).edgeFinset.card = 1 := by decide
   rw [hcard, Nat.cast_one, one_mul]
   exact hle
 

@@ -8376,7 +8376,7 @@ targets for the follow-up proving sessions.
 ```
   Level 1 (frontier)
     tupleEquiv_power_sum_invariance          [STUB]
-    tupleEquiv_polynomial_moment_invariance  [STUB — generalizes L1]
+    tupleEquiv_polynomial_moment_invariance  [STUB — generalizes L1; ended as a vacuous placeholder, deleted 2026-07-14]
       ↓
   Level 2 (core claim)
     DecLabeledGraphTr.eval_tupleEquiv_invariant  [STUB at L6705]
@@ -10364,36 +10364,6 @@ private theorem tupleEquiv_power_sum_invariance {T K : ℕ}
     ∑ t : Fin T, W t * ∏ a : Fin K, B (ξ a) t ^ m a =
     ∑ t : Fin T, W t * ∏ a : Fin K, B (ξ' a) t ^ m a := by
   exact starMultigraphEval_tupleEquiv_invariant B hB W hW htwin m h
-
-/-- **Level-1 generalization stub** (`tupleEquiv_polynomial_moment_invariance`).
-Lifts the power-sum identity across a simple-graph "backbone" on `n`
-unlabeled vertices. For any no-LL simple graph `G` on `Fin (n + K)`, any
-label-to-unlabeled-position-0 multiplicity `m : Fin K → ℕ`, and any
-`ξ ≡ ξ'`:
-```
-∑ σ, (∏ v, W (σ v)) · (∏ a, B (ξ a) (σ 0) ^ m a) · edge-product over G
-  = same with ξ'.
-```
-
-This is the exact shape of `DecLabeledGraphTr.eval`'s σ-sum integrand
-(minus the ξ-only LL factor, which is trivially invariant via
-`tupleEquiv_power_sum_invariance` applied pointwise).
-
-**Reduction to Level 1**: for each fixed `σ'` other than position 0,
-factor out the σ'-dependent edge contributions and apply Level 1 at
-the position-0 unlabeled vertex. Formal assembly is routine once
-Level 1 is closed. -/
-private theorem tupleEquiv_polynomial_moment_invariance {T K n : ℕ}
-    (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
-    (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
-    (_htwin : ∀ i j : Fin T, i ≠ j → B i ≠ B j)
-    {ξ ξ' : Fin K → Fin T} (_h : tupleEquiv B W ξ ξ')
-    (_G : SimpleGraph (Fin (n + 1 + K)))
-    [_inst : DecidableRel _G.Adj]
-    (_noLL : ∀ a b : Fin (n + 1 + K), a.val < K → b.val < K → ¬ _G.Adj a b)
-    (_m : Fin K → ℕ) :
-    True := by  -- placeholder return; real signature returns an equality.
-  trivial
 
 /-! #### Level 4 stubs — Claim 4.3 / 4.4 refactored via extension
 
