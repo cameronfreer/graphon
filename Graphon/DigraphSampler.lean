@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.Digraphon
 import Graphon.InfiniteDigraph
+import Graphon.InfiniteDigraphLaw
 import Graphon.SamplerSources
 import Mathlib.Probability.ProbabilityMassFunction.Constructions
 
@@ -38,7 +39,7 @@ identification with `exchangeableDigraphLawEquiv`, exchangeability, dissociation
 step (D3b step 4).
 -/
 
-open MeasureTheory Set
+open MeasureTheory RelSignature Set
 open scoped ENNReal
 
 namespace MeasureTheory.Digraphon
@@ -591,5 +592,97 @@ theorem samplerSource_sampleFinite_singleton [IsProbabilityMeasure μ] (D : Fini
   exact W.samplerSource_forall_sampleAdj Fin.val_injective D
 
 end ProductFormula
+
+/-! ### The sampled exchangeable law and the infinite identification (D3b step 5)
+
+The `ι`-freedom of the product formula makes restriction-consistency immediate, so the finite
+sampler laws assemble into a `RelExchangeableLaw digraphSig`; the infinite sampler then
+realizes its (R2b) infinite law, by finite-restriction measure extensionality. -/
+
+section LawIdentification
+
+variable [IsProbabilityMeasure μ]
+
+instance (k : ℕ) : IsProbabilityMeasure ((samplerSource μ).map (W.sampleFinite k)) :=
+  Measure.isProbabilityMeasure_map (W.measurable_sampleFinite k).aemeasurable
+
+/-- **Restriction-consistency of the sampled finite laws**: restricting the `l`-vertex sample
+along any injection `e : Fin k ↪ Fin l` reproduces the `k`-vertex sample law — both sides have
+the same exact-event masses by the labeling-free product formula. -/
+theorem map_sampleFinite_restrict {k l : ℕ} (e : Fin k ↪ Fin l) :
+    ((samplerSource μ).map (W.sampleFinite l)).map (RelStructure.restrict fun _ : Unit => e) =
+      (samplerSource μ).map (W.sampleFinite k) := by
+  rw [Measure.map_map (RelSignature.measurable_restrict _) (W.measurable_sampleFinite l)]
+  refine Measure.ext_of_singleton fun D => ?_
+  have hcomp : Function.Injective fun i : Fin k => ((e i : Fin l) : ℕ) :=
+    Fin.val_injective.comp e.injective
+  rw [Measure.map_apply ((RelSignature.measurable_restrict _).comp (W.measurable_sampleFinite l))
+      (measurableSet_singleton D),
+    Measure.map_apply (W.measurable_sampleFinite k) (measurableSet_singleton D)]
+  have h1 : (RelStructure.restrict (fun _ : Unit => e) ∘ W.sampleFinite l) ⁻¹' {D} =
+      {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
+        ∀ i j : Fin k, W.sampleAdj ω (e i) (e j) = D (digraphCoord i j)} := by
+    ext ω
+    simp only [Set.mem_preimage, Function.comp_apply, Set.mem_singleton_iff, Set.mem_setOf_eq]
+    rw [digraphStructure_ext_iff]
+    refine forall₂_congr fun i j => ?_
+    show W.sampleFinite l ω (RelCoord.map (fun _ => ⇑e) (digraphCoord i j))
+        = D (digraphCoord i j) ↔ _
+    rw [digraphCoord_map]
+    exact Iff.rfl
+  have h2 : W.sampleFinite k ⁻¹' {D} =
+      {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
+        ∀ i j : Fin k, W.sampleAdj ω i j = D (digraphCoord i j)} := by
+    ext ω
+    simp only [Set.mem_preimage, Set.mem_singleton_iff, Set.mem_setOf_eq]
+    exact digraphStructure_ext_iff
+  rw [h1, h2, W.samplerSource_forall_sampleAdj hcomp D,
+    W.samplerSource_forall_sampleAdj Fin.val_injective D]
+
+/-- **The sampled relational law**: the finite sampler laws, packaged as an exchangeable
+relational law over `digraphSig` (consistency from the labeling-free product formula). -/
+noncomputable def sampleRelLaw : RelExchangeableLaw digraphSig where
+  marginal n := ⟨(samplerSource μ).map (W.sampleFinite (n ())),
+    Measure.isProbabilityMeasure_map (W.measurable_sampleFinite _).aemeasurable⟩
+  consistent := fun {_ _} e => W.map_sampleFinite_restrict (e ())
+
+@[simp] theorem sampleRelLaw_marginal (n : Unit → ℕ) :
+    (W.sampleRelLaw.marginal n : Measure (RelStructure digraphSig (Vfinite n))) =
+      (samplerSource μ).map (W.sampleFinite (n ())) := rfl
+
+/-- **The sampled digraph law**, in the user-facing `PMF` form of D2. -/
+noncomputable def sampleDigraphLaw : ExchangeableDigraphLaw :=
+  digraphLawEquiv.symm W.sampleRelLaw
+
+@[simp] theorem sampleDigraphLaw_law (k : ℕ) :
+    W.sampleDigraphLaw.law k =
+      ((samplerSource μ).map (W.sampleFinite k)).toPMF.map (finiteDigraphEquiv k) := rfl
+
+/-- **The sampler realizes the infinite exchangeable law** (D3b step 5): the pushforward of
+the sampler source under the infinite sampler is exactly the (R2b) infinite law of the sampled
+relational law — by finite-restriction measure extensionality, since the finite sampler *is*
+the restriction of the infinite sampler. -/
+theorem map_sampleInfinite :
+    (samplerSource μ).map W.sampleInfinite =
+      (W.sampleRelLaw.infiniteLaw : Measure InfiniteDigraph) := by
+  haveI : IsProbabilityMeasure ((samplerSource μ).map W.sampleInfinite) :=
+    Measure.isProbabilityMeasure_map W.measurable_sampleInfinite.aemeasurable
+  refine InfiniteDigraph.ext_of_map_restrictFin fun n => ?_
+  rw [Measure.map_map (InfiniteDigraph.measurable_restrictFin n) W.measurable_sampleInfinite,
+    W.sampleRelLaw.infiniteLaw_map_restrictFin fun _ => n]
+  rfl
+
+/-- **The headline identification**: the sampler's infinite law is the image of the sampled
+`PMF`-based digraph law under the directed finite/infinite equivalence
+`exchangeableDigraphLawEquiv` (D2). -/
+theorem map_sampleInfinite_eq_equiv_law :
+    (samplerSource μ).map W.sampleInfinite =
+      ((exchangeableDigraphLawEquiv W.sampleDigraphLaw).law : Measure InfiniteDigraph) := by
+  rw [W.map_sampleInfinite, exchangeableDigraphLawEquiv_apply_law]
+  exact congrArg (fun L : RelExchangeableLaw digraphSig =>
+    (L.infiniteLaw : Measure InfiniteDigraph))
+    (digraphLawEquiv.apply_symm_apply W.sampleRelLaw).symm
+
+end LawIdentification
 
 end MeasureTheory.Digraphon
