@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Architect
 import Graphon.DigraphSampler
 import Graphon.DigraphonConstructors
 import Graphon.SamplingLaw
@@ -149,6 +150,8 @@ private theorem ofTournament_pair_null {i j : ℕ} (hij : i < j) (f : Fin 2 → 
 /-- **The tournament digraphon samples tournaments** (D3c headline): almost surely, the
 sampled infinite digraph has no loops and exactly one direction between any two distinct
 vertices. -/
+@[blueprint "thm:digraphon-tournament-sample"
+  (title := /-- The tournament digraphon samples tournaments -/)]
 theorem ofTournament_sample_isTournament :
     ∀ᵐ ω ∂samplerSource μ,
       (∀ i : ℕ, ((ofTournament A hnn hsum).sampleInfinite ω).adjBit i i = false) ∧
@@ -212,6 +215,8 @@ private noncomputable def dirMass (A : α × α →ₘ[μ.prod μ] ℝ) {n : ℕ
 /-- **The asymmetric-kernel sample draws its two directions independently** (D3c headline):
 the exact-event integrand factorizes over *ordered* off-diagonal pairs into one-directional
 Bernoulli masses, with the loop indicators reading the loop kernel `L`. -/
+@[blueprint "thm:digraphon-kernel-sample"
+  (title := /-- The asymmetric-kernel sample draws its directions independently -/)]
 theorem sampleEventIntegrand_ofKernel_ae {n : ℕ} (D : FiniteDigraph n) :
     (ofKernel A hmem L hL).sampleEventIntegrand D
       =ᵐ[Measure.pi fun _ : Fin n => μ] fun y =>
@@ -523,6 +528,8 @@ private theorem lintegral_sampleEventIntegrand_ofGraphon_ne (W : Graphon α μ) 
 /-- **The embedded ordinary graphon samples the undirected `W`-random graph** (D3c headline):
 the law of the `k`-vertex digraph sample of `ofGraphon W` is the pushforward of the undirected
 sample law `Graphon.samplePMF W k` under the symmetric loopless embedding. -/
+@[blueprint "thm:digraphon-graphon-embedding-sample"
+  (title := /-- The embedded graphon samples the undirected W-random graph -/)]
 theorem map_sampleFinite_ofGraphon (W : Graphon α μ) (k : ℕ) :
     (samplerSource μ).map ((Digraphon.ofGraphon W).sampleFinite k) =
       ((Graphon.samplePMF W k).toMeasure).map SimpleGraph.toFiniteDigraph := by
