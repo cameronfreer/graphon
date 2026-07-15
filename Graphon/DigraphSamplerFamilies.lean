@@ -294,4 +294,26 @@ theorem sampleEventIntegrand_ofKernel_ae {n : ℕ} (D : FiniteDigraph n) :
 
 end Kernel
 
+/-! ### The graphon embedding samples the undirected W-random graph -/
+
+section GraphonEmbedding
+
+open scoped Classical in
+/-- The symmetric loopless embedding of a simple graph as a finite digraph. -/
+noncomputable def _root_.SimpleGraph.toFiniteDigraph {k : ℕ} (G : SimpleGraph (Fin k)) :
+    FiniteDigraph k :=
+  fun c => decide (G.Adj (c.2 0) (c.2 1))
+
+variable [IsProbabilityMeasure μ]
+
+/-- **The embedded ordinary graphon samples the undirected `W`-random graph** (D3c headline):
+the law of the `k`-vertex digraph sample of `ofGraphon W` is the pushforward of the undirected
+sample law `Graphon.samplePMF W k` under the symmetric loopless embedding. -/
+theorem map_sampleFinite_ofGraphon (W : Graphon α μ) (k : ℕ) :
+    (samplerSource μ).map ((Digraphon.ofGraphon W).sampleFinite k) =
+      ((Graphon.samplePMF W k).toMeasure).map SimpleGraph.toFiniteDigraph := by
+  sorry
+
+end GraphonEmbedding
+
 end MeasureTheory.Digraphon
