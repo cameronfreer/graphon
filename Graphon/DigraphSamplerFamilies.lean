@@ -197,4 +197,101 @@ theorem ofTournament_sample_isTournament :
 
 end Tournament
 
+/-! ### The asymmetric-kernel digraphon: independent directions -/
+
+section Kernel
+
+variable [IsProbabilityMeasure μ] (A : α × α →ₘ[μ.prod μ] ℝ)
+  (hmem : ∀ᵐ p ∂(μ.prod μ), A p ∈ Set.Icc (0 : ℝ) 1) (L : α → Bool) (hL : Measurable L)
+
+/-- The one-directional Bernoulli mass of a single ordered pair. -/
+private noncomputable def dirMass (A : α × α →ₘ[μ.prod μ] ℝ) {n : ℕ} (D : FiniteDigraph n)
+    (y : Fin n → α) (q : Fin n × Fin n) : ℝ :=
+  if D (digraphCoord q.1 q.2) = true then A (y q.1, y q.2) else 1 - A (y q.1, y q.2)
+
+/-- **The asymmetric-kernel sample draws its two directions independently** (D3c headline):
+the exact-event integrand factorizes over *ordered* off-diagonal pairs into one-directional
+Bernoulli masses, with the loop indicators reading the loop kernel `L`. -/
+theorem sampleEventIntegrand_ofKernel_ae {n : ℕ} (D : FiniteDigraph n) :
+    (ofKernel A hmem L hL).sampleEventIntegrand D
+      =ᵐ[Measure.pi fun _ : Fin n => μ] fun y =>
+        (∏ i : Fin n, if L (y i) = D (digraphCoord i i) then 1 else 0) *
+          ∏ q ∈ Finset.univ.filter (fun q : Fin n × Fin n => q.1 ≠ q.2),
+            ENNReal.ofReal (dirMass A D y q) := by
+  classical
+  -- transported a.e. facts: loop kernel per coordinate, simplexRep + membership per pair
+  have hloop : ∀ᵐ y ∂(Measure.pi fun _ : Fin n => μ), ∀ i : Fin n,
+      (ofKernel A hmem L hL).loopRep (y i) = L (y i) := by
+    rw [eventually_countable_forall]
+    exact fun i => (measurePreserving_eval (fun _ : Fin n => μ) i).quasiMeasurePreserving.ae
+      (ofKernel_loop_ae A hmem L hL)
+  have hpair : ∀ᵐ y ∂(Measure.pi fun _ : Fin n => μ),
+      ∀ p : {p : Fin n × Fin n // p.1 < p.2},
+        (ofKernel A hmem L hL).simplexRep (D (digraphCoord p.1.1 p.1.2))
+            (D (digraphCoord p.1.2 p.1.1)) (y p.1.1, y p.1.2)
+          = (if D (digraphCoord p.1.1 p.1.2) = true then A (y p.1.1, y p.1.2)
+              else 1 - A (y p.1.1, y p.1.2)) *
+            (if D (digraphCoord p.1.2 p.1.1) = true then A (y p.1.2, y p.1.1)
+              else 1 - A (y p.1.2, y p.1.1)) ∧
+        A (y p.1.1, y p.1.2) ∈ Set.Icc (0 : ℝ) 1 := by
+    rw [eventually_countable_forall]
+    intro p
+    have h1 := Graphon.ae_pairMap_of_prod p.1.1 p.1.2 p.2.ne
+      ((ofKernel_simplexRep_ae A hmem L hL (D (digraphCoord p.1.1 p.1.2))
+        (D (digraphCoord p.1.2 p.1.1))).and hmem)
+    filter_upwards [h1] with y hy
+    exact ⟨hy.1, hy.2⟩
+  filter_upwards [hloop, hpair] with y hy hp
+  unfold sampleEventIntegrand
+  congr 1
+  · exact Finset.prod_congr rfl fun i _ => by rw [hy i]
+  -- pair side: substitute the product form, split ofReal, reindex to ordered pairs
+  have hsubst : ∀ p : {p : Fin n × Fin n // p.1 < p.2},
+      ENNReal.ofReal ((ofKernel A hmem L hL).simplexRep (D (digraphCoord p.1.1 p.1.2))
+          (D (digraphCoord p.1.2 p.1.1)) (y p.1.1, y p.1.2))
+        = ENNReal.ofReal (dirMass A D y p.1) * ENNReal.ofReal (dirMass A D y p.1.swap) := by
+    intro p
+    have hpos : 0 ≤ (if D (digraphCoord p.1.1 p.1.2) = true then A (y p.1.1, y p.1.2)
+        else 1 - A (y p.1.1, y p.1.2)) := by
+      split_ifs
+      · exact (hp p).2.1
+      · linarith [(hp p).2.2]
+    rw [(hp p).1, ENNReal.ofReal_mul hpos]
+    rfl
+  rw [Finset.prod_congr rfl fun p _ => hsubst p, Finset.prod_mul_distrib]
+  -- the ordered off-diagonal pairs split into the increasing and decreasing halves
+  have hlt : ∏ p : {p : Fin n × Fin n // p.1 < p.2}, ENNReal.ofReal (dirMass A D y p.1)
+      = ∏ q ∈ Finset.univ.filter (fun q : Fin n × Fin n => q.1 < q.2),
+          ENNReal.ofReal (dirMass A D y q) :=
+    (Finset.prod_subtype (Finset.univ.filter fun q : Fin n × Fin n => q.1 < q.2)
+      (fun q => by simp only [Finset.mem_filter, Finset.mem_univ, true_and])
+      fun q => ENNReal.ofReal (dirMass A D y q)).symm
+  have hgt : ∏ p : {p : Fin n × Fin n // p.1 < p.2}, ENNReal.ofReal (dirMass A D y p.1.swap)
+      = ∏ q ∈ Finset.univ.filter (fun q : Fin n × Fin n => q.2 < q.1),
+          ENNReal.ofReal (dirMass A D y q) := by
+    rw [Finset.prod_subtype (p := fun q : Fin n × Fin n => q.2 < q.1)
+      (Finset.univ.filter fun q : Fin n × Fin n => q.2 < q.1)
+      (fun q => by simp only [Finset.mem_filter, Finset.mem_univ, true_and])
+      (fun q => ENNReal.ofReal (dirMass A D y q))]
+    exact Fintype.prod_equiv
+      ⟨fun p => ⟨p.1.swap, p.2⟩, fun q => ⟨q.1.swap, q.2⟩,
+        fun p => Subtype.ext (Prod.swap_swap _), fun q => Subtype.ext (Prod.swap_swap _)⟩
+      _ _ fun p => rfl
+  rw [hlt, hgt, ← Finset.prod_union (by
+    simp only [Finset.disjoint_filter]
+    exact fun q _ h1 => not_lt_of_gt h1)]
+  refine Finset.prod_congr ?_ fun _ _ => rfl
+  ext q
+  simp only [Finset.mem_union, Finset.mem_filter, Finset.mem_univ, true_and]
+  constructor
+  · rintro (h | h)
+    · exact h.ne
+    · exact (h.ne).symm
+  · intro h
+    rcases lt_or_gt_of_ne h with h' | h'
+    · exact Or.inl h'
+    · exact Or.inr h'
+
+end Kernel
+
 end MeasureTheory.Digraphon
