@@ -151,8 +151,8 @@ namespace Graphon
 This section builds the nonnegative, measurable, integrable **majorant**
 `pointSamplingMajorant W ε' k x` dominating `cutDistance W (H_{W,x})` a.e., and bounds the
 expectation of its *frequency* term. The deep *core* term (Layer 3, the AFKK Q-subsample
-ghost argument) is isolated in the single sorried private lemma
-`coreTerm_expectation_bound`.
+ghost argument) is isolated in the private lemma `coreTerm_expectation_bound` (fully proved;
+this section's layering dates from when it was the last open obligation).
 
 The triangle decomposition through `U := stepify P W` (`P` the Frieze–Kannan partition of
 `W` at quality `ε'`) is
