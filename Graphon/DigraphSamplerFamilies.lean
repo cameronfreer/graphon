@@ -306,13 +306,248 @@ noncomputable def _root_.SimpleGraph.toFiniteDigraph {k : ℕ} (G : SimpleGraph 
 
 variable [IsProbabilityMeasure μ]
 
+open scoped Classical in
+/-- The ordered-pair coordinates of the embedded digraph read the (classically decided)
+adjacency of the simple graph. -/
+private theorem toFiniteDigraph_coord {k : ℕ} (G : SimpleGraph (Fin k)) (a b : Fin k) :
+    G.toFiniteDigraph (digraphCoord a b) = decide (G.Adj a b) := rfl
+
+/-- The symmetric loopless embedding is injective. -/
+private theorem toFiniteDigraph_injective {k : ℕ} :
+    Function.Injective (SimpleGraph.toFiniteDigraph (k := k)) := by
+  intro G G' h
+  ext a b
+  have hc := congrFun h (digraphCoord a b)
+  rw [toFiniteDigraph_coord, toFiniteDigraph_coord] at hc
+  exact decide_eq_decide.mp hc
+
+/-- **Classification of the range of the embedding**: a finite digraph is an embedded simple
+graph iff its coordinates are loopless and symmetric. -/
+private theorem exists_toFiniteDigraph_eq_iff {k : ℕ} (D : FiniteDigraph k) :
+    (∃ G : SimpleGraph (Fin k), G.toFiniteDigraph = D) ↔
+      ((∀ i, D (digraphCoord i i) = false) ∧
+        ∀ i j : Fin k, D (digraphCoord i j) = D (digraphCoord j i)) := by
+  classical
+  constructor
+  · rintro ⟨G, rfl⟩
+    refine ⟨fun i => ?_, fun i j => ?_⟩
+    · rw [toFiniteDigraph_coord]
+      exact decide_eq_false G.irrefl
+    · rw [toFiniteDigraph_coord, toFiniteDigraph_coord]
+      exact decide_eq_decide.mpr (G.adj_comm i j)
+  · rintro ⟨h1, h2⟩
+    refine ⟨⟨fun i j => D (digraphCoord i j) = true ∧ i ≠ j,
+      ⟨fun i j hij => ⟨(h2 j i).trans hij.1, hij.2.symm⟩⟩,
+      ⟨fun i hii => hii.2 rfl⟩⟩, ?_⟩
+    refine digraphStructure_ext_iff.mpr fun a b => ?_
+    rw [toFiniteDigraph_coord]
+    by_cases hab : a = b
+    · subst hab
+      rw [h1 a, decide_eq_false_iff_not]
+      exact fun hcon => hcon.2 rfl
+    · rcases hDc : D (digraphCoord a b) with _ | _
+      · rw [decide_eq_false_iff_not]
+        exact fun hcon => Bool.false_ne_true (hDc ▸ hcon.1)
+      · exact @decide_eq_true _ (Classical.propDecidable _) ⟨hDc, hab⟩
+
+/-- The canonical representative of an unordered pair built from an ordered pair is that pair
+or its swap. -/
+private theorem out_eq_or_swap {V : Type*} (a b : V) :
+    Quot.out s(a, b) = (a, b) ∨ Quot.out s(a, b) = (b, a) := by
+  have h : s(a, b) = s((Quot.out s(a, b)).1, (Quot.out s(a, b)).2) := by
+    simp [Sym2.mk, Quot.out_eq]
+  rcases Sym2.eq_iff.mp h.symm with ⟨h1, h2⟩ | ⟨h1, h2⟩
+  · exact Or.inl (Prod.ext h1 h2)
+  · exact Or.inr (Prod.ext h1 h2)
+
+/-- **The exact-event lintegral of the embedded digraphon at an embedded graph is the sample
+mass** of the underlying `W`-random graph: the loop indicators are a.e. `1`, and the
+increasing-pair `simplexRep` masses are a.e. the Bernoulli edge masses of `sampleIntegrand`,
+reindexed from unordered edges to increasing pairs. -/
+private theorem lintegral_sampleEventIntegrand_toFiniteDigraph (W : Graphon α μ) {k : ℕ}
+    (G : SimpleGraph (Fin k)) :
+    ∫⁻ y, (ofGraphon W).sampleEventIntegrand G.toFiniteDigraph y
+        ∂(Measure.pi fun _ : Fin k => μ) =
+      ENNReal.ofReal (Graphon.sampleMass W G) := by
+  classical
+  have hnn : 0 ≤ᵐ[Measure.pi fun _ : Fin k => μ] Graphon.sampleIntegrand W G := by
+    filter_upwards [Graphon.ae_top_edges_mem_Icc W] with x hx
+    refine mul_nonneg (Finset.prod_nonneg fun e he => ?_) (Finset.prod_nonneg fun e he => ?_)
+    · exact (hx e (SimpleGraph.edgeFinset_mono le_top he)).1
+    · linarith [(hx e (Finset.sdiff_subset he)).2]
+  rw [Graphon.sampleMass, ofReal_integral_eq_lintegral_ofReal
+    (Graphon.sampleIntegrand_integrable W G) hnn]
+  refine lintegral_congr_ae ?_
+  -- transported a.e. facts: no loops per coordinate, and the two diagonal `simplexRep`
+  -- identifications plus a.e. symmetry per increasing pair
+  have hloop : ∀ᵐ y ∂(Measure.pi fun _ : Fin k => μ), ∀ i : Fin k,
+      (ofGraphon W).loopRep (y i) = false := by
+    rw [eventually_countable_forall]
+    exact fun i => (measurePreserving_eval (fun _ : Fin k => μ) i).quasiMeasurePreserving.ae
+      (ofGraphon_loop_ae W)
+  have hpair : ∀ᵐ y ∂(Measure.pi fun _ : Fin k => μ),
+      ∀ p : {p : Fin k × Fin k // p.1 < p.2},
+        (ofGraphon W).simplexRep true true (y p.1.1, y p.1.2)
+            = W.toAEEqFun (y p.1.1, y p.1.2) ∧
+          (ofGraphon W).simplexRep false false (y p.1.1, y p.1.2)
+              = 1 - W.toAEEqFun (y p.1.1, y p.1.2) ∧
+            W.toAEEqFun (y p.1.2, y p.1.1) = W.toAEEqFun (y p.1.1, y p.1.2) := by
+    rw [eventually_countable_forall]
+    intro p
+    obtain ⟨htt, hff, -, -⟩ := ofGraphon_simplexRep_ae W
+    filter_upwards [Graphon.ae_pairMap_of_prod p.1.1 p.1.2 p.2.ne
+      ((htt.and hff).and W.symm_ae)] with y hy
+    exact ⟨hy.1.1, hy.1.2, hy.2⟩
+  filter_upwards [hloop, hpair, Graphon.ae_top_edges_mem_Icc W] with y hl hp hIcc
+  unfold sampleEventIntegrand
+  have hloop1 : (∏ i : Fin k,
+      if (ofGraphon W).loopRep (y i) = G.toFiniteDigraph (digraphCoord i i) then (1 : ℝ≥0∞)
+      else 0) = 1 :=
+    Finset.prod_eq_one fun i _ => by
+      rw [hl i, toFiniteDigraph_coord, decide_eq_false G.irrefl]
+      simp
+  rw [hloop1, one_mul]
+  have hval : ∀ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset,
+      (0 : ℝ) ≤ if e ∈ G.edgeFinset then W.toAEEqFun (y (Quot.out e).1, y (Quot.out e).2)
+        else 1 - W.toAEEqFun (y (Quot.out e).1, y (Quot.out e).2) := by
+    intro e he
+    split_ifs
+    · exact (hIcc e he).1
+    · linarith [(hIcc e he).2]
+  calc ∏ p : {p : Fin k × Fin k // p.1 < p.2},
+        ENNReal.ofReal ((ofGraphon W).simplexRep
+          (G.toFiniteDigraph (digraphCoord p.1.1 p.1.2))
+          (G.toFiniteDigraph (digraphCoord p.1.2 p.1.1)) (y p.1.1, y p.1.2))
+      = ∏ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset, ENNReal.ofReal
+          (if e ∈ G.edgeFinset then W.toAEEqFun (y (Quot.out e).1, y (Quot.out e).2)
+            else 1 - W.toAEEqFun (y (Quot.out e).1, y (Quot.out e).2)) := by
+        refine Finset.prod_bij (fun p _ => s(p.1.1, p.1.2)) (fun p _ => ?_)
+          (fun p _ q _ hpq => ?_) (fun e he => ?_) (fun p _ => ?_)
+        · rw [SimpleGraph.mem_edgeFinset, SimpleGraph.mem_edgeSet, SimpleGraph.top_adj]
+          exact p.2.ne
+        · rcases Sym2.eq_iff.mp hpq with ⟨h1, h2⟩ | ⟨h1, h2⟩
+          · exact Subtype.ext (Prod.ext h1 h2)
+          · exfalso
+            have hlt := p.2
+            rw [h1, h2] at hlt
+            exact lt_asymm hlt q.2
+        · have hne : (Quot.out e).1 ≠ (Quot.out e).2 :=
+            Graphon.edge_out_ne (SimpleGraph.mem_edgeFinset.mp he)
+          have heq : s((Quot.out e).1, (Quot.out e).2) = e := by
+            simp [Sym2.mk, Quot.out_eq]
+          rcases lt_or_gt_of_ne hne with hlt | hgt
+          · exact ⟨⟨((Quot.out e).1, (Quot.out e).2), hlt⟩, Finset.mem_univ _, heq⟩
+          · exact ⟨⟨((Quot.out e).2, (Quot.out e).1), hgt⟩, Finset.mem_univ _,
+              Sym2.eq_swap.trans heq⟩
+        · obtain ⟨htt, hff, hsymm⟩ := hp p
+          have hout : W.toAEEqFun (y (Quot.out s(p.1.1, p.1.2)).1,
+                y (Quot.out s(p.1.1, p.1.2)).2)
+              = W.toAEEqFun (y p.1.1, y p.1.2) := by
+            rcases out_eq_or_swap p.1.1 p.1.2 with h | h
+            · rw [h]
+            · rw [h]
+              exact hsymm
+          rw [toFiniteDigraph_coord, toFiniteDigraph_coord,
+            decide_eq_decide.mpr (G.adj_comm p.1.2 p.1.1)]
+          by_cases hadj : G.Adj p.1.1 p.1.2
+          · rw [decide_eq_true hadj, htt,
+              if_pos (SimpleGraph.mem_edgeFinset.mpr (G.mem_edgeSet.mpr hadj)), hout]
+          · rw [decide_eq_false hadj, hff,
+              if_neg (fun hc => hadj (G.mem_edgeSet.mp
+                (SimpleGraph.mem_edgeFinset.mp hc))), hout]
+    _ = ENNReal.ofReal (∏ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset,
+          if e ∈ G.edgeFinset then W.toAEEqFun (y (Quot.out e).1, y (Quot.out e).2)
+          else 1 - W.toAEEqFun (y (Quot.out e).1, y (Quot.out e).2)) :=
+        (ENNReal.ofReal_prod_of_nonneg hval).symm
+    _ = ENNReal.ofReal (Graphon.sampleIntegrand W G y) := by
+        congr 1
+        rw [Graphon.sampleIntegrand, mul_comm, ← Finset.prod_sdiff
+          (SimpleGraph.edgeFinset_mono (le_top : G ≤ ⊤))]
+        exact congrArg₂ (· * ·)
+          (Finset.prod_congr rfl fun e he => if_neg (Finset.mem_sdiff.mp he).2)
+          (Finset.prod_congr rfl fun e he => if_pos he)
+
+/-- **Off the range of the embedding the exact-event lintegral vanishes**: a prescribed loop
+is a.e. impossible, and an asymmetric reciprocal pair forces an a.e.-null antisymmetric
+`simplexRep` factor. -/
+private theorem lintegral_sampleEventIntegrand_ofGraphon_ne (W : Graphon α μ) {k : ℕ}
+    {D : FiniteDigraph k}
+    (hD : ¬ ((∀ i, D (digraphCoord i i) = false) ∧
+      ∀ i j : Fin k, D (digraphCoord i j) = D (digraphCoord j i))) :
+    ∫⁻ y, (ofGraphon W).sampleEventIntegrand D y ∂(Measure.pi fun _ : Fin k => μ) = 0 := by
+  rw [lintegral_eq_zero_iff ((ofGraphon W).measurable_sampleEventIntegrand D)]
+  rw [not_and_or] at hD
+  rcases hD with h1 | h2
+  · -- a loop bit is prescribed, but the embedding has no loops a.e.
+    obtain ⟨i, hi⟩ := not_forall.mp h1
+    have hi' : D (digraphCoord i i) = true := by simpa using hi
+    have hloop : ∀ᵐ y ∂(Measure.pi fun _ : Fin k => μ),
+        (ofGraphon W).loopRep (y i) = false :=
+      (measurePreserving_eval (fun _ : Fin k => μ) i).quasiMeasurePreserving.ae
+        (ofGraphon_loop_ae W)
+    filter_upwards [hloop] with y hy
+    unfold sampleEventIntegrand
+    have hfac : (if (ofGraphon W).loopRep (y i) = D (digraphCoord i i) then (1 : ℝ≥0∞) else 0)
+        = 0 := by
+      rw [hy, hi']
+      simp
+    rw [Finset.prod_eq_zero (Finset.mem_univ i) hfac, zero_mul]
+    simp
+  · -- an asymmetric pair is prescribed, but the antisymmetric masses vanish a.e.
+    obtain ⟨i, hj⟩ := not_forall.mp h2
+    obtain ⟨j, hij⟩ := not_forall.mp hj
+    have hne : i ≠ j := fun h => hij (by rw [h])
+    obtain ⟨a, b, hab, hne'⟩ : ∃ a b : Fin k, a < b ∧
+        D (digraphCoord a b) ≠ D (digraphCoord b a) := by
+      rcases lt_or_gt_of_ne hne with h | h
+      · exact ⟨i, j, h, hij⟩
+      · exact ⟨j, i, h, fun hc => hij hc.symm⟩
+    have hzero : ∀ᵐ q ∂(μ.prod μ),
+        (ofGraphon W).simplexRep (D (digraphCoord a b)) (D (digraphCoord b a)) q = 0 := by
+      obtain ⟨-, -, htf, hft⟩ := ofGraphon_simplexRep_ae W
+      rcases hx : D (digraphCoord a b) with _ | _ <;>
+        rcases hz : D (digraphCoord b a) with _ | _
+      · exact absurd (hx.trans hz.symm) hne'
+      · filter_upwards [hft] with q hq using hq
+      · filter_upwards [htf] with q hq using hq
+      · exact absurd (hx.trans hz.symm) hne'
+    filter_upwards [Graphon.ae_pairMap_of_prod a b hab.ne hzero] with y hy
+    unfold sampleEventIntegrand
+    have hfac : ENNReal.ofReal ((ofGraphon W).simplexRep (D (digraphCoord a b))
+        (D (digraphCoord b a)) (y a, y b)) = 0 := by
+      rw [hy, ENNReal.ofReal_zero]
+    rw [Finset.prod_eq_zero (Finset.mem_univ
+      (⟨(a, b), hab⟩ : {p : Fin k × Fin k // p.1 < p.2})) hfac, mul_zero]
+    simp
+
 /-- **The embedded ordinary graphon samples the undirected `W`-random graph** (D3c headline):
 the law of the `k`-vertex digraph sample of `ofGraphon W` is the pushforward of the undirected
 sample law `Graphon.samplePMF W k` under the symmetric loopless embedding. -/
 theorem map_sampleFinite_ofGraphon (W : Graphon α μ) (k : ℕ) :
     (samplerSource μ).map ((Digraphon.ofGraphon W).sampleFinite k) =
       ((Graphon.samplePMF W k).toMeasure).map SimpleGraph.toFiniteDigraph := by
-  sorry
+  classical
+  refine Measure.ext_of_singleton fun D => ?_
+  rw [Measure.map_apply ((ofGraphon W).measurable_sampleFinite k) (measurableSet_singleton D),
+    Measure.map_apply (measurable_of_countable _) (measurableSet_singleton D)]
+  by_cases hD : ∃ G : SimpleGraph (Fin k), G.toFiniteDigraph = D
+  · obtain ⟨G, rfl⟩ := hD
+    have hpre : SimpleGraph.toFiniteDigraph ⁻¹' {G.toFiniteDigraph} = {G} := by
+      ext H
+      simp only [Set.mem_preimage, Set.mem_singleton_iff]
+      exact ⟨fun h => toFiniteDigraph_injective h, fun h => by rw [h]⟩
+    rw [hpre, PMF.toMeasure_apply_singleton _ _ (measurableSet_singleton G),
+      Graphon.samplePMF_apply]
+    exact ((ofGraphon W).samplerSource_sampleFinite_singleton G.toFiniteDigraph).trans
+      (lintegral_sampleEventIntegrand_toFiniteDigraph W G)
+  · have hpre : SimpleGraph.toFiniteDigraph ⁻¹' {D} = (∅ : Set (SimpleGraph (Fin k))) := by
+      ext H
+      simp only [Set.mem_preimage, Set.mem_singleton_iff, Set.mem_empty_iff_false, iff_false]
+      exact fun h => hD ⟨H, h⟩
+    rw [hpre, measure_empty]
+    exact ((ofGraphon W).samplerSource_sampleFinite_singleton D).trans
+      (lintegral_sampleEventIntegrand_ofGraphon_ne W
+        fun hcls => hD ((exists_toFiniteDigraph_eq_iff D).mpr hcls))
 
 end GraphonEmbedding
 
