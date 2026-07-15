@@ -110,6 +110,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms MeasureTheory.Digraphon.samplerSource_forall_sampleAdj
 #print axioms MeasureTheory.Digraphon.map_sampleInfinite_eq_equiv_law
 #print axioms MeasureTheory.Digraphon.map_sampleFinite_pair_disjoint
+#print axioms MeasureTheory.Digraphon.ofFun_simplexRep_ae
 #print axioms MeasureTheory.Digraphon.sampleAdj_pair_of_lt
 #print axioms MeasureTheory.Digraphon.measurable_sampleInfinite
 #print axioms MeasureTheory.Digraphon.measurable_sampleFinite
