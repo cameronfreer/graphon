@@ -90,4 +90,111 @@ private theorem samplerSource_pair_event {i j : ℕ} (hij : i < j) (f : Fin 2 �
 
 end SmallEvents
 
+/-! ### The tournament digraphon samples tournaments -/
+
+section Tournament
+
+variable [IsProbabilityMeasure μ] (A : α × α →ₘ[μ.prod μ] ℝ)
+  (hnn : ∀ᵐ p ∂(μ.prod μ), 0 ≤ A p) (hsum : ∀ᵐ p ∂(μ.prod μ), A p + A p.swap = 1)
+
+/-- Any single loop bit of the tournament sample is a.s. absent. -/
+private theorem ofTournament_loop_null (i : ℕ) :
+    samplerSource μ {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
+      (ofTournament A hnn hsum).loopRep (ω.1 i) = true} = 0 := by
+  rw [(ofTournament A hnn hsum).samplerSource_loop_event i true]
+  rw [show (0 : ℝ≥0∞) = ∫⁻ _ : Fin 1 → α, 0 ∂(Measure.pi fun _ : Fin 1 => μ) from
+    (lintegral_zero).symm]
+  refine lintegral_congr_ae ?_
+  have h0 : ∀ᵐ y ∂(Measure.pi fun _ : Fin 1 => μ),
+      (ofTournament A hnn hsum).loopRep (y 0) = false :=
+    (measurePreserving_eval (fun _ : Fin 1 => μ) 0).quasiMeasurePreserving.ae
+      (ofTournament_loop_ae A hnn hsum)
+  filter_upwards [h0] with y hy
+  rw [hy]
+  simp
+
+/-- Any single reciprocal-agreeing two-vertex configuration of the tournament sample is null:
+its exact-event integrand contains a `simplexRep b b` factor, which vanishes a.e. -/
+private theorem ofTournament_pair_null {i j : ℕ} (hij : i < j) (f : Fin 2 → Fin 2 → Bool)
+    (hf : f 0 1 = f 1 0) :
+    samplerSource μ {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) |
+      ∀ a c : Fin 2, (ofTournament A hnn hsum).sampleAdj ω (![i, j] a) (![i, j] c) = f a c}
+      = 0 := by
+  rw [(ofTournament A hnn hsum).samplerSource_pair_event hij f]
+  rw [show (0 : ℝ≥0∞) = ∫⁻ _ : Fin 2 → α, 0 ∂(Measure.pi fun _ : Fin 2 => μ) from
+    (lintegral_zero).symm]
+  refine lintegral_congr_ae ?_
+  -- the diagonal simplexRep values vanish a.e., transported to the coordinate pair (y 0, y 1)
+  have hdiag : ∀ᵐ p ∂(μ.prod μ),
+      (ofTournament A hnn hsum).simplexRep (f 0 1) (f 1 0) p = 0 := by
+    obtain ⟨-, -, htt, hff⟩ := ofTournament_simplexRep_ae A hnn hsum
+    rcases hb : f 1 0 with _ | _
+    · rw [hf, hb]
+      filter_upwards [hff] with p hp using hp
+    · rw [hf, hb]
+      filter_upwards [htt] with p hp using hp
+  have h01 : ∀ᵐ y ∂(Measure.pi fun _ : Fin 2 => μ),
+      (ofTournament A hnn hsum).simplexRep (f 0 1) (f 1 0) (y 0, y 1) = 0 :=
+    Graphon.ae_pairMap_of_prod (0 : Fin 2) 1 (by decide) hdiag
+  filter_upwards [h01] with y hy
+  unfold sampleEventIntegrand
+  rw [Finset.prod_eq_zero (Finset.mem_univ (⟨(0, 1), by decide⟩ :
+    {p : Fin 2 × Fin 2 // p.1 < p.2})), mul_zero]
+  rw [show ((fun c : RelCoord digraphSig (Vfinite fun _ => 2) => f (c.2 0) (c.2 1))
+      (digraphCoord (0 : Fin 2) 1)) = f 0 1 from rfl,
+    show ((fun c : RelCoord digraphSig (Vfinite fun _ => 2) => f (c.2 0) (c.2 1))
+      (digraphCoord (1 : Fin 2) 0)) = f 1 0 from rfl, hy]
+  simp
+
+/-- **The tournament digraphon samples tournaments** (D3c headline): almost surely, the
+sampled infinite digraph has no loops and exactly one direction between any two distinct
+vertices. -/
+theorem ofTournament_sample_isTournament :
+    ∀ᵐ ω ∂samplerSource μ,
+      (∀ i : ℕ, ((ofTournament A hnn hsum).sampleInfinite ω).adjBit i i = false) ∧
+        ∀ i j : ℕ, i ≠ j →
+          ((ofTournament A hnn hsum).sampleInfinite ω).adjBit j i
+            = !((ofTournament A hnn hsum).sampleInfinite ω).adjBit i j := by
+  have hloops : ∀ᵐ ω ∂samplerSource μ, ∀ i : ℕ,
+      (ofTournament A hnn hsum).loopRep (ω.1 i) = false := by
+    rw [eventually_countable_forall]
+    intro i
+    refine ae_iff.mpr (measure_mono_null (fun ω hω => ?_) (ofTournament_loop_null A hnn hsum i))
+    simp only [Set.mem_setOf_eq] at hω ⊢
+    simpa using hω
+  have hpairs : ∀ᵐ ω ∂samplerSource μ, ∀ i j : ℕ, i < j →
+      (ofTournament A hnn hsum).sampleAdj ω j i
+        = !(ofTournament A hnn hsum).sampleAdj ω i j := by
+    rw [eventually_countable_forall]
+    intro i
+    rw [eventually_countable_forall]
+    intro j
+    rcases lt_or_ge i j with hij | hij
+    · have hnull : samplerSource μ (⋃ f : Fin 2 → Fin 2 → Bool, ⋃ _ : f 0 1 = f 1 0,
+          {ω : (ℕ → α) × (OffDiagPairIndex ℕ → ℝ) | ∀ a c : Fin 2,
+            (ofTournament A hnn hsum).sampleAdj ω (![i, j] a) (![i, j] c) = f a c}) = 0 :=
+        measure_iUnion_null fun f => measure_iUnion_null fun hf =>
+          ofTournament_pair_null A hnn hsum hij f hf
+      refine ae_iff.mpr (measure_mono_null (fun ω hω => ?_) hnull)
+      simp only [Set.mem_setOf_eq, Classical.not_imp] at hω
+      obtain ⟨-, hbad⟩ := hω
+      have hagree : (ofTournament A hnn hsum).sampleAdj ω j i
+          = (ofTournament A hnn hsum).sampleAdj ω i j := by
+        rcases hb : (ofTournament A hnn hsum).sampleAdj ω i j <;>
+          rcases hb' : (ofTournament A hnn hsum).sampleAdj ω j i <;> simp_all
+      refine Set.mem_iUnion.mpr ⟨fun a c =>
+        (ofTournament A hnn hsum).sampleAdj ω (![i, j] a) (![i, j] c), ?_⟩
+      exact Set.mem_iUnion.mpr ⟨hagree.symm, fun a c => rfl⟩
+    · exact Filter.Eventually.of_forall fun ω h => absurd h (not_lt.mpr hij)
+  filter_upwards [hloops, hpairs] with ω h1 h2
+  refine ⟨fun i => ?_, fun i j hne => ?_⟩
+  · rw [adjBit_sampleInfinite, sampleAdj_self]
+    exact h1 i
+  · rw [adjBit_sampleInfinite, adjBit_sampleInfinite]
+    rcases lt_or_gt_of_ne hne with h | h
+    · exact h2 i j h
+    · rw [h2 j i h, Bool.not_not]
+
+end Tournament
+
 end MeasureTheory.Digraphon
