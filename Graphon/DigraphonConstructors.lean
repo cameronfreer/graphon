@@ -9,8 +9,11 @@ import Graphon.Digraphon
 /-!
 # Special-family digraphon constructors (directed umbrella #84, D3c / #87)
 
-The three classical families of Cai–Ackerman–Freer §2, realized as digraphons — each is a
-choice of the four reciprocal-edge probabilities:
+The three classical special families of Cai–Ackerman–Freer (*Priors on exchangeable directed
+graphs*, arXiv:1510.08440), realized as digraphons — each is a choice of the four
+reciprocal-edge probabilities. Source crosswalk: digraphons and their sampling are CAF
+§2.3–2.4; the asymmetric-function model is CAF §3.1; undirected graphs and tournaments are
+CAF §3.2.1–3.2.2.
 
 * `Digraphon.ofFun` — the generic builder from four *measurable pointwise* kernels satisfying
   the digraphon axioms a.e., with the a.e. compatibility lemmas `ofFun_pairProb_ae` / `ofFun_simplexRep_ae`;
@@ -155,6 +158,17 @@ theorem ofGraphon_pairProb_ae :
     ofFun_pairProb_ae _ _ _ _ _ _ _ true false,
     ofFun_pairProb_ae _ _ _ _ _ _ _ false true⟩
 
+/-- The `simplexRep` of the graphon embedding, a.e. -/
+theorem ofGraphon_simplexRep_ae :
+    ((ofGraphon W).simplexRep true true =ᵐ[μ.prod μ] ⇑W.toAEEqFun) ∧
+      ((ofGraphon W).simplexRep false false =ᵐ[μ.prod μ] fun p => 1 - W.toAEEqFun p) ∧
+        ((ofGraphon W).simplexRep true false =ᵐ[μ.prod μ] 0) ∧
+          ((ofGraphon W).simplexRep false true =ᵐ[μ.prod μ] 0) :=
+  ⟨ofFun_simplexRep_ae _ _ _ _ _ _ _ true true,
+    ofFun_simplexRep_ae _ _ _ _ _ _ _ false false,
+    ofFun_simplexRep_ae _ _ _ _ _ _ _ true false,
+    ofFun_simplexRep_ae _ _ _ _ _ _ _ false true⟩
+
 /-- The graphon embedding carries no loops (a.e.). -/
 theorem ofGraphon_loop_ae : (ofGraphon W).loop =ᵐ[μ] fun _ => false :=
   ofFun_loop_ae _ _ _ _ _ _ _
@@ -181,9 +195,11 @@ private theorem measurable_tournamentFour (a b : Bool) :
   · exact A.stronglyMeasurable.measurable.comp measurable_swap
   · exact measurable_const
 
-/-- **The tournament digraphon**: exactly one of the two directed edges is present at every
-pair — `p₁₀ = A`, `p₀₁ = A ∘ swap`, no doubly-present or doubly-absent mass, no loops — from
-an orientation kernel `A` with `A p + A p.swap = 1` a.e. -/
+/-- **The tournament digraphon**: almost everywhere, exactly one of the two directed edges is
+present — `p₁₀ = A`, `p₀₁ = A ∘ swap`, no doubly-present or doubly-absent mass, no loops —
+from an orientation kernel `A` with `A p + A p.swap = 1` a.e. (Since `hsum` holds only a.e.,
+`simplexRep` may take its `δ₀₀` fallback on an exceptional null set of latent pairs; the
+sampled digraph is a tournament almost surely, not pointwise in the latents.) -/
 noncomputable def ofTournament (hnn : ∀ᵐ p ∂(μ.prod μ), 0 ≤ A p)
     (hsum : ∀ᵐ p ∂(μ.prod μ), A p + A p.swap = 1) : Digraphon α μ :=
   ofFun (tournamentFour A) (measurable_tournamentFour A)
@@ -216,6 +232,24 @@ theorem ofTournament_pairProb_ae (hnn : ∀ᵐ p ∂(μ.prod μ), 0 ≤ A p)
     ofFun_pairProb_ae _ _ _ _ _ _ _ false true,
     ofFun_pairProb_ae _ _ _ _ _ _ _ true true,
     ofFun_pairProb_ae _ _ _ _ _ _ _ false false⟩
+
+/-- The `simplexRep` of the tournament digraphon, a.e. -/
+theorem ofTournament_simplexRep_ae (hnn : ∀ᵐ p ∂(μ.prod μ), 0 ≤ A p)
+    (hsum : ∀ᵐ p ∂(μ.prod μ), A p + A p.swap = 1) :
+    ((ofTournament A hnn hsum).simplexRep true false =ᵐ[μ.prod μ] ⇑A) ∧
+      ((ofTournament A hnn hsum).simplexRep false true =ᵐ[μ.prod μ] fun p => A p.swap) ∧
+        ((ofTournament A hnn hsum).simplexRep true true =ᵐ[μ.prod μ] 0) ∧
+          ((ofTournament A hnn hsum).simplexRep false false =ᵐ[μ.prod μ] 0) :=
+  ⟨ofFun_simplexRep_ae _ _ _ _ _ _ _ true false,
+    ofFun_simplexRep_ae _ _ _ _ _ _ _ false true,
+    ofFun_simplexRep_ae _ _ _ _ _ _ _ true true,
+    ofFun_simplexRep_ae _ _ _ _ _ _ _ false false⟩
+
+/-- The tournament digraphon carries no loops (a.e.). -/
+theorem ofTournament_loop_ae (hnn : ∀ᵐ p ∂(μ.prod μ), 0 ≤ A p)
+    (hsum : ∀ᵐ p ∂(μ.prod μ), A p + A p.swap = 1) :
+    (ofTournament A hnn hsum).loop =ᵐ[μ] fun _ => false :=
+  ofFun_loop_ae _ _ _ _ _ _ _
 
 end OfTournament
 
@@ -277,6 +311,13 @@ theorem ofKernel_pairProb_ae (hmem : ∀ᵐ p ∂(μ.prod μ), A p ∈ Set.Icc (
     (ofKernel A hmem L hL).pairProb a b =ᵐ[μ.prod μ] fun p =>
       (if a then A p else 1 - A p) * (if b then A p.swap else 1 - A p.swap) :=
   ofFun_pairProb_ae _ _ _ _ _ _ _ a b
+
+/-- The `simplexRep` of the asymmetric-kernel digraphon, a.e.: the independent products. -/
+theorem ofKernel_simplexRep_ae (hmem : ∀ᵐ p ∂(μ.prod μ), A p ∈ Set.Icc (0 : ℝ) 1)
+    (L : α → Bool) (hL : Measurable L) (a b : Bool) :
+    (ofKernel A hmem L hL).simplexRep a b =ᵐ[μ.prod μ] fun p =>
+      (if a then A p else 1 - A p) * (if b then A p.swap else 1 - A p.swap) :=
+  ofFun_simplexRep_ae _ _ _ _ _ _ _ a b
 
 /-- The loop coordinate of the asymmetric-kernel digraphon, a.e. -/
 theorem ofKernel_loop_ae (hmem : ∀ᵐ p ∂(μ.prod μ), A p ∈ Set.Icc (0 : ℝ) 1)

@@ -134,6 +134,7 @@ AUDITED_DECLS = {
     "MeasureTheory.Digraphon.samplerSource_forall_sampleAdj",
     "MeasureTheory.Digraphon.map_sampleInfinite_eq_equiv_law",
     "MeasureTheory.Digraphon.map_sampleFinite_pair_disjoint",
+    "MeasureTheory.Digraphon.ofFun_simplexRep_ae",
     "MeasureTheory.Digraphon.sampleAdj_pair_of_lt",
     "MeasureTheory.Digraphon.measurable_sampleInfinite",
     "MeasureTheory.Digraphon.measurable_sampleFinite",
