@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Architect
 import Graphon.DigraphSampler
+import Graphon.SimpleGraphDigraphBridge
 import Graphon.DigraphonConstructors
 import Graphon.SamplingLaw
 
@@ -305,57 +306,7 @@ end Kernel
 
 section GraphonEmbedding
 
-open scoped Classical in
-/-- The symmetric loopless embedding of a simple graph as a finite digraph. -/
-noncomputable def _root_.SimpleGraph.toFiniteDigraph {k : ℕ} (G : SimpleGraph (Fin k)) :
-    FiniteDigraph k :=
-  fun c => decide (G.Adj (c.2 0) (c.2 1))
-
 variable [IsProbabilityMeasure μ]
-
-open scoped Classical in
-/-- The ordered-pair coordinates of the embedded digraph read the (classically decided)
-adjacency of the simple graph. -/
-private theorem toFiniteDigraph_coord {k : ℕ} (G : SimpleGraph (Fin k)) (a b : Fin k) :
-    G.toFiniteDigraph (digraphCoord a b) = decide (G.Adj a b) := rfl
-
-/-- The symmetric loopless embedding is injective. -/
-private theorem toFiniteDigraph_injective {k : ℕ} :
-    Function.Injective (SimpleGraph.toFiniteDigraph (k := k)) := by
-  intro G G' h
-  ext a b
-  have hc := congrFun h (digraphCoord a b)
-  rw [toFiniteDigraph_coord, toFiniteDigraph_coord] at hc
-  exact decide_eq_decide.mp hc
-
-/-- **Classification of the range of the embedding**: a finite digraph is an embedded simple
-graph iff its coordinates are loopless and symmetric. -/
-private theorem exists_toFiniteDigraph_eq_iff {k : ℕ} (D : FiniteDigraph k) :
-    (∃ G : SimpleGraph (Fin k), G.toFiniteDigraph = D) ↔
-      ((∀ i, D (digraphCoord i i) = false) ∧
-        ∀ i j : Fin k, D (digraphCoord i j) = D (digraphCoord j i)) := by
-  classical
-  constructor
-  · rintro ⟨G, rfl⟩
-    refine ⟨fun i => ?_, fun i j => ?_⟩
-    · rw [toFiniteDigraph_coord]
-      exact decide_eq_false G.irrefl
-    · rw [toFiniteDigraph_coord, toFiniteDigraph_coord]
-      exact decide_eq_decide.mpr (G.adj_comm i j)
-  · rintro ⟨h1, h2⟩
-    refine ⟨⟨fun i j => D (digraphCoord i j) = true ∧ i ≠ j,
-      ⟨fun i j hij => ⟨(h2 j i).trans hij.1, hij.2.symm⟩⟩,
-      ⟨fun i hii => hii.2 rfl⟩⟩, ?_⟩
-    refine digraphStructure_ext_iff.mpr fun a b => ?_
-    rw [toFiniteDigraph_coord]
-    by_cases hab : a = b
-    · subst hab
-      rw [h1 a, decide_eq_false_iff_not]
-      exact fun hcon => hcon.2 rfl
-    · rcases hDc : D (digraphCoord a b) with _ | _
-      · rw [decide_eq_false_iff_not]
-        exact fun hcon => Bool.false_ne_true (hDc ▸ hcon.1)
-      · exact @decide_eq_true _ (Classical.propDecidable _) ⟨hDc, hab⟩
 
 /-- The canonical representative of an unordered pair built from an ordered pair is that pair
 or its swap. -/
@@ -411,7 +362,7 @@ private theorem lintegral_sampleEventIntegrand_toFiniteDigraph (W : Graphon α �
       if (ofGraphon W).loopRep (y i) = G.toFiniteDigraph (digraphCoord i i) then (1 : ℝ≥0∞)
       else 0) = 1 :=
     Finset.prod_eq_one fun i _ => by
-      rw [hl i, toFiniteDigraph_coord, decide_eq_false G.irrefl]
+      rw [hl i, SimpleGraph.toFiniteDigraph_coord, decide_eq_false G.irrefl]
       simp
   rw [hloop1, one_mul]
   have hval : ∀ e ∈ (⊤ : SimpleGraph (Fin k)).edgeFinset,
@@ -454,7 +405,7 @@ private theorem lintegral_sampleEventIntegrand_toFiniteDigraph (W : Graphon α �
             · rw [h]
             · rw [h]
               exact hsymm
-          rw [toFiniteDigraph_coord, toFiniteDigraph_coord,
+          rw [SimpleGraph.toFiniteDigraph_coord, SimpleGraph.toFiniteDigraph_coord,
             decide_eq_decide.mpr (G.adj_comm p.1.2 p.1.1)]
           by_cases hadj : G.Adj p.1.1 p.1.2
           · rw [decide_eq_true hadj, htt,
@@ -544,7 +495,7 @@ theorem map_sampleFinite_ofGraphon (W : Graphon α μ) (k : ℕ) :
     have hpre : SimpleGraph.toFiniteDigraph ⁻¹' {G.toFiniteDigraph} = {G} := by
       ext H
       simp only [Set.mem_preimage, Set.mem_singleton_iff]
-      exact ⟨fun h => toFiniteDigraph_injective h, fun h => by rw [h]⟩
+      exact ⟨fun h => SimpleGraph.toFiniteDigraph_injective h, fun h => by rw [h]⟩
     rw [hpre, PMF.toMeasure_apply_singleton _ _ (measurableSet_singleton G),
       Graphon.samplePMF_apply]
     exact ((ofGraphon W).samplerSource_sampleFinite_singleton G.toFiniteDigraph).trans
@@ -556,7 +507,7 @@ theorem map_sampleFinite_ofGraphon (W : Graphon α μ) (k : ℕ) :
     rw [hpre, measure_empty]
     exact ((ofGraphon W).samplerSource_sampleFinite_singleton D).trans
       (lintegral_sampleEventIntegrand_ofGraphon_ne W
-        fun hcls => hD ((exists_toFiniteDigraph_eq_iff D).mpr hcls))
+        fun hcls => hD ((SimpleGraph.exists_toFiniteDigraph_eq_iff D).mpr hcls))
 
 end GraphonEmbedding
 

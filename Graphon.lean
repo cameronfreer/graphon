@@ -13,6 +13,7 @@ import Graphon.RelInfiniteLaw
 import Graphon.RelLawEquivalence
 import Graphon.DigraphMaps
 import Graphon.InfiniteDigraph
+import Graphon.SimpleGraphDigraphBridge
 import Graphon.InfiniteDigraphLaw
 import Graphon.ExchangeableLawBlueprint
 import Graphon.Digraphon
@@ -58,7 +59,10 @@ import Graphon.HomDensityAlgebra
 import Graphon.MixtureCoordinates
 import Graphon.MixtureUniqueness
 import Graphon.InverseCounting
+import Graphon.InjectionCounting
 import Graphon.SamplingFinite
+import Graphon.SubgraphDensities
+import Graphon.SubgraphDensityBridges
 import Graphon.MixtureExistence
 import Graphon.MixtureRepresentation
 import Graphon.MixtureExtremality
@@ -125,7 +129,10 @@ in Lean 4 using Mathlib.
 * `Graphon.HomDensityAlgebra` — Hom-density coordinates on the graphon space; multiplicativity over disjoint unions (`homDensity_sum`)
 * `Graphon.MixtureCoordinates` — Shared mixture-coordinate layer: hom-density coordinates as bounded continuous functions; their integrals are mixture upper masses
 * `Graphon.MixtureUniqueness` — Uniqueness of the graphon mixture: the coordinate StarSubalgebra separates points; `mixtureExchangeableLaw` is injective
+* `Graphon.InjectionCounting` — pure counting of vertex maps `Fin k → Fin n` (#94 shared infrastructure): the union (birthday) bound `card_not_injective_le` with its `k²/(n+1)` proportion form, the reciprocal vertex-map-count weight, and the descending-factorial injective-map count `card_filter_injective_eq_descFactorial` — extracted from the mixture-existence collision estimate
 * `Graphon.SamplingFinite` — The exact finite-sampling formula: sampling from an embedded finite graph is uniform vertex-map pullback
+* `Graphon.SubgraphDensities` — the finite subgraph densities `t`, `t_inj`, `t_ind` (#94): labeled hom / injective-hom / induced-copy counts with their normalization conventions (`n ^ k` all maps vs the `descFactorial` injective count), the all-maps exact-pullback count, with the small-host zero convention (combinatorics-only import closure)
+* `Graphon.SubgraphDensityBridges` — the analytic bridges `homDensity_ofSimpleGraphOn_eq_t` / `sampleMass_ofSimpleGraphOn_eq_pullbackCount_div` from the finite densities to the empirical-graphon sampling formulas
 * `Graphon.MixtureExistence` — Existence of the graphon mixture: the collision estimate for empirical mixing measures; every exchangeable law is a mixture (`exists_mixtureExchangeableLaw_eq`)
 * `Graphon.MixtureRepresentation` — The Diaconis–Janson representation theorem: exchangeable graph laws = graphon mixtures, uniquely (`graphon_mixture_representation`, `mixtureExchangeableLawEquiv`)
 * `Graphon.MixtureExtremality` — Diaconis–Janson extremality: dissociated exchangeable laws are exactly the Dirac mixtures (`isDissociated_mixtureExchangeableLaw_iff`)
@@ -155,6 +162,7 @@ in Lean 4 using Mathlib.
 * `Graphon.RelInfiniteLaw` — Generic AHK program R2b (#105): the compactness-based infinite extension **realizing the marginals** — diagonal padded laws (`paddedLaw`), Prokhorov subsequence extraction on the compact metrizable structure space, and marginal identification via continuity, giving `infiniteLaw` with `infiniteLaw_map_restrictFin`; exchangeability/uniqueness/equivalence is R2c
 * `Graphon.RelLawEquivalence` — Generic AHK program R2c (#105): the finite/infinite exchangeable relational law equivalence — the arbitrary-injection marginal theorem, exchangeability of `infiniteLaw`, `InfiniteRelExchangeableLaw`, the permutation extension, and `relExchangeableLawEquiv : RelExchangeableLaw S ≃ InfiniteRelExchangeableLaw S`
 * `Graphon.InfiniteDigraph` — Directed umbrella (#84) D1 (#85): `InfiniteDigraph` as the one-sort binary R1 instance (`digraphSig`) — inheriting compact/standard-Borel, measurable finite restrictions, and measure extensionality (all topology on `InfiniteDigraph`); `Adj` (Prop) / `adjBit` (Bool); `digraphStructureEquiv V` the plain carrier equivalence with Mathlib's `Digraph V`, giving both the infinite `digraphEquiv` and the finite `finiteDigraphEquiv` (for D2); no exchangeable-law theory (that is D2)
+* `Graphon.SimpleGraphDigraphBridge` — the symmetric loopless embedding `SimpleGraph.toFiniteDigraph` with its coordinate lemma, injectivity, and range classification, in its own module preserving D1's relational/directed dependency boundary
 * `Graphon.DigraphMaps` — the minimal `Digraph.comap` pullback API for Mathlib's `Digraph` (mirroring `SimpleGraph.comap`; a Mathlib-upstream candidate tracked on #24), used by the D2 directed-law bridge
 * `Graphon.InfiniteDigraphLaw` — Directed umbrella (#84) D2 (#86): the `PMF`-based finite directed law `ExchangeableDigraphLaw` (consistent under `Digraph.comap`), the finite bridge `digraphLawEquiv : ExchangeableDigraphLaw ≃ RelExchangeableLaw digraphSig` (via `finiteDigraphEquiv` + `PMF.toMeasure`/`Measure.toPMF`), and the headline `exchangeableDigraphLawEquiv : ExchangeableDigraphLaw ≃ InfiniteExchangeableDigraphLaw` composing with R2c — measurable structure stays on the relational carrier
 * `Graphon.ExchangeableLawBlueprint` — annotation-only blueprint wrappers for the R2c relational (`relExchangeableLawEquiv`) and D2 directed (`exchangeableDigraphLawEquiv`) equivalences, keeping `Architect` out of the reusable foundational modules
