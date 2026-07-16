@@ -64,8 +64,6 @@ theorem restrict_shiftEmb_eq (k l : S.Srt → ℕ) :
 
 /-! ### Restriction and shift invariance of an exchangeable law -/
 
-variable [Fintype S.Srt] [Countable S.Rel]
-
 /-- **The law of any sortwise injective restriction depends only on the block sizes**: extend
 each injection to a permutation of `ℕ` and use exchangeability. -/
 theorem InfiniteRelExchangeableLaw.law_map_restrict (M : InfiniteRelExchangeableLaw S)
@@ -92,5 +90,116 @@ theorem InfiniteRelExchangeableLaw.law_map_drop (M : InfiniteRelExchangeableLaw 
   refine RelStructure.ext_of_map_restrictFin fun m => ?_
   rw [Measure.map_map (RelSignature.measurable_restrictFin m) (measurable_drop k),
     ← restrict_shiftEmb_eq, M.law_map_restrict (shiftEmb k m)]
+
+/-! ### The initial, after-block, and vertex-tail σ-algebras -/
+
+/-- **The initial σ-algebra**: events depending only on the first `n`-block. -/
+@[reducible] noncomputable def RelStructure.initialAlgebra (n : S.Srt → ℕ) :
+    MeasurableSpace (RelStructure S (Vinfinite S)) :=
+  MeasurableSpace.comap (RelStructure.restrictFin n) inferInstance
+
+theorem RelStructure.initialAlgebra_le (n : S.Srt → ℕ) :
+    RelStructure.initialAlgebra (S := S) n ≤
+      (inferInstance : MeasurableSpace (RelStructure S (Vinfinite S))) :=
+  measurable_iff_comap_le.mp (RelSignature.measurable_restrictFin n)
+
+/-- The initial σ-algebras are monotone in the block sizes. -/
+theorem RelStructure.initialAlgebra_mono {n m : S.Srt → ℕ} (h : ∀ s, n s ≤ m s) :
+    RelStructure.initialAlgebra (S := S) n ≤ RelStructure.initialAlgebra (S := S) m := by
+  refine measurable_iff_comap_le.mp ?_
+  rw [show RelStructure.restrictFin (S := S) n =
+      RelStructure.restrictLE h ∘ RelStructure.restrictFin m from rfl]
+  exact (RelSignature.measurable_restrictLE h).comp
+    (@Measurable.of_comap_le _ _ (RelStructure.initialAlgebra m) _
+      (RelStructure.restrictFin m) le_rfl)
+
+/-- **The initial σ-algebras generate**: every cylinder is an initial event. -/
+theorem RelStructure.iSup_initialAlgebra_eq :
+    (⨆ n : S.Srt → ℕ, RelStructure.initialAlgebra (S := S) n) =
+      (inferInstance : MeasurableSpace (RelStructure S (Vinfinite S))) := by
+  refine le_antisymm (iSup_le RelStructure.initialAlgebra_le) ?_
+  rw [← RelSignature.generateFrom_cylinders_eq]
+  refine MeasurableSpace.generateFrom_le fun t ht => ?_
+  simp only [RelSignature.cylinders, Set.mem_iUnion] at ht
+  obtain ⟨n, T, hT, rfl⟩ := ht
+  exact le_iSup (RelStructure.initialAlgebra (S := S)) n _
+    (MeasurableSpace.measurableSet_comap.mpr ⟨T, hT, rfl⟩)
+
+/-- **The after-block σ-algebra**: events depending only on the vertices after the first
+`k`-block. -/
+@[reducible] noncomputable def RelStructure.tailAlgebra (k : S.Srt → ℕ) :
+    MeasurableSpace (RelStructure S (Vinfinite S)) :=
+  MeasurableSpace.comap (RelStructure.drop k) inferInstance
+
+theorem RelStructure.tailAlgebra_le (k : S.Srt → ℕ) :
+    RelStructure.tailAlgebra (S := S) k ≤
+      (inferInstance : MeasurableSpace (RelStructure S (Vinfinite S))) :=
+  measurable_iff_comap_le.mp (measurable_drop k)
+
+/-- The after-block σ-algebras are antitone (along the diagonal it suffices to shift more). -/
+theorem RelStructure.tailAlgebra_antitone {k m : S.Srt → ℕ} (h : ∀ s, k s ≤ m s) :
+    RelStructure.tailAlgebra (S := S) m ≤ RelStructure.tailAlgebra (S := S) k := by
+  refine measurable_iff_comap_le.mp ?_
+  rw [show RelStructure.drop (S := S) m =
+      RelStructure.drop (fun s => m s - k s) ∘ RelStructure.drop k by
+    funext X
+    show RelStructure.comap _ X = RelStructure.comap _ (RelStructure.comap _ X)
+    rw [← RelStructure.comap_comp]
+    congr 1
+    funext s i
+    show i + m s = i + (m s - k s) + k s
+    have := h s
+    omega]
+  exact (measurable_drop _).comp
+    (@Measurable.of_comap_le _ _ (RelStructure.tailAlgebra k) _ (RelStructure.drop k) le_rfl)
+
+/-- **The vertex-tail σ-algebra**: events invariant under forgetting any initial block
+(the diagonal blocks are cofinal, `Fintype S.Srt`). -/
+@[reducible] noncomputable def RelStructure.vertexTailAlgebra :
+    MeasurableSpace (RelStructure S (Vinfinite S)) :=
+  ⨅ k : ℕ, RelStructure.tailAlgebra (S := S) fun _ => k
+
+/-! ### Dissociation: exact finite-event factorization -/
+
+/-- **Dissociation** (exact finite-event factorization): for all block sizes `k`, `l`, the
+joint law of the first `k`-block and the following `l`-block is the product of the `k`- and
+`l`-marginals of the law. -/
+def InfiniteRelExchangeableLaw.IsDissociated (M : InfiniteRelExchangeableLaw S) : Prop :=
+  ∀ k l : S.Srt → ℕ,
+    (M.law : Measure (RelStructure S (Vinfinite S))).map
+        (fun X => (RelStructure.restrictFin k X, RelStructure.restrict (shiftEmb k l) X)) =
+      ((M.law : Measure (RelStructure S (Vinfinite S))).map
+          (RelStructure.restrictFin k)).prod
+        ((M.law : Measure (RelStructure S (Vinfinite S))).map
+          (RelStructure.restrictFin l))
+
+/-- The joint block map is measurable. -/
+theorem measurable_blockPair (k l : S.Srt → ℕ) :
+    Measurable fun X : RelStructure S (Vinfinite S) =>
+      (RelStructure.restrictFin k X, RelStructure.restrict (shiftEmb k l) X) :=
+  (RelSignature.measurable_restrictFin k).prodMk
+    (by rw [restrict_shiftEmb_eq]
+        exact (RelSignature.measurable_restrictFin l).comp (measurable_drop k))
+
+/-- **The marginals of the joint block law** are the block-size marginals of the law —
+independently of any dissociation hypothesis (first coordinate directly; second by the
+labeling-free restriction invariance). -/
+theorem InfiniteRelExchangeableLaw.map_blockPair_fst (M : InfiniteRelExchangeableLaw S)
+    (k l : S.Srt → ℕ) :
+    ((M.law : Measure (RelStructure S (Vinfinite S))).map
+        (fun X => (RelStructure.restrictFin k X,
+          RelStructure.restrict (shiftEmb k l) X))).map Prod.fst =
+      (M.law : Measure (RelStructure S (Vinfinite S))).map (RelStructure.restrictFin k) := by
+  rw [Measure.map_map measurable_fst (measurable_blockPair k l)]
+  rfl
+
+theorem InfiniteRelExchangeableLaw.map_blockPair_snd (M : InfiniteRelExchangeableLaw S)
+    (k l : S.Srt → ℕ) :
+    ((M.law : Measure (RelStructure S (Vinfinite S))).map
+        (fun X => (RelStructure.restrictFin k X,
+          RelStructure.restrict (shiftEmb k l) X))).map Prod.snd =
+      (M.law : Measure (RelStructure S (Vinfinite S))).map (RelStructure.restrictFin l) := by
+  rw [Measure.map_map measurable_snd (measurable_blockPair k l)]
+  exact M.law_map_restrict (shiftEmb k l)
 
 end RelSignature

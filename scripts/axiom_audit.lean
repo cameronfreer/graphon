@@ -122,6 +122,9 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.sampleMass_ofSimpleGraphOn_eq_pullbackCount_div
 #print axioms SimpleGraph.tInj_eq_sum_tInd
 #print axioms SimpleGraph.tInd_eq_sum_neg_one_pow_tInj
+#print axioms RelSignature.InfiniteRelExchangeableLaw.law_map_restrict
+#print axioms RelSignature.RelStructure.iSup_initialAlgebra_eq
+#print axioms RelSignature.InfiniteRelExchangeableLaw.map_blockPair_snd
 #print axioms Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le
 #print axioms Graphon.abs_sampleMass_ofSimpleGraphOn_sub_tInd_le
 #print axioms MeasureTheory.Digraphon.sampleAdj_pair_of_lt
