@@ -145,6 +145,7 @@ AUDITED_DECLS = {
     "Graphon.homDensity_ofSimpleGraphOn_eq_t",
     "Graphon.sampleMass_ofSimpleGraphOn_eq_pullbackCount_div",
     "SimpleGraph.tInj_eq_sum_tInd",
+    "SimpleGraph.tInd_eq_sum_neg_one_pow_tInj",
     "Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le",
     "Graphon.abs_sampleMass_ofSimpleGraphOn_sub_tInd_le",
     "MeasureTheory.Digraphon.sampleAdj_pair_of_lt",

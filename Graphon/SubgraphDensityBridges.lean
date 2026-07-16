@@ -13,8 +13,8 @@ The analytic half of the `t`/`t_inj`/`t_ind` interlude: on the equipartition ste
 finite host `H`, the homomorphism density *is* `SimpleGraph.t` and the sampling mass *is* the
 normalized exact-pullback count. Split from `Graphon.SubgraphDensities` so the pure density
 API keeps a combinatorics-only import closure. PR 2 of #94 adds the collision-comparison
-forms: the analytic homomorphism density is within `2k²/n` of `t_inj`, and the sampling mass
-within `2k²/n` of `t_ind` — the quantitative content of "sampling ≈ injective sampling".
+forms: the analytic homomorphism density is within `k²/n` of `t_inj`, and the sampling mass
+within `k²/n` of `t_ind` — the quantitative content of "sampling ≈ injective sampling".
 -/
 
 open Finset MeasureTheory
@@ -46,20 +46,20 @@ theorem sampleMass_ofSimpleGraphOn_eq_pullbackCount_div {n : ℕ} [NeZero n] (H 
     inv_pow, inv_mul_eq_div]
 
 /-- **The analytic collision comparison**: the homomorphism density of the empirical graphon
-is within `2k²/n` of the injective density of the host. -/
+is within `k²/n` of the injective density of the host. -/
 theorem abs_homDensity_ofSimpleGraphOn_sub_tInj_le {n : ℕ} [NeZero n]
     (H : SimpleGraph (Fin n)) {k : ℕ} (F : SimpleGraph (Fin k)) [DecidableRel F.Adj] :
     |homDensity F (ofSimpleGraphOn (α := α) (μ := μ) H) - SimpleGraph.tInj F H| ≤
-      2 * (k : ℝ) ^ 2 / n := by
+      (k : ℝ) ^ 2 / n := by
   rw [homDensity_ofSimpleGraphOn_eq_t]
   exact SimpleGraph.abs_t_sub_tInj_le F H
 
 /-- **The sampling collision comparison**: the sampling mass of the empirical graphon is
-within `2k²/n` of the induced density of the host. -/
+within `k²/n` of the induced density of the host. -/
 theorem abs_sampleMass_ofSimpleGraphOn_sub_tInd_le {n : ℕ} [NeZero n]
     (H : SimpleGraph (Fin n)) {k : ℕ} (G : SimpleGraph (Fin k)) :
     |sampleMass (ofSimpleGraphOn (α := α) (μ := μ) H) G - SimpleGraph.tInd G H| ≤
-      2 * (k : ℝ) ^ 2 / n := by
+      (k : ℝ) ^ 2 / n := by
   rw [sampleMass_ofSimpleGraphOn_eq_pullbackCount_div]
   exact SimpleGraph.abs_pullbackCount_div_sub_tInd_le G H
 
