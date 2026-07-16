@@ -64,7 +64,7 @@ open scoped Classical in
 `t_ind(F, ·) = ∑_{F' ⊇ F} (−1)^{|E(F') ∖ E(F)|} t_inj(F', ·)`, and the collision comparison
 `|t − t_inj| ≤ k²/n` — all unconditional under the small-host zero convention. -/
 @[blueprint "thm:finite-density-triangle"
-  (title := /-- The finite density triangle: t, t_inj, t_ind -/)]
+  (title := /-- The finite density triangle -/)]
 theorem finite_density_triangle_blueprint {k n : ℕ}
     (F : SimpleGraph (Fin k)) (H : SimpleGraph (Fin n)) :
     (SimpleGraph.tInj F H = ∑ F' ∈ Finset.univ.filter
