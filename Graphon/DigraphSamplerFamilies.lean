@@ -207,8 +207,10 @@ section Kernel
 variable [IsProbabilityMeasure μ] (A : α × α →ₘ[μ.prod μ] ℝ)
   (hmem : ∀ᵐ p ∂(μ.prod μ), A p ∈ Set.Icc (0 : ℝ) 1) (L : α → Bool) (hL : Measurable L)
 
-/-- The one-directional Bernoulli mass of a single ordered pair. -/
-private noncomputable def dirMass (A : α × α →ₘ[μ.prod μ] ℝ) {n : ℕ} (D : FiniteDigraph n)
+/-- The one-directional Bernoulli mass of a single ordered pair of the asymmetric-kernel
+digraphon: `A` at the ordered positions if the directed edge is prescribed present, `1 − A`
+if absent. -/
+noncomputable def kernelDirMass (A : α × α →ₘ[μ.prod μ] ℝ) {n : ℕ} (D : FiniteDigraph n)
     (y : Fin n → α) (q : Fin n × Fin n) : ℝ :=
   if D (digraphCoord q.1 q.2) = true then A (y q.1, y q.2) else 1 - A (y q.1, y q.2)
 
@@ -222,7 +224,7 @@ theorem sampleEventIntegrand_ofKernel_ae {n : ℕ} (D : FiniteDigraph n) :
       =ᵐ[Measure.pi fun _ : Fin n => μ] fun y =>
         (∏ i : Fin n, if L (y i) = D (digraphCoord i i) then 1 else 0) *
           ∏ q ∈ Finset.univ.filter (fun q : Fin n × Fin n => q.1 ≠ q.2),
-            ENNReal.ofReal (dirMass A D y q) := by
+            ENNReal.ofReal (kernelDirMass A D y q) := by
   classical
   -- transported a.e. facts: loop kernel per coordinate, simplexRep + membership per pair
   have hloop : ∀ᵐ y ∂(Measure.pi fun _ : Fin n => μ), ∀ i : Fin n,
@@ -254,7 +256,7 @@ theorem sampleEventIntegrand_ofKernel_ae {n : ℕ} (D : FiniteDigraph n) :
   have hsubst : ∀ p : {p : Fin n × Fin n // p.1 < p.2},
       ENNReal.ofReal ((ofKernel A hmem L hL).simplexRep (D (digraphCoord p.1.1 p.1.2))
           (D (digraphCoord p.1.2 p.1.1)) (y p.1.1, y p.1.2))
-        = ENNReal.ofReal (dirMass A D y p.1) * ENNReal.ofReal (dirMass A D y p.1.swap) := by
+        = ENNReal.ofReal (kernelDirMass A D y p.1) * ENNReal.ofReal (kernelDirMass A D y p.1.swap) := by
     intro p
     have hpos : 0 ≤ (if D (digraphCoord p.1.1 p.1.2) = true then A (y p.1.1, y p.1.2)
         else 1 - A (y p.1.1, y p.1.2)) := by
@@ -265,19 +267,19 @@ theorem sampleEventIntegrand_ofKernel_ae {n : ℕ} (D : FiniteDigraph n) :
     rfl
   rw [Finset.prod_congr rfl fun p _ => hsubst p, Finset.prod_mul_distrib]
   -- the ordered off-diagonal pairs split into the increasing and decreasing halves
-  have hlt : ∏ p : {p : Fin n × Fin n // p.1 < p.2}, ENNReal.ofReal (dirMass A D y p.1)
+  have hlt : ∏ p : {p : Fin n × Fin n // p.1 < p.2}, ENNReal.ofReal (kernelDirMass A D y p.1)
       = ∏ q ∈ Finset.univ.filter (fun q : Fin n × Fin n => q.1 < q.2),
-          ENNReal.ofReal (dirMass A D y q) :=
+          ENNReal.ofReal (kernelDirMass A D y q) :=
     (Finset.prod_subtype (Finset.univ.filter fun q : Fin n × Fin n => q.1 < q.2)
       (fun q => by simp only [Finset.mem_filter, Finset.mem_univ, true_and])
-      fun q => ENNReal.ofReal (dirMass A D y q)).symm
-  have hgt : ∏ p : {p : Fin n × Fin n // p.1 < p.2}, ENNReal.ofReal (dirMass A D y p.1.swap)
+      fun q => ENNReal.ofReal (kernelDirMass A D y q)).symm
+  have hgt : ∏ p : {p : Fin n × Fin n // p.1 < p.2}, ENNReal.ofReal (kernelDirMass A D y p.1.swap)
       = ∏ q ∈ Finset.univ.filter (fun q : Fin n × Fin n => q.2 < q.1),
-          ENNReal.ofReal (dirMass A D y q) := by
+          ENNReal.ofReal (kernelDirMass A D y q) := by
     rw [Finset.prod_subtype (p := fun q : Fin n × Fin n => q.2 < q.1)
       (Finset.univ.filter fun q : Fin n × Fin n => q.2 < q.1)
       (fun q => by simp only [Finset.mem_filter, Finset.mem_univ, true_and])
-      (fun q => ENNReal.ofReal (dirMass A D y q))]
+      (fun q => ENNReal.ofReal (kernelDirMass A D y q))]
     exact Fintype.prod_equiv
       ⟨fun p => ⟨p.1.swap, p.2⟩, fun q => ⟨q.1.swap, q.2⟩,
         fun p => Subtype.ext (Prod.swap_swap _), fun q => Subtype.ext (Prod.swap_swap _)⟩
