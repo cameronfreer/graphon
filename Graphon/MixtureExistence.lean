@@ -8,6 +8,7 @@ import Mathlib.Probability.ProbabilityMassFunction.Integrals
 import Graphon.MixtureConvergence
 import Graphon.MixtureCoordinates
 import Graphon.SamplingFinite
+import Graphon.InjectionCounting
 
 /-!
 # The collision estimate for empirical mixing measures (issue #33, existence step 5)
@@ -97,68 +98,6 @@ namespace GraphonSpace
 variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
   [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
-/-- **The union (birthday) bound**: at most a `k²/m` proportion of vertex maps
-`Fin k → Fin m` are non-injective. (Private: pure finite combinatorics, kept internal
-pending a polished upstream version.) -/
-private theorem card_not_injective_le (k m : ℕ) :
-    ((Finset.univ.filter fun f : Fin k → Fin m => ¬ Function.Injective f).card : ℝ) ≤
-      (k * k : ℝ) * (m : ℝ) ^ (k - 1) := by
-  classical
-  have hsub : (Finset.univ.filter fun f : Fin k → Fin m => ¬ Function.Injective f) ⊆
-      Finset.univ.offDiag.biUnion (fun ij =>
-        Finset.univ.filter fun f : Fin k → Fin m => f ij.1 = f ij.2) := by
-    intro f hf
-    rw [Finset.mem_filter] at hf
-    rw [Function.not_injective_iff] at hf
-    obtain ⟨i, j, hfij, hij⟩ := hf.2
-    exact Finset.mem_biUnion.mpr ⟨(i, j),
-      Finset.mem_offDiag.mpr ⟨Finset.mem_univ _, Finset.mem_univ _, hij⟩,
-      Finset.mem_filter.mpr ⟨Finset.mem_univ _, hfij⟩⟩
-  have hpair : ∀ ij : Fin k × Fin k, ij ∈ Finset.univ.offDiag →
-      (Finset.univ.filter fun f : Fin k → Fin m => f ij.1 = f ij.2).card ≤
-        m ^ (k - 1) := by
-    rintro ⟨i, j⟩ hij
-    have hne : i ≠ j := (Finset.mem_offDiag.mp hij).2.2
-    have hinj : Set.InjOn (fun f : Fin k → Fin m => fun v : {x : Fin k // x ≠ j} => f v)
-        ↑(Finset.univ.filter fun f : Fin k → Fin m => f i = f j) := by
-      intro f hf g hg hfg
-      have hf2 : f i = f j := (Finset.mem_filter.mp (Finset.mem_coe.mp hf)).2
-      have hg2 : g i = g j := (Finset.mem_filter.mp (Finset.mem_coe.mp hg)).2
-      funext v
-      by_cases hv : v = j
-      · subst hv
-        have hi : f i = g i := congrFun hfg ⟨i, hne⟩
-        rw [← hf2, ← hg2]
-        exact hi
-      · exact congrFun hfg ⟨v, hv⟩
-    calc (Finset.univ.filter fun f : Fin k → Fin m => f i = f j).card
-        ≤ Fintype.card ({x : Fin k // x ≠ j} → Fin m) :=
-          Finset.card_le_card_of_injOn _ (fun _ _ => Finset.mem_univ _) hinj
-      _ = m ^ (k - 1) := by
-          rw [Fintype.card_fun, Fintype.card_fin]
-          congr 1
-          simp [Fintype.card_subtype_compl]
-  calc ((Finset.univ.filter fun f : Fin k → Fin m => ¬ Function.Injective f).card : ℝ)
-      ≤ ((Finset.univ.offDiag.biUnion (fun ij =>
-          Finset.univ.filter fun f : Fin k → Fin m => f ij.1 = f ij.2)).card : ℝ) := by
-        exact_mod_cast Finset.card_le_card hsub
-    _ ≤ ∑ ij ∈ Finset.univ.offDiag,
-          ((Finset.univ.filter fun f : Fin k → Fin m => f ij.1 = f ij.2).card : ℝ) := by
-        exact_mod_cast Finset.card_biUnion_le
-    _ ≤ ∑ _ij ∈ (Finset.univ.offDiag : Finset (Fin k × Fin k)), ((m : ℝ)) ^ (k - 1) := by
-        refine Finset.sum_le_sum fun ij hij => ?_
-        exact_mod_cast hpair ij hij
-    _ ≤ (k * k : ℝ) * (m : ℝ) ^ (k - 1) := by
-        rw [Finset.sum_const, nsmul_eq_mul]
-        have hcard : ((Finset.univ.offDiag : Finset (Fin k × Fin k)).card : ℝ) ≤
-            (k * k : ℝ) := by
-          have hn : (Finset.univ.offDiag : Finset (Fin k × Fin k)).card ≤ k * k := by
-            rw [Finset.offDiag_card, Finset.card_univ, Fintype.card_fin]
-            omega
-          exact_mod_cast hn
-        have hnn : (0 : ℝ) ≤ (m : ℝ) ^ (k - 1) := by positivity
-        exact mul_le_mul_of_nonneg_right hcard hnn
-
 /-- Averaging over a finite index set: if `S` takes the value `A` outside a bad set `B`
 and never deviates from `A` by more than `1`, the average deviates from `A` by at most
 the bad proportion. -/
@@ -235,40 +174,11 @@ private theorem sum_law_toReal (L : Graphon.ExchangeableGraphLaw) (m : ℕ) :
   rw [← ENNReal.toReal_one, ← (L.law m).tsum_coe, tsum_fintype,
     ENNReal.toReal_sum fun H _ => PMF.apply_ne_top _ _]
 
-/-- The inverse-power sampling weight is the reciprocal vertex-map count. -/
-private theorem inv_pow_eq_card_inv (n k : ℕ) :
-    ((n + 1 : ℕ) : ℝ)⁻¹ ^ k = (Fintype.card (Fin k → Fin (n + 1)) : ℝ)⁻¹ := by
-  rw [Fintype.card_fun, Fintype.card_fin, Fintype.card_fin, inv_pow]
-  push_cast
-  rfl
-
-/-- The non-injective proportion of vertex maps is at most `k²/(n + 1)` (birthday bound
-plus arithmetic). -/
-private theorem card_noninjective_div_card_le (n k : ℕ) :
-    ((Finset.univ.filter fun f : Fin k → Fin (n + 1) =>
-        ¬ Function.Injective f).card : ℝ) /
-      (Fintype.card (Fin k → Fin (n + 1)) : ℝ) ≤ (k * k : ℝ) / (n + 1) := by
-  rcases Nat.eq_zero_or_pos k with hk | hk
-  · subst hk
-    rw [Finset.filter_false_of_mem fun f _ =>
-      not_not_intro (Function.injective_of_subsingleton f)]
-    simp
-  · have hcnt := card_not_injective_le k (n + 1)
-    rw [Fintype.card_fun, Fintype.card_fin, Fintype.card_fin]
-    push_cast at hcnt ⊢
-    rw [div_le_div_iff₀ (by positivity) (by positivity)]
-    calc ((Finset.univ.filter fun f : Fin k → Fin (n + 1) =>
-            ¬ Function.Injective f).card : ℝ) * ((n : ℝ) + 1)
-        ≤ ((k : ℝ) * k * ((n : ℝ) + 1) ^ (k - 1)) * ((n : ℝ) + 1) :=
-          mul_le_mul_of_nonneg_right hcnt (by positivity)
-      _ = (k : ℝ) * k * ((n : ℝ) + 1) ^ k := by
-          rw [mul_assoc, ← pow_succ, Nat.sub_add_cancel hk]
-
 /-- **The collision estimate** (issue #33, existence step 5): the empirical hom-density
 integral of an exchangeable law at size `n + 1` is within `k²/(n + 1)` of the upper mass
 of `F` under the `k`-vertex marginal. Injective vertex maps contribute the exact upper
 mass by consistency (`sum_upperEvent_comap`); non-injective maps are controlled by the
-birthday bound (`card_not_injective_le`). -/
+birthday bound (`Graphon.card_not_injective_le`). -/
 theorem abs_integral_homDensityCoord_empiricalMixing_sub_le
     (L : Graphon.ExchangeableGraphLaw) (n : ℕ) {k : ℕ} (F : SimpleGraph (Fin k))
     [DecidableRel F.Adj] :
@@ -281,10 +191,10 @@ theorem abs_integral_homDensityCoord_empiricalMixing_sub_le
   have hA1 : (∑ G : SimpleGraph (Fin k), if F ≤ G then (L.law k G).toReal else 0) ≤ 1 := by
     rw [← sum_law_toReal L k]
     exact Finset.sum_le_sum fun G _ => by split; exacts [le_rfl, ENNReal.toReal_nonneg]
-  rw [integral_homDensityCoord_empiricalMixing L (n + 1) F, inv_pow_eq_card_inv n k]
+  rw [integral_homDensityCoord_empiricalMixing L (n + 1) F, Graphon.inv_pow_eq_card_inv n k]
   refine le_trans (abs_avg_sub_le _ _
     (Finset.univ.filter fun f : Fin k → Fin (n + 1) => ¬ Function.Injective f) ?_ ?_)
-    (card_noninjective_div_card_le n k)
+    (Graphon.card_noninjective_div_card_le n k)
   · -- injective maps contribute the exact upper mass, by consistency
     intro f hfmem
     have hf : Function.Injective f := by
@@ -358,10 +268,10 @@ theorem abs_mixturePMF_empiricalMixing_sub_le (L : Graphon.ExchangeableGraphLaw)
     |(mixturePMF (empiricalMixing (α := α) (μ := μ) L (n + 1)) k G).toReal -
       (L.law k G).toReal| ≤ (k * k : ℝ) / (n + 1) := by
   rw [mixturePMF_apply_toReal, integral_sampleMassCoord_empiricalMixing L (n + 1) G,
-    inv_pow_eq_card_inv n k]
+    Graphon.inv_pow_eq_card_inv n k]
   refine le_trans (abs_avg_sub_le _ _
     (Finset.univ.filter fun f : Fin k → Fin (n + 1) => ¬ Function.Injective f) ?_ ?_)
-    (card_noninjective_div_card_le n k)
+    (Graphon.card_noninjective_div_card_le n k)
   · -- injective maps contribute the exact mass, by consistency
     intro f hfmem
     have hf : Function.Injective f := by

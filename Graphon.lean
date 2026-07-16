@@ -58,6 +58,7 @@ import Graphon.HomDensityAlgebra
 import Graphon.MixtureCoordinates
 import Graphon.MixtureUniqueness
 import Graphon.InverseCounting
+import Graphon.InjectionCounting
 import Graphon.SamplingFinite
 import Graphon.MixtureExistence
 import Graphon.MixtureRepresentation
@@ -125,6 +126,7 @@ in Lean 4 using Mathlib.
 * `Graphon.HomDensityAlgebra` — Hom-density coordinates on the graphon space; multiplicativity over disjoint unions (`homDensity_sum`)
 * `Graphon.MixtureCoordinates` — Shared mixture-coordinate layer: hom-density coordinates as bounded continuous functions; their integrals are mixture upper masses
 * `Graphon.MixtureUniqueness` — Uniqueness of the graphon mixture: the coordinate StarSubalgebra separates points; `mixtureExchangeableLaw` is injective
+* `Graphon.InjectionCounting` — pure counting of vertex maps `Fin k → Fin n` (#94 shared infrastructure): the union (birthday) bound `card_not_injective_le` with its `k²/(n+1)` proportion form, the reciprocal vertex-map-count weight, and the descending-factorial injective-map count `card_filter_injective_eq_descFactorial` — extracted from the mixture-existence collision estimate
 * `Graphon.SamplingFinite` — The exact finite-sampling formula: sampling from an embedded finite graph is uniform vertex-map pullback
 * `Graphon.MixtureExistence` — Existence of the graphon mixture: the collision estimate for empirical mixing measures; every exchangeable law is a mixture (`exists_mixtureExchangeableLaw_eq`)
 * `Graphon.MixtureRepresentation` — The Diaconis–Janson representation theorem: exchangeable graph laws = graphon mixtures, uniquely (`graphon_mixture_representation`, `mixtureExchangeableLawEquiv`)
