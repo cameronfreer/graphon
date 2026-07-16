@@ -19,6 +19,7 @@ import Graphon.Digraphon
 import Graphon.SamplerSources
 import Graphon.DigraphSampler
 import Graphon.DigraphonConstructors
+import Graphon.DigraphSamplerFamilies
 import Graphon.Basic
 import Graphon.Step
 import Graphon.HomDensity
@@ -161,6 +162,7 @@ in Lean 4 using Mathlib.
 * `Graphon.Digraphon` — Directed umbrella (#84) D3a (#87): the five-component CAF `Digraphon` (four reciprocal-edge pair kernels + Bool loop, a.e. probability-vector + transpose law) with `ext`; measurable representatives; the transpose-symmetrized `pairSym`; and the **everywhere-valid 3-simplex representative** `simplexRep` (measurable, nonneg/sum-one/transpose-compatible everywhere, a.e.-equal to `pairProb`) — the prerequisite for the D3b sampler; no random sources yet
 * `Graphon.DigraphSampler` — Directed umbrella (#84) D3b (#87): the per-pair four-state distribution `Digraphon.pairPMF`, the one-uniform categorical map `catOutcome` with its **exact four-state law** `uniform01_map_catOutcome`; the explicit finite/infinite digraph samplers (`sampleAdj` in the natural-number order, `sampleInfinite`, `sampleFinite`); the **exact finite-event product formula** over an arbitrary injective labeling; the sampled law (`sampleRelLaw` / `sampleDigraphLaw`) with the infinite-law identification through `exchangeableDigraphLawEquiv`; exchangeability and dissociation
 * `Graphon.DigraphonConstructors` — Directed umbrella (#84) D3c (#87): the special-family digraphon constructors — the generic pointwise builder `Digraphon.ofFun`, the ordinary-graphon embedding `ofGraphon` (reciprocal edges fully correlated), the tournament digraphon `ofTournament` (exactly one direction per pair), and the asymmetric-kernel digraphon `ofKernel` (independent directions, all four products present) — each with its a.e. pair-kernel identification
+* `Graphon.DigraphSamplerFamilies` — Directed umbrella (#84) D3c headlines (#87): the sampler laws of the special families — the embedded ordinary graphon samples exactly the undirected `W`-random graph (`map_sampleFinite_ofGraphon`, pushforward of `samplePMF` under the symmetric loopless embedding), the tournament digraphon samples an almost-sure tournament (`ofTournament_sample_isTournament`), and the asymmetric-kernel sample draws its two directions independently (`sampleEventIntegrand_ofKernel_ae`)
 * `Graphon.RelationalTopology` — Generic AHK program R1b (#104): the Boolean-product topology / σ-algebra on `RelStructure` — compact/Polish/standard-Borel instances, measurability of the finite restrictions, the cylinder π-system `cylinders` generating the product σ-algebra (`generateFrom_cylinders_eq`; = Borel under the countability giving Polish), and finite-restriction measure extensionality (`ext_of_map_restrictFin`); no projective extension (that is R2)
 * `Graphon.InverseCounting` — Inverse counting lemma, convergence equivalence
 * `Graphon.Convergence` — Top-level convergence characterization

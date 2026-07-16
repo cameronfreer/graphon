@@ -506,6 +506,33 @@ the directed \emph{representation} theorem, a mixture over digraphons, comes lat
 
 \inputleannode{thm:directed-exchangeable-law-equivalence}
 
+\section{Digraphons and Directed Sampling}
+
+The measure-theoretic limit object for directed graphs
+(Cai--Ackerman--Freer~\cite[\S 2.3--2.4]{caf2016}) is \emph{not} a single asymmetric kernel:
+reciprocal edges may be dependent, so a digraphon assigns to each ordered pair of latent
+positions a probability vector over the four reciprocal-edge states, with a transpose symmetry,
+plus a loop coordinate. Sampling draws i.i.d.\ latent positions, one uniform per unordered
+pair, and reads both directed edges off a \emph{single} categorical draw; the exact finite-event
+probability is a product of one loop indicator per vertex and one simplex mass per unordered
+pair, stated over an arbitrary injective labeling so that consistency and exchangeability are
+immediate. The sampler realizes, on the infinite digraph space, exactly the infinite
+exchangeable law of its finite marginals, and the sampled law is dissociated.
+
+\inputleannode{thm:digraphon-sampler-realization}
+
+The classical special families are digraphons: an ordinary graphon embeds with its reciprocal
+edges fully correlated, and its digraph sample \emph{is} the undirected $W$-random graph
+(\cite[\S 3.2.1]{caf2016}); a tournament kernel with $A(x,y)+A(y,x)=1$ samples an almost-sure
+tournament (\cite[\S 3.2.2]{caf2016}); and an asymmetric kernel draws the two directions of
+each pair independently (\cite[\S 3.1]{caf2016}).
+
+\inputleannode{thm:digraphon-graphon-embedding-sample}
+
+\inputleannode{thm:digraphon-tournament-sample}
+
+\inputleannode{thm:digraphon-kernel-sample}
+
 \section{Convergence Equivalence}
 
 A sequence of graphons converges in cut distance if and only if all

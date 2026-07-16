@@ -6,6 +6,7 @@ Authors: Cameron Freer
 import Architect
 import Graphon.RelLawEquivalence
 import Graphon.InfiniteDigraphLaw
+import Graphon.DigraphSampler
 
 /-!
 # Blueprint nodes for the relational / directed exchangeable-law equivalences
@@ -43,3 +44,15 @@ theorem is later.) -/
 theorem exchangeableDigraphLawEquiv_blueprint :
     Nonempty (ExchangeableDigraphLaw ≃ InfiniteExchangeableDigraphLaw) :=
   ⟨exchangeableDigraphLawEquiv⟩
+
+/-- **The digraphon sampler realizes its exchangeable law** (D3b): sampling i.i.d. latent
+positions and one categorical reciprocal-edge draw per unordered pair realizes, on the infinite
+digraph space, exactly the infinite exchangeable law of the sampled `PMF`-based digraph law —
+identified through the directed finite/infinite equivalence. -/
+@[blueprint "thm:digraphon-sampler-realization"
+  (title := /-- The digraphon sampler realizes its exchangeable law -/)]
+theorem map_sampleInfinite_blueprint {α : Type*} [MeasurableSpace α] {μ : Measure α}
+    [IsProbabilityMeasure μ] (W : Digraphon α μ) :
+    (Digraphon.samplerSource μ).map W.sampleInfinite =
+      ((exchangeableDigraphLawEquiv W.sampleDigraphLaw).law : Measure InfiniteDigraph) :=
+  W.map_sampleInfinite_eq_equiv_law
