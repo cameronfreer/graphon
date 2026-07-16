@@ -125,4 +125,15 @@ theorem card_filter_injective_eq_descFactorial (k n : ℕ) :
   rw [Fintype.card_congr (Equiv.subtypeInjectiveEquivEmbedding (Fin k) (Fin n)),
     Fintype.card_embedding_eq, Fintype.card_fin, Fintype.card_fin]
 
+/-- The non-injective map count is the complement of the descending factorial. -/
+theorem card_filter_not_injective_eq (k n : ℕ) :
+    (Finset.univ.filter fun f : Fin k → Fin n => ¬ Function.Injective f).card =
+      n ^ k - n.descFactorial k := by
+  have h := Finset.card_filter_add_card_filter_not
+    (s := (Finset.univ : Finset (Fin k → Fin n)))
+    (p := fun f : Fin k → Fin n => Function.Injective f)
+  rw [Graphon.card_filter_injective_eq_descFactorial, Finset.card_univ, Fintype.card_fun,
+    Fintype.card_fin, Fintype.card_fin] at h
+  omega
+
 end Graphon
