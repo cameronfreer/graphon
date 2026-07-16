@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Architect
 import Graphon.DigraphSampler
+import Graphon.SimpleGraphDigraphBridge
 import Graphon.DigraphonConstructors
 import Graphon.SamplingLaw
 

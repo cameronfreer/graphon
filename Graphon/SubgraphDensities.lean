@@ -3,8 +3,8 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
-import Graphon.SamplingFinite
 import Graphon.InjectionCounting
+import Mathlib.Combinatorics.SimpleGraph.Maps
 
 /-!
 # Finite subgraph densities: `t`, `t_inj`, `t_ind` (#94, PR 1)
@@ -21,15 +21,20 @@ bridges to this repo's finite graphon-sampling formulas:
   exactly `F` (labeled induced copies), same normalizer;
 * `SimpleGraph.pullbackCount` — the all-maps exact-pullback count, the combinatorial content
   of the sampling mass;
-* `Graphon.homDensity_ofSimpleGraphOn_eq_t` / `Graphon.sampleMass_ofSimpleGraphOn_eq` — the
-  bridges: on the empirical graphon of `H`, the homomorphism density *is* `t`, and the
-  sampling mass *is* the normalized exact-pullback count.
+* `SimpleGraph.pullbackCount` is the combinatorial content of the sampling mass; the analytic
+  bridges to the empirical-graphon formulas live in `Graphon.SubgraphDensityBridges` (keeping
+  this file's import closure to pure combinatorics).
+
+**Small-host convention**: for `n < k` there are no injective maps, `n.descFactorial k = 0`,
+and (division by zero being zero) `tInj` and `tInd` are *zero* — recorded as
+`tInj_eq_zero_of_lt` / `tInd_eq_zero_of_lt`, which is what makes the Möbius identities of
+#94 PR 2 unconditional.
 
 The Möbius relations among the three densities and the quantitative `t` vs `t_inj`
 comparison are the second half of #94.
 -/
 
-open Finset MeasureTheory
+open Finset
 
 open scoped Classical
 
@@ -64,12 +69,14 @@ noncomputable def t (F : SimpleGraph (Fin k)) (H : SimpleGraph (Fin n)) : ℝ :=
   homCount F H / (n : ℝ) ^ k
 
 /-- **The injective homomorphism density** `t_inj(F, H)`: the proportion of the
-`n.descFactorial k` injective vertex maps that are homomorphisms. -/
+`n.descFactorial k` injective vertex maps that are homomorphisms. For `n < k` there are no
+injective maps and the convention is `tInj = 0` (division by the zero descending factorial). -/
 noncomputable def tInj (F : SimpleGraph (Fin k)) (H : SimpleGraph (Fin n)) : ℝ :=
   injHomCount F H / (n.descFactorial k : ℝ)
 
 /-- **The induced density** `t_ind(F, H)`: the proportion of the `n.descFactorial k`
-injective vertex maps that induce exactly `F`. -/
+injective vertex maps that induce exactly `F`. For `n < k` there are no injective maps and
+the convention is `tInd = 0` (division by the zero descending factorial). -/
 noncomputable def tInd (F : SimpleGraph (Fin k)) (H : SimpleGraph (Fin n)) : ℝ :=
   indCount F H / (n.descFactorial k : ℝ)
 
@@ -120,32 +127,14 @@ theorem tInd_le_one : tInd F H ≤ 1 := by
   · rw [tInd, div_le_one (by exact_mod_cast h)]
     exact_mod_cast indCount_le F H
 
+/-- **Small-host convention**: `tInj` vanishes when the host is smaller than the pattern. -/
+theorem tInj_eq_zero_of_lt (h : n < k) : tInj F H = 0 := by
+  rw [tInj, Nat.descFactorial_eq_zero_iff_lt.mpr h]
+  simp
+
+/-- **Small-host convention**: `tInd` vanishes when the host is smaller than the pattern. -/
+theorem tInd_eq_zero_of_lt (h : n < k) : tInd F H = 0 := by
+  rw [tInd, Nat.descFactorial_eq_zero_iff_lt.mpr h]
+  simp
+
 end SimpleGraph
-
-/-! ### Bridges to the finite graphon-sampling formulas -/
-
-namespace Graphon
-
-variable {α : Type*} [MeasurableSpace α] {μ : Measure α} [IsProbabilityMeasure μ]
-  [StandardBorelSpace α] [NullSingletonClass μ]
-
-/-- **The homomorphism density of the empirical graphon is `t`**: on the equipartition step
-graphon of `H`, the analytic homomorphism density coincides with the combinatorial
-density. -/
-theorem homDensity_ofSimpleGraphOn_eq_t {n : ℕ} [NeZero n] (H : SimpleGraph (Fin n))
-    {k : ℕ} (F : SimpleGraph (Fin k)) [DecidableRel F.Adj] :
-    homDensity F (ofSimpleGraphOn (α := α) (μ := μ) H) = SimpleGraph.t F H := by
-  rw [homDensity_ofSimpleGraphOn, SimpleGraph.t, SimpleGraph.homCount, Finset.sum_boole,
-    inv_pow, inv_mul_eq_div]
-
-/-- **The sampling mass of the empirical graphon is the normalized exact-pullback count**:
-the probability that the `k`-sample of the empirical graphon of `H` equals `G` is the
-proportion of all vertex maps pulling `H` back to exactly `G`. -/
-theorem sampleMass_ofSimpleGraphOn_eq {n : ℕ} [NeZero n] (H : SimpleGraph (Fin n))
-    {k : ℕ} (G : SimpleGraph (Fin k)) :
-    sampleMass (ofSimpleGraphOn (α := α) (μ := μ) H) G =
-      SimpleGraph.pullbackCount G H / (n : ℝ) ^ k := by
-  rw [sampleMass_ofSimpleGraphOn, SimpleGraph.pullbackCount, Finset.sum_boole,
-    inv_pow, inv_mul_eq_div]
-
-end Graphon

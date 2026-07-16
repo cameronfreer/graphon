@@ -114,6 +114,12 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms MeasureTheory.Digraphon.map_sampleFinite_ofGraphon
 #print axioms MeasureTheory.Digraphon.ofTournament_sample_isTournament
 #print axioms MeasureTheory.Digraphon.sampleEventIntegrand_ofKernel_ae
+#print axioms Graphon.card_noninjective_div_card_le
+#print axioms Graphon.card_filter_injective_eq_descFactorial
+#print axioms SimpleGraph.tInj_le_one
+#print axioms SimpleGraph.tInd_le_one
+#print axioms Graphon.homDensity_ofSimpleGraphOn_eq_t
+#print axioms Graphon.sampleMass_ofSimpleGraphOn_eq_pullbackCount_div
 #print axioms MeasureTheory.Digraphon.sampleAdj_pair_of_lt
 #print axioms MeasureTheory.Digraphon.measurable_sampleInfinite
 #print axioms MeasureTheory.Digraphon.measurable_sampleFinite
