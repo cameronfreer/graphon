@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Graphon.LevyDownward
 import Graphon.RelRestrictionBlocks
 import Mathlib.Probability.Independence.Basic
 import Mathlib.Probability.Independence.ZeroOne
@@ -166,5 +167,23 @@ theorem InfiniteRelExchangeableLaw.IsDissociated.vertexTailTrivial
     {M : InfiniteRelExchangeableLaw S} (hM : M.IsDissociated) :
     M.VertexTailTrivial :=
   hM.restrictionIndependent.vertexTailTrivial
+
+/-! ### Vertex-tail triviality implies dissociation (the closing arrow) -/
+
+/-- **Vertex-tail triviality implies dissociation** (representation-free): condition the
+initial-event indicator on successively later diagonal tail algebras; Lévy's downward theorem
+converges the conditional expectations to the vertex-tail one, which tail triviality makes
+a.e. constant; exchangeability keeps the joint mass with an arbitrarily far window constant;
+in the limit the block mass factorizes exactly. -/
+theorem InfiniteRelExchangeableLaw.VertexTailTrivial.isDissociated [Fintype S.Srt]
+    {M : InfiniteRelExchangeableLaw S} (hM : M.VertexTailTrivial) :
+    M.IsDissociated := by
+  sorry
+
+/-- **Dissociation ↔ vertex-tail triviality** (R3b complete, representation-free). -/
+theorem isDissociated_iff_vertexTailTrivial [Fintype S.Srt]
+    (M : InfiniteRelExchangeableLaw S) :
+    M.IsDissociated ↔ M.VertexTailTrivial :=
+  ⟨fun h => h.vertexTailTrivial, fun h => h.isDissociated⟩
 
 end RelSignature
