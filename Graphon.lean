@@ -13,6 +13,10 @@ import Graphon.RelInfiniteLaw
 import Graphon.RelLawEquivalence
 import Graphon.RelRestrictionBlocks
 import Graphon.RelRestrictionIndependence
+import Graphon.RelInvariantAction
+import Graphon.RelErgodicLinks
+import Graphon.RelErgodicExtreme
+import Graphon.RelExtremality
 import Graphon.DigraphMaps
 import Graphon.InfiniteDigraph
 import Graphon.SimpleGraphDigraphBridge
@@ -171,6 +175,10 @@ in Lean 4 using Mathlib.
 * `Graphon.SimpleGraphDigraphBridge` — the symmetric loopless embedding `SimpleGraph.toFiniteDigraph` with its coordinate lemma, injectivity, and range classification, in its own module preserving D1's relational/directed dependency boundary
 * `Graphon.RelRestrictionBlocks` — Generic AHK program R3a (#106): sortwise vertex shift `RelStructure.drop` and block embeddings `shiftEmb`; the labeling-free restriction invariance `InfiniteRelExchangeableLaw.law_map_restrict` and shift invariance `law_map_drop`; the initial / after-block / vertex-tail σ-algebras with monotonicity and `iSup_initialAlgebra_eq`; and `IsDissociated` — dissociation as exact finite-event block factorization, with its marginal API
 * `Graphon.RelRestrictionIndependence` — Generic AHK program R3b (#106): `RestrictionIndependent` and `VertexTailTrivial` for exchangeable relational laws; **dissociation ↔ restriction independence** (comap-σ-algebra independence of the block maps *is* the block-pair factorization, and the finite windows exhaust the after-block σ-algebra) and **restriction independence → vertex-tail triviality** (independence from every initial σ-algebra upgrades to self-independence); and the **representation-free closing arrow** tail-trivial → dissociated (condition on successively later diagonal tail algebras; Lévy downward + triviality + exchangeability force the block factorization), completing dissociated ↔ restriction-independent ↔ tail-trivial
+* `Graphon.RelInvariantAction` — R3c (#106): the finitely supported sortwise relabeling action (`SortwiseFinSupp` with group closure), the strictly invariant σ-algebra, `IsErgodic`, and the **invariant probability simplex** `invariantProbabilityMeasures` with the finitary-invariance bridge (finitary invariance ⇒ full sortwise invariance, via finite-restriction extensionality and finitely supported window extensions) identifying it with the laws of `InfiniteRelExchangeableLaw`
+* `Graphon.RelErgodicLinks` — R3c: ergodicity linked into the dissociation triangle — the sortwise block swap, in-measure approximation by initial cylinders, the 4ε approximate-independence core (restriction independence ⇒ ergodicity), vertex-tail ⊆ invariant (ergodicity ⇒ tail triviality), and the iff chain
+* `Graphon.RelErgodicExtreme` — R3c: the ergodic ↔ extreme-point theorem for the relabeling group (port of Mathlib's `Ergodic.iff_mem_extremePoints`), with the new absolute-continuity lemma `eq_of_absolutelyContinuous` and the a.e.-to-strict invariant hull upgrade over the countable group
+* `Graphon.RelExtremality` — R3c headline: the **five-way extremality equivalence** `tfae_extremality` (dissociated ↔ restriction-independent ↔ tail-trivial ↔ ergodic ↔ extreme), representation-free, with the `digraphSig` regression examples
 * `Graphon.DigraphMaps` — the minimal `Digraph.comap` pullback API for Mathlib's `Digraph` (mirroring `SimpleGraph.comap`; a Mathlib-upstream candidate tracked on #24), used by the D2 directed-law bridge
 * `Graphon.InfiniteDigraphLaw` — Directed umbrella (#84) D2 (#86): the `PMF`-based finite directed law `ExchangeableDigraphLaw` (consistent under `Digraph.comap`), the finite bridge `digraphLawEquiv : ExchangeableDigraphLaw ≃ RelExchangeableLaw digraphSig` (via `finiteDigraphEquiv` + `PMF.toMeasure`/`Measure.toPMF`), and the headline `exchangeableDigraphLawEquiv : ExchangeableDigraphLaw ≃ InfiniteExchangeableDigraphLaw` composing with R2c — measurable structure stays on the relational carrier
 * `Graphon.ExchangeableLawBlueprint` — annotation-only blueprint wrappers for the R2c relational (`relExchangeableLawEquiv`) and D2 directed (`exchangeableDigraphLawEquiv`) equivalences, keeping `Architect` out of the reusable foundational modules
