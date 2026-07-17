@@ -212,4 +212,29 @@ theorem tendsto_eLpNorm_condExp_iInf {m0 : MeasurableSpace α} {μ : Measure α}
     _ ≤ ε / 3 + ε / 3 + ε / 3 := add_le_add (add_le_add hb1 hb2) hb3
     _ = ε := ENNReal.add_thirds ε
 
+/-- **Conditional expectation over a `0`-`1` σ-algebra is the mean**: if every `m'`-measurable
+set has measure `0` or `1`, the conditional expectation of an integrable function is a.e. the
+integral. -/
+theorem condExp_ae_eq_integral_of_forall_zero_or_one {m0 : MeasurableSpace α}
+    {μ : Measure α} [IsProbabilityMeasure μ] {m' : MeasurableSpace α} (hm' : m' ≤ m0)
+    (htriv : ∀ s, MeasurableSet[m'] s → μ s = 0 ∨ μ s = 1) {f : α → ℝ}
+    (hf : Integrable f μ) :
+    μ[f|m'] =ᵐ[μ] fun _ => ∫ x, f x ∂μ := by
+  refine (ae_eq_condExp_of_forall_setIntegral_eq hm' hf
+    (fun s _ _ => integrableOn_const) ?_
+    stronglyMeasurable_const.aestronglyMeasurable).symm
+  intro s hs _
+  rcases htriv s hs with h0 | h1
+  · rw [setIntegral_measure_zero _ h0, setIntegral_measure_zero _ h0]
+  · have hcompl : μ sᶜ = 0 := by
+      have := measure_compl (hm' s hs) (measure_ne_top μ s)
+      rw [h1] at this
+      simpa using this
+    have hs_int : ∫ x in s, f x ∂μ = ∫ x, f x ∂μ := by
+      rw [← integral_add_compl (hm' s hs) hf, setIntegral_measure_zero _ hcompl, add_zero]
+    rw [hs_int, setIntegral_const]
+    have hsr : μ.real s = 1 := by
+      rw [Measure.real, h1, ENNReal.toReal_one]
+    rw [hsr, one_smul]
+
 end MeasureTheory
