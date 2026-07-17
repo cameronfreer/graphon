@@ -7,6 +7,7 @@ import Architect
 import Graphon.RelLawEquivalence
 import Graphon.InfiniteDigraphLaw
 import Graphon.DigraphSampler
+import Graphon.RelExtremality
 
 /-!
 # Blueprint nodes for the relational / directed exchangeable-law equivalences
@@ -56,3 +57,26 @@ theorem map_sampleInfinite_blueprint {α : Type*} [MeasurableSpace α] {μ : Mea
     (Digraphon.samplerSource μ).map W.sampleInfinite =
       ((exchangeableDigraphLawEquiv W.sampleDigraphLaw).law : Measure InfiniteDigraph) :=
   W.map_sampleInfinite_eq_equiv_law
+
+open scoped ENNReal in
+/-- **The five-way relational extremality equivalence** (R3, #106): for an exchangeable law
+on the infinite structure space of a finite-sort signature, dissociation, restriction
+independence, vertex-tail triviality, ergodicity under the finitely supported sortwise
+relabelings, and genuine extremality in the invariant probability simplex all coincide —
+representation-free (Lévy's downward theorem closes the tail arrow; the ergodic ↔ extreme
+port supplies the fifth formulation). -/
+@[blueprint "thm:rel-five-way-extremality"
+  (title := /-- The five-way relational extremality equivalence -/)]
+theorem tfae_extremality_blueprint {S : RelSignature} [Fintype S.Srt]
+    (M : InfiniteRelExchangeableLaw S) :
+    List.TFAE
+      [M.IsDissociated,
+        M.RestrictionIndependent,
+        M.VertexTailTrivial,
+        M.IsErgodic,
+        (M.law : MeasureTheory.Measure (RelStructure S (Vinfinite S))) ∈
+          Set.extremePoints ℝ≥0∞
+            {ν : MeasureTheory.Measure (RelStructure S (Vinfinite S)) |
+              (∀ σ, SortwiseFinSupp (S := S) σ → ν.map (RelStructure.relabel σ) = ν) ∧
+              MeasureTheory.IsProbabilityMeasure ν}] :=
+  tfae_extremality M
