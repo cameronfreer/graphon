@@ -331,6 +331,23 @@ simplices.
 
 \inputleannode{thm:sample-coordinate-embedding}
 
+\section{The Finite Density Triangle}
+
+For finite graphs, the three classical labeled subgraph densities --- the homomorphism density
+$t$, normalized by all $n^k$ vertex maps, and the injective and induced densities
+$t_{\mathrm{inj}}$, $t_{\mathrm{ind}}$, normalized by the $n^{\underline{k}}$ injective
+maps --- are related by the zeta and M\"obius identities
+(Lov\'asz~\cite[\S 5.2.3, (5.19)--(5.20)]{lovasz2012}) and the collision (birthday)
+comparison $|t - t_{\mathrm{inj}}| \le k^2/n$ --- a coarser corollary of
+Lov\'asz~(5.21), whose stated bound is $\binom{k}{2}/n$; the formalized ordered-pair union
+bound gives $k^2$. All three statements are
+unconditional: for hosts smaller than the pattern both injective densities vanish by
+convention. On the equipartition step graphon of a host the analytic homomorphism density is
+exactly $t$ and the sampling mass exactly the normalized pullback count, so the comparison
+transfers to the sampling formulas.
+
+\inputleannode{thm:finite-density-triangle}
+
 \section{The Graphon-Mixture Representation}
 
 Exchangeable graph laws — families of finite graph laws consistent under every

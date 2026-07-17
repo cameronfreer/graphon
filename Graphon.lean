@@ -63,6 +63,7 @@ import Graphon.InjectionCounting
 import Graphon.SamplingFinite
 import Graphon.SubgraphDensities
 import Graphon.SubgraphDensityBridges
+import Graphon.SubgraphDensityBlueprint
 import Graphon.MixtureExistence
 import Graphon.MixtureRepresentation
 import Graphon.MixtureExtremality
@@ -132,6 +133,7 @@ in Lean 4 using Mathlib.
 * `Graphon.InjectionCounting` — pure counting of vertex maps `Fin k → Fin n` (#94 shared infrastructure): the union (birthday) bound `card_not_injective_le` with its `k²/(n+1)` proportion form, the reciprocal vertex-map-count weight, and the descending-factorial injective-map count `card_filter_injective_eq_descFactorial` — extracted from the mixture-existence collision estimate
 * `Graphon.SamplingFinite` — The exact finite-sampling formula: sampling from an embedded finite graph is uniform vertex-map pullback
 * `Graphon.SubgraphDensities` — the finite subgraph densities `t`, `t_inj`, `t_ind` (#94): labeled hom / injective-hom / induced-copy counts with their normalization conventions (`n ^ k` all maps vs the `descFactorial` injective count), the all-maps exact-pullback count, with the small-host zero convention (combinatorics-only import closure)
+* `Graphon.SubgraphDensityBlueprint` — annotation-only blueprint wrapper for the finite density triangle (keeping `Graphon.SubgraphDensities` Architect-free)
 * `Graphon.SubgraphDensityBridges` — the analytic bridges `homDensity_ofSimpleGraphOn_eq_t` / `sampleMass_ofSimpleGraphOn_eq_pullbackCount_div` from the finite densities to the empirical-graphon sampling formulas
 * `Graphon.MixtureExistence` — Existence of the graphon mixture: the collision estimate for empirical mixing measures; every exchangeable law is a mixture (`exists_mixtureExchangeableLaw_eq`)
 * `Graphon.MixtureRepresentation` — The Diaconis–Janson representation theorem: exchangeable graph laws = graphon mixtures, uniquely (`graphon_mixture_representation`, `mixtureExchangeableLawEquiv`)
