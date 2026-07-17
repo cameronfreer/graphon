@@ -21,15 +21,17 @@ to vertex-tail triviality, for exchangeable relational laws:
   independence of the comap σ-algebras of the two block maps *is* the block-pair map
   factorization (`IndepFun_iff_Indep` + `indepFun_iff_map_prod_eq_prod_map_map`), and the
   finite tail windows exhaust the after-block σ-algebra (R3a);
-* `vertexTailTrivial_of_restrictionIndependent` — a vertex-tail event is independent of every
+* `RestrictionIndependent.vertexTailTrivial` — a vertex-tail event is independent of every
   initial σ-algebra, hence (the initial σ-algebras generating, R3a) of itself.
 
-**The converse `VertexTailTrivial → IsDissociated` is deliberately not here**: the undirected
-proof (`Graphon/RestrictionIndependence.lean`) rides the graphon mixture representation
-(the representing measure is Dirac), whose generic analogue is the R4/R5 functional AHK
-representation; a representation-free route would need Lévy's *downward* theorem, which
-Mathlib currently lacks (only the upward theorem exists). It is deferred to the
-representation layer.
+**The converse `VertexTailTrivial → IsDissociated` is deliberately not here**: it is deferred
+to a representation-free **downward-martingale follow-up** — an L¹ Lévy *downward* lemma
+(conditional expectations along a decreasing filtration; Mathlib has only the upward theorem),
+then: condition an initial finite-event indicator on successively later tail algebras, tail
+triviality makes the limit constant, exchangeability moves the second block arbitrarily far
+out, and L¹ convergence forces the exact block factorization. (The undirected proof instead
+rides the graphon mixture representation; the generic theory keeps the five-way
+characterization representation-free, with R5's Dirac-mixing as a later corollary.)
 -/
 
 open MeasureTheory ProbabilityTheory RelSignature
