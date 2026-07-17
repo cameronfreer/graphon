@@ -259,20 +259,16 @@ private def combineEmb {n m : S.Srt → ℕ} (e : ∀ s, Fin (n s) ↪ ℕ) (f :
       simp only at this
       exact Fin.val_injective (by omega)⟩
 
-/-- **Dissociation factorizes arbitrary disjoint blocks**: for any two sortwise injections
-with disjoint ranges, the joint law of the two restrictions is the product of the block-size
-marginals — the canonical adjacent blocks of the definition are no loss of generality, by
-relabeling. -/
-theorem InfiniteRelExchangeableLaw.IsDissociated.map_restrict_pair
-    {M : InfiniteRelExchangeableLaw S} (hM : M.IsDissociated)
+/-- **The joint law of disjoint blocks depends only on the block sizes** (pure
+exchangeability, no dissociation): any two sortwise injections with disjoint ranges are, up
+to a relabeling, the canonical adjacent blocks. -/
+theorem InfiniteRelExchangeableLaw.law_map_restrict_pair
+    (M : InfiniteRelExchangeableLaw S)
     {n m : S.Srt → ℕ} (e : ∀ s, Fin (n s) ↪ ℕ) (f : ∀ s, Fin (m s) ↪ ℕ)
     (hd : ∀ s (i : Fin (n s)) (j : Fin (m s)), e s i ≠ f s j) :
     (M.law : Measure (RelStructure S (Vinfinite S))).map
         (fun X => (RelStructure.restrict e X, RelStructure.restrict f X)) =
-      ((M.law : Measure (RelStructure S (Vinfinite S))).map
-          (RelStructure.restrictFin n)).prod
-        ((M.law : Measure (RelStructure S (Vinfinite S))).map
-          (RelStructure.restrictFin m)) := by
+      (M.law : Measure (RelStructure S (Vinfinite S))).map (blockPair n m) := by
   choose σ hσ using fun s => exists_perm_extend (combineEmb e f hd s)
   have hpair : (fun X : RelStructure S (Vinfinite S) =>
       (RelStructure.restrict e X, RelStructure.restrict f X)) =
@@ -302,6 +298,21 @@ theorem InfiniteRelExchangeableLaw.IsDissociated.map_restrict_pair
       show (f s) j = σ s ((j : ℕ) + n s)
       rw [Nat.add_comm (j : ℕ) (n s), h]
   rw [hpair, ← Measure.map_map (measurable_blockPair n m) (measurable_relabel σ),
-    M.exchangeable σ, hM n m]
+    M.exchangeable σ]
+
+/-- **Dissociation factorizes arbitrary disjoint blocks**: for any two sortwise injections
+with disjoint ranges, the joint law of the two restrictions is the product of the block-size
+marginals. -/
+theorem InfiniteRelExchangeableLaw.IsDissociated.map_restrict_pair
+    {M : InfiniteRelExchangeableLaw S} (hM : M.IsDissociated)
+    {n m : S.Srt → ℕ} (e : ∀ s, Fin (n s) ↪ ℕ) (f : ∀ s, Fin (m s) ↪ ℕ)
+    (hd : ∀ s (i : Fin (n s)) (j : Fin (m s)), e s i ≠ f s j) :
+    (M.law : Measure (RelStructure S (Vinfinite S))).map
+        (fun X => (RelStructure.restrict e X, RelStructure.restrict f X)) =
+      ((M.law : Measure (RelStructure S (Vinfinite S))).map
+          (RelStructure.restrictFin n)).prod
+        ((M.law : Measure (RelStructure S (Vinfinite S))).map
+          (RelStructure.restrictFin m)) := by
+  rw [M.law_map_restrict_pair e f hd, hM n m]
 
 end RelSignature

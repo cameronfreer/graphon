@@ -153,6 +153,8 @@ AUDITED_DECLS = {
     "RelSignature.RelStructure.iSup_tailWindowAlgebra_eq",
     "RelSignature.isDissociated_iff_restrictionIndependent",
     "RelSignature.InfiniteRelExchangeableLaw.RestrictionIndependent.vertexTailTrivial",
+    "MeasureTheory.tendsto_eLpNorm_condExp_iInf",
+    "RelSignature.isDissociated_iff_vertexTailTrivial",
     "Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le",
     "Graphon.abs_sampleMass_ofSimpleGraphOn_sub_tInd_le",
     "MeasureTheory.Digraphon.sampleAdj_pair_of_lt",
