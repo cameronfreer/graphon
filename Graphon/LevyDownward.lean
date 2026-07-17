@@ -113,4 +113,103 @@ theorem lpMeas_iInf_of_antitone {m0 : MeasurableSpace α} {μ : Measure α}
     rw [show (fun n => (hf' n).mk (⇑f) ω) = fun _ => f ω from funext fun n => (hω n).symm]
     exact (Filter.limsup_const _).symm
 
+/-! ### Lévy downward, `L²` version -/
+
+/-- **Lévy's downward theorem, `L²` version**: for `f ∈ L²` and an antitone sequence of
+sub-σ-algebras `𝒢`, the conditional expectations `μ[f|𝒢 n]` converge in `L²` to
+`μ[f|⨅ n, 𝒢 n]`. Conditional expectation on `L²` is the orthogonal projection onto `lpMeas`,
+so this is `Submodule.starProjection_tendsto_iInf` transported along
+`lpMeas_iInf_of_antitone`. -/
+theorem tendsto_eLpNorm_condExp_iInf_of_memLp {m0 : MeasurableSpace α} {μ : Measure α}
+    [IsFiniteMeasure μ] (𝒢 : ℕ → MeasurableSpace α) (hanti : Antitone 𝒢)
+    (h𝒢 : ∀ n, 𝒢 n ≤ m0) {f : α → ℝ} (hf : MemLp f 2 μ) :
+    Tendsto (fun n => eLpNorm (μ[f|𝒢 n] - μ[f|⨅ n, 𝒢 n]) 2 μ) atTop (𝓝 0) := by
+  have h_inf : (⨅ n, 𝒢 n) ≤ m0 := (iInf_le 𝒢 0).trans (h𝒢 0)
+  haveI : ∀ n, Fact (𝒢 n ≤ m0) := fun n => ⟨h𝒢 n⟩
+  haveI : Fact ((⨅ n, 𝒢 n) ≤ m0) := ⟨h_inf⟩
+  have hUinf : (⨅ n, lpMeas ℝ ℝ (𝒢 n) 2 μ) = lpMeas ℝ ℝ (⨅ n, 𝒢 n) 2 μ :=
+    lpMeas_iInf_of_antitone 𝒢 hanti
+  haveI : (⨅ n, lpMeas ℝ ℝ (𝒢 n) 2 μ).HasOrthogonalProjection := by
+    rw [hUinf]; infer_instance
+  have hproj := Submodule.starProjection_tendsto_iInf (fun n => lpMeas ℝ ℝ (𝒢 n) 2 μ)
+    (fun i j hij => lpMeas_mono (hanti hij)) (hf.toLp f)
+  -- identify the projections with conditional expectations, a.e.
+  have haen : ∀ n, ⇑((lpMeas ℝ ℝ (𝒢 n) 2 μ).starProjection (hf.toLp f)) =ᵐ[μ] μ[f|𝒢 n] := by
+    intro n
+    have hcoe : (lpMeas ℝ ℝ (𝒢 n) 2 μ).starProjection (hf.toLp f)
+        = ↑(condExpL2 ℝ ℝ (h𝒢 n) (hf.toLp f)) := rfl
+    rw [hcoe]
+    exact hf.condExpL2_ae_eq_condExp (h𝒢 n)
+  have hcongr : ∀ (K K' : Submodule ℝ (α →₂[μ] ℝ)) [K.HasOrthogonalProjection]
+      [K'.HasOrthogonalProjection], K = K' →
+      K.starProjection (hf.toLp f) = K'.starProjection (hf.toLp f) := by
+    intro K K' _ _ h
+    subst h
+    rfl
+  have haeinf : ⇑((⨅ n, lpMeas ℝ ℝ (𝒢 n) 2 μ).starProjection (hf.toLp f)) =ᵐ[μ]
+      μ[f|⨅ n, 𝒢 n] := by
+    rw [hcongr _ _ hUinf]
+    have hcoe : (lpMeas ℝ ℝ (⨅ n, 𝒢 n) 2 μ).starProjection (hf.toLp f)
+        = ↑(condExpL2 ℝ ℝ h_inf (hf.toLp f)) := rfl
+    rw [hcoe]
+    exact hf.condExpL2_ae_eq_condExp h_inf
+  have hkey := (Lp.tendsto_Lp_iff_tendsto_eLpNorm'
+    (fun n => (lpMeas ℝ ℝ (𝒢 n) 2 μ).starProjection (hf.toLp f))
+    ((⨅ n, lpMeas ℝ ℝ (𝒢 n) 2 μ).starProjection (hf.toLp f))).mp hproj
+  exact hkey.congr fun n => eLpNorm_congr_ae ((haen n).sub haeinf)
+
+/-! ### Lévy downward, `L¹` version -/
+
+/-- **Lévy's downward theorem, `L¹` version**: for integrable `f` and an antitone sequence of
+sub-σ-algebras `𝒢`, the conditional expectations `μ[f|𝒢 n]` converge in `L¹` to
+`μ[f|⨅ n, 𝒢 n]`. Proved by an `ε/3` argument from the `L²` case
+(`tendsto_eLpNorm_condExp_iInf_of_memLp`), approximating `f` by a simple function. -/
+theorem tendsto_eLpNorm_condExp_iInf {m0 : MeasurableSpace α} {μ : Measure α}
+    [IsProbabilityMeasure μ] (𝒢 : ℕ → MeasurableSpace α) (hanti : Antitone 𝒢)
+    (h𝒢 : ∀ n, 𝒢 n ≤ m0) {f : α → ℝ} (hf : Integrable f μ) :
+    Tendsto (fun n => eLpNorm (μ[f|𝒢 n] - μ[f|⨅ n, 𝒢 n]) 1 μ) atTop (𝓝 0) := by
+  have h_inf : (⨅ n, 𝒢 n) ≤ m0 := (iInf_le 𝒢 0).trans (h𝒢 0)
+  rw [ENNReal.tendsto_nhds_zero]
+  intro ε hε
+  have hε3 : (0 : ℝ≥0∞) < ε / 3 := ENNReal.div_pos hε.ne' (by norm_num)
+  obtain ⟨g, hg_lt, hg_mem⟩ :=
+    (memLp_one_iff_integrable.mpr hf).exists_simpleFunc_eLpNorm_sub_lt ENNReal.one_ne_top hε3.ne'
+  have hg_int : Integrable g μ := memLp_one_iff_integrable.mp hg_mem
+  have hg2 : MemLp (⇑g) 2 μ := (g.memLp_top μ).mono_exponent le_top
+  have hmid := tendsto_eLpNorm_condExp_iInf_of_memLp 𝒢 hanti h𝒢 hg2
+  filter_upwards [hmid.eventually (eventually_lt_nhds hε3)] with n hn
+  -- split `μ[f|𝒢 n] - μ[f|⨅ n, 𝒢 n]` through the simple approximant `g`, a.e.
+  have hsplit : μ[f|𝒢 n] - μ[f|⨅ n, 𝒢 n] =ᵐ[μ]
+      (μ[f - ⇑g|𝒢 n] + (μ[⇑g|𝒢 n] - μ[⇑g|⨅ n, 𝒢 n])) - μ[f - ⇑g|⨅ n, 𝒢 n] := by
+    have h1 := condExp_sub hf hg_int (𝒢 n)
+    have h2 := condExp_sub hf hg_int (⨅ n, 𝒢 n)
+    filter_upwards [h1, h2] with ω h1ω h2ω
+    simp only [Pi.add_apply, Pi.sub_apply] at h1ω h2ω ⊢
+    rw [h1ω, h2ω]
+    ring
+  have hm1 : AEStronglyMeasurable (μ[f - ⇑g|𝒢 n]) μ :=
+    (stronglyMeasurable_condExp.mono (h𝒢 n)).aestronglyMeasurable
+  have hm2 : AEStronglyMeasurable (μ[⇑g|𝒢 n] - μ[⇑g|⨅ n, 𝒢 n]) μ :=
+    ((stronglyMeasurable_condExp.mono (h𝒢 n)).sub
+      (stronglyMeasurable_condExp.mono h_inf)).aestronglyMeasurable
+  have hm3 : AEStronglyMeasurable (μ[f - ⇑g|⨅ n, 𝒢 n]) μ :=
+    (stronglyMeasurable_condExp.mono h_inf).aestronglyMeasurable
+  have hb1 : eLpNorm (μ[f - ⇑g|𝒢 n]) 1 μ ≤ ε / 3 :=
+    ((eLpNorm_condExp_le_eLpNorm _ le_rfl).trans_lt hg_lt).le
+  have hb2 : eLpNorm (μ[⇑g|𝒢 n] - μ[⇑g|⨅ n, 𝒢 n]) 1 μ ≤ ε / 3 :=
+    ((eLpNorm_le_eLpNorm_of_exponent_le one_le_two hm2).trans_lt hn).le
+  have hb3 : eLpNorm (μ[f - ⇑g|⨅ n, 𝒢 n]) 1 μ ≤ ε / 3 :=
+    ((eLpNorm_condExp_le_eLpNorm _ le_rfl).trans_lt hg_lt).le
+  calc eLpNorm (μ[f|𝒢 n] - μ[f|⨅ n, 𝒢 n]) 1 μ
+      = eLpNorm ((μ[f - ⇑g|𝒢 n] + (μ[⇑g|𝒢 n] - μ[⇑g|⨅ n, 𝒢 n])) - μ[f - ⇑g|⨅ n, 𝒢 n]) 1 μ :=
+        eLpNorm_congr_ae hsplit
+    _ ≤ eLpNorm (μ[f - ⇑g|𝒢 n] + (μ[⇑g|𝒢 n] - μ[⇑g|⨅ n, 𝒢 n])) 1 μ
+          + eLpNorm (μ[f - ⇑g|⨅ n, 𝒢 n]) 1 μ :=
+        eLpNorm_sub_le (hm1.add hm2) hm3 le_rfl
+    _ ≤ (eLpNorm (μ[f - ⇑g|𝒢 n]) 1 μ + eLpNorm (μ[⇑g|𝒢 n] - μ[⇑g|⨅ n, 𝒢 n]) 1 μ)
+          + eLpNorm (μ[f - ⇑g|⨅ n, 𝒢 n]) 1 μ :=
+        add_le_add (eLpNorm_add_le hm1 hm2 le_rfl) le_rfl
+    _ ≤ ε / 3 + ε / 3 + ε / 3 := add_le_add (add_le_add hb1 hb2) hb3
+    _ = ε := ENNReal.add_thirds ε
+
 end MeasureTheory
