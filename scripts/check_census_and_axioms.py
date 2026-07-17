@@ -149,6 +149,8 @@ AUDITED_DECLS = {
     "RelSignature.InfiniteRelExchangeableLaw.law_map_restrict",
     "RelSignature.RelStructure.iSup_initialAlgebra_eq",
     "RelSignature.InfiniteRelExchangeableLaw.map_blockPair_snd",
+    "RelSignature.InfiniteRelExchangeableLaw.IsDissociated.map_restrict_pair",
+    "RelSignature.RelStructure.iSup_tailWindowAlgebra_eq",
     "Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le",
     "Graphon.abs_sampleMass_ofSimpleGraphOn_sub_tInd_le",
     "MeasureTheory.Digraphon.sampleAdj_pair_of_lt",
