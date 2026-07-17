@@ -7,7 +7,7 @@ import Graphon.RelInvariantAction
 import Mathlib.MeasureTheory.Measure.MeasuredSets
 
 /-!
-# Ergodicity links for exchangeable relational laws (R3c step 2, #106)
+# Ergodicity links for exchangeable relational laws (R3c step 3, #106)
 
 The generic port of the undirected fixed-fiber ergodicity argument
 (`Graphon/ErgodicDecomposition.lean`): a sortwise-permutation-invariant event has law-measure

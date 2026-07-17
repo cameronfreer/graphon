@@ -43,9 +43,7 @@ theorem tfae_extremality [Fintype S.Srt] (M : InfiniteRelExchangeableLaw S) :
         M.IsErgodic,
         (M.law : Measure (RelStructure S (Vinfinite S))) ∈
           Set.extremePoints ℝ≥0∞
-            {ν : Measure (RelStructure S (Vinfinite S)) |
-              (∀ σ, SortwiseFinSupp (S := S) σ → ν.map (RelStructure.relabel σ) = ν) ∧
-              IsProbabilityMeasure ν}] := by
+            (invariantProbabilityMeasures S)] := by
   tfae_have 1 ↔ 2 := isDissociated_iff_restrictionIndependent M
   tfae_have 1 ↔ 3 := isDissociated_iff_vertexTailTrivial M
   tfae_have 4 ↔ 1 := isErgodic_iff_isDissociated M
@@ -57,9 +55,7 @@ theorem isDissociated_iff_mem_extremePoints [Fintype S.Srt]
     (M : InfiniteRelExchangeableLaw S) :
     M.IsDissociated ↔ (M.law : Measure (RelStructure S (Vinfinite S))) ∈
       Set.extremePoints ℝ≥0∞
-        {ν : Measure (RelStructure S (Vinfinite S)) |
-          (∀ σ, SortwiseFinSupp (S := S) σ → ν.map (RelStructure.relabel σ) = ν) ∧
-          IsProbabilityMeasure ν} :=
+        (invariantProbabilityMeasures S) :=
   (tfae_extremality M).out 0 4
 
 end RelSignature

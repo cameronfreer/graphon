@@ -216,9 +216,7 @@ membership in the candidate set of the extreme-point characterization. -/
 @[simp] theorem InfiniteRelExchangeableLaw.law_mem_invariantProbabilityMeasures
     (M : InfiniteRelExchangeableLaw S) :
     (M.law : Measure (RelStructure S (Vinfinite S))) ∈
-      {ν : Measure (RelStructure S (Vinfinite S)) |
-        (∀ σ, SortwiseFinSupp (S := S) σ → ν.map (RelStructure.relabel σ) = ν) ∧
-        IsProbabilityMeasure ν} :=
+      invariantProbabilityMeasures S :=
   ⟨fun σ _ => M.exchangeable σ, inferInstance⟩
 
 /-- **An extreme invariant probability measure is ergodic**: if some strictly invariant event
@@ -228,9 +226,7 @@ theorem InfiniteRelExchangeableLaw.isErgodic_of_mem_extremePoints
     (M : InfiniteRelExchangeableLaw S)
     (h : (M.law : Measure (RelStructure S (Vinfinite S))) ∈
       Set.extremePoints ℝ≥0∞
-        {ν : Measure (RelStructure S (Vinfinite S)) |
-          (∀ σ, SortwiseFinSupp (S := S) σ → ν.map (RelStructure.relabel σ) = ν) ∧
-          IsProbabilityMeasure ν}) :
+        (invariantProbabilityMeasures S)) :
     M.IsErgodic := by
   set μ : Measure (RelStructure S (Vinfinite S)) :=
     (M.law : Measure (RelStructure S (Vinfinite S))) with hμdef
@@ -244,9 +240,7 @@ theorem InfiniteRelExchangeableLaw.isErgodic_of_mem_extremePoints
   -- conditioning on a strictly invariant set preserves invariance
   have hcondmem : ∀ B : Set (RelStructure S (Vinfinite S)), MeasurableSet B →
       (∀ σ, SortwiseFinSupp (S := S) σ → RelStructure.relabel σ ⁻¹' B = B) → μ B ≠ 0 →
-      μ[|B] ∈ {ν : Measure (RelStructure S (Vinfinite S)) |
-        (∀ σ, SortwiseFinSupp (S := S) σ → ν.map (RelStructure.relabel σ) = ν) ∧
-        IsProbabilityMeasure ν} := by
+      μ[|B] ∈ invariantProbabilityMeasures S := by
     intro B hBm hBinv hB0
     refine ⟨fun σ hσ => ?_, cond_isProbabilityMeasure hB0⟩
     have hres : (μ.restrict B).map (RelStructure.relabel σ) = μ.restrict B := by
@@ -284,9 +278,7 @@ theorem InfiniteRelExchangeableLaw.mem_extremePoints_of_isErgodic [Fintype S.Srt
     (M : InfiniteRelExchangeableLaw S) (hM : M.IsErgodic) :
     (M.law : Measure (RelStructure S (Vinfinite S))) ∈
       Set.extremePoints ℝ≥0∞
-        {ν : Measure (RelStructure S (Vinfinite S)) |
-          (∀ σ, SortwiseFinSupp (S := S) σ → ν.map (RelStructure.relabel σ) = ν) ∧
-          IsProbabilityMeasure ν} := by
+        (invariantProbabilityMeasures S) := by
   rw [mem_extremePoints_iff_left]
   refine ⟨M.law_mem_invariantProbabilityMeasures, ?_⟩
   rintro ν₁ hν₁ ν₂ hν₂ ⟨a, b, ha, hb, hab, heq⟩
@@ -304,9 +296,7 @@ theorem InfiniteRelExchangeableLaw.isErgodic_iff_mem_extremePoints [Fintype S.Sr
     (M : InfiniteRelExchangeableLaw S) :
     M.IsErgodic ↔ (M.law : Measure (RelStructure S (Vinfinite S))) ∈
       Set.extremePoints ℝ≥0∞
-        {ν : Measure (RelStructure S (Vinfinite S)) |
-          (∀ σ, SortwiseFinSupp (S := S) σ → ν.map (RelStructure.relabel σ) = ν) ∧
-          IsProbabilityMeasure ν} :=
+        (invariantProbabilityMeasures S) :=
   ⟨M.mem_extremePoints_of_isErgodic, M.isErgodic_of_mem_extremePoints⟩
 
 end RelSignature

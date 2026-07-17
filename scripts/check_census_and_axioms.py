@@ -158,6 +158,7 @@ AUDITED_DECLS = {
     "RelSignature.isErgodic_iff_isDissociated",
     "RelSignature.InfiniteRelExchangeableLaw.isErgodic_iff_mem_extremePoints",
     "RelSignature.tfae_extremality",
+    "RelSignature.mem_invariantProbabilityMeasures_iff_exists_law",
     "Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le",
     "Graphon.abs_sampleMass_ofSimpleGraphOn_sub_tInd_le",
     "MeasureTheory.Digraphon.sampleAdj_pair_of_lt",

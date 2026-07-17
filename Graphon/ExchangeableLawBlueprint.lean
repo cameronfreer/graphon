@@ -76,7 +76,5 @@ theorem tfae_extremality_blueprint {S : RelSignature} [Fintype S.Srt]
         M.IsErgodic,
         (M.law : MeasureTheory.Measure (RelStructure S (Vinfinite S))) ∈
           Set.extremePoints ℝ≥0∞
-            {ν : MeasureTheory.Measure (RelStructure S (Vinfinite S)) |
-              (∀ σ, SortwiseFinSupp (S := S) σ → ν.map (RelStructure.relabel σ) = ν) ∧
-              MeasureTheory.IsProbabilityMeasure ν}] :=
+            (invariantProbabilityMeasures S)] :=
   tfae_extremality M
