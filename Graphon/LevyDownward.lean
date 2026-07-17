@@ -18,8 +18,8 @@ form by the orthogonal-projection route (no upcrossing/almost-everywhere machine
 * `Submodule.starProjection_tendsto_iInf` — orthogonal projections onto an antitone sequence
   of subspaces converge to the projection onto the infimum (the antitone twin of
   `starProjection_tendsto_closure_iSup`, via orthogonal complements);
-* `MeasureTheory.lpMeas_iInf_of_antitone` — the `L²`-subspace of an infimum σ-algebra is the
-  intersection of the `L²`-subspaces (limsup representative trick);
+* `MeasureTheory.lpMeas_iInf_of_antitone` — the `Lᵖ`-subspace of an infimum σ-algebra is the
+  intersection of the `Lᵖ`-subspaces (limsup representative trick);
 * `MeasureTheory.tendsto_eLpNorm_condExp_iInf` — **Lévy downward, L¹**: for integrable `f`
   and antitone `𝒢`, `eLpNorm (μ[f|𝒢 n] − μ[f|⨅ n, 𝒢 n]) 1 μ → 0` (via the `L²` case and an
   `ε/3` density argument).
@@ -71,7 +71,10 @@ namespace MeasureTheory
 
 variable {α : Type*}
 
-/-- `lpMeas` is monotone in the σ-algebra. -/
+/-- `lpMeas` is monotone in the σ-algebra. (`m0` is the ambient σ-algebra of `μ`, following
+the `{m m0}` convention of the `ConditionalExpectation` files: it is determined by `μ` at
+application sites and is *not* required to relate to `m` or `m'`, so the lemma applies with
+sub-σ-algebras of any common ambient.) -/
 theorem lpMeas_mono {m m' m0 : MeasurableSpace α} {μ : Measure α} (h : m ≤ m') {p : ℝ≥0∞} :
     lpMeas ℝ ℝ m p μ ≤ lpMeas ℝ ℝ m' p μ := by
   intro f hf
@@ -81,7 +84,8 @@ theorem lpMeas_mono {m m' m0 : MeasurableSpace α} {μ : Measure α} (h : m ≤ 
 
 /-- **The `Lᵖ`-subspace of an infimum σ-algebra is the intersection of the subspaces** along
 an antitone sequence: a function a.e.-measurable for every `𝒢 n` has the a.e.-limsup
-representative, which is measurable for the infimum. -/
+representative, which is measurable for the infimum. (`m0` is the ambient σ-algebra of `μ`,
+determined at application sites.) -/
 theorem lpMeas_iInf_of_antitone {m0 : MeasurableSpace α} {μ : Measure α}
     (𝒢 : ℕ → MeasurableSpace α) (hanti : Antitone 𝒢) {p : ℝ≥0∞} :
     (⨅ n, lpMeas ℝ ℝ (𝒢 n) p μ) = lpMeas ℝ ℝ (⨅ n, 𝒢 n) p μ := by
