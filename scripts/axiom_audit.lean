@@ -129,6 +129,8 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.RelStructure.iSup_tailWindowAlgebra_eq
 #print axioms RelSignature.isDissociated_iff_restrictionIndependent
 #print axioms RelSignature.InfiniteRelExchangeableLaw.RestrictionIndependent.vertexTailTrivial
+#print axioms MeasureTheory.tendsto_eLpNorm_condExp_iInf
+#print axioms RelSignature.isDissociated_iff_vertexTailTrivial
 #print axioms Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le
 #print axioms Graphon.abs_sampleMass_ofSimpleGraphOn_sub_tInd_le
 #print axioms MeasureTheory.Digraphon.sampleAdj_pair_of_lt

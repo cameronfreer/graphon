@@ -25,17 +25,17 @@ to vertex-tail triviality, for exchangeable relational laws:
 * `RestrictionIndependent.vertexTailTrivial` — a vertex-tail event is independent of every
   initial σ-algebra, hence (the initial σ-algebras generating, R3a) of itself.
 
-**The converse `VertexTailTrivial → IsDissociated` is deliberately not here**: it is deferred
-to a representation-free **downward-martingale follow-up** — an L¹ Lévy *downward* lemma
-(conditional expectations along a decreasing filtration; Mathlib has only the upward theorem),
-then: condition an initial finite-event indicator on successively later tail algebras, tail
-triviality makes the limit constant, exchangeability moves the second block arbitrarily far
-out, and L¹ convergence forces the exact block factorization. (The undirected proof instead
-rides the graphon mixture representation; the generic theory keeps the five-way
-characterization representation-free, with R5's Dirac-mixing as a later corollary.)
+* `VertexTailTrivial.isDissociated` / `isDissociated_iff_vertexTailTrivial` — **the closing
+  arrow, representation-free**: condition the initial-event indicator on successively later
+  diagonal tail algebras; Lévy's *downward* theorem (`Graphon/LevyDownward.lean`) converges
+  the conditional expectations to the vertex-tail one, which tail triviality makes a.e.
+  constant; exchangeability keeps the joint mass with an arbitrarily far window constant
+  (`law_map_restrict_pair`); in the limit the block mass factorizes exactly. (The undirected
+  proof instead rides the graphon mixture representation; the generic theory keeps the
+  characterization representation-free, with R5's Dirac-mixing as a later corollary.)
 -/
 
-open MeasureTheory ProbabilityTheory RelSignature
+open MeasureTheory ProbabilityTheory RelSignature Filter Topology
 
 namespace RelSignature
 
@@ -170,6 +170,136 @@ theorem InfiniteRelExchangeableLaw.IsDissociated.vertexTailTrivial
 
 /-! ### Vertex-tail triviality implies dissociation (the closing arrow) -/
 
+/-- **Abstract Lévy-downward factorization step**: on a probability space, if `A` is an
+ambient-measurable set and `B' n` is a `𝒢 n`-measurable set along an antitone sequence of
+sub-σ-algebras whose intersection is `μ`-trivial, and if neither the masses `μ (B' n)` nor
+the joint masses `μ (A ∩ B' n)` depend on `n` (equalling `μ B` and `μ (A ∩ B)`
+respectively), then the joint mass factorizes exactly. -/
+private theorem measure_inter_eq_mul_of_condExp_iInf {α : Type*}
+    {m0 : MeasurableSpace α} {μ : Measure α} [IsProbabilityMeasure μ]
+    (𝒢 : ℕ → MeasurableSpace α) (hanti : Antitone 𝒢) (h𝒢 : ∀ n, 𝒢 n ≤ m0)
+    (htriv : ∀ s, MeasurableSet[⨅ n, 𝒢 n] s → μ s = 0 ∨ μ s = 1)
+    {A B : Set α} (hA : MeasurableSet A) (B' : ℕ → Set α)
+    (hB' : ∀ n, MeasurableSet[𝒢 n] (B' n)) (hBmass : ∀ n, μ (B' n) = μ B)
+    (hjoint : ∀ n, μ (A ∩ B' n) = μ (A ∩ B)) :
+    μ (A ∩ B) = μ A * μ B := by
+  have hinf : (⨅ n, 𝒢 n) ≤ m0 := (iInf_le 𝒢 0).trans (h𝒢 0)
+  set f₀ : α → ℝ := A.indicator fun _ => 1 with hf₀def
+  have hf₀ : Integrable f₀ μ := (integrable_const 1).indicator hA
+  have hconst : μ[f₀|⨅ n, 𝒢 n] =ᵐ[μ] fun _ => ∫ x, f₀ x ∂μ :=
+    condExp_ae_eq_integral_of_forall_zero_or_one hinf htriv hf₀
+  have hc : ∫ x, f₀ x ∂μ = (μ A).toReal := by
+    rw [hf₀def, integral_indicator_const (1 : ℝ) hA, smul_eq_mul, mul_one, measureReal_def]
+  have hbound : ∀ n, |(μ (A ∩ B)).toReal - (μ A).toReal * (μ B).toReal| ≤
+      (eLpNorm (μ[f₀|𝒢 n] - μ[f₀|⨅ m, 𝒢 m]) 1 μ).toReal := by
+    intro n
+    have hBn : MeasurableSet (B' n) := h𝒢 n _ (hB' n)
+    have hg : Integrable (μ[f₀|𝒢 n] - μ[f₀|⨅ m, 𝒢 m]) μ :=
+      integrable_condExp.sub integrable_condExp
+    have h1 : ∫ x in B' n, (μ[f₀|𝒢 n]) x ∂μ = (μ (A ∩ B)).toReal := by
+      rw [setIntegral_condExp (h𝒢 n) hf₀ (hB' n), hf₀def, setIntegral_indicator hA,
+        setIntegral_const, smul_eq_mul, mul_one, Set.inter_comm (B' n) A, measureReal_def,
+        hjoint n]
+    have h2 : ∫ x in B' n, (μ[f₀|⨅ m, 𝒢 m]) x ∂μ = (μ A).toReal * (μ B).toReal := by
+      rw [setIntegral_congr_ae hBn (hconst.mono fun x hx _ => hx), setIntegral_const,
+        smul_eq_mul, hc, measureReal_def, hBmass n, mul_comm]
+    have hsplit : ∫ x in B' n, (μ[f₀|𝒢 n] - μ[f₀|⨅ m, 𝒢 m]) x ∂μ =
+        (μ (A ∩ B)).toReal - (μ A).toReal * (μ B).toReal := by
+      simp only [Pi.sub_apply]
+      rw [integral_sub integrable_condExp.integrableOn integrable_condExp.integrableOn,
+        h1, h2]
+    calc |(μ (A ∩ B)).toReal - (μ A).toReal * (μ B).toReal|
+        = ‖∫ x in B' n, (μ[f₀|𝒢 n] - μ[f₀|⨅ m, 𝒢 m]) x ∂μ‖ := by
+          rw [hsplit, Real.norm_eq_abs]
+      _ ≤ ∫ x in B' n, ‖(μ[f₀|𝒢 n] - μ[f₀|⨅ m, 𝒢 m]) x‖ ∂μ :=
+          norm_integral_le_integral_norm _
+      _ ≤ ∫ x, ‖(μ[f₀|𝒢 n] - μ[f₀|⨅ m, 𝒢 m]) x‖ ∂μ :=
+          setIntegral_le_integral hg.norm (Eventually.of_forall fun x => norm_nonneg _)
+      _ = (eLpNorm (μ[f₀|𝒢 n] - μ[f₀|⨅ m, 𝒢 m]) 1 μ).toReal := by
+          rw [integral_norm_eq_lintegral_enorm hg.aestronglyMeasurable,
+            eLpNorm_one_eq_lintegral_enorm]
+  have hLevyReal : Tendsto
+      (fun n => (eLpNorm (μ[f₀|𝒢 n] - μ[f₀|⨅ m, 𝒢 m]) 1 μ).toReal) atTop (𝓝 0) := by
+    simpa [Function.comp_def] using (ENNReal.tendsto_toReal ENNReal.zero_ne_top).comp
+      (tendsto_eLpNorm_condExp_iInf 𝒢 hanti h𝒢 hf₀)
+  have habs0 : |(μ (A ∩ B)).toReal - (μ A).toReal * (μ B).toReal| = 0 :=
+    le_antisymm (ge_of_tendsto' hLevyReal hbound) (abs_nonneg _)
+  refine (ENNReal.toReal_eq_toReal_iff' (measure_ne_top μ _)
+    (ENNReal.mul_ne_top (measure_ne_top μ _) (measure_ne_top μ _))).mp ?_
+  rw [ENNReal.toReal_mul]
+  have := abs_eq_zero.mp habs0
+  linarith
+
+/-- **The core factorization**: for a vertex-tail-trivial exchangeable law, the mass of an
+initial-block event intersected with an after-block window event factorizes — condition the
+initial-event indicator on the diagonal tail algebras, push the window out by
+exchangeability, and apply the abstract Lévy-downward step. -/
+private theorem InfiniteRelExchangeableLaw.VertexTailTrivial.measure_inter_window
+    [Fintype S.Srt] {M : InfiniteRelExchangeableLaw S} (hM : M.VertexTailTrivial)
+    (k l : S.Srt → ℕ) {T₁ : Set (RelStructure S (Vfinite k))}
+    {T₂ : Set (RelStructure S (Vfinite l))} (hT₁ : MeasurableSet T₁)
+    (hT₂ : MeasurableSet T₂) :
+    (M.law : Measure (RelStructure S (Vinfinite S)))
+        (RelStructure.restrictFin k ⁻¹' T₁ ∩
+          RelStructure.restrict (shiftEmb k l) ⁻¹' T₂) =
+      (M.law : Measure (RelStructure S (Vinfinite S)))
+          (RelStructure.restrictFin k ⁻¹' T₁) *
+        (M.law : Measure (RelStructure S (Vinfinite S)))
+          (RelStructure.restrict (shiftEmb k l) ⁻¹' T₂) := by
+  haveI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
+  have hwinmeas : ∀ K : S.Srt → ℕ,
+      Measurable (RelStructure.restrict (S := S) (shiftEmb K l)) := by
+    intro K
+    rw [restrict_shiftEmb_eq]
+    exact (RelSignature.measurable_restrictFin l).comp (measurable_drop K)
+  -- the joint mass with any window at least `k` out is the canonical block-pair mass
+  have hjoint : ∀ K : S.Srt → ℕ, (∀ s, k s ≤ K s) →
+      (M.law : Measure (RelStructure S (Vinfinite S)))
+          (RelStructure.restrictFin k ⁻¹' T₁ ∩
+            RelStructure.restrict (shiftEmb K l) ⁻¹' T₂) =
+        ((M.law : Measure (RelStructure S (Vinfinite S))).map (blockPair k l))
+          (T₁ ×ˢ T₂) := by
+    intro K hK
+    have hd : ∀ s (i : Fin (k s)) (j : Fin (l s)),
+        (Fin.valEmbedding : Fin (k s) ↪ ℕ) i ≠ shiftEmb K l s j := by
+      intro s i j h
+      have hij : (i : ℕ) = (j : ℕ) + K s := h
+      have h1 := i.isLt
+      have h2 := hK s
+      omega
+    have hpairmeas : Measurable fun X : RelStructure S (Vinfinite S) =>
+        (RelStructure.restrict (fun s => (Fin.valEmbedding : Fin (k s) ↪ ℕ)) X,
+          RelStructure.restrict (shiftEmb K l) X) :=
+      (RelSignature.measurable_restrictFin k).prodMk (hwinmeas K)
+    rw [← M.law_map_restrict_pair (fun s => (Fin.valEmbedding : Fin (k s) ↪ ℕ))
+        (shiftEmb K l) hd,
+      Measure.map_apply hpairmeas (hT₁.prod hT₂)]
+    rfl
+  -- the window mass does not depend on the shift
+  have hwindow : ∀ K : S.Srt → ℕ,
+      (M.law : Measure (RelStructure S (Vinfinite S)))
+          (RelStructure.restrict (shiftEmb K l) ⁻¹' T₂) =
+        (M.law : Measure (RelStructure S (Vinfinite S)))
+          (RelStructure.restrict (shiftEmb k l) ⁻¹' T₂) := by
+    intro K
+    rw [← Measure.map_apply (hwinmeas K) hT₂, ← Measure.map_apply (hwinmeas k) hT₂,
+      M.law_map_restrict (shiftEmb K l), M.law_map_restrict (shiftEmb k l)]
+  refine measure_inter_eq_mul_of_condExp_iInf
+    (fun n => RelStructure.tailAlgebra (S := S) fun _ => n)
+    (fun n m h => RelStructure.tailAlgebra_antitone fun _ => h)
+    (fun n => RelStructure.tailAlgebra_le fun _ => n)
+    (fun s hs => hM s (by rwa [RelStructure.vertexTailAlgebra_eq_iInf_diagonal]))
+    (RelSignature.measurable_restrictFin k hT₁)
+    (fun n => RelStructure.restrict (shiftEmb (fun s => max (k s) n) l) ⁻¹' T₂)
+    (fun n => ?_) (fun n => hwindow fun s => max (k s) n) (fun n => ?_)
+  · -- the far window is measurable for the diagonal tail algebra
+    exact ((RelStructure.tailWindowAlgebra_le_tailAlgebra (fun s => max (k s) n) l).trans
+      (RelStructure.tailAlgebra_antitone fun s => le_max_right (k s) n)) _
+      (MeasurableSpace.measurableSet_comap.mpr ⟨T₂, hT₂, rfl⟩)
+  · -- the joint mass with the far window equals the joint mass with the adjacent one
+    exact (hjoint (fun s => max (k s) n) fun s => le_max_left _ _).trans
+      (hjoint k fun _ => le_rfl).symm
+
 /-- **Vertex-tail triviality implies dissociation** (representation-free): condition the
 initial-event indicator on successively later diagonal tail algebras; Lévy's downward theorem
 converges the conditional expectations to the vertex-tail one, which tail triviality makes
@@ -178,7 +308,22 @@ in the limit the block mass factorizes exactly. -/
 theorem InfiniteRelExchangeableLaw.VertexTailTrivial.isDissociated [Fintype S.Srt]
     {M : InfiniteRelExchangeableLaw S} (hM : M.VertexTailTrivial) :
     M.IsDissociated := by
-  sorry
+  haveI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
+  intro k l
+  haveI : IsProbabilityMeasure
+      ((M.law : Measure (RelStructure S (Vinfinite S))).map (RelStructure.restrictFin k)) :=
+    Measure.isProbabilityMeasure_map (RelSignature.measurable_restrictFin k).aemeasurable
+  haveI : IsProbabilityMeasure
+      ((M.law : Measure (RelStructure S (Vinfinite S))).map (RelStructure.restrictFin l)) :=
+    Measure.isProbabilityMeasure_map (RelSignature.measurable_restrictFin l).aemeasurable
+  have hwinmeas : Measurable (RelStructure.restrict (S := S) (shiftEmb k l)) := by
+    rw [restrict_shiftEmb_eq]
+    exact (RelSignature.measurable_restrictFin l).comp (measurable_drop k)
+  refine (Measure.prod_eq fun T₁ T₂ hT₁ hT₂ => ?_).symm
+  rw [Measure.map_apply (measurable_blockPair k l) (hT₁.prod hT₂),
+    Measure.map_apply (RelSignature.measurable_restrictFin k) hT₁,
+    ← M.law_map_restrict (shiftEmb k l), Measure.map_apply hwinmeas hT₂]
+  exact hM.measure_inter_window k l hT₁ hT₂
 
 /-- **Dissociation ↔ vertex-tail triviality** (R3b complete, representation-free). -/
 theorem isDissociated_iff_vertexTailTrivial [Fintype S.Srt]

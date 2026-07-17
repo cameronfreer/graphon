@@ -31,6 +31,7 @@ import Graphon.Operations
 import Graphon.Operator
 import Graphon.CutNorm
 import Graphon.CutDistance
+import Graphon.LevyDownward
 import Graphon.MeasureIso
 import Graphon.Approximation
 import Graphon.Counting
@@ -105,6 +106,7 @@ in Lean 4 using Mathlib.
 * `Graphon.CutNorm` — Cut norm, graphon integrability
 * `Graphon.Approximation` — Rectangle averages, cut norm approximation
 * `Graphon.CutDistance` — Cut distance, pseudometric properties, three of the four Rokhlin cores
+* `Graphon.LevyDownward` — **Lévy's downward theorem, L¹ version** (Mathlib-upstream candidate, #24): orthogonal projections along an antitone sequence of subspaces converge to the projection onto the infimum; the `Lᵖ`-subspace of an infimum σ-algebra is the intersection; conditional expectations along an antitone sequence of σ-algebras converge in `L¹` to the conditional expectation on the infimum; and conditional expectation over a `0`-`1` σ-algebra is the mean
 * `Graphon.MeasureIso` — Atomless standard-Borel measure-isomorphism theorem (graphon-independent; mod-0 iso + everywhere upgrade)
 * `Graphon.Overlay` — Overlay theorem: an MP bijection nearly achieves the cut distance (fourth Rokhlin core)
 * `Graphon.Regularity` — Energy increment, Frieze–Kannan weak regularity lemma
@@ -168,7 +170,7 @@ in Lean 4 using Mathlib.
 * `Graphon.InfiniteDigraph` — Directed umbrella (#84) D1 (#85): `InfiniteDigraph` as the one-sort binary R1 instance (`digraphSig`) — inheriting compact/standard-Borel, measurable finite restrictions, and measure extensionality (all topology on `InfiniteDigraph`); `Adj` (Prop) / `adjBit` (Bool); `digraphStructureEquiv V` the plain carrier equivalence with Mathlib's `Digraph V`, giving both the infinite `digraphEquiv` and the finite `finiteDigraphEquiv` (for D2); no exchangeable-law theory (that is D2)
 * `Graphon.SimpleGraphDigraphBridge` — the symmetric loopless embedding `SimpleGraph.toFiniteDigraph` with its coordinate lemma, injectivity, and range classification, in its own module preserving D1's relational/directed dependency boundary
 * `Graphon.RelRestrictionBlocks` — Generic AHK program R3a (#106): sortwise vertex shift `RelStructure.drop` and block embeddings `shiftEmb`; the labeling-free restriction invariance `InfiniteRelExchangeableLaw.law_map_restrict` and shift invariance `law_map_drop`; the initial / after-block / vertex-tail σ-algebras with monotonicity and `iSup_initialAlgebra_eq`; and `IsDissociated` — dissociation as exact finite-event block factorization, with its marginal API
-* `Graphon.RelRestrictionIndependence` — Generic AHK program R3b (#106): `RestrictionIndependent` and `VertexTailTrivial` for exchangeable relational laws; **dissociation ↔ restriction independence** (comap-σ-algebra independence of the block maps *is* the block-pair factorization, and the finite windows exhaust the after-block σ-algebra) and **restriction independence → vertex-tail triviality** (independence from every initial σ-algebra upgrades to self-independence); the converse tail-trivial → dissociated is deferred to a representation-free downward-martingale follow-up (an L¹ Lévy-downward lemma, which Mathlib lacks, then conditioning on successively later tail algebras)
+* `Graphon.RelRestrictionIndependence` — Generic AHK program R3b (#106): `RestrictionIndependent` and `VertexTailTrivial` for exchangeable relational laws; **dissociation ↔ restriction independence** (comap-σ-algebra independence of the block maps *is* the block-pair factorization, and the finite windows exhaust the after-block σ-algebra) and **restriction independence → vertex-tail triviality** (independence from every initial σ-algebra upgrades to self-independence); and the **representation-free closing arrow** tail-trivial → dissociated (condition on successively later diagonal tail algebras; Lévy downward + triviality + exchangeability force the block factorization), completing dissociated ↔ restriction-independent ↔ tail-trivial
 * `Graphon.DigraphMaps` — the minimal `Digraph.comap` pullback API for Mathlib's `Digraph` (mirroring `SimpleGraph.comap`; a Mathlib-upstream candidate tracked on #24), used by the D2 directed-law bridge
 * `Graphon.InfiniteDigraphLaw` — Directed umbrella (#84) D2 (#86): the `PMF`-based finite directed law `ExchangeableDigraphLaw` (consistent under `Digraph.comap`), the finite bridge `digraphLawEquiv : ExchangeableDigraphLaw ≃ RelExchangeableLaw digraphSig` (via `finiteDigraphEquiv` + `PMF.toMeasure`/`Measure.toPMF`), and the headline `exchangeableDigraphLawEquiv : ExchangeableDigraphLaw ≃ InfiniteExchangeableDigraphLaw` composing with R2c — measurable structure stays on the relational carrier
 * `Graphon.ExchangeableLawBlueprint` — annotation-only blueprint wrappers for the R2c relational (`relExchangeableLawEquiv`) and D2 directed (`exchangeableDigraphLawEquiv`) equivalences, keeping `Architect` out of the reusable foundational modules
