@@ -7,7 +7,6 @@ import Architect
 import Graphon.RelLawEquivalence
 import Graphon.InfiniteDigraphLaw
 import Graphon.DigraphSampler
-import Graphon.SubgraphDensities
 
 /-!
 # Blueprint nodes for the relational / directed exchangeable-law equivalences
@@ -57,21 +56,3 @@ theorem map_sampleInfinite_blueprint {α : Type*} [MeasurableSpace α] {μ : Mea
     (Digraphon.samplerSource μ).map W.sampleInfinite =
       ((exchangeableDigraphLawEquiv W.sampleDigraphLaw).law : Measure InfiniteDigraph) :=
   W.map_sampleInfinite_eq_equiv_law
-
-open scoped Classical in
-/-- **The finite density triangle** (#94; Lovász §5.2.3, (5.19)–(5.21)): the zeta identity
-`t_inj(F, ·) = ∑_{F' ⊇ F} t_ind(F', ·)`, its inverse Möbius form
-`t_ind(F, ·) = ∑_{F' ⊇ F} (−1)^{|E(F') ∖ E(F)|} t_inj(F', ·)`, and the collision comparison
-`|t − t_inj| ≤ k²/n` — all unconditional under the small-host zero convention. -/
-@[blueprint "thm:finite-density-triangle"
-  (title := /-- The finite density triangle -/)]
-theorem finite_density_triangle_blueprint {k n : ℕ}
-    (F : SimpleGraph (Fin k)) (H : SimpleGraph (Fin n)) :
-    (SimpleGraph.tInj F H = ∑ F' ∈ Finset.univ.filter
-        (fun F' : SimpleGraph (Fin k) => F ≤ F'), SimpleGraph.tInd F' H) ∧
-      (SimpleGraph.tInd F H = ∑ F' ∈ Finset.univ.filter
-          (fun F' : SimpleGraph (Fin k) => F ≤ F'),
-        (-1 : ℝ) ^ (F'.edgeFinset \ F.edgeFinset).card * SimpleGraph.tInj F' H) ∧
-      |SimpleGraph.t F H - SimpleGraph.tInj F H| ≤ (k : ℝ) ^ 2 / n :=
-  ⟨SimpleGraph.tInj_eq_sum_tInd F H, SimpleGraph.tInd_eq_sum_neg_one_pow_tInj F H,
-    SimpleGraph.abs_t_sub_tInj_le F H⟩
