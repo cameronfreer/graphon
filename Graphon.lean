@@ -17,6 +17,7 @@ import Graphon.RelInvariantAction
 import Graphon.RelErgodicLinks
 import Graphon.RelErgodicExtreme
 import Graphon.RelExtremality
+import Graphon.RelEqualityPattern
 import Graphon.DigraphMaps
 import Graphon.InfiniteDigraph
 import Graphon.SimpleGraphDigraphBridge
@@ -179,6 +180,7 @@ in Lean 4 using Mathlib.
 * `Graphon.RelErgodicLinks` — R3c: ergodicity linked into the dissociation triangle — the sortwise block swap, in-measure approximation by initial cylinders, the 4ε approximate-independence core (restriction independence ⇒ ergodicity), vertex-tail ⊆ invariant (ergodicity ⇒ tail triviality), and the iff chain
 * `Graphon.RelErgodicExtreme` — R3c: the ergodic ↔ extreme-point theorem for the relabeling group (port of Mathlib's `Ergodic.iff_mem_extremePoints`), with the new absolute-continuity lemma `eq_of_absolutelyContinuous` and the a.e.-to-strict invariant hull upgrade over the countable group
 * `Graphon.RelExtremality` — R3c headline: the **five-way extremality equivalence** `tfae_extremality` (dissociated ↔ restriction-independent ↔ tail-trivial ↔ ergodic ↔ extreme), representation-free, with the `digraphSig` regression examples
+* `Graphon.RelEqualityPattern` — R4 design checkpoint: sort-tagged values (`RelCoord.taggedValue`), the **equality pattern** as its kernel (`RelCoord.pattern`, with blocks canonically the support via `patternQuotientEquivSupport`), the **support** as a finset of tagged values, **nonempty subset latent indices** (`LatentIndex`), and the `Sigma.map id` transport with full equivariance under sortwise injections — the interface for the functional AHK representation (sampler and representation theorem deliberately held back); binary/diagonal/ternary/bipartite examples
 * `Graphon.DigraphMaps` — the minimal `Digraph.comap` pullback API for Mathlib's `Digraph` (mirroring `SimpleGraph.comap`; a Mathlib-upstream candidate tracked on #24), used by the D2 directed-law bridge
 * `Graphon.InfiniteDigraphLaw` — Directed umbrella (#84) D2 (#86): the `PMF`-based finite directed law `ExchangeableDigraphLaw` (consistent under `Digraph.comap`), the finite bridge `digraphLawEquiv : ExchangeableDigraphLaw ≃ RelExchangeableLaw digraphSig` (via `finiteDigraphEquiv` + `PMF.toMeasure`/`Measure.toPMF`), and the headline `exchangeableDigraphLawEquiv : ExchangeableDigraphLaw ≃ InfiniteExchangeableDigraphLaw` composing with R2c — measurable structure stays on the relational carrier
 * `Graphon.ExchangeableLawBlueprint` — annotation-only blueprint wrappers for the R2c relational (`relExchangeableLawEquiv`) and D2 directed (`exchangeableDigraphLawEquiv`) equivalences, keeping `Architect` out of the reusable foundational modules
