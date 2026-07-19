@@ -161,6 +161,8 @@ AUDITED_DECLS = {
     "RelSignature.mem_invariantProbabilityMeasures_iff_exists_law",
     "RelSignature.RelCoord.pattern_map",
     "RelSignature.LatentIndex.map_injective",
+    "RelSignature.patternLatentIndexEquivCoord",
+    "RelSignature.CoordLatentIndex.congrMap",
     "Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le",
     "Graphon.abs_sampleMass_ofSimpleGraphOn_sub_tInd_le",
     "MeasureTheory.Digraphon.sampleAdj_pair_of_lt",

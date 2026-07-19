@@ -3,12 +3,14 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
-import Graphon.InfiniteDigraph
+import Graphon.RelationalStructure
+import Mathlib.Data.Finset.Card
 import Mathlib.Data.Fintype.Basic
 import Mathlib.Data.Setoid.Basic
+import Mathlib.Tactic.FinCases
 
 /-!
-# Equality patterns, supports, and subset latent indices (R4 design checkpoint, #106 sequel)
+# Equality patterns, supports, and subset latent indices (R4 design checkpoint, #107)
 
 The design layer of the functional Aldous–Hoover–Kallenberg representation: the vocabulary in
 which the dissociated representation's sampler and representation theorem will be stated.
@@ -32,6 +34,18 @@ Design decisions, made explicit:
   `A ⊆ c.support` nonempty; one latent source indexed by `LatentIndex S (Vinfinite S)` will
   serve every coordinate. Nonemptiness excludes a global (`U_∅`) latent — the dissociated
   normal form.
+* **Patterns are bundled independently of coordinates.** `EqualityPattern S r` packages a
+  setoid on the positions of `r` *together with sort compatibility* (equivalent positions
+  have equal `argSort`), so an abstract pattern `π` exists without any labeled coordinate;
+  `RelCoord.equalityPattern` extracts the bundled pattern of a coordinate, and
+  `EqualityPattern.blockSort` is the induced sort of each block — per-sort counts are
+  *derived*, never stored (no coherence obligations).
+* **Local latent indices are bundled per pattern and per coordinate.**
+  `PatternLatentIndex π` (nonempty finite subsets of the blocks) is the label-free,
+  order-free domain the representing kernel `f_{r,π}` will consume;
+  `CoordLatentIndex c` (nonempty subsets of the support) is its labeled avatar, with the
+  canonical equivalence `patternLatentIndexEquivCoord` and the *two-way* relabeling
+  equivalence `CoordLatentIndex.congrMap` along sortwise injections.
 * **Transport is by `Sigma.map id`.** A sortwise map `f : ∀ s, V s → W s` acts on tagged
   values, supports, and latent indices through `Sigma.map id f`; all equivariance statements
   are phrased through this single action. Sortwise *injective* maps preserve patterns
@@ -183,52 +197,167 @@ theorem LatentIndex.map_subset_support {f : ∀ s, V s → W s} {c : RelCoord S 
   rw [RelCoord.support_map]
   exact Finset.image_subset_image hA
 
+/-! ### Bundled patterns -/
+
+/-- **An abstract equality pattern** for the relation symbol `r`: a setoid on the positions
+together with **sort compatibility** — equivalent positions carry the same sort. This is the
+label-free datum the representing kernel `f_{r,π}` is indexed by; a labeled coordinate only
+ever enters through `RelCoord.equalityPattern`. -/
+@[ext] structure EqualityPattern (S : RelSignature) (r : S.Rel) where
+  /-- The equivalence of positions. -/
+  toSetoid : Setoid (Fin (S.arity r))
+  /-- Equivalent positions have equal sorts. -/
+  sort_eq : ∀ ⦃i j⦄, toSetoid i j → S.argSort r i = S.argSort r j
+
+/-- The bundled equality pattern of a labeled coordinate. -/
+def RelCoord.equalityPattern (c : RelCoord S V) : EqualityPattern S c.1 :=
+  ⟨c.pattern, fun _ _ h => congrArg Sigma.fst h⟩
+
+@[simp] theorem RelCoord.equalityPattern_toSetoid (c : RelCoord S V) :
+    c.equalityPattern.toSetoid = c.pattern := rfl
+
+/-- **Bundled patterns are invariant under sortwise injections.** -/
+theorem RelCoord.equalityPattern_map {f : ∀ s, V s → W s} (hf : ∀ s, Injective (f s))
+    (c : RelCoord S V) :
+    (RelCoord.map f c).equalityPattern = c.equalityPattern :=
+  EqualityPattern.ext (RelCoord.pattern_map hf c)
+
+/-- **The sort of a block**: `argSort` descends to the pattern's quotient by sort
+compatibility. Per-sort block counts or multisets are derived from this, not stored. -/
+def EqualityPattern.blockSort {r : S.Rel} (π : EqualityPattern S r) :
+    Quotient π.toSetoid → S.Srt :=
+  Quotient.lift (S.argSort r) fun _ _ h => π.sort_eq h
+
+@[simp] theorem EqualityPattern.blockSort_mk {r : S.Rel} (π : EqualityPattern S r)
+    (i : Fin (S.arity r)) : π.blockSort ⟦i⟧ = S.argSort r i := rfl
+
+/-! ### Local latent indices -/
+
+/-- **The pattern-local latent indices**: nonempty finite subsets of the blocks of an
+abstract pattern — the label-free, order-free argument domain of the representing kernel
+`f_{r,π} : (PatternLatentIndex π → I) → …`. -/
+abbrev PatternLatentIndex {r : S.Rel} (π : EqualityPattern S r) : Type _ :=
+  {A : Finset (Quotient π.toSetoid) // A.Nonempty}
+
+/-- **The coordinate-local latent indices**: nonempty subsets of the support — the labeled
+avatar of `PatternLatentIndex`, and the sub-collection of the global `LatentIndex` a single
+coordinate reads. -/
+abbrev CoordLatentIndex (c : RelCoord S V) : Type _ :=
+  {A : Finset (Σ s : S.Srt, V s) // A.Nonempty ∧ A ⊆ c.support}
+
+open scoped Classical in
+/-- Finsets of members of `s` are the subsets of `s`. -/
+private noncomputable def finsetMemEquivSubsets {α : Type*} (s : Finset α) :
+    Finset {v // v ∈ s} ≃ {A : Finset α // A ⊆ s} where
+  toFun B := ⟨B.map (Function.Embedding.subtype _), fun v hv => by
+    obtain ⟨⟨w, hw⟩, -, rfl⟩ := Finset.mem_map.mp hv
+    exact hw⟩
+  invFun A := A.1.subtype (· ∈ s)
+  left_inv B := by
+    ext ⟨v, hv⟩
+    rw [Finset.mem_subtype, Finset.mem_map]
+    constructor
+    · rintro ⟨w, hwB, hEq⟩
+      rwa [show w = ⟨v, hv⟩ from Subtype.ext hEq] at hwB
+    · intro h
+      exact ⟨⟨v, hv⟩, h, rfl⟩
+  right_inv A := by
+    refine Subtype.ext ?_
+    show (A.1.subtype (· ∈ s)).map (Function.Embedding.subtype _) = A.1
+    rw [Finset.subtype_map]
+    exact Finset.filter_true_of_mem fun v hv => A.2 hv
+
+open scoped Classical in
+/-- **The canonical equivalence between pattern-local and coordinate-local latent
+indices**, through `patternQuotientEquivSupport`: the kernel's order-free domain is the
+labeled coordinate's subset-latent collection. -/
+noncomputable def patternLatentIndexEquivCoord (c : RelCoord S V) :
+    PatternLatentIndex c.equalityPattern ≃ CoordLatentIndex c :=
+  ((((c.patternQuotientEquivSupport.finsetCongr.trans
+      (finsetMemEquivSubsets c.support)).subtypeEquiv fun B => by
+        simp [finsetMemEquivSubsets, Equiv.finsetCongr_apply, Finset.map_nonempty]).trans
+    (Equiv.subtypeSubtypeEquivSubtypeInter _ _)).trans
+    (Equiv.subtypeEquivRight fun A => and_comm))
+
+/-- Transport of pattern-local indices along an equality of patterns. -/
+def PatternLatentIndex.congr {r : S.Rel} {π π' : EqualityPattern S r} (h : π = π') :
+    PatternLatentIndex π ≃ PatternLatentIndex π' := by
+  subst h
+  exact Equiv.refl _
+
+/-- **The two-way relabeling equivalence of coordinate-local latent indices** along a
+sortwise injection — not merely the one-way `map_subset_support`: patterns are invariant, so
+the local index types on either side of a relabeling are canonically equivalent. -/
+noncomputable def CoordLatentIndex.congrMap {f : ∀ s, V s → W s}
+    (hf : ∀ s, Injective (f s)) (c : RelCoord S V) :
+    CoordLatentIndex c ≃ CoordLatentIndex (RelCoord.map f c) :=
+  (patternLatentIndexEquivCoord c).symm.trans
+    ((PatternLatentIndex.congr (c.equalityPattern_map hf).symm).trans
+      (patternLatentIndexEquivCoord (RelCoord.map f c)))
+
+
 end RelSignature
 
 /-! ### Examples: binary, diagonal, ternary, bipartite -/
 
-section Examples
+namespace RelSignature.PatternExamples
 
 open RelSignature
 
 open scoped Classical
 
-/-- Binary off-diagonal (`digraphSig`, one sort): distinct vertices give the discrete
-pattern — the two positions are inequivalent. -/
-example {i j : ℕ} (h : i ≠ j) : ¬ (digraphCoord (V := ℕ) i j).pattern 0 1 := by
+/-- A local one-sort binary signature (the shape of `digraphSig`, kept local so this generic
+file does not depend on the directed development). -/
+abbrev binarySig : RelSignature where
+  Srt := Unit
+  Rel := Unit
+  arity := fun _ => 2
+  argSort := fun _ _ => ()
+
+/-- The binary coordinate at an ordered pair. -/
+@[reducible] def binaryExample (i j : ℕ) : RelCoord binarySig fun _ => ℕ := ⟨(), ![i, j]⟩
+
+/-- Binary off-diagonal: distinct vertices give the discrete pattern — the two positions are
+inequivalent. -/
+example {i j : ℕ} (h : i ≠ j) : ¬ (binaryExample i j).pattern 0 1 := by
   intro hcon
   exact h (congrArg (fun v : Σ _ : Unit, ℕ => v.2) hcon)
 
 /-- Binary diagonal: the loop coordinate identifies its two positions. -/
-example (i : ℕ) : (digraphCoord (V := ℕ) i i).pattern 0 1 := rfl
+example (i : ℕ) : (binaryExample i i).pattern 0 1 := rfl
 
 /-- Binary supports: an off-diagonal coordinate reads two vertices, a loop reads one. -/
-example {i j : ℕ} (h : i ≠ j) : (digraphCoord (V := ℕ) i j).support.card = 2 := by
-  rw [show (digraphCoord (V := ℕ) i j).support = {⟨(), i⟩, ⟨(), j⟩} from by
+example {i j : ℕ} (h : i ≠ j) : (binaryExample i j).support.card = 2 := by
+  have hset : (binaryExample i j).support = {⟨(), i⟩, ⟨(), j⟩} := by
     ext v
     rw [RelCoord.mem_support_iff]
     constructor
     · rintro ⟨a, rfl⟩
-      fin_cases a <;> simp [RelCoord.taggedValue, digraphCoord]
+      fin_cases a
+      · exact Finset.mem_insert_self _ _
+      · exact Finset.mem_insert_of_mem (Finset.mem_singleton_self _)
     · intro hv
       rcases Finset.mem_insert.mp hv with rfl | hv
       · exact ⟨0, rfl⟩
       · rw [Finset.mem_singleton] at hv
         subst hv
-        exact ⟨1, rfl⟩]
-  rw [Finset.card_insert_of_notMem (by simp [h]), Finset.card_singleton]
+        exact ⟨1, rfl⟩
+  rw [hset, Finset.card_insert_of_notMem (by simp [h]), Finset.card_singleton]
 
-example (i : ℕ) : (digraphCoord (V := ℕ) i i).support.card = 1 := by
-  rw [show (digraphCoord (V := ℕ) i i).support = {⟨(), i⟩} from by
+example (i : ℕ) : (binaryExample i i).support.card = 1 := by
+  have hset : (binaryExample i i).support = {⟨(), i⟩} := by
     ext v
     rw [RelCoord.mem_support_iff]
     constructor
     · rintro ⟨a, rfl⟩
-      fin_cases a <;> simp [RelCoord.taggedValue, digraphCoord]
+      fin_cases a
+      · exact Finset.mem_singleton_self _
+      · exact Finset.mem_singleton_self _
     · intro hv
       rw [Finset.mem_singleton] at hv
       subst hv
-      exact ⟨0, rfl⟩]
+      exact ⟨0, rfl⟩
+  rw [hset]
   exact Finset.card_singleton _
 
 /-- A one-sort ternary signature. -/
@@ -239,7 +368,7 @@ abbrev ternarySig : RelSignature where
   argSort := fun _ _ => ()
 
 /-- The running ternary coordinate `(0, 1, 0)`: a repeated entry. -/
-def ternaryExample : RelCoord ternarySig fun _ => ℕ := ⟨(), ![0, 1, 0]⟩
+@[reducible] def ternaryExample : RelCoord ternarySig fun _ => ℕ := ⟨(), ![0, 1, 0]⟩
 
 /-- Ternary with a repeated entry: positions `0` and `2` are identified, `0` and `1` are
 not. -/
@@ -258,7 +387,7 @@ abbrev bipartiteSig : RelSignature where
   argSort := fun _ i => decide (i = 1)
 
 /-- The running bipartite coordinate with equal raw values in both positions. -/
-def bipartiteExample (n : ℕ) : RelCoord bipartiteSig fun _ => ℕ := ⟨(), ![n, n]⟩
+@[reducible] def bipartiteExample (n : ℕ) : RelCoord bipartiteSig fun _ => ℕ := ⟨(), ![n, n]⟩
 
 /-- **Sort-awareness**: in the bipartite signature, equal *raw* vertex values in the two
 positions are still inequivalent — the sorts differ, so the tagged values differ. -/
@@ -269,18 +398,20 @@ example (n : ℕ) : ¬ (bipartiteExample n).pattern 0 1 := by
 /-- Correspondingly, the bipartite support of the equal-raw-values coordinate still has two
 elements: one per sort. -/
 example (n : ℕ) : (bipartiteExample n).support.card = 2 := by
-  rw [show (bipartiteExample n).support = {⟨false, n⟩, ⟨true, n⟩} from by
+  have hset : (bipartiteExample n).support = {⟨false, n⟩, ⟨true, n⟩} := by
     ext v
     rw [RelCoord.mem_support_iff]
     constructor
     · rintro ⟨a, rfl⟩
-      fin_cases a <;> simp [RelCoord.taggedValue, bipartiteExample]
+      fin_cases a
+      · exact Finset.mem_insert_self _ _
+      · exact Finset.mem_insert_of_mem (Finset.mem_singleton_self _)
     · intro hv
       rcases Finset.mem_insert.mp hv with rfl | hv
       · exact ⟨0, rfl⟩
       · rw [Finset.mem_singleton] at hv
         subst hv
-        exact ⟨1, rfl⟩]
-  rw [Finset.card_insert_of_notMem (by simp), Finset.card_singleton]
+        exact ⟨1, rfl⟩
+  rw [hset, Finset.card_insert_of_notMem (by simp), Finset.card_singleton]
 
-end Examples
+end RelSignature.PatternExamples
