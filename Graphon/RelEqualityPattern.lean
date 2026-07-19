@@ -5,7 +5,10 @@ Authors: Cameron Freer
 -/
 import Graphon.RelationalStructure
 import Mathlib.Data.Finset.Card
+import Mathlib.Data.Finset.Preimage
 import Mathlib.Data.Fintype.Basic
+import Mathlib.Data.Fintype.Powerset
+import Mathlib.Data.Fintype.Quotient
 import Mathlib.Data.Setoid.Basic
 import Mathlib.Tactic.FinCases
 
@@ -53,9 +56,10 @@ Design decisions, made explicit:
   to subset-latents of the image support — the equivariance the representation theorem needs
   so that exchangeability can be checked coordinatewise.
 
-The examples section instantiates the binary (`digraphSig`) off-diagonal and diagonal
-coordinates, a ternary signature with a repeated entry, and a two-sort bipartite signature
-where equal raw values in different sorts are *not* identified.
+The examples section instantiates a local one-sort binary signature (off-diagonal and
+diagonal coordinates), a ternary signature with a repeated entry, and a two-sort bipartite
+signature where equal raw values in different sorts are *not* identified — all namespaced,
+with no dependency on the directed development.
 -/
 
 open Function
@@ -239,11 +243,40 @@ abstract pattern — the label-free, order-free argument domain of the represent
 abbrev PatternLatentIndex {r : S.Rel} (π : EqualityPattern S r) : Type _ :=
   {A : Finset (Quotient π.toSetoid) // A.Nonempty}
 
+/-- The blocks of a pattern form a finite type (positions are `Fin`; classical
+decidability of the setoid). -/
+noncomputable instance {r : S.Rel} (π : EqualityPattern S r) : Fintype (Quotient π.toSetoid) :=
+  @Quotient.fintype _ _ π.toSetoid (Classical.decRel _)
+
+/-- **Pattern-local latent indices form a finite type** — the local latent source of a
+single coordinate is a finite product, as the evaluator layer requires. -/
+noncomputable instance {r : S.Rel} (π : EqualityPattern S r) :
+    Fintype (PatternLatentIndex π) := by
+  classical
+  haveI : Fintype (Finset (Quotient π.toSetoid)) := Finset.fintype
+  exact Subtype.fintype _
+
+instance {r : S.Rel} (π : EqualityPattern S r) : Finite (PatternLatentIndex π) :=
+  Finite.of_fintype _
+
 /-- **The coordinate-local latent indices**: nonempty subsets of the support — the labeled
 avatar of `PatternLatentIndex`, and the sub-collection of the global `LatentIndex` a single
-coordinate reads. -/
+coordinate reads (canonical projection `CoordLatentIndex.toLatentIndex`). -/
 abbrev CoordLatentIndex (c : RelCoord S V) : Type _ :=
   {A : Finset (Σ s : S.Srt, V s) // A.Nonempty ∧ A ⊆ c.support}
+
+/-- **The canonical projection into the global latent indices**: forget the support bound. -/
+def CoordLatentIndex.toLatentIndex {c : RelCoord S V} (A : CoordLatentIndex c) :
+    LatentIndex S V :=
+  ⟨A.1, A.2.1⟩
+
+@[simp] theorem CoordLatentIndex.toLatentIndex_coe {c : RelCoord S V}
+    (A : CoordLatentIndex c) :
+    (CoordLatentIndex.toLatentIndex A : Finset (Σ s : S.Srt, V s)) = A.1 := rfl
+
+theorem CoordLatentIndex.toLatentIndex_injective (c : RelCoord S V) :
+    Injective (CoordLatentIndex.toLatentIndex (c := c)) := fun _ _ h =>
+  Subtype.ext (congrArg (fun A : LatentIndex S V => (A : Finset (Σ s : S.Srt, V s))) h)
 
 open scoped Classical in
 /-- Finsets of members of `s` are the subsets of `s`. -/
@@ -285,15 +318,63 @@ def PatternLatentIndex.congr {r : S.Rel} {π π' : EqualityPattern S r} (h : π 
   subst h
   exact Equiv.refl _
 
+open scoped Classical in
 /-- **The two-way relabeling equivalence of coordinate-local latent indices** along a
-sortwise injection — not merely the one-way `map_subset_support`: patterns are invariant, so
-the local index types on either side of a relabeling are canonically equivalent. -/
+sortwise injection — not merely the one-way `map_subset_support`: the forward direction is
+the image under `Sigma.map id` (so it agrees with the global `LatentIndex.map`,
+`CoordLatentIndex.congrMap_toLatentIndex`), and the inverse is the preimage, well-defined
+because the image support bounds the target. -/
 noncomputable def CoordLatentIndex.congrMap {f : ∀ s, V s → W s}
     (hf : ∀ s, Injective (f s)) (c : RelCoord S V) :
-    CoordLatentIndex c ≃ CoordLatentIndex (RelCoord.map f c) :=
-  (patternLatentIndexEquivCoord c).symm.trans
-    ((PatternLatentIndex.congr (c.equalityPattern_map hf).symm).trans
-      (patternLatentIndexEquivCoord (RelCoord.map f c)))
+    CoordLatentIndex c ≃ CoordLatentIndex (RelCoord.map f c) where
+  toFun A := ⟨A.1.image (Sigma.map id fun s => f s), A.2.1.image _, by
+    rw [RelCoord.support_map]
+    exact Finset.image_subset_image A.2.2⟩
+  invFun B := ⟨B.1.preimage (Sigma.map id fun s => f s)
+      (injective_sigmaMap_of_sortwise hf).injOn, by
+    obtain ⟨b, hb⟩ := B.2.1
+    have hmem := B.2.2 hb
+    rw [RelCoord.support_map] at hmem
+    obtain ⟨w, -, rfl⟩ := Finset.mem_image.mp hmem
+    exact ⟨w, Finset.mem_preimage.mpr hb⟩, by
+    intro w hw
+    have hmem := B.2.2 (Finset.mem_preimage.mp hw)
+    rw [RelCoord.support_map] at hmem
+    obtain ⟨w', hw', hEq⟩ := Finset.mem_image.mp hmem
+    rwa [← injective_sigmaMap_of_sortwise hf hEq]⟩
+  left_inv A := by
+    refine Subtype.ext ?_
+    ext w
+    rw [Finset.mem_preimage]
+    constructor
+    · intro hw
+      obtain ⟨w', hw', hEq⟩ := Finset.mem_image.mp hw
+      rwa [← injective_sigmaMap_of_sortwise hf hEq]
+    · exact fun hw => Finset.mem_image_of_mem _ hw
+  right_inv B := by
+    refine Subtype.ext ?_
+    ext v
+    constructor
+    · intro hv
+      obtain ⟨w, hw, rfl⟩ := Finset.mem_image.mp hv
+      rw [Finset.mem_preimage] at hw
+      exact hw
+    · intro hv
+      have hmem := B.2.2 hv
+      rw [RelCoord.support_map] at hmem
+      obtain ⟨w, -, rfl⟩ := Finset.mem_image.mp hmem
+      refine Finset.mem_image_of_mem _ ?_
+      rw [Finset.mem_preimage]
+      exact hv
+
+open scoped Classical in
+/-- **Coherence with the global action**: the local relabeling equivalence projects to the
+global `LatentIndex.map` — the two transports never disagree. -/
+@[simp] theorem CoordLatentIndex.congrMap_toLatentIndex {f : ∀ s, V s → W s}
+    (hf : ∀ s, Injective (f s)) (c : RelCoord S V) (A : CoordLatentIndex c) :
+    CoordLatentIndex.toLatentIndex (CoordLatentIndex.congrMap hf c A) =
+      LatentIndex.map f (CoordLatentIndex.toLatentIndex A) :=
+  Subtype.ext rfl
 
 
 end RelSignature
@@ -306,8 +387,8 @@ open RelSignature
 
 open scoped Classical
 
-/-- A local one-sort binary signature (the shape of `digraphSig`, kept local so this generic
-file does not depend on the directed development). -/
+/-- A local one-sort binary signature (kept local so this generic file does not depend on
+the directed development; the directed `digraphSig` has the same shape). -/
 abbrev binarySig : RelSignature where
   Srt := Unit
   Rel := Unit
