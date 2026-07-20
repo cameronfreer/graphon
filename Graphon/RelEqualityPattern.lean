@@ -201,6 +201,51 @@ theorem LatentIndex.map_subset_support {f : ∀ s, V s → W s} {c : RelCoord S 
   rw [RelCoord.support_map]
   exact Finset.image_subset_image hA
 
+/-- **The relabeling equivalence of latent indices** along a sortwise family of equivalences:
+`LatentIndex.map` packaged as an `Equiv`, with inverse the action of the sortwise inverses —
+the bijectivity the latent source's exchangeability pulls back along. -/
+noncomputable def LatentIndex.relabelEquiv (σ : ∀ s, V s ≃ W s) :
+    LatentIndex S V ≃ LatentIndex S W where
+  toFun := LatentIndex.map fun s => ⇑(σ s)
+  invFun := LatentIndex.map fun s => ⇑(σ s).symm
+  left_inv A := by
+    rw [LatentIndex.map_map,
+      show (fun s => ⇑(σ s).symm ∘ ⇑(σ s)) = fun _ => id from
+        funext fun s => (σ s).symm_comp_self,
+      LatentIndex.map_id]
+  right_inv A := by
+    rw [LatentIndex.map_map,
+      show (fun s => ⇑(σ s) ∘ ⇑(σ s).symm) = fun _ => id from
+        funext fun s => (σ s).self_comp_symm,
+      LatentIndex.map_id]
+
+@[simp] theorem LatentIndex.relabelEquiv_apply (σ : ∀ s, V s ≃ W s) (A : LatentIndex S V) :
+    LatentIndex.relabelEquiv σ A = LatentIndex.map (fun s => ⇑(σ s)) A := rfl
+
+@[simp] theorem LatentIndex.relabelEquiv_symm_apply (σ : ∀ s, V s ≃ W s)
+    (A : LatentIndex S W) :
+    (LatentIndex.relabelEquiv σ).symm A = LatentIndex.map (fun s => ⇑(σ s).symm) A := rfl
+
+/-- **Sortwise-disjoint ranges give disjoint latent-index images**: latent indices are
+*nonempty*, so images under sortwise maps whose ranges are disjoint in every sort can never
+coincide — the combinatorial heart of dissociation of the evaluated law. -/
+theorem LatentIndex.map_ne_map_of_disjoint {U : S.Srt → Type*} {f : ∀ s, V s → W s}
+    {g : ∀ s, U s → W s} (hd : ∀ s x y, f s x ≠ g s y)
+    (A : LatentIndex S V) (B : LatentIndex S U) :
+    LatentIndex.map f A ≠ LatentIndex.map g B := by
+  classical
+  intro h
+  obtain ⟨⟨s, x⟩, hx⟩ := A.2
+  have hmem : (⟨s, f s x⟩ : Σ s : S.Srt, W s) ∈
+      (LatentIndex.map g B : Finset (Σ s : S.Srt, W s)) := by
+    rw [← h, LatentIndex.map_coe]
+    exact Finset.mem_image_of_mem _ hx
+  rw [LatentIndex.map_coe] at hmem
+  obtain ⟨⟨t, y⟩, -, hEq⟩ := Finset.mem_image.mp hmem
+  obtain ⟨ht, hval⟩ := Sigma.mk.inj_iff.mp hEq
+  subst ht
+  exact hd t x y (eq_of_heq hval).symm
+
 /-! ### Bundled patterns -/
 
 /-- **An abstract equality pattern** for the relation symbol `r`: a setoid on the positions
