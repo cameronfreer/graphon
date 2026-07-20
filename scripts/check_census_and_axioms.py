@@ -164,6 +164,8 @@ AUDITED_DECLS = {
     "RelSignature.patternLatentIndexEquivCoord",
     "RelSignature.CoordLatentIndex.congrMap",
     "RelSignature.CoordLatentIndex.congrMap_toLatentIndex",
+    "RelSignature.RelKernelFamily.measurable_evalStructure",
+    "RelSignature.RelKernelFamily.evalStructure_relabel",
     "Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le",
     "Graphon.abs_sampleMass_ofSimpleGraphOn_sub_tInd_le",
     "MeasureTheory.Digraphon.sampleAdj_pair_of_lt",
