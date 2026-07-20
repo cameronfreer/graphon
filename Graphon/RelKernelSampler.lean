@@ -24,7 +24,12 @@ is deliberately *not* here; see issue #107 for its campaign plan.
   `LatentIndex.relabelEquiv` and `Measure.infinitePi_map_comp_equiv`);
 * `RelKernelFamily.evalMeasure` / `RelKernelFamily.evalLaw` — the evaluated law, packaged as
   an `InfiniteRelExchangeableLaw`: relabeling the structure is precomposing the source with
-  the latent-index action (`evalStructure_relabel`), which preserves the source.
+  the latent-index action (`evalStructure_relabel`), which preserves the source;
+* `RelKernelFamily.evalLaw_isDissociated` — **dissociation**: disjoint vertex windows read
+  disjoint collections of *nonempty* subset-latent indices
+  (`LatentIndex.map_ne_map_of_disjoint`), so the i.i.d. source factorizes across the blocks
+  (`Measure.infinitePi_map_prodMk_of_disjoint`); every finite restriction marginal is the
+  same finite-block pushforward `evalMeasure_map_restrict`, independently of the injection.
 -/
 
 open Function MeasureTheory
@@ -154,5 +159,103 @@ noncomputable def RelKernelFamily.evalLaw (F : RelKernelFamily S) :
 
 @[simp] theorem RelKernelFamily.evalLaw_law (F : RelKernelFamily S) :
     (F.evalLaw.law : Measure (RelStructure S (Vinfinite S))) = F.evalMeasure := rfl
+
+/-! ### Dissociation of the evaluated law -/
+
+section Dissociation
+
+variable [Fintype S.Srt]
+
+/-- Latent indices over a finite carrier form a finite type — the two blocks of the
+dissociation pair each read a *finite* latent window. -/
+noncomputable instance (n : S.Srt → ℕ) : Fintype (LatentIndex S (Vfinite n)) := by
+  classical
+  haveI : Fintype (Finset (Σ s : S.Srt, Fin (n s))) := Finset.fintype
+  exact Subtype.fintype _
+
+/-- **Every finite sortwise-injective restriction of the evaluated measure is the same
+finite-block pushforward** — independently of the injection: restriction commutes with
+evaluation (`eval_comap`), and the precomposed source projects to the i.i.d. finite latent
+block (`Measure.infinitePi_map_comp_of_injective`). -/
+theorem RelKernelFamily.evalMeasure_map_restrict (F : RelKernelFamily S)
+    {n : S.Srt → ℕ} (e : ∀ s, Fin (n s) ↪ ℕ) :
+    F.evalMeasure.map (RelStructure.restrict e) =
+      (Measure.pi fun _ : LatentIndex S (Vfinite n) => uniform01).map
+        (F.eval (V := Vfinite n)) := by
+  have hpre : Measurable fun (ω : LatentIndex S (Vinfinite S) → ℝ)
+      (B : LatentIndex S (Vfinite n)) => ω (LatentIndex.map (fun s => ⇑(e s)) B) :=
+    measurable_pi_iff.mpr fun _ => measurable_pi_apply _
+  rw [RelKernelFamily.evalMeasure,
+    Measure.map_map (measurable_restrict e) F.measurable_evalStructure,
+    show RelStructure.restrict e ∘ F.evalStructure =
+        F.eval (V := Vfinite n) ∘
+          (fun ω B => ω (LatentIndex.map (fun s => ⇑(e s)) B)) from
+      funext fun ω => F.eval_comap (fun s => (e s).injective) ω,
+    ← Measure.map_map F.measurable_eval hpre,
+    latentSource, iidUniformSource,
+    Measure.infinitePi_map_comp_of_injective _
+      (LatentIndex.map_injective fun s => (e s).injective)]
+
+/-- **The joint block law of the evaluated measure factorizes**: the two vertex windows are
+disjoint, so the nonempty subset-latent collections they read are disjoint
+(`LatentIndex.map_ne_map_of_disjoint`), and the i.i.d. source splits into a product across
+them (`Measure.infinitePi_map_prodMk_of_disjoint`). -/
+theorem RelKernelFamily.evalMeasure_map_blockPair (F : RelKernelFamily S) (k l : S.Srt → ℕ) :
+    F.evalMeasure.map (blockPair k l) =
+      (F.evalMeasure.map (RelStructure.restrictFin k)).prod
+        (F.evalMeasure.map (RelStructure.restrictFin l)) := by
+  have hd : ∀ (A : LatentIndex S (Vfinite k)) (B : LatentIndex S (Vfinite l)),
+      LatentIndex.map (fun s (i : Fin (k s)) => (i : ℕ)) A ≠
+        LatentIndex.map (fun s => ⇑(shiftEmb k l s)) B :=
+    LatentIndex.map_ne_map_of_disjoint fun s x y h => by
+      have hx := x.isLt
+      have hy : ⇑(shiftEmb k l s) y = (y : ℕ) + k s := rfl
+      omega
+  have hpre : Measurable fun (ω : LatentIndex S (Vinfinite S) → ℝ) =>
+      (fun B : LatentIndex S (Vfinite k) =>
+          ω (LatentIndex.map (fun s (i : Fin (k s)) => (i : ℕ)) B),
+        fun B : LatentIndex S (Vfinite l) =>
+          ω (LatentIndex.map (fun s => ⇑(shiftEmb k l s)) B)) :=
+    (measurable_pi_iff.mpr fun _ => measurable_pi_apply _).prodMk
+      (measurable_pi_iff.mpr fun _ => measurable_pi_apply _)
+  calc F.evalMeasure.map (blockPair k l)
+      = ((Measure.pi fun _ : LatentIndex S (Vfinite k) => uniform01).map
+            (F.eval (V := Vfinite k))).prod
+          ((Measure.pi fun _ : LatentIndex S (Vfinite l) => uniform01).map
+            (F.eval (V := Vfinite l))) := by
+        rw [RelKernelFamily.evalMeasure,
+          Measure.map_map (measurable_blockPair k l) F.measurable_evalStructure,
+          show blockPair k l ∘ F.evalStructure =
+              Prod.map (F.eval (V := Vfinite k)) (F.eval (V := Vfinite l)) ∘
+                (fun ω =>
+                  (fun B => ω (LatentIndex.map (fun s (i : Fin (k s)) => (i : ℕ)) B),
+                    fun B => ω (LatentIndex.map (fun s => ⇑(shiftEmb k l s)) B))) from
+            funext fun ω => Prod.ext
+              (F.eval_comap (fun s => Fin.val_injective) ω)
+              (F.eval_comap (fun s => (shiftEmb k l s).injective) ω),
+          ← Measure.map_map (F.measurable_eval.prodMap F.measurable_eval) hpre,
+          latentSource, iidUniformSource,
+          Measure.infinitePi_map_prodMk_of_disjoint _
+            (LatentIndex.map_injective fun s => Fin.val_injective)
+            (LatentIndex.map_injective fun s => (shiftEmb k l s).injective) hd,
+          ← Measure.map_prod_map _ _ F.measurable_eval F.measurable_eval]
+    _ = (F.evalMeasure.map (RelStructure.restrictFin k)).prod
+          (F.evalMeasure.map (RelStructure.restrictFin l)) := by
+        rw [show RelStructure.restrictFin (S := S) k =
+              RelStructure.restrict (fun s => (Fin.valEmbedding : Fin (k s) ↪ ℕ)) from rfl,
+          show RelStructure.restrictFin (S := S) l =
+              RelStructure.restrict (fun s => (Fin.valEmbedding : Fin (l s) ↪ ℕ)) from rfl,
+          F.evalMeasure_map_restrict, F.evalMeasure_map_restrict]
+
+/-- **The evaluated law is dissociated** — disjoint vertex windows read disjoint collections
+of nonempty subset-latent indices, and the i.i.d. latent source factorizes across them. With
+exchangeability (`evalLaw`), this completes the forward half of the dissociated functional
+Aldous–Hoover–Kallenberg representation. -/
+theorem RelKernelFamily.evalLaw_isDissociated (F : RelKernelFamily S) :
+    F.evalLaw.IsDissociated := by
+  intro k l
+  exact F.evalMeasure_map_blockPair k l
+
+end Dissociation
 
 end RelSignature
