@@ -153,6 +153,8 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.RelKernelFamily.evalMeasure_map_restrict
 #print axioms RelSignature.RelKernelFamily.evalMeasure_map_blockPair
 #print axioms RelSignature.RelKernelFamily.evalLaw_isDissociated
+#print axioms ProbabilityTheory.Kernel.exists_measurable_map_eq_uniform01
+#print axioms MeasureTheory.Measure.exists_measurable_map_eq_uniform01
 #print axioms Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le
 #print axioms Graphon.abs_sampleMass_ofSimpleGraphOn_sub_tInd_le
 #print axioms MeasureTheory.Digraphon.sampleAdj_pair_of_lt

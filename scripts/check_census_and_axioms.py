@@ -177,6 +177,8 @@ AUDITED_DECLS = {
     "RelSignature.RelKernelFamily.evalMeasure_map_restrict",
     "RelSignature.RelKernelFamily.evalMeasure_map_blockPair",
     "RelSignature.RelKernelFamily.evalLaw_isDissociated",
+    "ProbabilityTheory.Kernel.exists_measurable_map_eq_uniform01",
+    "MeasureTheory.Measure.exists_measurable_map_eq_uniform01",
     "Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le",
     "Graphon.abs_sampleMass_ofSimpleGraphOn_sub_tInd_le",
     "MeasureTheory.Digraphon.sampleAdj_pair_of_lt",
