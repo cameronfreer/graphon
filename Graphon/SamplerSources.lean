@@ -81,6 +81,24 @@ noncomputable def iidUniformSource (ι : Type*) : Measure (ι → ℝ) :=
 instance (ι : Type*) : IsProbabilityMeasure (iidUniformSource ι) := by
   rw [iidUniformSource]; infer_instance
 
+/-! ### Reindexing invariance of infinite product sources -/
+
+/-- **Precomposition with an index equivalence reindexes an infinite product source**: pushing
+an infinite product of probability measures forward along precomposition with an equivalence of
+index types gives the reindexed infinite product — the `Equiv` form of
+`Measure.infinitePi_map_piCongrLeft`, and the source-invariance engine of the evaluated-law
+exchangeability. -/
+theorem Measure.infinitePi_map_comp_equiv {ι α γ : Type*} [MeasurableSpace γ]
+    (ν : ι → Measure γ) [∀ i, IsProbabilityMeasure (ν i)] (e : α ≃ ι) :
+    (Measure.infinitePi ν).map (fun (x : ι → γ) (a : α) => x (e a)) =
+      Measure.infinitePi fun a => ν (e a) := by
+  have hcoe : (fun (x : ι → γ) (a : α) => x (e a)) =
+      ⇑(MeasurableEquiv.piCongrLeft (fun _ : ι => γ) e).symm := by
+    funext x a
+    exact (Equiv.piCongrLeft_symm_apply (fun _ => γ) e x a).symm
+  rw [hcoe, ← Measure.infinitePi_map_piCongrLeft (X := fun _ : ι => γ) (μ := ν) e,
+    MeasurableEquiv.map_symm_map]
+
 /-! ### Finite projections of infinite product sources -/
 
 /-- Pushing an infinite product of probability measures forward along precomposition
@@ -119,5 +137,34 @@ theorem Measure.infinitePi_map_comp_of_injective
   rw [hpre, Measure.infinitePi_pi ν hmeas,
     Finset.prod_image fun a _ b _ hab => hf hab]
   exact Finset.prod_congr rfl fun d _ => by rw [hf.extend_apply]
+
+/-- **Disjoint finite projections of an infinite product source are independent** (product
+form): pushing an infinite product of probability measures forward along a *pair* of
+precompositions with injections from finite index types with disjoint ranges gives the
+product of the two finite products — the factorization behind dissociation of sampler
+pushforwards. -/
+theorem Measure.infinitePi_map_prodMk_of_disjoint {ι δ₁ δ₂ γ : Type*} [MeasurableSpace γ]
+    (ν : ι → Measure γ) [∀ i, IsProbabilityMeasure (ν i)] [Fintype δ₁] [Fintype δ₂]
+    {f : δ₁ → ι} {g : δ₂ → ι} (hf : Function.Injective f) (hg : Function.Injective g)
+    (hd : ∀ a b, f a ≠ g b) :
+    (Measure.infinitePi ν).map
+        (fun (x : ι → γ) => (fun a => x (f a), fun b => x (g b))) =
+      (Measure.pi fun a => ν (f a)).prod (Measure.pi fun b => ν (g b)) := by
+  have hinj : Function.Injective (Sum.elim f g) := by
+    rintro (a | a) (b | b) h
+    · exact congrArg Sum.inl (hf h)
+    · exact absurd h (hd a b)
+    · exact absurd h.symm (hd b a)
+    · exact congrArg Sum.inr (hg h)
+  have hsplit : (fun (x : ι → γ) => (fun a => x (f a), fun b => x (g b))) =
+      (MeasurableEquiv.sumPiEquivProdPi fun _ : δ₁ ⊕ δ₂ => γ) ∘
+        (fun (x : ι → γ) (d : δ₁ ⊕ δ₂) => x (Sum.elim f g d)) := rfl
+  have hpre : Measurable fun (x : ι → γ) (d : δ₁ ⊕ δ₂) => x (Sum.elim f g d) :=
+    measurable_pi_iff.mpr fun _ => measurable_pi_apply _
+  rw [hsplit, ← Measure.map_map
+      (MeasurableEquiv.sumPiEquivProdPi fun _ : δ₁ ⊕ δ₂ => γ).measurable hpre,
+    Measure.infinitePi_map_comp_of_injective ν hinj,
+    (measurePreserving_sumPiEquivProdPi fun d => ν (Sum.elim f g d)).map_eq]
+  rfl
 
 end MeasureTheory
