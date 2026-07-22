@@ -22,9 +22,10 @@ the standard-Borel factor realizations (both stated *modulo the law*) are delibe
 separate, later PRs. The intended core statement (next PR), with
 `[Countable S.Rel]` supplying `StandardBorelSpace (RelStructure S (Vinfinite S))`:
 `CondIndep (fixingAlgebra (A ∩ B)) (fixingAlgebra A) (fixingAlgebra B)
-(fixingAlgebra_le _) M.law` for dissociated `M`. Sanity specializations: `A = B` and
-`A = ∅` / `B = ∅` degenerate to conditional self-independence and conditioning on the
-(dissociation-trivial) invariant algebra, holding without dissociation; the dissociation
+(fixingAlgebra_le _) M.law` for dissociated `M`. Sanity specializations: at `A = B`, and
+likewise at `A = ∅` or `B = ∅`, one outer algebra *equals* the conditioning algebra
+`fixingAlgebra (A ∩ B)`, so the statement is tautological — conditional independence of an
+algebra from anything given itself — independently of dissociation; the dissociation
 content is at disjoint nonempty `A, B`.
 
 * `RelSignature.SortwiseFixing` — the `A`-fixing stabilizer (finitely supported + fixes
@@ -103,6 +104,7 @@ end SortwiseFixing
 invariant under every finitely supported sortwise relabeling fixing every tagged vertex of
 `A`. Law-independent by construction — completions, conditional expectations, and mod-null
 factor realizations explicitly carry a law and live in later layers. -/
+@[implicit_reducible]
 def RelStructure.fixingAlgebra (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     MeasurableSpace (RelStructure S (Vinfinite S)) where
   MeasurableSet' E := MeasurableSet E ∧

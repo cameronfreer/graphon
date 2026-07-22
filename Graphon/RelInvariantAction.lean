@@ -63,6 +63,7 @@ theorem SortwiseFinSupp.inv {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} (hσ : Sortwise
 
 /-- **The invariant σ-algebra**: measurable sets strictly invariant under every finitely
 supported sortwise relabeling. -/
+@[implicit_reducible]
 def RelStructure.invariantAlgebra : MeasurableSpace (RelStructure S (Vinfinite S)) where
   MeasurableSet' A := MeasurableSet A ∧
     ∀ σ, SortwiseFinSupp (S := S) σ → RelStructure.relabel σ ⁻¹' A = A
