@@ -182,6 +182,7 @@ AUDITED_DECLS = {
     "RelSignature.RelStructure.fixingAlgebra_mono",
     "RelSignature.RelStructure.fixingAlgebra_empty",
     "RelSignature.RelStructure.fixingAlgebra_comap_relabel",
+    "RelSignature.RelStructure.fixingAlgebra_comap_relabel_of_fintype",
     "Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le",
     "Graphon.abs_sampleMass_ofSimpleGraphOn_sub_tInd_le",
     "MeasureTheory.Digraphon.sampleAdj_pair_of_lt",
