@@ -96,6 +96,38 @@ theorem conj (hσ : SortwiseFinSupp (S := S) σ)
     rw [show τ s (σ s x) = σ s x from himg]
     exact (σ s).symm_apply_apply x
 
+open scoped Classical in
+/-- **Conjugation under finitely many sorts needs no support bound on `σ`**: with
+`[Fintype S.Srt]` the sortwise suprema of the finitely many inverse images of the bound of
+`τ` give a common finite bound for the conjugate — the hypothesis dropped from
+`SortwiseFixing.conj`, which is genuinely necessary over infinitely many sorts. -/
+theorem conj_of_fintype [Fintype S.Srt]
+    (hτ : SortwiseFixing (S := S) (A.image (Sigma.map id fun s => ⇑(σ s))) τ) :
+    SortwiseFixing (S := S) A fun s => (σ s)⁻¹ * τ s * σ s := by
+  constructor
+  · obtain ⟨M, hM⟩ := hτ.1
+    refine ⟨(Finset.univ.sup fun s : S.Srt => (Finset.range M).sup fun y => (σ s)⁻¹ y) + 1,
+      fun s x hx => ?_⟩
+    show (σ s)⁻¹ (τ s (σ s x)) = x
+    have hbig : M ≤ σ s x := by
+      by_contra hlt
+      push Not at hlt
+      have h1 : x = (σ s)⁻¹ (σ s x) := ((σ s).symm_apply_apply x).symm
+      have h2 : (σ s)⁻¹ (σ s x) ≤ (Finset.range M).sup fun y => (σ s)⁻¹ y :=
+        Finset.le_sup (f := fun y => (σ s)⁻¹ y) (Finset.mem_range.mpr hlt)
+      have h3 : ((Finset.range M).sup fun y => (σ s)⁻¹ y) ≤
+          Finset.univ.sup fun s : S.Srt => (Finset.range M).sup fun y => (σ s)⁻¹ y :=
+        Finset.le_sup (f := fun s : S.Srt => (Finset.range M).sup fun y => (σ s)⁻¹ y)
+          (Finset.mem_univ s)
+      omega
+    rw [hM s (σ s x) hbig]
+    exact (σ s).symm_apply_apply x
+  · rintro ⟨s, x⟩ hv
+    have himg := hτ.2 (Sigma.map id (fun s => ⇑(σ s)) ⟨s, x⟩) (Finset.mem_image_of_mem _ hv)
+    show (σ s)⁻¹ (τ s (σ s x)) = x
+    rw [show τ s (σ s x) = σ s x from himg]
+    exact (σ s).symm_apply_apply x
+
 end SortwiseFixing
 
 /-! ### The raw fixing σ-algebra -/
@@ -153,11 +185,13 @@ theorem RelStructure.relabel_preimage_relabel_preimage
   rw [← Set.preimage_comp, RelStructure.relabel_comp_relabel]
 
 open scoped Classical in
-/-- One-sided transport: pulling an invariant event back along a finitely supported
-relabeling lands in the fixing algebra of the image vertex set, by conjugating the
-stabilizer through `SortwiseFixing.conj`. -/
-private theorem fixingAlgebra_comap_relabel_le {σ : ∀ _ : S.Srt, Equiv.Perm ℕ}
-    (hσ : SortwiseFinSupp (S := S) σ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+/-- One-sided transport, parametric in the conjugation closure: pulling an invariant event
+back along a relabeling whose conjugation carries image-stabilizers to `A`-stabilizers lands
+in the fixing algebra of the image vertex set. -/
+private theorem fixingAlgebra_comap_relabel_le (σ : ∀ _ : S.Srt, Equiv.Perm ℕ)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s))
+    (hconj : ∀ τ, SortwiseFixing (S := S) (A.image (Sigma.map id fun s => ⇑(σ s))) τ →
+      SortwiseFixing (S := S) A fun s => (σ s)⁻¹ * τ s * σ s) :
     MeasurableSpace.comap (RelStructure.relabel σ) (RelStructure.fixingAlgebra (S := S) A) ≤
       RelStructure.fixingAlgebra (A.image (Sigma.map id fun s => ⇑(σ s))) := by
   rintro - ⟨E, hE, rfl⟩
@@ -165,21 +199,24 @@ private theorem fixingAlgebra_comap_relabel_le {σ : ∀ _ : S.Srt, Equiv.Perm �
   rw [RelStructure.relabel_preimage_relabel_preimage,
     show (fun s => τ s * σ s) = fun s => σ s * ((σ s)⁻¹ * τ s * σ s) from
       funext fun s => by group,
-    ← RelStructure.relabel_preimage_relabel_preimage, hE.2 _ (SortwiseFixing.conj hσ hτ)]
+    ← RelStructure.relabel_preimage_relabel_preimage, hE.2 _ (hconj τ hτ)]
 
 open scoped Classical in
-/-- **Transport of the fixing σ-algebra** along a finitely supported sortwise relabeling —
-an equality of pulled-back measurable spaces, not merely an event-membership equivalence:
-the pullback of the `A`-fixing algebra is the fixing algebra of the image vertex set.
-Stabilizers conjugate (`SortwiseFixing.conj`); the reverse inclusion is the forward one for
-`σ⁻¹` transported through `comap` composition. -/
-theorem RelStructure.fixingAlgebra_comap_relabel {σ : ∀ _ : S.Srt, Equiv.Perm ℕ}
-    (hσ : SortwiseFinSupp (S := S) σ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+/-- Two one-sided transports (for `σ` and for its inverse) assemble into the transport
+equality: the inverse inclusion is pushed through `comap` composition and the collapse of
+`σ⁻¹ ∘ σ` on images. -/
+private theorem fixingAlgebra_comap_relabel_of_le (σ : ∀ _ : S.Srt, Equiv.Perm ℕ)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s))
+    (h₁ : MeasurableSpace.comap (RelStructure.relabel σ)
+        (RelStructure.fixingAlgebra (S := S) A) ≤
+      RelStructure.fixingAlgebra (A.image (Sigma.map id fun s => ⇑(σ s))))
+    (h₂ : MeasurableSpace.comap (RelStructure.relabel fun s => (σ s)⁻¹)
+        (RelStructure.fixingAlgebra (S := S) (A.image (Sigma.map id fun s => ⇑(σ s)))) ≤
+      RelStructure.fixingAlgebra ((A.image (Sigma.map id fun s => ⇑(σ s))).image
+        (Sigma.map id fun s => ⇑(σ s)⁻¹))) :
     MeasurableSpace.comap (RelStructure.relabel σ) (RelStructure.fixingAlgebra (S := S) A) =
       RelStructure.fixingAlgebra (A.image (Sigma.map id fun s => ⇑(σ s))) := by
-  refine le_antisymm (fixingAlgebra_comap_relabel_le hσ A) ?_
-  have hback := fixingAlgebra_comap_relabel_le (S := S) hσ.inv
-    (A.image (Sigma.map id fun s => ⇑(σ s)))
+  refine le_antisymm h₁ ?_
   have himg : ((A.image (Sigma.map id fun s => ⇑(σ s))).image
       (Sigma.map id fun s => ⇑(σ s)⁻¹)) = A := by
     rw [Finset.image_image]
@@ -187,13 +224,41 @@ theorem RelStructure.fixingAlgebra_comap_relabel {σ : ∀ _ : S.Srt, Equiv.Perm
     obtain ⟨s, x⟩ := v
     show ⟨s, (σ s)⁻¹ (σ s x)⟩ = (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s)
     rw [show (σ s)⁻¹ (σ s x) = x from (σ s).symm_apply_apply x]
-  rw [himg] at hback
-  have := MeasurableSpace.comap_mono (g := RelStructure.relabel (V := Vinfinite S) σ) hback
+  rw [himg] at h₂
+  have := MeasurableSpace.comap_mono (g := RelStructure.relabel (V := Vinfinite S) σ) h₂
   rwa [MeasurableSpace.comap_comp, RelStructure.relabel_comp_relabel,
     show (fun s => σ s * (σ s)⁻¹) = fun _ : S.Srt => (1 : Equiv.Perm ℕ) from
       funext fun s => mul_inv_cancel (σ s),
     show RelStructure.relabel (V := Vinfinite S) (fun _ : S.Srt => (1 : Equiv.Perm ℕ)) = id from
       rfl,
     MeasurableSpace.comap_id] at this
+
+open scoped Classical in
+/-- **Transport of the fixing σ-algebra** along a finitely supported sortwise relabeling —
+an equality of pulled-back measurable spaces, not merely an event-membership equivalence:
+the pullback of the `A`-fixing algebra is the fixing algebra of the image vertex set.
+Stabilizers conjugate (`SortwiseFixing.conj`); the reverse inclusion is the forward one for
+`σ⁻¹` transported through `comap` composition. Over infinitely many sorts the finite-support
+hypothesis is genuinely necessary; under `[Fintype S.Srt]` see
+`fixingAlgebra_comap_relabel_of_fintype`. -/
+theorem RelStructure.fixingAlgebra_comap_relabel {σ : ∀ _ : S.Srt, Equiv.Perm ℕ}
+    (hσ : SortwiseFinSupp (S := S) σ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    MeasurableSpace.comap (RelStructure.relabel σ) (RelStructure.fixingAlgebra (S := S) A) =
+      RelStructure.fixingAlgebra (A.image (Sigma.map id fun s => ⇑(σ s))) :=
+  fixingAlgebra_comap_relabel_of_le σ A
+    (fixingAlgebra_comap_relabel_le σ A fun _ hτ => SortwiseFixing.conj hσ hτ)
+    (fixingAlgebra_comap_relabel_le _ _ fun _ hτ => SortwiseFixing.conj hσ.inv hτ)
+
+open scoped Classical in
+/-- **Transport under finitely many sorts holds for an arbitrary sortwise permutation
+family**: finite sorts let conjugation recover a common finite bound
+(`SortwiseFixing.conj_of_fintype`), so no support hypothesis on `σ` is needed. -/
+theorem RelStructure.fixingAlgebra_comap_relabel_of_fintype [Fintype S.Srt]
+    (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    MeasurableSpace.comap (RelStructure.relabel σ) (RelStructure.fixingAlgebra (S := S) A) =
+      RelStructure.fixingAlgebra (A.image (Sigma.map id fun s => ⇑(σ s))) :=
+  fixingAlgebra_comap_relabel_of_le σ A
+    (fixingAlgebra_comap_relabel_le σ A fun _ hτ => SortwiseFixing.conj_of_fintype hτ)
+    (fixingAlgebra_comap_relabel_le _ _ fun _ hτ => SortwiseFixing.conj_of_fintype hτ)
 
 end RelSignature
