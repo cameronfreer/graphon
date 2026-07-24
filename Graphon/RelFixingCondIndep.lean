@@ -36,6 +36,25 @@ This first layer is the measure-theoretic engine, all `private`:
   given set of tagged vertices) — the polling factors. Their identification with the raw
   `fixingAlgebra` happens only modulo the law, in a later layer; no completion enters any
   definition here.
+
+On top of the engine sit the **a.e. invariance** of `fixingAlgebra A`-events under *every*
+sortwise permutation fixing `A` (`relabel_preimage_ae_eq_of_fixingAlgebra`, the `f ∘ T =ᵐ f`
+input), and the **poll geometry** the engine runs on:
+
+* `pollIndex` / `pollShift` — poll slots along a two-sided `ℤ`-orbit transported to `ℕ`. The
+  two-sidedness is forced: a *unilateral* shift of the blocks is not a bijection (slot `0`
+  would have no preimage), so the negative half serves as predecessor reservoir;
+* `pollBlock` / `pollPerm` — the copies `Q m` of `D = B \ A` in slot `m` (with `Q 0 = D`) and
+  the sortwise permutation that carries `Q m` onto `Q (m+1)` while fixing every vertex below
+  the layout bound outside `D`, in particular all of `A`;
+* `pollTailAlgebra` — the tail **joins** `𝒯 n = ⨆_{m ≥ n} fixingAlgebra (C ∪ Q m)`, with
+  `C = A ∩ B`. The individual `fixingAlgebra (C ∪ Q m)` are *not* usable: over distinct deep
+  blocks they are pairwise incomparable (hence no antitone sequence for Lévy downward), and
+  `fixingAlgebra (C ∪ Q m) ≤ fixingAlgebra B` is false — monotonicity would demand
+  `C ∪ Q m ⊆ B`, while `Q m` lies outside `B`. The joins are antitone, dominate
+  `fixingAlgebra B` at `n = 0`, satisfy `comap (relabel ρ) (𝒯 n) = 𝒯 (n+1)` exactly, and have
+  `⨅ n, 𝒯 n = fixingAlgebra C` — the last a **raw** σ-algebra equality, no law and no null
+  sets, available because the generators are fixing algebras rather than window algebras.
 -/
 
 open MeasureTheory
@@ -373,5 +392,297 @@ private theorem relabel_preimage_ae_eq_of_fixingAlgebra [Fintype S.Srt] [Countab
   exact absurd (key _ (pos_iff_ne_zero.mpr hne)) (lt_irrefl _)
 
 end AeInvariance
+
+/-! ### The poll blocks, the poll shift, and the tail joins -/
+
+section PollSlots
+
+/-- A bijection `ℤ ≃ ℕ` normalized to send `0` to `0`: the index set of the chain of poll
+blocks. A *unilateral* shift of the poll blocks cannot be a permutation — block `0` would have
+no preimage — so the blocks are laid out along a two-sided `ℤ`-orbit and only the nonnegative
+half is ever polled; the negative half is the predecessor reservoir that makes the shift
+bijective. -/
+private noncomputable def pollEquivInt : ℤ ≃ ℕ :=
+  (Denumerable.eqv ℤ).trans (Equiv.swap (Denumerable.eqv ℤ 0) 0)
+
+private theorem pollEquivInt_zero : pollEquivInt 0 = 0 := by
+  show Equiv.swap (Denumerable.eqv ℤ 0) 0 (Denumerable.eqv ℤ 0) = 0
+  exact Equiv.swap_apply_left _ _
+
+/-- The slot of the `m`-th poll block: an injective `ℕ → ℕ` starting at `0`, obtained by
+restricting the two-sided indexing to the nonnegative half. -/
+private noncomputable def pollIndex (m : ℕ) : ℕ := pollEquivInt (m : ℤ)
+
+private theorem pollIndex_zero : pollIndex 0 = 0 := by
+  rw [pollIndex, Nat.cast_zero, pollEquivInt_zero]
+
+private theorem pollIndex_injective : Function.Injective pollIndex := fun _ _ h =>
+  Nat.cast_injective (pollEquivInt.injective h)
+
+/-- **The poll slots escape every bound**: for each `K` all but finitely many poll blocks sit
+above `K`, since `pollIndex` is injective. This is what lets a finitely supported permutation
+be dodged by going deep enough into the chain. -/
+private theorem exists_le_pollIndex (K : ℕ) : ∃ n, ∀ m, n ≤ m → K ≤ pollIndex m := by
+  classical
+  refine ⟨((Finset.range K).image fun k => (pollEquivInt.symm k).toNat).sup id + 1,
+    fun m hm => ?_⟩
+  by_contra hlt
+  push Not at hlt
+  have hmem : m ∈ (Finset.range K).image fun k => (pollEquivInt.symm k).toNat :=
+    Finset.mem_image.mpr ⟨pollIndex m, Finset.mem_range.mpr hlt, by
+      rw [pollIndex, pollEquivInt.symm_apply_apply, Int.toNat_natCast]⟩
+  have := Finset.le_sup (f := id) hmem
+  simp only [id] at this
+  omega
+
+/-- **The slot shift**: a permutation of `ℕ` carrying poll slot `m` to poll slot `m + 1` — the
+translation by one of the two-sided orbit, transported to `ℕ`. -/
+private noncomputable def pollShift : Equiv.Perm ℕ :=
+  pollEquivInt.symm.trans ((Equiv.addRight (1 : ℤ)).trans pollEquivInt)
+
+private theorem pollShift_pollIndex (m : ℕ) : pollShift (pollIndex m) = pollIndex (m + 1) := by
+  show pollEquivInt ((Equiv.addRight (1 : ℤ)) (pollEquivInt.symm (pollEquivInt (m : ℤ)))) =
+    pollEquivInt ((m + 1 : ℕ) : ℤ)
+  rw [pollEquivInt.symm_apply_apply]
+  norm_num
+
+end PollSlots
+
+section PollBlocks
+
+variable {S : RelSignature}
+
+open scoped Classical in
+/-- **The polling permutation**: in the coordinates `x ↦ (x / N, x % N)` it shifts the slot of
+every residue lying in `D` and fixes every other residue. It therefore fixes every tagged
+vertex of index `< N` outside `D` — in particular all of `A` once `N` bounds `A ∪ B` — while
+translating the `D`-shaped poll block in slot `m` onto the one in slot `m + 1`. -/
+private noncomputable def pollPerm (N : ℕ) [NeZero N]
+    (D : Finset (Σ s : S.Srt, Vinfinite S s)) : ∀ _ : S.Srt, Equiv.Perm ℕ := fun s =>
+  (Nat.divModEquiv N).trans
+    ((Equiv.prodCongrLeft fun i : Fin N =>
+        if (⟨s, (i : ℕ)⟩ : Σ s : S.Srt, Vinfinite S s) ∈ D then pollShift else Equiv.refl ℕ).trans
+      (Nat.divModEquiv N).symm)
+
+open scoped Classical in
+private theorem pollPerm_apply (N : ℕ) [NeZero N] (D : Finset (Σ s : S.Srt, Vinfinite S s))
+    (s : S.Srt) (k : ℕ) {x : ℕ} (hx : x < N) :
+    pollPerm N D s (k * N + x) =
+      (if (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ D then pollShift k else k) * N + x := by
+  have hdiv : (k * N + x) / N = k := by
+    rw [Nat.mul_comm, Nat.mul_add_div (Nat.pos_of_neZero N), Nat.div_eq_of_lt hx, Nat.add_zero]
+  have hmod : (k * N + x) % N = x := by
+    rw [Nat.mul_comm, Nat.mul_add_mod, Nat.mod_eq_of_lt hx]
+  show ((Nat.divModEquiv N).symm ((Equiv.prodCongrLeft _) ((Nat.divModEquiv N) (k * N + x)))) = _
+  simp only [Nat.divModEquiv_apply, Nat.divModEquiv_symm_apply, Equiv.prodCongrLeft_apply,
+    Fin.ofNat_eq_cast, Fin.val_natCast, hdiv, hmod]
+  split_ifs with h
+  · rfl
+  · rfl
+
+open scoped Classical in
+private theorem pollPerm_apply_of_notMem (N : ℕ) [NeZero N]
+    (D : Finset (Σ s : S.Srt, Vinfinite S s)) {v : Σ s : S.Srt, Vinfinite S s} (hv : v.2 < N)
+    (hvD : v ∉ D) : pollPerm N D v.1 v.2 = v.2 := by
+  have := pollPerm_apply N D v.1 0 hv
+  rw [Nat.zero_mul, Nat.zero_add] at this
+  rw [this, if_neg (by rwa [Sigma.eta]), Nat.zero_mul, Nat.zero_add]
+
+open scoped Classical in
+/-- **The `m`-th poll block**: the copy of `D` translated into poll slot `m`, so that slot `0`
+is `D` itself. -/
+private noncomputable def pollBlock (N : ℕ) (D : Finset (Σ s : S.Srt, Vinfinite S s)) (m : ℕ) :
+    Finset (Σ s : S.Srt, Vinfinite S s) :=
+  D.image fun v => ⟨v.1, pollIndex m * N + v.2⟩
+
+private theorem pollBlock_zero (N : ℕ) (D : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    pollBlock N D 0 = D := by
+  classical
+  rw [pollBlock]
+  refine (Finset.image_congr fun v _ => ?_).trans D.image_id
+  rw [pollIndex_zero, Nat.zero_mul, Nat.zero_add, Sigma.eta, id]
+
+/-- Every vertex of a poll block sits above its slot — the estimate that lets a finitely
+supported permutation fix all sufficiently deep blocks. -/
+private theorem le_of_mem_pollBlock {N : ℕ} {D : Finset (Σ s : S.Srt, Vinfinite S s)} {m : ℕ}
+    {v : Σ s : S.Srt, Vinfinite S s} (hv : v ∈ pollBlock N D m) : pollIndex m * N ≤ v.2 := by
+  classical
+  obtain ⟨w, _, rfl⟩ := Finset.mem_image.mp hv
+  exact Nat.le_add_right _ _
+
+open scoped Classical in
+/-- **The shift moves each poll block to the next one.** -/
+private theorem pollBlock_image_pollPerm {N : ℕ} [NeZero N]
+    {D : Finset (Σ s : S.Srt, Vinfinite S s)} (hD : ∀ v ∈ D, v.2 < N) (m : ℕ) :
+    (pollBlock N D m).image (Sigma.map id fun s => ⇑(pollPerm N D s)) = pollBlock N D (m + 1) := by
+  rw [pollBlock, pollBlock, Finset.image_image]
+  refine Finset.image_congr fun v hv => ?_
+  show (⟨v.1, pollPerm N D v.1 (pollIndex m * N + v.2)⟩ : Σ s : S.Srt, Vinfinite S s) = _
+  rw [pollPerm_apply N D v.1 _ (hD v hv), if_pos (by rwa [Sigma.eta]), pollShift_pollIndex]
+
+open scoped Classical in
+/-- **The shift fixes the conditioning set** — every vertex of `C` is below `N` and outside
+`D`, hence a fixed point of `pollPerm`. -/
+private theorem image_pollPerm_of_notMem {N : ℕ} [NeZero N]
+    {C D : Finset (Σ s : S.Srt, Vinfinite S s)} (hC : ∀ v ∈ C, v.2 < N)
+    (hCD : ∀ v ∈ C, v ∉ D) :
+    C.image (Sigma.map id fun s => ⇑(pollPerm N D s)) = C := by
+  refine (Finset.image_congr fun v hv => ?_).trans C.image_id
+  show (⟨v.1, pollPerm N D v.1 v.2⟩ : Σ s : S.Srt, Vinfinite S s) = id v
+  rw [pollPerm_apply_of_notMem N D (hC v hv) (hCD v hv), Sigma.eta, id]
+
+end PollBlocks
+
+/-! ### Invariance under a single permutation -/
+
+section PermInvariant
+
+variable {S : RelSignature}
+
+/-- **The invariance algebra of a single sortwise permutation**: the events literally fixed by
+one relabeling. Each `fixingAlgebra A` with `σ` in its stabilizer is contained in it, and —
+being a σ-algebra — so is any *join* of such; this is what transfers invariance from the
+generators of the tail joins to the whole join. -/
+@[implicit_reducible]
+private def permInvariantAlgebra (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) :
+    MeasurableSpace (RelStructure S (Vinfinite S)) where
+  MeasurableSet' E := MeasurableSet E ∧ RelStructure.relabel σ ⁻¹' E = E
+  measurableSet_empty := ⟨MeasurableSet.empty, Set.preimage_empty⟩
+  measurableSet_compl := fun E hE => ⟨hE.1.compl, by rw [Set.preimage_compl, hE.2]⟩
+  measurableSet_iUnion := fun f hf => ⟨MeasurableSet.iUnion fun i => (hf i).1, by
+    rw [Set.preimage_iUnion]
+    exact Set.iUnion_congr fun i => (hf i).2⟩
+
+private theorem fixingAlgebra_le_permInvariantAlgebra {A : Finset (Σ s : S.Srt, Vinfinite S s)}
+    {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} (hσ : SortwiseFixing (S := S) A σ) :
+    RelStructure.fixingAlgebra A ≤ permInvariantAlgebra σ := fun _ hE => ⟨hE.1, hE.2 σ hσ⟩
+
+end PermInvariant
+
+/-! ### The tail joins of the poll factors -/
+
+section PollTail
+
+variable {S : RelSignature}
+
+open scoped Classical in
+/-- The `m`-th **poll factor's** vertex set: the conditioning set together with the `m`-th poll
+block. -/
+private noncomputable def pollFactor (C D : Finset (Σ s : S.Srt, Vinfinite S s)) (N m : ℕ) :
+    Finset (Σ s : S.Srt, Vinfinite S s) :=
+  C ∪ pollBlock N D m
+
+open scoped Classical in
+private theorem mem_pollFactor {C D : Finset (Σ s : S.Srt, Vinfinite S s)} {N m : ℕ}
+    {v : Σ s : S.Srt, Vinfinite S s} : v ∈ pollFactor C D N m ↔ v ∈ C ∨ v ∈ pollBlock N D m :=
+  Finset.mem_union
+
+/-- **The tail join of the poll factors**: `⨆_{m ≥ n} fixingAlgebra (C ∪ Q m)`.
+
+This — not the individual `fixingAlgebra (C ∪ Q m)` — is the object the tail engine runs on.
+Individual poll factors over distinct deep blocks are pairwise *incomparable*, so they form no
+antitone sequence, and `fixingAlgebra (C ∪ Q m) ≤ fixingAlgebra B` fails outright (monotonicity
+would demand `C ∪ Q m ⊆ B`, whereas `Q m` was placed outside `B`). The joins repair both
+defects at once: they are antitone in `n`, they dominate `fixingAlgebra B` at `n = 0`, the
+shift pulls `𝒯 n` back exactly onto `𝒯 (n+1)`, and their intersection is `fixingAlgebra C`. -/
+@[implicit_reducible]
+private noncomputable def pollTailAlgebra (C D : Finset (Σ s : S.Srt, Vinfinite S s))
+    (N n : ℕ) : MeasurableSpace (RelStructure S (Vinfinite S)) :=
+  ⨆ m, ⨆ _ : n ≤ m, RelStructure.fixingAlgebra (pollFactor C D N m)
+
+private theorem pollTailAlgebra_antitone (C D : Finset (Σ s : S.Srt, Vinfinite S s)) (N : ℕ) :
+    Antitone (pollTailAlgebra C D N) := fun _ _ hn =>
+  iSup₂_le fun m hm => le_iSup₂_of_le m (hn.trans hm) le_rfl
+
+private theorem pollTailAlgebra_le (C D : Finset (Σ s : S.Srt, Vinfinite S s)) (N n : ℕ) :
+    pollTailAlgebra C D N n ≤ (inferInstance : MeasurableSpace (RelStructure S (Vinfinite S))) :=
+  iSup₂_le fun _ _ => RelStructure.fixingAlgebra_le _
+
+/-- **The polled algebra dominates the `B`-factor**: poll slot `0` is `D` itself, so for
+`B = C ∪ D` the algebra `fixingAlgebra B` is literally one of the generators of `𝒯 0`. -/
+private theorem fixingAlgebra_le_pollTailAlgebra_zero {B C D : Finset (Σ s : S.Srt, Vinfinite S s)}
+    {N : ℕ} (hB : ∀ v, v ∈ B ↔ v ∈ C ∨ v ∈ D) :
+    RelStructure.fixingAlgebra B ≤ pollTailAlgebra C D N 0 :=
+  le_iSup₂_of_le 0 le_rfl (le_of_eq (by
+    congr 1
+    exact Finset.ext fun v => by rw [hB v, mem_pollFactor, pollBlock_zero]))
+
+/-- **Transport of the tail joins**: pulling `𝒯 n` back along the poll shift is exactly
+`𝒯 (n+1)` — an equality of measurable spaces, obtained generator-by-generator from
+`fixingAlgebra_comap_relabel_of_fintype` and the reindexing `m ↦ m + 1`. This is the
+hypothesis `comap T m₁ = m₂` of the tail engine, with `m₂ ≤ m₁` supplied by antitonicity. -/
+private theorem comap_relabel_pollTailAlgebra [Fintype S.Srt]
+    {C D : Finset (Σ s : S.Srt, Vinfinite S s)} {N : ℕ} [NeZero N] (hC : ∀ v ∈ C, v.2 < N)
+    (hCD : ∀ v ∈ C, v ∉ D) (hD : ∀ v ∈ D, v.2 < N) (n : ℕ) :
+    MeasurableSpace.comap (RelStructure.relabel (pollPerm N D))
+        (pollTailAlgebra C D N n) = pollTailAlgebra C D N (n + 1) := by
+  classical
+  have hgen : ∀ m : ℕ, MeasurableSpace.comap (RelStructure.relabel (pollPerm N D))
+      (RelStructure.fixingAlgebra (pollFactor C D N m)) =
+      RelStructure.fixingAlgebra (pollFactor C D N (m + 1)) := by
+    intro m
+    rw [RelStructure.fixingAlgebra_comap_relabel_of_fintype]
+    congr 1
+    refine Finset.ext fun v => ?_
+    rw [mem_pollFactor, Finset.mem_image]
+    constructor
+    · rintro ⟨w, hw, rfl⟩
+      rcases mem_pollFactor.mp hw with hwC | hwQ
+      · exact Or.inl (by
+          rw [← image_pollPerm_of_notMem hC hCD]; exact Finset.mem_image_of_mem _ hwC)
+      · exact Or.inr (by
+          rw [← pollBlock_image_pollPerm hD]; exact Finset.mem_image_of_mem _ hwQ)
+    · rintro (hvC | hvQ)
+      · obtain ⟨w, hw, rfl⟩ :=
+          Finset.mem_image.mp (by rw [image_pollPerm_of_notMem hC hCD]; exact hvC)
+        exact ⟨w, mem_pollFactor.mpr (Or.inl hw), rfl⟩
+      · obtain ⟨w, hw, rfl⟩ :=
+          Finset.mem_image.mp (by rw [pollBlock_image_pollPerm hD]; exact hvQ)
+        exact ⟨w, mem_pollFactor.mpr (Or.inr hw), rfl⟩
+  rw [pollTailAlgebra, pollTailAlgebra]
+  simp_rw [MeasurableSpace.comap_iSup, hgen]
+  refine le_antisymm (iSup₂_le fun m hm => le_iSup₂_of_le (m + 1) (by omega) le_rfl)
+    (iSup₂_le fun m hm => ?_)
+  obtain ⟨m', rfl⟩ : ∃ m', m = m' + 1 := ⟨m - 1, by omega⟩
+  exact le_iSup₂_of_le m' (by omega) le_rfl
+
+/-- **The tail joins shrink to the conditioning factor**: `⨅ n, 𝒯 n = fixingAlgebra C`, a *raw*
+equality of σ-algebras — no law, no null sets. This is available precisely because the
+generators are fixing algebras rather than window algebras: a finitely supported permutation
+fixing `C` fixes every sufficiently deep poll block outright, hence lies in the stabilizer of
+every generator of `𝒯 n` for large `n`, hence fixes every event of the join. -/
+private theorem iInf_pollTailAlgebra {C D : Finset (Σ s : S.Srt, Vinfinite S s)}
+    {N : ℕ} [NeZero N] :
+    (⨅ n, pollTailAlgebra C D N n) = RelStructure.fixingAlgebra C := by
+  have hproj : ∀ (n : ℕ) (E : Set (RelStructure S (Vinfinite S))),
+      MeasurableSet[⨅ k, pollTailAlgebra C D N k] E → MeasurableSet[pollTailAlgebra C D N n] E :=
+    fun n => iInf_le (fun k => pollTailAlgebra C D N k) n
+  have hforward : ∀ E : Set (RelStructure S (Vinfinite S)),
+      MeasurableSet[⨅ k, pollTailAlgebra C D N k] E →
+        MeasurableSet[RelStructure.fixingAlgebra C] E := by
+    intro E hE
+    refine ⟨pollTailAlgebra_le C D N 0 E (hproj 0 E hE), ?_⟩
+    intro σ hσ
+    obtain ⟨M, hM⟩ := hσ.1
+    obtain ⟨n, hn⟩ := exists_le_pollIndex M
+    have hfix : ∀ m, n ≤ m → SortwiseFixing (S := S) (pollFactor C D N m) σ := by
+      intro m hm
+      refine ⟨hσ.1, fun v hv => ?_⟩
+      rcases mem_pollFactor.mp hv with hvC | hvQ
+      · exact hσ.2 v hvC
+      · refine hM v.1 v.2 (le_trans ?_ (le_of_mem_pollBlock hvQ))
+        calc M = M * 1 := (Nat.mul_one M).symm
+          _ ≤ pollIndex m * N :=
+            Nat.mul_le_mul (hn m hm) (Nat.one_le_iff_ne_zero.mpr (NeZero.ne N))
+    have hle : pollTailAlgebra C D N n ≤ permInvariantAlgebra σ := by
+      rw [pollTailAlgebra]
+      exact iSup₂_le fun m hm => fixingAlgebra_le_permInvariantAlgebra (hfix m hm)
+    exact (hle E (hproj n E hE)).2
+  refine le_antisymm hforward (le_iInf fun n => ?_)
+  rw [pollTailAlgebra]
+  exact le_iSup₂_of_le n le_rfl
+    (RelStructure.fixingAlgebra_mono fun v hv => mem_pollFactor.mpr (Or.inl hv))
+
+end PollTail
 
 end RelSignature
