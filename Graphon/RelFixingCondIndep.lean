@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.RelEqualityPattern
 import Graphon.RelFixingAlgebra
+import Graphon.RelErgodicLinks
 import Mathlib.Probability.Independence.Conditional
 
 /-!
@@ -38,6 +39,8 @@ This first layer is the measure-theoretic engine, all `private`:
 -/
 
 open MeasureTheory
+
+open scoped ENNReal symmDiff
 
 namespace RelSignature
 
@@ -234,7 +237,7 @@ private theorem windowAlgebra_eq_iSup (W : Set (Σ s : S.Srt, Vinfinite S s)) :
 along `relabel σ` is the window algebra of the image vertex set. Holds for an *arbitrary*
 sortwise permutation family — no finite-support hypothesis — since the coordinate reindexing
 `c ↦ RelCoord.map σ c` is a bijection of the constrained index sets. -/
-private theorem windowAlgebra_comap_relabel (σ : ∀ s, Equiv.Perm ℕ)
+private theorem windowAlgebra_comap_relabel (σ : ∀ _ : S.Srt, Equiv.Perm ℕ)
     (W : Set (Σ s : S.Srt, Vinfinite S s)) :
     MeasurableSpace.comap (RelStructure.relabel σ) (windowAlgebra (S := S) W) =
       windowAlgebra ((Sigma.map id fun s => ⇑(σ s)) '' W) := by
@@ -277,12 +280,98 @@ variable {S : RelSignature}
 sortwise permutation, not merely a finitely supported one, since the law is invariant under
 the full sortwise action by definition. -/
 private theorem measurePreserving_relabel (M : InfiniteRelExchangeableLaw S)
-    (σ : ∀ s, Equiv.Perm ℕ) :
+    (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) :
     MeasurePreserving (RelStructure.relabel σ)
       (M.law : Measure (RelStructure S (Vinfinite S)))
       (M.law : Measure (RelStructure S (Vinfinite S))) :=
   ⟨measurable_relabel σ, M.exchangeable σ⟩
 
 end MeasurePreserving
+
+/-! ### Arbitrary-permutation a.e. invariance of fixing-algebra events -/
+
+section AeInvariance
+
+variable {S : RelSignature}
+
+/-- **Arbitrary-permutation a.e. invariance of fixing-algebra events** (the `f ∘ T =ᵐ f`
+input of the tail engine): a `fixingAlgebra A`-event `E` is invariant under *every* sortwise
+permutation fixing `A` pointwise — not merely finitely supported ones — modulo `M.law`. This
+bridges Austin's literally-window-measurable colours (arXiv:0801.1698, Prop 3.12) to the
+larger invariance-measurable `fixingAlgebra A`. Proof: approximate `E` in measure by an
+initial cylinder `D` (`exists_initialAlgebra_measure_symmDiff_lt`, R3); build a finitely
+supported `π` agreeing with `σ` on a window enlarged to contain both the cylinder block and
+all of `A` (`exists_finSupp_perm_extend`) — since `σ` fixes `A` and the window covers `A`,
+`π` fixes `A`, so `relabel π ⁻¹' E = E` exactly; then
+`μ(σ⁻¹E ∆ E) ≤ μ(σ⁻¹(E ∆ D)) + μ(π⁻¹(D ∆ E)) = 2·μ(E ∆ D)` using `σ⁻¹D = π⁻¹D` (window
+agreement) and measure preservation, and let the approximation error vanish. -/
+private theorem relabel_preimage_ae_eq_of_fixingAlgebra [Fintype S.Srt] [Countable S.Rel]
+    (M : InfiniteRelExchangeableLaw S) {A : Finset (Σ s : S.Srt, Vinfinite S s)}
+    {E : Set (RelStructure S (Vinfinite S))}
+    (hE : MeasurableSet[RelStructure.fixingAlgebra A] E)
+    {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} (hσ : ∀ v ∈ A, σ v.1 v.2 = v.2) :
+    RelStructure.relabel σ ⁻¹' E =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))] E := by
+  set μ : Measure (RelStructure S (Vinfinite S)) :=
+    (M.law : Measure (RelStructure S (Vinfinite S))) with hμ
+  haveI : IsProbabilityMeasure μ := M.law.2
+  have hEmeas : MeasurableSet E := hE.1
+  have hMPσ : MeasurePreserving (RelStructure.relabel σ) μ μ := measurePreserving_relabel M σ
+  have key : ∀ ε : ℝ≥0∞, 0 < ε → μ ((RelStructure.relabel σ ⁻¹' E) ∆ E) < ε := by
+    intro ε hε
+    obtain ⟨k, D, hDk, hDlt⟩ :=
+      M.exists_initialAlgebra_measure_symmDiff_lt hEmeas (ENNReal.half_pos hε.ne')
+    have hDmeas : MeasurableSet D := RelStructure.initialAlgebra_le k _ hDk
+    set n : S.Srt → ℕ := fun s => max (k s) (A.sup (fun p => p.2) + 1) with hn
+    have hkn : ∀ s, k s ≤ n s := fun s => le_max_left _ _
+    have hAn : ∀ v ∈ A, v.2 < n v.1 := fun v hv =>
+      lt_of_le_of_lt (Finset.le_sup hv)
+        (lt_of_lt_of_le (Nat.lt_succ_self _) (le_max_right _ _))
+    set e : ∀ s, Fin (n s) ↪ ℕ := fun s =>
+      ⟨fun i => σ s (i : ℕ), fun a b h => Fin.val_injective ((σ s).injective h)⟩ with he
+    choose π N hsupp hagree using fun s => exists_finSupp_perm_extend (e s)
+    have hπ_fs : SortwiseFinSupp (S := S) π :=
+      ⟨Finset.univ.sup N, fun s x hx =>
+        hsupp s x (le_trans (Finset.le_sup (Finset.mem_univ s)) hx)⟩
+    have hπ_fix : ∀ v ∈ A, π v.1 v.2 = v.2 := by
+      intro v hv
+      have hval : π v.1 v.2 = σ v.1 v.2 := hagree v.1 ⟨v.2, hAn v hv⟩
+      rw [hval]; exact hσ v hv
+    have hπE : RelStructure.relabel π ⁻¹' E = E := hE.2 π ⟨hπ_fs, hπ_fix⟩
+    have hMPπ : MeasurePreserving (RelStructure.relabel π) μ μ := measurePreserving_relabel M π
+    have hcompeq : RelStructure.restrictFin n ∘ RelStructure.relabel σ
+        = RelStructure.restrictFin n ∘ RelStructure.relabel π := by
+      funext X
+      show RelStructure.comap (fun s => (Fin.valEmbedding : Fin (n s) → ℕ))
+          (RelStructure.comap (fun s => ⇑(σ s)) X)
+          = RelStructure.comap (fun s => (Fin.valEmbedding : Fin (n s) → ℕ))
+          (RelStructure.comap (fun s => ⇑(π s)) X)
+      rw [← RelStructure.comap_comp, ← RelStructure.comap_comp]
+      congr 1
+      funext s i
+      exact (hagree s i).symm
+    have hDn : MeasurableSet[RelStructure.initialAlgebra n] D :=
+      RelStructure.initialAlgebra_mono hkn _ hDk
+    obtain ⟨D₀, hD₀, hD₀eq⟩ := MeasurableSpace.measurableSet_comap.mp hDn
+    have hσπD : RelStructure.relabel σ ⁻¹' D = RelStructure.relabel π ⁻¹' D := by
+      rw [← hD₀eq, ← Set.preimage_comp, ← Set.preimage_comp, hcompeq]
+    have h1 : μ ((RelStructure.relabel σ ⁻¹' E) ∆ (RelStructure.relabel σ ⁻¹' D)) = μ (E ∆ D) := by
+      rw [← Set.preimage_symmDiff]
+      exact hMPσ.measure_preimage (hEmeas.symmDiff hDmeas).nullMeasurableSet
+    have h2 : μ ((RelStructure.relabel σ ⁻¹' D) ∆ E) = μ (D ∆ E) := by
+      rw [hσπD,
+        show (RelStructure.relabel π ⁻¹' D) ∆ E = RelStructure.relabel π ⁻¹' (D ∆ E) from by
+          rw [Set.preimage_symmDiff, hπE]]
+      exact hMPπ.measure_preimage (hDmeas.symmDiff hEmeas).nullMeasurableSet
+    calc μ ((RelStructure.relabel σ ⁻¹' E) ∆ E)
+        ≤ μ ((RelStructure.relabel σ ⁻¹' E) ∆ (RelStructure.relabel σ ⁻¹' D))
+            + μ ((RelStructure.relabel σ ⁻¹' D) ∆ E) := measure_symmDiff_le _ _ _
+      _ = μ (D ∆ E) + μ (D ∆ E) := by rw [h1, h2, symmDiff_comm E D]
+      _ < ε := by
+          rw [← ENNReal.add_halves ε]; exact ENNReal.add_lt_add hDlt hDlt
+  rw [← measure_symmDiff_eq_zero_iff]
+  by_contra hne
+  exact absurd (key _ (pos_iff_ne_zero.mpr hne)) (lt_irrefl _)
+
+end AeInvariance
 
 end RelSignature
