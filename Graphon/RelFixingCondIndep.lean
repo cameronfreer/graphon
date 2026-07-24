@@ -3,7 +3,6 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
-import Graphon.RelEqualityPattern
 import Graphon.RelFixingAlgebra
 import Graphon.RelErgodicLinks
 import Mathlib.Probability.Independence.Conditional
@@ -737,5 +736,88 @@ private theorem condExp_indicator_fixingAlgebra_ae_eq_condExp_inter [Fintype S.S
   exact indicator_ae_eq_of_ae_eq_set (relabel_preimage_ae_eq_of_fixingAlgebra M hE hσ)
 
 end Reduction
+
+/-! ### The conditional-independence theorem -/
+
+section CondIndep
+
+open ProbabilityTheory
+
+variable {S : RelSignature}
+
+open scoped Classical in
+/-- **Conditional independence of the fixing σ-algebras over their intersection** (Austin,
+*On exchangeable random variables and the statistics of large graphs and hypergraphs*,
+Probab. Surveys 2008, arXiv:0801.1698, Lemma 3.11 and Proposition 3.12, pp. 107–108;
+Kallenberg, *Probabilistic Symmetries and Invariance Principles*, Lemma 7.6 and
+Theorems 7.18–7.19, pp. 308–322):
+
+for **every** exchangeable law `M` — no dissociation — the fixing σ-algebras of two finite
+tagged vertex sets are conditionally independent given the fixing σ-algebra of their
+intersection.
+
+The relativized `fixingAlgebra ∅ = invariantAlgebra` carries whatever global information the
+law has (which is why no `NoNullary` hypothesis appears, and why dissociation is not needed:
+under a dissociated law the conditioning factor at `A ∩ B = ∅` is trivial, but that is a
+consequence, not an assumption). At `A = B`, and likewise at `A = ∅` or `B = ∅`, one outer
+algebra equals the conditioning algebra and the statement is tautological; the content is at
+disjoint nonempty `A, B`.
+
+Proof: `condIndep_iff` reduces to a factorization of `μ⟦E₁ ∩ E₂ | 𝓕 (A ∩ B)⟧` for
+`E₁ ∈ 𝓕 A`, `E₂ ∈ 𝓕 B`. Write `1_{E₁ ∩ E₂} = 1_{E₁} · 1_{E₂}`, tower from `𝓕 (A ∩ B)` through
+`𝓕 B`, pull the `𝓕 B`-measurable `1_{E₂}` out, replace `E[1_{E₁} | 𝓕 B]` by
+`E[1_{E₁} | 𝓕 (A ∩ B)]` using the polled reduction
+`condExp_indicator_fixingAlgebra_ae_eq_condExp_inter`, and pull that `𝓕 (A ∩ B)`-measurable
+factor out. -/
+theorem InfiniteRelExchangeableLaw.condIndep_fixingAlgebra [Fintype S.Srt] [Countable S.Rel]
+    (M : InfiniteRelExchangeableLaw S) (A B : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    CondIndep (RelStructure.fixingAlgebra (A ∩ B)) (RelStructure.fixingAlgebra A)
+      (RelStructure.fixingAlgebra B) (RelStructure.fixingAlgebra_le _)
+      (M.law : Measure (RelStructure S (Vinfinite S))) := by
+  set μ : Measure (RelStructure S (Vinfinite S)) :=
+    (M.law : Measure (RelStructure S (Vinfinite S))) with hμ
+  haveI : IsProbabilityMeasure μ := M.law.2
+  rw [condIndep_iff _ _ _ _ (RelStructure.fixingAlgebra_le A) (RelStructure.fixingAlgebra_le B)]
+  intro t₁ t₂ ht₁ ht₂
+  have hL₁ : MemLp (t₁.indicator fun _ => (1 : ℝ)) 2 μ :=
+    memLp_indicator_const 2 ht₁.1 1 (Or.inr (measure_ne_top _ _))
+  have hL₂ : MemLp (t₂.indicator fun _ => (1 : ℝ)) 2 μ :=
+    memLp_indicator_const 2 ht₂.1 1 (Or.inr (measure_ne_top _ _))
+  have hprod : Integrable
+      ((t₁.indicator fun _ => (1 : ℝ)) * t₂.indicator fun _ => (1 : ℝ)) μ :=
+    hL₁.integrable_mul hL₂
+  have hprod' : Integrable
+      ((μ[t₁.indicator fun _ => (1 : ℝ)|RelStructure.fixingAlgebra (A ∩ B)]) *
+        t₂.indicator fun _ => (1 : ℝ)) μ :=
+    (hL₁.condExp one_le_two).integrable_mul hL₂
+  have ht₂meas : AEStronglyMeasurable[RelStructure.fixingAlgebra B]
+      (t₂.indicator fun _ => (1 : ℝ)) μ :=
+    (stronglyMeasurable_const.indicator ht₂).aestronglyMeasurable
+  have hinter : (t₁ ∩ t₂).indicator (fun _ => (1 : ℝ)) =
+      (t₁.indicator fun _ => (1 : ℝ)) * t₂.indicator fun _ => (1 : ℝ) := by
+    rw [show (fun _ : RelStructure S (Vinfinite S) => (1 : ℝ)) = 1 from rfl,
+      Set.inter_indicator_one]
+  rw [hinter]
+  calc μ[(t₁.indicator fun _ => (1 : ℝ)) * t₂.indicator fun _ => (1 : ℝ)|
+        RelStructure.fixingAlgebra (A ∩ B)]
+      =ᵐ[μ] μ[μ[(t₁.indicator fun _ => (1 : ℝ)) * t₂.indicator fun _ => (1 : ℝ)|
+          RelStructure.fixingAlgebra B]|RelStructure.fixingAlgebra (A ∩ B)] :=
+        (condExp_condExp_of_le (RelStructure.fixingAlgebra_mono Finset.inter_subset_right)
+          (RelStructure.fixingAlgebra_le B)).symm
+    _ =ᵐ[μ] μ[(μ[t₁.indicator fun _ => (1 : ℝ)|RelStructure.fixingAlgebra B]) *
+          t₂.indicator fun _ => (1 : ℝ)|RelStructure.fixingAlgebra (A ∩ B)] :=
+        condExp_congr_ae (condExp_mul_of_aestronglyMeasurable_right ht₂meas hprod
+          (hL₁.integrable one_le_two))
+    _ =ᵐ[μ] μ[(μ[t₁.indicator fun _ => (1 : ℝ)|RelStructure.fixingAlgebra (A ∩ B)]) *
+          t₂.indicator fun _ => (1 : ℝ)|RelStructure.fixingAlgebra (A ∩ B)] :=
+        condExp_congr_ae
+          ((condExp_indicator_fixingAlgebra_ae_eq_condExp_inter M A B ht₁).mul
+            (Filter.EventuallyEq.refl _ _))
+    _ =ᵐ[μ] (μ[t₁.indicator fun _ => (1 : ℝ)|RelStructure.fixingAlgebra (A ∩ B)]) *
+          μ[t₂.indicator fun _ => (1 : ℝ)|RelStructure.fixingAlgebra (A ∩ B)] :=
+        condExp_mul_of_aestronglyMeasurable_left
+          stronglyMeasurable_condExp.aestronglyMeasurable hprod' (hL₂.integrable one_le_two)
+
+end CondIndep
 
 end RelSignature

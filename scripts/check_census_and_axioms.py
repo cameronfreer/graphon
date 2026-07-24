@@ -188,6 +188,7 @@ AUDITED_DECLS = {
     "MeasureTheory.Digraphon.sampleAdj_pair_of_lt",
     "MeasureTheory.Digraphon.measurable_sampleInfinite",
     "MeasureTheory.Digraphon.measurable_sampleFinite",
+    "RelSignature.InfiniteRelExchangeableLaw.condIndep_fixingAlgebra",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

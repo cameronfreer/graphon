@@ -17,16 +17,16 @@ than the relations observed at the vertex); the invariance definition captures e
 the ambient randomness outside `A` cannot move.
 
 Everything here is raw and measure-free — **no completions, no conditional expectations, no
-law**. Per the #107 design checkpoint: conditional independence under a dissociated law and
-the standard-Borel factor realizations (both stated *modulo the law*) are deliberately
-separate, later PRs. The intended core statement (next PR), with
-`[Countable S.Rel]` supplying `StandardBorelSpace (RelStructure S (Vinfinite S))`:
+law**. The conditional-independence theorem built on this layer lives in
+`Graphon.RelFixingCondIndep`, with `[Countable S.Rel]` supplying
+`StandardBorelSpace (RelStructure S (Vinfinite S))`:
 `CondIndep (fixingAlgebra (A ∩ B)) (fixingAlgebra A) (fixingAlgebra B)
-(fixingAlgebra_le _) M.law` for dissociated `M`. Sanity specializations: at `A = B`, and
-likewise at `A = ∅` or `B = ∅`, one outer algebra *equals* the conditioning algebra
-`fixingAlgebra (A ∩ B)`, so the statement is tautological — conditional independence of an
-algebra from anything given itself — independently of dissociation; the dissociation
-content is at disjoint nonempty `A, B`.
+(fixingAlgebra_le _) M.law` for **every** exchangeable `M` — dissociation is not required.
+Sanity specializations: at `A = B`, and likewise at `A = ∅` or `B = ∅`, one outer algebra
+*equals* the conditioning algebra `fixingAlgebra (A ∩ B)`, so the statement is tautological —
+conditional independence of an algebra from anything given itself; the content is at disjoint
+nonempty `A, B`. The standard-Borel factor realizations (stated *modulo the law*) remain a
+deliberately separate, later PR.
 
 * `RelSignature.SortwiseFixing` — the `A`-fixing stabilizer (finitely supported + fixes
   `A` pointwise), closed under `1`, `*`, `⁻¹`, and conjugation (`SortwiseFixing.conj`);
