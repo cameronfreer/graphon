@@ -749,8 +749,9 @@ open scoped Classical in
 /-- **Conditional independence of the fixing σ-algebras over their intersection** (Austin,
 *On exchangeable random variables and the statistics of large graphs and hypergraphs*,
 Probab. Surveys 2008, arXiv:0801.1698, Lemma 3.11 and Proposition 3.12, pp. 107–108;
-Kallenberg, *Probabilistic Symmetries and Invariance Principles*, Lemma 7.6 and
-Theorems 7.18–7.19, pp. 308–322):
+Kallenberg, *Probabilistic Symmetries and Invariance Principles*, Lemma 7.6, p. 308 — the
+closest precursor there; Lemmas 7.18–7.19 belong to the later realization recursion, not to
+this statement):
 
 for **every** exchangeable law `M` — no dissociation — the fixing σ-algebras of two finite
 tagged vertex sets are conditionally independent given the fixing σ-algebra of their
