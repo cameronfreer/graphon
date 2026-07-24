@@ -177,41 +177,112 @@ section WindowAlgebras
 variable {S : RelSignature}
 
 /-- **The window algebra** of a set `W` of tagged vertices: events depending only on the
-coordinates whose support lies inside `W` — the observable, coordinate-generated factor, in
-contrast to the invariance-defined `fixingAlgebra`. -/
+coordinates *all of whose read vertices lie in `W`* — the observable, coordinate-generated
+factor, in contrast to the invariance-defined `fixingAlgebra`. The index predicate
+`∀ i, c.taggedValue i ∈ W` is the `Finset`-free form of "support inside `W`"; a nullary
+coordinate has no positions, hence lies in every window (matching the no-nullary design:
+global information stays in the conditioning factor). -/
 @[implicit_reducible]
 private def windowAlgebra (W : Set (Σ s : S.Srt, Vinfinite S s)) :
     MeasurableSpace (RelStructure S (Vinfinite S)) :=
   MeasurableSpace.comap
     (fun (X : RelStructure S (Vinfinite S))
-      (c : {c : RelCoord S (Vinfinite S) // ↑(RelCoord.support c) ⊆ W}) => X c.1)
+      (c : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W}) => X c.1)
     inferInstance
 
 private theorem windowAlgebra_le (W : Set (Σ s : S.Srt, Vinfinite S s)) :
     windowAlgebra (S := S) W ≤
       (inferInstance : MeasurableSpace (RelStructure S (Vinfinite S))) := by
   have hproj : Measurable (fun (X : RelStructure S (Vinfinite S))
-      (c : {c : RelCoord S (Vinfinite S) // ↑(RelCoord.support c) ⊆ W}) => X c.1) :=
+      (c : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W}) => X c.1) :=
     measurable_pi_iff.mpr fun c => measurable_pi_apply _
   exact hproj.comap_le
 
 private theorem windowAlgebra_mono {W W' : Set (Σ s : S.Srt, Vinfinite S s)}
     (h : W ⊆ W') : windowAlgebra (S := S) W ≤ windowAlgebra (S := S) W' := by
   have hfactor : (fun (X : RelStructure S (Vinfinite S))
-        (c : {c : RelCoord S (Vinfinite S) // ↑(RelCoord.support c) ⊆ W}) => X c.1) =
-      (fun (Y : {c : RelCoord S (Vinfinite S) // ↑(RelCoord.support c) ⊆ W'} → Bool)
-        (c : {c : RelCoord S (Vinfinite S) // ↑(RelCoord.support c) ⊆ W}) =>
-          Y ⟨c.1, c.2.trans h⟩) ∘
+        (c : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W}) => X c.1) =
+      (fun (Y : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W'} → Bool)
+        (c : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W}) =>
+          Y ⟨c.1, fun i => h (c.2 i)⟩) ∘
       (fun (X : RelStructure S (Vinfinite S))
-        (c : {c : RelCoord S (Vinfinite S) // ↑(RelCoord.support c) ⊆ W'}) => X c.1) := rfl
+        (c : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W'}) => X c.1) := rfl
   have hr : Measurable (fun (Y : {c : RelCoord S (Vinfinite S) //
-        ↑(RelCoord.support c) ⊆ W'} → Bool)
-      (c : {c : RelCoord S (Vinfinite S) // ↑(RelCoord.support c) ⊆ W}) =>
-        Y ⟨c.1, c.2.trans h⟩) :=
+        ∀ i, c.taggedValue i ∈ W'} → Bool)
+      (c : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W}) =>
+        Y ⟨c.1, fun i => h (c.2 i)⟩) :=
     measurable_pi_iff.mpr fun c => measurable_pi_apply _
   rw [windowAlgebra, windowAlgebra, hfactor, ← MeasurableSpace.comap_comp]
   exact MeasurableSpace.comap_mono hr.comap_le
 
+/-- **Coordinate-join characterization** of the window algebra: it is the join of the
+one-coordinate σ-algebras over coordinates that read only vertices in `W`. This is the form
+the transport and tail arguments manipulate. -/
+private theorem windowAlgebra_eq_iSup (W : Set (Σ s : S.Srt, Vinfinite S s)) :
+    windowAlgebra (S := S) W =
+      ⨆ (c : RelCoord S (Vinfinite S)) (_ : ∀ i, c.taggedValue i ∈ W),
+        MeasurableSpace.comap (fun X : RelStructure S (Vinfinite S) => X c)
+          (inferInstance : MeasurableSpace Bool) := by
+  have hpi : (inferInstance : MeasurableSpace
+        ({c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W} → Bool)) =
+      ⨆ i, MeasurableSpace.comap (fun Y => Y i) (inferInstance : MeasurableSpace Bool) := rfl
+  rw [windowAlgebra, hpi, MeasurableSpace.comap_iSup]
+  simp_rw [MeasurableSpace.comap_comp, iSup_subtype]
+  rfl
+
+/-- **Window transport** along a sortwise relabeling: pulling the `W`-window algebra back
+along `relabel σ` is the window algebra of the image vertex set. Holds for an *arbitrary*
+sortwise permutation family — no finite-support hypothesis — since the coordinate reindexing
+`c ↦ RelCoord.map σ c` is a bijection of the constrained index sets. -/
+private theorem windowAlgebra_comap_relabel (σ : ∀ s, Equiv.Perm ℕ)
+    (W : Set (Σ s : S.Srt, Vinfinite S s)) :
+    MeasurableSpace.comap (RelStructure.relabel σ) (windowAlgebra (S := S) W) =
+      windowAlgebra ((Sigma.map id fun s => ⇑(σ s)) '' W) := by
+  rw [windowAlgebra_eq_iSup, windowAlgebra_eq_iSup]
+  simp_rw [MeasurableSpace.comap_iSup, MeasurableSpace.comap_comp]
+  refine le_antisymm (iSup₂_le fun c hc => ?_) (iSup₂_le fun c hc => ?_)
+  · refine le_iSup₂_of_le (RelCoord.map (fun s => ⇑(σ s)) c) (fun i => ?_) le_rfl
+    rw [RelCoord.taggedValue_map]
+    exact ⟨c.taggedValue i, hc i, rfl⟩
+  · have hmapinv : RelCoord.map (fun s => ⇑(σ s))
+        (RelCoord.map (fun s => ⇑(σ s).symm) c) = c := by
+      rw [← RelCoord.map_comp (fun s => ⇑(σ s).symm) (fun s => ⇑(σ s)) c,
+        show (fun s => ⇑(σ s) ∘ ⇑(σ s).symm) = (fun _ => id : ∀ _ : S.Srt, ℕ → ℕ) from
+          funext fun s => funext fun x => (σ s).apply_symm_apply x,
+        RelCoord.map_id]
+    refine le_iSup₂_of_le (RelCoord.map (fun s => ⇑(σ s).symm) c) (fun i => ?_) (le_of_eq ?_)
+    · rw [RelCoord.taggedValue_map]
+      obtain ⟨w, hwW, hwEq⟩ := hc i
+      obtain ⟨sw, xw⟩ := w
+      rw [← hwEq,
+        show Sigma.map id (fun s => ⇑(σ s).symm) (Sigma.map id (fun s => ⇑(σ s)) ⟨sw, xw⟩)
+            = (⟨sw, xw⟩ : Σ s : S.Srt, Vinfinite S s) from by
+          show (⟨sw, (σ sw).symm ((σ sw) xw)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨sw, xw⟩
+          rw [(σ sw).symm_apply_apply]]
+      exact hwW
+    · congr 1
+      funext X
+      show X c = X (RelCoord.map (fun s => ⇑(σ s)) (RelCoord.map (fun s => ⇑(σ s).symm) c))
+      rw [hmapinv]
+
 end WindowAlgebras
+
+/-! ### Measure preservation under the exchangeable law -/
+
+section MeasurePreserving
+
+variable {S : RelSignature}
+
+/-- The relabeling action is measure preserving under any exchangeable law — for **every**
+sortwise permutation, not merely a finitely supported one, since the law is invariant under
+the full sortwise action by definition. -/
+private theorem measurePreserving_relabel (M : InfiniteRelExchangeableLaw S)
+    (σ : ∀ s, Equiv.Perm ℕ) :
+    MeasurePreserving (RelStructure.relabel σ)
+      (M.law : Measure (RelStructure S (Vinfinite S)))
+      (M.law : Measure (RelStructure S (Vinfinite S))) :=
+  ⟨measurable_relabel σ, M.exchangeable σ⟩
+
+end MeasurePreserving
 
 end RelSignature
