@@ -31,15 +31,12 @@ This first layer is the measure-theoretic engine, all `private`:
 * the **tail-property engine** `condExp_ae_eq_condExp_of_comap_eq` combining the two: if a
   measure-preserving `T` fixes `f` a.e. and pulls the conditioning algebra `m₁` back to a
   sub-algebra `m₂ ≤ m₁`, then `μ[f|m₁] =ᵐ[μ] μ[f|m₂]` — Austin's Theorem 3.1 step,
-  abstracted;
-* the private **window algebras** (events depending only on coordinates supported in a
-  given set of tagged vertices) — the polling factors. Their identification with the raw
-  `fixingAlgebra` happens only modulo the law, in a later layer; no completion enters any
-  definition here.
+  abstracted.
 
-On top of the engine sit the **a.e. invariance** of `fixingAlgebra A`-events under *every*
-sortwise permutation fixing `A` (`relabel_preimage_ae_eq_of_fixingAlgebra`, the `f ∘ T =ᵐ f`
-input), and the **poll geometry** the engine runs on:
+No completion and no law enter any definition here. On top of the engine sit the **a.e.
+invariance** of `fixingAlgebra A`-events under *every* sortwise permutation fixing `A`
+(`relabel_preimage_ae_eq_of_fixingAlgebra`, the `f ∘ T =ᵐ f` input), and the **poll geometry**
+the engine runs on:
 
 * `pollIndex` / `pollShift` — poll slots along a two-sided `ℤ`-orbit transported to `ℕ`. The
   two-sidedness is forced: a *unilateral* shift of the blocks is not a bijection (slot `0`
@@ -54,7 +51,15 @@ input), and the **poll geometry** the engine runs on:
   `C ∪ Q m ⊆ B`, while `Q m` lies outside `B`. The joins are antitone, dominate
   `fixingAlgebra B` at `n = 0`, satisfy `comap (relabel ρ) (𝒯 n) = 𝒯 (n+1)` exactly, and have
   `⨅ n, 𝒯 n = fixingAlgebra C` — the last a **raw** σ-algebra equality, no law and no null
-  sets, available because the generators are fixing algebras rather than window algebras.
+  sets, available because the generators are fixing algebras rather than coordinate-generated
+  window algebras (an earlier draft of this file carried such window algebras; the join route
+  makes them unnecessary, so they are gone).
+
+The layer closes with the **reduction** `condExp_fixingAlgebra_ae_eq_condExp_inter`:
+`μ[f|fixingAlgebra B] =ᵐ μ[f|fixingAlgebra (A ∩ B)]` for `f` a.e. invariant under the
+permutations fixing `A`, and its indicator form for a `fixingAlgebra A`-event. This is the
+`(⋆)` half of Austin's Proposition 3.12; the conditional-independence assembly is the next
+layer.
 -/
 
 open MeasureTheory
@@ -192,103 +197,6 @@ private theorem condExp_ae_eq_condExp_of_comap_eq
 
 end CondExpTools
 
-/-! ### The private window (polling) algebras -/
-
-section WindowAlgebras
-
-variable {S : RelSignature}
-
-/-- **The window algebra** of a set `W` of tagged vertices: events depending only on the
-coordinates *all of whose read vertices lie in `W`* — the observable, coordinate-generated
-factor, in contrast to the invariance-defined `fixingAlgebra`. The index predicate
-`∀ i, c.taggedValue i ∈ W` is the `Finset`-free form of "support inside `W`"; a nullary
-coordinate has no positions, hence lies in every window (matching the no-nullary design:
-global information stays in the conditioning factor). -/
-@[implicit_reducible]
-private def windowAlgebra (W : Set (Σ s : S.Srt, Vinfinite S s)) :
-    MeasurableSpace (RelStructure S (Vinfinite S)) :=
-  MeasurableSpace.comap
-    (fun (X : RelStructure S (Vinfinite S))
-      (c : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W}) => X c.1)
-    inferInstance
-
-private theorem windowAlgebra_le (W : Set (Σ s : S.Srt, Vinfinite S s)) :
-    windowAlgebra (S := S) W ≤
-      (inferInstance : MeasurableSpace (RelStructure S (Vinfinite S))) := by
-  have hproj : Measurable (fun (X : RelStructure S (Vinfinite S))
-      (c : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W}) => X c.1) :=
-    measurable_pi_iff.mpr fun c => measurable_pi_apply _
-  exact hproj.comap_le
-
-private theorem windowAlgebra_mono {W W' : Set (Σ s : S.Srt, Vinfinite S s)}
-    (h : W ⊆ W') : windowAlgebra (S := S) W ≤ windowAlgebra (S := S) W' := by
-  have hfactor : (fun (X : RelStructure S (Vinfinite S))
-        (c : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W}) => X c.1) =
-      (fun (Y : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W'} → Bool)
-        (c : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W}) =>
-          Y ⟨c.1, fun i => h (c.2 i)⟩) ∘
-      (fun (X : RelStructure S (Vinfinite S))
-        (c : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W'}) => X c.1) := rfl
-  have hr : Measurable (fun (Y : {c : RelCoord S (Vinfinite S) //
-        ∀ i, c.taggedValue i ∈ W'} → Bool)
-      (c : {c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W}) =>
-        Y ⟨c.1, fun i => h (c.2 i)⟩) :=
-    measurable_pi_iff.mpr fun c => measurable_pi_apply _
-  rw [windowAlgebra, windowAlgebra, hfactor, ← MeasurableSpace.comap_comp]
-  exact MeasurableSpace.comap_mono hr.comap_le
-
-/-- **Coordinate-join characterization** of the window algebra: it is the join of the
-one-coordinate σ-algebras over coordinates that read only vertices in `W`. This is the form
-the transport and tail arguments manipulate. -/
-private theorem windowAlgebra_eq_iSup (W : Set (Σ s : S.Srt, Vinfinite S s)) :
-    windowAlgebra (S := S) W =
-      ⨆ (c : RelCoord S (Vinfinite S)) (_ : ∀ i, c.taggedValue i ∈ W),
-        MeasurableSpace.comap (fun X : RelStructure S (Vinfinite S) => X c)
-          (inferInstance : MeasurableSpace Bool) := by
-  have hpi : (inferInstance : MeasurableSpace
-        ({c : RelCoord S (Vinfinite S) // ∀ i, c.taggedValue i ∈ W} → Bool)) =
-      ⨆ i, MeasurableSpace.comap (fun Y => Y i) (inferInstance : MeasurableSpace Bool) := rfl
-  rw [windowAlgebra, hpi, MeasurableSpace.comap_iSup]
-  simp_rw [MeasurableSpace.comap_comp, iSup_subtype]
-  rfl
-
-/-- **Window transport** along a sortwise relabeling: pulling the `W`-window algebra back
-along `relabel σ` is the window algebra of the image vertex set. Holds for an *arbitrary*
-sortwise permutation family — no finite-support hypothesis — since the coordinate reindexing
-`c ↦ RelCoord.map σ c` is a bijection of the constrained index sets. -/
-private theorem windowAlgebra_comap_relabel (σ : ∀ _ : S.Srt, Equiv.Perm ℕ)
-    (W : Set (Σ s : S.Srt, Vinfinite S s)) :
-    MeasurableSpace.comap (RelStructure.relabel σ) (windowAlgebra (S := S) W) =
-      windowAlgebra ((Sigma.map id fun s => ⇑(σ s)) '' W) := by
-  rw [windowAlgebra_eq_iSup, windowAlgebra_eq_iSup]
-  simp_rw [MeasurableSpace.comap_iSup, MeasurableSpace.comap_comp]
-  refine le_antisymm (iSup₂_le fun c hc => ?_) (iSup₂_le fun c hc => ?_)
-  · refine le_iSup₂_of_le (RelCoord.map (fun s => ⇑(σ s)) c) (fun i => ?_) le_rfl
-    rw [RelCoord.taggedValue_map]
-    exact ⟨c.taggedValue i, hc i, rfl⟩
-  · have hmapinv : RelCoord.map (fun s => ⇑(σ s))
-        (RelCoord.map (fun s => ⇑(σ s).symm) c) = c := by
-      rw [← RelCoord.map_comp (fun s => ⇑(σ s).symm) (fun s => ⇑(σ s)) c,
-        show (fun s => ⇑(σ s) ∘ ⇑(σ s).symm) = (fun _ => id : ∀ _ : S.Srt, ℕ → ℕ) from
-          funext fun s => funext fun x => (σ s).apply_symm_apply x,
-        RelCoord.map_id]
-    refine le_iSup₂_of_le (RelCoord.map (fun s => ⇑(σ s).symm) c) (fun i => ?_) (le_of_eq ?_)
-    · rw [RelCoord.taggedValue_map]
-      obtain ⟨w, hwW, hwEq⟩ := hc i
-      obtain ⟨sw, xw⟩ := w
-      rw [← hwEq,
-        show Sigma.map id (fun s => ⇑(σ s).symm) (Sigma.map id (fun s => ⇑(σ s)) ⟨sw, xw⟩)
-            = (⟨sw, xw⟩ : Σ s : S.Srt, Vinfinite S s) from by
-          show (⟨sw, (σ sw).symm ((σ sw) xw)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨sw, xw⟩
-          rw [(σ sw).symm_apply_apply]]
-      exact hwW
-    · congr 1
-      funext X
-      show X c = X (RelCoord.map (fun s => ⇑(σ s)) (RelCoord.map (fun s => ⇑(σ s).symm) c))
-      rw [hmapinv]
-
-end WindowAlgebras
-
 /-! ### Measure preservation under the exchangeable law -/
 
 section MeasurePreserving
@@ -415,9 +323,6 @@ private noncomputable def pollIndex (m : ℕ) : ℕ := pollEquivInt (m : ℤ)
 
 private theorem pollIndex_zero : pollIndex 0 = 0 := by
   rw [pollIndex, Nat.cast_zero, pollEquivInt_zero]
-
-private theorem pollIndex_injective : Function.Injective pollIndex := fun _ _ h =>
-  Nat.cast_injective (pollEquivInt.injective h)
 
 /-- **The poll slots escape every bound**: for each `K` all but finitely many poll blocks sit
 above `K`, since `pollIndex` is injective. This is what lets a finitely supported permutation
