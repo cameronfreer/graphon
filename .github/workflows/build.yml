@@ -49,6 +49,9 @@ jobs:
       - name: Check frozen-stub census and headline axiom audit
         run: bash scripts/check_census_and_axioms.sh
 
+      - name: Check documentation drift (canonical URL, links, inventories)
+        run: python3 scripts/check_site_links.py
+
       - name: Install blueprint dependencies
         run: |
           sudo apt-get update
@@ -89,7 +92,7 @@ jobs:
         if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
         run: |
           cd home_page
-          bundle exec jekyll build --baseurl "/graphon" --destination ../_site
+          bundle exec jekyll build --destination ../_site
 
       - name: Assemble site
         if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'

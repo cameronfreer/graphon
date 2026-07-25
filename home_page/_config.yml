@@ -2,9 +2,12 @@
 
 title: Graphons in Lean 4
 email: freer@mit.edu
-description: by Cameron Freer
-baseurl: ""
-url: "https://cameronfreer.github.io/graphon"
+description: "Graphons, exchangeable structures, and Aldous–Hoover–Kallenberg theory in Lean 4"
+# Conventional Jekyll split: `url` is the origin, `baseurl` the project path.
+# Do NOT also pass `--baseurl` on the command line — doing both doubles the path and
+# produces canonical URLs like `.../graphon/graphon/`.
+baseurl: "/graphon"
+url: "https://cameronfreer.github.io"
 twitter_username:
 github_username: cameronfreer
 repository: cameronfreer/graphon
