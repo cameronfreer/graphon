@@ -64,9 +64,11 @@ graphs and higher-arity structures.
 ## Verification status
 
 - **Zero `sorry`/`admit`** anywhere in the project — CI enforces a strict census.
-- **No custom axioms.** Load-bearing declarations are audited to use only `propext`,
-  `Classical.choice`, and `Quot.sound`.
-- **CI builds** the Lean project, the blueprint, and the API docs on every change.
+- **Audited axiom use.** A fixed list of load-bearing declarations is checked to depend only on
+  `propext`, `Classical.choice`, and `Quot.sound`. The gate covers that audited set, not every
+  declaration in the repository.
+- **CI**: every PR builds the Lean project and the blueprint; the `master` deployment
+  additionally builds the API documentation and the homepage.
 
 See [docs/verification.md](docs/verification.md) for the audit policy and the project history,
 including the resolution of the Rokhlin-style alignment gap and the removal of the last
