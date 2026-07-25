@@ -53,7 +53,8 @@ graphs and higher-arity structures.
 - `relExchangeableLawEquiv` — finite/infinite exchangeable law equivalence for an arbitrary
   multi-sorted relational signature
 - `RelExtremality.tfae_extremality` — the five-way extremality equivalence, representation-free
-- `RelKernelFamily.evalLaw_isDissociated` — the forward half of functional AHK: the evaluated
+- `RelKernelFamily.evalLaw_isDissociated` — the forward half of the functional
+  Aldous–Hoover–Kallenberg theorem: the evaluated
   law of a kernel family over an i.i.d. latent source is dissociated
 - `InfiniteRelExchangeableLaw.condIndep_fixingAlgebra` — conditional independence of the fixing
   σ-algebras over their intersection, for *every* exchangeable law
@@ -74,15 +75,6 @@ See [docs/verification.md](docs/verification.md) for the audit policy and the pr
 including the resolution of the Rokhlin-style alignment gap and the removal of the last
 known-false stubs.
 
-## Where to start
-
-| If you are | Start here |
-|---|---|
-| A mathematician reading the statements | [Blueprint](https://cameronfreer.github.io/graphon/blueprint/) |
-| A Lean developer looking for declarations | [API docs](https://cameronfreer.github.io/graphon/docs/) |
-| A contributor | the [open issues](https://github.com/cameronfreer/graphon/issues) |
-| Looking for worked examples | `Graphon/SamplingExamples.lean`, `Graphon/DigraphonConstructors.lean` |
-
 ## Architecture
 
 | Area | Contents |
@@ -94,7 +86,7 @@ known-false stubs.
 | Mixture representation | Exchangeable graph laws, graphon mixtures, existence, uniqueness, Diaconis–Janson |
 | Infinite laws | Kolmogorov extension, infinite exchangeability, empirical graphons, samplers, mixture kernels |
 | Extremality | Vertex-tail σ-algebras, restriction independence, invariant action, ergodic decomposition |
-| Relational AHK | Multi-sorted signatures, carriers and topology, exchangeable relational laws, ergodicity, equality patterns, kernel evaluator and sampler, fixing σ-algebras |
+| Relational Aldous–Hoover–Kallenberg | Multi-sorted signatures, carriers and topology, exchangeable relational laws, ergodicity, equality patterns, kernel evaluator and sampler, fixing σ-algebras |
 | Digraphons | Directed carriers and laws, the five-component digraphon, the directed sampler, special families |
 
 The complete module inventory lives in [`Graphon.lean`](Graphon.lean) and the
