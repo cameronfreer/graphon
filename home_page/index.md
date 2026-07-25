@@ -58,12 +58,12 @@ kernel recursion are still being built. The
 
 ## Explore the formalization
 
-- [Blueprint (web)](https://cameronfreer.github.io/graphon/blueprint/) &mdash; statements,
+- [Blueprint (web)]({{ '/blueprint/' | relative_url }}) &mdash; statements,
   dependencies, and the proof narrative
-- [Blueprint (pdf)](https://cameronfreer.github.io/graphon/blueprint/blueprint.pdf)
-- [API documentation](https://cameronfreer.github.io/graphon/docs/) &mdash; the complete module
+- [Blueprint (pdf)]({{ '/blueprint/blueprint.pdf' | relative_url }})
+- [API documentation]({{ '/docs/' | relative_url }}) &mdash; the complete module
   and declaration inventory
-- [Dependency graph](https://cameronfreer.github.io/graphon/blueprint/dep_graph_document.html)
+- [Dependency graph]({{ '/blueprint/dep_graph_document.html' | relative_url }})
 - [Repository](https://github.com/cameronfreer/graphon) &middot;
   [Verification status and history](https://github.com/cameronfreer/graphon/blob/master/docs/verification.md)
 

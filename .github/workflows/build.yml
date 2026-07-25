@@ -49,6 +49,9 @@ jobs:
       - name: Check frozen-stub census and headline axiom audit
         run: bash scripts/check_census_and_axioms.sh
 
+      - name: Check documentation drift (canonical URL, links, inventories)
+        run: python3 scripts/check_site_links.py
+
       - name: Install blueprint dependencies
         run: |
           sudo apt-get update
@@ -78,18 +81,21 @@ jobs:
           lake build Graphon:docs
 
       - name: Set up Ruby
-        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
         uses: ruby/setup-ruby@v1
         with:
           ruby-version: '3.3'
           bundler-cache: true
           working-directory: home_page
 
+      # Built on every trigger so that PRs validate the Liquid syntax and the site
+      # configuration; only assembly, upload, and deployment remain master-only.
       - name: Build homepage
-        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
         run: |
           cd home_page
-          bundle exec jekyll build --baseurl "/graphon" --destination ../_site
+          bundle exec jekyll build --destination ../_site
+
+      - name: Smoke-test the built homepage
+        run: python3 scripts/check_built_site.py
 
       - name: Assemble site
         if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
@@ -98,6 +104,10 @@ jobs:
           cp -r blueprint/web/* _site/blueprint/
           cp blueprint/print/print.pdf _site/blueprint/blueprint.pdf
           if [ -d docbuild/.lake/build/doc ]; then cp -r docbuild/.lake/build/doc _site/docs; fi
+
+      - name: Smoke-test the assembled site
+        if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
+        run: python3 scripts/check_built_site.py --assembled
 
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/master' && github.event_name != 'pull_request'
