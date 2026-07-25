@@ -165,3 +165,8 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms MeasureTheory.Digraphon.measurable_sampleInfinite
 #print axioms MeasureTheory.Digraphon.measurable_sampleFinite
 #print axioms RelSignature.InfiniteRelExchangeableLaw.condIndep_fixingAlgebra
+#print axioms MeasureTheory.Measure.MeasureDense.exists_generateFrom_ae_eq_of_ne_top
+#print axioms MeasureTheory.Measure.MeasureDense.exists_generateFrom_ae_eq
+#print axioms MeasureTheory.measure_symmDiff_threshold_le
+#print axioms MeasurableSpace.comap_mapNatBool
+#print axioms MeasureTheory.isSeparable_trim

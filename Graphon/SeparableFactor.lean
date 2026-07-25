@@ -7,6 +7,7 @@ import Mathlib.MeasureTheory.Measure.SeparableMeasure
 import Mathlib.MeasureTheory.MeasurableSpace.CountablyGenerated
 import Mathlib.MeasureTheory.OuterMeasure.BorelCantelli
 import Mathlib.Analysis.SpecificLimits.Basic
+import Mathlib.MeasureTheory.Function.ConditionalExpectation.AEMeasurable
 
 /-!
 # Countable generation of sub-σ-algebras modulo null sets (R4 converse piece 3, #107)
@@ -42,6 +43,11 @@ is exactly what the factor recursion consumes.
   `ν (E ∆ {x | 1/2 < f x}) ≤ 2 * ‖1_E - f‖₁`, which converts an `L¹`-dense family of
   *functions* into a measure-dense family of *sets*. This is the bridge from separability of
   `Lᵖ` to separability of the measure.
+* `MeasureTheory.isSeparable_trim` — **separability descends to a sub-σ-algebra**:
+  `IsSeparable μ → IsSeparable (μ.trim hm)`. This is the theorem the coherent factor
+  realization rests on and it is not in Mathlib. Stated as a theorem rather than an instance:
+  with both `m` and `m0` in scope an instance invites measurable-space instance drift at every
+  use site.
 * `MeasurableSpace.comap_mapNatBool` — the missing companion to Mathlib's
   `measurable_mapNatBool`: a countably generated σ-algebra is *literally* the pullback of the
   Cantor-space σ-algebra along `mapNatBool`, with no `SeparatesPoints` hypothesis, since
@@ -189,6 +195,78 @@ theorem measure_symmDiff_threshold_le (ν : Measure X) {E : Set X} {f : X → �
     _ ≤ 2 * eLpNorm g 1 ν := by gcongr
 
 end Threshold
+
+/-! ### Separability descends to a sub-σ-algebra -/
+
+section SeparableTrim
+
+/-- **Separability descends to `Measure.trim`.** If `μ` is separable on the ambient
+σ-algebra `m0`, the trimmed measure is separable on any sub-σ-algebra `m ≤ m0`.
+
+This is the theorem the coherent factor realization rests on, and it is not in Mathlib. The
+route is: `Lp ℝ 1 μ` is second-countable because `μ` is separable; the subgroup
+`lpMeasSubgroup ℝ m 1 μ` of `m`-measurable classes inherits second countability as a subtype;
+`lpMeasSubgroupToLpTrimIso` transports it to `Lp ℝ 1 (μ.trim hm)`; a countable dense family
+there is thresholded at `1/2` into a countable family of `m`-measurable *sets*, and
+`measure_symmDiff_threshold_le` turns `L¹` density of the functions into measure density of the
+sets.
+
+Exposed as a theorem rather than an instance: with both `m` and `m0` in scope, an instance would
+be a standing invitation to measurable-space instance drift at every use site. -/
+theorem isSeparable_trim (hm : m ≤ m0) [@IsSeparable X m0 μ] :
+    @IsSeparable X m (μ.trim hm) := by
+  classical
+  haveI : Fact ((1 : ℝ≥0∞) ≤ 1) := ⟨le_rfl⟩
+  haveI : Fact ((1 : ℝ≥0∞) ≠ ∞) := ⟨ENNReal.one_ne_top⟩
+  -- second countability transports from `Lp ℝ 1 μ` to `Lp ℝ 1 (μ.trim hm)`
+  haveI : SecondCountableTopology (Lp ℝ 1 (μ.trim hm)) :=
+    (lpMeasSubgroupToLpTrimIso ℝ 1 μ hm).symm.toHomeomorph.secondCountableTopology
+  obtain ⟨D, hDcount, hDdense⟩ :=
+    TopologicalSpace.exists_countable_dense (Lp ℝ 1 (μ.trim hm))
+  -- threshold each dense function at `1/2`, using an honestly `m`-measurable representative
+  refine ⟨(fun f : Lp ℝ 1 (μ.trim hm) =>
+      {x | 1 / 2 < (Lp.aestronglyMeasurable f).mk _ x}) '' D,
+    hDcount.image _, ?_, ?_⟩
+  · rintro - ⟨f, -, rfl⟩
+    exact measurableSet_lt measurable_const (Lp.aestronglyMeasurable f).stronglyMeasurable_mk.measurable
+  · intro E hE hEtop ε hε
+    -- the indicator of `E` lies in `L¹` of the trimmed measure
+    set F : X → ℝ := E.indicator fun _ => (1 : ℝ) with hF
+    have hind : MemLp F 1 (μ.trim hm) := memLp_indicator_const 1 hE 1 (Or.inr hEtop)
+    set fE : Lp ℝ 1 (μ.trim hm) := hind.toLp F with hfE
+    -- pick a dense function within `ε / 4` of it
+    obtain ⟨g, hgD, hgdist⟩ := Metric.mem_closure_iff.mp (hDdense fE) (ε / 4) (by linarith)
+    refine ⟨{x | 1 / 2 < (Lp.aestronglyMeasurable g).mk _ x}, ⟨g, hgD, rfl⟩, ?_⟩
+    have hgmk : (Lp.aestronglyMeasurable g).mk _ =ᵐ[μ.trim hm] g :=
+      (Lp.aestronglyMeasurable g).ae_eq_mk.symm
+    -- the threshold estimate, with the `L¹` error rewritten as the `Lp` distance
+    have hkey : (μ.trim hm) (E ∆ {x | 1 / 2 < (Lp.aestronglyMeasurable g).mk _ x}) ≤
+        2 * eLpNorm ((fE : X → ℝ) - (g : X → ℝ)) 1 (μ.trim hm) := by
+      refine (measure_symmDiff_threshold_le (μ.trim hm) (E := E)
+        (f := (Lp.aestronglyMeasurable g).mk _) hE
+        (Lp.aestronglyMeasurable g).stronglyMeasurable_mk.aestronglyMeasurable).trans ?_
+      gcongr
+      refine le_of_eq (eLpNorm_congr_ae ?_)
+      filter_upwards [hgmk, hind.coeFn_toLp] with x hx hy
+      simp only [Pi.sub_apply]
+      rw [hx, hy]
+    refine lt_of_le_of_lt hkey ?_
+    -- and the `Lp` distance is at most `ε / 4`
+    have hdist : eLpNorm ((fE : X → ℝ) - (g : X → ℝ)) 1 (μ.trim hm) < ENNReal.ofReal (ε / 4) := by
+      rw [dist_eq_norm, Lp.norm_def] at hgdist
+      calc eLpNorm ((fE : X → ℝ) - (g : X → ℝ)) 1 (μ.trim hm)
+          = eLpNorm ((fE - g : Lp ℝ 1 (μ.trim hm)) : X → ℝ) 1 (μ.trim hm) :=
+            (eLpNorm_congr_ae (Lp.coeFn_sub _ _)).symm
+        _ < ENNReal.ofReal (ε / 4) := by
+            rw [← ENNReal.ofReal_toReal (Lp.memLp (fE - g)).eLpNorm_ne_top]
+            exact (ENNReal.ofReal_lt_ofReal_iff (by linarith)).mpr hgdist
+    calc 2 * eLpNorm ((fE : X → ℝ) - (g : X → ℝ)) 1 (μ.trim hm)
+        ≤ 2 * ENNReal.ofReal (ε / 4) := by gcongr
+      _ < ENNReal.ofReal ε := by
+          rw [show (2 : ℝ≥0∞) = ENNReal.ofReal 2 by simp, ← ENNReal.ofReal_mul (by norm_num)]
+          exact (ENNReal.ofReal_lt_ofReal_iff hε).mpr (by linarith)
+
+end SeparableTrim
 
 end MeasureTheory
 
