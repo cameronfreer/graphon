@@ -74,15 +74,6 @@ See [docs/verification.md](docs/verification.md) for the audit policy and the pr
 including the resolution of the Rokhlin-style alignment gap and the removal of the last
 known-false stubs.
 
-## Where to start
-
-| If you are | Start here |
-|---|---|
-| A mathematician reading the statements | [Blueprint](https://cameronfreer.github.io/graphon/blueprint/) |
-| A Lean developer looking for declarations | [API docs](https://cameronfreer.github.io/graphon/docs/) |
-| A contributor | the [open issues](https://github.com/cameronfreer/graphon/issues) |
-| Looking for worked examples | `Graphon/SamplingExamples.lean`, `Graphon/DigraphonConstructors.lean` |
-
 ## Architecture
 
 | Area | Contents |
