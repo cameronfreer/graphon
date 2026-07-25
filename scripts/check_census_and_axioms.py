@@ -189,6 +189,14 @@ AUDITED_DECLS = {
     "MeasureTheory.Digraphon.measurable_sampleInfinite",
     "MeasureTheory.Digraphon.measurable_sampleFinite",
     "RelSignature.InfiniteRelExchangeableLaw.condIndep_fixingAlgebra",
+    "MeasureTheory.Measure.MeasureDense.exists_generateFrom_ae_eq_of_ne_top",
+    "MeasureTheory.Measure.MeasureDense.exists_generateFrom_ae_eq",
+    "MeasureTheory.measure_symmDiff_threshold_le",
+    "MeasurableSpace.comap_mapNatBool",
+    "MeasureTheory.isSeparable_trim",
+    "MeasureTheory.exists_measurable_comap_ae_generates",
+    "RelSignature.CoherentBasis.exists_comap_factorMap_ae_eq",
+    "RelSignature.CoherentBasis.measurable_factorMap",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
