@@ -170,4 +170,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms MeasureTheory.measure_symmDiff_threshold_le
 #print axioms MeasurableSpace.comap_mapNatBool
 #print axioms MeasureTheory.isSeparable_trim
-#print axioms MeasureTheory.exists_measurable_comap_ae_eq
+#print axioms MeasureTheory.exists_measurable_comap_ae_generates
+#print axioms RelSignature.CoherentBasis.exists_comap_factorMap_ae_eq
+#print axioms RelSignature.CoherentBasis.measurable_factorMap

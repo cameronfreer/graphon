@@ -48,7 +48,8 @@ is exactly what the factor recursion consumes.
   realization rests on and it is not in Mathlib. Stated as a theorem rather than an instance:
   with both `m` and `m0` in scope an instance invites measurable-space instance drift at every
   use site.
-* `MeasureTheory.exists_measurable_comap_ae_eq` — **factor existence for one sub-σ-algebra**:
+* `MeasureTheory.exists_measurable_comap_ae_generates` — **factor existence for one
+  sub-σ-algebra**:
   over a separable finite measure, `m ≤ m0` admits an `m`-measurable Cantor-space factor map
   whose pullback sits inside `m` and captures every `m`-event modulo null sets. This is the
   single-algebra statement only — see its docstring for why it does not extend to a coherent
@@ -302,7 +303,8 @@ section Factor
 /-- **Factor existence for one sub-σ-algebra**: over a separable finite measure, any
 sub-σ-algebra `m ≤ m0` admits a Cantor-space factor map `q` such that
 
-* `q` is `m`-measurable, so its pullback `comap q` sits inside `m`; and
+* `q` is `m`-measurable — equivalently `comap q ≤ m`, via `Measurable.comap_le`, so only the
+  measurability is stated; and
 * every `m`-event agrees a.e. with a `comap q`-event.
 
 So `comap q` captures `m` exactly modulo null sets, while remaining an honest pullback — the
@@ -317,9 +319,9 @@ sub-σ-algebra whose Cantor factor is exact by `comap_mapNatBool`, and
 family: `mapNatBool` is built from a typeclass-chosen generating sequence, which provides
 neither literal index inclusion for `C ⊆ A` nor equivariance between different members of a
 family. A coherent family needs a common index set chosen up front. -/
-theorem exists_measurable_comap_ae_eq (hm : m ≤ m0) [@IsSeparable X m0 μ] [IsFiniteMeasure μ] :
+theorem exists_measurable_comap_ae_generates (hm : m ≤ m0) [@IsSeparable X m0 μ]
+    [IsFiniteMeasure μ] :
     ∃ q : X → (ℕ → Bool), Measurable[m] q ∧
-      MeasurableSpace.comap q inferInstance ≤ m ∧
       ∀ E, MeasurableSet[m] E →
         ∃ E', MeasurableSet[MeasurableSpace.comap q inferInstance] E' ∧ E' =ᵐ[μ] E := by
   obtain ⟨G, hGcount, hG⟩ := (isSeparable_trim (μ := μ) hm).1
@@ -331,10 +333,8 @@ theorem exists_measurable_comap_ae_eq (hm : m ≤ m0) [@IsSeparable X m0 μ] [Is
     @CountablyGenerated.mk X (generateFrom G) ⟨G, hGcount, rfl⟩
   have hGm : ∀ s ∈ G, MeasurableSet[m] s := hG.measurable
   have hm'm : generateFrom G ≤ m := generateFrom_le hGm
-  refine ⟨@mapNatBool X (generateFrom G) _, ?_, ?_, ?_⟩
+  refine ⟨@mapNatBool X (generateFrom G) _, ?_, ?_⟩
   · exact (@measurable_mapNatBool X (generateFrom G) _).mono hm'm le_rfl
-  · rw [@comap_mapNatBool X (generateFrom G) _]
-    exact hm'm
   · intro E hE
     rw [@comap_mapNatBool X (generateFrom G) _]
     exact hG.exists_generateFrom_ae_eq hm hE

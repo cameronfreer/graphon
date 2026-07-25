@@ -194,7 +194,9 @@ AUDITED_DECLS = {
     "MeasureTheory.measure_symmDiff_threshold_le",
     "MeasurableSpace.comap_mapNatBool",
     "MeasureTheory.isSeparable_trim",
-    "MeasureTheory.exists_measurable_comap_ae_eq",
+    "MeasureTheory.exists_measurable_comap_ae_generates",
+    "RelSignature.CoherentBasis.exists_comap_factorMap_ae_eq",
+    "RelSignature.CoherentBasis.measurable_factorMap",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
