@@ -33,7 +33,7 @@ jobs:
           swap-storage: false
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Build Lean project and blueprint
         uses: leanprover/lean-action@c544e89643240c6b398f14a431bcdc6309e36b3e
