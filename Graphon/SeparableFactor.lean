@@ -48,6 +48,11 @@ is exactly what the factor recursion consumes.
   realization rests on and it is not in Mathlib. Stated as a theorem rather than an instance:
   with both `m` and `m0` in scope an instance invites measurable-space instance drift at every
   use site.
+* `MeasureTheory.exists_measurable_comap_ae_eq` — **factor existence for one sub-σ-algebra**:
+  over a separable finite measure, `m ≤ m0` admits an `m`-measurable Cantor-space factor map
+  whose pullback sits inside `m` and captures every `m`-event modulo null sets. This is the
+  single-algebra statement only — see its docstring for why it does not extend to a coherent
+  family.
 * `MeasurableSpace.comap_mapNatBool` — the missing companion to Mathlib's
   `measurable_mapNatBool`: a countably generated σ-algebra is *literally* the pullback of the
   Cantor-space σ-algebra along `mapNatBool`, with no `SeparatesPoints` hypothesis, since
@@ -57,6 +62,28 @@ is exactly what the factor recursion consumes.
 open Filter MeasurableSpace Set
 
 open scoped ENNReal symmDiff Topology
+
+/-! ### The Cantor factor of a countably generated σ-algebra -/
+
+namespace MeasurableSpace
+
+/-- **The Cantor factor is exact**: a countably generated σ-algebra is *literally* the pullback
+of the Cantor-space σ-algebra along `MeasurableSpace.mapNatBool` — no null sets involved. This
+is the missing companion to Mathlib's `measurable_mapNatBool` / `injective_mapNatBool`: it needs
+`CountablyGenerated` but **not** `SeparatesPoints`, since injectivity of the factor map is
+irrelevant to the pullback identity. -/
+theorem comap_mapNatBool (X : Type*) [m : MeasurableSpace X] [CountablyGenerated X] :
+    MeasurableSpace.comap (mapNatBool X) inferInstance = m := by
+  refine le_antisymm (measurable_mapNatBool X).comap_le ?_
+  conv_lhs => rw [← generateFrom_natGeneratingSequence X]
+  refine generateFrom_le fun s hs => ?_
+  obtain ⟨n, rfl⟩ := hs
+  refine ⟨(fun f : ℕ → Bool => f n) ⁻¹' {true},
+    (measurable_pi_apply n) (measurableSet_singleton true), ?_⟩
+  ext x
+  simp [mapNatBool]
+
+end MeasurableSpace
 
 namespace MeasureTheory
 
@@ -268,26 +295,51 @@ theorem isSeparable_trim (hm : m ≤ m0) [@IsSeparable X m0 μ] :
 
 end SeparableTrim
 
+/-! ### The factor map of a single sub-σ-algebra -/
+
+section Factor
+
+/-- **Factor existence for one sub-σ-algebra**: over a separable finite measure, any
+sub-σ-algebra `m ≤ m0` admits a Cantor-space factor map `q` such that
+
+* `q` is `m`-measurable, so its pullback `comap q` sits inside `m`; and
+* every `m`-event agrees a.e. with a `comap q`-event.
+
+So `comap q` captures `m` exactly modulo null sets, while remaining an honest pullback — the
+statement never asserts an equality of σ-algebras "modulo null sets".
+
+This assembles the three preceding results: `isSeparable_trim` produces a countable
+measure-dense family for the trimmed measure, that family generates a countably generated
+sub-σ-algebra whose Cantor factor is exact by `comap_mapNatBool`, and
+`Measure.MeasureDense.exists_generateFrom_ae_eq` supplies the a.e. representatives.
+
+**This is the single-algebra statement only.** It is deliberately *not* the tool for a coherent
+family: `mapNatBool` is built from a typeclass-chosen generating sequence, which provides
+neither literal index inclusion for `C ⊆ A` nor equivariance between different members of a
+family. A coherent family needs a common index set chosen up front. -/
+theorem exists_measurable_comap_ae_eq (hm : m ≤ m0) [@IsSeparable X m0 μ] [IsFiniteMeasure μ] :
+    ∃ q : X → (ℕ → Bool), Measurable[m] q ∧
+      MeasurableSpace.comap q inferInstance ≤ m ∧
+      ∀ E, MeasurableSet[m] E →
+        ∃ E', MeasurableSet[MeasurableSpace.comap q inferInstance] E' ∧ E' =ᵐ[μ] E := by
+  obtain ⟨G, hGcount, hG⟩ := (isSeparable_trim (μ := μ) hm).1
+  -- the family generates a countably generated sub-σ-algebra of `m`.
+  -- `generateFrom G` is spelled out rather than abbreviated: a local of type
+  -- `MeasurableSpace X` would become the most recent instance candidate and hijack the
+  -- `MeasurableSet` obligations that must stay on `m`.
+  haveI : @CountablyGenerated X (generateFrom G) :=
+    @CountablyGenerated.mk X (generateFrom G) ⟨G, hGcount, rfl⟩
+  have hGm : ∀ s ∈ G, MeasurableSet[m] s := hG.measurable
+  have hm'm : generateFrom G ≤ m := generateFrom_le hGm
+  refine ⟨@mapNatBool X (generateFrom G) _, ?_, ?_, ?_⟩
+  · exact (@measurable_mapNatBool X (generateFrom G) _).mono hm'm le_rfl
+  · rw [@comap_mapNatBool X (generateFrom G) _]
+    exact hm'm
+  · intro E hE
+    rw [@comap_mapNatBool X (generateFrom G) _]
+    exact hG.exists_generateFrom_ae_eq hm hE
+
+end Factor
+
 end MeasureTheory
 
-/-! ### The Cantor factor of a countably generated σ-algebra -/
-
-namespace MeasurableSpace
-
-/-- **The Cantor factor is exact**: a countably generated σ-algebra is *literally* the pullback
-of the Cantor-space σ-algebra along `MeasurableSpace.mapNatBool` — no null sets involved. This
-is the missing companion to Mathlib's `measurable_mapNatBool` / `injective_mapNatBool`: it needs
-`CountablyGenerated` but **not** `SeparatesPoints`, since injectivity of the factor map is
-irrelevant to the pullback identity. -/
-theorem comap_mapNatBool (X : Type*) [m : MeasurableSpace X] [CountablyGenerated X] :
-    MeasurableSpace.comap (mapNatBool X) inferInstance = m := by
-  refine le_antisymm (measurable_mapNatBool X).comap_le ?_
-  conv_lhs => rw [← generateFrom_natGeneratingSequence X]
-  refine generateFrom_le fun s hs => ?_
-  obtain ⟨n, rfl⟩ := hs
-  refine ⟨(fun f : ℕ → Bool => f n) ⁻¹' {true},
-    (measurable_pi_apply n) (measurableSet_singleton true), ?_⟩
-  ext x
-  simp [mapNatBool]
-
-end MeasurableSpace
