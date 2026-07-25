@@ -31,11 +31,17 @@ is exactly what the factor recursion consumes.
 
 ## Contents
 
-* `MeasureTheory.Measure.MeasureDense.exists_generateFrom_ae_eq` — the upgrade from
-  *approximation* to *a.e. representatives*: if `G` is countable and measure-dense for the
-  trimmed measure, every `m`-measurable event agrees a.e. with a `generateFrom G`-measurable
-  one. Proved by summable symmetric-difference approximation and Borel–Cantelli — measure
-  density alone gives only approximation, which is not the consumer API.
+* `MeasureTheory.Measure.MeasureDense.exists_generateFrom_ae_eq_of_ne_top` — the upgrade from
+  *approximation* to *a.e. representatives*: if `G` is measure-dense for the trimmed measure,
+  every `m`-measurable event of finite trimmed measure agrees a.e. with a
+  `generateFrom G`-measurable one. Proved by summable symmetric-difference approximation and
+  Borel–Cantelli — measure density alone gives only approximation, which is not the consumer
+  API. No countability of `G` is required; countability matters only when `G` is turned into a
+  factor space. `exists_generateFrom_ae_eq` is the `[IsFiniteMeasure μ]` corollary.
+* `MeasurableSpace.comap_mapNatBool` — the missing companion to Mathlib's
+  `measurable_mapNatBool`: a countably generated σ-algebra is *literally* the pullback of the
+  Cantor-space σ-algebra along `mapNatBool`, with no `SeparatesPoints` hypothesis, since
+  injectivity of the factor map is irrelevant to the pullback identity.
 -/
 
 open Filter MeasurableSpace Set
@@ -53,19 +59,17 @@ variable {X : Type*} {m0 : MeasurableSpace X} {μ : Measure X} {m : MeasurableSp
 
 section AeGenerate
 
-/-- **A geometric approximating sequence** drawn from a measure-dense family: every
-`m`-measurable event is approximated by members of `G` with summable errors. Split out of
-`Measure.MeasureDense.exists_generateFrom_ae_eq` because the summability bookkeeping is
-independent of the Borel–Cantelli step. -/
-private theorem exists_seq_measure_symmDiff_le (hm : m ≤ m0) [IsFiniteMeasure μ]
+/-- **A geometric approximating sequence** drawn from a measure-dense family: an `m`-measurable
+event of finite trimmed measure is approximated by members of `G` with summable errors. Split
+out of `Measure.MeasureDense.exists_generateFrom_ae_eq_of_ne_top` because the summability
+bookkeeping is independent of the Borel–Cantelli step. -/
+private theorem exists_seq_measure_symmDiff_le (hm : m ≤ m0)
     {G : Set (Set X)} (hG : (μ.trim hm).MeasureDense G) {E : Set X}
-    (hE : MeasurableSet[m] E) :
+    (hE : MeasurableSet[m] E) (hμE : (μ.trim hm) E ≠ ∞) :
     ∃ t : ℕ → Set X, (∀ n, t n ∈ G) ∧ ∀ n, μ (E ∆ t n) ≤ (2 : ℝ≥0∞)⁻¹ ^ n := by
-  haveI : IsFiniteMeasure (μ.trim hm) := isFiniteMeasure_trim hm
   have hchoose : ∀ n : ℕ, ∃ t ∈ G, μ (E ∆ t) ≤ (2 : ℝ≥0∞)⁻¹ ^ n := by
     intro n
-    obtain ⟨t, htG, hlt⟩ :=
-      hG.approx E hE (measure_ne_top _ _) ((2 : ℝ)⁻¹ ^ n) (by positivity)
+    obtain ⟨t, htG, hlt⟩ := hG.approx E hE hμE ((2 : ℝ)⁻¹ ^ n) (by positivity)
     refine ⟨t, htG, ?_⟩
     have hmeas : MeasurableSet[m] (E ∆ t) := hE.symmDiff (hG.measurable t htG)
     have htrim : (μ.trim hm) (E ∆ t) = μ (E ∆ t) := trim_measurableSet_eq hm hmeas
@@ -76,19 +80,22 @@ private theorem exists_seq_measure_symmDiff_le (hm : m ≤ m0) [IsFiniteMeasure 
   choose t htG ht using hchoose
   exact ⟨t, htG, ht⟩
 
-/-- **Measure density upgrades to a.e. representatives.** If a countable family `G` is
-measure-dense for the trimmed measure `μ.trim hm`, then every `m`-measurable event has a
+/-- **Measure density upgrades to a.e. representatives.** If `G` is measure-dense for the
+trimmed measure `μ.trim hm`, then every `m`-measurable event of finite trimmed measure has a
 `generateFrom G`-measurable a.e. representative.
 
 This is the statement the factor construction consumes: measure density by itself provides only
 *approximation*, whereas the recursion needs actual representatives. The gap is closed by
 choosing approximants with summable errors and applying Borel–Cantelli — the representative is
-`limsup t n`, and `E ∆ limsup t n` is contained in the limsup of the error sets. -/
-theorem Measure.MeasureDense.exists_generateFrom_ae_eq (hm : m ≤ m0) [IsFiniteMeasure μ]
+`limsup t n`, and `E ∆ limsup t n` is contained in the limsup of the error sets.
+
+No countability of `G` is needed here; countability matters only when `G` is turned into a
+factor space. -/
+theorem Measure.MeasureDense.exists_generateFrom_ae_eq_of_ne_top (hm : m ≤ m0)
     {G : Set (Set X)} (hG : (μ.trim hm).MeasureDense G) {E : Set X}
-    (hE : MeasurableSet[m] E) :
+    (hE : MeasurableSet[m] E) (hμE : (μ.trim hm) E ≠ ∞) :
     ∃ E', MeasurableSet[generateFrom G] E' ∧ E' =ᵐ[μ] E := by
-  obtain ⟨t, htG, ht⟩ := exists_seq_measure_symmDiff_le hm hG hE
+  obtain ⟨t, htG, ht⟩ := exists_seq_measure_symmDiff_le hm hG hE hμE
   have hsum : ∑' n, μ (E ∆ t n) ≠ ∞ := by
     refine ne_top_of_le_ne_top ?_ (ENNReal.tsum_le_tsum ht)
     rw [ENNReal.tsum_geometric]
@@ -115,6 +122,38 @@ theorem Measure.MeasureDense.exists_generateFrom_ae_eq (hm : m ≤ m0) [IsFinite
       by_contra hmem
       exact hn (Set.mem_symmDiff.mpr (Or.inl ⟨hxE, hmem⟩))
 
+/-- **Measure density upgrades to a.e. representatives, finite-measure form** — the shape the
+`R4` factor construction uses, where the ambient measure is a probability measure and the
+finiteness side condition is automatic. -/
+theorem Measure.MeasureDense.exists_generateFrom_ae_eq (hm : m ≤ m0) [IsFiniteMeasure μ]
+    {G : Set (Set X)} (hG : (μ.trim hm).MeasureDense G) {E : Set X}
+    (hE : MeasurableSet[m] E) :
+    ∃ E', MeasurableSet[generateFrom G] E' ∧ E' =ᵐ[μ] E :=
+  haveI : IsFiniteMeasure (μ.trim hm) := isFiniteMeasure_trim hm
+  hG.exists_generateFrom_ae_eq_of_ne_top hm hE (measure_ne_top _ _)
+
 end AeGenerate
 
 end MeasureTheory
+
+/-! ### The Cantor factor of a countably generated σ-algebra -/
+
+namespace MeasurableSpace
+
+/-- **The Cantor factor is exact**: a countably generated σ-algebra is *literally* the pullback
+of the Cantor-space σ-algebra along `MeasurableSpace.mapNatBool` — no null sets involved. This
+is the missing companion to Mathlib's `measurable_mapNatBool` / `injective_mapNatBool`: it needs
+`CountablyGenerated` but **not** `SeparatesPoints`, since injectivity of the factor map is
+irrelevant to the pullback identity. -/
+theorem comap_mapNatBool (X : Type*) [m : MeasurableSpace X] [CountablyGenerated X] :
+    MeasurableSpace.comap (mapNatBool X) inferInstance = m := by
+  refine le_antisymm (measurable_mapNatBool X).comap_le ?_
+  conv_lhs => rw [← generateFrom_natGeneratingSequence X]
+  refine generateFrom_le fun s hs => ?_
+  obtain ⟨n, rfl⟩ := hs
+  refine ⟨(fun f : ℕ → Bool => f n) ⁻¹' {true},
+    (measurable_pi_apply n) (measurableSet_singleton true), ?_⟩
+  ext x
+  simp [mapNatBool]
+
+end MeasurableSpace
