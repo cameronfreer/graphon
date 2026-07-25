@@ -1,131 +1,79 @@
 ---
 ---
 
-A Lean 4 formalization of **graphons** &mdash; the theory of limits of dense graph sequences &mdash; building on [Mathlib](https://leanprover-community.github.io/mathlib4/).
+Graphons, exchangeability, and relational limit theory, formalized in Lean 4 on top of
+[Mathlib](https://leanprover-community.github.io/mathlib4/).
 
-## Main Results
+**Core graphon program complete · zero placeholders · standard axioms only**
 
-- **Cut distance pseudometric** &mdash; Cut distance is a pseudometric on graphons: symmetry, triangle inequality, and non-negativity, with pullback invariance under measure-preserving bijections.
-- **Frieze&ndash;Kannan weak regularity lemma** &mdash; Every graphon admits arbitrarily fine regular step-function approximations, with quantitative energy increment bounds.
-- **Counting lemma** &mdash; Small cut distance implies similar homomorphism densities for all finite graphs.
-- **Inverse counting lemma** &mdash; For every &epsilon; > 0, finitely many test graphs control cut distance up to &epsilon; (the quantitative inverse counting lemma).
-- **Compactness** &mdash; The cut-distance quotient modulo weak isomorphism is a compact metric space; concretely, we prove total boundedness and completeness of the graphon pseudometric space.
-- **Convergence equivalence** &mdash; A sequence of graphons converges in cut distance if and only if all homomorphism densities converge.
+## Research programs
 
-## Scope
+**Graphon analysis.** Graphons as symmetric measurable functions on a probability space; the cut
+norm and cut distance; step approximations and Frieze&ndash;Kannan regularity; the counting and
+inverse counting lemmas; compactness of the graphon space. Underneath sits an atomless
+standard-Borel measure-isomorphism theorem and the overlay theorem, which together replace the
+coupling step that classical treatments leave implicit.
 
-The formalization covers:
+**Diaconis&ndash;Janson and Aldous&ndash;Hoover.** Exchangeable random graphs, graphon mixtures,
+and the representation theorem identifying the two; the infinite-law correspondence; empirical
+graphons and their almost-sure convergence; the extremality equivalences characterizing
+dissociated laws.
 
-- **Graphon infrastructure** &mdash; Graphons as symmetric measurable functions on probability spaces, with AE equivalence classes (`Graphon`).
-- **Cut distance** &mdash; Cut norm, cut distance as infimum over measure-preserving couplings (`cutNormDiff`, `cutDistance`), pseudometric properties including the triangle inequality via the proved Rokhlin coupling cores.
-- **Step graphons** &mdash; Measurable partitions (`MeasurablePartition`), step functions, stepification, and partition operations (splitting, refinement).
-- **Regularity** &mdash; Energy of partitions, energy increment under refinement, the Frieze&ndash;Kannan weak regularity lemma (`regularity`).
-- **Homomorphism densities** &mdash; Graph homomorphism density (`homDensity`), the counting lemma (`homDensity_sub_le`), and weighted homomorphism sums.
-- **Compactness** &mdash; Total boundedness via partition grids (`totallyBounded`), completeness via limit construction (`complete`).
-- **Inverse counting** &mdash; Step inverse counting, quantitative inverse counting lemma (`cutDistance_le_of_homDensity_close`), and convergence equivalence (`cutDistance_tendsto_iff_homDensity_tendsto`).
+**Generic relational exchangeability.** A multi-sorted relational signature framework: carriers,
+topology, exchangeable laws, ergodicity, and equality patterns, developed for arbitrary arity
+rather than graphs alone &mdash; the setting of the Aldous&ndash;Hoover&ndash;Kallenberg theorem.
 
-## Proof Status
+**Digraphons.** Directed graph limits: the five-component digraphon with its four reciprocal-edge
+pair kernels, the directed sampler, and the special families (graphon embeddings, tournaments,
+asymmetric kernels).
 
-**The advertised program is fully proved.** No live `sorry` remains: every headline theorem &mdash; the determination theorem `cutDistance_zero_of_homDensity_eq`, compactness (`totallyBounded`, `complete`, `compact`), the triangle inequality `cutDistance_triangle`, and the First Sampling Lemma `first_sampling_lemma` &mdash; verifies with the standard axioms only (`propext`, `Classical.choice`, `Quot.sound`). No custom axioms are introduced, and CI enforces the axiom audit and the `sorry` census.
+## Landmark results
 
-| Formerly pending | Resolution |
-|------------------|------------|
-| **Rokhlin-style alignment** (was `exists_common_extension`) | The original monolith was shown unprovable as stated and replaced by four corrected cores, all proved from the atomless standard-Borel measure-isomorphism theorem built in `Graphon/MeasureIso.lean`; the final overlay core (`exists_mpEquiv_cutNormDiff_lt_add`) is proved in `Graphon/Overlay.lean` |
-| **First Sampling Lemma** (Lov&aacute;sz Lemma 10.16 / BCLSV Thm 4.6) | Proved (`first_sampling_lemma`, `Graphon/SamplingLemma.lean`) by recombining the pointwise AFKK cut-guessing bound (`Graphon/SamplingPointwise.lean`) with the finite rounding certificate (`Graphon/SamplingRounding.lean`) |
+- **`cutDistance_triangle`** &mdash; the cut distance is a pseudometric, via four corrected
+  Rokhlin-style coupling cores.
+- **`regularity`** &mdash; Frieze&ndash;Kannan weak regularity: bounded-complexity step
+  approximation of every graphon.
+- **`cutDistance_tendsto_iff_homDensity_tendsto`** &mdash; cut-distance convergence is exactly
+  convergence of all homomorphism densities.
+- **`first_sampling_lemma`** &mdash; a single sample size works for every graphon simultaneously.
+- **`samplePMF_eq_all_iff_weaklyIsomorphic`** &mdash; the sample laws determine the graphon.
+- **`graphon_mixture_representation`** &mdash; the Diaconis&ndash;Janson theorem: exchangeable
+  graph laws are graphon mixtures, uniquely.
+- **`tfae_ergodic_extremality`** &mdash; a six-way equivalence: dissociated, restriction
+  independent, tail trivial, ergodic, extreme, Dirac-represented.
+- **`InfiniteRelExchangeableLaw.condIndep_fixingAlgebra`** &mdash; for *every* exchangeable
+  relational law, the fixing &sigma;-algebras of two finite vertex sets are conditionally
+  independent given their intersection.
 
-**Algebraic determination is PROVED** (2026-07-06): `matrix_quotient_of_weightedHomSum_eq` (Lov&aacute;sz Theorem 5.30, k&ge;2 positive-weight case) is axiom-clean, via the twin-free bijection and the cross-matrix super-surjective transfer (`Graphon/CrossSuper.lean`).
+## Current frontier
 
-The project contains zero `sorry` statements (issue #19, completed 2026-07-11): the formerly-retained known-false stubs in `MatrixDetermination.lean`, `Lovasz.lean`, and `Spectral.lean` were all deleted, with their refutation documentation kept as prose. The CI census enforces strictly zero sorry/admit tokens.
+The classical graphon program and the graph-level Diaconis&ndash;Janson / Aldous&ndash;Hoover
+theory are complete. The **generic functional Aldous&ndash;Hoover&ndash;Kallenberg theorem** for
+arbitrary relational signatures is in progress: the forward direction and the conditional
+independence underpinning the converse are proved, while the coherent factor realization and the
+kernel recursion are still being built. The
+[open issues](https://github.com/cameronfreer/graphon/issues) track this work.
 
-## Components
+## Explore the formalization
 
-| File | Status | Contents |
-|------|--------|----------|
-| `Graphon/Basic.lean` | Core | Graphon definition, symmetry, boundedness, AE equivalence |
-| `Graphon/Pullback.lean` | Core | Pullback under measure-preserving maps |
-| `Graphon/Step.lean` | Core | Measurable partitions, step functions, stepification |
-| `Graphon/HomDensity.lean` | Core | Homomorphism density definition and basic properties |
-| `Graphon/CutNorm.lean` | Core | Cut norm, graphon integrability |
-| `Graphon/Approximation.lean` | Core | Rectangle averages, cut norm approximation, partition splitting |
-| `Graphon/CutDistance.lean` | Core | Cut distance, pseudometric properties, three of the four Rokhlin cores |
-| `Graphon/MeasureIso.lean` | Core | Atomless standard-Borel measure-isomorphism theorem (graphon-independent; mod-0 iso + everywhere upgrade) |
-| `Graphon/Overlay.lean` | Core | Overlay theorem: an MP bijection nearly achieves the cut distance (fourth Rokhlin core) |
-| `Graphon/Regularity.lean` | Core | Energy, energy increment, Frieze&ndash;Kannan weak regularity lemma |
-| `Graphon/Counting.lean` | Core | Homomorphism density, counting lemma |
-| `Graphon/Compactness.lean` | Core | Total boundedness, completeness, limit construction |
-| `Graphon/GraphonSpace.lean` | Core | Graphon space: compact Polish standard-Borel metric quotient under weak isomorphism |
-| `Graphon/InfiniteGraph.lean` | Core | Infinite graph space: compact Polish standard-Borel; finite restrictions + measure extensionality (A–H brick A1) |
-| `Graphon/CaiGovorov.lean` | Core | Graph-free Vandermonde argument (Cai&ndash;Govorov &sect;4) |
-| `Graphon/Lovasz.lean` | Core | Connection-matrix algebra (Lov&aacute;sz &sect;3), orbit separation, rank theorem |
-| `Graphon/CrossSuper.lean` | Core | Cross-matrix super-surjective transfer (Cai&ndash;Govorov Lemma 5.1, partition form) |
-| `Graphon/SimpleRank.lean` | Core | K=1 simple-graph rank theorem, algebra-atom framing |
-| `Graphon/CycleKrylov.lean` | Core | Cycle&ndash;Krylov spectral slice of the square-moment descent |
-| `Graphon/MatrixDetermination.lean` | Core | Algebraic determination of step graphons |
-| `Graphon/SamplingICL.lean` | Core | Sampling route: finite-graph embedding, good mass, First Sampling Lemma interface, K-independent quantitative ICL |
-| `Graphon/SamplingConcentration.lean` | Core | Concentration scaffold: conditional edge distribution, weighted sampled graphon, two-stage reduction of the First Sampling Lemma |
-| `Graphon/SamplingRounding.lean` | Core | Rounding half of the First Sampling Lemma, PROVED: deterministic cut certificate + finite Chernoff/union bound (`rounding_event_of_large_k`) |
-| `Graphon/SamplingPointwise.lean` | Core | Pointwise half of the First Sampling Lemma: AFKK / Lov&aacute;sz-10.7 cut-guessing bound (`point_sampling_event_of_large_k`), McDiarmid-at-MGF + soft-max infrastructure |
-| `Graphon/SamplingLemma.lean` | Core | First Sampling Lemma (`first_sampling_lemma`): recombination of the two concentration events; K-independent quantitative ICL |
-| `Graphon/SamplingLaw.lean` | Core | Finite sample law: `samplePMF`/`sampleLaw`, Möbius/upper-transform engine, relabeling invariance, arbitrary-injection consistency |
-| `Graphon/SamplingExamples.lean` | Core | Constant graphon samples the binomial random graph `G(V, p)` (`sampleLaw_const_eq_binomial`) |
-| `Graphon/SamplingDetermination.lean` | Core | Sample laws determine the graphon (`samplePMF_eq_all_iff_weaklyIsomorphic`, `GraphonSpace` form) |
-| `Graphon/SamplingCoordinates.lean` | Core | Continuous point-separating sample-law coordinates; compact coordinate embedding of the graphon space |
-| `Graphon/ExchangeableGraphLaw.lean` | Core | Exchangeable graph laws (consistent finite marginals), graphon mixtures, mixtures are exchangeable |
-| `Graphon/MixtureConvergence.lean` | Core | Weak-convergence layer: mixture coordinates as integrals, Prokhorov extraction, empirical mixing measures |
-| `Graphon/HomDensityAlgebra.lean` | Core | Hom-density coordinates on the graphon space; multiplicativity over disjoint unions |
-| `Graphon/MixtureCoordinates.lean` | Core | Shared mixture-coordinate layer: hom-density coordinates as BCFs; integrals = mixture upper masses |
-| `Graphon/MixtureUniqueness.lean` | Core | Uniqueness of the graphon mixture: coordinate algebra separates points; `mixtureExchangeableLaw` injective |
-| `Graphon/SamplingFinite.lean` | Core | Exact finite-sampling formula: sampling an embedded finite graph = uniform vertex-map pullback |
-| `Graphon/MixtureExistence.lean` | Core | Existence of the graphon mixture: collision estimate for empirical mixing measures; every exchangeable law is a mixture |
-| `Graphon/MixtureRepresentation.lean` | Core | Diaconis–Janson representation theorem: exchangeable graph laws = graphon mixtures, uniquely |
-| `Graphon/MixtureExtremality.lean` | Core | Diaconis–Janson extremality: dissociated exchangeable laws = Dirac mixtures |
-| `Graphon/InfiniteLaw.lean` | Core | Infinite exchangeable graph law: unique compactness-based Kolmogorov extension of the finite marginals (A–H brick A2) |
-| `Graphon/InfiniteExchangeability.lean` | Core | Exchangeability of the infinite law; `ExchangeableGraphLaw ≃ InfiniteExchangeableGraphLaw` (A–H brick A3) |
-| `Graphon/InfiniteRepresentation.lean` | Core | Infinite Diaconis–Janson/Aldous–Hoover correspondence: mixing measures ≃ infinite exchangeable laws |
-| `Graphon/InfiniteSampleLaw.lean` | Core | Canonical infinite law of a graphon class: marginals, continuity, closed embedding |
-| `Graphon/EmpiricalGraphon.lean` | Core | Empirical graphons of an infinite exchangeable graph: distributional convergence to the representing measure |
-| `Graphon/InfiniteExtremality.lean` | Core | Extremality for infinite exchangeable laws: dissociated ↔ single-class canonical law ↔ Dirac |
-| `Graphon/InfiniteSampler.lean` | Core | Explicit infinite sampler for a fixed graphon: explicit sampler realizes the infinite law exactly |
-| `Graphon/MixtureKernel.lean` | Core | Barycenter interpretation: the represented infinite law = Measure.bind mixture of fiber laws |
-| `Graphon/InfiniteSamplingConvergence.lean` | Core | Convergence in probability of the sampled empirical graphons |
-| `Graphon/McDiarmid.lean` | Core | Bounded-differences concentration as `HasSubgaussianMGF` |
-| `Graphon/SampleExposure.lean` | Core | Fixed-`F` exponential hom-density concentration for `G(k,W)` + summability bridge |
-| `Graphon/AlmostSureSampling.lean` | Core | Almost-sure convergence of the sampled empirical graphons (Prop 11.32) |
-| `Graphon/LimitGraphon.lean` | Core | The empirical graphon limit as a universal measurable random variable |
-| `Graphon/DissociatedSampler.lean` | Core | Functional Aldous–Hoover for dissociated laws: dissociated = law of an explicit W-random graph |
-| `Graphon/VertexTail.lean` | Core | Vertex-tail shift + σ-algebras; deletion stability; limitGraphon is tail-measurable |
-| `Graphon/RestrictionIndependence.lean` | Core | Vertex-tail σ-algebra + restriction independence ⟹ dissociation |
-| `Graphon/RestrictionIndependenceReverse.lean` | Core | Dissociation ⟹ restriction independence; the five-way DJ Theorem 5.5 extremality equivalence |
-| `Graphon/InvariantAction.lean` | Core | Finite-permutation invariance of `limitGraphon`; invariant σ-algebra; `IsErgodic` (issue #59 part 1) |
-| `Graphon/ErgodicDecomposition.lean` | Core | Fixed-fiber ergodicity: `RestrictionIndependent ⟺ IsErgodic ⟺ dissociated`; the six-way ergodic-decomposition DJ Theorem 5.5; `limitGraphon` generates the invariant σ-algebra mod null (issue #59 part 2) |
-| `Graphon/RelationalSignature.lean` | Foundation | Generic AHK program (umbrella #103) R0 checkpoint: multi-sorted `RelSignature`, `RelCoord`/`RelStructure` carriers, external `NoNullary`, sortwise `map`/`comap`, digraph/bipartite/ternary examples (issue #110) |
-| `Graphon/RelationalStructure.lean` | Foundation | Generic AHK program R1a: sortwise actions on relational structures — `map`/`comap` functoriality, `restrict`/`relabel`, finite restrictions `restrictFin`/`restrictLE`, padding `pad` (+ `restrict_pad`), restriction composition (issue #104) |
-| `Graphon/RelationalTopology.lean` | Foundation | Generic AHK program R1b: Boolean-product topology/σ-algebra on `RelStructure` — compact (no countability) + Polish/standard-Borel (countable coords), measurable restrictions, cylinder π-system generating the product σ-algebra, finite-restriction measure extensionality, continuity of the sortwise actions (`continuous_comap`/`pad`) (issue #104) |
-| `Graphon/RelExchangeableLaw.lean` | Foundation | Generic AHK program R2a (#105): exchangeable relational laws — size-vector `ProbabilityMeasure` marginals + arbitrary sortwise-injection consistency; measurable restriction, diagonal cofinality, finite exchangeability |
-| `Graphon/RelInfiniteLaw.lean` | Foundation | Generic AHK program R2b (#105): compactness-based infinite extension realizing the marginals — diagonal padded laws, Prokhorov subsequence, marginal identification via continuity; `infiniteLaw` + `infiniteLaw_map_restrictFin` (exchangeability = R2c) |
-| `Graphon/RelLawEquivalence.lean` | Foundation | Generic AHK program R2c (#105): finite/infinite exchangeable law equivalence — arbitrary-injection marginals, exchangeability of `infiniteLaw`, `InfiniteRelExchangeableLaw`, permutation extension, `relExchangeableLawEquiv` |
-| `Graphon/InfiniteDigraph.lean` | Directed | D1 (#84/#85): `InfiniteDigraph` as the one-sort binary R1 instance — inherits compact/standard-Borel + measure extensionality; `Adj`(Prop)/`adjBit`(Bool); `digraphStructureEquiv V` plain carrier equivalence with `Digraph V` (infinite + finite bridges for D2) |
-| `Graphon/DigraphMaps.lean` | Directed | Minimal `Digraph.comap` pullback API for Mathlib's `Digraph` (mirrors `SimpleGraph.comap`; Mathlib-upstream candidate #24) |
-| `Graphon/InfiniteDigraphLaw.lean` | Directed | D2 (#84/#86): `PMF`-based `ExchangeableDigraphLaw`, the finite bridge `digraphLawEquiv` to `RelExchangeableLaw digraphSig`, and the headline `exchangeableDigraphLawEquiv` composing with R2c (measurable structure stays on the relational carrier) |
-| `Graphon/Digraphon.lean` | Directed | D3a (#84/#87): the five-component CAF `Digraphon` (four reciprocal-edge pair kernels + Bool loop) with `ext`, measurable representatives, and the everywhere-valid 3-simplex representative `simplexRep` (measurable, nonneg/sum-one/transpose everywhere, a.e.-equal to the kernels) — prerequisite for the D3b sampler |
-| `Graphon/SamplerSources.lean` | Directed | Generic i.i.d. random sources (`uniform01`, `iidVertexSource`, `iidUniformSource`) shared by the graph and directed samplers |
-| `Graphon/DigraphSampler.lean` | Directed | D3b step 2 (#84/#87): the per-pair four-state PMF `Digraphon.pairPMF` and the one-uniform categorical map `catOutcome` with its exact four-state law `uniform01_map_catOutcome` |
-| `Graphon/InverseCounting.lean` | Core | Inverse counting lemma, convergence equivalence |
-| `Graphon/Convergence.lean` | Core | Top-level convergence characterization |
-| `Graphon/Operations.lean` | Experimental | Pointwise product |
-| `Graphon/Operator.lean` | Experimental | Kernel operator (pointwise definition) |
-| `Graphon/Sampling.lean` | Core | W-random graph distribution (`sampleMass`: nonneg, sums to 1, hom-density expansion, TV closeness), expected edge density |
-| `Graphon/Spectral.lean` | Frozen | Refuted closed-walk conjectures (#77), retained as documentation; outside the root import tree |
-
-## Resources
-
-- [Blueprint (web)](https://cameronfreer.github.io/graphon/blueprint/) &middot; [Blueprint (pdf)](https://cameronfreer.github.io/graphon/blueprint/blueprint.pdf)
-- [API docs](https://cameronfreer.github.io/graphon/docs/)
+- [Blueprint (web)](https://cameronfreer.github.io/graphon/blueprint/) &mdash; statements,
+  dependencies, and the proof narrative
+- [Blueprint (pdf)](https://cameronfreer.github.io/graphon/blueprint/blueprint.pdf)
+- [API documentation](https://cameronfreer.github.io/graphon/docs/) &mdash; the complete module
+  and declaration inventory
 - [Dependency graph](https://cameronfreer.github.io/graphon/blueprint/dep_graph_document.html)
+- [Repository](https://github.com/cameronfreer/graphon) &middot;
+  [Verification status and history](https://github.com/cameronfreer/graphon/blob/master/docs/verification.md)
 
 ## References
 
 - Lov&aacute;sz, L. (2012). *Large Networks and Graph Limits*. AMS Colloquium Publications, vol. 60.
-- Frieze, A. &amp; Kannan, R. (1999). Quick approximation to matrices and applications. *Combinatorica*, 19(2), 175&ndash;220.
-- Borgs, C., Chayes, J. T., Lov&aacute;sz, L., S&oacute;s, V. T., &amp; Vesztergombi, K. (2008). Convergent sequences of dense graphs I. *Advances in Mathematics*, 219(6), 1801&ndash;1851.
-- Borgs, C., Chayes, J. T., Lov&aacute;sz, L., S&oacute;s, V. T., &amp; Vesztergombi, K. (2012). Convergent sequences of dense graphs II. *Annals of Mathematics*, 176(1), 151&ndash;219.
+- Frieze, A. &amp; Kannan, R. (1999). Quick approximation to matrices and applications.
+  *Combinatorica*, 19(2), 175&ndash;220.
+- Borgs, C., Chayes, J. T., Lov&aacute;sz, L., S&oacute;s, V. T., &amp; Vesztergombi, K. (2008).
+  Convergent sequences of dense graphs I. *Advances in Mathematics*, 219(6), 1801&ndash;1851.
+- Diaconis, P. &amp; Janson, S. (2008). Graph limits and exchangeable random graphs.
+  *Rendiconti di Matematica*, 28, 33&ndash;61.
+- Kallenberg, O. (2005). *Probabilistic Symmetries and Invariance Principles*. Springer.
+- Austin, T. (2008). On exchangeable random variables and the statistics of large graphs and
+  hypergraphs. *Probability Surveys*, 5, 80&ndash;145.
