@@ -44,6 +44,8 @@ asymmetric kernels).
 - **`InfiniteRelExchangeableLaw.condIndep_fixingAlgebra`** &mdash; for *every* exchangeable
   relational law, the fixing &sigma;-algebras of two finite vertex sets are conditionally
   independent given their intersection.
+- **`ofTournament_sample_isTournament`** &mdash; the tournament digraphon almost surely samples
+  a tournament: no loops, and exactly one direction between any two distinct vertices.
 
 ## Current frontier
 
