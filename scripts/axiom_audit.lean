@@ -164,3 +164,4 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms MeasureTheory.Digraphon.sampleAdj_pair_of_lt
 #print axioms MeasureTheory.Digraphon.measurable_sampleInfinite
 #print axioms MeasureTheory.Digraphon.measurable_sampleFinite
+#print axioms RelSignature.InfiniteRelExchangeableLaw.condIndep_fixingAlgebra
