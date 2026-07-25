@@ -3,12 +3,16 @@
 
 Cheap, hermetic checks that catch the failure modes the landing pages have actually hit:
 
-1. **Canonical-URL split.** `_config.yml` must carry the origin in `url` and the project path
-   in `baseurl`, and the CI Jekyll invocation must not *also* pass `--baseurl` — doing both
-   doubles the path and emits canonical URLs like `.../graphon/graphon/`.
+1. **Canonical-URL split.** `_config.yml` must carry exactly the deployment origin in `url` and
+   exactly the project path in `baseurl`, and the CI Jekyll invocation must not *also* pass
+   `--baseurl` — doing both doubles the path and emits canonical URLs like
+   `.../graphon/graphon/`. The values are pinned rather than merely pattern-checked, since a
+   well-formed but wrong `baseurl` deploys just as broken as a malformed one.
 2. **Placeholder metadata.** `description` must be a real description, not a byline.
-3. **Hardcoded internal links.** Internal links on the homepage must go through Jekyll's
-   `relative_url`, so a baseurl change cannot silently break them.
+3. **Hardcoded internal links.** Internal links on the homepage and in the layout must go
+   through Jekyll's `relative_url`, so a baseurl change cannot silently break them. Every
+   root-relative or bare-path `href`/`src` in the layout is checked, not a fixed list of
+   targets.
 4. **Local link targets.** Repository-relative links in `README.md` must resolve on disk.
 5. **Duplicated inventories.** Neither landing page may reintroduce a full module table; the
    inventory belongs to `Graphon.lean` and the API docs.
@@ -32,6 +36,13 @@ WORKFLOW = ROOT / ".github" / "workflows" / "build.yml"
 # A landing page listing this many `Graphon/*.lean` paths is maintaining a module inventory.
 INVENTORY_THRESHOLD = 20
 
+# The deployment is fixed, so pin the values rather than pattern-matching them.
+EXPECTED_URL = "https://cameronfreer.github.io"
+EXPECTED_BASEURL = "/graphon"
+
+# Hrefs in the layout that legitimately leave the site or are Liquid-generated.
+EXTERNAL_PREFIXES = ("http://", "https://", "//", "#", "mailto:", "{{", "{%")
+
 failures: list[str] = []
 
 
@@ -52,18 +63,17 @@ def check_config() -> None:
     baseurl = yaml_scalar(text, "baseurl")
     description = yaml_scalar(text, "description")
 
-    if url is None or baseurl is None:
-        fail(f"{CONFIG}: both `url` and `baseurl` must be set")
-        return
-    # `url` is the origin only: no path component beyond the host.
-    if re.sub(r"^https?://[^/]+", "", url) != "":
+    if url != EXPECTED_URL:
         fail(
-            f"{CONFIG}: `url` must be the origin only (got {url!r}); "
-            "the project path belongs in `baseurl`"
+            f"{CONFIG}: `url` is {url!r}, expected exactly {EXPECTED_URL!r} "
+            "(the origin only — the project path belongs in `baseurl`)"
         )
-    if baseurl in ("", "/"):
-        fail(f"{CONFIG}: `baseurl` must be the project path, e.g. \"/graphon\"")
-    if description is None or len(description) < 25 or "by " == description[:3]:
+    if baseurl != EXPECTED_BASEURL:
+        fail(
+            f"{CONFIG}: `baseurl` is {baseurl!r}, expected exactly {EXPECTED_BASEURL!r} "
+            "(leading slash, no trailing slash)"
+        )
+    if description is None or len(description) < 25 or description.lower().startswith("by "):
         fail(
             f"{CONFIG}: `description` is a placeholder ({description!r}); it is the page "
             "subtitle and the SEO description"
@@ -89,10 +99,16 @@ def check_relative_urls() -> None:
                 f"{path}: hardcodes {site_root!r}; route internal links through "
                 "Jekyll's `relative_url` instead"
             )
+
+    # Every internal href/src in the layout must be Liquid-generated, not a bare path.
     layout = LAYOUT.read_text()
-    for target in ("blueprint", "docs"):
-        if re.search(rf'href="{target}[/"]', layout):
-            fail(f"{LAYOUT}: bare href to {target!r}; use `relative_url`")
+    for attr, value in re.findall(r'\b(href|src)=["\']([^"\']*)["\']', layout):
+        if value == "" or value.startswith(EXTERNAL_PREFIXES):
+            continue
+        fail(
+            f"{LAYOUT}: bare internal {attr}={value!r}; wrap it as "
+            "`{{ '/path' | relative_url }}` so the baseurl is applied"
+        )
 
 
 def check_readme_links() -> None:
