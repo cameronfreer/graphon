@@ -181,3 +181,5 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.SaturatedAtom.anchor_act
 #print axioms RelSignature.SaturatedAtom.event_act
 #print axioms RelSignature.SaturatedAtom.event_mem
+#print axioms MeasureTheory.Measure.MeasureDense.mono
+#print axioms RelSignature.measureDense_seedOf

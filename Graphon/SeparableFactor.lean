@@ -93,6 +93,25 @@ namespace MeasureTheory
 -- with the reverse order every `Measure.MeasureDense` field application needs `@`.
 variable {X : Type*} {m0 : MeasurableSpace X} {μ : Measure X} {m : MeasurableSpace X}
 
+/-! ### Monotonicity of measure density -/
+
+section Mono
+
+variable {Y : Type*} [MeasurableSpace Y] {ν : Measure Y}
+
+/-- **A larger family of measurable sets is still measure-dense.** Not in Mathlib, and needed
+whenever a dense family is enlarged — e.g. when a chosen family is embedded into a bigger
+indexed one. Both hypotheses are necessary: the inclusion gives the approximation, and
+measurability of the larger family is not implied by it. -/
+theorem Measure.MeasureDense.mono {𝒜 ℬ : Set (Set Y)} (h𝒜 : ν.MeasureDense 𝒜) (hsub : 𝒜 ⊆ ℬ)
+    (hmeas : ∀ s ∈ ℬ, MeasurableSet s) : ν.MeasureDense ℬ where
+  measurable := hmeas
+  approx := fun s hs hfin ε hε => by
+    obtain ⟨t, ht, hlt⟩ := h𝒜.approx s hs hfin ε hε
+    exact ⟨t, hsub ht, hlt⟩
+
+end Mono
+
 /-! ### From approximation to a.e. representatives -/
 
 section AeGenerate

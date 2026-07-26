@@ -103,6 +103,46 @@ instance [Fintype S.Srt] : Countable D.Index := by
 
 end SeedData
 
+/-! ### Seed data from separability -/
+
+section OfSeparable
+
+variable [Countable S.Rel] (M : InfiniteRelExchangeableLaw S)
+
+/-- The countable measure-dense family for `fixingAlgebra A` supplied by separability of the
+law. `[Countable S.Rel]` alone gives `IsSeparable M.law`; `isSeparable_trim` transports that to
+each fixing algebra, and this is its chosen witness. -/
+noncomputable def seedOf (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    Set (Set (RelStructure S (Vinfinite S))) :=
+  (MeasureTheory.isSeparable_trim (μ := (M.law : Measure (RelStructure S (Vinfinite S))))
+    (RelStructure.fixingAlgebra_le A)).1.choose
+
+theorem countable_seedOf (A : Finset (Σ s : S.Srt, Vinfinite S s)) : (seedOf M A).Countable :=
+  (MeasureTheory.isSeparable_trim (μ := (M.law : Measure (RelStructure S (Vinfinite S))))
+    (RelStructure.fixingAlgebra_le A)).1.choose_spec.1
+
+/-- **The density carried alongside the seeds.** Kept out of `SeedData`, which stays structural:
+the atom-level laws never look at the law, and only the final `CoherentBasis.density` field
+does. -/
+theorem measureDense_seedOf (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    @Measure.MeasureDense (RelStructure S (Vinfinite S)) (RelStructure.fixingAlgebra A)
+      ((M.law : Measure (RelStructure S (Vinfinite S))).trim (RelStructure.fixingAlgebra_le A))
+      (seedOf M A) :=
+  (MeasureTheory.isSeparable_trim (μ := (M.law : Measure (RelStructure S (Vinfinite S))))
+    (RelStructure.fixingAlgebra_le A)).1.choose_spec.2
+
+/-- **The seed data of a law**: the separability-supplied families, packaged structurally. -/
+noncomputable def seedDataOf : SeedData S where
+  seed := seedOf M
+  countable_seed := countable_seedOf M
+  seed_mem := fun A => @Measure.MeasureDense.measurable (RelStructure S (Vinfinite S))
+    (RelStructure.fixingAlgebra A) _ _ (measureDense_seedOf M A)
+
+@[simp] theorem seedDataOf_seed (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    (seedDataOf M).seed A = seedOf M A := rfl
+
+end OfSeparable
+
 /-! ### The saturated atoms -/
 
 /-- **A saturated atom**: a seed together with a finitely supported relabeling of it. Saturation

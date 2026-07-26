@@ -205,6 +205,8 @@ AUDITED_DECLS = {
     "RelSignature.SaturatedAtom.anchor_act",
     "RelSignature.SaturatedAtom.event_act",
     "RelSignature.SaturatedAtom.event_mem",
+    "MeasureTheory.Measure.MeasureDense.mono",
+    "RelSignature.measureDense_seedOf",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
