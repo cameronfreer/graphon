@@ -177,3 +177,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.BasisExpr.act_mul
 #print axioms RelSignature.BasisExpr.anchorOf_act
 #print axioms RelSignature.BasisExpr.eval_act
+#print axioms RelSignature.SaturatedAtom.act_mul
+#print axioms RelSignature.SaturatedAtom.anchor_act
+#print axioms RelSignature.SaturatedAtom.event_act
+#print axioms RelSignature.SaturatedAtom.event_mem

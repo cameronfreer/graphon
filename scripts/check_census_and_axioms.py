@@ -201,6 +201,10 @@ AUDITED_DECLS = {
     "RelSignature.BasisExpr.act_mul",
     "RelSignature.BasisExpr.anchorOf_act",
     "RelSignature.BasisExpr.eval_act",
+    "RelSignature.SaturatedAtom.act_mul",
+    "RelSignature.SaturatedAtom.anchor_act",
+    "RelSignature.SaturatedAtom.event_act",
+    "RelSignature.SaturatedAtom.event_mem",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
