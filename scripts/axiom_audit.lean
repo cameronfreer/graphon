@@ -194,3 +194,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.CoherentBasis.factorLaw_map_factorSpaceEquiv
 #print axioms RelSignature.CoherentBasis.boundaryLaw_eq_map
 #print axioms RelSignature.CoherentBasis.exactLaw_eq_map
+#print axioms RelSignature.RelStructure.lowerRankAlgebra_le
+#print axioms RelSignature.RelStructure.fixingAlgebra_le_lowerRankAlgebra
+#print axioms RelSignature.RelStructure.lowerRankAlgebra_mono
+#print axioms RelSignature.RelStructure.lowerRankAlgebra_one
