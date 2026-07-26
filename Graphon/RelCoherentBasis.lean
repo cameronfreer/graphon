@@ -65,6 +65,8 @@ and an **event**:
   is `fixingAlgebra A`-measurable, so its pullback lands inside `fixingAlgebra A`;
 * `CoherentBasis.exists_comap_factorMap_ae_eq` — the payoff: every `fixingAlgebra A`-event has
   an a.e. representative in the pullback of the factor map;
+* `CoherentBasis.FactorSpace` — the factor space at `A`, standard Borel because the index is
+  countable, with the measurability of the factor maps and projections;
 * `CoherentBasis.basisIndexEquiv` — a relabeling as an *equivalence*
   `BasisIndex A ≃ BasisIndex (A.image σ)`, with `factorMap_basisIndexEquiv` /
   `factorMap_comp_relabel` (naturality against `relabel`, orientation forced by `event_act`
@@ -193,6 +195,30 @@ theorem factorProjection_comp {D C A : Finset (Σ s : S.Srt, Vinfinite S s)} (hD
     (hCA : C ⊆ A) :
     B.factorProjection hDC ∘ B.factorProjection hCA = B.factorProjection (hDC.trans hCA) := rfl
 
+/-! ### The factor spaces -/
+
+/-- **The factor space at `A`**: the Boolean cube over the indices anchored inside `A`.
+
+Standard Borel, because the index is countable — this is what the conditional-kernel step will
+need, and it is the reason for indexing by `BasisIndex A` rather than coding every factor into
+`ℕ → Bool`: the varying index keeps the inclusions literal without giving up the measurable
+structure. -/
+abbrev FactorSpace (A : Finset (Σ s : S.Srt, Vinfinite S s)) := B.BasisIndex A → Bool
+
+instance (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    StandardBorelSpace (B.FactorSpace A) := inferInstance
+
+/-- A coordinate of the factor map reads membership in the corresponding event. -/
+@[simp] theorem factorMap_eq_true {A : Finset (Σ s : S.Srt, Vinfinite S s)}
+    (X : RelStructure S (Vinfinite S)) (i : B.BasisIndex A) :
+    B.factorMap A X i = true ↔ X ∈ B.event i.1 := by
+  simp [factorMap]
+
+/-- The factor projections are measurable — they are coordinate restrictions. -/
+theorem measurable_factorProjection {C A : Finset (Σ s : S.Srt, Vinfinite S s)} (hCA : C ⊆ A) :
+    Measurable (B.factorProjection hCA) :=
+  measurable_pi_lambda _ fun _ => measurable_pi_apply _
+
 /-! ### Measurability and generation -/
 
 /-- The factor map at `A` is measurable for `fixingAlgebra A`: each coordinate is the indicator
@@ -207,6 +233,11 @@ theorem measurable_factorMap (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
   convert hmem using 1
   ext X
   simp [factorMap]
+
+/-- The factor map is measurable for the ambient σ-algebra too, by `fixingAlgebra_le`. -/
+theorem measurable_factorMap' (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    Measurable (B.factorMap A) :=
+  (B.measurable_factorMap A).mono (RelStructure.fixingAlgebra_le A) le_rfl
 
 /-- Consequently the pullback of the factor σ-algebra sits inside `fixingAlgebra A`. -/
 theorem comap_factorMap_le (A : Finset (Σ s : S.Srt, Vinfinite S s)) :

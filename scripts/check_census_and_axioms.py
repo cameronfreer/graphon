@@ -211,6 +211,8 @@ AUDITED_DECLS = {
     "RelSignature.CoherentBasis.factorMap_basisIndexEquiv",
     "RelSignature.CoherentBasis.factorMap_comp_relabel",
     "RelSignature.CoherentBasis.image_image_inv",
+    "RelSignature.CoherentBasis.measurable_factorMap'",
+    "RelSignature.CoherentBasis.measurable_factorProjection",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
