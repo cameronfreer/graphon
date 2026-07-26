@@ -74,7 +74,8 @@ namespace SeedData
 variable (D : SeedData S)
 
 /-- The seeds, bundled with the vertex set they are anchored at. -/
-def Index : Type := Σ A : Finset (Σ s : S.Srt, Vinfinite S s), {E : Set (RelStructure S (Vinfinite S)) // E ∈ D.seed A}
+def Index := Σ A : Finset (Σ s : S.Srt, Vinfinite S s),
+  {E : Set (RelStructure S (Vinfinite S)) // E ∈ D.seed A}
 
 instance [Fintype S.Srt] : Countable D.Index := by
   haveI : ∀ A, Countable {E : Set (RelStructure S (Vinfinite S)) // E ∈ D.seed A} :=
@@ -129,7 +130,7 @@ end OfSeparable
 /-- **A saturated atom**: a seed together with a finitely supported relabeling of it. Saturation
 is part of the index, so the atom family is closed under the relabeling action by construction
 — no orbit representatives, and nothing to make equivariant after the fact. -/
-def SaturatedAtom (D : SeedData S) : Type := D.Index × FinSuppPerm S
+def SaturatedAtom (D : SeedData S) := D.Index × FinSuppPerm S
 
 namespace SaturatedAtom
 
@@ -195,5 +196,89 @@ theorem event_mem (a : SaturatedAtom D) :
   exact ⟨a.1.2.1, hmem, rfl⟩
 
 end SaturatedAtom
+
+/-! ### The coherent basis of a law -/
+
+section Assembly
+
+variable [Fintype S.Srt] [Countable S.Rel] (M : InfiniteRelExchangeableLaw S)
+
+omit [Fintype S.Srt] in
+open scoped Classical in
+/-- The identity atom over a seed: anchor `A` and event the seed itself, since the identity
+relabeling moves neither. This is the inclusion witness for the density field. -/
+private theorem seedOf_mem_indexed {A : Finset (Σ s : S.Srt, Vinfinite S s)}
+    {E : Set (RelStructure S (Vinfinite S))} (hE : E ∈ seedOf M A) :
+    ∃ i : BasisExpr (SaturatedAtom (seedDataOf M)),
+      BasisExpr.anchorOf SaturatedAtom.anchor i ⊆ A ∧
+        BasisExpr.eval SaturatedAtom.event i = E := by
+  refine ⟨.atom (⟨A, ⟨E, hE⟩⟩, 1), ?_, ?_⟩
+  · show SaturatedAtom.anchor (D := seedDataOf M) (⟨A, ⟨E, hE⟩⟩, 1) ⊆ A
+    show A.image (Sigma.map id fun s => ⇑((1 : FinSuppPerm S).1 s)) ⊆ A
+    refine le_of_eq ((Finset.image_congr fun v _ => ?_).trans A.image_id)
+    obtain ⟨s, x⟩ := v
+    rfl
+  · show RelStructure.relabel (1 : FinSuppPerm S).1 ⁻¹' E = E
+    show RelStructure.relabel (fun _ : S.Srt => (1 : Equiv.Perm ℕ)) ⁻¹' E = E
+    rfl
+
+open scoped Classical in
+/-- **Every exchangeable law has a coherent basis.**
+
+Assembled from the three layers: the seeds come from separability of the law
+(`measureDense_seedOf`), the atoms saturate them under the finitely supported subgroup, and the
+Boolean syntax closes them under finite operations while keeping the anchor computed and the
+action strict.
+
+Stated as `Nonempty` rather than registered as an instance: a coherent basis is *chosen* data —
+the seeds alone involve a choice — so an instance would make later independent choices behave
+like typeclass diamonds. Consumers should take a basis as an argument.
+
+No `NoNullary` hypothesis: whatever global information the law carries lives in
+`fixingAlgebra ∅ = invariantAlgebra`, which is one of the factors. -/
+private noncomputable def coherentBasisOf : CoherentBasis M :=
+  {
+    ι := BasisExpr (SaturatedAtom (seedDataOf M))
+    countable_ι := inferInstance
+    anchor := BasisExpr.anchorOf (SaturatedAtom.anchor (D := seedDataOf M))
+    event := BasisExpr.eval (SaturatedAtom.event (D := seedDataOf M))
+    event_mem := BasisExpr.eval_mem (SaturatedAtom.event_mem (D := seedDataOf M))
+    bot := .bot
+    anchor_bot := rfl
+    event_bot := rfl
+    compl := .compl
+    anchor_compl := fun _ => rfl
+    event_compl := fun _ => rfl
+    inter := .inter
+    anchor_inter := fun _ _ => rfl
+    event_inter := fun _ _ => rfl
+    act := BasisExpr.act (SaturatedAtom.act (D := seedDataOf M))
+    act_one := BasisExpr.act_one (atomAct := SaturatedAtom.act (D := seedDataOf M))
+      (SaturatedAtom.act_one (D := seedDataOf M))
+    act_mul := fun σ τ => BasisExpr.act_mul
+      (atomAct := SaturatedAtom.act (D := seedDataOf M))
+      fun a => SaturatedAtom.act_mul (D := seedDataOf M) σ τ a
+    anchor_act := fun σ => BasisExpr.anchorOf_act
+      (atomAnchor := SaturatedAtom.anchor (D := seedDataOf M))
+      (atomAct := SaturatedAtom.act (D := seedDataOf M))
+      fun a => SaturatedAtom.anchor_act (D := seedDataOf M) σ a
+    event_act := fun σ => BasisExpr.eval_act
+      (atomEvent := SaturatedAtom.event (D := seedDataOf M))
+      (atomAct := SaturatedAtom.act (D := seedDataOf M))
+      fun a => SaturatedAtom.event_act (D := seedDataOf M) σ a
+    density := fun A => by
+      -- the seeds are already among the indexed events, so density transfers by monotonicity
+      refine @MeasureTheory.Measure.MeasureDense.mono (RelStructure S (Vinfinite S))
+        (RelStructure.fixingAlgebra A)
+        ((M.law : Measure (RelStructure S (Vinfinite S))).trim (RelStructure.fixingAlgebra_le A))
+        (seedOf M A) _ (measureDense_seedOf M A) (fun E hE => seedOf_mem_indexed M hE) ?_
+      rintro - ⟨i, hiA, rfl⟩
+      exact RelStructure.fixingAlgebra_mono hiA _
+        (BasisExpr.eval_mem (SaturatedAtom.event_mem (D := seedDataOf M)) i) }
+
+theorem InfiniteRelExchangeableLaw.nonempty_coherentBasis : Nonempty (CoherentBasis M) :=
+  ⟨coherentBasisOf M⟩
+
+end Assembly
 
 end RelSignature

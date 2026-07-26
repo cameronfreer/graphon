@@ -66,7 +66,9 @@ open MeasureTheory MeasurableSpace
 
 namespace RelSignature
 
-variable {S : RelSignature}
+universe u
+
+variable {S : RelSignature.{u}}
 
 /-! ### The interface -/
 
@@ -80,8 +82,9 @@ for `C ⊆ A` is a literal subtype inclusion, the relabeling action is an action
 exact anchor and event transport, and the factor projections are coordinate restrictions. Only
 `density` refers to the law. -/
 structure CoherentBasis (M : InfiniteRelExchangeableLaw S) where
-  /-- The global index type. -/
-  ι : Type
+  /-- The global index type. It lives in the signature's universe: the anchors are
+  `Finset`s of tagged vertices and the events are sets of structures, both of which do. -/
+  ι : Type u
   /-- The index type is countable, so each factor space is standard Borel. -/
   countable_ι : Countable ι
   /-- The finite tagged vertex set an index is anchored at. -/
@@ -145,7 +148,7 @@ instance : Countable B.ι := B.countable_ι
 
 /-- **The indices available over `A`**: those anchored inside `A`. Countable, so
 `BasisIndex A → Bool` is standard Borel. -/
-def BasisIndex (A : Finset (Σ s : S.Srt, Vinfinite S s)) : Type := {i : B.ι // B.anchor i ⊆ A}
+def BasisIndex (A : Finset (Σ s : S.Srt, Vinfinite S s)) := {i : B.ι // B.anchor i ⊆ A}
 
 instance (A : Finset (Σ s : S.Srt, Vinfinite S s)) : Countable (B.BasisIndex A) :=
   Subtype.countable

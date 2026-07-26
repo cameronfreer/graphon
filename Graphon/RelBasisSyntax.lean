@@ -50,7 +50,7 @@ is automatically a set ring once `eval` is applied.
 
 The index of a `CoherentBasis` is built from this rather than from a closed family of events,
 so that the anchor is computed from the expression and the relabeling action is structural. -/
-inductive BasisExpr (α : Type) where
+inductive BasisExpr (α : Type*) where
   /-- The empty event, anchored at `∅`. -/
   | bot : BasisExpr α
   /-- An atom. -/
@@ -63,7 +63,7 @@ inductive BasisExpr (α : Type) where
 
 namespace BasisExpr
 
-variable {α : Type}
+variable {α : Type*}
 
 instance instCountable [Countable α] : Countable (BasisExpr α) := by
   letI : Encodable α := Encodable.ofCountable α
