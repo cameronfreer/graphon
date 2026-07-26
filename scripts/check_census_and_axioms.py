@@ -208,6 +208,9 @@ AUDITED_DECLS = {
     "MeasureTheory.Measure.MeasureDense.mono",
     "RelSignature.measureDense_seedOf",
     "RelSignature.InfiniteRelExchangeableLaw.nonempty_coherentBasis",
+    "RelSignature.CoherentBasis.factorMap_basisIndexEquiv",
+    "RelSignature.CoherentBasis.factorMap_comp_relabel",
+    "RelSignature.CoherentBasis.image_image_inv",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
