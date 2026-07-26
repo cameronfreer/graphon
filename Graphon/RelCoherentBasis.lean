@@ -11,7 +11,10 @@ import Graphon.SeparableFactor
 
 The **interface** for a simultaneous, coherent family of factors for `fixingAlgebra A`, as `A`
 ranges over the finite sets of tagged vertices. This file *defines* the interface and derives
-its formal consequences; it does **not** construct an instance — that is the next PR.
+its formal consequences, including the relabeling equivalence `basisIndexEquiv`; it does
+**not** construct an instance — that is
+`RelSignature.InfiniteRelExchangeableLaw.nonempty_coherentBasis`, in
+`Graphon.RelBasisSaturation`.
 
 ## Why not one factor per `A`
 
@@ -42,8 +45,8 @@ and an **event**:
   finitely supported relabelings is all this layer provides and all it needs, whereas closure of
   the chosen event family under the full permutation group is neither constructed nor countable
   in general. So the subgroup is precisely the symmetry the interface can honestly guarantee,
-  and its group inverses are what
-  let a later layer upgrade a relabeling to an equivalence `BasisIndex A ≃ BasisIndex (A.image σ)`;
+  and its group inverses are what let `basisIndexEquiv`, below, upgrade a relabeling to an
+  equivalence `BasisIndex A ≃ BasisIndex (A.image σ)`;
 * the family is closed under finite Boolean operations, so it is a countable set ring. This is
   demanded up front rather than derived later: the conditional-law and Dynkin arguments
   downstream are far easier over a ring than over an arbitrary dense family;
@@ -129,9 +132,10 @@ structure CoherentBasis (M : InfiniteRelExchangeableLaw S) where
   of `relabel`: `relabel (σ * τ) ⁻¹' E = relabel σ ⁻¹' (relabel τ ⁻¹' E)`, by
   `RelStructure.relabel_preimage_relabel_preimage`.
 
-  With `act_one` this makes `act` an action rather than a bare map, which is what lets a later
-  layer turn a relabeling into an *equivalence* `BasisIndex A ≃ BasisIndex (A.image σ)`: the
-  group inverse supplies the two-sided inverse via `act σ⁻¹ ∘ act σ = act 1 = id`. -/
+  With `act_one` this makes `act` an action rather than a bare map, which is what lets
+  `basisIndexEquiv` turn a relabeling into an *equivalence*
+  `BasisIndex A ≃ BasisIndex (A.image σ)`: the group inverse supplies the two-sided inverse via
+  `act σ⁻¹ ∘ act σ = act 1 = id`. -/
   act_mul : ∀ σ τ i, act (σ * τ) i = act σ (act τ i)
   /-- The action transports anchors by the image map, exactly. -/
   anchor_act : ∀ (σ : FinSuppPerm S) i,
