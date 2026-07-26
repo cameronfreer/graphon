@@ -33,9 +33,12 @@ representatives and no choices to make equivariant.
 ## Contents
 
 * `RelSignature.SeedData` — a countable family of `fixingAlgebra A`-events for each finite `A`,
-  the input to the construction (its existence, from separability, is the next step);
-* `RelSignature.SaturatedAtom` and its `atomAnchor` / `atomEvent` / `atomAct`, with the four
-  atom-level laws `BasisExpr` needs, plus `Countable`.
+  the structural input to the construction, produced from separability of the law by `seedDataOf`
+  further down this file;
+* `RelSignature.SaturatedAtom` and its `anchor` / `event` / `act`, with the four atom-level laws
+  `BasisExpr` needs, plus `Countable`;
+* `RelSignature.InfiniteRelExchangeableLaw.nonempty_coherentBasis` — the assembly: every
+  exchangeable law has a coherent basis.
 -/
 
 open MeasureTheory MeasurableSpace

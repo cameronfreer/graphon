@@ -44,9 +44,9 @@ namespace RelSignature
 
 /-! ### The syntax -/
 
-/-- **Formal Boolean expressions** over an atom type `α`: the free Boolean-ring syntax with
-`⊥`, complement, and intersection. Union and difference are derived, so a family of expressions
-is automatically a set ring once `eval` is applied.
+/-- **Formal Boolean expressions** over an atom type `α`: the formal Boolean-expression syntax
+with `⊥`, complement, and intersection — unquotiented terms, not the free Boolean ring itself.
+Union and difference are derived, so the image of `eval` is a set ring.
 
 The index of a `CoherentBasis` is built from this rather than from a closed family of events,
 so that the anchor is computed from the expression and the relabeling action is structural. -/

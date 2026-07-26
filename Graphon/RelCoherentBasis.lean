@@ -38,9 +38,11 @@ and an **event**:
 * the finitely supported relabelings act on `ι` — an action proper, with identity and
   multiplicativity laws, not merely a map — transporting anchors by the image map and events by
   *exact* preimage equality, with no null sets. The action is typed by the subgroup
-  `FinSuppPerm S` rather than by raw permutation families with a side condition: a countable
-  index cannot carry an exact action of the uncountable full permutation group, so the subgroup
-  is precisely the symmetry the interface can honestly guarantee. Its group inverses are what
+  `FinSuppPerm S` rather than by raw permutation families with a side condition: closure under
+  finitely supported relabelings is all this layer provides and all it needs, whereas closure of
+  the chosen event family under the full permutation group is neither constructed nor countable
+  in general. So the subgroup is precisely the symmetry the interface can honestly guarantee,
+  and its group inverses are what
   let a later layer upgrade a relabeling to an equivalence `BasisIndex A ≃ BasisIndex (A.image σ)`;
 * the family is closed under finite Boolean operations, so it is a countable set ring. This is
   demanded up front rather than derived later: the conditional-law and Dynkin arguments
@@ -110,10 +112,11 @@ structure CoherentBasis (M : InfiniteRelExchangeableLaw S) where
   /-- A finitely supported sortwise relabeling acts on indices.
 
   The field is typed by the *subgroup* `FinSuppPerm S`, not by a raw permutation family with a
-  `SortwiseFinSupp` side condition. That is deliberate: a countable index cannot carry an exact
-  action of the uncountable full permutation group, so a raw-permutation field would claim more
-  than any construction can supply. The finitely supported subgroup is exactly the symmetry the
-  interface guarantees, and typing it that way also makes inverses available for free. -/
+  `SortwiseFinSupp` side condition. That is deliberate: closure under finitely supported
+  relabelings is what the construction supplies and what the downstream arguments use, while
+  closure of the chosen event family under the full permutation group is neither constructed
+  here nor countable in general. Typing the field by the subgroup states exactly the symmetry
+  guaranteed, and makes inverses available for free. -/
   act : FinSuppPerm S → ι → ι
   /-- The identity relabeling acts trivially. -/
   act_one : ∀ i, act 1 i = i

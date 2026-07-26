@@ -64,8 +64,9 @@ permutation group. The closure proofs are exactly `SortwiseFinSupp.one`, `.mul`,
 
 This is the symmetry group the relational layer actually acts by. Stating it as a subgroup —
 rather than carrying a raw permutation family plus a `SortwiseFinSupp` side condition — matters
-downstream: a countable object cannot carry an exact action of the uncountable full permutation
-group, so an interface that asks for one claims more than any construction can supply. -/
+downstream: the constructions there provide, and the arguments there use, closure under
+finitely supported relabelings only; closure of a chosen countable event family under the full
+permutation group is neither constructed nor countable in general. -/
 def sortwiseFinSuppSubgroup (S : RelSignature) : Subgroup (∀ _ : S.Srt, Equiv.Perm ℕ) where
   carrier := {σ | SortwiseFinSupp (S := S) σ}
   mul_mem' := fun hσ hτ => SortwiseFinSupp.mul hσ hτ
