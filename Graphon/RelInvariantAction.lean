@@ -59,6 +59,31 @@ theorem SortwiseFinSupp.inv {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} (hσ : Sortwise
   calc (σ s)⁻¹ x = (σ s)⁻¹ (σ s x) := by rw [this]
     _ = x := (σ s).symm_apply_apply x
 
+/-- **The finitely supported sortwise permutations, as a subgroup** of the full sortwise
+permutation group. The closure proofs are exactly `SortwiseFinSupp.one`, `.mul`, and `.inv`.
+
+This is the symmetry group the relational layer actually acts by. Stating it as a subgroup —
+rather than carrying a raw permutation family plus a `SortwiseFinSupp` side condition — matters
+downstream: the constructions there provide, and the arguments there use, closure under
+finitely supported relabelings only; closure of a chosen countable event family under the full
+permutation group is neither constructed nor countable in general. -/
+def sortwiseFinSuppSubgroup (S : RelSignature) : Subgroup (∀ _ : S.Srt, Equiv.Perm ℕ) where
+  carrier := {σ | SortwiseFinSupp (S := S) σ}
+  mul_mem' := fun hσ hτ => SortwiseFinSupp.mul hσ hτ
+  one_mem' := SortwiseFinSupp.one
+  inv_mem' := fun hσ => SortwiseFinSupp.inv hσ
+
+/-- **A finitely supported sortwise permutation family**, bundled with its support bound. A
+`Group` by construction, so identity, composition, and inverses are all available without side
+conditions. -/
+abbrev FinSuppPerm (S : RelSignature) := sortwiseFinSuppSubgroup S
+
+@[simp] theorem mem_sortwiseFinSuppSubgroup {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} :
+    σ ∈ sortwiseFinSuppSubgroup S ↔ SortwiseFinSupp (S := S) σ := Iff.rfl
+
+theorem FinSuppPerm.sortwiseFinSupp (σ : FinSuppPerm S) : SortwiseFinSupp (S := S) σ.1 := σ.2
+
+
 /-! ### The invariant σ-algebra -/
 
 /-- **The invariant σ-algebra**: measurable sets strictly invariant under every finitely

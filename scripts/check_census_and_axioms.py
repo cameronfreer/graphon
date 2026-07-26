@@ -197,6 +197,17 @@ AUDITED_DECLS = {
     "MeasureTheory.exists_measurable_comap_ae_generates",
     "RelSignature.CoherentBasis.exists_comap_factorMap_ae_eq",
     "RelSignature.CoherentBasis.measurable_factorMap",
+    "RelSignature.BasisExpr.eval_mem",
+    "RelSignature.BasisExpr.act_mul",
+    "RelSignature.BasisExpr.anchorOf_act",
+    "RelSignature.BasisExpr.eval_act",
+    "RelSignature.SaturatedAtom.act_mul",
+    "RelSignature.SaturatedAtom.anchor_act",
+    "RelSignature.SaturatedAtom.event_act",
+    "RelSignature.SaturatedAtom.event_mem",
+    "MeasureTheory.Measure.MeasureDense.mono",
+    "RelSignature.measureDense_seedOf",
+    "RelSignature.InfiniteRelExchangeableLaw.nonempty_coherentBasis",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

@@ -35,10 +35,15 @@ and an **event**:
   standard Borel because the index is countable, and unlike a Cantor coding it keeps the
   inclusions literal, so the factor projection is ordinary coordinate restriction and its
   cocycle law is definitional;
-* a finitely supported relabeling acts on `ι` — an action proper, with identity and
+* the finitely supported relabelings act on `ι` — an action proper, with identity and
   multiplicativity laws, not merely a map — transporting anchors by the image map and events by
-  *exact* preimage equality, with no null sets. The action laws are what a later layer needs to
-  upgrade a relabeling to an equivalence `BasisIndex A ≃ BasisIndex (A.image σ)`;
+  *exact* preimage equality, with no null sets. The action is typed by the subgroup
+  `FinSuppPerm S` rather than by raw permutation families with a side condition: closure under
+  finitely supported relabelings is all this layer provides and all it needs, whereas closure of
+  the chosen event family under the full permutation group is neither constructed nor countable
+  in general. So the subgroup is precisely the symmetry the interface can honestly guarantee,
+  and its group inverses are what
+  let a later layer upgrade a relabeling to an equivalence `BasisIndex A ≃ BasisIndex (A.image σ)`;
 * the family is closed under finite Boolean operations, so it is a countable set ring. This is
   demanded up front rather than derived later: the conditional-law and Dynkin arguments
   downstream are far easier over a ring than over an arbitrary dense family;
@@ -63,7 +68,9 @@ open MeasureTheory MeasurableSpace
 
 namespace RelSignature
 
-variable {S : RelSignature}
+universe u
+
+variable {S : RelSignature.{u}}
 
 /-! ### The interface -/
 
@@ -77,8 +84,9 @@ for `C ⊆ A` is a literal subtype inclusion, the relabeling action is an action
 exact anchor and event transport, and the factor projections are coordinate restrictions. Only
 `density` refers to the law. -/
 structure CoherentBasis (M : InfiniteRelExchangeableLaw S) where
-  /-- The global index type. -/
-  ι : Type
+  /-- The global index type. It lives in the signature's universe: the anchors are
+  `Finset`s of tagged vertices and the events are sets of structures, both of which do. -/
+  ι : Type u
   /-- The index type is countable, so each factor space is standard Borel. -/
   countable_ι : Countable ι
   /-- The finite tagged vertex set an index is anchored at. -/
@@ -101,26 +109,31 @@ structure CoherentBasis (M : InfiniteRelExchangeableLaw S) where
   inter : ι → ι → ι
   anchor_inter : ∀ i j, anchor (inter i j) = anchor i ∪ anchor j
   event_inter : ∀ i j, event (inter i j) = event i ∩ event j
-  /-- A finitely supported sortwise relabeling acts on indices. -/
-  act : (∀ _ : S.Srt, Equiv.Perm ℕ) → ι → ι
+  /-- A finitely supported sortwise relabeling acts on indices.
+
+  The field is typed by the *subgroup* `FinSuppPerm S`, not by a raw permutation family with a
+  `SortwiseFinSupp` side condition. That is deliberate: closure under finitely supported
+  relabelings is what the construction supplies and what the downstream arguments use, while
+  closure of the chosen event family under the full permutation group is neither constructed
+  here nor countable in general. Typing the field by the subgroup states exactly the symmetry
+  guaranteed, and makes inverses available for free. -/
+  act : FinSuppPerm S → ι → ι
   /-- The identity relabeling acts trivially. -/
-  act_one : ∀ i, act (fun _ => 1) i = i
+  act_one : ∀ i, act 1 i = i
   /-- The action is multiplicative. The orientation matches `event_act` and the contravariance
-  of `relabel`: `relabel (fun s => σ s * τ s) ⁻¹' E = relabel σ ⁻¹' (relabel τ ⁻¹' E)`, by
+  of `relabel`: `relabel (σ * τ) ⁻¹' E = relabel σ ⁻¹' (relabel τ ⁻¹' E)`, by
   `RelStructure.relabel_preimage_relabel_preimage`.
 
-  Together with `act_one` this is what makes `act` an action rather than a bare map, and it is
-  what a later layer needs to turn a relabeling into an *equivalence* between `BasisIndex A` and
-  `BasisIndex (A.image σ)`: the inverse relabeling supplies the two-sided inverse only once
-  `act σ⁻¹ ∘ act σ = act 1 = id` is available. -/
-  act_mul : ∀ {σ τ}, SortwiseFinSupp (S := S) σ → SortwiseFinSupp (S := S) τ → ∀ i,
-    act (fun s => σ s * τ s) i = act σ (act τ i)
+  With `act_one` this makes `act` an action rather than a bare map, which is what lets a later
+  layer turn a relabeling into an *equivalence* `BasisIndex A ≃ BasisIndex (A.image σ)`: the
+  group inverse supplies the two-sided inverse via `act σ⁻¹ ∘ act σ = act 1 = id`. -/
+  act_mul : ∀ σ τ i, act (σ * τ) i = act σ (act τ i)
   /-- The action transports anchors by the image map, exactly. -/
-  anchor_act : ∀ {σ}, SortwiseFinSupp (S := S) σ → ∀ i,
-    anchor (act σ i) = (anchor i).image (Sigma.map id fun s => ⇑(σ s))
+  anchor_act : ∀ (σ : FinSuppPerm S) i,
+    anchor (act σ i) = (anchor i).image (Sigma.map id fun s => ⇑(σ.1 s))
   /-- The action transports events by preimage, exactly — no null sets. -/
-  event_act : ∀ {σ}, SortwiseFinSupp (S := S) σ → ∀ i,
-    event (act σ i) = RelStructure.relabel σ ⁻¹' event i
+  event_act : ∀ (σ : FinSuppPerm S) i,
+    event (act σ i) = RelStructure.relabel σ.1 ⁻¹' event i
   /-- **Measure density**: over each `A`, the events anchored inside `A` approximate every
   `fixingAlgebra A`-event. This is the only field that mentions the law. -/
   density : ∀ A : Finset (Σ s : S.Srt, Vinfinite S s),
@@ -138,7 +151,7 @@ instance : Countable B.ι := B.countable_ι
 
 /-- **The indices available over `A`**: those anchored inside `A`. Countable, so
 `BasisIndex A → Bool` is standard Borel. -/
-def BasisIndex (A : Finset (Σ s : S.Srt, Vinfinite S s)) : Type := {i : B.ι // B.anchor i ⊆ A}
+def BasisIndex (A : Finset (Σ s : S.Srt, Vinfinite S s)) := {i : B.ι // B.anchor i ⊆ A}
 
 instance (A : Finset (Σ s : S.Srt, Vinfinite S s)) : Countable (B.BasisIndex A) :=
   Subtype.countable

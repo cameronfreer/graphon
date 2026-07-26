@@ -173,3 +173,14 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms MeasureTheory.exists_measurable_comap_ae_generates
 #print axioms RelSignature.CoherentBasis.exists_comap_factorMap_ae_eq
 #print axioms RelSignature.CoherentBasis.measurable_factorMap
+#print axioms RelSignature.BasisExpr.eval_mem
+#print axioms RelSignature.BasisExpr.act_mul
+#print axioms RelSignature.BasisExpr.anchorOf_act
+#print axioms RelSignature.BasisExpr.eval_act
+#print axioms RelSignature.SaturatedAtom.act_mul
+#print axioms RelSignature.SaturatedAtom.anchor_act
+#print axioms RelSignature.SaturatedAtom.event_act
+#print axioms RelSignature.SaturatedAtom.event_mem
+#print axioms MeasureTheory.Measure.MeasureDense.mono
+#print axioms RelSignature.measureDense_seedOf
+#print axioms RelSignature.InfiniteRelExchangeableLaw.nonempty_coherentBasis
