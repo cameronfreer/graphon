@@ -221,6 +221,9 @@ AUDITED_DECLS = {
     "RelSignature.CoherentBasis.compProd_stepKernel",
     "RelSignature.CoherentBasis.stepKernel_comp_boundaryLaw",
     "RelSignature.CoherentBasis.factorLaw_map_prodEquiv",
+    "RelSignature.CoherentBasis.image_ssubset_image",
+    "RelSignature.CoherentBasis.prodMap_comp_factorSpaceProdEquiv",
+    "RelSignature.CoherentBasis.map_prodMap_compProd_stepKernel",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

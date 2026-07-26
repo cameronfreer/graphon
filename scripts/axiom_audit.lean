@@ -197,3 +197,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.CoherentBasis.compProd_stepKernel
 #print axioms RelSignature.CoherentBasis.stepKernel_comp_boundaryLaw
 #print axioms RelSignature.CoherentBasis.factorLaw_map_prodEquiv
+#print axioms RelSignature.CoherentBasis.image_ssubset_image
+#print axioms RelSignature.CoherentBasis.prodMap_comp_factorSpaceProdEquiv
+#print axioms RelSignature.CoherentBasis.map_prodMap_compProd_stepKernel

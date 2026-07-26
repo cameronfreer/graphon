@@ -88,6 +88,31 @@ theorem factorLaw_map_prodEquiv (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     (B.measurable_factorMap' A)]
   rfl
 
+/-! ### Relabeling transport -/
+
+open scoped Classical in
+/-- **Exact transport of the joint law**: pushing the boundary-and-exact joint law at the image
+vertex set along the two layer equivalences returns the joint law at `A`.
+
+This is an equality of measures, not an a.e. statement: it follows from equivariance of the
+splitting (`prodMap_comp_factorSpaceProdEquiv`, definitional) together with relabeling
+invariance of the factor law, which is where exchangeability enters. -/
+theorem map_prodMap_compProd_stepKernel (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    (B.boundaryLaw (A.image (Sigma.map id fun s => ⇑(σ.1 s))) ⊗ₘ
+        B.stepKernel (A.image (Sigma.map id fun s => ⇑(σ.1 s)))).map
+        (Prod.map (B.boundarySpaceEquiv σ A) (B.exactSpaceEquiv σ A)) =
+      B.boundaryLaw A ⊗ₘ B.stepKernel A := by
+  have hmeas : Measurable (Prod.map (B.boundarySpaceEquiv σ A) (B.exactSpaceEquiv σ A)) :=
+    ((B.boundarySpaceEquiv σ A).measurable.comp measurable_fst).prod
+      ((B.exactSpaceEquiv σ A).measurable.comp measurable_snd)
+  rw [← B.factorLaw_map_prodEquiv, ← B.factorLaw_map_prodEquiv,
+    Measure.map_map hmeas (B.factorSpaceProdEquiv _).measurable,
+    B.prodMap_comp_factorSpaceProdEquiv σ A,
+    ← Measure.map_map (B.factorSpaceProdEquiv A).measurable (B.factorSpaceEquiv σ A).measurable,
+    B.factorLaw_map_factorSpaceEquiv σ A]
+
 end CoherentBasis
+
 
 end RelSignature

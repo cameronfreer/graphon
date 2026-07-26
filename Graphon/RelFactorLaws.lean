@@ -155,6 +155,81 @@ theorem measurable_exactMap (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     Measurable (B.exactMap A) :=
   ((B.factorSpaceProdEquiv A).measurable.comp (B.measurable_factorMap' A)).snd
 
+/-! ### Relabeling the two layers -/
+
+open scoped Classical in
+/-- Relabeling is strictly monotone on vertex sets: it preserves proper inclusion, because
+`image_image_inv` recovers the source. -/
+theorem image_ssubset_image (σ : FinSuppPerm S)
+    {s t : Finset (Σ s : S.Srt, Vinfinite S s)} (h : s ⊂ t) :
+    s.image (Sigma.map id fun s => ⇑(σ.1 s)) ⊂
+      t.image ((Sigma.map id fun s => ⇑(σ.1 s) :
+        (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s)) := by
+  refine lt_of_le_of_ne (Finset.image_subset_image (le_of_lt h)) fun heq => ne_of_lt h ?_
+  rw [← image_image_inv σ s, ← image_image_inv σ t, heq]
+
+open scoped Classical in
+/-- The relabeling equivalence restricted to the boundary layer. -/
+noncomputable def boundaryIndexEquiv (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    B.BoundaryIndex A ≃ B.BoundaryIndex (A.image (Sigma.map id fun s => ⇑(σ.1 s))) where
+  toFun i := ⟨B.act σ i.1, by rw [B.anchor_act]; exact image_ssubset_image σ i.2⟩
+  invFun j := ⟨B.act σ⁻¹ j.1, by
+    have h := image_ssubset_image σ⁻¹ j.2
+    rw [image_image_inv σ A] at h
+    rw [B.anchor_act]
+    exact h⟩
+  left_inv i := Subtype.ext (by
+    show B.act σ⁻¹ (B.act σ i.1) = i.1
+    rw [← B.act_mul, inv_mul_cancel, B.act_one])
+  right_inv j := Subtype.ext (by
+    show B.act σ (B.act σ⁻¹ j.1) = j.1
+    rw [← B.act_mul, mul_inv_cancel, B.act_one])
+
+open scoped Classical in
+/-- The relabeling equivalence restricted to the exact-anchor layer. -/
+noncomputable def exactIndexEquiv (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    B.ExactIndex A ≃ B.ExactIndex (A.image (Sigma.map id fun s => ⇑(σ.1 s))) where
+  toFun i := ⟨B.act σ i.1, by rw [B.anchor_act, i.2]⟩
+  invFun j := ⟨B.act σ⁻¹ j.1, by
+    rw [B.anchor_act, j.2, image_image_inv σ A]⟩
+  left_inv i := Subtype.ext (by
+    show B.act σ⁻¹ (B.act σ i.1) = i.1
+    rw [← B.act_mul, inv_mul_cancel, B.act_one])
+  right_inv j := Subtype.ext (by
+    show B.act σ (B.act σ⁻¹ j.1) = j.1
+    rw [← B.act_mul, mul_inv_cancel, B.act_one])
+
+open scoped Classical in
+/-- **The boundary layer as a measurable equivalence**, oriented like `factorSpaceEquiv`:
+image-set space to original-set space. -/
+noncomputable def boundarySpaceEquiv (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    B.BoundarySpace (A.image (Sigma.map id fun s => ⇑(σ.1 s))) ≃ᵐ B.BoundarySpace A where
+  toEquiv := Equiv.arrowCongr (B.boundaryIndexEquiv σ A).symm (Equiv.refl Bool)
+  measurable_toFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+  measurable_invFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+
+open scoped Classical in
+/-- **The exact-anchor layer as a measurable equivalence**, same orientation. -/
+noncomputable def exactSpaceEquiv (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    B.ExactSpace (A.image (Sigma.map id fun s => ⇑(σ.1 s))) ≃ᵐ B.ExactSpace A where
+  toEquiv := Equiv.arrowCongr (B.exactIndexEquiv σ A).symm (Equiv.refl Bool)
+  measurable_toFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+  measurable_invFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+
+open scoped Classical in
+/-- **The splitting is equivariant**: relabeling and then splitting is splitting and then
+relabeling each layer. Definitional — both routes act by `σ` and differ only in which
+containment proof is carried. -/
+theorem prodMap_comp_factorSpaceProdEquiv (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    Prod.map (B.boundarySpaceEquiv σ A) (B.exactSpaceEquiv σ A) ∘
+        B.factorSpaceProdEquiv (A.image (Sigma.map id fun s => ⇑(σ.1 s))) =
+      B.factorSpaceProdEquiv A ∘ B.factorSpaceEquiv σ A := rfl
+
 /-! ### The factor laws -/
 
 /-- **The factor law at `A`**: the law of the factor map under `M`. -/
