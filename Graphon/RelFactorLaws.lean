@@ -230,6 +230,42 @@ theorem prodMap_comp_factorSpaceProdEquiv (σ : FinSuppPerm S)
         B.factorSpaceProdEquiv (A.image (Sigma.map id fun s => ⇑(σ.1 s))) =
       B.factorSpaceProdEquiv A ∘ B.factorSpaceEquiv σ A := rfl
 
+open scoped Classical in
+/-- The boundary map is equivariant, through the layer equivalence. -/
+theorem boundarySpaceEquiv_comp_boundaryMap (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    B.boundarySpaceEquiv σ A ∘ B.boundaryMap (A.image (Sigma.map id fun s => ⇑(σ.1 s))) =
+      B.boundaryMap A ∘ RelStructure.relabel σ.1 := by
+  funext X
+  have h1 := congrFun (B.prodMap_comp_factorSpaceProdEquiv σ A)
+    (B.factorMap (A.image (Sigma.map id fun s => ⇑(σ.1 s))) X)
+  have h2 := congrFun (B.factorMap_comp_relabel σ A) X
+  simp only [Function.comp_apply] at h1 h2
+  show (Prod.map (B.boundarySpaceEquiv σ A) (B.exactSpaceEquiv σ A)
+    (B.factorSpaceProdEquiv _ (B.factorMap _ X))).1 = _
+  rw [h1]
+  show (B.factorSpaceProdEquiv A (B.factorSpaceEquiv σ A (B.factorMap _ X))).1 = _
+  rw [h2]
+  rfl
+
+open scoped Classical in
+/-- The exact-anchor map is equivariant, through the layer equivalence. -/
+theorem exactSpaceEquiv_comp_exactMap (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    B.exactSpaceEquiv σ A ∘ B.exactMap (A.image (Sigma.map id fun s => ⇑(σ.1 s))) =
+      B.exactMap A ∘ RelStructure.relabel σ.1 := by
+  funext X
+  have h1 := congrFun (B.prodMap_comp_factorSpaceProdEquiv σ A)
+    (B.factorMap (A.image (Sigma.map id fun s => ⇑(σ.1 s))) X)
+  have h2 := congrFun (B.factorMap_comp_relabel σ A) X
+  simp only [Function.comp_apply] at h1 h2
+  show (Prod.map (B.boundarySpaceEquiv σ A) (B.exactSpaceEquiv σ A)
+    (B.factorSpaceProdEquiv _ (B.factorMap _ X))).2 = _
+  rw [h1]
+  show (B.factorSpaceProdEquiv A (B.factorSpaceEquiv σ A (B.factorMap _ X))).2 = _
+  rw [h2]
+  rfl
+
 /-! ### The factor laws -/
 
 /-- **The factor law at `A`**: the law of the factor map under `M`. -/
@@ -280,6 +316,29 @@ theorem factorLaw_map_factorProjection {C A : Finset (Σ s : S.Srt, Vinfinite S 
     (B.factorLaw A).map (B.factorProjection hCA) = B.factorLaw C := by
   rw [factorLaw, Measure.map_map (B.measurable_factorProjection hCA) (B.measurable_factorMap' A),
     B.factorProjection_factorMap hCA]
+  rfl
+
+open scoped Classical in
+/-- **Relabeling invariance of the boundary law.** Public API: otherwise it gets rederived at
+each use in the recursion. -/
+theorem boundaryLaw_map_boundarySpaceEquiv (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    (B.boundaryLaw (A.image (Sigma.map id fun s => ⇑(σ.1 s)))).map
+        (B.boundarySpaceEquiv σ A) = B.boundaryLaw A := by
+  rw [boundaryLaw, Measure.map_map (B.boundarySpaceEquiv σ A).measurable
+    (B.measurable_boundaryMap _), B.boundarySpaceEquiv_comp_boundaryMap σ A,
+    ← Measure.map_map (B.measurable_boundaryMap A) (measurable_relabel σ.1), M.exchangeable σ.1]
+  rfl
+
+open scoped Classical in
+/-- **Relabeling invariance of the exact law**, likewise. -/
+theorem exactLaw_map_exactSpaceEquiv (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    (B.exactLaw (A.image (Sigma.map id fun s => ⇑(σ.1 s)))).map
+        (B.exactSpaceEquiv σ A) = B.exactLaw A := by
+  rw [exactLaw, Measure.map_map (B.exactSpaceEquiv σ A).measurable
+    (B.measurable_exactMap _), B.exactSpaceEquiv_comp_exactMap σ A,
+    ← Measure.map_map (B.measurable_exactMap A) (measurable_relabel σ.1), M.exchangeable σ.1]
   rfl
 
 open scoped Classical in

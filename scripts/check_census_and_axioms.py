@@ -223,6 +223,8 @@ AUDITED_DECLS = {
     "RelSignature.CoherentBasis.factorLaw_map_prodEquiv",
     "RelSignature.CoherentBasis.image_ssubset_image",
     "RelSignature.CoherentBasis.prodMap_comp_factorSpaceProdEquiv",
+    "RelSignature.CoherentBasis.boundaryLaw_map_boundarySpaceEquiv",
+    "RelSignature.CoherentBasis.exactLaw_map_exactSpaceEquiv",
     "RelSignature.CoherentBasis.map_prodMap_compProd_stepKernel",
 }
 
