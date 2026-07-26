@@ -189,3 +189,4 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.CoherentBasis.image_image_inv
 #print axioms RelSignature.CoherentBasis.measurable_factorMap'
 #print axioms RelSignature.CoherentBasis.measurable_factorProjection
+#print axioms RelSignature.CoherentBasis.factorSpaceEquiv_apply
