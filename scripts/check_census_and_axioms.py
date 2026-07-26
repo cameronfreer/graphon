@@ -217,6 +217,7 @@ AUDITED_DECLS = {
     "RelSignature.CoherentBasis.factorLaw_map_factorProjection",
     "RelSignature.CoherentBasis.factorLaw_map_factorSpaceEquiv",
     "RelSignature.CoherentBasis.boundaryLaw_eq_map",
+    "RelSignature.CoherentBasis.exactLaw_eq_map",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}

@@ -8,12 +8,18 @@ import Graphon.RelCoherentBasis
 /-!
 # Boundary and exact layers of the coherent factors (R4 converse piece 3, #107)
 
-The factor at a finite tagged vertex set `A` splits into what is already determined by the
-*proper* subsets of `A` and what is genuinely new at `A`:
+The factor at a finite tagged vertex set `A` splits by **anchor**, into the coordinates carried
+over from proper subsets of `A` and the coordinates whose anchor is exactly `A`:
 
 * `BoundaryIndex A` — indices whose anchor is a **proper** subset of `A`;
-* `ExactIndex A` — indices whose anchor is **exactly** `A`;
+* `ExactIndex A` — the **exact-anchor layer**: indices whose anchor is exactly `A`;
 * `FactorSpace A ≃ᵐ BoundarySpace A × ExactSpace A`.
+
+This is a partition of *coordinates by anchor*, not of *information*. Anchors are not minimal:
+a Boolean expression can carry anchor `A` while naming an event that is already measurable over
+a proper subset — the seeds at `A` live in `fixingAlgebra A`, which contains `fixingAlgebra C`
+for every `C ⊆ A`. So the exact-anchor layer is not "the new information at `A`", and nothing
+in the splitting alone rules out redundancy between layers.
 
 ## Why this decomposition
 
@@ -27,14 +33,19 @@ both wrong:
   at `A` depend on sets incomparable to `A`, which violates the subset-locality of the
   Aldous–Hoover–Kallenberg formula.
 
-Sampling only `ExactSpace A`, rather than resampling all of `FactorSpace A`, also removes by
-construction any risk of disagreeing pointwise with layers already generated at proper subsets.
+Sampling only `ExactSpace A`, rather than resampling all of `FactorSpace A`, means the recursion
+never overwrites coordinate slots already generated at proper subsets — that much *is* structural,
+from the coordinate partition. Consistency with lower-anchor events that an exact-anchor
+coordinate happens to duplicate semantically is a different matter: it is an almost-sure/support
+property of `stepKernel`, which conditions on the boundary, and not something the partition
+delivers on its own.
 
 ## Contents
 
 * the boundary/exact index and space splitting, with `factorSpaceProdEquiv`;
 * `factorLaw`, `boundaryLaw`, and `exactLaw` — the pushforwards of the law along the
-  corresponding maps;
+  corresponding maps, with `boundaryLaw_eq_map` and `exactLaw_eq_map` identifying the latter two
+  as the marginals of the first;
 * `factorLaw_map_factorProjection` — projection consistency;
 * `factorLaw_map_factorSpaceEquiv` — relabeling invariance, from exchangeability of the law.
 
@@ -54,11 +65,16 @@ variable {S : RelSignature.{u}} {M : InfiniteRelExchangeableLaw S} (B : Coherent
 
 /-! ### The boundary and exact layers -/
 
-/-- Indices whose anchor is a **proper** subset of `A`: everything at `A` that is already
-determined by strictly smaller vertex sets. -/
+/-- Indices whose anchor is a **proper** subset of `A`: the coordinates at `A` carried over from
+strictly smaller vertex sets. -/
 def BoundaryIndex (A : Finset (Σ s : S.Srt, Vinfinite S s)) := {i : B.ι // B.anchor i ⊂ A}
 
-/-- Indices whose anchor is **exactly** `A`: the layer that is genuinely new at `A`. -/
+/-- **The exact-anchor layer**: indices whose anchor is exactly `A`.
+
+Note that this is an anchor condition, not a minimality condition — an expression anchored at
+`A` may still name an event measurable over a proper subset, since `fixingAlgebra C ≤
+fixingAlgebra A` for `C ⊆ A`. The layer is disjoint from the boundary layer as a set of
+*coordinates*; semantic non-redundancy is not claimed here. -/
 def ExactIndex (A : Finset (Σ s : S.Srt, Vinfinite S s)) := {i : B.ι // B.anchor i = A}
 
 instance (A : Finset (Σ s : S.Srt, Vinfinite S s)) : Countable (B.BoundaryIndex A) :=
@@ -173,6 +189,14 @@ theorem boundaryLaw_eq_map (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     B.boundaryLaw A = (B.factorLaw A).map (fun p => (B.factorSpaceProdEquiv A p).1) := by
   rw [boundaryLaw, factorLaw, Measure.map_map
     (((B.factorSpaceProdEquiv A).measurable).fst) (B.measurable_factorMap' A)]
+  rfl
+
+/-- **The exact law is the other marginal of the factor law**, symmetric to
+`boundaryLaw_eq_map`. Used when checking that `stepKernel` disintegrates the factor law. -/
+theorem exactLaw_eq_map (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    B.exactLaw A = (B.factorLaw A).map (fun p => (B.factorSpaceProdEquiv A p).2) := by
+  rw [exactLaw, factorLaw, Measure.map_map
+    (((B.factorSpaceProdEquiv A).measurable).snd) (B.measurable_factorMap' A)]
   rfl
 
 /-- **Projection consistency**: the factor laws are compatible along the sub-index inclusions.
