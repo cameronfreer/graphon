@@ -190,3 +190,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.CoherentBasis.measurable_factorMap'
 #print axioms RelSignature.CoherentBasis.measurable_factorProjection
 #print axioms RelSignature.CoherentBasis.factorSpaceEquiv_apply
+#print axioms RelSignature.CoherentBasis.factorLaw_map_factorProjection
+#print axioms RelSignature.CoherentBasis.factorLaw_map_factorSpaceEquiv
+#print axioms RelSignature.CoherentBasis.boundaryLaw_eq_map
