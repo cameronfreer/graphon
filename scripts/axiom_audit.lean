@@ -184,3 +184,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms MeasureTheory.Measure.MeasureDense.mono
 #print axioms RelSignature.measureDense_seedOf
 #print axioms RelSignature.InfiniteRelExchangeableLaw.nonempty_coherentBasis
+#print axioms RelSignature.CoherentBasis.factorMap_basisIndexEquiv
+#print axioms RelSignature.CoherentBasis.factorMap_comp_relabel
+#print axioms RelSignature.CoherentBasis.image_image_inv

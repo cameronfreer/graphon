@@ -11,7 +11,10 @@ import Graphon.SeparableFactor
 
 The **interface** for a simultaneous, coherent family of factors for `fixingAlgebra A`, as `A`
 ranges over the finite sets of tagged vertices. This file *defines* the interface and derives
-its formal consequences; it does **not** construct an instance — that is the next PR.
+its formal consequences, including the relabeling equivalence `basisIndexEquiv`; it does
+**not** construct an instance — that is
+`RelSignature.InfiniteRelExchangeableLaw.nonempty_coherentBasis`, in
+`Graphon.RelBasisSaturation`.
 
 ## Why not one factor per `A`
 
@@ -42,8 +45,8 @@ and an **event**:
   finitely supported relabelings is all this layer provides and all it needs, whereas closure of
   the chosen event family under the full permutation group is neither constructed nor countable
   in general. So the subgroup is precisely the symmetry the interface can honestly guarantee,
-  and its group inverses are what
-  let a later layer upgrade a relabeling to an equivalence `BasisIndex A ≃ BasisIndex (A.image σ)`;
+  and its group inverses are what let `basisIndexEquiv`, below, upgrade a relabeling to an
+  equivalence `BasisIndex A ≃ BasisIndex (A.image σ)`;
 * the family is closed under finite Boolean operations, so it is a countable set ring. This is
   demanded up front rather than derived later: the conditional-law and Dynkin arguments
   downstream are far easier over a ring than over an arbitrary dense family;
@@ -61,7 +64,12 @@ and an **event**:
 * `CoherentBasis.measurable_factorMap` and `CoherentBasis.comap_factorMap_le` — the factor map
   is `fixingAlgebra A`-measurable, so its pullback lands inside `fixingAlgebra A`;
 * `CoherentBasis.exists_comap_factorMap_ae_eq` — the payoff: every `fixingAlgebra A`-event has
-  an a.e. representative in the pullback of the factor map.
+  an a.e. representative in the pullback of the factor map;
+* `CoherentBasis.basisIndexEquiv` — a relabeling as an *equivalence*
+  `BasisIndex A ≃ BasisIndex (A.image σ)`, with `factorMap_basisIndexEquiv` /
+  `factorMap_comp_relabel` (naturality against `relabel`, orientation forced by `event_act`
+  being a preimage equality) and the two definitional compatibilities with
+  `basisIndexEmbedding` and `factorProjection`.
 -/
 
 open MeasureTheory MeasurableSpace
@@ -124,9 +132,10 @@ structure CoherentBasis (M : InfiniteRelExchangeableLaw S) where
   of `relabel`: `relabel (σ * τ) ⁻¹' E = relabel σ ⁻¹' (relabel τ ⁻¹' E)`, by
   `RelStructure.relabel_preimage_relabel_preimage`.
 
-  With `act_one` this makes `act` an action rather than a bare map, which is what lets a later
-  layer turn a relabeling into an *equivalence* `BasisIndex A ≃ BasisIndex (A.image σ)`: the
-  group inverse supplies the two-sided inverse via `act σ⁻¹ ∘ act σ = act 1 = id`. -/
+  With `act_one` this makes `act` an action rather than a bare map, which is what lets
+  `basisIndexEquiv` turn a relabeling into an *equivalence*
+  `BasisIndex A ≃ BasisIndex (A.image σ)`: the group inverse supplies the two-sided inverse via
+  `act σ⁻¹ ∘ act σ = act 1 = id`. -/
   act_mul : ∀ σ τ i, act (σ * τ) i = act σ (act τ i)
   /-- The action transports anchors by the image map, exactly. -/
   anchor_act : ∀ (σ : FinSuppPerm S) i,
@@ -229,6 +238,121 @@ theorem exists_comap_factorMap_ae_eq (A : Finset (Σ s : S.Srt, Vinfinite S s))
     exact hcoord (measurableSet_singleton true)
   · ext X
     simp [factorMap]
+
+/-! ### Relabeling equivariance -/
+
+open scoped Classical in
+/-- Relabeling by `σ` and then by `σ⁻¹` returns a vertex set to itself. -/
+theorem image_image_inv (σ : FinSuppPerm S) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    (A.image (Sigma.map id fun s => ⇑(σ.1 s))).image
+      (Sigma.map id fun s => ⇑((σ⁻¹ : FinSuppPerm S).1 s)) = A := by
+  rw [Finset.image_image]
+  refine (Finset.image_congr fun v _ => ?_).trans A.image_id
+  obtain ⟨s, x⟩ := v
+  show (⟨s, (σ.1 s)⁻¹ (σ.1 s x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
+  rw [show (σ.1 s)⁻¹ (σ.1 s x) = x from (σ.1 s).symm_apply_apply x]
+
+open scoped Classical in
+/-- **A relabeling is an equivalence of index sets**: `BasisIndex A ≃ BasisIndex (A.image σ)`.
+
+The two-sided inverse is the group inverse of `σ`, available because the action is typed by the
+subgroup: `act σ⁻¹ ∘ act σ = act 1 = id` by `act_mul` and `act_one`. -/
+noncomputable def basisIndexEquiv (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    B.BasisIndex A ≃ B.BasisIndex (A.image (Sigma.map id fun s => ⇑(σ.1 s))) where
+  toFun i := ⟨B.act σ i.1, by
+    rw [B.anchor_act]
+    exact Finset.image_subset_image i.2⟩
+  invFun j := ⟨B.act σ⁻¹ j.1, by
+    -- rewrite in the hypothesis: `A` sits in a dependent position in the goal
+    have h := Finset.image_subset_image
+      (f := (Sigma.map id fun s => ⇑((σ⁻¹ : FinSuppPerm S).1 s) :
+        (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s)) j.2
+    rw [image_image_inv σ A] at h
+    rw [B.anchor_act]
+    exact h⟩
+  left_inv i := by
+    refine Subtype.ext ?_
+    show B.act σ⁻¹ (B.act σ i.1) = i.1
+    rw [← B.act_mul, inv_mul_cancel, B.act_one]
+  right_inv j := by
+    refine Subtype.ext ?_
+    show B.act σ (B.act σ⁻¹ j.1) = j.1
+    rw [← B.act_mul, mul_inv_cancel, B.act_one]
+
+open scoped Classical in
+@[simp] theorem basisIndexEquiv_apply_coe (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) (i : B.BasisIndex A) :
+    (B.basisIndexEquiv σ A i).1 = B.act σ i.1 := rfl
+
+open scoped Classical in
+@[simp] theorem basisIndexEquiv_symm_apply_coe (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s))
+    (j : B.BasisIndex (A.image (Sigma.map id fun s => ⇑(σ.1 s)))) :
+    ((B.basisIndexEquiv σ A).symm j).1 = B.act σ⁻¹ j.1 := rfl
+
+open scoped Classical in
+/-- **Identity**, at the level of underlying indices. The equivalence at `σ = 1` does not have
+type `BasisIndex A ≃ BasisIndex A` on the nose — its codomain is `BasisIndex (A.image id)` —
+so the law is stated where no transport is needed. -/
+@[simp] theorem basisIndexEquiv_one_coe (A : Finset (Σ s : S.Srt, Vinfinite S s))
+    (i : B.BasisIndex A) : (B.basisIndexEquiv 1 A i).1 = i.1 :=
+  B.act_one i.1
+
+open scoped Classical in
+/-- **Composition**, likewise at the level of underlying indices: the codomains
+`BasisIndex (A.image (σ * τ))` and `BasisIndex ((A.image τ).image σ)` agree only after
+`Finset.image_image`. -/
+@[simp] theorem basisIndexEquiv_mul_coe (σ τ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) (i : B.BasisIndex A) :
+    (B.basisIndexEquiv (σ * τ) A i).1 =
+      B.act σ (B.basisIndexEquiv τ A i).1 :=
+  B.act_mul σ τ i.1
+
+open scoped Classical in
+/-- **Naturality of the factor map**, with the orientation explicit: evaluating the factor at
+the *image* vertex set, on the index transported by `σ`, is evaluating the factor at `A` on the
+relabeled structure.
+
+The direction is forced by `event_act` being a *preimage* equality: `X ∈ event (act σ i)` iff
+`relabel σ X ∈ event i`. -/
+theorem factorMap_basisIndexEquiv (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) (X : RelStructure S (Vinfinite S))
+    (i : B.BasisIndex A) :
+    B.factorMap (A.image (Sigma.map id fun s => ⇑(σ.1 s))) X (B.basisIndexEquiv σ A i) =
+      B.factorMap A (RelStructure.relabel σ.1 X) i := by
+  show decide (X ∈ B.event (B.act σ i.1)) = decide (RelStructure.relabel σ.1 X ∈ B.event i.1)
+  rw [B.event_act]
+  rfl
+
+open scoped Classical in
+/-- The same equation as a **commuting square** of maps: precomposition with the index
+equivalence carries the factor at the image vertex set to the factor at `A`, composed with the
+relabeling. -/
+theorem factorMap_comp_relabel (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    (fun f => f ∘ B.basisIndexEquiv σ A) ∘
+        B.factorMap (A.image (Sigma.map id fun s => ⇑(σ.1 s))) =
+      B.factorMap A ∘ RelStructure.relabel σ.1 :=
+  funext fun X => funext fun i => B.factorMap_basisIndexEquiv σ A X i
+
+open scoped Classical in
+/-- **The index equivalence commutes with the sub-index inclusions** — and definitionally, since
+both routes act by `σ` and only the containment proof differs. -/
+theorem basisIndexEmbedding_basisIndexEquiv {C A : Finset (Σ s : S.Srt, Vinfinite S s)}
+    (hCA : C ⊆ A) (σ : FinSuppPerm S) :
+    B.basisIndexEmbedding (Finset.image_subset_image hCA) ∘ B.basisIndexEquiv σ C =
+      B.basisIndexEquiv σ A ∘ B.basisIndexEmbedding hCA := rfl
+
+open scoped Classical in
+/-- Dually, the factor **projection** commutes with precomposition by the index equivalence —
+again definitionally, so the relabeling action descends along the tower of factors with no
+coherence condition to check. -/
+theorem factorProjection_basisIndexEquiv {C A : Finset (Σ s : S.Srt, Vinfinite S s)}
+    (hCA : C ⊆ A) (σ : FinSuppPerm S)
+    (f : B.BasisIndex (A.image (Sigma.map id fun s => ⇑(σ.1 s))) → Bool) :
+    B.factorProjection hCA (f ∘ B.basisIndexEquiv σ A) =
+      (B.factorProjection (Finset.image_subset_image hCA) f) ∘ B.basisIndexEquiv σ C := rfl
 
 end CoherentBasis
 
