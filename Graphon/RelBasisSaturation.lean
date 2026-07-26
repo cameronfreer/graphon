@@ -21,7 +21,8 @@ is a finitely supported sortwise permutation. Its anchor is `A.image τ` and its
 `atomAct σ (seed, τ) = (seed, σ * τ)`,
 
 which is what makes the two action laws *group* laws rather than anything about events:
-`act_one` is `one_mul` and `act_mul` is `mul_assoc`. The anchor law is then
+`act_one` is `one_mul` and `act_mul` is `mul_assoc` in `FinSuppPerm S`, the finitely supported
+subgroup. The anchor law is then
 `Finset.image_image`, and the event law is `RelStructure.relabel_preimage_relabel_preimage` —
 the orientation matches because `relabel` is contravariant.
 
@@ -31,7 +32,6 @@ representatives and no choices to make equivariant.
 
 ## Contents
 
-* `RelSignature.FinSuppPerm` — the countable group of finitely supported sortwise permutations;
 * `RelSignature.SeedData` — a countable family of `fixingAlgebra A`-events for each finite `A`,
   the input to the construction (its existence, from separability, is the next step);
 * `RelSignature.SaturatedAtom` and its `atomAnchor` / `atomEvent` / `atomAct`, with the four
@@ -44,32 +44,13 @@ namespace RelSignature
 
 variable {S : RelSignature}
 
-/-! ### The group of finitely supported relabelings -/
+/-! ### Countability of the relabeling subgroup -/
 
-/-- **The finitely supported sortwise permutations**, as a type. Countable under finitely many
-sorts, which is what makes the saturated atom family countable. -/
-def FinSuppPerm (S : RelSignature) : Type :=
-  {σ : ∀ _ : S.Srt, Equiv.Perm ℕ // SortwiseFinSupp (S := S) σ}
-
-namespace FinSuppPerm
-
+/-- The finitely supported sortwise permutations form a countable group under finitely many
+sorts — the subgroup itself lives beside `SortwiseFinSupp` in `Graphon.RelInvariantAction`;
+countability is recorded here, where `Fintype S.Srt` is in play. -/
 instance [Fintype S.Srt] : Countable (FinSuppPerm S) :=
   (countable_setOf_sortwiseFinSupp (S := S)).to_subtype
-
-/-- The identity relabeling. -/
-def one : FinSuppPerm S := ⟨fun _ => 1, SortwiseFinSupp.one⟩
-
-/-- Composition of relabelings, inner-first, matching the contravariance of `relabel`. -/
-def mul (σ τ : FinSuppPerm S) : FinSuppPerm S :=
-  ⟨fun s => σ.1 s * τ.1 s, σ.2.mul τ.2⟩
-
-theorem one_mul (τ : FinSuppPerm S) : mul one τ = τ :=
-  Subtype.ext (funext fun s => _root_.one_mul (τ.1 s))
-
-theorem mul_assoc (σ τ ρ : FinSuppPerm S) : mul (mul σ τ) ρ = mul σ (mul τ ρ) :=
-  Subtype.ext (funext fun s => _root_.mul_assoc (σ.1 s) (τ.1 s) (ρ.1 s))
-
-end FinSuppPerm
 
 /-! ### Seed data -/
 
@@ -166,18 +147,20 @@ def event (a : SaturatedAtom D) : Set (RelStructure S (Vinfinite S)) :=
   RelStructure.relabel a.2.1 ⁻¹' a.1.2.1
 
 /-- **The action: left multiplication in the relabeling coordinate.** -/
-def act (σ : FinSuppPerm S) (a : SaturatedAtom D) : SaturatedAtom D := (a.1, FinSuppPerm.mul σ a.2)
+def act (σ : FinSuppPerm S) (a : SaturatedAtom D) : SaturatedAtom D := (a.1, σ * a.2)
 
-/-- `act_one` is `one_mul`. -/
-theorem act_one (a : SaturatedAtom D) : act FinSuppPerm.one a = a := by
-  show (a.1, FinSuppPerm.mul FinSuppPerm.one a.2) = a
-  rw [FinSuppPerm.one_mul]
+/-- `act_one` is literally `one_mul` in the relabeling subgroup. -/
+theorem act_one (a : SaturatedAtom D) : act 1 a = a := by
+  show (a.1, (1 : FinSuppPerm S) * a.2) = a
+  rw [one_mul]
   rfl
 
-/-- `act_mul` is `mul_assoc` — the whole point of putting the relabeling in the index. -/
+/-- `act_mul` is literally `mul_assoc` — the point of putting the relabeling in the index, and
+of typing the action by the subgroup rather than by raw permutation families. -/
 theorem act_mul (σ τ : FinSuppPerm S) (a : SaturatedAtom D) :
-    act (FinSuppPerm.mul σ τ) a = act σ (act τ a) := by
-  rw [act, act, act, FinSuppPerm.mul_assoc]
+    act (σ * τ) a = act σ (act τ a) := by
+  show (a.1, σ * τ * a.2) = (a.1, σ * (τ * a.2))
+  rw [mul_assoc]
 
 open scoped Classical in
 /-- The anchor transports by the image map: `Finset.image_image`, since multiplication of

@@ -111,18 +111,17 @@ theorem eval_mem {atomAnchor : α → Finset (Σ s : S.Srt, Vinfinite S s)}
 
 /-! ### The relabeling action -/
 
-/-- **The action on expressions**, induced by an action on atoms. -/
-def act (atomAct : (∀ _ : S.Srt, Equiv.Perm ℕ) → α → α)
-    (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) : BasisExpr α → BasisExpr α
+/-- **The action on expressions**, induced by an action on atoms. Typed by the finitely
+supported subgroup, matching `CoherentBasis.act`. -/
+def act (atomAct : FinSuppPerm S → α → α) (σ : FinSuppPerm S) : BasisExpr α → BasisExpr α
   | .bot => .bot
   | .atom a => .atom (atomAct σ a)
   | .compl e => .compl (act atomAct σ e)
   | .inter e f => .inter (act atomAct σ e) (act atomAct σ f)
 
 /-- The action is trivial at the identity, by induction from the atom-level law. -/
-theorem act_one {atomAct : (∀ _ : S.Srt, Equiv.Perm ℕ) → α → α}
-    (hone : ∀ a, atomAct (fun _ => 1) a = a) :
-    ∀ e : BasisExpr α, act atomAct (fun _ => 1) e = e
+theorem act_one {atomAct : FinSuppPerm S → α → α} (hone : ∀ a, atomAct 1 a = a) :
+    ∀ e : BasisExpr α, act atomAct 1 e = e
   | .bot => rfl
   | .atom a => by simp only [act, hone]
   | .compl e => by simp only [act, act_one hone e]
@@ -130,11 +129,9 @@ theorem act_one {atomAct : (∀ _ : S.Srt, Equiv.Perm ℕ) → α → α}
 
 /-- The action is multiplicative, by induction from the atom-level law. The orientation matches
 the contravariance of `RelStructure.relabel`. -/
-theorem act_mul {atomAct : (∀ _ : S.Srt, Equiv.Perm ℕ) → α → α}
-    {σ τ : ∀ _ : S.Srt, Equiv.Perm ℕ}
-    (hmul : ∀ a, atomAct (fun s => σ s * τ s) a = atomAct σ (atomAct τ a)) :
-    ∀ e : BasisExpr α,
-      act atomAct (fun s => σ s * τ s) e = act atomAct σ (act atomAct τ e)
+theorem act_mul {atomAct : FinSuppPerm S → α → α} {σ τ : FinSuppPerm S}
+    (hmul : ∀ a, atomAct (σ * τ) a = atomAct σ (atomAct τ a)) :
+    ∀ e : BasisExpr α, act atomAct (σ * τ) e = act atomAct σ (act atomAct τ e)
   | .bot => rfl
   | .atom a => by simp only [act, hmul]
   | .compl e => by simp only [act, act_mul hmul e]
@@ -143,11 +140,11 @@ theorem act_mul {atomAct : (∀ _ : S.Srt, Equiv.Perm ℕ) → α → α}
 open scoped Classical in
 /-- The action transports anchors by the image map, provided the atoms do. -/
 theorem anchorOf_act {atomAnchor : α → Finset (Σ s : S.Srt, Vinfinite S s)}
-    {atomAct : (∀ _ : S.Srt, Equiv.Perm ℕ) → α → α} {σ : ∀ _ : S.Srt, Equiv.Perm ℕ}
+    {atomAct : FinSuppPerm S → α → α} {σ : FinSuppPerm S}
     (hanchor : ∀ a, atomAnchor (atomAct σ a) =
-      (atomAnchor a).image (Sigma.map id fun s => ⇑(σ s))) :
+      (atomAnchor a).image (Sigma.map id fun s => ⇑(σ.1 s))) :
     ∀ e : BasisExpr α, anchorOf atomAnchor (act atomAct σ e) =
-      (anchorOf atomAnchor e).image (Sigma.map id fun s => ⇑(σ s))
+      (anchorOf atomAnchor e).image (Sigma.map id fun s => ⇑(σ.1 s))
   | .bot => by simp only [act, anchorOf, Finset.image_empty]
   | .atom a => by simp only [act, anchorOf, hanchor]
   | .compl e => by simp only [act, anchorOf, anchorOf_act hanchor e]
@@ -159,10 +156,10 @@ theorem anchorOf_act {atomAnchor : α → Finset (Σ s : S.Srt, Vinfinite S s)}
 atoms do. Complement and intersection commute with preimage on the nose, which is the whole
 reason the syntax layer keeps the action strict. -/
 theorem eval_act {atomEvent : α → Set (RelStructure S (Vinfinite S))}
-    {atomAct : (∀ _ : S.Srt, Equiv.Perm ℕ) → α → α} {σ : ∀ _ : S.Srt, Equiv.Perm ℕ}
-    (hevent : ∀ a, atomEvent (atomAct σ a) = RelStructure.relabel σ ⁻¹' atomEvent a) :
+    {atomAct : FinSuppPerm S → α → α} {σ : FinSuppPerm S}
+    (hevent : ∀ a, atomEvent (atomAct σ a) = RelStructure.relabel σ.1 ⁻¹' atomEvent a) :
     ∀ e : BasisExpr α,
-      eval atomEvent (act atomAct σ e) = RelStructure.relabel σ ⁻¹' eval atomEvent e
+      eval atomEvent (act atomAct σ e) = RelStructure.relabel σ.1 ⁻¹' eval atomEvent e
   | .bot => by simp only [act, eval, Set.preimage_empty]
   | .atom a => by simp only [act, eval, hevent]
   | .compl e => by simp only [act, eval, eval_act hevent e, Set.preimage_compl]
