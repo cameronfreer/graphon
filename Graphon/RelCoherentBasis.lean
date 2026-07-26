@@ -65,6 +65,9 @@ and an **event**:
   is `fixingAlgebra A`-measurable, so its pullback lands inside `fixingAlgebra A`;
 * `CoherentBasis.exists_comap_factorMap_ae_eq` — the payoff: every `fixingAlgebra A`-event has
   an a.e. representative in the pullback of the factor map;
+* `CoherentBasis.FactorSpace` — the factor space at `A`, standard Borel because the index is
+  countable, with the measurability of the factor maps and projections, and
+  `factorSpaceEquiv`, a relabeling as a *measurable* equivalence of factor spaces;
 * `CoherentBasis.basisIndexEquiv` — a relabeling as an *equivalence*
   `BasisIndex A ≃ BasisIndex (A.image σ)`, with `factorMap_basisIndexEquiv` /
   `factorMap_comp_relabel` (naturality against `relabel`, orientation forced by `event_act`
@@ -165,6 +168,19 @@ def BasisIndex (A : Finset (Σ s : S.Srt, Vinfinite S s)) := {i : B.ι // B.anch
 instance (A : Finset (Σ s : S.Srt, Vinfinite S s)) : Countable (B.BasisIndex A) :=
   Subtype.countable
 
+/-! ### The factor spaces -/
+
+/-- **The factor space at `A`**: the Boolean cube over the indices anchored inside `A`.
+
+Standard Borel, because the index is countable — this is what the conditional-kernel step will
+need, and it is the reason for indexing by `BasisIndex A` rather than coding every factor into
+`ℕ → Bool`: the varying index keeps the inclusions literal without giving up the measurable
+structure. -/
+abbrev FactorSpace (A : Finset (Σ s : S.Srt, Vinfinite S s)) := B.BasisIndex A → Bool
+
+instance (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    StandardBorelSpace (B.FactorSpace A) := inferInstance
+
 /-- **The inclusion of sub-indices**, for `C ⊆ A`: a literal subtype inclusion, which is the
 whole reason for anchoring indices at finite sets rather than coding each factor separately. -/
 def basisIndexEmbedding {C A : Finset (Σ s : S.Srt, Vinfinite S s)} (hCA : C ⊆ A) :
@@ -173,13 +189,13 @@ def basisIndexEmbedding {C A : Finset (Σ s : S.Srt, Vinfinite S s)} (hCA : C �
 open scoped Classical in
 /-- **The factor map at `A`**: evaluate every event anchored inside `A`. -/
 noncomputable def factorMap (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
-    RelStructure S (Vinfinite S) → (B.BasisIndex A → Bool) :=
+    RelStructure S (Vinfinite S) → B.FactorSpace A :=
   fun X i => decide (X ∈ B.event i.1)
 
 /-- **The factor projection** from `A` down to `C ⊆ A`: precomposition with the index inclusion,
 i.e. ordinary coordinate restriction. -/
 def factorProjection {C A : Finset (Σ s : S.Srt, Vinfinite S s)} (hCA : C ⊆ A) :
-    (B.BasisIndex A → Bool) → (B.BasisIndex C → Bool) :=
+    B.FactorSpace A → B.FactorSpace C :=
   fun f => f ∘ B.basisIndexEmbedding hCA
 
 /-- **The projections are compatible with the factor maps** — by definition, since both sides
@@ -192,6 +208,17 @@ restricting directly. -/
 theorem factorProjection_comp {D C A : Finset (Σ s : S.Srt, Vinfinite S s)} (hDC : D ⊆ C)
     (hCA : C ⊆ A) :
     B.factorProjection hDC ∘ B.factorProjection hCA = B.factorProjection (hDC.trans hCA) := rfl
+
+/-- A coordinate of the factor map reads membership in the corresponding event. -/
+@[simp] theorem factorMap_eq_true {A : Finset (Σ s : S.Srt, Vinfinite S s)}
+    (X : RelStructure S (Vinfinite S)) (i : B.BasisIndex A) :
+    B.factorMap A X i = true ↔ X ∈ B.event i.1 := by
+  simp [factorMap]
+
+/-- The factor projections are measurable — they are coordinate restrictions. -/
+theorem measurable_factorProjection {C A : Finset (Σ s : S.Srt, Vinfinite S s)} (hCA : C ⊆ A) :
+    Measurable (B.factorProjection hCA) :=
+  measurable_pi_lambda _ fun _ => measurable_pi_apply _
 
 /-! ### Measurability and generation -/
 
@@ -207,6 +234,11 @@ theorem measurable_factorMap (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
   convert hmem using 1
   ext X
   simp [factorMap]
+
+/-- The factor map is measurable for the ambient σ-algebra too, by `fixingAlgebra_le`. -/
+theorem measurable_factorMap' (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    Measurable (B.factorMap A) :=
+  (B.measurable_factorMap A).mono (RelStructure.fixingAlgebra_le A) le_rfl
 
 /-- Consequently the pullback of the factor σ-algebra sits inside `fixingAlgebra A`. -/
 theorem comap_factorMap_le (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
@@ -326,13 +358,32 @@ theorem factorMap_basisIndexEquiv (σ : FinSuppPerm S)
   rfl
 
 open scoped Classical in
-/-- The same equation as a **commuting square** of maps: precomposition with the index
-equivalence carries the factor at the image vertex set to the factor at `A`, composed with the
-relabeling. -/
+/-- **A relabeling as a measurable equivalence of factor spaces.** The forward map is
+precomposition with `basisIndexEquiv σ A`; both directions are coordinate reindexings, hence
+measurable.
+
+This is the form the conditional kernels consume: transporting a kernel across a relabeling
+needs the measurable equivalence, not just the underlying bijection of indices. -/
+noncomputable def factorSpaceEquiv (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    B.FactorSpace (A.image (Sigma.map id fun s => ⇑(σ.1 s))) ≃ᵐ B.FactorSpace A where
+  toEquiv := Equiv.arrowCongr (B.basisIndexEquiv σ A).symm (Equiv.refl Bool)
+  measurable_toFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+  measurable_invFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+
+open scoped Classical in
+@[simp] theorem factorSpaceEquiv_apply (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s))
+    (f : B.FactorSpace (A.image (Sigma.map id fun s => ⇑(σ.1 s)))) :
+    B.factorSpaceEquiv σ A f = f ∘ B.basisIndexEquiv σ A := rfl
+
+open scoped Classical in
+/-- The naturality equation as a **commuting square**, through the named measurable
+equivalence: the factor at the image vertex set, transported back along `σ`, is the factor at
+`A` precomposed with the relabeling. -/
 theorem factorMap_comp_relabel (σ : FinSuppPerm S)
     (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
-    (fun f => f ∘ B.basisIndexEquiv σ A) ∘
-        B.factorMap (A.image (Sigma.map id fun s => ⇑(σ.1 s))) =
+    B.factorSpaceEquiv σ A ∘ B.factorMap (A.image (Sigma.map id fun s => ⇑(σ.1 s))) =
       B.factorMap A ∘ RelStructure.relabel σ.1 :=
   funext fun X => funext fun i => B.factorMap_basisIndexEquiv σ A X i
 
@@ -350,7 +401,7 @@ again definitionally, so the relabeling action descends along the tower of facto
 coherence condition to check. -/
 theorem factorProjection_basisIndexEquiv {C A : Finset (Σ s : S.Srt, Vinfinite S s)}
     (hCA : C ⊆ A) (σ : FinSuppPerm S)
-    (f : B.BasisIndex (A.image (Sigma.map id fun s => ⇑(σ.1 s))) → Bool) :
+    (f : B.FactorSpace (A.image (Sigma.map id fun s => ⇑(σ.1 s)))) :
     B.factorProjection hCA (f ∘ B.basisIndexEquiv σ A) =
       (B.factorProjection (Finset.image_subset_image hCA) f) ∘ B.basisIndexEquiv σ C := rfl
 
