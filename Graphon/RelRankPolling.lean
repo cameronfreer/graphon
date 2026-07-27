@@ -47,6 +47,49 @@ namespace RelSignature
 
 variable {S : RelSignature}
 
+/-! ### The polled union and its fixation of `A₀` -/
+
+open scoped Classical in
+/-- **The polled union**: the vertices of the non-distinguished members lying outside `A₀`,
+collected into one set. Polling moves *this* — not each member separately — so the overlaps
+between members, hence their equality patterns, survive. -/
+noncomputable def pollUnion (F : Finset (Finset (Σ s : S.Srt, Vinfinite S s)))
+    (A₀ : Finset (Σ s : S.Srt, Vinfinite S s)) : Finset (Σ s : S.Srt, Vinfinite S s) :=
+  (F.erase A₀).biUnion fun A => A \ A₀
+
+open scoped Classical in
+/-- Each member's own polled part sits inside the common union — the copies are cut from one
+block. -/
+theorem sdiff_subset_pollUnion {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
+    {A₀ A : Finset (Σ s : S.Srt, Vinfinite S s)} (hA : A ∈ F.erase A₀) :
+    A \ A₀ ⊆ pollUnion F A₀ := by
+  classical
+  exact Finset.subset_biUnion_of_mem (fun A => A \ A₀) hA
+
+open scoped Classical in
+/-- The polled union is disjoint from `A₀` by construction. -/
+theorem notMem_pollUnion_of_mem {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
+    {A₀ : Finset (Σ s : S.Srt, Vinfinite S s)} {v : Σ s : S.Srt, Vinfinite S s} (hv : v ∈ A₀) :
+    v ∉ pollUnion F A₀ := by
+  classical
+  simp only [pollUnion, Finset.mem_biUnion, not_exists]
+  rintro A ⟨-, hmem⟩
+  exact (Finset.mem_sdiff.mp hmem).2 hv
+
+open scoped Classical in
+/-- **The poll shift fixes `A₀` pointwise.** The shift moves only residues lying in the polled
+union, and `A₀` is disjoint from it and below the spacing bound.
+
+This is exact — a genuine pointwise fixation — even though the shift itself is *not* finitely
+supported. What is only a.e. is the invariance of a `fixingAlgebra A₀`-*event* under the shift;
+that comes separately from
+`InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra`. -/
+theorem pollPerm_pollUnion_fixes {K : ℕ} [NeZero K]
+    {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
+    {A₀ : Finset (Σ s : S.Srt, Vinfinite S s)} (hK : ∀ v ∈ A₀, v.2 < K) :
+    ∀ v ∈ A₀, pollPerm K (pollUnion F A₀) v.1 v.2 = v.2 := fun v hv =>
+  pollPerm_apply_of_notMem K (pollUnion F A₀) (hK v hv) (notMem_pollUnion_of_mem hv)
+
 open scoped Classical in
 /-- **The family polling tail.** The conditioning factor of the peel step at cutoff `q`. -/
 @[implicit_reducible]

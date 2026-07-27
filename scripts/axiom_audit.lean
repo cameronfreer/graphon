@@ -218,3 +218,5 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.card_inter_lt_of_ne
 #print axioms RelSignature.RelStructure.rankTailAlgebra_antitone
 #print axioms RelSignature.RelStructure.le_rankTailAlgebra_zero
+#print axioms RelSignature.pollPerm_pollUnion_fixes
+#print axioms RelSignature.sdiff_subset_pollUnion

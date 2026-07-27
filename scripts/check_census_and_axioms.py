@@ -223,6 +223,8 @@ AUDITED_DECLS = {
     "RelSignature.card_inter_lt_of_ne",
     "RelSignature.RelStructure.rankTailAlgebra_antitone",
     "RelSignature.RelStructure.le_rankTailAlgebra_zero",
+    "RelSignature.pollPerm_pollUnion_fixes",
+    "RelSignature.sdiff_subset_pollUnion",
     "RelSignature.CoherentBasis.factorMap_basisIndexEquiv",
     "RelSignature.CoherentBasis.factorMap_comp_relabel",
     "RelSignature.CoherentBasis.image_image_inv",
