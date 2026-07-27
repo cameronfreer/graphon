@@ -88,6 +88,35 @@ theorem factorLaw_map_prodEquiv (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     (B.measurable_factorMap' A)]
   rfl
 
+/-! ### Change of variables for a comapped kernel -/
+
+section CompProdComap
+
+variable {α β γ : Type*} [MeasurableSpace α] [MeasurableSpace β] [MeasurableSpace γ]
+
+/-- **Change of variables for `⊗ₘ` along a measurable equivalence in the source.** Pushing
+`μ ⊗ₘ κ.comap e` forward by `e × id` is `μ.map e ⊗ₘ κ`.
+
+Not in Mathlib; kept private, though it is clean enough to be a plausible upstream candidate.
+Proved on measurable rectangles, where both sides are the same integral after change of
+variables. -/
+private theorem map_prodCongr_compProd_comap (μ : Measure α) [IsFiniteMeasure μ]
+    (e : α ≃ᵐ β) (κ : Kernel β γ) [IsFiniteKernel κ] :
+    (μ ⊗ₘ κ.comap e e.measurable).map (MeasurableEquiv.prodCongr e (MeasurableEquiv.refl γ)) =
+      μ.map e ⊗ₘ κ := by
+  haveI : IsFiniteMeasure (μ.map e) := Measure.isFiniteMeasure_map _ _
+  refine Measure.ext_prod fun {s t} hs ht => ?_
+  have hpre : (MeasurableEquiv.prodCongr e (MeasurableEquiv.refl γ)) ⁻¹' (s ×ˢ t)
+      = (e ⁻¹' s) ×ˢ t := rfl
+  rw [Measure.map_apply (MeasurableEquiv.prodCongr e (MeasurableEquiv.refl γ)).measurable
+      (hs.prod ht), hpre,
+    Measure.compProd_apply_prod (e.measurable hs) ht,
+    Measure.compProd_apply_prod hs ht,
+    setLIntegral_map hs (Kernel.measurable_coe κ ht) e.measurable]
+  rfl
+
+end CompProdComap
+
 /-! ### Relabeling transport -/
 
 open scoped Classical in
@@ -112,7 +141,34 @@ theorem map_prodMap_compProd_stepKernel (σ : FinSuppPerm S)
     ← Measure.map_map (B.factorSpaceProdEquiv A).measurable (B.factorSpaceEquiv σ A).measurable,
     B.factorLaw_map_factorSpaceEquiv σ A]
 
-end CoherentBasis
+open scoped Classical in
+/-- **Kernel transport under relabeling**, stated a.e. under the source boundary law.
 
+A conditional distribution is unique only almost everywhere, so this is an a.e. equality of
+kernels and no strict coherence is claimed. The orientation is the source one the recursion
+needs: the step kernel at the image vertex set, with its target relabeled, agrees with the step
+kernel at `A` pulled back along the boundary equivalence.
+
+Proof: both composition-products agree after pushing forward by
+`MeasurableEquiv.prodCongr (boundarySpaceEquiv σ A) (.refl _)` — the left side by
+`Measure.compProd_map` and the exact joint transport, the right side by the change-of-variables
+helper and the boundary-law transport — and a measurable equivalence has injective pushforward,
+so `Kernel.compProd_eq_iff` concludes. -/
+theorem stepKernel_map_ae_eq_comap (σ : FinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    (B.stepKernel (A.image (Sigma.map id fun s => ⇑(σ.1 s)))).map (B.exactSpaceEquiv σ A) =ᵐ[
+        B.boundaryLaw (A.image (Sigma.map id fun s => ⇑(σ.1 s)))]
+      (B.stepKernel A).comap (B.boundarySpaceEquiv σ A)
+        (B.boundarySpaceEquiv σ A).measurable := by
+  set e := MeasurableEquiv.prodCongr (B.boundarySpaceEquiv σ A)
+    (MeasurableEquiv.refl (B.ExactSpace A)) with he
+  refine Kernel.ae_eq_of_compProd_eq (e.measurableEmbedding.map_injective ?_)
+  rw [Measure.compProd_map (B.exactSpaceEquiv σ A).measurable, Measure.map_map e.measurable
+      (Measurable.prodMap measurable_id (B.exactSpaceEquiv σ A).measurable),
+    map_prodCongr_compProd_comap _ (B.boundarySpaceEquiv σ A) (B.stepKernel A),
+    B.boundaryLaw_map_boundarySpaceEquiv σ A, ← B.map_prodMap_compProd_stepKernel σ A]
+  rfl
+
+end CoherentBasis
 
 end RelSignature
