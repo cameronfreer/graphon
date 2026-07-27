@@ -210,3 +210,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.condExp_ae_eq_condExp_of_comap_eq
 #print axioms RelSignature.InfiniteRelExchangeableLaw.measurePreserving_relabel
 #print axioms RelSignature.InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra
+#print axioms RelSignature.pollBlock_subset
+#print axioms RelSignature.pollBlock_inter
+#print axioms RelSignature.pollBlock_image_pollPerm_of_subset
+#print axioms RelSignature.exists_le_pollIndex

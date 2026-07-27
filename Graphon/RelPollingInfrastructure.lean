@@ -30,6 +30,20 @@ Three declarations are public, and are the whole intended interface:
 
 The `L²` squeeze and the conditional-expectation transport along `MeasurableSpace.comap` remain
 private: they are the proof of the tail engine, not part of its interface.
+
+Alongside the engine sits the **poll layout**: slots along a two-sided `ℤ`-orbit (`pollIndex`,
+`pollShift` — a unilateral shift of the blocks is not a bijection), the residue-wise permutation
+`pollPerm` that shifts every copy at once, and the blocks `pollBlock`. It moved here from
+`Graphon.RelFixingCondIndep` when the rankwise argument needed the same layout rather than a
+second copy of it.
+
+The rankwise argument polls a *family* of supports, so it needs the layout to be cut from **one
+common copy**: `pollBlock_subset` and `pollBlock_inter` say the blocks respect inclusion and
+intersection — the translation is injective, so copying a union and then cutting agrees with
+copying each member — and `pollBlock_image_pollPerm_of_subset` says the permutation built from
+the whole polled set carries the block of every subset to that subset's next block. Together
+these are what keep the overlaps, and hence the equality patterns, of a family of supports
+intact under polling.
 -/
 
 open MeasureTheory
@@ -270,5 +284,180 @@ theorem InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra
   exact absurd (key _ (pos_iff_ne_zero.mpr hne)) (lt_irrefl _)
 
 end AeInvariance
+
+/-! ### The poll layout: slots, blocks, and the shift -/
+
+section PollSlots
+
+/-- A bijection `ℤ ≃ ℕ` normalized to send `0` to `0`: the index set of the chain of poll
+blocks. A *unilateral* shift of the poll blocks cannot be a permutation — block `0` would have
+no preimage — so the blocks are laid out along a two-sided `ℤ`-orbit and only the nonnegative
+half is ever polled; the negative half is the predecessor reservoir that makes the shift
+bijective. -/
+noncomputable def pollEquivInt : ℤ ≃ ℕ :=
+  (Denumerable.eqv ℤ).trans (Equiv.swap (Denumerable.eqv ℤ 0) 0)
+
+theorem pollEquivInt_zero : pollEquivInt 0 = 0 := by
+  show Equiv.swap (Denumerable.eqv ℤ 0) 0 (Denumerable.eqv ℤ 0) = 0
+  exact Equiv.swap_apply_left _ _
+
+/-- The slot of the `m`-th poll block: an injective `ℕ → ℕ` starting at `0`, obtained by
+restricting the two-sided indexing to the nonnegative half. -/
+noncomputable def pollIndex (m : ℕ) : ℕ := pollEquivInt (m : ℤ)
+
+theorem pollIndex_zero : pollIndex 0 = 0 := by
+  rw [pollIndex, Nat.cast_zero, pollEquivInt_zero]
+
+/-- **The poll slots escape every bound**: for each `K` all but finitely many poll blocks sit
+above `K`, since `pollIndex` is injective. This is what lets a finitely supported permutation
+be dodged by going deep enough into the chain. -/
+theorem exists_le_pollIndex (K : ℕ) : ∃ n, ∀ m, n ≤ m → K ≤ pollIndex m := by
+  classical
+  refine ⟨((Finset.range K).image fun k => (pollEquivInt.symm k).toNat).sup id + 1,
+    fun m hm => ?_⟩
+  by_contra hlt
+  push Not at hlt
+  have hmem : m ∈ (Finset.range K).image fun k => (pollEquivInt.symm k).toNat :=
+    Finset.mem_image.mpr ⟨pollIndex m, Finset.mem_range.mpr hlt, by
+      rw [pollIndex, pollEquivInt.symm_apply_apply, Int.toNat_natCast]⟩
+  have := Finset.le_sup (f := id) hmem
+  simp only [id] at this
+  omega
+
+/-- **The slot shift**: a permutation of `ℕ` carrying poll slot `m` to poll slot `m + 1` — the
+translation by one of the two-sided orbit, transported to `ℕ`. -/
+noncomputable def pollShift : Equiv.Perm ℕ :=
+  pollEquivInt.symm.trans ((Equiv.addRight (1 : ℤ)).trans pollEquivInt)
+
+theorem pollShift_pollIndex (m : ℕ) : pollShift (pollIndex m) = pollIndex (m + 1) := by
+  show pollEquivInt ((Equiv.addRight (1 : ℤ)) (pollEquivInt.symm (pollEquivInt (m : ℤ)))) =
+    pollEquivInt ((m + 1 : ℕ) : ℤ)
+  rw [pollEquivInt.symm_apply_apply]
+  norm_num
+
+end PollSlots
+
+section PollBlocks
+
+variable {S : RelSignature}
+
+open scoped Classical in
+/-- **The polling permutation**: in the coordinates `x ↦ (x / N, x % N)` it shifts the slot of
+every residue lying in `D` and fixes every other residue. It therefore fixes every tagged
+vertex of index `< N` outside `D` — in particular all of `A` once `N` bounds `A ∪ B` — while
+translating the `D`-shaped poll block in slot `m` onto the one in slot `m + 1`. -/
+noncomputable def pollPerm (N : ℕ) [NeZero N]
+    (D : Finset (Σ s : S.Srt, Vinfinite S s)) : ∀ _ : S.Srt, Equiv.Perm ℕ := fun s =>
+  (Nat.divModEquiv N).trans
+    ((Equiv.prodCongrLeft fun i : Fin N =>
+        if (⟨s, (i : ℕ)⟩ : Σ s : S.Srt, Vinfinite S s) ∈ D then pollShift else Equiv.refl ℕ).trans
+      (Nat.divModEquiv N).symm)
+
+open scoped Classical in
+theorem pollPerm_apply (N : ℕ) [NeZero N] (D : Finset (Σ s : S.Srt, Vinfinite S s))
+    (s : S.Srt) (k : ℕ) {x : ℕ} (hx : x < N) :
+    pollPerm N D s (k * N + x) =
+      (if (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ D then pollShift k else k) * N + x := by
+  have hdiv : (k * N + x) / N = k := by
+    rw [Nat.mul_comm, Nat.mul_add_div (Nat.pos_of_neZero N), Nat.div_eq_of_lt hx, Nat.add_zero]
+  have hmod : (k * N + x) % N = x := by
+    rw [Nat.mul_comm, Nat.mul_add_mod, Nat.mod_eq_of_lt hx]
+  show ((Nat.divModEquiv N).symm ((Equiv.prodCongrLeft _) ((Nat.divModEquiv N) (k * N + x)))) = _
+  simp only [Nat.divModEquiv_apply, Nat.divModEquiv_symm_apply, Equiv.prodCongrLeft_apply,
+    Fin.ofNat_eq_cast, Fin.val_natCast, hdiv, hmod]
+  split_ifs with h
+  · rfl
+  · rfl
+
+open scoped Classical in
+theorem pollPerm_apply_of_notMem (N : ℕ) [NeZero N]
+    (D : Finset (Σ s : S.Srt, Vinfinite S s)) {v : Σ s : S.Srt, Vinfinite S s} (hv : v.2 < N)
+    (hvD : v ∉ D) : pollPerm N D v.1 v.2 = v.2 := by
+  have := pollPerm_apply N D v.1 0 hv
+  rw [Nat.zero_mul, Nat.zero_add] at this
+  rw [this, if_neg (by rwa [Sigma.eta]), Nat.zero_mul, Nat.zero_add]
+
+open scoped Classical in
+/-- **The `m`-th poll block**: the copy of `D` translated into poll slot `m`, so that slot `0`
+is `D` itself. -/
+noncomputable def pollBlock (N : ℕ) (D : Finset (Σ s : S.Srt, Vinfinite S s)) (m : ℕ) :
+    Finset (Σ s : S.Srt, Vinfinite S s) :=
+  D.image fun v => ⟨v.1, pollIndex m * N + v.2⟩
+
+theorem pollBlock_zero (N : ℕ) (D : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    pollBlock N D 0 = D := by
+  classical
+  rw [pollBlock]
+  refine (Finset.image_congr fun v _ => ?_).trans D.image_id
+  rw [pollIndex_zero, Nat.zero_mul, Nat.zero_add, Sigma.eta, id]
+
+/-- Every vertex of a poll block sits above its slot — the estimate that lets a finitely
+supported permutation fix all sufficiently deep blocks. -/
+theorem le_of_mem_pollBlock {N : ℕ} {D : Finset (Σ s : S.Srt, Vinfinite S s)} {m : ℕ}
+    {v : Σ s : S.Srt, Vinfinite S s} (hv : v ∈ pollBlock N D m) : pollIndex m * N ≤ v.2 := by
+  classical
+  obtain ⟨w, _, rfl⟩ := Finset.mem_image.mp hv
+  exact Nat.le_add_right _ _
+
+open scoped Classical in
+/-- **The shift moves each poll block to the next one.** -/
+theorem pollBlock_image_pollPerm {N : ℕ} [NeZero N]
+    {D : Finset (Σ s : S.Srt, Vinfinite S s)} (hD : ∀ v ∈ D, v.2 < N) (m : ℕ) :
+    (pollBlock N D m).image (Sigma.map id fun s => ⇑(pollPerm N D s)) = pollBlock N D (m + 1) := by
+  rw [pollBlock, pollBlock, Finset.image_image]
+  refine Finset.image_congr fun v hv => ?_
+  show (⟨v.1, pollPerm N D v.1 (pollIndex m * N + v.2)⟩ : Σ s : S.Srt, Vinfinite S s) = _
+  rw [pollPerm_apply N D v.1 _ (hD v hv), if_pos (by rwa [Sigma.eta]), pollShift_pollIndex]
+
+open scoped Classical in
+/-- **The shift fixes the conditioning set** — every vertex of `C` is below `N` and outside
+`D`, hence a fixed point of `pollPerm`. -/
+theorem image_pollPerm_of_notMem {N : ℕ} [NeZero N]
+    {C D : Finset (Σ s : S.Srt, Vinfinite S s)} (hC : ∀ v ∈ C, v.2 < N)
+    (hCD : ∀ v ∈ C, v ∉ D) :
+    C.image (Sigma.map id fun s => ⇑(pollPerm N D s)) = C := by
+  refine (Finset.image_congr fun v hv => ?_).trans C.image_id
+  show (⟨v.1, pollPerm N D v.1 v.2⟩ : Σ s : S.Srt, Vinfinite S s) = id v
+  rw [pollPerm_apply_of_notMem N D (hC v hv) (hCD v hv), Sigma.eta, id]
+
+end PollBlocks
+/-! ### One common copy: subsets and overlaps -/
+
+open scoped Classical in
+/-- **Blocks respect inclusion.** A subset of the polled set has its block inside the block of
+the whole — the copies of different supports are cut from *one* common copy. -/
+theorem pollBlock_subset {N : ℕ} {D U : Finset (Σ s : S.Srt, Vinfinite S s)} (h : D ⊆ U)
+    (m : ℕ) : pollBlock N D m ⊆ pollBlock N U m :=
+  Finset.image_subset_image h
+
+open scoped Classical in
+/-- **Blocks respect intersection**, hence preserve overlaps: the translation is injective, so
+copying the union of several supports and then cutting agrees with copying each support. This is
+what keeps the equality patterns of a family of supports intact under polling, and is the reason
+the whole union must be moved by a single map. -/
+theorem pollBlock_inter {N : ℕ} (D E : Finset (Σ s : S.Srt, Vinfinite S s)) (m : ℕ) :
+    pollBlock N (D ∩ E) m = pollBlock N D m ∩ pollBlock N E m := by
+  classical
+  refine Finset.image_inter _ _ fun v w hvw => ?_
+  obtain ⟨sv, xv⟩ := v
+  obtain ⟨sw, xw⟩ := w
+  obtain ⟨rfl, hx⟩ := Sigma.mk.injEq .. ▸ hvw
+  simpa using hvw
+
+open scoped Classical in
+/-- **The shift of the polled set moves every sub-block.** The permutation is built from the
+whole polled set `U`, but it carries the block of any `D ⊆ U` to the next block of `D` — one
+map, all supports moved coherently. -/
+theorem pollBlock_image_pollPerm_of_subset {N : ℕ} [NeZero N]
+    {D U : Finset (Σ s : S.Srt, Vinfinite S s)} (hDU : D ⊆ U)
+    (hU : ∀ v ∈ U, v.2 < N) (m : ℕ) :
+    (pollBlock N D m).image (Sigma.map id fun s => ⇑(pollPerm N U s)) =
+      pollBlock N D (m + 1) := by
+  classical
+  rw [pollBlock, pollBlock, Finset.image_image]
+  refine Finset.image_congr fun v hv => ?_
+  show (⟨v.1, pollPerm N U v.1 (pollIndex m * N + v.2)⟩ : Σ s : S.Srt, Vinfinite S s) = _
+  rw [pollPerm_apply N U v.1 _ (hU v (hDU hv)), if_pos (by rw [Sigma.eta]; exact hDU hv),
+    pollShift_pollIndex]
 
 end RelSignature
