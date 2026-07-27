@@ -24,6 +24,7 @@ import Graphon.KernelRandomization
 import Graphon.RelFixingAlgebra
 import Graphon.RelPollingInfrastructure
 import Graphon.RelRankAlgebra
+import Graphon.RelRankPolling
 import Graphon.RelFixingCondIndep
 import Graphon.SeparableFactor
 import Graphon.RelCoherentBasis

@@ -221,6 +221,8 @@ AUDITED_DECLS = {
     "RelSignature.RelStructure.lowerRankAlgebra_one",
     "RelSignature.RelStructure.comap_relabel_lowerRankAlgebra",
     "RelSignature.card_inter_lt_of_ne",
+    "RelSignature.RelStructure.rankTailAlgebra_antitone",
+    "RelSignature.RelStructure.le_rankTailAlgebra_zero",
     "RelSignature.CoherentBasis.factorMap_basisIndexEquiv",
     "RelSignature.CoherentBasis.factorMap_comp_relabel",
     "RelSignature.CoherentBasis.image_image_inv",
