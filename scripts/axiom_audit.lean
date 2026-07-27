@@ -203,3 +203,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.CoherentBasis.boundaryLaw_map_boundarySpaceEquiv
 #print axioms RelSignature.CoherentBasis.exactLaw_map_exactSpaceEquiv
 #print axioms RelSignature.CoherentBasis.stepKernel_map_ae_eq_comap
+#print axioms RelSignature.condExp_ae_eq_condExp_of_comap_eq
+#print axioms RelSignature.InfiniteRelExchangeableLaw.measurePreserving_relabel
+#print axioms RelSignature.InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra
