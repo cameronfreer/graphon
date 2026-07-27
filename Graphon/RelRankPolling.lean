@@ -24,6 +24,21 @@ once, above the whole finite union *including* `A₀`, so every subset copy shar
 while `q` varies along the tail.
 
 No nonemptiness hypothesis: the empty family and rank zero degenerate through the definitions.
+
+## The shift is not finitely supported
+
+`pollPerm K U` moves one block at *every* slot, so it displaces infinitely many vertices. Two
+consequences for the peel argument, both easy to get wrong:
+
+* the invariance of the conditioning factor must come from the **arbitrary-permutation** form of
+  `comap_relabel_lowerRankAlgebra`, not a finite-support version;
+* the distinguished `fixingAlgebra A₀`-event is **not** known to be exactly invariant under the
+  shift. Its invariance is only modulo the law, from
+  `InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra`. Nothing structural breaks:
+  the tail engine takes `f ∘ T =ᵐ f`, not a strict equality.
+
+Finitely supported test permutations appear only in the *pairwise* argument's raw intersection
+identification, which does not generalize here — see `RelStructure.rankTailAlgebra` below.
 -/
 
 open MeasureTheory
