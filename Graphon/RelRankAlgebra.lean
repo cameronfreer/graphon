@@ -93,49 +93,56 @@ theorem RelStructure.lowerRankAlgebra_one :
 /-! ### Invariance under relabeling -/
 
 open scoped Classical in
-private theorem sigmaMap_injective (σ : FinSuppPerm S) :
-    Function.Injective (Sigma.map id fun s => ⇑(σ.1 s) :
+private theorem sigmaMap_injective (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) :
+    Function.Injective (Sigma.map id fun s => ⇑(σ s) :
       (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s) := by
   have hinv : Function.LeftInverse
-      (Sigma.map id fun s => ⇑((σ⁻¹ : FinSuppPerm S).1 s) :
+      (Sigma.map id fun s => ⇑(σ s)⁻¹ :
         (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s)
-      (Sigma.map id fun s => ⇑(σ.1 s)) := by
+      (Sigma.map id fun s => ⇑(σ s)) := by
     rintro ⟨s, x⟩
-    show (⟨s, (σ.1 s)⁻¹ (σ.1 s x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
-    rw [show (σ.1 s)⁻¹ (σ.1 s x) = x from (σ.1 s).symm_apply_apply x]
+    show (⟨s, (σ s)⁻¹ (σ s x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
+    rw [show (σ s)⁻¹ (σ s x) = x from (σ s).symm_apply_apply x]
   exact hinv.injective
 
 open scoped Classical in
-private theorem image_image_inv_rank (σ : FinSuppPerm S)
+private theorem image_image_inv_rank (σ : ∀ _ : S.Srt, Equiv.Perm ℕ)
     (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
-    (A.image (Sigma.map id fun s => ⇑((σ⁻¹ : FinSuppPerm S).1 s))).image
-      (Sigma.map id fun s => ⇑(σ.1 s)) = A := by
+    (A.image (Sigma.map id fun s => ⇑(σ s)⁻¹)).image
+      (Sigma.map id fun s => ⇑(σ s)) = A := by
   rw [Finset.image_image]
   refine (Finset.image_congr fun v _ => ?_).trans A.image_id
   obtain ⟨s, x⟩ := v
-  show (⟨s, σ.1 s ((σ.1 s)⁻¹ x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
-  rw [show σ.1 s ((σ.1 s)⁻¹ x) = x from (σ.1 s).apply_symm_apply x]
+  show (⟨s, σ s ((σ s)⁻¹ x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
+  rw [show σ s ((σ s)⁻¹ x) = x from (σ s).apply_symm_apply x]
 
 open scoped Classical in
-/-- **The conditioning factor is relabeling invariant.** A finitely supported relabeling permutes
-the vertex sets of each rank, so it permutes the generators of `lowerRankAlgebra n` among
-themselves.
+/-- **The conditioning factor is relabeling invariant**, for an **arbitrary** sortwise
+permutation family under finitely many sorts — not merely a finitely supported one. That
+generality is essential rather than cosmetic: the poll shift `pollPerm K U` moves infinitely many
+vertices (one block at every slot) and so is *not* finitely supported, yet it is exactly the
+relabeling this lemma has to serve in the peel argument.
+
+Any such relabeling permutes the vertex sets of each rank, so it permutes the generators of
+`lowerRankAlgebra n` among themselves.
 
 This is what lets the tail-shift equality of the peel argument decompose: the lower-rank summand
 is carried to itself here, and each family member's poll block is carried to its successor by
 `pollBlock_image_pollPerm_of_subset`. -/
-theorem RelStructure.comap_relabel_lowerRankAlgebra (σ : FinSuppPerm S) (n : ℕ) :
-    MeasurableSpace.comap (RelStructure.relabel σ.1)
+theorem RelStructure.comap_relabel_lowerRankAlgebra [Fintype S.Srt]
+    (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) (n : ℕ) :
+    MeasurableSpace.comap (RelStructure.relabel σ)
         (RelStructure.lowerRankAlgebra (S := S) n) =
       RelStructure.lowerRankAlgebra n := by
   classical
   rw [RelStructure.lowerRankAlgebra]
-  simp_rw [MeasurableSpace.comap_iSup, RelStructure.fixingAlgebra_comap_relabel σ.2]
+  simp_rw [MeasurableSpace.comap_iSup,
+    RelStructure.fixingAlgebra_comap_relabel_of_fintype σ]
   refine le_antisymm (iSup₂_le fun A hA => ?_) (iSup₂_le fun A hA => ?_)
-  · exact le_iSup₂_of_le (A.image (Sigma.map id fun s => ⇑(σ.1 s)))
+  · exact le_iSup₂_of_le (A.image (Sigma.map id fun s => ⇑(σ s)))
       (by rwa [Finset.card_image_of_injective _ (sigmaMap_injective σ)]) le_rfl
-  · refine le_iSup₂_of_le (A.image (Sigma.map id fun s => ⇑((σ⁻¹ : FinSuppPerm S).1 s)))
-      (by rwa [Finset.card_image_of_injective _ (sigmaMap_injective σ⁻¹)])
+  · refine le_iSup₂_of_le (A.image (Sigma.map id fun s => ⇑(σ s)⁻¹))
+      (by rwa [Finset.card_image_of_injective _ (sigmaMap_injective fun s => (σ s)⁻¹)])
       (le_of_eq ?_)
     rw [image_image_inv_rank σ A]
 
