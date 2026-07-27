@@ -214,3 +214,5 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.pollBlock_inter
 #print axioms RelSignature.pollBlock_image_pollPerm_of_subset
 #print axioms RelSignature.exists_le_pollIndex
+#print axioms RelSignature.RelStructure.comap_relabel_lowerRankAlgebra
+#print axioms RelSignature.card_inter_lt_of_ne
