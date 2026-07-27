@@ -198,3 +198,15 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.RelStructure.fixingAlgebra_le_lowerRankAlgebra
 #print axioms RelSignature.RelStructure.lowerRankAlgebra_mono
 #print axioms RelSignature.RelStructure.lowerRankAlgebra_one
+#print axioms RelSignature.CoherentBasis.compProd_stepKernel
+#print axioms RelSignature.CoherentBasis.stepKernel_comp_boundaryLaw
+#print axioms RelSignature.CoherentBasis.factorLaw_map_prodEquiv
+#print axioms RelSignature.CoherentBasis.image_ssubset_image
+#print axioms RelSignature.CoherentBasis.prodMap_comp_factorSpaceProdEquiv
+#print axioms RelSignature.CoherentBasis.map_prodMap_compProd_stepKernel
+#print axioms RelSignature.CoherentBasis.boundaryLaw_map_boundarySpaceEquiv
+#print axioms RelSignature.CoherentBasis.exactLaw_map_exactSpaceEquiv
+#print axioms RelSignature.CoherentBasis.stepKernel_map_ae_eq_comap
+#print axioms RelSignature.condExp_ae_eq_condExp_of_comap_eq
+#print axioms RelSignature.InfiniteRelExchangeableLaw.measurePreserving_relabel
+#print axioms RelSignature.InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra

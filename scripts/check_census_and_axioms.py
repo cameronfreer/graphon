@@ -189,6 +189,9 @@ AUDITED_DECLS = {
     "MeasureTheory.Digraphon.measurable_sampleInfinite",
     "MeasureTheory.Digraphon.measurable_sampleFinite",
     "RelSignature.InfiniteRelExchangeableLaw.condIndep_fixingAlgebra",
+    "RelSignature.condExp_ae_eq_condExp_of_comap_eq",
+    "RelSignature.InfiniteRelExchangeableLaw.measurePreserving_relabel",
+    "RelSignature.InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra",
     "MeasureTheory.Measure.MeasureDense.exists_generateFrom_ae_eq_of_ne_top",
     "MeasureTheory.Measure.MeasureDense.exists_generateFrom_ae_eq",
     "MeasureTheory.measure_symmDiff_threshold_le",
@@ -222,6 +225,15 @@ AUDITED_DECLS = {
     "RelSignature.CoherentBasis.factorLaw_map_factorSpaceEquiv",
     "RelSignature.CoherentBasis.boundaryLaw_eq_map",
     "RelSignature.CoherentBasis.exactLaw_eq_map",
+    "RelSignature.CoherentBasis.compProd_stepKernel",
+    "RelSignature.CoherentBasis.stepKernel_comp_boundaryLaw",
+    "RelSignature.CoherentBasis.factorLaw_map_prodEquiv",
+    "RelSignature.CoherentBasis.image_ssubset_image",
+    "RelSignature.CoherentBasis.prodMap_comp_factorSpaceProdEquiv",
+    "RelSignature.CoherentBasis.boundaryLaw_map_boundarySpaceEquiv",
+    "RelSignature.CoherentBasis.exactLaw_map_exactSpaceEquiv",
+    "RelSignature.CoherentBasis.map_prodMap_compProd_stepKernel",
+    "RelSignature.CoherentBasis.stepKernel_map_ae_eq_comap",
 }
 
 ALLOWED_AXIOMS = {"propext", "Classical.choice", "Quot.sound"}
