@@ -225,4 +225,62 @@ theorem RelStructure.comap_relabel_rankTailAlgebra (hKF : ∀ A ∈ F, ∀ v ∈
 
 end Shift
 
+/-! ### Stabilization of the conditional expectation -/
+
+section Stabilization
+
+variable [Fintype S.Srt] [Countable S.Rel] {n K : ℕ} [NeZero K]
+  {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
+  {A₀ : Finset (Σ s : S.Srt, Vinfinite S s)}
+
+open scoped Classical in
+/-- **The distinguished indicator is a.e. invariant under the poll shift.**
+
+The shift fixes `A₀` pointwise and exactly (`pollPerm_pollUnion_fixes`), but it is not finitely
+supported, so a `fixingAlgebra A₀`-event is only invariant *modulo the law* — that is what
+`relabel_preimage_ae_eq_of_fixingAlgebra` supplies. The tail engine takes exactly this. -/
+theorem indicator_comp_relabel_pollPerm_ae_eq (M : InfiniteRelExchangeableLaw S)
+    (hK₀ : ∀ v ∈ A₀, v.2 < K) {E : Set (RelStructure S (Vinfinite S))}
+    (hE : MeasurableSet[RelStructure.fixingAlgebra A₀] E) :
+    (E.indicator fun _ => (1 : ℝ)) ∘
+        RelStructure.relabel (pollPerm K (pollUnion F A₀)) =ᵐ[
+      (M.law : Measure (RelStructure S (Vinfinite S)))] E.indicator fun _ => (1 : ℝ) := by
+  classical
+  have hset := M.relabel_preimage_ae_eq_of_fixingAlgebra hE
+    (pollPerm_pollUnion_fixes (F := F) hK₀)
+  have hcomp : (E.indicator fun _ => (1 : ℝ)) ∘
+      RelStructure.relabel (pollPerm K (pollUnion F A₀)) =
+      (RelStructure.relabel (pollPerm K (pollUnion F A₀)) ⁻¹' E).indicator fun _ => (1 : ℝ) := by
+    funext X
+    simp only [Function.comp_apply, Set.indicator_apply, Set.mem_preimage]
+  rw [hcomp]
+  exact indicator_ae_eq_of_ae_eq_set hset
+
+open scoped Classical in
+/-- **Consecutive stabilization**: along the tail, the conditional expectation of the
+distinguished indicator does not change.
+
+All five inputs are now in place — the shift is measure preserving, the tail is antitone, the
+comap identity is exact, the indicator is square-integrable, and its invariance is a.e. -/
+theorem condExp_indicator_rankTailAlgebra_succ (M : InfiniteRelExchangeableLaw S)
+    (hKF : ∀ A ∈ F, ∀ v ∈ A, v.2 < K) (hK₀ : ∀ v ∈ A₀, v.2 < K)
+    {E : Set (RelStructure S (Vinfinite S))}
+    (hE : MeasurableSet[RelStructure.fixingAlgebra A₀] E) (q : ℕ) :
+    (M.law : Measure (RelStructure S (Vinfinite S)))[E.indicator fun _ => (1 : ℝ)|
+          RelStructure.rankTailAlgebra n K F A₀ q]
+        =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))]
+      (M.law : Measure (RelStructure S (Vinfinite S)))[E.indicator fun _ => (1 : ℝ)|
+        RelStructure.rankTailAlgebra n K F A₀ (q + 1)] := by
+  classical
+  haveI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
+  exact condExp_ae_eq_condExp_of_comap_eq (measurable_relabel _)
+    (M.measurePreserving_relabel _)
+    (RelStructure.rankTailAlgebra_le n K F A₀ q)
+    (RelStructure.rankTailAlgebra_antitone n K F A₀ (Nat.le_succ q))
+    (RelStructure.comap_relabel_rankTailAlgebra hKF hK₀ q)
+    (memLp_indicator_const 2 hE.1 1 (Or.inr (measure_ne_top _ _)))
+    (indicator_comp_relabel_pollPerm_ae_eq M hK₀ hE)
+
+end Stabilization
+
 end RelSignature

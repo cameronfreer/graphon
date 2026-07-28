@@ -227,6 +227,8 @@ AUDITED_DECLS = {
     "RelSignature.image_pollPerm_generator",
     "RelSignature.comap_relabel_fixingAlgebra_generator",
     "RelSignature.RelStructure.comap_relabel_rankTailAlgebra",
+    "RelSignature.indicator_comp_relabel_pollPerm_ae_eq",
+    "RelSignature.condExp_indicator_rankTailAlgebra_succ",
     "RelSignature.sdiff_subset_pollUnion",
     "RelSignature.CoherentBasis.factorMap_basisIndexEquiv",
     "RelSignature.CoherentBasis.factorMap_comp_relabel",
