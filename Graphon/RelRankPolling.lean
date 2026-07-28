@@ -283,4 +283,84 @@ theorem condExp_indicator_rankTailAlgebra_succ (M : InfiniteRelExchangeableLaw S
 
 end Stabilization
 
+/-! ### The Lévy passage -/
+
+section Levy
+
+open Filter Topology
+
+variable [Fintype S.Srt] [Countable S.Rel] {n K : ℕ} [NeZero K]
+  {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
+  {A₀ : Finset (Σ s : S.Srt, Vinfinite S s)}
+
+open scoped Classical in
+/-- The conditional expectation is constant along the whole tail, by induction from the
+consecutive equality. -/
+private theorem condExp_indicator_rankTailAlgebra_eq_zero (M : InfiniteRelExchangeableLaw S)
+    (hKF : ∀ A ∈ F, ∀ v ∈ A, v.2 < K) (hK₀ : ∀ v ∈ A₀, v.2 < K)
+    {E : Set (RelStructure S (Vinfinite S))}
+    (hE : MeasurableSet[RelStructure.fixingAlgebra A₀] E) (q : ℕ) :
+    (M.law : Measure (RelStructure S (Vinfinite S)))[E.indicator fun _ => (1 : ℝ)|
+          RelStructure.rankTailAlgebra n K F A₀ 0]
+        =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))]
+      (M.law : Measure (RelStructure S (Vinfinite S)))[E.indicator fun _ => (1 : ℝ)|
+        RelStructure.rankTailAlgebra n K F A₀ q] := by
+  induction q with
+  | zero => exact EventuallyEq.refl _ _
+  | succ p ih =>
+      exact ih.trans (condExp_indicator_rankTailAlgebra_succ M hKF hK₀ hE p)
+
+open scoped Classical in
+/-- **The Lévy passage**: the conditional expectation over the whole tail agrees with the one
+over its intersection.
+
+Indicator-specific and private, following the pairwise proof: the approximating sequence is a.e.
+constant by the induction above, so its `L¹` distance to the Lévy limit is a constant sequence
+tending to `0`, hence `0`. -/
+private theorem condExp_indicator_rankTailAlgebra_iInf (M : InfiniteRelExchangeableLaw S)
+    (hKF : ∀ A ∈ F, ∀ v ∈ A, v.2 < K) (hK₀ : ∀ v ∈ A₀, v.2 < K)
+    {E : Set (RelStructure S (Vinfinite S))}
+    (hE : MeasurableSet[RelStructure.fixingAlgebra A₀] E) :
+    (M.law : Measure (RelStructure S (Vinfinite S)))[E.indicator fun _ => (1 : ℝ)|
+          RelStructure.rankTailAlgebra n K F A₀ 0]
+        =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))]
+      (M.law : Measure (RelStructure S (Vinfinite S)))[E.indicator fun _ => (1 : ℝ)|
+        ⨅ q, RelStructure.rankTailAlgebra n K F A₀ q] := by
+  classical
+  haveI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
+  set μ : Measure (RelStructure S (Vinfinite S)) :=
+    (M.law : Measure (RelStructure S (Vinfinite S))) with hμ
+  set f : RelStructure S (Vinfinite S) → ℝ := E.indicator fun _ => (1 : ℝ) with hf
+  have hfL : MemLp f 2 μ := memLp_indicator_const 2 hE.1 1 (Or.inr (measure_ne_top _ _))
+  have hint : Integrable f μ := hfL.integrable one_le_two
+  have hlevy := tendsto_eLpNorm_condExp_iInf (RelStructure.rankTailAlgebra (S := S) n K F A₀)
+    (RelStructure.rankTailAlgebra_antitone n K F A₀)
+    (RelStructure.rankTailAlgebra_le n K F A₀) hint
+  have hconst : ∀ q,
+      eLpNorm (μ[f|RelStructure.rankTailAlgebra n K F A₀ q] -
+          μ[f|⨅ p, RelStructure.rankTailAlgebra (S := S) n K F A₀ p]) 1 μ =
+        eLpNorm (μ[f|RelStructure.rankTailAlgebra n K F A₀ 0] -
+          μ[f|⨅ p, RelStructure.rankTailAlgebra (S := S) n K F A₀ p]) 1 μ :=
+    fun q => eLpNorm_congr_ae
+      ((condExp_indicator_rankTailAlgebra_eq_zero M hKF hK₀ hE q).symm.sub
+        (EventuallyEq.refl _ _))
+  have hzero : eLpNorm (μ[f|RelStructure.rankTailAlgebra n K F A₀ 0] -
+      μ[f|⨅ p, RelStructure.rankTailAlgebra (S := S) n K F A₀ p]) 1 μ = 0 :=
+    (tendsto_nhds_unique (by simpa only [hconst] using hlevy) tendsto_const_nhds).symm
+  have hinfle : (⨅ p, RelStructure.rankTailAlgebra (S := S) n K F A₀ p) ≤
+      (inferInstance : MeasurableSpace (RelStructure S (Vinfinite S))) :=
+    (iInf_le _ 0).trans (RelStructure.rankTailAlgebra_le n K F A₀ 0)
+  have hmeas : AEStronglyMeasurable
+      (μ[f|RelStructure.rankTailAlgebra n K F A₀ 0] -
+        μ[f|⨅ p, RelStructure.rankTailAlgebra (S := S) n K F A₀ p]) μ :=
+    ((stronglyMeasurable_condExp.mono (RelStructure.rankTailAlgebra_le n K F A₀ 0)).sub
+      (stronglyMeasurable_condExp.mono hinfle)).aestronglyMeasurable
+  have hsub := (eLpNorm_eq_zero_iff hmeas one_ne_zero).mp hzero
+  filter_upwards [hsub] with x hx
+  have hx0 : (μ[f|RelStructure.rankTailAlgebra n K F A₀ 0]) x -
+      (μ[f|⨅ p, RelStructure.rankTailAlgebra (S := S) n K F A₀ p]) x = 0 := hx
+  linarith
+
+end Levy
+
 end RelSignature
