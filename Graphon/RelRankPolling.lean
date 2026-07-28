@@ -421,6 +421,49 @@ theorem pollSwapFun_involutive [NeZero K] (hm₀ : pollIndex m₀ ≠ 0)
     exact Nat.div_add_mod' x K
   · simp only [pollSwapFun, hU, if_false]
 
+open scoped Classical in
+/-- The swap is supported below `(pollIndex m₀ + 1) * K`: it only moves values whose slot is `0`
+or `pollIndex m₀`. -/
+theorem pollSwapFun_eq_of_le [NeZero K]
+    (U : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt) {x : ℕ}
+    (hx : (pollIndex m₀ + 1) * K ≤ x) : pollSwapFun K m₀ U s x = x := by
+  classical
+  have hK : 0 < K := Nat.pos_of_neZero K
+  have hslot : pollIndex m₀ + 1 ≤ x / K := (Nat.le_div_iff_mul_le hK).mpr hx
+  simp only [pollSwapFun]
+  by_cases hU : (⟨s, x % K⟩ : Σ s : S.Srt, Vinfinite S s) ∈ U
+  · simp only [hU, if_true, if_neg (by omega : ¬ x / K = 0),
+      if_neg (by omega : ¬ x / K = pollIndex m₀)]
+    exact Nat.div_add_mod' x K
+  · simp only [hU, if_false]
+
+open scoped Classical in
+/-- **The finite swap as a member of the relabeling subgroup.** Unlike the poll shift, this one
+*is* finitely supported, which is what lets it transport the lower-rank algebra by the ordinary
+route. -/
+noncomputable def pollSwap (K m₀ : ℕ) [NeZero K] (hm₀ : m₀ ≠ 0)
+    (U : Finset (Σ s : S.Srt, Vinfinite S s)) : FinSuppPerm S :=
+  ⟨fun s => (pollSwapFun_involutive (K := K) (pollIndex_ne_zero hm₀) U s).toPerm,
+    ⟨(pollIndex m₀ + 1) * K, fun s x hx => pollSwapFun_eq_of_le U s hx⟩⟩
+
+open scoped Classical in
+@[simp] theorem pollSwap_apply (K m₀ : ℕ) [NeZero K] (hm₀ : m₀ ≠ 0)
+    (U : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt) (y : ℕ) :
+    (pollSwap K m₀ hm₀ U).1 s y = pollSwapFun K m₀ U s y := rfl
+
+open scoped Classical in
+/-- **The swap fixes `A₀` pointwise**, since `A₀` lies below the spacing bound and outside the
+polled union. -/
+theorem pollSwap_fixes {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
+    {A₀ : Finset (Σ s : S.Srt, Vinfinite S s)} [NeZero K] (hm₀ : m₀ ≠ 0)
+    (hK₀ : ∀ v ∈ A₀, v.2 < K) :
+    ∀ v ∈ A₀, (pollSwap K m₀ hm₀ (pollUnion F A₀)).1 v.1 v.2 = v.2 := by
+  classical
+  intro v hv
+  rw [pollSwap_apply]
+  simp only [pollSwapFun, Nat.mod_eq_of_lt (hK₀ v hv)]
+  rw [if_neg (by rw [Sigma.eta]; exact notMem_pollUnion_of_mem hv)]
+
 end Swap
 
 end RelSignature

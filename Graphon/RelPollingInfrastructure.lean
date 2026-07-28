@@ -308,6 +308,14 @@ noncomputable def pollIndex (m : ℕ) : ℕ := pollEquivInt (m : ℤ)
 theorem pollIndex_zero : pollIndex 0 = 0 := by
   rw [pollIndex, Nat.cast_zero, pollEquivInt_zero]
 
+/-- The poll slots are distinct. Restored here because the finite-swap argument needs to know
+that a chosen deep slot differs from slot `0`. -/
+theorem pollIndex_injective : Function.Injective pollIndex := fun _ _ h =>
+  Nat.cast_injective (pollEquivInt.injective h)
+
+theorem pollIndex_ne_zero {m : ℕ} (hm : m ≠ 0) : pollIndex m ≠ 0 := fun h =>
+  hm (pollIndex_injective (by rw [h, pollIndex_zero]))
+
 /-- **The poll slots escape every bound**: for each `K` all but finitely many poll blocks sit
 above `K`, since `pollIndex` is injective. This is what lets a finitely supported permutation
 be dodged by going deep enough into the chain. -/
