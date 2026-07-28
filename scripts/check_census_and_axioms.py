@@ -232,6 +232,8 @@ AUDITED_DECLS = {
     "RelSignature.pollSwapFun_involutive",
     "RelSignature.pollIndex_injective",
     "RelSignature.pollSwap_fixes",
+    "RelSignature.image_pollSwap_generator",
+    "RelSignature.pollSwap_fixes_block",
     "RelSignature.sdiff_subset_pollUnion",
     "RelSignature.CoherentBasis.factorMap_basisIndexEquiv",
     "RelSignature.CoherentBasis.factorMap_comp_relabel",

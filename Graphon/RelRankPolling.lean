@@ -444,7 +444,7 @@ route. -/
 noncomputable def pollSwap (K m₀ : ℕ) [NeZero K] (hm₀ : m₀ ≠ 0)
     (U : Finset (Σ s : S.Srt, Vinfinite S s)) : FinSuppPerm S :=
   ⟨fun s => (pollSwapFun_involutive (K := K) (pollIndex_ne_zero hm₀) U s).toPerm,
-    ⟨(pollIndex m₀ + 1) * K, fun s x hx => pollSwapFun_eq_of_le U s hx⟩⟩
+    ⟨(pollIndex m₀ + 1) * K, fun s _ hx => pollSwapFun_eq_of_le U s hx⟩⟩
 
 open scoped Classical in
 @[simp] theorem pollSwap_apply (K m₀ : ℕ) [NeZero K] (hm₀ : m₀ ≠ 0)
@@ -463,6 +463,66 @@ theorem pollSwap_fixes {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
   rw [pollSwap_apply]
   simp only [pollSwapFun, Nat.mod_eq_of_lt (hK₀ v hv)]
   rw [if_neg (by rw [Sigma.eta]; exact notMem_pollUnion_of_mem hv)]
+
+open scoped Classical in
+/-- On the polled union at slot `0`, the swap is the translation into slot `m₀`. -/
+theorem pollSwapFun_apply_of_mem [NeZero K] {U : Finset (Σ s : S.Srt, Vinfinite S s)}
+    {v : Σ s : S.Srt, Vinfinite S s} (hv : v ∈ U) (hlt : v.2 < K) :
+    pollSwapFun K m₀ U v.1 v.2 = pollIndex m₀ * K + v.2 := by
+  classical
+  simp only [pollSwapFun, Nat.mod_eq_of_lt hlt]
+  rw [if_pos (by rw [Sigma.eta]; exact hv), Nat.div_eq_of_lt hlt, if_pos rfl]
+
+open scoped Classical in
+/-- **Lemma 1 — the swap carries each family member onto its common copy.** -/
+theorem image_pollSwap_generator [NeZero K] (hm₀ : m₀ ≠ 0)
+    {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
+    {A₀ A : Finset (Σ s : S.Srt, Vinfinite S s)} (hA : A ∈ F.erase A₀)
+    (hKA : ∀ v ∈ A, v.2 < K) (hK₀ : ∀ v ∈ A₀, v.2 < K) :
+    A.image (Sigma.map id fun s => ⇑((pollSwap K m₀ hm₀ (pollUnion F A₀)).1 s)) =
+      (A ∩ A₀) ∪ pollBlock K (A \ A₀) m₀ := by
+  classical
+  have hsplit : A = (A ∩ A₀) ∪ (A \ A₀) := by
+    refine Finset.ext fun v => ?_
+    by_cases h : v ∈ A₀ <;> simp [h]
+  -- rewrite only on the left: `hsplit` would otherwise also expand the `A` on the right
+  conv_lhs => rw [hsplit]
+  rw [Finset.image_union]
+  congr 1
+  · refine (Finset.image_congr fun v hv => ?_).trans (A ∩ A₀).image_id
+    show (⟨v.1, (pollSwap K m₀ hm₀ (pollUnion F A₀)).1 v.1 v.2⟩ :
+      Σ s : S.Srt, Vinfinite S s) = id v
+    rw [pollSwap_fixes (F := F) hm₀ hK₀ v (Finset.mem_inter.mp hv).2, Sigma.eta, id]
+  · refine Finset.image_congr fun v hv => ?_
+    show (⟨v.1, (pollSwap K m₀ hm₀ (pollUnion F A₀)).1 v.1 v.2⟩ :
+      Σ s : S.Srt, Vinfinite S s) = ⟨v.1, pollIndex m₀ * K + v.2⟩
+    rw [pollSwap_apply,
+      pollSwapFun_apply_of_mem (sdiff_subset_pollUnion hA hv)
+        (hKA v (Finset.mem_sdiff.mp hv).1)]
+
+open scoped Classical in
+/-- **Lemma 2 — deep blocks are fixed pointwise**, for any slot other than `0` and `m₀`. -/
+theorem pollSwap_fixes_block [NeZero K] (hm₀ : m₀ ≠ 0)
+    {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
+    {A₀ D : Finset (Σ s : S.Srt, Vinfinite S s)} {m : ℕ} (hm : m ≠ 0) (hmm₀ : m ≠ m₀)
+    (hKD : ∀ v ∈ D, v.2 < K) :
+    ∀ v ∈ pollBlock K D m, (pollSwap K m₀ hm₀ (pollUnion F A₀)).1 v.1 v.2 = v.2 := by
+  classical
+  intro v hv
+  obtain ⟨w, hw, rfl⟩ := Finset.mem_image.mp hv
+  have hlt : w.2 < K := hKD w hw
+  have hK : 0 < K := Nat.pos_of_neZero K
+  have hdiv : (pollIndex m * K + w.2) / K = pollIndex m := by
+    rw [Nat.mul_comm, Nat.mul_add_div hK, Nat.div_eq_of_lt hlt, Nat.add_zero]
+  have hmod : (pollIndex m * K + w.2) % K = w.2 := by
+    rw [Nat.mul_comm, Nat.mul_add_mod, Nat.mod_eq_of_lt hlt]
+  rw [pollSwap_apply]
+  show pollSwapFun K m₀ (pollUnion F A₀) w.1 (pollIndex m * K + w.2) = pollIndex m * K + w.2
+  simp only [pollSwapFun, hmod, hdiv]
+  by_cases hU : (⟨w.1, w.2⟩ : Σ s : S.Srt, Vinfinite S s) ∈ pollUnion F A₀
+  · rw [if_pos hU, if_neg (pollIndex_ne_zero hm),
+      if_neg (fun h => hmm₀ (pollIndex_injective h))]
+  · rw [if_neg hU]
 
 end Swap
 
