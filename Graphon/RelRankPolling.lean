@@ -148,4 +148,81 @@ theorem RelStructure.le_rankTailAlgebra_zero (n K : ℕ)
   refine (Finset.ext fun v => ?_).symm
   by_cases h : v ∈ A₀ <;> simp [h]
 
+/-! ### The exact tail shift -/
+
+section Shift
+
+variable [Fintype S.Srt] {n K : ℕ} [NeZero K]
+  {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
+  {A₀ : Finset (Σ s : S.Srt, Vinfinite S s)}
+
+open scoped Classical in
+/-- Every vertex of the polled union lies below the spacing bound, once `K` bounds the whole
+family. -/
+theorem lt_of_mem_pollUnion (hKF : ∀ A ∈ F, ∀ v ∈ A, v.2 < K)
+    {v : Σ s : S.Srt, Vinfinite S s} (hv : v ∈ pollUnion F A₀) : v.2 < K := by
+  classical
+  simp only [pollUnion, Finset.mem_biUnion] at hv
+  obtain ⟨A, hA, hvA⟩ := hv
+  exact hKF A (Finset.mem_of_mem_erase hA) v (Finset.mem_sdiff.mp hvA).1
+
+open scoped Classical in
+/-- **Layer 1 — the image identity for one copied support.** The shift fixes the `C_A` part
+pointwise and advances the block part by one slot. -/
+theorem image_pollPerm_generator (hKF : ∀ A ∈ F, ∀ v ∈ A, v.2 < K)
+    (hK₀ : ∀ v ∈ A₀, v.2 < K) {A : Finset (Σ s : S.Srt, Vinfinite S s)}
+    (hA : A ∈ F.erase A₀) (m : ℕ) :
+    ((A ∩ A₀) ∪ pollBlock K (A \ A₀) m).image
+        (Sigma.map id fun s => ⇑(pollPerm K (pollUnion F A₀) s)) =
+      (A ∩ A₀) ∪ pollBlock K (A \ A₀) (m + 1) := by
+  classical
+  rw [Finset.image_union,
+    image_pollPerm_of_notMem
+      (fun v hv => hK₀ v (Finset.mem_inter.mp hv).2)
+      (fun v hv => notMem_pollUnion_of_mem (Finset.mem_inter.mp hv).2),
+    pollBlock_image_pollPerm_of_subset (sdiff_subset_pollUnion hA)
+      (fun v hv => lt_of_mem_pollUnion hKF hv)]
+
+open scoped Classical in
+/-- **Layer 2 — the comap equality for one generator.** Uses the arbitrary-permutation transport,
+since the shift is not finitely supported. -/
+theorem comap_relabel_fixingAlgebra_generator (hKF : ∀ A ∈ F, ∀ v ∈ A, v.2 < K)
+    (hK₀ : ∀ v ∈ A₀, v.2 < K) {A : Finset (Σ s : S.Srt, Vinfinite S s)}
+    (hA : A ∈ F.erase A₀) (m : ℕ) :
+    MeasurableSpace.comap (RelStructure.relabel (pollPerm K (pollUnion F A₀)))
+        (RelStructure.fixingAlgebra ((A ∩ A₀) ∪ pollBlock K (A \ A₀) m)) =
+      RelStructure.fixingAlgebra ((A ∩ A₀) ∪ pollBlock K (A \ A₀) (m + 1)) := by
+  classical
+  rw [RelStructure.fixingAlgebra_comap_relabel_of_fintype,
+    image_pollPerm_generator hKF hK₀ hA m]
+
+open scoped Classical in
+/-- **The exact tail shift** (layers 3–5): pulling the tail algebra back along the poll shift is
+the next stage of the tail.
+
+The three summands move independently: the lower-rank factor is carried to itself by
+`comap_relabel_lowerRankAlgebra` — which is why that lemma had to allow an arbitrary permutation,
+the shift not being finitely supported — each generator advances one slot by layer 2, and the
+inner tail reindexes from `m ≥ q` to `m ≥ q + 1`. -/
+theorem RelStructure.comap_relabel_rankTailAlgebra (hKF : ∀ A ∈ F, ∀ v ∈ A, v.2 < K)
+    (hK₀ : ∀ v ∈ A₀, v.2 < K) (q : ℕ) :
+    MeasurableSpace.comap (RelStructure.relabel (pollPerm K (pollUnion F A₀)))
+        (RelStructure.rankTailAlgebra (S := S) n K F A₀ q) =
+      RelStructure.rankTailAlgebra n K F A₀ (q + 1) := by
+  classical
+  -- the generator rewrite is conditional on `A ∈ F.erase A₀`, so it is applied per member
+  -- inside the bounds rather than by `simp`
+  simp only [RelStructure.rankTailAlgebra, MeasurableSpace.comap_sup,
+    MeasurableSpace.comap_iSup, RelStructure.comap_relabel_lowerRankAlgebra]
+  congr 1
+  refine le_antisymm (iSup₂_le fun m hm => iSup₂_le fun A hA => ?_)
+    (iSup₂_le fun m hm => iSup₂_le fun A hA => ?_)
+  · rw [comap_relabel_fixingAlgebra_generator hKF hK₀ hA m]
+    exact le_iSup₂_of_le (m + 1) (by omega) (le_iSup₂_of_le A hA le_rfl)
+  · obtain ⟨m', rfl⟩ : ∃ m', m = m' + 1 := ⟨m - 1, by omega⟩
+    refine le_iSup₂_of_le m' (by omega) (le_iSup₂_of_le A hA ?_)
+    rw [comap_relabel_fixingAlgebra_generator hKF hK₀ hA m']
+
+end Shift
+
 end RelSignature
