@@ -225,3 +225,4 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.RelStructure.comap_relabel_rankTailAlgebra
 #print axioms RelSignature.indicator_comp_relabel_pollPerm_ae_eq
 #print axioms RelSignature.condExp_indicator_rankTailAlgebra_succ
+#print axioms RelSignature.pollSwapFun_involutive

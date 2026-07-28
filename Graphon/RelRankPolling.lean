@@ -363,4 +363,64 @@ private theorem condExp_indicator_rankTailAlgebra_iInf (M : InfiniteRelExchangea
 
 end Levy
 
+/-! ### The finite swap
+
+Austin's Proposition 3.12 does **not** collapse the tail to the lower-rank algebra in the limit;
+the remark preceding his Lemma 3.11 warns that the intersection-of-joins manipulation such a
+collapse would need can fail even modulo null sets. What the argument uses instead is finite
+deletion — the consecutive stabilization above — together with a **finite swap**: a finitely
+supported permutation fixing `A₀` that carries the common polled union into one chosen block.
+
+Being finitely supported, this permutation is a genuine member of the relabeling subgroup, so it
+transports the lower-rank algebra by the ordinary route; and one common map moves the whole union
+at once, so all overlaps between the other supports survive. -/
+
+section Swap
+
+variable {K m₀ : ℕ}
+
+open scoped Classical in
+/-- The per-sort swap: for residues lying in `U`, exchange slot `0` with slot `pollIndex m₀`,
+leaving everything else alone.
+
+Written by rebuilding the value from its slot and residue rather than by adding and subtracting
+a multiple of `K`, which keeps the involution proof free of truncated subtraction. -/
+noncomputable def pollSwapFun (K m₀ : ℕ) (U : Finset (Σ s : S.Srt, Vinfinite S s))
+    (s : S.Srt) (x : ℕ) : ℕ :=
+  if (⟨s, x % K⟩ : Σ s : S.Srt, Vinfinite S s) ∈ U then
+    (if x / K = 0 then pollIndex m₀ else if x / K = pollIndex m₀ then 0 else x / K) * K + x % K
+  else x
+
+open scoped Classical in
+theorem pollSwapFun_involutive [NeZero K] (hm₀ : pollIndex m₀ ≠ 0)
+    (U : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt) :
+    Function.Involutive (pollSwapFun K m₀ U s) := by
+  classical
+  intro x
+  have hK : 0 < K := Nat.pos_of_neZero K
+  have hlt : x % K < K := Nat.mod_lt _ hK
+  have hdiv : ∀ j : ℕ, (j * K + x % K) / K = j := fun j => by
+    rw [Nat.mul_comm, Nat.mul_add_div hK, Nat.div_eq_of_lt hlt, Nat.add_zero]
+  have hmod : ∀ j : ℕ, (j * K + x % K) % K = x % K := fun j => by
+    rw [Nat.mul_comm, Nat.mul_add_mod, Nat.mod_eq_of_lt hlt]
+  -- the slot map is an involution on `{0, pollIndex m₀}` and fixes every other slot
+  have hslot : ∀ j : ℕ,
+      (if (if j = 0 then pollIndex m₀ else if j = pollIndex m₀ then 0 else j) = 0
+        then pollIndex m₀
+        else if (if j = 0 then pollIndex m₀ else if j = pollIndex m₀ then 0 else j)
+              = pollIndex m₀ then 0
+        else (if j = 0 then pollIndex m₀ else if j = pollIndex m₀ then 0 else j)) = j := by
+    intro j
+    by_cases h0 : j = 0
+    · subst h0; simp [hm₀]
+    · by_cases h1 : j = pollIndex m₀
+      · subst h1; simp [h0]
+      · simp [h0, h1]
+  by_cases hU : (⟨s, x % K⟩ : Σ s : S.Srt, Vinfinite S s) ∈ U
+  · simp only [pollSwapFun, hU, if_true, hmod, hdiv, hslot]
+    exact Nat.div_add_mod' x K
+  · simp only [pollSwapFun, hU, if_false]
+
+end Swap
+
 end RelSignature
