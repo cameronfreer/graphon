@@ -587,4 +587,58 @@ theorem RelStructure.comap_relabel_pollSwap_rankTailAlgebra (hm₀ : m₀ ≠ 0)
 
 end SwapInvariance
 
+/-! ### The conditional expectation is swap-invariant -/
+
+section SwapCondExp
+
+variable [Fintype S.Srt] [Countable S.Rel] {n K m₀ : ℕ} [NeZero K]
+  {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
+  {A₀ : Finset (Σ s : S.Srt, Vinfinite S s)}
+
+open scoped Classical in
+/-- The swap fixes a `fixingAlgebra A₀`-event **exactly**. Unlike the poll shift, this
+permutation is finitely supported, so it lies in the stabilizer used to define the fixing
+algebra and no a.e. upgrade is needed. -/
+theorem preimage_pollSwap_eq (hm₀ : m₀ ≠ 0) (hK₀ : ∀ v ∈ A₀, v.2 < K)
+    {E : Set (RelStructure S (Vinfinite S))}
+    (hE : MeasurableSet[RelStructure.fixingAlgebra A₀] E) :
+    RelStructure.relabel (pollSwap K m₀ hm₀ (pollUnion F A₀)).1 ⁻¹' E = E :=
+  hE.2 _ ⟨(pollSwap K m₀ hm₀ (pollUnion F A₀)).2, pollSwap_fixes (F := F) hm₀ hK₀⟩
+
+open scoped Classical in
+/-- **The distinguished conditional expectation is a.e. invariant under the swap**, for
+`m₀ < q`.
+
+The event is fixed exactly, the tail algebra is carried onto itself, and the swap preserves the
+law; `condExp_comp_of_measurePreserving` then transports the conditional expectation. -/
+theorem condExp_indicator_rankTailAlgebra_comp_pollSwap (M : InfiniteRelExchangeableLaw S)
+    (hm₀ : m₀ ≠ 0) (hKF : ∀ A ∈ F, ∀ v ∈ A, v.2 < K) (hK₀ : ∀ v ∈ A₀, v.2 < K)
+    {E : Set (RelStructure S (Vinfinite S))}
+    (hE : MeasurableSet[RelStructure.fixingAlgebra A₀] E) {q : ℕ} (hq : m₀ < q) :
+    ((M.law : Measure (RelStructure S (Vinfinite S)))[E.indicator fun _ => (1 : ℝ)|
+          RelStructure.rankTailAlgebra n K F A₀ q]) ∘
+        RelStructure.relabel (pollSwap K m₀ hm₀ (pollUnion F A₀)).1
+      =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))]
+      (M.law : Measure (RelStructure S (Vinfinite S)))[E.indicator fun _ => (1 : ℝ)|
+        RelStructure.rankTailAlgebra n K F A₀ q] := by
+  classical
+  haveI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
+  set g := pollSwap K m₀ hm₀ (pollUnion F A₀) with hg
+  set f : RelStructure S (Vinfinite S) → ℝ := E.indicator fun _ => (1 : ℝ) with hf
+  have hfg : f ∘ RelStructure.relabel g.1 = f := by
+    have hcomp : f ∘ RelStructure.relabel g.1 =
+        (RelStructure.relabel g.1 ⁻¹' E).indicator fun _ => (1 : ℝ) := by
+      funext X
+      simp only [hf, Function.comp_apply, Set.indicator_apply, Set.mem_preimage]
+    rw [hcomp, preimage_pollSwap_eq (F := F) hm₀ hK₀ hE]
+  have hint : Integrable f (M.law : Measure (RelStructure S (Vinfinite S))) :=
+    (memLp_indicator_const 2 hE.1 1 (Or.inr (measure_ne_top _ _))).integrable one_le_two
+  have hmain := condExp_comp_of_measurePreserving (measurable_relabel g.1)
+    (M.measurePreserving_relabel g.1)
+    (RelStructure.rankTailAlgebra_le n K F A₀ q) hint
+  rw [RelStructure.comap_relabel_pollSwap_rankTailAlgebra hm₀ hKF hK₀ hq, hfg] at hmain
+  exact hmain.symm
+
+end SwapCondExp
+
 end RelSignature

@@ -237,6 +237,8 @@ AUDITED_DECLS = {
     "RelSignature.condExp_comp_of_measurePreserving",
     "RelSignature.image_pollSwap_deep_generator",
     "RelSignature.RelStructure.comap_relabel_pollSwap_rankTailAlgebra",
+    "RelSignature.preimage_pollSwap_eq",
+    "RelSignature.condExp_indicator_rankTailAlgebra_comp_pollSwap",
     "RelSignature.sdiff_subset_pollUnion",
     "RelSignature.CoherentBasis.factorMap_basisIndexEquiv",
     "RelSignature.CoherentBasis.factorMap_comp_relabel",
