@@ -641,4 +641,76 @@ theorem condExp_indicator_rankTailAlgebra_comp_pollSwap (M : InfiniteRelExchange
 
 end SwapCondExp
 
+/-! ### Measurability of the transformed events -/
+
+section TransformedEvents
+
+variable [Fintype S.Srt] {n K m₀ : ℕ} [NeZero K]
+  {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
+  {A₀ : Finset (Σ s : S.Srt, Vinfinite S s)}
+
+open scoped Classical in
+/-- **A relabeled lower-rank test event stays lower-rank measurable**, for any sortwise
+permutation: the conditioning factor is relabeling invariant. -/
+theorem preimage_relabel_mem_lowerRankAlgebra (σ : ∀ _ : S.Srt, Equiv.Perm ℕ)
+    {B : Set (RelStructure S (Vinfinite S))}
+    (hB : MeasurableSet[RelStructure.lowerRankAlgebra (S := S) n] B) :
+    MeasurableSet[RelStructure.lowerRankAlgebra (S := S) n]
+      (RelStructure.relabel σ ⁻¹' B) := by
+  have h : MeasurableSet[MeasurableSpace.comap (RelStructure.relabel σ)
+      (RelStructure.lowerRankAlgebra (S := S) n)] (RelStructure.relabel σ ⁻¹' B) := ⟨B, hB, rfl⟩
+  rwa [RelStructure.comap_relabel_lowerRankAlgebra] at h
+
+open scoped Classical in
+/-- The copied generator is one of the generators of `𝒯 0`. -/
+theorem fixingAlgebra_copy_le_rankTailAlgebra_zero
+    {A : Finset (Σ s : S.Srt, Vinfinite S s)} (hA : A ∈ F.erase A₀) :
+    RelStructure.fixingAlgebra ((A ∩ A₀) ∪ pollBlock K (A \ A₀) m₀) ≤
+      RelStructure.rankTailAlgebra (S := S) n K F A₀ 0 := by
+  refine le_trans ?_ le_sup_right
+  refine le_iSup₂_of_le m₀ (Nat.zero_le _) ?_
+  exact le_iSup₂_of_le A hA le_rfl
+
+open scoped Classical in
+/-- **A relabeled family event lands in `𝒯 0`.** The swap carries `A` onto its common copy
+(`image_pollSwap_generator`), and that copy is a generator of the cutoff-`0` tail. -/
+theorem preimage_pollSwap_mem_rankTailAlgebra_zero (hm₀ : m₀ ≠ 0)
+    (hKF : ∀ A ∈ F, ∀ v ∈ A, v.2 < K) (hK₀ : ∀ v ∈ A₀, v.2 < K)
+    {A : Finset (Σ s : S.Srt, Vinfinite S s)} (hA : A ∈ F.erase A₀)
+    {EA : Set (RelStructure S (Vinfinite S))}
+    (hEA : MeasurableSet[RelStructure.fixingAlgebra A] EA) :
+    MeasurableSet[RelStructure.rankTailAlgebra (S := S) n K F A₀ 0]
+      (RelStructure.relabel (pollSwap K m₀ hm₀ (pollUnion F A₀)).1 ⁻¹' EA) := by
+  classical
+  have h : MeasurableSet[MeasurableSpace.comap
+      (RelStructure.relabel (pollSwap K m₀ hm₀ (pollUnion F A₀)).1)
+      (RelStructure.fixingAlgebra A)]
+      (RelStructure.relabel (pollSwap K m₀ hm₀ (pollUnion F A₀)).1 ⁻¹' EA) := ⟨EA, hEA, rfl⟩
+  rw [RelStructure.fixingAlgebra_comap_relabel (pollSwap K m₀ hm₀ (pollUnion F A₀)).2,
+    image_pollSwap_generator hm₀ hA
+      (fun v hv => hKF A (Finset.mem_of_mem_erase hA) v hv) hK₀] at h
+  exact fixingAlgebra_copy_le_rankTailAlgebra_zero hA _ h
+
+open scoped Classical in
+/-- **The bundled test event transforms into `𝒯 0`.** Packaging the lower-rank test event and
+all the other family events as a single set avoids reproving measurability and integrability of
+a finite product at every step of the swap calculation. -/
+theorem preimage_pollSwap_bundle_mem_rankTailAlgebra_zero (hm₀ : m₀ ≠ 0)
+    (hKF : ∀ A ∈ F, ∀ v ∈ A, v.2 < K) (hK₀ : ∀ v ∈ A₀, v.2 < K)
+    {B : Set (RelStructure S (Vinfinite S))}
+    (hB : MeasurableSet[RelStructure.lowerRankAlgebra (S := S) n] B)
+    {E : Finset (Σ s : S.Srt, Vinfinite S s) → Set (RelStructure S (Vinfinite S))}
+    (hE : ∀ A ∈ F.erase A₀, MeasurableSet[RelStructure.fixingAlgebra A] (E A)) :
+    MeasurableSet[RelStructure.rankTailAlgebra (S := S) n K F A₀ 0]
+      (RelStructure.relabel (pollSwap K m₀ hm₀ (pollUnion F A₀)).1 ⁻¹'
+        (B ∩ ⋂ A ∈ F.erase A₀, E A)) := by
+  classical
+  rw [Set.preimage_inter, Set.preimage_iInter₂]
+  refine MeasurableSet.inter ?_ (MeasurableSet.biInter (F.erase A₀).countable_toSet
+    fun A hA => preimage_pollSwap_mem_rankTailAlgebra_zero hm₀ hKF hK₀ hA (hE A hA))
+  exact RelStructure.lowerRankAlgebra_le_rankTailAlgebra n K F A₀ 0 _
+    (preimage_relabel_mem_lowerRankAlgebra _ hB)
+
+end TransformedEvents
+
 end RelSignature
