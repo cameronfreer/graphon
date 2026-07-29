@@ -230,3 +230,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.pollSwap_fixes
 #print axioms RelSignature.image_pollSwap_generator
 #print axioms RelSignature.pollSwap_fixes_block
+#print axioms RelSignature.condExp_comp_of_measurePreserving
+#print axioms RelSignature.image_pollSwap_deep_generator
+#print axioms RelSignature.RelStructure.comap_relabel_pollSwap_rankTailAlgebra

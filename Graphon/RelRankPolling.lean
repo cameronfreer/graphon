@@ -526,4 +526,65 @@ theorem pollSwap_fixes_block [NeZero K] (hm₀ : m₀ ≠ 0)
 
 end Swap
 
+/-! ### Invariance of the tail algebra under the swap -/
+
+section SwapInvariance
+
+variable [Fintype S.Srt] {n K m₀ : ℕ} [NeZero K]
+  {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
+  {A₀ : Finset (Σ s : S.Srt, Vinfinite S s)}
+
+open scoped Classical in
+/-- **Lemma 3 — deep generators are fixed setwise.** For `m₀ < q ≤ m` the swap fixes both parts
+of the generator: `C_A` because it lies in `A₀`, and the block because its slot is neither `0`
+nor `m₀`. -/
+theorem image_pollSwap_deep_generator (hm₀ : m₀ ≠ 0)
+    (hKF : ∀ A ∈ F, ∀ v ∈ A, v.2 < K) (hK₀ : ∀ v ∈ A₀, v.2 < K)
+    {A : Finset (Σ s : S.Srt, Vinfinite S s)} (hA : A ∈ F.erase A₀)
+    {q m : ℕ} (hq : m₀ < q) (hm : q ≤ m) :
+    ((A ∩ A₀) ∪ pollBlock K (A \ A₀) m).image
+        (Sigma.map id fun s => ⇑((pollSwap K m₀ hm₀ (pollUnion F A₀)).1 s)) =
+      (A ∩ A₀) ∪ pollBlock K (A \ A₀) m := by
+  classical
+  rw [Finset.image_union]
+  congr 1
+  · refine (Finset.image_congr fun v hv => ?_).trans (A ∩ A₀).image_id
+    show (⟨v.1, (pollSwap K m₀ hm₀ (pollUnion F A₀)).1 v.1 v.2⟩ :
+      Σ s : S.Srt, Vinfinite S s) = id v
+    rw [pollSwap_fixes (F := F) hm₀ hK₀ v (Finset.mem_inter.mp hv).2, Sigma.eta, id]
+  · refine (Finset.image_congr fun v hv => ?_).trans (pollBlock K (A \ A₀) m).image_id
+    show (⟨v.1, (pollSwap K m₀ hm₀ (pollUnion F A₀)).1 v.1 v.2⟩ :
+      Σ s : S.Srt, Vinfinite S s) = id v
+    rw [pollSwap_fixes_block (F := F) (A₀ := A₀) hm₀ (by omega) (by omega)
+      (fun w hw => hKF A (Finset.mem_of_mem_erase hA) w (Finset.mem_sdiff.mp hw).1) v hv,
+      Sigma.eta, id]
+
+open scoped Classical in
+/-- **The tail algebra is invariant under the swap**, for `m₀ < q`: the lower-rank summand is
+carried onto itself, and every deep generator is fixed. -/
+theorem RelStructure.comap_relabel_pollSwap_rankTailAlgebra (hm₀ : m₀ ≠ 0)
+    (hKF : ∀ A ∈ F, ∀ v ∈ A, v.2 < K) (hK₀ : ∀ v ∈ A₀, v.2 < K) {q : ℕ} (hq : m₀ < q) :
+    MeasurableSpace.comap
+        (RelStructure.relabel (pollSwap K m₀ hm₀ (pollUnion F A₀)).1)
+        (RelStructure.rankTailAlgebra (S := S) n K F A₀ q) =
+      RelStructure.rankTailAlgebra n K F A₀ q := by
+  classical
+  simp only [RelStructure.rankTailAlgebra, MeasurableSpace.comap_sup,
+    MeasurableSpace.comap_iSup, RelStructure.comap_relabel_lowerRankAlgebra]
+  congr 1
+  have hgen : ∀ {m : ℕ}, q ≤ m → ∀ {A : Finset (Σ s : S.Srt, Vinfinite S s)}, A ∈ F.erase A₀ →
+      MeasurableSpace.comap (RelStructure.relabel (pollSwap K m₀ hm₀ (pollUnion F A₀)).1)
+          (RelStructure.fixingAlgebra ((A ∩ A₀) ∪ pollBlock K (A \ A₀) m)) =
+        RelStructure.fixingAlgebra ((A ∩ A₀) ∪ pollBlock K (A \ A₀) m) := by
+    intro m hm A hA
+    rw [RelStructure.fixingAlgebra_comap_relabel (pollSwap K m₀ hm₀ (pollUnion F A₀)).2,
+      image_pollSwap_deep_generator hm₀ hKF hK₀ hA hq hm]
+  refine le_antisymm (iSup₂_le fun m hm => iSup₂_le fun A hA => ?_)
+    (iSup₂_le fun m hm => iSup₂_le fun A hA => ?_)
+  · rw [hgen hm hA]
+    exact le_iSup₂_of_le m hm (le_iSup₂_of_le A hA le_rfl)
+  · refine le_iSup₂_of_le m hm (le_iSup₂_of_le A hA (le_of_eq (hgen hm hA).symm))
+
+end SwapInvariance
+
 end RelSignature

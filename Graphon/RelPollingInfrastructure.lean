@@ -28,8 +28,10 @@ Three declarations are public, and are the whole intended interface:
   `fixingAlgebra A`-event is invariant modulo the law under every sortwise permutation fixing
   `A`, which is what supplies the engine's `f ∘ T =ᵐ f`.
 
-The `L²` squeeze and the conditional-expectation transport along `MeasurableSpace.comap` remain
-private: they are the proof of the tail engine, not part of its interface.
+The `L²` squeeze remains private: it is the proof of the tail engine, not part of its interface.
+`condExp_comp_of_measurePreserving` was private for the same reason until the rankwise argument
+needed it directly — to turn invariance of an *event* under a relabeling into invariance of the
+corresponding conditional expectation — so it is now public and audited.
 
 Alongside the engine sits the **poll layout**: slots along a two-sided `ℤ`-orbit (`pollIndex`,
 `pollShift` — a unilateral shift of the blocks is not a bijection), the residue-wise permutation
@@ -119,7 +121,7 @@ private theorem condExp_ae_eq_condExp_of_integral_sq_le
 
 /-- **Transport**: conditional expectation commutes with a measure-preserving map, the
 conditioning algebra pulled back along `MeasurableSpace.comap`. -/
-private theorem condExp_comp_of_measurePreserving
+theorem condExp_comp_of_measurePreserving
     {T : Ω → Ω} (hT : Measurable T) (hTμ : MeasurePreserving T μ μ)
     (hm : m₁ ≤ mΩ) {f : Ω → ℝ} (hf : Integrable f μ) :
     μ[f ∘ T | MeasurableSpace.comap T m₁] =ᵐ[μ] (μ[f | m₁]) ∘ T := by
