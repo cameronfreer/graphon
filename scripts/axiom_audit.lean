@@ -238,3 +238,4 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.preimage_relabel_mem_lowerRankAlgebra
 #print axioms RelSignature.preimage_pollSwap_mem_rankTailAlgebra_zero
 #print axioms RelSignature.preimage_pollSwap_bundle_mem_rankTailAlgebra_zero
+#print axioms RelSignature.setIntegral_indicator_eq_setIntegral_condExp_rankTailAlgebra

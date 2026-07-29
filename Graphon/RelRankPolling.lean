@@ -713,4 +713,119 @@ theorem preimage_pollSwap_bundle_mem_rankTailAlgebra_zero (hm₀ : m₀ ≠ 0)
 
 end TransformedEvents
 
+/-! ### The rank-tail integral identity -/
+
+section RoundTrip
+
+variable [Fintype S.Srt] [Countable S.Rel] {n K m₀ : ℕ} [NeZero K]
+  {F : Finset (Finset (Σ s : S.Srt, Vinfinite S s))}
+  {A₀ : Finset (Σ s : S.Srt, Vinfinite S s)}
+
+open scoped Classical in
+/-- **Change of variables along the swap**, for any integrand it fixes a.e. Used for both legs of
+the round trip; the return leg needs no inverse, since the swap is involutive and this statement
+is symmetric in the two sides. -/
+private theorem setIntegral_relabel_pollSwap (M : InfiniteRelExchangeableLaw S) (hm₀ : m₀ ≠ 0)
+    {G : Set (RelStructure S (Vinfinite S))} (hG : MeasurableSet G)
+    {h : RelStructure S (Vinfinite S) → ℝ}
+    (hmeas : AEStronglyMeasurable h (M.law : Measure (RelStructure S (Vinfinite S))))
+    (hinv : h ∘ RelStructure.relabel (pollSwap K m₀ hm₀ (pollUnion F A₀)).1
+      =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))] h) :
+    ∫ x in RelStructure.relabel (pollSwap K m₀ hm₀ (pollUnion F A₀)).1 ⁻¹' G,
+        h x ∂(M.law : Measure (RelStructure S (Vinfinite S))) =
+      ∫ x in G, h x ∂(M.law : Measure (RelStructure S (Vinfinite S))) := by
+  classical
+  set μ : Measure (RelStructure S (Vinfinite S)) :=
+    (M.law : Measure (RelStructure S (Vinfinite S))) with hμ
+  set g := pollSwap K m₀ hm₀ (pollUnion F A₀) with hgdef
+  have hmp : MeasurePreserving (RelStructure.relabel g.1) μ μ := M.measurePreserving_relabel g.1
+  have hchange : ∫ x in G, h x ∂μ =
+      ∫ x in RelStructure.relabel g.1 ⁻¹' G, h (RelStructure.relabel g.1 x) ∂μ := by
+    conv_lhs => rw [← hmp.map_eq]
+    exact setIntegral_map hG (by rw [hmp.map_eq]; exact hmeas)
+      (measurable_relabel g.1).aemeasurable
+  rw [hchange]
+  refine (setIntegral_congr_ae ((measurable_relabel g.1) hG) ?_).symm
+  filter_upwards [hinv] with x hx _
+  exact hx
+
+open scoped Classical in
+/-- **The rank-tail integral identity.** Over any test set built from a lower-rank event and the
+other family members, the distinguished indicator may be replaced by its conditional expectation
+on the rank tail `𝒯 q`:
+
+`∫_G 1_{E₀} = ∫_G μ[1_{E₀} | 𝒯 q]` for `m₀ < q`.
+
+The proof is Austin's round trip: push `G` through the swap, where the transformed test set is
+`𝒯 0`-measurable; replace the indicator by its `𝒯 0`-conditional expectation there; stabilize
+from `𝒯 0` to `𝒯 q`; and come back, using the a.e. swap-invariance of the `𝒯 q`-conditional
+expectation.
+
+**This is not yet the peel lemma.** The peel step needs `μ[1_{E₀} | lowerRankAlgebra n]` on the
+right, and replacing the rank-tail conditional expectation by the lower-rank one is the *sole
+remaining gap* — the raw identification of `⨅ q, 𝒯 q` with `lowerRankAlgebra n` was shown not to
+follow (see `rankTailAlgebra`), so that replacement will need the measure-dependent energy
+argument. Nothing here asserts it. -/
+theorem setIntegral_indicator_eq_setIntegral_condExp_rankTailAlgebra
+    (M : InfiniteRelExchangeableLaw S) (hm₀ : m₀ ≠ 0)
+    (hKF : ∀ A ∈ F, ∀ v ∈ A, v.2 < K) (hK₀ : ∀ v ∈ A₀, v.2 < K)
+    {E₀ : Set (RelStructure S (Vinfinite S))}
+    (hE₀ : MeasurableSet[RelStructure.fixingAlgebra A₀] E₀)
+    {B : Set (RelStructure S (Vinfinite S))}
+    (hB : MeasurableSet[RelStructure.lowerRankAlgebra (S := S) n] B)
+    {E : Finset (Σ s : S.Srt, Vinfinite S s) → Set (RelStructure S (Vinfinite S))}
+    (hE : ∀ A ∈ F.erase A₀, MeasurableSet[RelStructure.fixingAlgebra A] (E A))
+    {q : ℕ} (hq : m₀ < q) :
+    ∫ x in B ∩ ⋂ A ∈ F.erase A₀, E A, (E₀.indicator fun _ => (1 : ℝ)) x
+        ∂(M.law : Measure (RelStructure S (Vinfinite S))) =
+      ∫ x in B ∩ ⋂ A ∈ F.erase A₀, E A,
+        ((M.law : Measure (RelStructure S (Vinfinite S)))[E₀.indicator fun _ => (1 : ℝ)|
+          RelStructure.rankTailAlgebra n K F A₀ q]) x
+        ∂(M.law : Measure (RelStructure S (Vinfinite S))) := by
+  classical
+  haveI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
+  set μ : Measure (RelStructure S (Vinfinite S)) :=
+    (M.law : Measure (RelStructure S (Vinfinite S))) with hμ
+  set g := pollSwap K m₀ hm₀ (pollUnion F A₀) with hgdef
+  set f : RelStructure S (Vinfinite S) → ℝ := E₀.indicator fun _ => (1 : ℝ) with hf
+  set G : Set (RelStructure S (Vinfinite S)) := B ∩ ⋂ A ∈ F.erase A₀, E A with hGdef
+  -- the test set, and its transform, are measurable
+  have hGm : MeasurableSet G := by
+    refine MeasurableSet.inter (RelStructure.lowerRankAlgebra_le n _ hB)
+      (MeasurableSet.biInter (F.erase A₀).countable_toSet fun A hA => ?_)
+    exact RelStructure.fixingAlgebra_le A _ (hE A hA)
+  have hGT : MeasurableSet[RelStructure.rankTailAlgebra (S := S) n K F A₀ 0]
+      (RelStructure.relabel g.1 ⁻¹' G) :=
+    preimage_pollSwap_bundle_mem_rankTailAlgebra_zero hm₀ hKF hK₀ hB hE
+  have hGTm : MeasurableSet (RelStructure.relabel g.1 ⁻¹' G) :=
+    RelStructure.rankTailAlgebra_le n K F A₀ 0 _ hGT
+  -- integrability, named once
+  have hfL : MemLp f 2 μ := memLp_indicator_const 2 hE₀.1 1 (Or.inr (measure_ne_top _ _))
+  have hint : Integrable f μ := hfL.integrable one_le_two
+  have hfg : f ∘ RelStructure.relabel g.1 = f := by
+    have hcomp : f ∘ RelStructure.relabel g.1 =
+        (RelStructure.relabel g.1 ⁻¹' E₀).indicator fun _ => (1 : ℝ) := by
+      funext X
+      simp only [hf, Function.comp_apply, Set.indicator_apply, Set.mem_preimage]
+    rw [hcomp, preimage_pollSwap_eq (F := F) hm₀ hK₀ hE₀]
+  calc ∫ x in G, f x ∂μ
+      = ∫ x in RelStructure.relabel g.1 ⁻¹' G, f x ∂μ :=
+        (setIntegral_relabel_pollSwap M hm₀ hGm hint.aestronglyMeasurable
+          (by rw [hfg])).symm
+    _ = ∫ x in RelStructure.relabel g.1 ⁻¹' G,
+          (μ[f|RelStructure.rankTailAlgebra n K F A₀ 0]) x ∂μ :=
+        (setIntegral_condExp (RelStructure.rankTailAlgebra_le n K F A₀ 0) hint hGT).symm
+    _ = ∫ x in RelStructure.relabel g.1 ⁻¹' G,
+          (μ[f|RelStructure.rankTailAlgebra n K F A₀ q]) x ∂μ := by
+        refine setIntegral_congr_ae hGTm ?_
+        filter_upwards [condExp_indicator_rankTailAlgebra_eq_zero M hKF hK₀ hE₀ q] with x hx _
+        exact hx
+    _ = ∫ x in G, (μ[f|RelStructure.rankTailAlgebra n K F A₀ q]) x ∂μ :=
+        setIntegral_relabel_pollSwap M hm₀ hGm
+          (stronglyMeasurable_condExp.mono
+            (RelStructure.rankTailAlgebra_le n K F A₀ q)).aestronglyMeasurable
+          (condExp_indicator_rankTailAlgebra_comp_pollSwap M hm₀ hKF hK₀ hE₀ hq)
+
+end RoundTrip
+
 end RelSignature

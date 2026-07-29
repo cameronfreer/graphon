@@ -242,6 +242,7 @@ AUDITED_DECLS = {
     "RelSignature.preimage_relabel_mem_lowerRankAlgebra",
     "RelSignature.preimage_pollSwap_mem_rankTailAlgebra_zero",
     "RelSignature.preimage_pollSwap_bundle_mem_rankTailAlgebra_zero",
+    "RelSignature.setIntegral_indicator_eq_setIntegral_condExp_rankTailAlgebra",
     "RelSignature.sdiff_subset_pollUnion",
     "RelSignature.CoherentBasis.factorMap_basisIndexEquiv",
     "RelSignature.CoherentBasis.factorMap_comp_relabel",
