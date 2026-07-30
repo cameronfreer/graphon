@@ -23,6 +23,7 @@ import Graphon.RelKernelSampler
 import Graphon.KernelRandomization
 import Graphon.RelFixingAlgebra
 import Graphon.RelRankAlgebra
+import Graphon.RelLowerFactor
 import Graphon.RelPollingInfrastructure
 import Graphon.RelFixingCondIndep
 import Graphon.SeparableFactor

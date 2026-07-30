@@ -213,3 +213,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.RelStructure.lowerRankAlgebra_one
 #print axioms RelSignature.RelStructure.comap_relabel_lowerRankAlgebra
 #print axioms RelSignature.card_inter_lt_of_ne
+#print axioms RelSignature.CoherentBasis.measurable_lowerFactorMap
+#print axioms RelSignature.CoherentBasis.comap_lowerFactorMap_le
+#print axioms RelSignature.CoherentBasis.measurable_lowerFactorMap'
