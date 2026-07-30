@@ -206,3 +206,10 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.condExp_ae_eq_condExp_of_comap_eq
 #print axioms RelSignature.InfiniteRelExchangeableLaw.measurePreserving_relabel
 #print axioms RelSignature.InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra
+#print axioms RelSignature.RelStructure.lowerRankAlgebra_le
+#print axioms RelSignature.RelStructure.fixingAlgebra_le_lowerRankAlgebra
+#print axioms RelSignature.RelStructure.lowerRankAlgebra_mono
+#print axioms RelSignature.RelStructure.lowerRankAlgebra_zero
+#print axioms RelSignature.RelStructure.lowerRankAlgebra_one
+#print axioms RelSignature.RelStructure.comap_relabel_lowerRankAlgebra
+#print axioms RelSignature.card_inter_lt_of_ne
