@@ -31,8 +31,9 @@ per pair. Two things go wrong otherwise:
 
 `RelSignature.InfiniteRelExchangeableLaw.condIndep_fixingAlgebra` therefore serves here as
 infrastructure and as a regression check on the two-set case, not as the proof engine. The
-engine is the finite-family form of Austin's Proposition 3.12 (arXiv:0801.1698), which peels one
-member off the family using the Lemma 3.11 tail property, adapted sortwise.
+missing finite-family statement is analogous to Austin's Proposition 3.12 (arXiv:0801.1698); its
+proof belongs to the downstream rankwise coupling/induction layer and is deliberately not fixed
+here.
 
 This file is law-free: it defines the conditioning factor and its order theory only.
 
