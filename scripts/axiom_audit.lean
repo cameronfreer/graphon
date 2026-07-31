@@ -246,3 +246,12 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms ProbabilityTheory.map_factorProd_relativeFactorCoupling
 #print axioms ProbabilityTheory.condIndepFun_fst_snd_relativeFactorCoupling
 #print axioms ProbabilityTheory.exists_relativeFactorCoupling_uniform01
+#print axioms ProbabilityTheory.map_prodMap_relativeFactorCoupling
+#print axioms ProbabilityTheory.condIndepFun_comp_fst_snd_relativeFactorCoupling
+
+-- R4 converse piece 3 (#107): I(1), the rank-one transfer step.
+#print axioms RelSignature.CoherentBasis.anchor_eq_empty_of_lowerIndex_one
+#print axioms RelSignature.CoherentBasis.lowerFactorMap_one_relabel
+#print axioms RelSignature.CoherentBasis.map_prodMap_relabel_rankOneCoupling
+#print axioms RelSignature.CoherentBasis.exists_rankOneUniformCoupling
+#print axioms RelSignature.CoherentBasis.condIndepFun_comp_fst_snd_rankOne
