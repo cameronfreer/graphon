@@ -213,6 +213,8 @@ AUDITED_DECLS = {
     "RelSignature.CoherentBasis.lowerIndexEquiv_mul",
     "RelSignature.CoherentBasis.lowerFactorSpaceEquiv_mul",
     "RelSignature.CoherentBasis.lowerFactorProjection_lowerFactorSpaceEquiv",
+    "RelSignature.CoherentBasis.measurable_exactMap_fixingAlgebra",
+    "RelSignature.CoherentBasis.iCondIndepFun_exactMap_singleton",
     "ProbabilityTheory.map_condDistrib_id",
     "ProbabilityTheory.condDistrib_id_apply_fibre",
     "ProbabilityTheory.ae_ae_eq_condDistrib_id",
