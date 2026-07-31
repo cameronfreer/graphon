@@ -230,3 +230,5 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.CoherentBasis.lowerIndexEquiv_mul
 #print axioms RelSignature.CoherentBasis.lowerFactorSpaceEquiv_mul
 #print axioms RelSignature.CoherentBasis.lowerFactorProjection_lowerFactorSpaceEquiv
+#print axioms RelSignature.CoherentBasis.measurable_exactMap_fixingAlgebra
+#print axioms RelSignature.CoherentBasis.iCondIndepFun_exactMap_singleton

@@ -155,6 +155,14 @@ theorem measurable_exactMap (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     Measurable (B.exactMap A) :=
   ((B.factorSpaceProdEquiv A).measurable.comp (B.measurable_factorMap' A)).snd
 
+open scoped Classical in
+/-- The exact-anchor layer at `A` is measurable for `fixingAlgebra A`, not merely for the
+ambient algebra. General factor API rather than a rank-one fact: any argument that bundles
+exact-layer events over a support needs this sharpening of `measurable_exactMap`. -/
+theorem measurable_exactMap_fixingAlgebra (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    Measurable[RelStructure.fixingAlgebra A] (B.exactMap A) :=
+  ((B.factorSpaceProdEquiv A).measurable.comp (B.measurable_factorMap A)).snd
+
 /-! ### Relabeling the two layers -/
 
 open scoped Classical in

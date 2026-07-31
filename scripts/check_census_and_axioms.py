@@ -213,6 +213,8 @@ AUDITED_DECLS = {
     "RelSignature.CoherentBasis.lowerIndexEquiv_mul",
     "RelSignature.CoherentBasis.lowerFactorSpaceEquiv_mul",
     "RelSignature.CoherentBasis.lowerFactorProjection_lowerFactorSpaceEquiv",
+    "RelSignature.CoherentBasis.measurable_exactMap_fixingAlgebra",
+    "RelSignature.CoherentBasis.iCondIndepFun_exactMap_singleton",
     "RelSignature.condExp_ae_eq_condExp_of_comap_eq",
     "RelSignature.InfiniteRelExchangeableLaw.measurePreserving_relabel",
     "RelSignature.InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra",
