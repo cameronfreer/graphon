@@ -34,6 +34,25 @@ same discipline as everywhere else in this layer, and for the same reason.
 `LowerIndex n` is not closed under the Boolean operations: two small anchors can combine to a
 large one. That is not a defect and no closure should be engineered — the product σ-algebra on
 `LowerFactorSpace n` still contains Boolean combinations of the coordinates.
+
+## How generation is proved
+
+Support by support, never through the `iSup`. The finite-factor projection
+`lowerToFactorProjection` exhibits `factorMap A` as a coordinate restriction of
+`lowerFactorMap n` whenever `A.card < n`, so `exists_comap_factorMap_ae_eq` already gives a
+representative measurable for the lower-rank factor. The containments are then joined inside
+`eventuallyMeasurableSpace`, which is a σ-algebra: the completion is the closure device, and no
+family of a.e. witnesses is ever chosen simultaneously.
+
+## Contents
+
+* `LowerIndex` / `LowerFactorSpace` / `lowerFactorMap`, with `comap_lowerFactorMap_le`;
+* `lowerFactorProjection` and `lowerToFactorProjection` — rank nesting and single-support
+  restriction, whose compatibilities with the factor maps are definitional;
+* `exists_comap_lowerFactorMap_ae_eq` — the eventwise converse to `comap_lowerFactorMap_le`;
+* `lowerIndexEquiv` / `comap_relabel_comap_lowerFactorMap` — `FinSuppPerm` equivariance;
+* `comap_lowerFactorMap_zero` (raw, `⊥`) and `exists_comap_lowerFactorMap_one_ae_eq` (the
+  rank-one base, on the original law).
 -/
 
 open MeasureTheory MeasurableSpace
@@ -149,6 +168,161 @@ coordinates of the lower-rank factor *is* the factor map at `A`. -/
 theorem lowerToFactorProjection_lowerFactorMap {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ}
     (hA : A.card < n) :
     B.lowerToFactorProjection hA ∘ B.lowerFactorMap n = B.factorMap A := rfl
+
+/-! ### Generation -/
+
+open scoped Classical in
+/-- Coordinates anchored in a support of rank `< n` are read by the lower-rank factor: the
+single-support pullback sits inside the lower-rank pullback. -/
+theorem comap_factorMap_le_comap_lowerFactorMap
+    {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ} (hA : A.card < n) :
+    MeasurableSpace.comap (B.factorMap A) inferInstance ≤
+      MeasurableSpace.comap (B.lowerFactorMap n) inferInstance := by
+  rw [← B.lowerToFactorProjection_lowerFactorMap hA, ← MeasurableSpace.comap_comp]
+  exact MeasurableSpace.comap_mono (B.measurable_lowerToFactorProjection hA).comap_le
+
+open scoped Classical in
+/-- Every event of a low-rank fixing algebra has a representative measurable for the lower-rank
+factor. This is proved support by support, through `lowerToFactorProjection`; assembling
+representatives directly through the `iSup` would require simultaneous a.e. choices and is not
+what happens here. -/
+theorem fixingAlgebra_le_eventually_comap_lowerFactorMap
+    {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ} (hA : A.card < n) :
+    RelStructure.fixingAlgebra A ≤
+      eventuallyMeasurableSpace (MeasurableSpace.comap (B.lowerFactorMap n) inferInstance)
+        (ae (M.law : Measure (RelStructure S (Vinfinite S)))) := by
+  intro E hE
+  obtain ⟨E', hE'meas, hE'ae⟩ := B.exists_comap_factorMap_ae_eq A hE
+  exact ⟨E', B.comap_factorMap_le_comap_lowerFactorMap hA _ hE'meas, hE'ae.symm⟩
+
+open scoped Classical in
+/-- **The lower-rank conditioning algebra is contained in the completed lower-rank factor.**
+Taking the `iSup` is legitimate here precisely because the containment is into a σ-algebra —
+the completion is the closure device, so no a.e. witnesses are ever joined. -/
+theorem lowerRankAlgebra_le_eventually_comap_lowerFactorMap (n : ℕ) :
+    RelStructure.lowerRankAlgebra (S := S) n ≤
+      eventuallyMeasurableSpace (MeasurableSpace.comap (B.lowerFactorMap n) inferInstance)
+        (ae (M.law : Measure (RelStructure S (Vinfinite S)))) :=
+  iSup₂_le fun _ hA => B.fixingAlgebra_le_eventually_comap_lowerFactorMap hA
+
+open scoped Classical in
+/-- **The eventwise converse to `comap_lowerFactorMap_le`**: every event of the lower-rank
+conditioning algebra agrees, up to a null set, with an event read off the lower-rank factor.
+
+Stated eventwise on purpose. The two σ-algebras are *not* equal — `lowerRankAlgebra` is
+law-free while the factor is only determined modulo `M.law` — and phrasing the converse as an
+equality "modulo null sets" would commit to a `trim`/`completion` identification that is not
+available. -/
+theorem exists_comap_lowerFactorMap_ae_eq (n : ℕ)
+    {E : Set (RelStructure S (Vinfinite S))}
+    (hE : MeasurableSet[RelStructure.lowerRankAlgebra (S := S) n] E) :
+    ∃ E', MeasurableSet[MeasurableSpace.comap (B.lowerFactorMap n) inferInstance] E' ∧
+      E' =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))] E := by
+  obtain ⟨E', hE'meas, hE'ae⟩ := B.lowerRankAlgebra_le_eventually_comap_lowerFactorMap n E hE
+  exact ⟨E', hE'meas, hE'ae.symm⟩
+
+/-! ### Equivariance -/
+
+private theorem sigmaMap_inj (σ : FinSuppPerm S) :
+    Function.Injective (Sigma.map id fun s => ⇑(σ.1 s) :
+      (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s) := by
+  have hinv : Function.LeftInverse
+      (Sigma.map id fun s => ⇑((σ⁻¹ : FinSuppPerm S).1 s) :
+        (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s)
+      (Sigma.map id fun s => ⇑(σ.1 s)) := by
+    rintro ⟨s, x⟩
+    show (⟨s, (σ⁻¹ : FinSuppPerm S).1 s (σ.1 s x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
+    rw [show (σ⁻¹ : FinSuppPerm S).1 s (σ.1 s x) = x from (σ.1 s).symm_apply_apply x]
+  exact hinv.injective
+
+open scoped Classical in
+/-- **A relabeling as an equivalence of the lower-rank index.** Unlike `basisIndexEquiv`, this
+is an equivalence of a *single* type: a relabeling transports anchors by an injective image map,
+so it preserves cardinality and hence rank. -/
+noncomputable def lowerIndexEquiv (σ : FinSuppPerm S) (n : ℕ) :
+    B.LowerIndex n ≃ B.LowerIndex n where
+  toFun i := ⟨B.act σ i.1, by
+    rw [B.anchor_act, Finset.card_image_of_injective _ (sigmaMap_inj σ)]; exact i.2⟩
+  invFun j := ⟨B.act σ⁻¹ j.1, by
+    rw [B.anchor_act, Finset.card_image_of_injective _ (sigmaMap_inj σ⁻¹)]; exact j.2⟩
+  left_inv i := Subtype.ext (by
+    show B.act σ⁻¹ (B.act σ i.1) = i.1
+    rw [← B.act_mul, inv_mul_cancel, B.act_one])
+  right_inv j := Subtype.ext (by
+    show B.act σ (B.act σ⁻¹ j.1) = j.1
+    rw [← B.act_mul, mul_inv_cancel, B.act_one])
+
+open scoped Classical in
+/-- **Naturality of the lower-rank factor map**, with the orientation forced, as for
+`factorMap_basisIndexEquiv`, by `event_act` being a preimage equality. -/
+theorem lowerFactorMap_lowerIndexEquiv (σ : FinSuppPerm S) (n : ℕ)
+    (X : RelStructure S (Vinfinite S)) (i : B.LowerIndex n) :
+    B.lowerFactorMap n X (B.lowerIndexEquiv σ n i) =
+      B.lowerFactorMap n (RelStructure.relabel σ.1 X) i := by
+  show decide (X ∈ B.event (B.act σ i.1)) = decide (RelStructure.relabel σ.1 X ∈ B.event i.1)
+  rw [B.event_act]
+  rfl
+
+open scoped Classical in
+/-- **A relabeling as a measurable automorphism of the lower-rank factor space**, namely
+coordinate reindexing along `lowerIndexEquiv`. -/
+noncomputable def lowerFactorSpaceEquiv (σ : FinSuppPerm S) (n : ℕ) :
+    B.LowerFactorSpace n ≃ᵐ B.LowerFactorSpace n where
+  toEquiv := Equiv.arrowCongr (B.lowerIndexEquiv σ n).symm (Equiv.refl Bool)
+  measurable_toFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+  measurable_invFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+
+open scoped Classical in
+/-- The relabeling of a structure is read by the factor through that automorphism. -/
+theorem lowerFactorSpaceEquiv_comp_lowerFactorMap (σ : FinSuppPerm S) (n : ℕ) :
+    B.lowerFactorSpaceEquiv σ n ∘ B.lowerFactorMap n =
+      B.lowerFactorMap n ∘ RelStructure.relabel σ.1 :=
+  funext fun X => funext fun i => B.lowerFactorMap_lowerIndexEquiv σ n X i
+
+open scoped Classical in
+/-- **The lower-rank factor pullback is relabeling invariant** under the finitely supported
+relabelings — the factor-level counterpart of
+`RelStructure.comap_relabel_lowerRankAlgebra`, which is what makes the pullback a legitimate
+conditioning factor for an exchangeable law. -/
+theorem comap_relabel_comap_lowerFactorMap (σ : FinSuppPerm S) (n : ℕ) :
+    MeasurableSpace.comap (RelStructure.relabel σ.1)
+        (MeasurableSpace.comap (B.lowerFactorMap n) inferInstance) =
+      MeasurableSpace.comap (B.lowerFactorMap n) inferInstance := by
+  have hcomap : MeasurableSpace.comap (⇑(B.lowerFactorSpaceEquiv σ n))
+      (inferInstance : MeasurableSpace (B.LowerFactorSpace n)) =
+        (inferInstance : MeasurableSpace (B.LowerFactorSpace n)) := by
+    refine le_antisymm (B.lowerFactorSpaceEquiv σ n).measurable.comap_le fun s hs => ?_
+    refine ⟨(B.lowerFactorSpaceEquiv σ n).symm ⁻¹' s,
+      (B.lowerFactorSpaceEquiv σ n).symm.measurable hs, ?_⟩
+    ext x
+    simp
+  rw [MeasurableSpace.comap_comp, ← B.lowerFactorSpaceEquiv_comp_lowerFactorMap,
+    ← MeasurableSpace.comap_comp, hcomap]
+
+/-! ### The degenerate ranks -/
+
+open scoped Classical in
+/-- **Rank zero is trivial on the nose** — not merely modulo the law. There are no coordinates
+of rank below `0`, so the factor space is a point and its pullback is `⊥`. -/
+theorem comap_lowerFactorMap_zero :
+    MeasurableSpace.comap (B.lowerFactorMap 0) inferInstance = ⊥ := by
+  refine le_antisymm (fun E hE => ?_) bot_le
+  obtain ⟨t, -, rfl⟩ := hE
+  rcases Set.eq_empty_or_nonempty t with rfl | ⟨y, hy⟩
+  · simp
+  · rw [show t = Set.univ from Set.eq_univ_of_forall fun z => Subsingleton.elim z y ▸ hy]
+    simp
+
+open scoped Classical in
+/-- **Rank one**: every invariant event agrees with an event of the rank-one factor, up to a
+null set. This is the base of the rank recursion, stated on the original law — no augmented
+space and no coupling. -/
+theorem exists_comap_lowerFactorMap_one_ae_eq
+    {E : Set (RelStructure S (Vinfinite S))}
+    (hE : MeasurableSet[RelStructure.invariantAlgebra (S := S)] E) :
+    ∃ E', MeasurableSet[MeasurableSpace.comap (B.lowerFactorMap 1) inferInstance] E' ∧
+      E' =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))] E :=
+  B.exists_comap_lowerFactorMap_ae_eq 1 (by rwa [RelStructure.lowerRankAlgebra_one])
 
 end CoherentBasis
 
