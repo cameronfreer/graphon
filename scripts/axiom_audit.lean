@@ -230,3 +230,17 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.CoherentBasis.lowerIndexEquiv_mul
 #print axioms RelSignature.CoherentBasis.lowerFactorSpaceEquiv_mul
 #print axioms RelSignature.CoherentBasis.lowerFactorProjection_lowerFactorSpaceEquiv
+
+-- R4 converse piece 3 (#107): relatively independent joinings over a common factor
+-- (`Graphon/ForMathlib/RelativeFactorCoupling.lean`, upstream candidate) and the uniform
+-- specialization (`Graphon/UniformFactorCoupling.lean`).
+#print axioms ProbabilityTheory.map_condDistrib_id
+#print axioms ProbabilityTheory.condDistrib_id_apply_fibre
+#print axioms ProbabilityTheory.ae_ae_eq_condDistrib_id
+#print axioms ProbabilityTheory.isProbabilityMeasure_relativeFactorCoupling
+#print axioms ProbabilityTheory.map_fst_relativeFactorCoupling
+#print axioms ProbabilityTheory.map_snd_relativeFactorCoupling
+#print axioms ProbabilityTheory.comp_fst_ae_eq_comp_snd_relativeFactorCoupling
+#print axioms ProbabilityTheory.map_factorProd_relativeFactorCoupling
+#print axioms ProbabilityTheory.condIndepFun_fst_snd_relativeFactorCoupling
+#print axioms ProbabilityTheory.exists_relativeFactorCoupling_uniform01
