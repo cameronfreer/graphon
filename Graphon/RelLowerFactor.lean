@@ -99,6 +99,57 @@ theorem comap_lowerFactorMap_le (n : ℕ) :
 theorem measurable_lowerFactorMap' (n : ℕ) : Measurable (B.lowerFactorMap n) :=
   (B.measurable_lowerFactorMap n).mono (RelStructure.lowerRankAlgebra_le n) le_rfl
 
+/-! ### Rank nesting -/
+
+/-- The index embedding for `n ≤ m`: a smaller rank bound admits fewer coordinates. -/
+def lowerIndexEmbedding {n m : ℕ} (h : n ≤ m) : B.LowerIndex n → B.LowerIndex m :=
+  fun i => ⟨i.1, lt_of_lt_of_le i.2 h⟩
+
+/-- The factor projection for `n ≤ m`: ordinary coordinate restriction. -/
+def lowerFactorProjection {n m : ℕ} (h : n ≤ m) :
+    B.LowerFactorSpace m → B.LowerFactorSpace n :=
+  fun f => f ∘ B.lowerIndexEmbedding h
+
+theorem measurable_lowerFactorProjection {n m : ℕ} (h : n ≤ m) :
+    Measurable (B.lowerFactorProjection h) :=
+  measurable_pi_lambda _ fun _ => measurable_pi_apply _
+
+open scoped Classical in
+/-- **The projection is compatible with the factor maps** — definitional, since both sides read
+the same coordinates. -/
+theorem lowerFactorProjection_lowerFactorMap {n m : ℕ} (h : n ≤ m) :
+    B.lowerFactorProjection h ∘ B.lowerFactorMap m = B.lowerFactorMap n := rfl
+
+/-- **The projection cocycle**, likewise definitional. -/
+theorem lowerFactorProjection_comp {n m k : ℕ} (hnm : n ≤ m) (hmk : m ≤ k) :
+    B.lowerFactorProjection hnm ∘ B.lowerFactorProjection hmk =
+      B.lowerFactorProjection (hnm.trans hmk) := rfl
+
+/-! ### Restriction to a single support -/
+
+/-- Every coordinate anchored inside `A` has rank below `n`, when `A` itself does. -/
+def basisIndexToLowerIndex {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ}
+    (hA : A.card < n) : B.BasisIndex A → B.LowerIndex n :=
+  fun i => ⟨i.1, lt_of_le_of_lt (Finset.card_le_card i.2) hA⟩
+
+/-- **The finite-factor projection**: restrict the lower-rank factor to the coordinates of a
+single support of rank `< n`. This is the device that lets the generation argument work support
+by support, rather than trying to assemble representatives through the `iSup`. -/
+def lowerToFactorProjection {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ}
+    (hA : A.card < n) : B.LowerFactorSpace n → B.FactorSpace A :=
+  fun f => f ∘ B.basisIndexToLowerIndex hA
+
+theorem measurable_lowerToFactorProjection {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ}
+    (hA : A.card < n) : Measurable (B.lowerToFactorProjection hA) :=
+  measurable_pi_lambda _ fun _ => measurable_pi_apply _
+
+open scoped Classical in
+/-- **Compatibility with the single-support factor map**, definitional: reading the `A`-anchored
+coordinates of the lower-rank factor *is* the factor map at `A`. -/
+theorem lowerToFactorProjection_lowerFactorMap {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ}
+    (hA : A.card < n) :
+    B.lowerToFactorProjection hA ∘ B.lowerFactorMap n = B.factorMap A := rfl
+
 end CoherentBasis
 
 end RelSignature
