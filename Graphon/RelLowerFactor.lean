@@ -28,8 +28,9 @@ Only
 
 `comap (lowerFactorMap n) inferInstance ≤ lowerRankAlgebra n`
 
-together with an eventwise mod-null converse. **No raw equality of measurable spaces** — the
-same discipline as everywhere else in this layer, and for the same reason.
+together with an eventwise mod-null converse. No raw equality is asserted or supplied by this
+construction; the available converse is eventwise modulo `M.law`. That is the same discipline as
+everywhere else in this layer, and for the same reason.
 
 `LowerIndex n` is not closed under the Boolean operations: two small anchors can combine to a
 large one. That is not a defect and no closure should be engineered — the product σ-algebra on
@@ -50,7 +51,9 @@ family of a.e. witnesses is ever chosen simultaneously.
 * `lowerFactorProjection` and `lowerToFactorProjection` — rank nesting and single-support
   restriction, whose compatibilities with the factor maps are definitional;
 * `exists_comap_lowerFactorMap_ae_eq` — the eventwise converse to `comap_lowerFactorMap_le`;
-* `lowerIndexEquiv` / `comap_relabel_comap_lowerFactorMap` — `FinSuppPerm` equivariance;
+* `lowerIndexEquiv` / `comap_relabel_comap_lowerFactorMap` — `FinSuppPerm` equivariance, with
+  the action laws as honest equalities of equivalences and the nesting square
+  `lowerFactorProjection_lowerFactorSpaceEquiv`;
 * `comap_lowerFactorMap_zero` (raw, `⊥`) and `exists_comap_lowerFactorMap_one_ae_eq` (the
   rank-one base, on the original law).
 -/
@@ -209,9 +212,10 @@ open scoped Classical in
 /-- **The eventwise converse to `comap_lowerFactorMap_le`**: every event of the lower-rank
 conditioning algebra agrees, up to a null set, with an event read off the lower-rank factor.
 
-Stated eventwise on purpose. The two σ-algebras are *not* equal — `lowerRankAlgebra` is
-law-free while the factor is only determined modulo `M.law` — and phrasing the converse as an
-equality "modulo null sets" would commit to a `trim`/`completion` identification that is not
+Stated eventwise on purpose. No raw equality is asserted or supplied by this construction; the
+available converse is eventwise modulo `M.law`. Nothing here rules out an equality of the two
+σ-algebras — the point is that this argument does not produce one, and phrasing the converse as
+an equality "modulo null sets" would commit to a `trim`/`completion` identification that is not
 available. -/
 theorem exists_comap_lowerFactorMap_ae_eq (n : ℕ)
     {E : Set (RelStructure S (Vinfinite S))}
@@ -253,6 +257,28 @@ noncomputable def lowerIndexEquiv (σ : FinSuppPerm S) (n : ℕ) :
     rw [← B.act_mul, mul_inv_cancel, B.act_one])
 
 open scoped Classical in
+@[simp] theorem lowerIndexEquiv_apply_coe (σ : FinSuppPerm S) (n : ℕ) (i : B.LowerIndex n) :
+    (B.lowerIndexEquiv σ n i).1 = B.act σ i.1 := rfl
+
+open scoped Classical in
+@[simp] theorem lowerIndexEquiv_symm_apply_coe (σ : FinSuppPerm S) (n : ℕ) (j : B.LowerIndex n) :
+    ((B.lowerIndexEquiv σ n).symm j).1 = B.act σ⁻¹ j.1 := rfl
+
+open scoped Classical in
+/-- **Identity**, as an honest equality of equivalences. Unlike `basisIndexEquiv`, whose codomain
+`BasisIndex (A.image σ)` varies with `σ`, these are automorphisms of one fixed type, so the
+action laws need no dependent transport. -/
+@[simp] theorem lowerIndexEquiv_one (n : ℕ) :
+    B.lowerIndexEquiv (1 : FinSuppPerm S) n = Equiv.refl _ :=
+  Equiv.ext fun i => Subtype.ext (B.act_one i.1)
+
+open scoped Classical in
+/-- **Composition**, likewise an honest equality of equivalences. -/
+@[simp] theorem lowerIndexEquiv_mul (σ τ : FinSuppPerm S) (n : ℕ) :
+    B.lowerIndexEquiv (σ * τ) n = (B.lowerIndexEquiv τ n).trans (B.lowerIndexEquiv σ n) :=
+  Equiv.ext fun i => Subtype.ext (B.act_mul σ τ i.1)
+
+open scoped Classical in
 /-- **Naturality of the lower-rank factor map**, with the orientation forced, as for
 `factorMap_basisIndexEquiv`, by `event_act` being a preimage equality. -/
 theorem lowerFactorMap_lowerIndexEquiv (σ : FinSuppPerm S) (n : ℕ)
@@ -271,6 +297,36 @@ noncomputable def lowerFactorSpaceEquiv (σ : FinSuppPerm S) (n : ℕ) :
   toEquiv := Equiv.arrowCongr (B.lowerIndexEquiv σ n).symm (Equiv.refl Bool)
   measurable_toFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
   measurable_invFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+
+open scoped Classical in
+@[simp] theorem lowerFactorSpaceEquiv_apply (σ : FinSuppPerm S) (n : ℕ)
+    (g : B.LowerFactorSpace n) (i : B.LowerIndex n) :
+    B.lowerFactorSpaceEquiv σ n g i = g (B.lowerIndexEquiv σ n i) := rfl
+
+open scoped Classical in
+/-- The identity acts trivially. Reindexing is contravariant, so the composition law below
+reverses the order. -/
+@[simp] theorem lowerFactorSpaceEquiv_one (n : ℕ) :
+    B.lowerFactorSpaceEquiv (1 : FinSuppPerm S) n = MeasurableEquiv.refl _ :=
+  MeasurableEquiv.ext <| funext fun g => funext fun i => by simp
+
+open scoped Classical in
+@[simp] theorem lowerFactorSpaceEquiv_mul (σ τ : FinSuppPerm S) (n : ℕ) :
+    B.lowerFactorSpaceEquiv (σ * τ) n =
+      (B.lowerFactorSpaceEquiv σ n).trans (B.lowerFactorSpaceEquiv τ n) :=
+  MeasurableEquiv.ext <| funext fun g => funext fun i => by simp
+
+open scoped Classical in
+/-- **The nesting/equivariance square**: restricting the rank commutes with relabeling. Both
+sides read the coordinate `act σ i` of the same argument, so the identity is definitional up to
+proof irrelevance in the rank bound.
+
+This is the structural coherence the rank recursion needs: without it, the relabeling action on
+the lower-rank factors would not descend along the nesting maps, and the actions at different
+ranks would be unrelated. -/
+theorem lowerFactorProjection_lowerFactorSpaceEquiv (σ : FinSuppPerm S) {n m : ℕ} (h : n ≤ m) :
+    B.lowerFactorProjection h ∘ B.lowerFactorSpaceEquiv σ m =
+      B.lowerFactorSpaceEquiv σ n ∘ B.lowerFactorProjection h := rfl
 
 open scoped Classical in
 /-- The relabeling of a structure is read by the factor through that automorphism. -/

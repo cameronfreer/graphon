@@ -227,3 +227,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.CoherentBasis.comap_relabel_comap_lowerFactorMap
 #print axioms RelSignature.CoherentBasis.comap_lowerFactorMap_zero
 #print axioms RelSignature.CoherentBasis.exists_comap_lowerFactorMap_one_ae_eq
+#print axioms RelSignature.CoherentBasis.lowerIndexEquiv_mul
+#print axioms RelSignature.CoherentBasis.lowerFactorSpaceEquiv_mul
+#print axioms RelSignature.CoherentBasis.lowerFactorProjection_lowerFactorSpaceEquiv
