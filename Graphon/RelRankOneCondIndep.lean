@@ -14,9 +14,11 @@ conditionally independent given the invariant σ-algebra,
 
 `iCondIndepFun (fun v => exactMap {v}) invariantAlgebra M.law`.
 
-At rank one the conditioning factor is `lowerRankAlgebra 1 = invariantAlgebra`, so this is a
-multi-sorted de Finetti statement about an arbitrary exchangeable law — no dissociation, no
-`NoNullary`.
+At rank one the conditioning factor is `lowerRankAlgebra 1 = invariantAlgebra`, so this is the
+conditional-independence half of the multi-sorted de Finetti statement, for an arbitrary
+exchangeable law — no dissociation, no `NoNullary`. Sort-orbit equality of the conditional
+kernels is the other half and is deliberately absent here; it is provable separately from
+exchangeability and uniqueness of conditional distributions.
 
 ## Why no de Finetti machinery is needed
 
@@ -33,10 +35,12 @@ At rank one it can nevertheless be obtained from the *two-set* theorem
 * multiply by the induction hypothesis.
 
 The step that fails at higher rank is the third: for supports of rank `n > 1` the peeled support
-meets the accumulated union in something of *positive* rank, so the two-set theorem conditions
-on a different — and larger — algebra at each stage, and conditional independence is not
-preserved under enlarging the conditioning. Here the remaining union stays disjoint from the
-peeled singleton, so the conditioning algebra is the same throughout and the products compose.
+*need not be disjoint* from the accumulated union, and where it is not, the two-set theorem
+conditions on a different — and larger — algebra at that stage. Since conditional independence
+is not preserved under enlarging the conditioning, the stages no longer compose. A positive-rank
+intersection is not inevitable for every family, but it is possible, and that is enough to break
+the induction. At rank one the remaining union stays disjoint from the peeled singleton for
+*every* family, so the conditioning algebra is the same throughout and the products compose.
 
 Consequently the rank-one case needs no de Finetti representation, no mixing measure, and no
 identification of a mixing measure with an invariant conditional distribution.
@@ -51,13 +55,6 @@ namespace CoherentBasis
 universe u
 
 variable {S : RelSignature.{u}} {M : InfiniteRelExchangeableLaw S} (B : CoherentBasis M)
-
-open scoped Classical in
-/-- The exact-anchor layer at `A` is measurable for `fixingAlgebra A`, not merely for the
-ambient algebra — the sharpening of `measurable_exactMap` that the peel needs. -/
-theorem measurable_exactMap_fixingAlgebra (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
-    Measurable[RelStructure.fixingAlgebra A] (B.exactMap A) :=
-  ((B.factorSpaceProdEquiv A).measurable.comp (B.measurable_factorMap A)).snd
 
 open scoped Classical in
 /-- **Mutual conditional independence of the singleton exact layers given the invariant
