@@ -94,7 +94,10 @@ theorem RelStructure.lowerRankAlgebra_one :
 /-! ### Invariance under relabeling -/
 
 open scoped Classical in
-private theorem sigmaMap_injective (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) :
+/-- A sortwise permutation family acts injectively on tagged vertices. Public because rank is
+defined by anchor cardinality, so every rank-indexed construction needs the image map to be
+injective in order to see that the action preserves rank. -/
+theorem sigmaMap_injective (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) :
     Function.Injective (Sigma.map id fun s => ⇑(σ s) :
       (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s) := by
   have hinv : Function.LeftInverse
