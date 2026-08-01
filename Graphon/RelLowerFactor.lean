@@ -227,18 +227,6 @@ theorem exists_comap_lowerFactorMap_ae_eq (n : ℕ)
 
 /-! ### Equivariance -/
 
-private theorem sigmaMap_inj (σ : FinSuppPerm S) :
-    Function.Injective (Sigma.map id fun s => ⇑(σ.1 s) :
-      (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s) := by
-  have hinv : Function.LeftInverse
-      (Sigma.map id fun s => ⇑((σ⁻¹ : FinSuppPerm S).1 s) :
-        (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s)
-      (Sigma.map id fun s => ⇑(σ.1 s)) := by
-    rintro ⟨s, x⟩
-    show (⟨s, (σ⁻¹ : FinSuppPerm S).1 s (σ.1 s x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
-    rw [show (σ⁻¹ : FinSuppPerm S).1 s (σ.1 s x) = x from (σ.1 s).symm_apply_apply x]
-  exact hinv.injective
-
 open scoped Classical in
 /-- **A relabeling as an equivalence of the lower-rank index.** Unlike `basisIndexEquiv`, this
 is an equivalence of a *single* type: a relabeling transports anchors by an injective image map,
@@ -246,9 +234,13 @@ so it preserves cardinality and hence rank. -/
 noncomputable def lowerIndexEquiv (σ : FinSuppPerm S) (n : ℕ) :
     B.LowerIndex n ≃ B.LowerIndex n where
   toFun i := ⟨B.act σ i.1, by
-    rw [B.anchor_act, Finset.card_image_of_injective _ (sigmaMap_inj σ)]; exact i.2⟩
+    rw [B.anchor_act, Finset.card_image_of_injective _
+      (Function.injective_id.sigma_map fun s => (σ.1 s).injective)]
+    exact i.2⟩
   invFun j := ⟨B.act σ⁻¹ j.1, by
-    rw [B.anchor_act, Finset.card_image_of_injective _ (sigmaMap_inj σ⁻¹)]; exact j.2⟩
+    rw [B.anchor_act, Finset.card_image_of_injective _
+      (Function.injective_id.sigma_map fun s => ((σ⁻¹ : FinSuppPerm S).1 s).injective)]
+    exact j.2⟩
   left_inv i := Subtype.ext (by
     show B.act σ⁻¹ (B.act σ i.1) = i.1
     rw [← B.act_mul, inv_mul_cancel, B.act_one])

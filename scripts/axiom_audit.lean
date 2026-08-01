@@ -255,3 +255,24 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.CoherentBasis.map_prodMap_relabel_rankOneCoupling
 #print axioms RelSignature.CoherentBasis.exists_rankOneUniformCoupling
 #print axioms RelSignature.CoherentBasis.condIndepFun_comp_fst_snd_rankOne
+
+-- R4 converse piece 3 (#107): unit 1 of the rank transition, the successor decomposition.
+#print axioms RelSignature.CoherentBasis.measurable_rankLayerMap
+#print axioms RelSignature.CoherentBasis.rankLayerMap_sigmaExactIndexEquiv
+#print axioms RelSignature.CoherentBasis.fst_lowerFactorSpaceSuccEquiv
+#print axioms RelSignature.CoherentBasis.lowerFactorSpaceSuccEquiv_lowerFactorMap
+#print axioms RelSignature.CoherentBasis.measurable_lowerToBoundaryProjection
+#print axioms RelSignature.CoherentBasis.lowerToBoundaryProjection_lowerFactorMap
+#print axioms RelSignature.CoherentBasis.rankLayerIndexEquiv_mul
+#print axioms RelSignature.CoherentBasis.rankLayerMap_rankLayerIndexEquiv
+#print axioms RelSignature.CoherentBasis.rankLayerSpaceEquiv_comp_rankLayerMap
+#print axioms RelSignature.CoherentBasis.lowerIndexSuccEquiv_rankLayerIndexEquiv
+#print axioms RelSignature.card_image_sigmaMap
+#print axioms RelSignature.rankSupportEquiv_mul
+#print axioms RelSignature.CoherentBasis.measurable_rankLayerToExactProjection
+#print axioms RelSignature.CoherentBasis.rankLayerToExactProjection_rankLayerMap
+#print axioms RelSignature.CoherentBasis.rankLayerSpaceEquiv_mul
+#print axioms RelSignature.CoherentBasis.rankLayerIndexEquiv_sigmaExactIndexEquiv
+#print axioms RelSignature.CoherentBasis.exactSpaceEquiv_rankLayerToExactProjection
+#print axioms RelSignature.CoherentBasis.boundarySpaceEquiv_lowerToBoundaryProjection
+#print axioms RelSignature.CoherentBasis.lowerFactorSpaceSuccEquiv_lowerFactorSpaceEquiv

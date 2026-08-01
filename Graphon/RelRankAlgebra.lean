@@ -94,19 +94,6 @@ theorem RelStructure.lowerRankAlgebra_one :
 /-! ### Invariance under relabeling -/
 
 open scoped Classical in
-private theorem sigmaMap_injective (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) :
-    Function.Injective (Sigma.map id fun s => ⇑(σ s) :
-      (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s) := by
-  have hinv : Function.LeftInverse
-      (Sigma.map id fun s => ⇑(σ s)⁻¹ :
-        (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s)
-      (Sigma.map id fun s => ⇑(σ s)) := by
-    rintro ⟨s, x⟩
-    show (⟨s, (σ s)⁻¹ (σ s x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
-    rw [show (σ s)⁻¹ (σ s x) = x from (σ s).symm_apply_apply x]
-  exact hinv.injective
-
-open scoped Classical in
 private theorem image_image_inv_rank (σ : ∀ _ : S.Srt, Equiv.Perm ℕ)
     (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     (A.image (Sigma.map id fun s => ⇑(σ s)⁻¹)).image
@@ -140,9 +127,11 @@ theorem RelStructure.comap_relabel_lowerRankAlgebra [Fintype S.Srt]
     RelStructure.fixingAlgebra_comap_relabel_of_fintype σ]
   refine le_antisymm (iSup₂_le fun A hA => ?_) (iSup₂_le fun A hA => ?_)
   · exact le_iSup₂_of_le (A.image (Sigma.map id fun s => ⇑(σ s)))
-      (by rwa [Finset.card_image_of_injective _ (sigmaMap_injective σ)]) le_rfl
+      (by rwa [Finset.card_image_of_injective _
+        (Function.injective_id.sigma_map fun s => (σ s).injective)]) le_rfl
   · refine le_iSup₂_of_le (A.image (Sigma.map id fun s => ⇑(σ s)⁻¹))
-      (by rwa [Finset.card_image_of_injective _ (sigmaMap_injective fun s => (σ s)⁻¹)])
+      (by rwa [Finset.card_image_of_injective _
+        (Function.injective_id.sigma_map fun s => ((σ s)⁻¹).injective)])
       (le_of_eq ?_)
     rw [image_image_inv_rank σ A]
 
