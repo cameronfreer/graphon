@@ -46,8 +46,14 @@ products that finite-cylinder extensionality consumes.
   with `lowerIndexSuccEquiv_rankLayerIndexEquiv` the square against the successor split.
 
 The successor split is a case distinction on `card < n` versus `card = n`, so it is a `dite` and
-the square against it is *not* definitional: the branch conditions on the two sides agree only
-after rewriting anchor cardinality through the image map. Everything else here is `rfl`.
+the *index-level* square against it, `lowerIndexSuccEquiv_rankLayerIndexEquiv`, is **not**
+definitional: the branch conditions on the two sides agree only after rewriting anchor cardinality
+through the image map. The named coordinate and projection compatibility lemmas *are* definitional
+— `rankLayerMap_sigmaExactIndexEquiv`, `lowerFactorSpaceSuccEquiv_lowerFactorMap`,
+`fst_lowerFactorSpaceSuccEquiv`, `lowerToBoundaryProjection_lowerFactorMap`,
+`rankLayerToExactProjection_rankLayerMap`, the three naturality squares, and the *space-level*
+successor square `lowerFactorSpaceSuccEquiv_lowerFactorSpaceEquiv`, which escapes the case split
+because it is built from `lowerIndexSuccEquiv.symm` and that is a `Sum.elim`.
 -/
 
 open MeasureTheory
@@ -61,6 +67,76 @@ def RankSupport (S : RelSignature) (n : ℕ) :=
 
 instance {S : RelSignature} [Countable S.Srt] (n : ℕ) : Countable (RankSupport S n) :=
   Subtype.countable
+
+section RankSupport
+
+variable {S : RelSignature}
+
+open scoped Classical in
+/-- Relabeling preserves rank: the image map is injective, so it preserves anchor cardinality.
+The workhorse of every rank-indexed transport in this file. -/
+theorem card_image_sigmaMap {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ} (hA : A.card = n)
+    (σ : FinSuppPerm S) :
+    (A.image (Sigma.map id fun s => ⇑(σ.1 s) :
+      (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s)).card = n := by
+  rw [Finset.card_image_of_injective _
+    (Function.injective_id.sigma_map fun s => (σ.1 s).injective)]
+  exact hA
+
+open scoped Classical in
+/-- A relabeling permutes the supports of each rank. -/
+noncomputable def rankSupportEquiv (σ : FinSuppPerm S) (n : ℕ) :
+    RankSupport S n ≃ RankSupport S n where
+  toFun A := ⟨A.1.image (Sigma.map id fun s => ⇑(σ.1 s)), by
+    rw [Finset.card_image_of_injective _
+      (Function.injective_id.sigma_map fun s => (σ.1 s).injective)]
+    exact A.2⟩
+  invFun A := ⟨A.1.image (Sigma.map id fun s => ⇑(σ.1 s)⁻¹), by
+    rw [Finset.card_image_of_injective _
+      (Function.injective_id.sigma_map fun s => ((σ.1 s)⁻¹).injective)]
+    exact A.2⟩
+  left_inv A := Subtype.ext (by
+    show (A.1.image (Sigma.map id fun s => ⇑(σ.1 s))).image (Sigma.map id fun s => ⇑(σ.1 s)⁻¹)
+      = A.1
+    rw [Finset.image_image]
+    refine (Finset.image_congr fun v _ => ?_).trans A.1.image_id
+    obtain ⟨s, x⟩ := v
+    show (⟨s, (σ.1 s)⁻¹ ((σ.1 s) x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
+    rw [show (σ.1 s)⁻¹ ((σ.1 s) x) = x from (σ.1 s).symm_apply_apply x])
+  right_inv A := Subtype.ext (by
+    show (A.1.image (Sigma.map id fun s => ⇑(σ.1 s)⁻¹)).image (Sigma.map id fun s => ⇑(σ.1 s))
+      = A.1
+    rw [Finset.image_image]
+    refine (Finset.image_congr fun v _ => ?_).trans A.1.image_id
+    obtain ⟨s, x⟩ := v
+    show (⟨s, (σ.1 s) ((σ.1 s)⁻¹ x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
+    rw [show (σ.1 s) ((σ.1 s)⁻¹ x) = x from (σ.1 s).apply_symm_apply x])
+
+
+open scoped Classical in
+@[simp] theorem rankSupportEquiv_one (n : ℕ) :
+    rankSupportEquiv (S := S) (1 : FinSuppPerm S) n = Equiv.refl _ :=
+  Equiv.ext fun A => Subtype.ext (by
+    show A.1.image (Sigma.map id fun s => ⇑((1 : FinSuppPerm S).1 s)) = A.1
+    refine (Finset.image_congr fun v _ => ?_).trans A.1.image_id
+    obtain ⟨s, x⟩ := v
+    rfl)
+
+open scoped Classical in
+@[simp] theorem rankSupportEquiv_mul (σ τ : FinSuppPerm S) (n : ℕ) :
+    rankSupportEquiv (S := S) (σ * τ) n =
+      (rankSupportEquiv τ n).trans (rankSupportEquiv σ n) :=
+  Equiv.ext fun A => Subtype.ext (by
+    show A.1.image (Sigma.map id fun s => ⇑((σ * τ).1 s))
+      = (A.1.image (Sigma.map id fun s => ⇑(τ.1 s))).image
+        (Sigma.map id fun s => ⇑(σ.1 s) :
+          (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s)
+    rw [Finset.image_image]
+    refine Finset.image_congr fun v _ => ?_
+    obtain ⟨s, x⟩ := v
+    rfl)
+
+end RankSupport
 
 namespace CoherentBasis
 
@@ -207,32 +283,30 @@ theorem lowerToBoundaryProjection_lowerFactorMap {A : Finset (Σ s : S.Srt, Vinf
     (hA : A.card = n) :
     B.lowerToBoundaryProjection hA ∘ B.lowerFactorMap n = B.boundaryMap A := rfl
 
-/-! ### Relabeling actions -/
+/-! ### The exact projection at a support of rank `n` -/
 
-open scoped Classical in
-/-- A relabeling permutes the supports of each rank. -/
-noncomputable def rankSupportEquiv (σ : FinSuppPerm S) (n : ℕ) :
-    RankSupport S n ≃ RankSupport S n where
-  toFun A := ⟨A.1.image (Sigma.map id fun s => ⇑(σ.1 s)), by
-    rw [Finset.card_image_of_injective _ (sigmaMap_injective σ.1)]; exact A.2⟩
-  invFun A := ⟨A.1.image (Sigma.map id fun s => ⇑(σ.1 s)⁻¹), by
-    rw [Finset.card_image_of_injective _ (sigmaMap_injective fun s => (σ.1 s)⁻¹)]; exact A.2⟩
-  left_inv A := Subtype.ext (by
-    show (A.1.image (Sigma.map id fun s => ⇑(σ.1 s))).image (Sigma.map id fun s => ⇑(σ.1 s)⁻¹)
-      = A.1
-    rw [Finset.image_image]
-    refine (Finset.image_congr fun v _ => ?_).trans A.1.image_id
-    obtain ⟨s, x⟩ := v
-    show (⟨s, (σ.1 s)⁻¹ ((σ.1 s) x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
-    rw [show (σ.1 s)⁻¹ ((σ.1 s) x) = x from (σ.1 s).symm_apply_apply x])
-  right_inv A := Subtype.ext (by
-    show (A.1.image (Sigma.map id fun s => ⇑(σ.1 s)⁻¹)).image (Sigma.map id fun s => ⇑(σ.1 s))
-      = A.1
-    rw [Finset.image_image]
-    refine (Finset.image_congr fun v _ => ?_).trans A.1.image_id
-    obtain ⟨s, x⟩ := v
-    show (⟨s, (σ.1 s) ((σ.1 s)⁻¹ x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
-    rw [show (σ.1 s) ((σ.1 s)⁻¹ x) = x from (σ.1 s).apply_symm_apply x])
+/-- An exact index at a support of rank `n` lies in the rank-`n` layer. -/
+def rankLayerToExactIndex {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ} (hA : A.card = n) :
+    B.ExactIndex A → B.RankLayerIndex n :=
+  fun i => ⟨i.1, by rw [i.2]; exact hA⟩
+
+/-- **The layer projects onto the exact layer at each support of rank `n`.** The per-support view
+of the Bool-cube: this is the map along which the layer's conditional law restricts to
+`stepKernel A`'s target. -/
+def rankLayerToExactProjection {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ}
+    (hA : A.card = n) : B.RankLayerSpace n → B.ExactSpace A :=
+  fun f => f ∘ B.rankLayerToExactIndex hA
+
+theorem measurable_rankLayerToExactProjection {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ}
+    (hA : A.card = n) : Measurable (B.rankLayerToExactProjection hA) :=
+  measurable_pi_lambda _ fun _ => measurable_pi_apply _
+
+/-- Definitional: the exact-anchor map at `A` factors through the rank-`n` layer. -/
+theorem rankLayerToExactProjection_rankLayerMap {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ}
+    (hA : A.card = n) :
+    B.rankLayerToExactProjection hA ∘ B.rankLayerMap n = B.exactMap A := rfl
+
+/-! ### Relabeling actions -/
 
 open scoped Classical in
 /-- A relabeling permutes the rank-`n` layer index: the action transports anchors by an injective
@@ -240,9 +314,12 @@ image map, so it preserves cardinality exactly. -/
 noncomputable def rankLayerIndexEquiv (σ : FinSuppPerm S) (n : ℕ) :
     B.RankLayerIndex n ≃ B.RankLayerIndex n where
   toFun i := ⟨B.act σ i.1, by
-    rw [B.anchor_act, Finset.card_image_of_injective _ (sigmaMap_injective σ.1)]; exact i.2⟩
+    rw [B.anchor_act, Finset.card_image_of_injective _
+      (Function.injective_id.sigma_map fun s => (σ.1 s).injective)]
+    exact i.2⟩
   invFun j := ⟨B.act σ⁻¹ j.1, by
-    rw [B.anchor_act, Finset.card_image_of_injective _ (sigmaMap_injective (σ⁻¹ : FinSuppPerm S).1)]
+    rw [B.anchor_act, Finset.card_image_of_injective _
+      (Function.injective_id.sigma_map fun s => ((σ⁻¹ : FinSuppPerm S).1 s).injective)]
     exact j.2⟩
   left_inv i := Subtype.ext (by
     show B.act σ⁻¹ (B.act σ i.1) = i.1
@@ -299,11 +376,13 @@ open scoped Classical in
 through the image map — which is exactly `rankLayerIndexEquiv`'s defining computation. -/
 theorem lowerIndexSuccEquiv_rankLayerIndexEquiv (σ : FinSuppPerm S) (n : ℕ) :
     (B.lowerIndexSuccEquiv n) ∘ (B.lowerIndexEquiv σ (n + 1)) =
-      (Sum.map (B.lowerIndexEquiv σ n) (B.rankLayerIndexEquiv σ n)) ∘ (B.lowerIndexSuccEquiv n) := by
+      (Sum.map (B.lowerIndexEquiv σ n) (B.rankLayerIndexEquiv σ n)) ∘
+        (B.lowerIndexSuccEquiv n) := by
   classical
   funext i
   have hcard : (B.anchor (B.act σ i.1)).card = (B.anchor i.1).card := by
-    rw [B.anchor_act, Finset.card_image_of_injective _ (sigmaMap_injective σ.1)]
+    rw [B.anchor_act, Finset.card_image_of_injective _
+      (Function.injective_id.sigma_map fun s => (σ.1 s).injective)]
   by_cases h : (B.anchor i.1).card < n
   · show (if _ : (B.anchor (B.act σ i.1)).card < n then _ else _) = _
     rw [dif_pos (hcard ▸ h)]
@@ -315,6 +394,60 @@ theorem lowerIndexSuccEquiv_rankLayerIndexEquiv (σ : FinSuppPerm S) (n : ℕ) :
     show Sum.inr _ = Sum.map _ _ (if _ : (B.anchor i.1).card < n then _ else _)
     rw [dif_neg h]
     rfl
+
+open scoped Classical in
+@[simp] theorem rankLayerSpaceEquiv_apply (σ : FinSuppPerm S) (n : ℕ)
+    (g : B.RankLayerSpace n) (i : B.RankLayerIndex n) :
+    B.rankLayerSpaceEquiv σ n g i = g (B.rankLayerIndexEquiv σ n i) := rfl
+
+open scoped Classical in
+/-- **Identity**, as an equality of measurable equivalences. -/
+@[simp] theorem rankLayerSpaceEquiv_one (n : ℕ) :
+    B.rankLayerSpaceEquiv (1 : FinSuppPerm S) n = MeasurableEquiv.refl _ :=
+  MeasurableEquiv.ext <| funext fun g => funext fun i => by simp
+
+open scoped Classical in
+/-- **Composition**, contravariantly, matching `lowerFactorSpaceEquiv_mul`. -/
+@[simp] theorem rankLayerSpaceEquiv_mul (σ τ : FinSuppPerm S) (n : ℕ) :
+    B.rankLayerSpaceEquiv (σ * τ) n =
+      (B.rankLayerSpaceEquiv σ n).trans (B.rankLayerSpaceEquiv τ n) :=
+  MeasurableEquiv.ext <| funext fun g => funext fun i => by simp
+
+/-! ### Naturality -/
+
+open scoped Classical in
+/-- **The support/exact bridge is natural**: acting on a support and its exact index agrees with
+acting on the corresponding layer index. Definitional — both routes are `act σ` on the index and
+differ only in which anchor proof is carried. -/
+theorem rankLayerIndexEquiv_sigmaExactIndexEquiv (σ : FinSuppPerm S) (n : ℕ)
+    (A : RankSupport S n) (i : B.ExactIndex A.1) :
+    B.rankLayerIndexEquiv σ n (B.sigmaExactIndexEquiv n ⟨A, i⟩) =
+      B.sigmaExactIndexEquiv n ⟨rankSupportEquiv σ n A, B.exactIndexEquiv σ A.1 i⟩ := rfl
+
+open scoped Classical in
+/-- **The exact projection is natural.** Reading the exact layer at `A` after relabeling is
+relabeling after reading it at the image support. Definitional. -/
+theorem exactSpaceEquiv_rankLayerToExactProjection (σ : FinSuppPerm S)
+    {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ} (hA : A.card = n) :
+    ⇑(B.exactSpaceEquiv σ A) ∘ B.rankLayerToExactProjection (card_image_sigmaMap hA σ) =
+      B.rankLayerToExactProjection hA ∘ ⇑(B.rankLayerSpaceEquiv σ n) := rfl
+
+open scoped Classical in
+/-- **The boundary projection is natural**, likewise definitional. -/
+theorem boundarySpaceEquiv_lowerToBoundaryProjection (σ : FinSuppPerm S)
+    {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ} (hA : A.card = n) :
+    ⇑(B.boundarySpaceEquiv σ A) ∘ B.lowerToBoundaryProjection (card_image_sigmaMap hA σ) =
+      B.lowerToBoundaryProjection hA ∘ ⇑(B.lowerFactorSpaceEquiv σ n) := rfl
+
+open scoped Classical in
+/-- **The successor split is equivariant at the level of spaces** — and here, unlike the
+index-level square `lowerIndexSuccEquiv_rankLayerIndexEquiv`, the statement is definitional. The
+space-level map is built from `lowerIndexSuccEquiv.symm`, which is a `Sum.elim` and so computes on
+the constructors; the forward `dite` that forces the case split never appears. -/
+theorem lowerFactorSpaceSuccEquiv_lowerFactorSpaceEquiv (σ : FinSuppPerm S) (n : ℕ) :
+    ⇑(B.lowerFactorSpaceSuccEquiv n) ∘ ⇑(B.lowerFactorSpaceEquiv σ (n + 1)) =
+      Prod.map ⇑(B.lowerFactorSpaceEquiv σ n) ⇑(B.rankLayerSpaceEquiv σ n) ∘
+        ⇑(B.lowerFactorSpaceSuccEquiv n) := rfl
 
 end CoherentBasis
 
