@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Mathlib.Probability.ProductMeasure
+import Mathlib.Probability.Independence.InfinitePi
 import Mathlib.MeasureTheory.Measure.Lebesgue.Basic
 import Mathlib.Data.Sym.Sym2
 
@@ -19,6 +20,9 @@ generically (no graph/digraph-specific index types) so the directed sampler need
 * `uniform01` — the uniform probability measure on `[0,1]`;
 * `iidVertexSource μ` — i.i.d. positions `ℕ → α` with law `μ` (via `Measure.infinitePi`);
 * `iidUniformSource ι` — i.i.d. uniforms on `[0,1]` indexed by an arbitrary type `ι`;
+* `Measure.infinitePi_map_comp_equiv` — invariance/reindexing under an index equivalence;
+* `Measure.infinitePi_map_sumPiEquivProdPi` — the product decomposition over a sum of
+  possibly infinite index types;
 * `Measure.infinitePi_map_comp_of_injective` — the finite-projection identity: pushing an
   infinite product forward along precomposition with an injection from a finite index type gives
   the finite product of the selected factors (the marginal computations of both samplers).
@@ -98,6 +102,77 @@ theorem Measure.infinitePi_map_comp_equiv {ι α γ : Type*} [MeasurableSpace γ
     exact (Equiv.piCongrLeft_symm_apply (fun _ => γ) e x a).symm
   rw [hcoe, ← Measure.infinitePi_map_piCongrLeft (X := fun _ : ι => γ) (μ := ν) e,
     MeasurableEquiv.map_symm_map]
+
+/-- **Splitting an infinite product over a sum of index types gives a product of infinite
+products.** This is the possibly-infinite counterpart of `measurePreserving_sumPiEquivProdPi`,
+whose statement is for finite `Measure.pi`. -/
+theorem Measure.infinitePi_map_sumPiEquivProdPi {ι ι' γ : Type*} [MeasurableSpace γ]
+    (ν : ι ⊕ ι' → Measure γ) [∀ i, IsProbabilityMeasure (ν i)] :
+    (Measure.infinitePi ν).map (MeasurableEquiv.sumPiEquivProdPi fun _ : ι ⊕ ι' ↦ γ) =
+      (Measure.infinitePi fun i ↦ ν (.inl i)).prod
+        (Measure.infinitePi fun i ↦ ν (.inr i)) := by
+  let left : ((ι ⊕ ι' → γ) → (ι → γ)) := fun x i ↦ x (.inl i)
+  let right : ((ι ⊕ ι' → γ) → (ι' → γ)) := fun x i ↦ x (.inr i)
+  have hleft : Measurable left := measurable_pi_lambda _ fun _ ↦ measurable_pi_apply _
+  have hright : Measurable right := measurable_pi_lambda _ fun _ ↦ measurable_pi_apply _
+  have hindep : ProbabilityTheory.IndepFun left right (Measure.infinitePi ν) := by
+    rw [ProbabilityTheory.IndepFun_iff_Indep]
+    have hcoord : ProbabilityTheory.iIndep
+        (fun i : ι ⊕ ι' ↦ MeasurableSpace.comap (fun x : ι ⊕ ι' → γ ↦ x i) inferInstance)
+        (Measure.infinitePi ν) :=
+      (ProbabilityTheory.iIndepFun_infinitePi
+        (X := fun _ x ↦ x) (fun _ ↦ measurable_id)).iIndep
+    have h := ProbabilityTheory.indep_iSup_of_disjoint
+      (m := fun i : ι ⊕ ι' ↦
+        MeasurableSpace.comap (fun x : ι ⊕ ι' → γ ↦ x i) inferInstance)
+      (fun i ↦ (measurable_pi_apply i).comap_le) hcoord
+      (S := Set.range Sum.inl) (T := Set.range Sum.inr)
+      Set.isCompl_range_inl_range_inr.disjoint
+    have hleftRange :
+        (⨆ i : ι ⊕ ι', ⨆ (_ : i ∈ Set.range Sum.inl),
+          MeasurableSpace.comap (fun x : ι ⊕ ι' → γ ↦ x i) inferInstance) =
+          ⨆ i : ι, MeasurableSpace.comap (fun x : ι ⊕ ι' → γ ↦ x (.inl i)) inferInstance := by
+      apply le_antisymm
+      · refine iSup_le fun i ↦ iSup_le fun hi ↦ ?_
+        obtain ⟨j, rfl⟩ := hi
+        exact le_iSup (fun j : ι ↦
+          MeasurableSpace.comap (fun x : ι ⊕ ι' → γ ↦ x (.inl j)) inferInstance) j
+      · refine iSup_le fun i ↦ le_iSup_of_le (Sum.inl i) ?_
+        exact le_iSup_of_le ⟨i, rfl⟩ le_rfl
+    have hrightRange :
+        (⨆ i : ι ⊕ ι', ⨆ (_ : i ∈ Set.range Sum.inr),
+          MeasurableSpace.comap (fun x : ι ⊕ ι' → γ ↦ x i) inferInstance) =
+          ⨆ i : ι', MeasurableSpace.comap (fun x : ι ⊕ ι' → γ ↦ x (.inr i)) inferInstance := by
+      apply le_antisymm
+      · refine iSup_le fun i ↦ iSup_le fun hi ↦ ?_
+        obtain ⟨j, rfl⟩ := hi
+        exact le_iSup (fun j : ι' ↦
+          MeasurableSpace.comap (fun x : ι ⊕ ι' → γ ↦ x (.inr j)) inferInstance) j
+      · refine iSup_le fun i ↦ le_iSup_of_le (Sum.inr i) ?_
+        exact le_iSup_of_le ⟨i, rfl⟩ le_rfl
+    have hleftComap :
+        MeasurableSpace.comap left inferInstance =
+          ⨆ i : ι, MeasurableSpace.comap (fun x : ι ⊕ ι' → γ ↦ x (.inl i)) inferInstance := by
+      rw [MeasurableSpace.pi, MeasurableSpace.comap_iSup]
+      congr 1
+      funext i
+      rw [MeasurableSpace.comap_comp]
+      rfl
+    have hrightComap :
+        MeasurableSpace.comap right inferInstance =
+          ⨆ i : ι', MeasurableSpace.comap (fun x : ι ⊕ ι' → γ ↦ x (.inr i)) inferInstance := by
+      rw [MeasurableSpace.pi, MeasurableSpace.comap_iSup]
+      congr 1
+      funext i
+      rw [MeasurableSpace.comap_comp]
+      rfl
+    rw [hleftComap, hrightComap, ← hleftRange, ← hrightRange]
+    exact h
+  rw [show (⇑(MeasurableEquiv.sumPiEquivProdPi fun _ : ι ⊕ ι' ↦ γ)) =
+      fun x ↦ (left x, right x) from rfl,
+    hindep.map_prod_eq_prod_map_map hleft.aemeasurable hright.aemeasurable,
+    Measure.map_infinitePi_infinitePi_of_inj Sum.inl_injective,
+    Measure.map_infinitePi_infinitePi_of_inj Sum.inr_injective]
 
 /-! ### Finite projections of infinite product sources -/
 

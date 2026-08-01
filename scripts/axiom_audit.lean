@@ -278,3 +278,14 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.CoherentBasis.exactSpaceEquiv_rankLayerToExactProjection
 #print axioms RelSignature.CoherentBasis.boundarySpaceEquiv_lowerToBoundaryProjection
 #print axioms RelSignature.CoherentBasis.lowerFactorSpaceSuccEquiv_lowerFactorSpaceEquiv
+
+-- R4 converse piece 3 (#107): rank-indexed latent sources and their successor split.
+#print axioms MeasureTheory.Measure.infinitePi_map_sumPiEquivProdPi
+#print axioms RelSignature.rankLatentProjection_comp
+#print axioms RelSignature.rankLatentIndexEquiv_mul
+#print axioms RelSignature.rankLatentRelabel_mul
+#print axioms RelSignature.rankLatentSource_map_rankLatentRelabel
+#print axioms RelSignature.rankLatentSource_map_rankLatentOneEquiv
+#print axioms RelSignature.rankLatentSource_map_rankLatentSpaceSuccEquiv
+#print axioms RelSignature.rankLatentIndexSuccEquiv_rankLatentIndexEquiv
+#print axioms RelSignature.rankLatentSpaceSuccEquiv_rankLatentRelabel
