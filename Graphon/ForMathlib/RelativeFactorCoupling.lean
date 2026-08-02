@@ -31,6 +31,18 @@ factor does.
   `q ∘ Prod.fst =ᵐ r ∘ Prod.snd`.
 * `condIndepFun_fst_snd_relativeFactorCoupling` — the two coordinates are conditionally
   independent **given the common factor read off the first coordinate**.
+* `condDistrib_id_map_comap` — **fibre transport**: a measure-preserving `T` shifting the factor
+  by `e` carries the disintegration kernel along, so conditioning at `z` and pushing through `T`
+  is conditioning at `e z`.
+* `map_prodMap_relativeFactorCoupling_two_sided` — hence a pair of measure-preserving maps
+  shifting the two factors by one and the same `e` gives a symmetry of the joining. The
+  pushforward identity on the factor law is derived from the commuting square, not assumed, and
+  `MeasurableEmbedding e` suffices: injectivity is what cancels the pushforward, surjectivity is
+  never used.
+* `map_prodMap_relativeFactorCoupling` — the degenerate case `e = id`, `U = id`, retained because
+  it avoids `hr`, `hqr` and the second map, which makes it the better API where the factor is
+  literally fixed.
+* `condIndepFun_comp_fst_snd_relativeFactorCoupling` — the transfer clause.
 
 ## Why condition on `q ∘ Prod.fst`
 
@@ -228,6 +240,7 @@ theorem condDistrib_id_map_comap (hq : Measurable q) {T : Ω → Ω} {e : Z → 
     simp
   exact h1.symm.trans h2
 
+omit [StandardBorelSpace Z] [Nonempty Z] in
 /-- **Two-sided transport of the joining.** A pair of measure-preserving maps that shift the two
 factors by one and the same `e` gives a symmetry of the coupling.
 
