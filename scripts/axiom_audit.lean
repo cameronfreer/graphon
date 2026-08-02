@@ -263,6 +263,9 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.CoherentBasis.condIndepFun_comp_fst_snd_rankOne
 #print axioms RelSignature.rankLatentRelabel_one_eq
 #print axioms RelSignature.CoherentBasis.RankCoding.rankOne
+#print axioms RelSignature.CoherentBasis.measurePreserving_rankLatentRelabel
+#print axioms RelSignature.CoherentBasis.RankCoding.coupling
+#print axioms RelSignature.CoherentBasis.RankCoding.map_prodMap_relabel
 
 -- R4 converse piece 3 (#107): unit 1 of the rank transition, the successor decomposition.
 #print axioms RelSignature.CoherentBasis.measurable_rankLayerMap

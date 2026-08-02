@@ -159,6 +159,42 @@ noncomputable def RankCoding.rankOne : B.RankCoding 1 := by
       rankLatentRelabel_one_eq σ ω] at hω ⊢
     exact hω
 
+/-! ### The augmented coupling -/
+
+/-- **The augmented coupling of a rank coding**: the relatively independent joining of the law
+with the rank-`n` latent source over their common factor. This is the space the shell argument
+runs on — the lower-rank factor is *represented* here, so a relabeling has something to act on
+beyond the structure. -/
+noncomputable def RankCoding.coupling {n : ℕ} (C : B.RankCoding n) :
+    Measure (RelStructure S (Vinfinite S) × RankLatentSpace S n) :=
+  letI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
+  relativeFactorCoupling (M.law : Measure (RelStructure S (Vinfinite S)))
+    (rankLatentSource S n) (B.lowerFactorMap n) C.f
+
+omit [Countable S.Srt] [Countable S.Rel] in
+/-- The latent source is invariant under the latent relabeling. -/
+theorem measurePreserving_rankLatentRelabel (σ : FinSuppPerm S) (n : ℕ) :
+    MeasurePreserving (rankLatentRelabel (S := S) σ n) (rankLatentSource S n)
+      (rankLatentSource S n) :=
+  ⟨(rankLatentRelabel σ n).measurable, rankLatentSource_map_rankLatentRelabel σ n⟩
+
+/-- **Joint relabeling compatibility of the augmented coupling.** A relabeling acts on *both*
+coordinates — by `RelStructure.relabel` on the structure and by `rankLatentRelabel` on the
+latents — and preserves the coupling.
+
+This is where the coding's almost-everywhere equivariance is consumed, and the reason the
+transports of `Graphon.ForMathlib.RelativeFactorCoupling` are stated for a.e. commuting squares:
+the structure side `lowerFactorSpaceEquiv σ n ∘ lowerFactorMap n = lowerFactorMap n ∘ relabel σ`
+holds strictly, but the latent side is only `RankCoding.equivariant`, which is a.e. and cannot be
+strengthened. -/
+theorem RankCoding.map_prodMap_relabel {n : ℕ} (C : B.RankCoding n) (σ : FinSuppPerm S) :
+    C.coupling.map (Prod.map (RelStructure.relabel σ.1) (rankLatentRelabel σ n)) = C.coupling := by
+  haveI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
+  refine map_prodMap_relativeFactorCoupling_two_sided (B.measurable_lowerFactorMap' n)
+    C.measurable_f C.map_f (B.lowerFactorSpaceEquiv σ n).measurableEmbedding
+    (M.measurePreserving_relabel σ.1) (measurePreserving_rankLatentRelabel σ n) ?_ (C.equivariant σ)
+  exact Filter.EventuallyEq.of_eq (B.lowerFactorSpaceEquiv_comp_lowerFactorMap σ n)
+
 end CoherentBasis
 
 end RelSignature
