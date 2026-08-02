@@ -219,11 +219,12 @@ omit [StandardBorelSpace Z] [Nonempty Z] in
 disintegration kernel is carried along: conditioning at `z` and pushing through `T` is
 conditioning at `e z`. -/
 theorem condDistrib_id_map_comap (hq : Measurable q) {T : Ω → Ω} {e : Z → Z}
-    (he : MeasurableEmbedding e) (hT : MeasurePreserving T μ μ) (hqT : e ∘ q = q ∘ T) :
+    (he : MeasurableEmbedding e) (hT : MeasurePreserving T μ μ) (hqT : e ∘ q =ᵐ[μ] q ∘ T) :
     (condDistrib id q μ).map T =ᵐ[μ.map q] (condDistrib id q μ).comap e he.measurable := by
   haveI : IsProbabilityMeasure (μ.map q) := Measure.isProbabilityMeasure_map hq.aemeasurable
   have hρ : (μ.map q).map e = μ.map q := by
-    rw [Measure.map_map he.measurable hq, hqT, ← Measure.map_map hq hT.measurable, hT.map_eq]
+    rw [Measure.map_map he.measurable hq, Measure.map_congr hqT,
+      ← Measure.map_map hq hT.measurable, hT.map_eq]
   have h1 : condDistrib T q μ =ᵐ[μ.map q] (condDistrib id q μ).map T := by
     simpa using condDistrib_comp q aemeasurable_id hT.measurable
   have h2 : condDistrib T q μ =ᵐ[μ.map q] (condDistrib id q μ).comap e he.measurable := by
@@ -232,11 +233,12 @@ theorem condDistrib_id_map_comap (hq : Measurable q) {T : Ω → Ω} {e : Z → 
     rw [Measure.map_prodMap_compProd_comap _ he.measurable, hρ,
       compProd_map_condDistrib (aemeasurable_id (μ := μ)),
       Measure.map_map (he.measurable.prodMap measurable_id) (hq.prodMk hT.measurable)]
-    have hcomp : (Prod.map e id) ∘ (fun x => (q x, T x)) = (fun y : Ω => (q y, y)) ∘ T := by
-      funext x
-      have hx : e (q x) = q (T x) := congrFun hqT x
-      simp only [Function.comp_apply, Prod.map_apply, id_eq, hx]
-    rw [hcomp, ← Measure.map_map (by fun_prop) hT.measurable, hT.map_eq]
+    have hcomp : (Prod.map e id) ∘ (fun x => (q x, T x))
+        =ᵐ[μ] (fun y : Ω => (q y, y)) ∘ T := by
+      filter_upwards [hqT] with x hx
+      simp only [Function.comp_apply, Prod.map_apply, id_eq] at hx ⊢
+      rw [hx]
+    rw [Measure.map_congr hcomp, ← Measure.map_map (by fun_prop) hT.measurable, hT.map_eq]
     simp
   exact h1.symm.trans h2
 
@@ -251,11 +253,12 @@ it cancels a pushforward along `Prod.map e id` — and surjectivity is never use
 theorem map_prodMap_relativeFactorCoupling_two_sided (hq : Measurable q) (hr : Measurable r)
     (hqr : ν.map r = μ.map q) {T : Ω → Ω} {U : Ξ → Ξ} {e : Z → Z} (he : MeasurableEmbedding e)
     (hT : MeasurePreserving T μ μ) (hU : MeasurePreserving U ν ν)
-    (hqT : e ∘ q = q ∘ T) (hrU : e ∘ r = r ∘ U) :
+    (hqT : e ∘ q =ᵐ[μ] q ∘ T) (hrU : e ∘ r =ᵐ[ν] r ∘ U) :
     (relativeFactorCoupling μ ν q r).map (Prod.map T U) = relativeFactorCoupling μ ν q r := by
   haveI : IsProbabilityMeasure (μ.map q) := Measure.isProbabilityMeasure_map hq.aemeasurable
   have hρ : (μ.map q).map e = μ.map q := by
-    rw [Measure.map_map he.measurable hq, hqT, ← Measure.map_map hq hT.measurable, hT.map_eq]
+    rw [Measure.map_map he.measurable hq, Measure.map_congr hqT,
+      ← Measure.map_map hq hT.measurable, hT.map_eq]
   have hκ := condDistrib_id_map_comap hq he hT hqT
   have hη : (condDistrib id r ν).map U =ᵐ[μ.map q] (condDistrib id r ν).comap e he.measurable := by
     rw [← hqr]; exact condDistrib_id_map_comap hr he hU hrU
