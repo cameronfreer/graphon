@@ -57,10 +57,15 @@ graphs and higher-arity structures.
   Aldous–Hoover–Kallenberg theorem: the evaluated
   law of a kernel family over an i.i.d. latent source is dissociated
 - `InfiniteRelExchangeableLaw.condIndep_fixingAlgebra` — conditional independence of the fixing
-  σ-algebras over their intersection, for *every* exchangeable law
+  σ-algebras over their intersection, for *every* exchangeable law, with no dissociation hypothesis
 - `exchangeableDigraphLawEquiv` — exchangeable digraph laws ≃ infinite exchangeable digraph laws;
   with `Digraphon`, `sampleDigraphLaw`, and the special-family constructors `ofGraphon`,
   `ofTournament`, `ofKernel`
+
+The **converse** direction — that every dissociated exchangeable relational law is the evaluated
+law of a kernel family — is under construction. The completed results above do not depend on the
+unfinished converse; several provide infrastructure for its proof. See
+[issue #107](https://github.com/cameronfreer/graphon/issues/107) for the live design and status.
 
 ## Verification status
 
@@ -71,9 +76,14 @@ graphs and higher-arity structures.
 - **CI**: every PR builds the Lean project and the blueprint; the `master` deployment
   additionally builds the API documentation and the homepage.
 
-See [docs/verification.md](docs/verification.md) for the audit policy and the project history,
-including the resolution of the Rokhlin-style alignment gap and the removal of the last
-known-false stubs.
+See [docs/verification.md](docs/verification.md) for the audit policy and what the gate does and
+does not cover.
+
+## Conventions
+
+Factor and conditional-kernel identifications are often necessarily modulo the ambient law. The
+API states these eventwise or as almost-everywhere equalities under a named measure, rather than
+silently strengthening them to strict σ-algebra or kernel equality.
 
 ## Architecture
 
@@ -88,6 +98,7 @@ known-false stubs.
 | Extremality | Vertex-tail σ-algebras, restriction independence, invariant action, ergodic decomposition |
 | Relational Aldous–Hoover–Kallenberg | Multi-sorted signatures, carriers and topology, exchangeable relational laws, ergodicity, equality patterns, kernel evaluator and sampler, fixing σ-algebras |
 | Digraphons | Directed carriers and laws, the five-component digraphon, the directed sampler, special families |
+| `ForMathlib` | Signature-free lemmas developed locally for possible Mathlib upstreaming; tracked in [issue #160](https://github.com/cameronfreer/graphon/issues/160) |
 
 The complete module inventory lives in [`Graphon.lean`](Graphon.lean) and the
 [API docs](https://cameronfreer.github.io/graphon/docs/); it is deliberately not duplicated here.
