@@ -236,6 +236,8 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 -- R4 converse piece 3 (#107): relatively independent joinings over a common factor
 -- (`Graphon/ForMathlib/RelativeFactorCoupling.lean`, upstream candidate) and the uniform
 -- specialization (`Graphon/UniformFactorCoupling.lean`).
+#print axioms MeasureTheory.Measure.map_prodMap_compProd_comap
+#print axioms MeasureTheory.Measure.comp_comap
 #print axioms MeasureTheory.condExp_eq_condExp_of_ae_representable
 #print axioms ProbabilityTheory.iCondIndepFun_congr_of_ae_representable
 #print axioms ProbabilityTheory.map_condDistrib_id

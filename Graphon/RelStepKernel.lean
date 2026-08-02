@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelFactorLaws
+import Graphon.ForMathlib.CompProdComap
 import Mathlib.Probability.Kernel.CondDistrib
 
 /-!
@@ -88,34 +89,6 @@ theorem factorLaw_map_prodEquiv (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     (B.measurable_factorMap' A)]
   rfl
 
-/-! ### Change of variables for a comapped kernel -/
-
-section CompProdComap
-
-variable {α β γ : Type*} [MeasurableSpace α] [MeasurableSpace β] [MeasurableSpace γ]
-
-/-- **Change of variables for `⊗ₘ` along a measurable equivalence in the source.** Pushing
-`μ ⊗ₘ κ.comap e` forward by `e × id` is `μ.map e ⊗ₘ κ`.
-
-Not in Mathlib; kept private, though it is clean enough to be a plausible upstream candidate.
-Proved on measurable rectangles, where both sides are the same integral after change of
-variables. -/
-private theorem map_prodCongr_compProd_comap (μ : Measure α) [IsFiniteMeasure μ]
-    (e : α ≃ᵐ β) (κ : Kernel β γ) [IsFiniteKernel κ] :
-    (μ ⊗ₘ κ.comap e e.measurable).map (MeasurableEquiv.prodCongr e (MeasurableEquiv.refl γ)) =
-      μ.map e ⊗ₘ κ := by
-  haveI : IsFiniteMeasure (μ.map e) := Measure.isFiniteMeasure_map _ _
-  refine Measure.ext_prod fun {s t} hs ht => ?_
-  have hpre : (MeasurableEquiv.prodCongr e (MeasurableEquiv.refl γ)) ⁻¹' (s ×ˢ t)
-      = (e ⁻¹' s) ×ˢ t := rfl
-  rw [Measure.map_apply (MeasurableEquiv.prodCongr e (MeasurableEquiv.refl γ)).measurable
-      (hs.prod ht), hpre,
-    Measure.compProd_apply_prod (e.measurable hs) ht,
-    Measure.compProd_apply_prod hs ht,
-    setLIntegral_map hs (Kernel.measurable_coe κ ht) e.measurable]
-  rfl
-
-end CompProdComap
 
 /-! ### Relabeling transport -/
 
@@ -162,10 +135,12 @@ theorem stepKernel_map_ae_eq_comap (σ : FinSuppPerm S)
         (B.boundarySpaceEquiv σ A).measurable := by
   set e := MeasurableEquiv.prodCongr (B.boundarySpaceEquiv σ A)
     (MeasurableEquiv.refl (B.ExactSpace A)) with he
+  have hecoe : ⇑e =
+      Prod.map ⇑(B.boundarySpaceEquiv σ A) (id : B.ExactSpace A → B.ExactSpace A) := rfl
   refine Kernel.ae_eq_of_compProd_eq (e.measurableEmbedding.map_injective ?_)
   rw [Measure.compProd_map (B.exactSpaceEquiv σ A).measurable, Measure.map_map e.measurable
-      (Measurable.prodMap measurable_id (B.exactSpaceEquiv σ A).measurable),
-    map_prodCongr_compProd_comap _ (B.boundarySpaceEquiv σ A) (B.stepKernel A),
+      (Measurable.prodMap measurable_id (B.exactSpaceEquiv σ A).measurable), hecoe,
+    Measure.map_prodMap_compProd_comap _ (B.boundarySpaceEquiv σ A).measurable (B.stepKernel A),
     B.boundaryLaw_map_boundarySpaceEquiv σ A, ← B.map_prodMap_compProd_stepKernel σ A]
   rfl
 
