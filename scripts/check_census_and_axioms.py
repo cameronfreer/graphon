@@ -215,6 +215,8 @@ AUDITED_DECLS = {
     "RelSignature.CoherentBasis.lowerFactorProjection_lowerFactorSpaceEquiv",
     "RelSignature.CoherentBasis.measurable_exactMap_fixingAlgebra",
     "RelSignature.CoherentBasis.iCondIndepFun_exactMap_singleton",
+    "MeasureTheory.Measure.map_prodMap_compProd_comap",
+    "MeasureTheory.Measure.comp_comap",
     "MeasureTheory.condExp_eq_condExp_of_ae_representable",
     "ProbabilityTheory.iCondIndepFun_congr_of_ae_representable",
     "ProbabilityTheory.map_condDistrib_id",
