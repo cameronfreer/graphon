@@ -13,8 +13,8 @@ import Graphon.RelRankOneTransfer
 The two objects the rank recursion is organized around, and the base case.
 
 A `RankCoding n` is a *representation of the lower-rank factor by latents*: a measurable map from
-the rank-`n` latent space onto the rank-`n` factor space that carries the latent source to the
-factor law and commutes with relabeling almost everywhere. A `ShellProperty n` is the conclusion
+the rank-`n` latent space to the rank-`n` factor space representing its law: it carries the
+latent source to the factor law and commutes with relabeling almost everywhere. A `ShellProperty n` is the conclusion
 the recursion needs at rank `n`: mutual conditional independence of the exact-anchor layers over
 the supports of rank `n`, **together with** per-support locality.
 
@@ -58,12 +58,17 @@ variable {S : RelSignature.{u}} {M : InfiniteRelExchangeableLaw S} (B : Coherent
 
 /-! ### The inductive datum -/
 
-/-- **A representation of the rank-`n` factor by latents.** The equivariance clause is an
+/-- **A representation of the rank-`n` factor by latents.** "Representation" is about laws, not
+about images: `map_f` identifies the pushforward of the latent source with the factor law, and no
+pointwise surjectivity onto the factor space is asserted or used.
+
+The equivariance clause is an
 almost-everywhere statement, and must be: `lowerFactorSpaceEquiv σ n` fixes the *image* of
 `lowerFactorMap n`, not the whole factor space, so the strict version is false already at
 `n = 1`. -/
 structure RankCoding [Countable S.Srt] [Countable S.Rel] (n : ℕ) where
-  /-- The coding map from latents onto the rank-`n` factor space. -/
+  /-- The coding map from latents to the rank-`n` factor space. Only the pushforward law is
+  constrained, by `map_f`; **no surjectivity is claimed or needed**. -/
   f : RankLatentSpace S n → B.LowerFactorSpace n
   /-- The coding map is measurable. -/
   measurable_f : Measurable f
@@ -101,18 +106,6 @@ structure ShellProperty [Countable S.Srt] [Countable S.Rel] (n : ℕ) : Prop whe
 /-! ### The base case -/
 
 variable [Countable S.Srt] [Countable S.Rel]
-
-omit [Countable S.Srt] [Countable S.Rel] in
-open scoped Classical in
-/-- At rank one the latent relabeling is trivial: `RankLatentIndex S 1` is the single support `∅`,
-so any permutation of it is the identity. This is what makes the base case's equivariance clause
-reduce to "the factor equivalence fixes the coding map a.e." -/
-theorem rankLatentRelabel_one_eq (σ : FinSuppPerm S) (ω : RankLatentSpace S 1) :
-    rankLatentRelabel σ 1 ω = ω := by
-  funext A
-  rw [rankLatentRelabel_apply]
-  congr 1
-  exact Subsingleton.elim _ _
 
 open scoped Classical in
 /-- **The rank-one coding.** The coding map is the randomization adapter of #140 applied to the
