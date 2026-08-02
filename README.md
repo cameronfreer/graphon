@@ -63,11 +63,9 @@ graphs and higher-arity structures.
   `ofTournament`, `ofKernel`
 
 The **converse** direction — that every dissociated exchangeable relational law is the evaluated
-law of a kernel family — is under construction. The fixing σ-algebras, the lower-rank factor, the
-rank successor decomposition, and the latent infrastructure are its inputs rather than results in
-their own right. Design decisions and open steps are tracked on
-[issue #107](https://github.com/cameronfreer/graphon/issues/107); nothing in this section is
-claimed to depend on it.
+law of a kernel family — is under construction. The completed results above do not depend on the
+unfinished converse; several provide infrastructure for its proof. See
+[issue #107](https://github.com/cameronfreer/graphon/issues/107) for the live design and status.
 
 ## Verification status
 
@@ -78,13 +76,14 @@ claimed to depend on it.
 - **CI**: every PR builds the Lean project and the blueprint; the `master` deployment
   additionally builds the API documentation and the homepage.
 
-A recurring convention worth knowing when reading proofs: where only an identification *modulo a
-measure* is available, statements say so eventwise (`∃ E', MeasurableSet[…] E' ∧ E' =ᵐ[μ] E`)
-rather than claiming equality of σ-algebras, and kernel identities are stated almost everywhere
-under a named measure. Statements are not silently strengthened to strict equality.
-
 See [docs/verification.md](docs/verification.md) for the audit policy and what the gate does and
 does not cover.
+
+## Conventions
+
+Factor and conditional-kernel identifications are often necessarily modulo the ambient law. The
+API states these eventwise or as almost-everywhere equalities under a named measure, rather than
+silently strengthening them to strict σ-algebra or kernel equality.
 
 ## Architecture
 
@@ -99,7 +98,7 @@ does not cover.
 | Extremality | Vertex-tail σ-algebras, restriction independence, invariant action, ergodic decomposition |
 | Relational Aldous–Hoover–Kallenberg | Multi-sorted signatures, carriers and topology, exchangeable relational laws, ergodicity, equality patterns, kernel evaluator and sampler, fixing σ-algebras |
 | Digraphons | Directed carriers and laws, the five-component digraphon, the directed sampler, special families |
-| `ForMathlib` | Signature-free lemmas with no Mathlib home yet; tracked as upstream candidates in [issue #160](https://github.com/cameronfreer/graphon/issues/160) |
+| `ForMathlib` | Signature-free lemmas developed locally for possible Mathlib upstreaming; tracked in [issue #160](https://github.com/cameronfreer/graphon/issues/160) |
 
 The complete module inventory lives in [`Graphon.lean`](Graphon.lean) and the
 [API docs](https://cameronfreer.github.io/graphon/docs/); it is deliberately not duplicated here.
