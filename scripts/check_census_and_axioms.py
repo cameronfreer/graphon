@@ -238,6 +238,8 @@ AUDITED_DECLS = {
     "RelSignature.CoherentBasis.map_prodMap_relabel_rankOneCoupling",
     "RelSignature.CoherentBasis.exists_rankOneUniformCoupling",
     "RelSignature.CoherentBasis.condIndepFun_comp_fst_snd_rankOne",
+    "RelSignature.rankLatentRelabel_one_eq",
+    "RelSignature.CoherentBasis.RankCoding.rankOne",
     "RelSignature.CoherentBasis.measurable_rankLayerMap",
     "RelSignature.CoherentBasis.rankLayerMap_sigmaExactIndexEquiv",
     "RelSignature.CoherentBasis.fst_lowerFactorSpaceSuccEquiv",

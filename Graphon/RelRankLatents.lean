@@ -161,6 +161,17 @@ open scoped Classical in
   MeasurableEquiv.ext <| funext fun ω ↦ funext fun A ↦ by simp
 
 open scoped Classical in
+/-- **At rank one every latent relabeling is the identity.** `RankLatentIndex S 1` is the single
+support `∅`, so any permutation of it is trivial — which is why the rank-one equivariance clause
+says only that the *factor* equivalence fixes the coding map almost everywhere. -/
+@[simp] theorem rankLatentRelabel_one_eq (σ : FinSuppPerm S) (ω : RankLatentSpace S 1) :
+    rankLatentRelabel σ 1 ω = ω := by
+  funext A
+  rw [rankLatentRelabel_apply]
+  congr 1
+  exact Subsingleton.elim _ _
+
+open scoped Classical in
 @[simp] theorem rankLatentRelabel_mul (σ τ : FinSuppPerm S) (n : ℕ) :
     rankLatentRelabel (S := S) (σ * τ) n =
       (rankLatentRelabel σ n).trans (rankLatentRelabel τ n) :=
