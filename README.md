@@ -57,10 +57,17 @@ graphs and higher-arity structures.
   Aldous–Hoover–Kallenberg theorem: the evaluated
   law of a kernel family over an i.i.d. latent source is dissociated
 - `InfiniteRelExchangeableLaw.condIndep_fixingAlgebra` — conditional independence of the fixing
-  σ-algebras over their intersection, for *every* exchangeable law
+  σ-algebras over their intersection, for *every* exchangeable law, with no dissociation hypothesis
 - `exchangeableDigraphLawEquiv` — exchangeable digraph laws ≃ infinite exchangeable digraph laws;
   with `Digraphon`, `sampleDigraphLaw`, and the special-family constructors `ofGraphon`,
   `ofTournament`, `ofKernel`
+
+The **converse** direction — that every dissociated exchangeable relational law is the evaluated
+law of a kernel family — is under construction. The fixing σ-algebras, the lower-rank factor, the
+rank successor decomposition, and the latent infrastructure are its inputs rather than results in
+their own right. Design decisions and open steps are tracked on
+[issue #107](https://github.com/cameronfreer/graphon/issues/107); nothing in this section is
+claimed to depend on it.
 
 ## Verification status
 
@@ -71,9 +78,13 @@ graphs and higher-arity structures.
 - **CI**: every PR builds the Lean project and the blueprint; the `master` deployment
   additionally builds the API documentation and the homepage.
 
-See [docs/verification.md](docs/verification.md) for the audit policy and the project history,
-including the resolution of the Rokhlin-style alignment gap and the removal of the last
-known-false stubs.
+A recurring convention worth knowing when reading proofs: where only an identification *modulo a
+measure* is available, statements say so eventwise (`∃ E', MeasurableSet[…] E' ∧ E' =ᵐ[μ] E`)
+rather than claiming equality of σ-algebras, and kernel identities are stated almost everywhere
+under a named measure. Statements are not silently strengthened to strict equality.
+
+See [docs/verification.md](docs/verification.md) for the audit policy and what the gate does and
+does not cover.
 
 ## Architecture
 
@@ -88,6 +99,7 @@ known-false stubs.
 | Extremality | Vertex-tail σ-algebras, restriction independence, invariant action, ergodic decomposition |
 | Relational Aldous–Hoover–Kallenberg | Multi-sorted signatures, carriers and topology, exchangeable relational laws, ergodicity, equality patterns, kernel evaluator and sampler, fixing σ-algebras |
 | Digraphons | Directed carriers and laws, the five-component digraphon, the directed sampler, special families |
+| `ForMathlib` | Signature-free lemmas with no Mathlib home yet; tracked as upstream candidates in [issue #160](https://github.com/cameronfreer/graphon/issues/160) |
 
 The complete module inventory lives in [`Graphon.lean`](Graphon.lean) and the
 [API docs](https://cameronfreer.github.io/graphon/docs/); it is deliberately not duplicated here.
