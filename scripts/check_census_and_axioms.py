@@ -230,6 +230,8 @@ AUDITED_DECLS = {
     "ProbabilityTheory.condIndepFun_fst_snd_relativeFactorCoupling",
     "ProbabilityTheory.exists_relativeFactorCoupling_uniform01",
     "ProbabilityTheory.map_prodMap_relativeFactorCoupling",
+    "ProbabilityTheory.condDistrib_id_map_comap",
+    "ProbabilityTheory.map_prodMap_relativeFactorCoupling_two_sided",
     "ProbabilityTheory.condIndepFun_comp_fst_snd_relativeFactorCoupling",
     "RelSignature.CoherentBasis.anchor_eq_empty_of_lowerIndex_one",
     "RelSignature.CoherentBasis.lowerFactorMap_one_relabel",

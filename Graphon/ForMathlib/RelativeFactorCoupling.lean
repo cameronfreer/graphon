@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Mathlib.Probability.Independence.Conditional
+import Graphon.ForMathlib.CompProdComap
 
 /-!
 # Relatively independent joinings over a common factor
@@ -30,6 +31,18 @@ factor does.
   `q ∘ Prod.fst =ᵐ r ∘ Prod.snd`.
 * `condIndepFun_fst_snd_relativeFactorCoupling` — the two coordinates are conditionally
   independent **given the common factor read off the first coordinate**.
+* `condDistrib_id_map_comap` — **fibre transport**: a measure-preserving `T` shifting the factor
+  by `e` carries the disintegration kernel along, so conditioning at `z` and pushing through `T`
+  is conditioning at `e z`.
+* `map_prodMap_relativeFactorCoupling_two_sided` — hence a pair of measure-preserving maps
+  shifting the two factors by one and the same `e` gives a symmetry of the joining. The
+  pushforward identity on the factor law is derived from the commuting square, not assumed, and
+  `MeasurableEmbedding e` suffices: injectivity is what cancels the pushforward, surjectivity is
+  never used.
+* `map_prodMap_relativeFactorCoupling` — the degenerate case `e = id`, `U = id`, retained because
+  it avoids `hr`, `hqr` and the second map, which makes it the better API where the factor is
+  literally fixed.
+* `condIndepFun_comp_fst_snd_relativeFactorCoupling` — the transfer clause.
 
 ## Why condition on `q ∘ Prod.fst`
 
@@ -200,6 +213,62 @@ theorem map_prodMap_relativeFactorCoupling (hq : Measurable q) {T : Ω → Ω}
   rw [Kernel.map_apply _ (hT.measurable.prodMap measurable_id), Kernel.prod_apply,
     ← Measure.map_prod_map _ _ hT.measurable measurable_id,
     ← Kernel.map_apply _ hT.measurable, hz, Measure.map_id]
+
+omit [StandardBorelSpace Z] [Nonempty Z] in
+/-- **Fibre transport.** If `T` preserves `μ` and shifts the factor by `e`, then the
+disintegration kernel is carried along: conditioning at `z` and pushing through `T` is
+conditioning at `e z`. -/
+theorem condDistrib_id_map_comap (hq : Measurable q) {T : Ω → Ω} {e : Z → Z}
+    (he : MeasurableEmbedding e) (hT : MeasurePreserving T μ μ) (hqT : e ∘ q = q ∘ T) :
+    (condDistrib id q μ).map T =ᵐ[μ.map q] (condDistrib id q μ).comap e he.measurable := by
+  haveI : IsProbabilityMeasure (μ.map q) := Measure.isProbabilityMeasure_map hq.aemeasurable
+  have hρ : (μ.map q).map e = μ.map q := by
+    rw [Measure.map_map he.measurable hq, hqT, ← Measure.map_map hq hT.measurable, hT.map_eq]
+  have h1 : condDistrib T q μ =ᵐ[μ.map q] (condDistrib id q μ).map T := by
+    simpa using condDistrib_comp q aemeasurable_id hT.measurable
+  have h2 : condDistrib T q μ =ᵐ[μ.map q] (condDistrib id q μ).comap e he.measurable := by
+    rw [condDistrib_ae_eq_iff_measure_eq_compProd _ hT.measurable.aemeasurable]
+    refine (he.prodMap MeasurableEmbedding.id).map_injective ?_
+    rw [Measure.map_prodMap_compProd_comap _ he.measurable, hρ,
+      compProd_map_condDistrib (aemeasurable_id (μ := μ)),
+      Measure.map_map (he.measurable.prodMap measurable_id) (hq.prodMk hT.measurable)]
+    have hcomp : (Prod.map e id) ∘ (fun x => (q x, T x)) = (fun y : Ω => (q y, y)) ∘ T := by
+      funext x
+      have hx : e (q x) = q (T x) := congrFun hqT x
+      simp only [Function.comp_apply, Prod.map_apply, id_eq, hx]
+    rw [hcomp, ← Measure.map_map (by fun_prop) hT.measurable, hT.map_eq]
+    simp
+  exact h1.symm.trans h2
+
+omit [StandardBorelSpace Z] [Nonempty Z] in
+/-- **Two-sided transport of the joining.** A pair of measure-preserving maps that shift the two
+factors by one and the same `e` gives a symmetry of the coupling.
+
+The pushforward identity `(μ.map q).map e = μ.map q` is *derived* from the commuting square and
+measure preservation, not assumed: taking it as a hypothesis would be redundant and would let a
+caller supply an inconsistent pair. `MeasurableEmbedding e` is what the uniqueness step needs —
+it cancels a pushforward along `Prod.map e id` — and surjectivity is never used. -/
+theorem map_prodMap_relativeFactorCoupling_two_sided (hq : Measurable q) (hr : Measurable r)
+    (hqr : ν.map r = μ.map q) {T : Ω → Ω} {U : Ξ → Ξ} {e : Z → Z} (he : MeasurableEmbedding e)
+    (hT : MeasurePreserving T μ μ) (hU : MeasurePreserving U ν ν)
+    (hqT : e ∘ q = q ∘ T) (hrU : e ∘ r = r ∘ U) :
+    (relativeFactorCoupling μ ν q r).map (Prod.map T U) = relativeFactorCoupling μ ν q r := by
+  haveI : IsProbabilityMeasure (μ.map q) := Measure.isProbabilityMeasure_map hq.aemeasurable
+  have hρ : (μ.map q).map e = μ.map q := by
+    rw [Measure.map_map he.measurable hq, hqT, ← Measure.map_map hq hT.measurable, hT.map_eq]
+  have hκ := condDistrib_id_map_comap hq he hT hqT
+  have hη : (condDistrib id r ν).map U =ᵐ[μ.map q] (condDistrib id r ν).comap e he.measurable := by
+    rw [← hqr]; exact condDistrib_id_map_comap hr he hU hrU
+  rw [relativeFactorCoupling, Measure.map_comp _ _ (hT.measurable.prodMap hU.measurable)]
+  have hstep : ((condDistrib id q μ ×ₖ condDistrib id r ν).map (Prod.map T U)) ∘ₘ (μ.map q) =
+      ((condDistrib id q μ ×ₖ condDistrib id r ν).comap e he.measurable) ∘ₘ (μ.map q) := by
+    refine Measure.comp_congr ?_
+    filter_upwards [hκ, hη] with z hz hz'
+    rw [Kernel.map_apply _ (hT.measurable.prodMap hU.measurable), Kernel.prod_apply,
+      ← Measure.map_prod_map _ _ hT.measurable hU.measurable,
+      ← Kernel.map_apply _ hT.measurable, ← Kernel.map_apply _ hU.measurable, hz, hz',
+      Kernel.comap_apply, Kernel.comap_apply, Kernel.comap_apply, Kernel.prod_apply]
+  rw [hstep, Measure.comp_comap _ he.measurable, hρ]
 
 /-- **The two coordinates are conditionally independent given the common factor.** The
 conditioning σ-algebra is the one generated by `q ∘ Prod.fst`, a random variable on the coupling

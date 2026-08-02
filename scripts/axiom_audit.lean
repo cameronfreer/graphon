@@ -251,6 +251,8 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms ProbabilityTheory.condIndepFun_fst_snd_relativeFactorCoupling
 #print axioms ProbabilityTheory.exists_relativeFactorCoupling_uniform01
 #print axioms ProbabilityTheory.map_prodMap_relativeFactorCoupling
+#print axioms ProbabilityTheory.condDistrib_id_map_comap
+#print axioms ProbabilityTheory.map_prodMap_relativeFactorCoupling_two_sided
 #print axioms ProbabilityTheory.condIndepFun_comp_fst_snd_relativeFactorCoupling
 
 -- R4 converse piece 3 (#107): I(1), the rank-one transfer step.
