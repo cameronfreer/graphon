@@ -33,15 +33,17 @@ factor does.
   independent **given the common factor read off the first coordinate**.
 * `condDistrib_id_map_comap` — **fibre transport**: a measure-preserving `T` shifting the factor
   by `e` carries the disintegration kernel along, so conditioning at `z` and pushing through `T`
-  is conditioning at `e z`.
+  is conditioning at `e z`. The commuting square `e ∘ q =ᵐ[μ] q ∘ T` is required only almost
+  everywhere.
 * `map_prodMap_relativeFactorCoupling_two_sided` — hence a pair of measure-preserving maps
-  shifting the two factors by one and the same `e` gives a symmetry of the joining. The
+  shifting the two factors by one and the same `e` gives a symmetry of the joining, again with
+  both squares required only a.e., each under its own measure. The
   pushforward identity on the factor law is derived from the commuting square, not assumed, and
   `MeasurableEmbedding e` suffices: injectivity is what cancels the pushforward, surjectivity is
   never used.
 * `map_prodMap_relativeFactorCoupling` — the degenerate case `e = id`, `U = id`, retained because
-  it avoids `hr`, `hqr` and the second map, which makes it the better API where the factor is
-  literally fixed.
+  it avoids `hr`, `hqr` and the second map, and because its square `q ∘ T = q` holds on the nose
+  there. It is deliberately the one statement here that keeps a strict hypothesis.
 * `condIndepFun_comp_fst_snd_relativeFactorCoupling` — the transfer clause.
 
 ## Why condition on `q ∘ Prod.fst`
@@ -215,9 +217,9 @@ theorem map_prodMap_relativeFactorCoupling (hq : Measurable q) {T : Ω → Ω}
     ← Kernel.map_apply _ hT.measurable, hz, Measure.map_id]
 
 omit [StandardBorelSpace Z] [Nonempty Z] in
-/-- **Fibre transport.** If `T` preserves `μ` and shifts the factor by `e`, then the
-disintegration kernel is carried along: conditioning at `z` and pushing through `T` is
-conditioning at `e z`. -/
+/-- **Fibre transport.** If `T` preserves `μ` and shifts the factor by `e` — a commuting square
+required only **almost everywhere under `μ`**, `e ∘ q =ᵐ[μ] q ∘ T` — then the disintegration
+kernel is carried along: conditioning at `z` and pushing through `T` is conditioning at `e z`. -/
 theorem condDistrib_id_map_comap (hq : Measurable q) {T : Ω → Ω} {e : Z → Z}
     (he : MeasurableEmbedding e) (hT : MeasurePreserving T μ μ) (hqT : e ∘ q =ᵐ[μ] q ∘ T) :
     (condDistrib id q μ).map T =ᵐ[μ.map q] (condDistrib id q μ).comap e he.measurable := by
@@ -244,7 +246,10 @@ theorem condDistrib_id_map_comap (hq : Measurable q) {T : Ω → Ω} {e : Z → 
 
 omit [StandardBorelSpace Z] [Nonempty Z] in
 /-- **Two-sided transport of the joining.** A pair of measure-preserving maps that shift the two
-factors by one and the same `e` gives a symmetry of the coupling.
+factors by one and the same `e` gives a symmetry of the coupling. The two commuting squares are
+required only **almost everywhere**, each under its own measure: `e ∘ q =ᵐ[μ] q ∘ T` and
+`e ∘ r =ᵐ[ν] r ∘ U`. That is what lets a coding map whose equivariance is itself only a.e. be
+supplied directly; demanding strict squares here would make such a coding unusable.
 
 The pushforward identity `(μ.map q).map e = μ.map q` is *derived* from the commuting square and
 measure preservation, not assumed: taking it as a hypothesis would be redundant and would let a
