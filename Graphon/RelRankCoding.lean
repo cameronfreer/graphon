@@ -18,20 +18,33 @@ latent source to the factor law and commutes with relabeling almost everywhere. 
 the recursion needs at rank `n`: mutual conditional independence of the exact-anchor layers over
 the supports of rank `n`, **together with** per-support locality.
 
-## Why the shell theorem is not proved unconditionally
+## `RankCoding` is a factor-law coding, not an inductive hypothesis
 
-The recursion is `shell_of_rankCoding : RankCoding n → ShellProperty n` followed by
-`nextRankCoding : RankCoding n → ShellProperty n → Nonempty (RankCoding (n+1))`, with the
-unconditional statement obtained only after both are assembled. This is deliberate. A direct
-attack on mutual independence from the two-set theorem, lower-rank intersections and the polling
-engine does not work: pairwise conditional independence does not assemble into mutual
-independence over the joined lower-rank algebra, and above rank one distinct supports of equal
-rank can meet, so a peel would enlarge the conditioning algebra part-way through.
+An earlier design proposed the recursion `shell_of_rankCoding : RankCoding n → ShellProperty n`
+followed by `nextRankCoding : RankCoding n → ShellProperty n → Nonempty (RankCoding (n+1))`.
+**That first implication is false**, and this header previously asserted it. The refutation is
+Austin's random complete bipartite graph (arXiv:0801.1698, §3.6, pp. 116–118): with
+`X_{uv} = z_u ⊕ z_v` for i.i.d. fair bits `z_v`, every singleton stabilizer algebra is trivial
+modulo the law, so `lowerRankAlgebra 2` is trivial; but `X₁₂ ⊕ X₁₃ ⊕ X₂₃ = 0` on every triangle,
+so the exact layers are not mutually independent. A `RankCoding 2` nevertheless exists — the
+rank-2 factor law is a point mass, so a constant coding works — and hence
+`RankCoding 2 ⇏ ShellProperty 2`.
 
-What the induction hypothesis buys is a *represented* lower-rank factor: on the augmented coupling
-derived from a `RankCoding n`, a relabeling acts on the latents as well as on the structure. That
-joint action is the leverage a direct proof lacks — with no represented factor there is nothing on
-the latent side for a relabeling to move.
+The example is *pairwise* independent, which is exactly why it separates the two-set theorem
+`InfiniteRelExchangeableLaw.condIndep_fixingAlgebra` — true, and maximal — from mutuality.
+
+The failure is not repairable by coupling. `relativeFactorCoupling` makes latents conditionally
+independent of the structure *given the intrinsic lower factor*; here that factor is trivial, so
+it attaches unrelated uniforms. What a representation needs are the hidden colours `z_v`, which
+are correlated with the array without being recoverable from it. Austin's polling permutation
+correspondingly acts on an auxiliary quasifactor built from a fresh vertex pool, an object no
+relatively independent joining over `lowerFactorMap` contains.
+
+So the objects here are honest but limited: `RankCoding n` records that the rank-`n` factor law
+is coded by latents, equivariantly and modulo null sets. It does not carry the joint information
+a recursion needs. A working induction must construct latents *jointly with the array* and impose
+a local screening-off relation, in the style of Kallenberg's Lemma 7.24, rather than derive one
+from factor-law coding.
 
 ## Two halves, neither implying the other
 
@@ -42,8 +55,11 @@ per-support statement and says nothing about joint behaviour across supports.
 
 ## Contents
 
-* `RankCoding` — the inductive datum, with `RankCoding.rankOne` constructing it at `n = 1`;
-* `ShellProperty` — the conclusion at rank `n`.
+* `RankCoding` — factor-law coding of the rank-`n` factor, with `RankCoding.rankOne` at `n = 1`;
+* `ShellProperty` — the rank-`n` conclusion a representation theorem would need. Stated here, and
+  **not implied by `RankCoding n`** — see above;
+* `RankCoding.coupling` and `RankCoding.map_prodMap_relabel` are absent by design: the augmented
+  coupling is true but does not advance the recursion, for the reason recorded above.
 -/
 
 open MeasureTheory ProbabilityTheory
@@ -58,7 +74,9 @@ variable {S : RelSignature.{u}} {M : InfiniteRelExchangeableLaw S} (B : Coherent
 
 /-! ### The inductive datum -/
 
-/-- **A representation of the rank-`n` factor by latents.** "Representation" is about laws, not
+/-- **A coding of the rank-`n` factor law by latents.** This is *not* the inductive hypothesis of
+a working recursion — see the module header — but it is a true and reusable record of factor-law
+coding. "Representation" is about laws, not
 about images: `map_f` identifies the pushforward of the latent source with the factor law, and no
 pointwise surjectivity onto the factor space is asserted or used.
 
