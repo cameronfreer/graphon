@@ -159,14 +159,18 @@ theorem measurable_restObservation [Countable S.Rel] (n : ℕ)
 
 /-! ### The specification -/
 
-namespace CoherentBasis
+namespace InfiniteRelExchangeableLaw
 
 universe u
 
-variable {S : RelSignature.{u}} {M : InfiniteRelExchangeableLaw S}
+variable {S : RelSignature.{u}}
 
 open scoped Classical in
 /-- **A joint rank-`n` representation.** The primitive is the coupling `P`, not a coding map.
+
+Deliberately independent of `CoherentBasis`: the specification mentions only the law, the raw
+relation coordinates, and the latent array. The refuted design was phrased against the basis and
+its factor maps, and that dependence is part of what led it to a factor-law primitive.
 
 **No existence theorem accompanies this definition, at any rank.** Whether a non-trivial
 `RankRepresentation n` exists is the actual content of the converse, and is exactly what the
@@ -199,6 +203,6 @@ structure RankRepresentation [Countable S.Srt] [Countable S.Rel] (M : InfiniteRe
       ((measurable_localLatents A n).comp measurable_snd).comap_le
       (blockMap A ∘ Prod.fst) (restObservation n A) P
 
-end CoherentBasis
+end InfiniteRelExchangeableLaw
 
 end RelSignature
