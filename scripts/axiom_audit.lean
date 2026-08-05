@@ -240,6 +240,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms MeasureTheory.Measure.comp_comap
 #print axioms MeasureTheory.condExp_eq_condExp_of_ae_representable
 #print axioms ProbabilityTheory.iCondIndepFun_congr_of_ae_representable
+#print axioms ProbabilityTheory.iCondIndep_of_condIndep_iSup
 #print axioms ProbabilityTheory.map_condDistrib_id
 #print axioms ProbabilityTheory.condDistrib_id_apply_fibre
 #print axioms ProbabilityTheory.ae_ae_eq_condDistrib_id
