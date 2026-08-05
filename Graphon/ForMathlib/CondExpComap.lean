@@ -31,6 +31,9 @@ formula back. No structure on the fibres of `T` is used.
 ## Contents
 
 * `MeasureTheory.condExp_comp_measurePreserving`;
+* `ProbabilityTheory.condExp_set_comp_measurePreserving` — the single-event form, shared by both
+  independence transports;
+* `ProbabilityTheory.condIndepFun_comp_measurePreserving` — the two-function transport;
 * `ProbabilityTheory.iCondIndepFun_comp_measurePreserving` — the family transport.
 
 `[StandardBorelSpace]` hypotheses appear only on the `iCondIndepFun` statement, forced by
@@ -82,9 +85,58 @@ end MeasureTheory
 
 namespace ProbabilityTheory
 
+section SetTransport
+
+variable {α β : Type*} {m' : MeasurableSpace β} [mα : MeasurableSpace α] [mβ : MeasurableSpace β]
+  {P : Measure α} {μ : Measure β} [IsFiniteMeasure μ] {T : α → β}
+
+/-- **The single-event form**: the conditional probability of a pulled-back event, conditioned on
+the pullback algebra, is the transported conditional probability of the event. No standard Borel
+hypothesis — this is pure conditional expectation. -/
+theorem condExp_set_comp_measurePreserving (hT : MeasurePreserving T P μ) (hm' : m' ≤ mβ)
+    {E : Set β} (hE : MeasurableSet E) :
+    (P⟦T ⁻¹' E | m'.comap T⟧) =ᵐ[P] (μ⟦E | m'⟧) ∘ T := by
+  have htrans := condExp_comp_measurePreserving hT hm'
+    (g := E.indicator fun _ => (1 : ℝ)) ((integrable_const (1 : ℝ)).indicator hE)
+  rw [show (E.indicator fun _ => (1 : ℝ)) ∘ T = (T ⁻¹' E).indicator fun _ => (1 : ℝ) from
+    funext fun x => (Set.indicator_comp_right T).symm] at htrans
+  exact htrans.symm
+
+end SetTransport
+
 variable {α β : Type*} {m' : MeasurableSpace β} [mα : MeasurableSpace α] [mβ : MeasurableSpace β]
   [StandardBorelSpace α] [StandardBorelSpace β]
   {P : Measure α} {μ : Measure β} [IsFiniteMeasure P] [IsFiniteMeasure μ] {T : α → β}
+
+/-- **Conditional independence of a pair pulls back along a factor map**: two functions
+conditionally independent under the factor law, given `m'`, compose with the factor map to
+functions conditionally independent under the source law, given the pullback algebra. -/
+theorem condIndepFun_comp_measurePreserving (hT : MeasurePreserving T P μ) (hm' : m' ≤ mβ)
+    {γ γ' : Type*} {mγ : MeasurableSpace γ} {mγ' : MeasurableSpace γ'}
+    {f : β → γ} {g : β → γ'} (hf : Measurable f) (hg : Measurable g)
+    (h : CondIndepFun m' hm' f g μ) :
+    CondIndepFun (m'.comap T)
+      ((MeasurableSpace.comap_mono hm').trans (measurable_iff_comap_le.mp hT.measurable))
+      (f ∘ T) (g ∘ T) P := by
+  rw [condIndepFun_iff_condExp_inter_preimage_eq_mul hf hg] at h
+  rw [condIndepFun_iff_condExp_inter_preimage_eq_mul (hf.comp hT.measurable)
+    (hg.comp hT.measurable)]
+  intro s t hs ht
+  have h₁ : (P⟦(f ∘ T) ⁻¹' s ∩ (g ∘ T) ⁻¹' t | m'.comap T⟧)
+      =ᵐ[P] (μ⟦f ⁻¹' s ∩ g ⁻¹' t | m'⟧) ∘ T := by
+    rw [show (f ∘ T) ⁻¹' s ∩ (g ∘ T) ⁻¹' t = T ⁻¹' (f ⁻¹' s ∩ g ⁻¹' t) by
+      rw [Set.preimage_inter, Set.preimage_comp, Set.preimage_comp]]
+    exact condExp_set_comp_measurePreserving hT hm' ((hf hs).inter (hg ht))
+  have h₂ : (P⟦(f ∘ T) ⁻¹' s | m'.comap T⟧) =ᵐ[P] (μ⟦f ⁻¹' s | m'⟧) ∘ T := by
+    rw [Set.preimage_comp]
+    exact condExp_set_comp_measurePreserving hT hm' (hf hs)
+  have h₃ : (P⟦(g ∘ T) ⁻¹' t | m'.comap T⟧) =ᵐ[P] (μ⟦g ⁻¹' t | m'⟧) ∘ T := by
+    rw [Set.preimage_comp]
+    exact condExp_set_comp_measurePreserving hT hm' (hg ht)
+  have hpull := hT.quasiMeasurePreserving.ae_eq_comp (h s t hs ht)
+  filter_upwards [h₁, h₂, h₃, hpull] with x hx1 hx2 hx3 hx4
+  rw [hx1, hx2, hx3]
+  exact hx4
 
 /-- **Mutual conditional independence pulls back along a factor map.** A family that is mutually
 conditionally independent under the factor law, given `m'`, is — after composing with the factor
@@ -101,15 +153,9 @@ theorem iCondIndepFun_comp_measurePreserving (hT : MeasurePreserving T P μ) (hm
     fun i => (hY i).comp hT.measurable]
   intro S sets hsets
   have hkey := h S hsets
-  -- transport of a single conditioned event along `T`
   have key : ∀ E : Set β, MeasurableSet E →
-      (P⟦T ⁻¹' E | m'.comap T⟧) =ᵐ[P] (μ⟦E | m'⟧) ∘ T := by
-    intro E hE
-    have htrans := condExp_comp_measurePreserving hT hm'
-      (g := E.indicator fun _ => (1 : ℝ)) ((integrable_const (1 : ℝ)).indicator hE)
-    rw [show (E.indicator fun _ => (1 : ℝ)) ∘ T = (T ⁻¹' E).indicator fun _ => (1 : ℝ) from
-      funext fun x => (Set.indicator_comp_right T).symm] at htrans
-    exact htrans.symm
+      (P⟦T ⁻¹' E | m'.comap T⟧) =ᵐ[P] (μ⟦E | m'⟧) ∘ T :=
+    fun _ hE => condExp_set_comp_measurePreserving hT hm' hE
   have hinter : MeasurableSet (⋂ i ∈ S, Y i ⁻¹' sets i) :=
     MeasurableSet.biInter S.countable_toSet fun i hi => (hY i) (hsets i hi)
   -- the accumulated event

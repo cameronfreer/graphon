@@ -220,6 +220,8 @@ AUDITED_DECLS = {
     "MeasureTheory.condExp_eq_condExp_of_ae_representable",
     "ProbabilityTheory.iCondIndepFun_congr_of_ae_representable",
     "MeasureTheory.condExp_comp_measurePreserving",
+    "ProbabilityTheory.condExp_set_comp_measurePreserving",
+    "ProbabilityTheory.condIndepFun_comp_measurePreserving",
     "ProbabilityTheory.iCondIndepFun_comp_measurePreserving",
     "ProbabilityTheory.iCondIndep_of_condIndep_iSup",
     "ProbabilityTheory.map_condDistrib_id",
