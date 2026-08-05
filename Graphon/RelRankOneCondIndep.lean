@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelFixingCondIndep
+import Graphon.RelSingletonPeel
 import Graphon.RelFactorLaws
 
 /-!
@@ -19,6 +20,11 @@ conditional-independence half of the multi-sorted de Finetti statement, for an a
 exchangeable law — no dissociation, no `NoNullary`. Sort-orbit equality of the conditional
 kernels is the other half and is deliberately absent here; it is provable separately from
 exchangeability and uniqueness of conditional distributions.
+
+The peel itself is `InfiniteRelExchangeableLaw.iCondIndepFun_of_fixingAlgebra_singleton`, stated
+for an arbitrary vertex-indexed family measurable for its own singleton fixing algebra. This
+theorem is one instance of it; the raw relation blocks are another. Neither is more fundamental,
+and the argument never needed the basis.
 
 ## Why no de Finetti machinery is needed
 
@@ -65,47 +71,8 @@ quantifies over finite subfamilies, so finite families are a corollary. -/
 theorem iCondIndepFun_exactMap_singleton [Fintype S.Srt] [Countable S.Rel] :
     iCondIndepFun RelStructure.invariantAlgebra (RelStructure.invariantAlgebra_le (S := S))
       (fun v : Σ s : S.Srt, Vinfinite S s => B.exactMap {v})
-      (M.law : Measure (RelStructure S (Vinfinite S))) := by
-  classical
-  haveI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
-  rw [iCondIndepFun_iff_condExp_inter_preimage_eq_mul _ _
-    fun v => B.measurable_exactMap ({v} : Finset (Σ s : S.Srt, Vinfinite S s))]
-  intro T sets
-  induction T using Finset.induction_on with
-  | empty =>
-      intro _
-      simp only [Finset.notMem_empty, Set.iInter_of_empty, Set.iInter_univ, Finset.prod_empty,
-        Set.indicator_univ]
-      rw [condExp_const (μ := (M.law : Measure (RelStructure S (Vinfinite S))))
-        RelStructure.invariantAlgebra_le (1 : ℝ)]
-      rfl
-  | insert v s hvs ih =>
-      intro hsets
-      have ihs := ih fun i hi => hsets i (Finset.mem_insert_of_mem hi)
-      -- the accumulated event is measurable for the fixing algebra of the accumulated support
-      have hE : MeasurableSet[RelStructure.fixingAlgebra s]
-          (⋂ i ∈ s, B.exactMap ({i} : Finset (Σ s : S.Srt, Vinfinite S s)) ⁻¹' sets i) := by
-        refine Finset.measurableSet_biInter s fun i hi => ?_
-        exact RelStructure.fixingAlgebra_mono (Finset.singleton_subset_iff.mpr hi) _
-          (B.measurable_exactMap_fixingAlgebra _ (hsets i (Finset.mem_insert_of_mem hi)))
-      have hF : MeasurableSet[RelStructure.fixingAlgebra
-          ({v} : Finset (Σ s : S.Srt, Vinfinite S s))]
-          (B.exactMap ({v} : Finset (Σ s : S.Srt, Vinfinite S s)) ⁻¹' sets v) :=
-        B.measurable_exactMap_fixingAlgebra _ (hsets v (Finset.mem_insert_self v s))
-      -- the peeled singleton is disjoint from the accumulated support
-      have hinter : ({v} : Finset (Σ s : S.Srt, Vinfinite S s)) ∩ s = ∅ := by
-        ext x
-        simp only [Finset.mem_inter, Finset.mem_singleton, Finset.notMem_empty, iff_false, not_and]
-        rintro rfl
-        exact hvs
-      have hci := M.condIndep_fixingAlgebra ({v} : Finset (Σ s : S.Srt, Vinfinite S s)) s
-      rw [condIndep_iff _ _ _ _
-        (RelStructure.fixingAlgebra_le ({v} : Finset (Σ s : S.Srt, Vinfinite S s)))
-        (RelStructure.fixingAlgebra_le s)] at hci
-      have key := hci _ _ hF hE
-      rw [hinter, RelStructure.fixingAlgebra_empty] at key
-      rw [Finset.set_biInter_insert, Finset.prod_insert hvs]
-      exact key.trans (Filter.EventuallyEq.mul (Filter.EventuallyEq.refl _ _) ihs)
+      (M.law : Measure (RelStructure S (Vinfinite S))) :=
+  M.iCondIndepFun_of_fixingAlgebra_singleton fun _ => B.measurable_exactMap_fixingAlgebra _
 
 end CoherentBasis
 
