@@ -28,6 +28,7 @@ import Graphon.UniformFactorCoupling
 import Graphon.RelRankOneTransfer
 import Graphon.RelRankCoding
 import Graphon.RelRankRepresentation
+import Graphon.RelSingletonPeel
 import Graphon.RelFixingAlgebra
 import Graphon.RelRankAlgebra
 import Graphon.RelLowerFactor
@@ -36,7 +37,6 @@ import Graphon.RelRankLatents
 import Graphon.RelRankOneCondIndep
 import Graphon.RelPollingInfrastructure
 import Graphon.RelFixingCondIndep
-import Graphon.RelSingletonPeel
 import Graphon.SeparableFactor
 import Graphon.RelCoherentBasis
 import Graphon.RelFactorLaws

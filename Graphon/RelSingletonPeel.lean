@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelFixingCondIndep
+import Graphon.RelRankRepresentation
 
 /-!
 # The singleton peel (R4 converse piece 3, #107)
@@ -24,6 +25,9 @@ relation blocks `blockMap {v}`. Neither is more fundamental, and phrasing the pe
 would force the other to be obtained by a transfer lemma that does not exist. The hypothesis
 `Measurable[fixingAlgebra {v}] (Y v)` is exactly what the argument consumes.
 
+This module also carries the raw-block instance, so that `Graphon.RelRankRepresentation` stays
+interface-only: the specification must not depend on the conditional-independence proof layer.
+
 ## Where it stops
 
 Above rank one the peel fails, and not for a technical reason. Distinct supports of equal rank
@@ -36,6 +40,42 @@ stages no longer compose.
 open MeasureTheory ProbabilityTheory
 
 namespace RelSignature
+
+open scoped Classical in
+/-- **The block at `A` is measurable for `fixingAlgebra A`.** Every tagged value occurring in a
+coordinate of support `A` lies in `A`, so a relabeling fixing `A` pointwise fixes the coordinate
+itself — no null sets, and no reference to any basis. -/
+theorem measurable_blockMap_fixingAlgebra [Countable S.Rel]
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    Measurable[RelStructure.fixingAlgebra A] (blockMap A) := by
+  classical
+  have key : ∀ cc : RelCoord S (Vinfinite S), cc.support = A →
+      MeasurableSet[RelStructure.fixingAlgebra A]
+        {X : RelStructure S (Vinfinite S) | X cc = true} := by
+    intro cc hcc
+    refine ⟨?_, fun σ hσ => ?_⟩
+    · have hm : MeasurableSet
+          ((fun X : RelStructure S (Vinfinite S) => X cc) ⁻¹' ({true} : Set Bool)) :=
+        (measurable_pi_apply cc) (measurableSet_singleton true)
+      exact hm
+    have hfun : (fun i => (σ (S.argSort cc.1 i)) (cc.2 i)) = cc.2 := by
+      funext i
+      have hv : cc.taggedValue i ∈ A := by
+        rw [← hcc]
+        exact (RelCoord.mem_support_iff cc _).mpr ⟨i, rfl⟩
+      exact hσ.2 _ hv
+    have hcoord : RelCoord.map (fun s => ⇑(σ s)) cc = cc := by
+      show (⟨cc.1, fun i => (σ (S.argSort cc.1 i)) (cc.2 i)⟩ : RelCoord S (Vinfinite S)) = cc
+      rw [hfun]
+    ext X
+    show (RelStructure.relabel σ X) cc = true ↔ X cc = true
+    rw [show (RelStructure.relabel σ X) cc = X (RelCoord.map (fun s => ⇑(σ s)) cc) from rfl,
+      hcoord]
+  letI : MeasurableSpace (RelStructure S (Vinfinite S)) := RelStructure.fixingAlgebra A
+  refine measurable_pi_iff.mpr fun c => measurable_to_bool ?_
+  convert key c.1 c.2 using 1
+  ext X
+  simp [blockMap]
 
 namespace InfiniteRelExchangeableLaw
 
@@ -95,6 +135,17 @@ theorem iCondIndepFun_of_fixingAlgebra_singleton [Fintype S.Srt] [Countable S.Re
       rw [hinter, RelStructure.fixingAlgebra_empty] at key
       rw [Finset.set_biInter_insert, Finset.prod_insert hvs]
       exact key.trans (Filter.EventuallyEq.mul (Filter.EventuallyEq.refl _ _) ihs)
+
+open scoped Classical in
+/-- **Mutual conditional independence of the raw singleton blocks** given the invariant
+σ-algebra, for an arbitrary exchangeable law. An instance of the peel above, phrased entirely in
+raw relation coordinates — no coherent basis appears. -/
+theorem iCondIndepFun_blockMap_singleton [Fintype S.Srt] [Countable S.Rel]
+    (M : InfiniteRelExchangeableLaw S) :
+    iCondIndepFun RelStructure.invariantAlgebra (RelStructure.invariantAlgebra_le (S := S))
+      (fun v : Σ s : S.Srt, Vinfinite S s => blockMap ({v} : Finset (Σ s : S.Srt, Vinfinite S s)))
+      (M.law : Measure (RelStructure S (Vinfinite S))) :=
+  M.iCondIndepFun_of_fixingAlgebra_singleton fun _ => measurable_blockMap_fixingAlgebra _
 
 end InfiniteRelExchangeableLaw
 

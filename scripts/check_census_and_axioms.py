@@ -242,7 +242,7 @@ AUDITED_DECLS = {
     "RelSignature.CoherentBasis.RankCoding.rankOne",
     "RelSignature.InfiniteRelExchangeableLaw.iCondIndepFun_of_fixingAlgebra_singleton",
     "RelSignature.measurable_blockMap_fixingAlgebra",
-    "RelSignature.iCondIndepFun_blockMap_singleton",
+    "RelSignature.InfiniteRelExchangeableLaw.iCondIndepFun_blockMap_singleton",
     "RelSignature.measurable_localLatents",
     "RelSignature.rankLatentIndex_ne_of_card_eq",
     "RelSignature.rankLatentIndex_ssubset_of_card_eq",
