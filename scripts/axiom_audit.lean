@@ -275,6 +275,13 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.comap_localLatents_one_snd
 #print axioms RelSignature.condIndepFun_blockMap_restObservation_one
 #print axioms RelSignature.InfiniteRelExchangeableLaw.nonempty_rankRepresentation_one
+#print axioms RelSignature.originalVertex_ne_poolVertex
+#print axioms RelSignature.originalVertex_or_poolVertex
+#print axioms RelSignature.RelStructure.congrCarrier_relabel
+#print axioms RelSignature.measurable_restrictOriginal
+#print axioms RelSignature.measurable_restrictPool
+#print axioms RelSignature.restrictOriginal_relabel_sumCongr
+#print axioms RelSignature.restrictPool_relabel_sumCongr
 #print axioms RelSignature.rankLatentRelabel_one_eq
 #print axioms RelSignature.CoherentBasis.RankCoding.rankOne
 #print axioms RelSignature.InfiniteRelExchangeableLaw.iCondIndepFun_of_fixingAlgebra_singleton
