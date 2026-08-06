@@ -36,9 +36,9 @@ formula back. No structure on the fibres of `T` is used.
 * `ProbabilityTheory.condIndepFun_comp_measurePreserving` — the two-function transport;
 * `ProbabilityTheory.iCondIndepFun_comp_measurePreserving` — the family transport.
 
-`[StandardBorelSpace]` hypotheses appear only on the `iCondIndepFun` statement, forced by
-Mathlib defining conditional independence through `condExpKernel`; the conditional-expectation
-transport itself is for arbitrary finite measures.
+`[StandardBorelSpace]` hypotheses appear only on the conditional-independence statements, forced
+by Mathlib defining conditional independence through `condExpKernel`; the
+conditional-expectation transport itself is for arbitrary finite measures.
 -/
 
 open MeasureTheory
