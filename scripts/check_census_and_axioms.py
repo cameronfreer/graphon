@@ -247,6 +247,7 @@ AUDITED_DECLS = {
     "RelSignature.CoherentBasis.exists_rankOneUniformCoupling",
     "RelSignature.CoherentBasis.condIndepFun_comp_fst_snd_rankOne",
     "RelSignature.CoherentBasis.exists_rankOneLatentCoupling",
+    "RelSignature.CoherentBasis.iCondIndepFun_blockMap_singleton_comap_snd",
     "RelSignature.rankLatentRelabel_one_eq",
     "RelSignature.CoherentBasis.RankCoding.rankOne",
     "RelSignature.InfiniteRelExchangeableLaw.iCondIndepFun_of_fixingAlgebra_singleton",
