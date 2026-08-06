@@ -3,8 +3,9 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
-import Graphon.RelRankOneCoupling
+import Graphon.RelLowerFactor
 import Graphon.RelSingletonPeel
+import Graphon.ForMathlib.CondExpComap
 import Graphon.ForMathlib.CondExpRepresentable
 import Graphon.ForMathlib.CondIndepRefine
 import Graphon.ForMathlib.CondIndepSup
@@ -41,24 +42,25 @@ open MeasureTheory ProbabilityTheory
 
 namespace RelSignature
 
-namespace CoherentBasis
-
 universe u
-
-variable {S : RelSignature.{u}} {M : InfiniteRelExchangeableLaw S} (B : CoherentBasis M)
 
 open scoped Classical in
 /-- The singleton block at `v`, read through the structure coordinate of the rank-one
-coupling space. Named so the family is fully typed at every use site. -/
+coupling space. Named so the family is fully typed at every use site; mentions no basis and
+no law, so it lives at the signature level. -/
 def singletonBlockRead (S : RelSignature.{u}) (v : Σ s : S.Srt, Vinfinite S s) :
     RelStructure S (Vinfinite S) × RankLatentSpace S 1 →
       BlockSpace ({v} : Finset (Σ s : S.Srt, Vinfinite S s)) :=
   blockMap ({v} : Finset (Σ s : S.Srt, Vinfinite S s)) ∘ Prod.fst
 
 open scoped Classical in
-theorem measurable_singletonBlockRead [Countable S.Rel] (v : Σ s : S.Srt, Vinfinite S s) :
-    Measurable (singletonBlockRead S v) :=
+theorem measurable_singletonBlockRead {S : RelSignature.{u}} [Countable S.Rel]
+    (v : Σ s : S.Srt, Vinfinite S s) : Measurable (singletonBlockRead S v) :=
   (measurable_blockMap _).comp measurable_fst
+
+namespace CoherentBasis
+
+variable {S : RelSignature.{u}} {M : InfiniteRelExchangeableLaw S} (B : CoherentBasis M)
 
 open scoped Classical in
 /-- **The conditioning ladder.** Under a coupling of the law with the rank-one latents —
