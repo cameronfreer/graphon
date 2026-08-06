@@ -58,6 +58,147 @@ theorem measurable_singletonBlockRead {S : RelSignature.{u}} [Countable S.Rel]
     (v : Σ s : S.Srt, Vinfinite S s) : Measurable (singletonBlockRead S v) :=
   (measurable_blockMap _).comp measurable_fst
 
+open scoped Classical in
+/-- **At rank one, local latents see everything**: every latent coordinate has empty support,
+hence is visible at every `A`, so conditioning on the local latents is conditioning on the
+whole latent coordinate. A raw σ-algebra equality — no measure in sight. -/
+theorem comap_localLatents_one_snd {S : RelSignature.{u}} [Countable S.Srt]
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    MeasurableSpace.comap (localLatents A 1 ∘ (Prod.snd : RelStructure S (Vinfinite S) ×
+        RankLatentSpace S 1 → RankLatentSpace S 1)) inferInstance =
+      MeasurableSpace.comap (Prod.snd : RelStructure S (Vinfinite S) ×
+        RankLatentSpace S 1 → RankLatentSpace S 1) inferInstance := by
+  classical
+  have hsub : ∀ Bi : RankLatentIndex S 1, Bi.1 ⊆ A := fun Bi => by
+    rw [Finset.card_eq_zero.mp (Nat.lt_one_iff.mp Bi.2)]
+    exact Finset.empty_subset A
+  have hρmeas : Measurable (fun (ω : LocalLatentSpace A 1) Bi => ω ⟨Bi, hsub Bi⟩ :
+      LocalLatentSpace A 1 → RankLatentSpace S 1) :=
+    measurable_pi_lambda _ fun _ => measurable_pi_apply _
+  refine le_antisymm ?_ ?_
+  · rw [← MeasurableSpace.comap_comp]
+    exact MeasurableSpace.comap_mono (measurable_iff_comap_le.mp (measurable_localLatents A 1))
+  · calc MeasurableSpace.comap (Prod.snd : RelStructure S (Vinfinite S) ×
+          RankLatentSpace S 1 → RankLatentSpace S 1) inferInstance
+        = MeasurableSpace.comap ((fun (ω : LocalLatentSpace A 1) Bi => ω ⟨Bi, hsub Bi⟩) ∘
+            (localLatents A 1 ∘ Prod.snd)) inferInstance := rfl
+      _ = MeasurableSpace.comap (localLatents A 1 ∘ Prod.snd)
+            (MeasurableSpace.comap (fun (ω : LocalLatentSpace A 1) Bi => ω ⟨Bi, hsub Bi⟩)
+              inferInstance) := (MeasurableSpace.comap_comp).symm
+      _ ≤ MeasurableSpace.comap (localLatents A 1 ∘ Prod.snd) inferInstance :=
+            MeasurableSpace.comap_mono (measurable_iff_comap_le.mp hρmeas)
+
+/-- Conditional independence is insensitive to replacing the conditioning σ-algebra by an equal
+one; the inclusion proofs move by proof irrelevance. -/
+private theorem condIndepFun_congr_cond {Ω β γ : Type*} [mΩ : MeasurableSpace Ω]
+    [StandardBorelSpace Ω] {μ : Measure Ω} [IsFiniteMeasure μ]
+    [MeasurableSpace β] [MeasurableSpace γ] {f : Ω → β} {g : Ω → γ}
+    {m₁ m₂ : MeasurableSpace Ω} (h12 : m₁ = m₂) {h1 : m₁ ≤ mΩ} (h2 : m₂ ≤ mΩ)
+    (h : CondIndepFun m₁ h1 f g μ) : CondIndepFun m₂ h2 f g μ := by
+  subst h12
+  exact h
+
+open scoped Classical in
+/-- **Per-support screening at rank one.** Given the ladder's conclusion — mutual conditional
+independence of the singleton blocks given the full latent σ-algebra — and the nullary
+recovery, the rank-one block at each support is conditionally independent of the rank-truncated
+remainder given the latents visible at that support. This is the `screening` field of a
+rank-one `RankRepresentation`, and it mentions no basis: everything it needs arrives through
+its hypotheses. -/
+theorem condIndepFun_blockMap_restObservation_one {S : RelSignature.{u}}
+    [Countable S.Srt] [Countable S.Rel]
+    {P : Measure (RelStructure S (Vinfinite S) × RankLatentSpace S 1)} [IsProbabilityMeasure P]
+    (hladder : iCondIndepFun (MeasurableSpace.comap (Prod.snd : RelStructure S (Vinfinite S) ×
+        RankLatentSpace S 1 → RankLatentSpace S 1) inferInstance)
+      measurable_snd.comap_le (singletonBlockRead S) P)
+    {g₀ : LocalLatentSpace (∅ : Finset (Σ s : S.Srt, Vinfinite S s)) 1 →
+      BlockSpace (∅ : Finset (Σ s : S.Srt, Vinfinite S s))} (hg₀ : Measurable g₀)
+    (hrec : blockMap (∅ : Finset (Σ s : S.Srt, Vinfinite S s)) ∘ Prod.fst
+      =ᵐ[P] g₀ ∘ localLatents ∅ 1 ∘ Prod.snd)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) (hA : A.card = 1) :
+    CondIndepFun (MeasurableSpace.comap (localLatents A 1 ∘ Prod.snd) inferInstance)
+      ((measurable_localLatents A 1).comp measurable_snd).comap_le
+      (blockMap A ∘ Prod.fst) (restObservation 1 A) P := by
+  classical
+  obtain ⟨v₀, rfl⟩ := Finset.card_eq_one.mp hA
+  -- one versus the rest, at the σ-algebra level
+  rw [iCondIndepFun_iff_iCondIndep] at hladder
+  have hsplit := condIndep_iSup_of_disjoint
+    (fun v => (measurable_singletonBlockRead v).comap_le) hladder
+    (disjoint_compl_right (a := ({v₀} : Set (Σ s : S.Srt, Vinfinite S s))))
+  have h1 := condIndep_of_condIndep_of_le_left hsplit
+    (le_iSup₂ (f := fun (v : Σ s : S.Srt, Vinfinite S s)
+      (_ : v ∈ ({v₀} : Set (Σ s : S.Srt, Vinfinite S s))) =>
+        MeasurableSpace.comap (singletonBlockRead S v) inferInstance) v₀ rfl)
+  -- enlarge the right side by the conditioning
+  have hcomplle : (⨆ v ∈ (({v₀} : Set (Σ s : S.Srt, Vinfinite S s))ᶜ),
+      MeasurableSpace.comap (singletonBlockRead S v) inferInstance) ≤
+      MeasurableSpace.pi.prod inferInstance := by
+    exact iSup₂_le fun v _ => (measurable_singletonBlockRead v).comap_le
+  have h2 := CondIndep.sup_right h1 (measurable_singletonBlockRead v₀).comap_le hcomplle
+  -- the rerouted remainder, measurable for the enlarged right side
+  set R' : RelStructure S (Vinfinite S) × RankLatentSpace S 1 →
+      RestSpace 1 ({v₀} : Finset (Σ s : S.Srt, Vinfinite S s)) × RankLatentSpace S 1 :=
+    fun p => (fun c => if hc : c.1.support = ∅
+      then g₀ (localLatents ∅ 1 p.2) ⟨c.1, hc⟩
+      else p.1 c.1, p.2) with hR'def
+  have hR'measJ : Measurable[(MeasurableSpace.comap (Prod.snd : RelStructure S (Vinfinite S) ×
+        RankLatentSpace S 1 → RankLatentSpace S 1) inferInstance ⊔
+      (⨆ v ∈ (({v₀} : Set (Σ s : S.Srt, Vinfinite S s))ᶜ),
+        MeasurableSpace.comap (singletonBlockRead S v) inferInstance))] R' := by
+    rw [hR'def]
+    letI : MeasurableSpace (RelStructure S (Vinfinite S) × RankLatentSpace S 1) := (MeasurableSpace.comap (Prod.snd : RelStructure S (Vinfinite S) ×
+        RankLatentSpace S 1 → RankLatentSpace S 1) inferInstance ⊔
+      (⨆ v ∈ (({v₀} : Set (Σ s : S.Srt, Vinfinite S s))ᶜ),
+        MeasurableSpace.comap (singletonBlockRead S v) inferInstance))
+    have hsndJ : Measurable (Prod.snd : RelStructure S (Vinfinite S) ×
+        RankLatentSpace S 1 → RankLatentSpace S 1) :=
+      Measurable.of_comap_le le_sup_left
+    refine Measurable.prodMk ?_ hsndJ
+    refine measurable_pi_lambda _ fun c => ?_
+    by_cases hc : c.1.support = ∅
+    · simp only [dif_pos hc]
+      exact (measurable_pi_apply _).comp
+        ((hg₀.comp (measurable_localLatents _ _)).comp hsndJ)
+    · simp only [dif_neg hc]
+      obtain ⟨w, hw⟩ : ∃ w, c.1.support = {w} :=
+        Finset.card_eq_one.mp (Nat.le_antisymm c.2.1
+          (Nat.one_le_iff_ne_zero.mpr fun h0 => hc (Finset.card_eq_zero.mp h0)))
+      have hwne : w ∈ (({v₀} : Set (Σ s : S.Srt, Vinfinite S s))ᶜ) := fun h =>
+        c.2.2 (by rw [hw, Set.mem_singleton_iff.mp h])
+      have hread : (fun p : RelStructure S (Vinfinite S) × RankLatentSpace S 1 => p.1 c.1)
+          = fun p => singletonBlockRead S w p ⟨c.1, hw⟩ := rfl
+      rw [hread]
+      exact (measurable_pi_apply _).comp (Measurable.of_comap_le
+        (le_trans (le_iSup₂ (f := fun (v : Σ s : S.Srt, Vinfinite S s)
+          (_ : v ∈ (({v₀} : Set (Σ s : S.Srt, Vinfinite S s))ᶜ)) =>
+            MeasurableSpace.comap (singletonBlockRead S v) inferInstance) w hwne)
+          le_sup_right))
+  have hJle : (MeasurableSpace.comap (Prod.snd : RelStructure S (Vinfinite S) ×
+        RankLatentSpace S 1 → RankLatentSpace S 1) inferInstance ⊔
+      (⨆ v ∈ (({v₀} : Set (Σ s : S.Srt, Vinfinite S s))ᶜ),
+        MeasurableSpace.comap (singletonBlockRead S v) inferInstance)) ≤
+      (inferInstance : MeasurableSpace (RelStructure S (Vinfinite S) × RankLatentSpace S 1)) :=
+    sup_le measurable_snd.comap_le hcomplle
+  have hR'amb : Measurable R' := hR'measJ.mono hJle le_rfl
+  -- the remainder agrees with the rerouted remainder almost everywhere
+  have hae : restObservation 1 ({v₀} : Finset (Σ s : S.Srt, Vinfinite S s)) =ᵐ[P] R' := by
+    filter_upwards [hrec] with p hp
+    rw [hR'def]
+    refine Prod.ext ?_ rfl
+    funext c
+    by_cases hc : c.1.support = ∅
+    · simp only [restObservation, dif_pos hc]
+      exact congrFun hp ⟨c.1, hc⟩
+    · simp only [restObservation, dif_neg hc]
+  -- assemble
+  have h3 := condIndep_of_condIndep_of_le_right h2 (measurable_iff_comap_le.mp hR'measJ)
+  have h4 := (condIndepFun_iff_condIndep _ _ (singletonBlockRead S v₀) R' P).mpr h3
+  have h5 := h4.congr (measurable_singletonBlockRead v₀) hR'amb
+    (measurable_singletonBlockRead v₀) (measurable_restObservation 1 _)
+    Filter.EventuallyEq.rfl hae.symm
+  exact condIndepFun_congr_cond (comap_localLatents_one_snd _).symm _ h5
+
 namespace CoherentBasis
 
 variable {S : RelSignature.{u}} {M : InfiniteRelExchangeableLaw S} (B : CoherentBasis M)
