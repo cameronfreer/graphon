@@ -3,6 +3,7 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
+import Mathlib.MeasureTheory.MeasurableSpace.EventuallyMeasurable
 import Mathlib.Probability.Independence.Conditional
 
 /-!
@@ -39,7 +40,12 @@ naturally arrives in.
 ## Contents
 
 * `MeasureTheory.condExp_eq_condExp_of_ae_representable`;
-* `ProbabilityTheory.iCondIndepFun_congr_of_ae_representable` — the conditioning transfer.
+* `ProbabilityTheory.iCondIndepFun_congr_of_ae_representable` — the conditioning transfer;
+* `MeasureTheory.eventuallyMeasurableSet_sup` — representability passes to a join: if every
+  `m₁`-set has an `m₂`-representative modulo the filter, so does every `m₁ ⊔ m₂`-set. This is
+  how the hypothesis `hrep` above is discharged for a conditioning algebra of the form
+  `m₁ ⊔ m₂` when only the `m₁` half needs representing. The proof is `sup_le` into Mathlib's
+  `eventuallyMeasurableSpace`, which is exactly the σ-algebra of representable sets.
 -/
 
 open MeasureTheory Filter
@@ -64,6 +70,15 @@ theorem condExp_eq_condExp_of_ae_representable [IsFiniteMeasure μ] (hm₂₁ : 
     rw [setIntegral_congr_set hst, setIntegral_congr_set hst, setIntegral_condExp hm₂ hf ht]
   · -- the candidate is `m₂`-strongly measurable, hence `m₁`-strongly measurable
     exact (stronglyMeasurable_condExp.mono hm₂₁).aestronglyMeasurable
+
+/-- **Representability passes to a join.** If every `m₁`-set has an `m₂`-representative modulo
+the σ-filter `l`, then so does every `m₁ ⊔ m₂`-set: the representable sets form the σ-algebra
+`eventuallyMeasurableSpace m₂ l`, which contains `m₁` by hypothesis and `m₂` outright. -/
+theorem eventuallyMeasurableSet_sup {l : Filter α} [CountableInterFilter l]
+    (h : ∀ s, MeasurableSet[m₁] s → ∃ t, MeasurableSet[m₂] t ∧ s =ᶠ[l] t)
+    {s : Set α} (hs : MeasurableSet[m₁ ⊔ m₂] s) :
+    ∃ t, MeasurableSet[m₂] t ∧ s =ᶠ[l] t :=
+  sup_le (fun t ht => h t ht) (le_eventuallyMeasurableSpace (m := m₂)) s hs
 
 end MeasureTheory
 
