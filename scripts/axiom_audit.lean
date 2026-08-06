@@ -270,6 +270,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.CoherentBasis.exists_rankOneUniformCoupling
 #print axioms RelSignature.CoherentBasis.condIndepFun_comp_fst_snd_rankOne
 #print axioms RelSignature.CoherentBasis.exists_rankOneLatentCoupling
+#print axioms RelSignature.CoherentBasis.exists_blockMap_recovery_of_card_lt_one
 #print axioms RelSignature.rankLatentRelabel_one_eq
 #print axioms RelSignature.CoherentBasis.RankCoding.rankOne
 #print axioms RelSignature.InfiniteRelExchangeableLaw.iCondIndepFun_of_fixingAlgebra_singleton
