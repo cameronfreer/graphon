@@ -41,14 +41,10 @@ open MeasureTheory ProbabilityTheory
 
 namespace RelSignature
 
-namespace CoherentBasis
-
 universe u
 
-variable {S : RelSignature.{u}} {M : InfiniteRelExchangeableLaw S} (B : CoherentBasis M)
-
 /-- The second-coordinate transport: identity on the structure, `rankLatentOneEquiv.symm` on the
-latent. -/
+latent. Mentions no basis and no law, so it lives at the signature level. -/
 noncomputable def rankOneLatentEquiv (S : RelSignature.{u}) :
     RelStructure S (Vinfinite S) × ℝ ≃ᵐ RelStructure S (Vinfinite S) × RankLatentSpace S 1 :=
   (MeasurableEquiv.refl (RelStructure S (Vinfinite S))).prodCongr rankLatentOneEquiv.symm
@@ -58,6 +54,10 @@ theorem rankOneLatentEquiv_coe (S : RelSignature.{u}) :
 
 theorem rankOneLatentEquiv_symm_coe (S : RelSignature.{u}) :
     ⇑(rankOneLatentEquiv S).symm = Prod.map id ⇑(rankLatentOneEquiv (S := S)) := rfl
+
+namespace CoherentBasis
+
+variable {S : RelSignature.{u}} {M : InfiniteRelExchangeableLaw S} (B : CoherentBasis M)
 
 open scoped Classical in
 /-- **The rank-one coupling, on the latent space**: the #161 coupling with its latent coordinate
@@ -84,8 +84,8 @@ private theorem condIndepFun_congr_cond {Ω β γ : Type*} [mΩ : MeasurableSpac
   exact h
 
 open scoped Classical in
-/-- **The transported clauses.** There are a measurable coding `f` and a measurable latent read
-`g` for which the rank-one latent coupling is a probability measure with the law and the latent
+/-- **The transported clauses.** There are a coding `f` and a measurable latent read `g` for
+which the rank-one latent coupling is a probability measure with the law and the latent
 source as marginals, is invariant under the joint relabeling action, resolves the rank-one
 factor through `g`, and makes the latent conditionally independent — given the rank-one
 factor — of every measurable reading of the structure. -/
