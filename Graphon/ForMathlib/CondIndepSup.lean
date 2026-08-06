@@ -35,8 +35,8 @@ variable {Ω : Type*} {m' m₁ m₂ : MeasurableSpace Ω} [mΩ : MeasurableSpace
 
 /-- **Joining the conditioning algebra to one side of a conditional independence is free**:
 if `m₁ ⊥⊥ m₂ ∣ m'`, then `m₁ ⊥⊥ (m' ⊔ m₂) ∣ m'`. -/
-theorem CondIndep.sup_right (h1 : m₁ ≤ mΩ) (h2 : m₂ ≤ mΩ)
-    (h : CondIndep m' m₁ m₂ hm' μ) : CondIndep m' m₁ (m' ⊔ m₂) hm' μ := by
+theorem CondIndep.sup_right (h : CondIndep m' m₁ m₂ hm' μ) (h1 : m₁ ≤ mΩ) (h2 : m₂ ≤ mΩ) :
+    CondIndep m' m₁ (m' ⊔ m₂) hm' μ := by
   rw [condIndep_iff _ _ _ _ h1 h2] at h
   set p₂ : Set (Set Ω) :=
     {s | ∃ e f, MeasurableSet[m'] e ∧ MeasurableSet[m₂] f ∧ s = e ∩ f} with hp₂def
@@ -81,10 +81,9 @@ theorem CondIndep.sup_right (h1 : m₁ ≤ mΩ) (h2 : m₂ ≤ mΩ)
 /-- **`CondIndepFun` respects a.e. equality of the functions** — the conditional analogue of
 `IndepFun.congr`. -/
 theorem CondIndepFun.congr {β β' : Type*} {mβ : MeasurableSpace β} {mβ' : MeasurableSpace β'}
-    {f f' : Ω → β} {g g' : Ω → β'}
+    {f f' : Ω → β} {g g' : Ω → β'} (h : CondIndepFun m' hm' f g μ)
     (hfm : Measurable f) (hgm : Measurable g) (hfm' : Measurable f') (hgm' : Measurable g')
-    (hff' : f =ᵐ[μ] f') (hgg' : g =ᵐ[μ] g')
-    (h : CondIndepFun m' hm' f g μ) : CondIndepFun m' hm' f' g' μ := by
+    (hff' : f =ᵐ[μ] f') (hgg' : g =ᵐ[μ] g') : CondIndepFun m' hm' f' g' μ := by
   rw [condIndepFun_iff_condExp_inter_preimage_eq_mul hfm hgm] at h
   rw [condIndepFun_iff_condExp_inter_preimage_eq_mul hfm' hgm']
   intro s t hs ht
