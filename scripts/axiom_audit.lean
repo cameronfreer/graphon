@@ -238,6 +238,10 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 -- specialization (`Graphon/UniformFactorCoupling.lean`).
 #print axioms MeasureTheory.Measure.map_prodMap_compProd_comap
 #print axioms MeasureTheory.Measure.comp_comap
+#print axioms MeasureTheory.condExp_comp_measurePreserving
+#print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
+#print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving
+#print axioms ProbabilityTheory.iCondIndepFun_comp_measurePreserving
 #print axioms MeasureTheory.condExp_eq_condExp_of_ae_representable
 #print axioms ProbabilityTheory.iCondIndepFun_congr_of_ae_representable
 #print axioms MeasureTheory.eventuallyMeasurableSet_sup
