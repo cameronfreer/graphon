@@ -279,6 +279,11 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.originalVertex_or_poolVertex
 #print axioms RelSignature.RelStructure.congrCarrier_relabel
 #print axioms RelSignature.RelStructure.restrict_relabel
+#print axioms RelSignature.InfiniteRelExchangeableLaw.law_map_restrict_self
+#print axioms RelSignature.StationaryExtension.law_map_restrict_window
+#print axioms RelSignature.StationaryExtension.extensionCoupling_map_fst
+#print axioms RelSignature.StationaryExtension.extensionCoupling_map_snd
+#print axioms RelSignature.InfiniteRelExchangeableLaw.nonempty_stationaryExtension
 #print axioms RelSignature.measurable_restrictOriginal
 #print axioms RelSignature.measurable_restrictPool
 #print axioms RelSignature.restrictOriginal_relabel_sumCongr
