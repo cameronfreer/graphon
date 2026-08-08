@@ -255,6 +255,7 @@ AUDITED_DECLS = {
     "RelSignature.originalVertex_ne_poolVertex",
     "RelSignature.originalVertex_or_poolVertex",
     "RelSignature.RelStructure.congrCarrier_relabel",
+    "RelSignature.RelStructure.restrict_relabel",
     "RelSignature.measurable_restrictOriginal",
     "RelSignature.measurable_restrictPool",
     "RelSignature.restrictOriginal_relabel_sumCongr",

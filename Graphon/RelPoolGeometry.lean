@@ -71,9 +71,10 @@ def poolVertexEquiv (S : RelSignature.{u}) (s : S.Srt) : PoolVertex S s ≃ Vinf
 /-! ### Structure transport along sortwise equivalences -/
 
 /-- **Transport of structures along a sortwise family of equivalences**, as a measurable
-equivalence: the structure on `W` read back along `e` is a structure on `V`. The forward map is
-`comap` of the inverse family, so both directions are `comap`s and the inverse laws are
-definitional. -/
+equivalence: the forward map carries a structure on `V` to a structure on `W`, reading each
+`W`-coordinate through `e⁻¹`. Both directions are `comap`s — the forward map is `comap` of the
+inverse family — so the inverse laws reduce to `comap_comp` and the equivalence
+cancellations. -/
 def RelStructure.congrCarrier {V W : S.Srt → Type*} (e : ∀ s, V s ≃ W s) :
     RelStructure S V ≃ᵐ RelStructure S W where
   toEquiv :=
@@ -127,6 +128,15 @@ theorem measurable_restrictOriginal : Measurable (restrictOriginal S) :=
 
 theorem measurable_restrictPool : Measurable (restrictPool S) :=
   measurable_restrict _
+
+/-- **The moved-window law**: restriction along `e` after an *arbitrary* relabeling is
+restriction along the moved window `(e s).trans (ρ s).toEmbedding`. Definitional. A mixed
+permutation does not commute with restriction to the same half — but it does move the
+restricted window, and this is the form the mixed-window marginal theorem consumes. -/
+theorem RelStructure.restrict_relabel {V W : S.Srt → Type*} (e : ∀ s, V s ↪ W s)
+    (ρ : ∀ s, Equiv.Perm (W s)) (X : RelStructure S W) :
+    RelStructure.restrict e (RelStructure.relabel ρ X) =
+      RelStructure.restrict (fun s => (e s).trans (ρ s).toEmbedding) X := rfl
 
 /-- **Restriction–relabel naturality, split case**: a permutation that respects the
 original/pool split commutes with restriction to the original half — the original component

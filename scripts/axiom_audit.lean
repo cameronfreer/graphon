@@ -278,6 +278,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.originalVertex_ne_poolVertex
 #print axioms RelSignature.originalVertex_or_poolVertex
 #print axioms RelSignature.RelStructure.congrCarrier_relabel
+#print axioms RelSignature.RelStructure.restrict_relabel
 #print axioms RelSignature.measurable_restrictOriginal
 #print axioms RelSignature.measurable_restrictPool
 #print axioms RelSignature.restrictOriginal_relabel_sumCongr
