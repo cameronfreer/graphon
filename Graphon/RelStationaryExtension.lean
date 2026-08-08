@@ -17,9 +17,6 @@ nothing correlated to offer).
 
 ## Contents
 
-* `InfiniteRelExchangeableLaw.law_map_restrict_self` — the law of **any** sortwise injective
-  self-restriction is the law: the arbitrary-infinite-injection invariance, by comparing every
-  finite restriction (`ext_of_map_restrictFin` + `law_map_restrict`);
 * `StationaryExtension` — the minimal structure: a probability law on the pooled structure
   space whose original restriction is the law and which is invariant under **every** sortwise
   permutation of the pooled carrier (mixed permutations included — the load-bearing
@@ -47,25 +44,6 @@ namespace RelSignature
 universe u
 
 variable {S : RelSignature.{u}}
-
-/-! ### Arbitrary-injection invariance of the law -/
-
-/-- **The law of any sortwise injective self-restriction is the law**: every finite restriction
-of both sides agrees, because restricting a self-restriction is restricting along the composed
-finite embedding, whose law depends only on the block sizes. -/
-theorem InfiniteRelExchangeableLaw.law_map_restrict_self (M : InfiniteRelExchangeableLaw S)
-    (e : ∀ s, Vinfinite S s ↪ Vinfinite S s) :
-    (M.law : Measure (RelStructure S (Vinfinite S))).map (RelStructure.restrict e) =
-      (M.law : Measure (RelStructure S (Vinfinite S))) := by
-  haveI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
-  haveI : IsFiniteMeasure ((M.law : Measure (RelStructure S (Vinfinite S))).map
-      (RelStructure.restrict e)) :=
-    Measure.isFiniteMeasure_map _ _
-  refine RelStructure.ext_of_map_restrictFin fun n => ?_
-  rw [Measure.map_map (RelSignature.measurable_restrictFin n) (measurable_restrict e),
-    show RelStructure.restrictFin (S := S) n ∘ RelStructure.restrict e =
-      RelStructure.restrict (fun s => (Fin.valEmbedding.trans (e s))) from rfl,
-    M.law_map_restrict fun s => Fin.valEmbedding.trans (e s)]
 
 /-! ### The stationary extension -/
 
@@ -145,13 +123,17 @@ theorem law_map_restrict_window {n : S.Srt → ℕ} (e : ∀ s, Fin (n s) ↪ Po
 shared-array property is definitional: both coordinates are read off the same structure. No
 independence between them is claimed — that exclusion is the point of the design. -/
 noncomputable def extensionCoupling :
-    Measure (RelStructure S (Vinfinite S) × RelStructure S (PoolVertex S)) :=
-  (E.law : Measure (RelStructure S (PoolVertex S))).map fun X => (restrictOriginal S X, X)
+    ProbabilityMeasure (RelStructure S (Vinfinite S) × RelStructure S (PoolVertex S)) :=
+  ⟨(E.law : Measure (RelStructure S (PoolVertex S))).map fun X => (restrictOriginal S X, X),
+    Measure.isProbabilityMeasure_map
+      (measurable_restrictOriginal.prodMk measurable_id).aemeasurable⟩
 
 /-- The first marginal of the induced coupling is the original law. Exact. -/
 theorem extensionCoupling_map_fst :
-    E.extensionCoupling.map Prod.fst = (M.law : Measure (RelStructure S (Vinfinite S))) := by
-  rw [extensionCoupling,
+    (E.extensionCoupling : Measure (RelStructure S (Vinfinite S) ×
+        RelStructure S (PoolVertex S))).map Prod.fst =
+      (M.law : Measure (RelStructure S (Vinfinite S))) := by
+  rw [extensionCoupling, ProbabilityMeasure.coe_mk,
     Measure.map_map measurable_fst (measurable_restrictOriginal.prodMk measurable_id :
       Measurable fun X : RelStructure S (PoolVertex S) => (restrictOriginal S X, X)),
     show (Prod.fst ∘ fun X : RelStructure S (PoolVertex S) => (restrictOriginal S X, X)) =
@@ -160,8 +142,10 @@ theorem extensionCoupling_map_fst :
 
 /-- The second marginal of the induced coupling is the extended law. Exact. -/
 theorem extensionCoupling_map_snd :
-    E.extensionCoupling.map Prod.snd = (E.law : Measure (RelStructure S (PoolVertex S))) := by
-  rw [extensionCoupling,
+    (E.extensionCoupling : Measure (RelStructure S (Vinfinite S) ×
+        RelStructure S (PoolVertex S))).map Prod.snd =
+      (E.law : Measure (RelStructure S (PoolVertex S))) := by
+  rw [extensionCoupling, ProbabilityMeasure.coe_mk,
     Measure.map_map measurable_snd (measurable_restrictOriginal.prodMk measurable_id :
       Measurable fun X : RelStructure S (PoolVertex S) => (restrictOriginal S X, X)),
     show (Prod.snd ∘ fun X : RelStructure S (PoolVertex S) => (restrictOriginal S X, X)) =

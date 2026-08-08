@@ -85,14 +85,30 @@ theorem InfiniteRelExchangeableLaw.law_map_restrict (M : InfiniteRelExchangeable
   rw [hcomp, ← Measure.map_map (RelSignature.measurable_restrictFin n)
       (measurable_relabel σ), M.exchangeable σ]
 
-/-- **Shift invariance**: forgetting the first `k`-block does not change the law. -/
+/-- **The law of any sortwise injective self-restriction is the law**: every finite restriction
+of both sides agrees, because restricting a self-restriction is restricting along the composed
+finite embedding, whose law depends only on the block sizes. -/
+theorem InfiniteRelExchangeableLaw.law_map_restrict_self (M : InfiniteRelExchangeableLaw S)
+    (e : ∀ s, Vinfinite S s ↪ Vinfinite S s) :
+    (M.law : Measure (RelStructure S (Vinfinite S))).map (RelStructure.restrict e) =
+      (M.law : Measure (RelStructure S (Vinfinite S))) := by
+  haveI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
+  haveI : IsFiniteMeasure ((M.law : Measure (RelStructure S (Vinfinite S))).map
+      (RelStructure.restrict e)) :=
+    Measure.isFiniteMeasure_map _ _
+  refine RelStructure.ext_of_map_restrictFin fun n => ?_
+  rw [Measure.map_map (RelSignature.measurable_restrictFin n) (measurable_restrict e),
+    show RelStructure.restrictFin (S := S) n ∘ RelStructure.restrict e =
+      RelStructure.restrict (fun s => (Fin.valEmbedding.trans (e s))) from rfl,
+    M.law_map_restrict fun s => Fin.valEmbedding.trans (e s)]
+
+/-- **Shift invariance**: forgetting the first `k`-block does not change the law — the shift
+is a sortwise injective self-restriction. -/
 theorem InfiniteRelExchangeableLaw.law_map_drop (M : InfiniteRelExchangeableLaw S)
     (k : S.Srt → ℕ) :
     (M.law : Measure (RelStructure S (Vinfinite S))).map (RelStructure.drop k) =
-      (M.law : Measure (RelStructure S (Vinfinite S))) := by
-  refine RelStructure.ext_of_map_restrictFin fun m => ?_
-  rw [Measure.map_map (RelSignature.measurable_restrictFin m) (measurable_drop k),
-    ← restrict_shiftEmb_eq, M.law_map_restrict (shiftEmb k m)]
+      (M.law : Measure (RelStructure S (Vinfinite S))) :=
+  M.law_map_restrict_self fun s => ⟨fun n => n + k s, add_left_injective (k s)⟩
 
 /-! ### The initial, after-block, and vertex-tail σ-algebras -/
 

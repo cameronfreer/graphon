@@ -67,6 +67,15 @@ def RelStructure.relabel {V : S.Srt → Type*} (σ : ∀ s, Equiv.Perm (V s)) :
     RelStructure S V → RelStructure S V :=
   RelStructure.comap fun s => (σ s : V s → V s)
 
+/-- **The moved-window law**: restriction along `e` after an *arbitrary* relabeling is
+restriction along the moved window `(e s).trans (ρ s).toEmbedding`. Definitional. A mixed
+permutation does not commute with restriction to the same half — but it does move the
+restricted window, and this is the form the mixed-window marginal theorem consumes. -/
+theorem RelStructure.restrict_relabel {V W : S.Srt → Type*} (e : ∀ s, V s ↪ W s)
+    (ρ : ∀ s, Equiv.Perm (W s)) (X : RelStructure S W) :
+    RelStructure.restrict e (RelStructure.relabel ρ X) =
+      RelStructure.restrict (fun s => (e s).trans (ρ s).toEmbedding) X := rfl
+
 /-- **Finite restriction**: the structure induced on the first `n s` vertices of each sort. -/
 def RelStructure.restrictFin (n : S.Srt → ℕ) :
     RelStructure S (Vinfinite S) → RelStructure S (Vfinite n) :=
