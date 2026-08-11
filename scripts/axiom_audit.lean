@@ -305,6 +305,11 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.measurable_blockMap
 #print axioms RelSignature.measurable_restObservation
 
+-- Explicit Möbius inversion on finite Boolean lattices.
+#print axioms Finset.booleanUpperZeta
+#print axioms Finset.booleanUpperMobius
+#print axioms Finset.booleanUpperMobius_booleanUpperZeta
+
 -- R4 converse piece 3 (#107): unit 1 of the rank transition, the successor decomposition.
 #print axioms RelSignature.CoherentBasis.measurable_rankLayerMap
 #print axioms RelSignature.CoherentBasis.rankLayerMap_sigmaExactIndexEquiv
