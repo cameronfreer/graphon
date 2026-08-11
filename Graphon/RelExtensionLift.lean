@@ -28,9 +28,10 @@ The joining's conditional clause `(X, U_{<n}) ⊥⊥ X⁺ ∣ σ(X)` is recorded
 manufacture correlated latents (guard 3): whatever the pool knows beyond `X` is untouched, and
 whatever `U_{<n}` encodes beyond `X` says nothing about `X⁺`.
 
-Recovery and screening need no transfer lemmas: both are statements about the
-`(X, U_{<n})`-marginal, and that marginal is exactly the representation's coupling
-(`extensionLift_map_fst`).
+Recovery and screening need no *new* transfer infrastructure: both are statements about the
+`(X, U_{<n})`-marginal, that marginal is exactly the representation's coupling
+(`extensionLift_map_fst`), and consumers transport along `Prod.fst` with the existing
+measure-preserving/`comap` machinery.
 -/
 
 open MeasureTheory ProbabilityTheory
@@ -66,7 +67,8 @@ theorem extensionLift_factor_eq :
   rw [E.map_restrictOriginal, C.map_fst]
 
 /-- The first marginal of the lift is the representation's coupling. Recovery and screening
-pull back through this identity; no separate transfer lemmas are needed. -/
+pull back through this identity — no *new* transfer infrastructure is needed; consumers use the
+existing measure-preserving/`comap` transport along `Prod.fst`. -/
 theorem extensionLift_map_fst : (C.extensionLift E).map Prod.fst = C.P := by
   haveI := C.isProbabilityMeasure_P
   exact map_fst_relativeFactorCoupling measurable_fst
@@ -79,11 +81,19 @@ theorem extensionLift_map_snd :
 
 instance : IsProbabilityMeasure (C.extensionLift E) := by
   haveI := C.isProbabilityMeasure_P
-  constructor
-  rw [← Set.preimage_univ (f := (Prod.fst : _ → RelStructure S (Vinfinite S) ×
-      RankLatentSpace S n)), ← Measure.map_apply measurable_fst MeasurableSet.univ,
-    C.extensionLift_map_fst E]
-  exact measure_univ
+  exact isProbabilityMeasure_relativeFactorCoupling measurable_fst
+
+/-- **The common-factor identity — the defining "glued over the same `X`" law**: the structure
+read off the representation pair agrees almost everywhere with the original restriction of the
+extended array. Exact marginals plus conditional independence do not expose this; it is the
+clause that says both coordinates carry one and the same `X`. -/
+theorem extensionLift_commonFactor :
+    (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n →
+        RelStructure S (Vinfinite S)) ∘ Prod.fst
+      =ᵐ[C.extensionLift E] restrictOriginal S ∘ Prod.snd := by
+  haveI := C.isProbabilityMeasure_P
+  exact comp_fst_ae_eq_comp_snd_relativeFactorCoupling measurable_fst
+    measurable_restrictOriginal (C.extensionLift_factor_eq E)
 
 open scoped Classical in
 /-- **Split-diagonal invariance** — and deliberately nothing stronger: `σ` acts on the

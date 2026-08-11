@@ -264,6 +264,7 @@ AUDITED_DECLS = {
     "RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.extensionLift_factor_eq",
     "RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.extensionLift_map_fst",
     "RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.extensionLift_map_snd",
+    "RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.extensionLift_commonFactor",
     "RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.extensionLift_map_split",
     "RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.condIndepFun_fst_snd_extensionLift",
     "RelSignature.measurable_restrictOriginal",
