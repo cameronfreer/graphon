@@ -281,6 +281,7 @@ AUDITED_DECLS = {
     "RelSignature.rankLatentIndex_ssubset_of_card_eq",
     "RelSignature.measurable_blockMap",
     "RelSignature.measurable_restObservation",
+    "MeasureTheory.Measure.exists_measurePreserving_from_unitInterval",
     "RelSignature.CoherentBasis.measurable_rankLayerMap",
     "RelSignature.CoherentBasis.rankLayerMap_sigmaExactIndexEquiv",
     "RelSignature.CoherentBasis.fst_lowerFactorSpaceSuccEquiv",
