@@ -118,6 +118,8 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.card_filter_injective_eq_descFactorial
 #print axioms SimpleGraph.tInj_le_one
 #print axioms SimpleGraph.tInd_le_one
+#print axioms SimpleGraph.card_filter_injective_le_comap_eq_labelledCopyCount
+#print axioms SimpleGraph.injHomCount_eq_labelledCopyCount
 #print axioms Graphon.homDensity_ofSimpleGraphOn_eq_t
 #print axioms Graphon.sampleMass_ofSimpleGraphOn_eq_pullbackCount_div
 #print axioms SimpleGraph.tInj_eq_sum_tInd

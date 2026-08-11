@@ -142,6 +142,8 @@ AUDITED_DECLS = {
     "Graphon.card_filter_injective_eq_descFactorial",
     "SimpleGraph.tInj_le_one",
     "SimpleGraph.tInd_le_one",
+    "SimpleGraph.card_filter_injective_le_comap_eq_labelledCopyCount",
+    "SimpleGraph.injHomCount_eq_labelledCopyCount",
     "Graphon.homDensity_ofSimpleGraphOn_eq_t",
     "Graphon.sampleMass_ofSimpleGraphOn_eq_pullbackCount_div",
     "SimpleGraph.tInj_eq_sum_tInd",
