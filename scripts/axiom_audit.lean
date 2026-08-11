@@ -3,6 +3,12 @@ import Graphon
 allowed set {propext, Classical.choice, Quot.sound} — in particular no `sorryAx` and no
 custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 (and `docs/post-r3-mainline-completion-plan.md` §4.4). -/
+#print axioms Finpartition.toMeasurablePartition
+#print axioms Finpartition.toMeasurablePartition_parts
+#print axioms Graphon.rectAverage_eq_setAverage
+#print axioms Graphon.rectAverage_eq_zero_of_measure_eq_zero_left
+#print axioms Graphon.rectAverage_eq_zero_of_measure_eq_zero_right
+#print axioms Graphon.energy_toMeasurablePartition
 #print axioms Graphon.MeasureIso.atomless_standardBorel_mod0MeasureIso_unitInterval
 #print axioms Graphon.MeasureIso.Mod0MeasureIso.toMeasurableEquiv
 #print axioms Graphon.MeasurePreserving.exists_common_coupling_maps
@@ -118,6 +124,8 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.card_filter_injective_eq_descFactorial
 #print axioms SimpleGraph.tInj_le_one
 #print axioms SimpleGraph.tInd_le_one
+#print axioms SimpleGraph.card_filter_injective_le_comap_eq_labelledCopyCount
+#print axioms SimpleGraph.injHomCount_eq_labelledCopyCount
 #print axioms Graphon.homDensity_ofSimpleGraphOn_eq_t
 #print axioms Graphon.sampleMass_ofSimpleGraphOn_eq_pullbackCount_div
 #print axioms SimpleGraph.tInj_eq_sum_tInd
@@ -305,6 +313,8 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.measurable_blockMap
 #print axioms RelSignature.measurable_restObservation
 
+-- Standard-Borel probability measures are pushforwards of Lebesgue measure on `[0,1]`.
+#print axioms MeasureTheory.Measure.exists_measurePreserving_from_unitInterval
 -- Explicit Möbius inversion on finite Boolean lattices.
 #print axioms Finset.booleanUpperZeta
 #print axioms Finset.booleanUpperMobius

@@ -27,6 +27,12 @@ ALLOWED_STUBS = set()
 # The load-bearing declarations whose axiom profile is enforced
 # (docs/post-r3-mainline-completion-plan.md §4.4 plus the compactness headline).
 AUDITED_DECLS = {
+    "Finpartition.toMeasurablePartition",
+    "Finpartition.toMeasurablePartition_parts",
+    "Graphon.rectAverage_eq_setAverage",
+    "Graphon.rectAverage_eq_zero_of_measure_eq_zero_left",
+    "Graphon.rectAverage_eq_zero_of_measure_eq_zero_right",
+    "Graphon.energy_toMeasurablePartition",
     "Graphon.MeasureIso.atomless_standardBorel_mod0MeasureIso_unitInterval",
     "Graphon.MeasureIso.Mod0MeasureIso.toMeasurableEquiv",
     "Graphon.MeasurePreserving.exists_common_coupling_maps",
@@ -142,6 +148,8 @@ AUDITED_DECLS = {
     "Graphon.card_filter_injective_eq_descFactorial",
     "SimpleGraph.tInj_le_one",
     "SimpleGraph.tInd_le_one",
+    "SimpleGraph.card_filter_injective_le_comap_eq_labelledCopyCount",
+    "SimpleGraph.injHomCount_eq_labelledCopyCount",
     "Graphon.homDensity_ofSimpleGraphOn_eq_t",
     "Graphon.sampleMass_ofSimpleGraphOn_eq_pullbackCount_div",
     "SimpleGraph.tInj_eq_sum_tInd",
@@ -281,6 +289,7 @@ AUDITED_DECLS = {
     "RelSignature.rankLatentIndex_ssubset_of_card_eq",
     "RelSignature.measurable_blockMap",
     "RelSignature.measurable_restObservation",
+    "MeasureTheory.Measure.exists_measurePreserving_from_unitInterval",
     "Finset.booleanUpperZeta",
     "Finset.booleanUpperMobius",
     "Finset.booleanUpperMobius_booleanUpperZeta",
