@@ -315,6 +315,10 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 
 -- Standard-Borel probability measures are pushforwards of Lebesgue measure on `[0,1]`.
 #print axioms MeasureTheory.Measure.exists_measurePreserving_from_unitInterval
+-- Explicit Möbius inversion on finite Boolean lattices.
+#print axioms Finset.booleanUpperZeta
+#print axioms Finset.booleanUpperMobius
+#print axioms Finset.booleanUpperMobius_booleanUpperZeta
 
 -- R4 converse piece 3 (#107): unit 1 of the rank transition, the successor decomposition.
 #print axioms RelSignature.CoherentBasis.measurable_rankLayerMap
