@@ -305,6 +305,9 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.measurable_blockMap
 #print axioms RelSignature.measurable_restObservation
 
+-- Standard-Borel probability measures are pushforwards of Lebesgue measure on `[0,1]`.
+#print axioms MeasureTheory.Measure.exists_measurePreserving_from_unitInterval
+
 -- R4 converse piece 3 (#107): unit 1 of the rank transition, the successor decomposition.
 #print axioms RelSignature.CoherentBasis.measurable_rankLayerMap
 #print axioms RelSignature.CoherentBasis.rankLayerMap_sigmaExactIndexEquiv
