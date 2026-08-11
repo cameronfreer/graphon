@@ -231,6 +231,8 @@ AUDITED_DECLS = {
     "MeasureTheory.gluedCoupling_map_snd_trd",
     "MeasureTheory.gluedCoupling_map_fst",
     "MeasureTheory.gluedCoupling_map_trd",
+    "MeasureTheory.gluedOuterCoupling_map_fst",
+    "MeasureTheory.gluedOuterCoupling_map_snd",
     "MeasureTheory.condExp_comp_measurePreserving",
     "ProbabilityTheory.condExp_set_comp_measurePreserving",
     "ProbabilityTheory.condIndepFun_comp_measurePreserving",

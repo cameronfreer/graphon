@@ -103,6 +103,33 @@ theorem gluedCoupling_map_trd (h : π₂₃.map Prod.fst = π₁₂.map Prod.snd
   rw [this, ← Measure.map_map measurable_snd measurable_snd,
     gluedCoupling_map_snd_trd h]
 
+/-! ### The induced outer coupling -/
+
+/-- **The induced coupling of the outer marginals**: forget the shared middle coordinate in the
+glued triple law. -/
+noncomputable def gluedOuterCoupling (π₁₂ : Measure (Ω₁ × Ω₂))
+    (π₂₃ : Measure (Ω₂ × Ω₃)) [IsProbabilityMeasure π₁₂] [IsProbabilityMeasure π₂₃] :
+    Measure (Ω₁ × Ω₃) :=
+  (gluedCoupling π₁₂ π₂₃).map fun w => (w.1, w.2.2)
+
+instance : IsProbabilityMeasure (gluedOuterCoupling π₁₂ π₂₃) := by
+  rw [gluedOuterCoupling]
+  exact Measure.isProbabilityMeasure_map (measurable_fst.prodMk measurable_snd.snd).aemeasurable
+
+/-- The first marginal of the induced outer coupling is the first marginal of `π₁₂`. Exact. -/
+theorem gluedOuterCoupling_map_fst :
+    (gluedOuterCoupling π₁₂ π₂₃).map Prod.fst = π₁₂.map Prod.fst := by
+  rw [gluedOuterCoupling, Measure.map_map measurable_fst
+    (measurable_fst.prodMk measurable_snd.snd)]
+  exact gluedCoupling_map_fst
+
+/-- The second marginal of the induced outer coupling is the second marginal of `π₂₃`. Exact. -/
+theorem gluedOuterCoupling_map_snd (h : π₂₃.map Prod.fst = π₁₂.map Prod.snd) :
+    (gluedOuterCoupling π₁₂ π₂₃).map Prod.snd = π₂₃.map Prod.snd := by
+  rw [gluedOuterCoupling, Measure.map_map measurable_snd
+    (measurable_fst.prodMk measurable_snd.snd)]
+  exact gluedCoupling_map_trd h
+
 /-! ### Zero-mass middle-atom regressions
 
 The middle marginal is a Dirac mass, so every other middle point is a zero-mass atom; the
