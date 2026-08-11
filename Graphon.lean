@@ -76,6 +76,7 @@ import Graphon.MeasureIso
 import Graphon.Approximation
 import Graphon.Counting
 import Graphon.Regularity
+import Graphon.RegularityFinpartition
 import Graphon.Overlay
 import Graphon.Compactness
 import Graphon.GraphonSpace
@@ -150,6 +151,7 @@ in Lean 4 using Mathlib.
 * `Graphon.MeasureIso` — Atomless standard-Borel measure-isomorphism theorem (graphon-independent; mod-0 iso + everywhere upgrade)
 * `Graphon.Overlay` — Overlay theorem: an MP bijection nearly achieves the cut distance (fourth Rokhlin core)
 * `Graphon.Regularity` — Energy increment, Frieze–Kannan weak regularity lemma
+* `Graphon.RegularityFinpartition` — exact adapter from measurable `Finpartition (Set.univ)` to graphon partitions, including the zero-measure-cell convention
 * `Graphon.Counting` — Homomorphism density, counting lemma
 * `Graphon.Compactness` — Total boundedness, completeness
 * `Graphon.GraphonSpace` — The graphon space: compact Polish standard-Borel metric quotient under weak isomorphism (`GraphonSpace`, `StandardGraphonSpace`)

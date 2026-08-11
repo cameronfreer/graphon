@@ -3,6 +3,12 @@ import Graphon
 allowed set {propext, Classical.choice, Quot.sound} — in particular no `sorryAx` and no
 custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 (and `docs/post-r3-mainline-completion-plan.md` §4.4). -/
+#print axioms Finpartition.toMeasurablePartition
+#print axioms Finpartition.toMeasurablePartition_parts
+#print axioms Graphon.rectAverage_eq_setAverage
+#print axioms Graphon.rectAverage_eq_zero_of_measure_eq_zero_left
+#print axioms Graphon.rectAverage_eq_zero_of_measure_eq_zero_right
+#print axioms Graphon.energy_toMeasurablePartition
 #print axioms Graphon.MeasureIso.atomless_standardBorel_mod0MeasureIso_unitInterval
 #print axioms Graphon.MeasureIso.Mod0MeasureIso.toMeasurableEquiv
 #print axioms Graphon.MeasurePreserving.exists_common_coupling_maps

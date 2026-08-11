@@ -27,6 +27,12 @@ ALLOWED_STUBS = set()
 # The load-bearing declarations whose axiom profile is enforced
 # (docs/post-r3-mainline-completion-plan.md §4.4 plus the compactness headline).
 AUDITED_DECLS = {
+    "Finpartition.toMeasurablePartition",
+    "Finpartition.toMeasurablePartition_parts",
+    "Graphon.rectAverage_eq_setAverage",
+    "Graphon.rectAverage_eq_zero_of_measure_eq_zero_left",
+    "Graphon.rectAverage_eq_zero_of_measure_eq_zero_right",
+    "Graphon.energy_toMeasurablePartition",
     "Graphon.MeasureIso.atomless_standardBorel_mod0MeasureIso_unitInterval",
     "Graphon.MeasureIso.Mod0MeasureIso.toMeasurableEquiv",
     "Graphon.MeasurePreserving.exists_common_coupling_maps",
