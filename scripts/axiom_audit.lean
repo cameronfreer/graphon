@@ -284,6 +284,12 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.StationaryExtension.extensionCoupling_map_fst
 #print axioms RelSignature.StationaryExtension.extensionCoupling_map_snd
 #print axioms RelSignature.InfiniteRelExchangeableLaw.nonempty_stationaryExtension
+#print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.extensionLift_factor_eq
+#print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.extensionLift_map_fst
+#print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.extensionLift_map_snd
+#print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.extensionLift_commonFactor
+#print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.extensionLift_map_split
+#print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.condIndepFun_fst_snd_extensionLift
 #print axioms RelSignature.measurable_restrictOriginal
 #print axioms RelSignature.measurable_restrictPool
 #print axioms RelSignature.restrictOriginal_relabel_sumCongr
