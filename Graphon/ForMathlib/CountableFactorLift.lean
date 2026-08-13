@@ -235,4 +235,60 @@ theorem isProbabilityMeasure_countableFactorLift [IsProbabilityMeasure μ₁]
     countableFactorLift_map_fst hq₁ hq₂ hfst hsnd]
   exact measure_univ
 
+/-- **The factor-law round-trip is exact**: pushing the lift back through the factor maps
+recovers the input joint law on the nose. This is the acceptance test for the lift, proved
+atomwise on the countable factor product — never inferred from the marginals. Off-diagonal
+summands vanish because distinct fibers are disjoint; on the diagonal a null fiber forces
+the corresponding atom of `lam` to vanish (the guards), so normalization only ever cancels
+against a positive cell. -/
+theorem countableFactorLift_map_prodMap (hq₁ : Measurable q₁) (hq₂ : Measurable q₂)
+    (hfst : lam.map Prod.fst = μ₁.map q₁) (hsnd : lam.map Prod.snd = μ₂.map q₂) :
+    (countableFactorLift μ₁ μ₂ q₁ q₂ lam).map (Prod.map q₁ q₂) = lam := by
+  have hq : Measurable (Prod.map q₁ q₂) := hq₁.prodMap hq₂
+  refine Measure.ext_iff_singleton.mpr fun ij => ?_
+  obtain ⟨i, j⟩ := ij
+  rw [Measure.map_apply hq (measurableSet_singleton _),
+    show ({(i, j)} : Set (ι₁ × ι₂)) = {i} ×ˢ {j} from Set.singleton_prod_singleton.symm,
+    Set.preimage_prod_map_prod, countableFactorLift, Measure.sum_apply_of_countable]
+  have hvanish : ∀ kl : ι₁ × ι₂, kl ≠ (i, j) →
+      ((lam {kl} * (μ₁ (q₁ ⁻¹' {kl.1}))⁻¹ * (μ₂ (q₂ ⁻¹' {kl.2}))⁻¹) •
+        (μ₁.restrict (q₁ ⁻¹' {kl.1})).prod (μ₂.restrict (q₂ ⁻¹' {kl.2})))
+        ((q₁ ⁻¹' {i}) ×ˢ (q₂ ⁻¹' {j})) = 0 := by
+    rintro ⟨k, l⟩ hkl
+    rw [Measure.smul_apply, smul_eq_mul, Measure.prod_prod,
+      Measure.restrict_apply (hq₁ (measurableSet_singleton i)),
+      Measure.restrict_apply (hq₂ (measurableSet_singleton j))]
+    rcases show k ≠ i ∨ l ≠ j from by
+        rcases eq_or_ne k i with rfl | hk
+        · exact Or.inr fun hlj => hkl (by rw [hlj])
+        · exact Or.inl hk with hk | hl
+    · have hempty : q₁ ⁻¹' {i} ∩ q₁ ⁻¹' {k} = (∅ : Set γ₁) := by
+        ext x
+        simp only [Set.mem_inter_iff, Set.mem_preimage, Set.mem_singleton_iff,
+          Set.mem_empty_iff_false, iff_false, not_and]
+        exact fun h1 h2 => hk (h2.symm.trans h1)
+      rw [hempty, measure_empty, zero_mul, mul_zero]
+    · have hempty : q₂ ⁻¹' {j} ∩ q₂ ⁻¹' {l} = (∅ : Set γ₂) := by
+        ext y
+        simp only [Set.mem_inter_iff, Set.mem_preimage, Set.mem_singleton_iff,
+          Set.mem_empty_iff_false, iff_false, not_and]
+        exact fun h1 h2 => hl (h2.symm.trans h1)
+      rw [hempty, measure_empty, mul_zero, mul_zero]
+  rw [tsum_eq_single (i, j) hvanish, Measure.smul_apply, smul_eq_mul, Measure.prod_prod,
+    Measure.restrict_apply (hq₁ (measurableSet_singleton i)),
+    Measure.restrict_apply (hq₂ (measurableSet_singleton j)), Set.inter_self, Set.inter_self]
+  by_cases h1 : μ₁ (q₁ ⁻¹' {i}) = 0
+  · rw [h1]
+    simp [atom_eq_zero_of_fiber_null_fst hq₁ hfst h1 j]
+  by_cases h2 : μ₂ (q₂ ⁻¹' {j}) = 0
+  · rw [h2]
+    simp [atom_eq_zero_of_fiber_null_snd hq₂ hsnd h2 i]
+  rw [show lam {(i, j)} * (μ₁ (q₁ ⁻¹' {i}))⁻¹ * (μ₂ (q₂ ⁻¹' {j}))⁻¹ *
+        (μ₁ (q₁ ⁻¹' {i}) * μ₂ (q₂ ⁻¹' {j})) =
+      lam {(i, j)} * ((μ₁ (q₁ ⁻¹' {i}))⁻¹ * μ₁ (q₁ ⁻¹' {i})) *
+        ((μ₂ (q₂ ⁻¹' {j}))⁻¹ * μ₂ (q₂ ⁻¹' {j})) from by ring,
+    ENNReal.inv_mul_cancel h1 (measure_ne_top μ₁ _),
+    ENNReal.inv_mul_cancel h2 (measure_ne_top μ₂ _), mul_one, mul_one,
+    Set.singleton_prod_singleton]
+
 end MeasureTheory
