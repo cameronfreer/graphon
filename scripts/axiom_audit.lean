@@ -262,6 +262,18 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms MeasureTheory.countableFactorLift_map_snd
 #print axioms MeasureTheory.isProbabilityMeasure_countableFactorLift
 #print axioms MeasureTheory.countableFactorLift_map_prodMap
+
+-- Step 4 of the step-approximation programme: isometry, stability, cost transport.
+#print axioms Graphon.rectIntegralDiff_pullback_preimage
+#print axioms Graphon.le_cutNormDiff_pullback_measurePreserving
+#print axioms Graphon.cutNormDiff_pullback_eq_measurePreserving
+#print axioms Graphon.abs_cutNormDiff_pullback_sub_le
+#print axioms Graphon.cutNormDiff_pullback_prod_factor
+#print axioms Graphon.measurePreserving_prodMap_countableFactorLift
+#print axioms Graphon.measurePreserving_fst_countableFactorLift
+#print axioms Graphon.measurePreserving_snd_countableFactorLift
+#print axioms Graphon.cutNormDiff_pullback_countableFactorLift
+#print axioms Graphon.abs_cutNormDiff_pullback_sub_stepCost_le
 #print axioms MeasureTheory.condExp_comp_measurePreserving
 #print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
 #print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving
