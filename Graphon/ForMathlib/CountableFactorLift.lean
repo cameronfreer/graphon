@@ -223,4 +223,16 @@ theorem countableFactorLift_map_snd (hq₁ : Measurable q₁) (hq₂ : Measurabl
       simp only [Set.mem_iUnion, Set.mem_inter_iff, Set.mem_preimage, Set.mem_singleton_iff]
       exact ⟨fun ⟨j, hx, _⟩ => hx, fun hx => ⟨q₂ x, hx, rfl⟩⟩]
 
+/-- **The lift is a probability measure** — derived from the exact first carrier marginal
+evaluated at `univ`, independently of the factor-law round-trip. -/
+theorem isProbabilityMeasure_countableFactorLift [IsProbabilityMeasure μ₁]
+    (hq₁ : Measurable q₁) (hq₂ : Measurable q₂)
+    (hfst : lam.map Prod.fst = μ₁.map q₁) (hsnd : lam.map Prod.snd = μ₂.map q₂) :
+    IsProbabilityMeasure (countableFactorLift μ₁ μ₂ q₁ q₂ lam) := by
+  constructor
+  rw [← Set.preimage_univ (f := (Prod.fst : γ₁ × γ₂ → γ₁)),
+    ← Measure.map_apply measurable_fst MeasurableSet.univ,
+    countableFactorLift_map_fst hq₁ hq₂ hfst hsnd]
+  exact measure_univ
+
 end MeasureTheory
