@@ -216,4 +216,44 @@ theorem cutNormDiff_pullback_eq_measurePreserving (U W : Graphon β ν) (φ : α
   le_antisymm (cutNormDiff_pullback_le_measurePreserving U W φ hφ)
     (le_cutNormDiff_pullback_measurePreserving U W φ hφ)
 
+/-- **Generic Lipschitz stability of coupling cost under changing both marginal kernels**:
+for two measure-preserving maps out of a common carrier — coupling projections are the
+intended instance — the pulled-back cut-norm difference moves by at most the sum of the two
+marginal cut-norm differences. Two triangle inequalities plus the cross-carrier contraction,
+once along each map. -/
+theorem abs_cutNormDiff_pullback_sub_le {γ : Type*} [MeasurableSpace γ] {ρ : Measure γ}
+    [IsProbabilityMeasure ρ] (U U' : Graphon β ν) (W W' : Graphon γ ρ)
+    (φ : α → β) (ψ : α → γ) (hφ : MeasurePreserving φ μ ν) (hψ : MeasurePreserving ψ μ ρ) :
+    |cutNormDiff (pullback U φ hφ) (pullback W ψ hψ) -
+        cutNormDiff (pullback U' φ hφ) (pullback W' ψ hψ)| ≤
+      cutNormDiff U U' + cutNormDiff W W' := by
+  have key : ∀ (A A' : Graphon β ν) (B B' : Graphon γ ρ),
+      cutNormDiff (pullback A φ hφ) (pullback B ψ hψ) ≤
+        cutNormDiff A A' + cutNormDiff B B' +
+          cutNormDiff (pullback A' φ hφ) (pullback B' ψ hψ) := by
+    intro A A' B B'
+    calc cutNormDiff (pullback A φ hφ) (pullback B ψ hψ)
+        ≤ cutNormDiff (pullback A φ hφ) (pullback A' φ hφ) +
+            cutNormDiff (pullback A' φ hφ) (pullback B ψ hψ) := cutNormDiff_triangle _ _ _
+      _ ≤ cutNormDiff (pullback A φ hφ) (pullback A' φ hφ) +
+            (cutNormDiff (pullback A' φ hφ) (pullback B' ψ hψ) +
+              cutNormDiff (pullback B' ψ hψ) (pullback B ψ hψ)) := by
+          gcongr
+          exact cutNormDiff_triangle _ _ _
+      _ ≤ cutNormDiff A A' +
+            (cutNormDiff (pullback A' φ hφ) (pullback B' ψ hψ) + cutNormDiff B' B) := by
+          gcongr
+          · exact cutNormDiff_pullback_le_measurePreserving A A' φ hφ
+          · exact cutNormDiff_pullback_le_measurePreserving B' B ψ hψ
+      _ = cutNormDiff A A' + cutNormDiff B B' +
+            cutNormDiff (pullback A' φ hφ) (pullback B' ψ hψ) := by
+          rw [cutNormDiff_symm B' B]; ring
+  rw [abs_sub_le_iff]
+  refine ⟨?_, ?_⟩
+  · have h := key U U' W W'
+    linarith
+  · have h := key U' U W' W
+    rw [cutNormDiff_symm U' U, cutNormDiff_symm W' W] at h
+    linarith
+
 end Graphon
