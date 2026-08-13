@@ -147,4 +147,38 @@ example (x z : Bool) :
       (Measure.dirac true).prod (Measure.dirac z) :=
   gluedCoupling_map_snd_trd (by simp)
 
+/-! ### Pushing a coupling through factor maps
+
+Exact marginal laws for the pushforward of a coupling through a pair of measurable factor
+maps. **Only measurability is assumed** — no finiteness of the targets, no positivity of any
+cell: finite quotients are a later consumer, obtained by instantiating the targets, and
+zero-mass cells require nothing because nothing here divides. -/
+
+section FactorMaps
+
+variable {γ₁ γ₂ ι₁ ι₂ : Type*} [MeasurableSpace γ₁] [MeasurableSpace γ₂]
+  [MeasurableSpace ι₁] [MeasurableSpace ι₂]
+  {π : Measure (γ₁ × γ₂)} [IsProbabilityMeasure π] {q₁ : γ₁ → ι₁} {q₂ : γ₂ → ι₂}
+
+/-- The pushforward of a coupling through a pair of factor maps is a probability measure. -/
+theorem isProbabilityMeasure_map_prodMap (hq₁ : Measurable q₁) (hq₂ : Measurable q₂) :
+    IsProbabilityMeasure (π.map (Prod.map q₁ q₂)) :=
+  Measure.isProbabilityMeasure_map (hq₁.prodMap hq₂).aemeasurable
+
+omit [IsProbabilityMeasure π] in
+/-- The first marginal of the pushed coupling is the pushed first marginal. Exact. -/
+theorem map_prodMap_map_fst (hq₁ : Measurable q₁) (hq₂ : Measurable q₂) :
+    (π.map (Prod.map q₁ q₂)).map Prod.fst = (π.map Prod.fst).map q₁ := by
+  rw [Measure.map_map measurable_fst (hq₁.prodMap hq₂), Measure.map_map hq₁ measurable_fst]
+  rfl
+
+omit [IsProbabilityMeasure π] in
+/-- The second marginal of the pushed coupling is the pushed second marginal. Exact. -/
+theorem map_prodMap_map_snd (hq₁ : Measurable q₁) (hq₂ : Measurable q₂) :
+    (π.map (Prod.map q₁ q₂)).map Prod.snd = (π.map Prod.snd).map q₂ := by
+  rw [Measure.map_map measurable_snd (hq₁.prodMap hq₂), Measure.map_map hq₂ measurable_snd]
+  rfl
+
+end FactorMaps
+
 end MeasureTheory
