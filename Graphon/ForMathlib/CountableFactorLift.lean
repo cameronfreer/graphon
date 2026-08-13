@@ -291,4 +291,43 @@ theorem countableFactorLift_map_prodMap (hq₁ : Measurable q₁) (hq₂ : Measu
     ENNReal.inv_mul_cancel h2 (measure_ne_top μ₂ _), mul_one, mul_one,
     Set.singleton_prod_singleton]
 
+section Regression
+
+/-- **Mixed regression**: carriers `Bool`, with `q₁ = id` over the point mass `dirac true` —
+so the fiber over `false` is a genuinely annihilated null cell — and `q₂` the constant map
+`true` over a fair coin measure, whose single fiber is positive and whose carrier measure is
+not a point mass. The factor law `dirac (true, true)` lifts to the product coupling
+`dirac true ⊗ coin`: null cells contribute nothing, and the one positive cell reproduces the
+whole coupling. -/
+example :
+    countableFactorLift (Measure.dirac true)
+      ((2 : ℝ≥0∞)⁻¹ • Measure.dirac true + (2 : ℝ≥0∞)⁻¹ • Measure.dirac false)
+      (id : Bool → Bool) (fun _ => true) (Measure.dirac (true, true)) =
+      (Measure.dirac true).prod
+        ((2 : ℝ≥0∞)⁻¹ • Measure.dirac true + (2 : ℝ≥0∞)⁻¹ • Measure.dirac false) := by
+  classical
+  set coin : Measure Bool :=
+    (2 : ℝ≥0∞)⁻¹ • Measure.dirac true + (2 : ℝ≥0∞)⁻¹ • Measure.dirac false with hcoin
+  have hcoin_univ : coin Set.univ = 1 := by
+    rw [hcoin, Measure.add_apply, Measure.smul_apply, Measure.smul_apply, smul_eq_mul,
+      smul_eq_mul, Measure.dirac_apply_of_mem (Set.mem_univ _),
+      Measure.dirac_apply_of_mem (Set.mem_univ _), mul_one, ENNReal.inv_two_add_inv_two]
+  ext E hE
+  rw [countableFactorLift, Measure.sum_apply_of_countable,
+    tsum_eq_single ((true, true) : Bool × Bool) fun kl hkl => by
+      rw [show Measure.dirac ((true : Bool), (true : Bool)) {kl} = 0 from by
+        rw [Measure.dirac_apply' _ (measurableSet_singleton _),
+          Set.indicator_of_notMem fun h => hkl (Set.mem_singleton_iff.mp h).symm]]
+      simp]
+  dsimp only
+  rw [show (id : Bool → Bool) ⁻¹' {true} = {true} from rfl,
+    show ((fun _ : Bool => true) ⁻¹' {true} : Set Bool) = Set.univ from
+      Set.preimage_const_of_mem rfl,
+    Measure.restrict_univ, restrict_dirac, if_pos (Set.mem_singleton true),
+    Measure.dirac_apply_of_mem (Set.mem_singleton ((true, true) : Bool × Bool)),
+    Measure.dirac_apply_of_mem (Set.mem_singleton true), hcoin_univ]
+  simp
+
+end Regression
+
 end MeasureTheory
