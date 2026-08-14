@@ -256,6 +256,12 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms MeasureTheory.gluedCoupling_map_trd
 #print axioms MeasureTheory.gluedOuterCoupling_map_fst
 #print axioms MeasureTheory.gluedOuterCoupling_map_snd
+
+-- Step 3 of the step-approximation programme: countable-factor lift of a joint law.
+#print axioms MeasureTheory.countableFactorLift_map_fst
+#print axioms MeasureTheory.countableFactorLift_map_snd
+#print axioms MeasureTheory.isProbabilityMeasure_countableFactorLift
+#print axioms MeasureTheory.countableFactorLift_map_prodMap
 #print axioms MeasureTheory.condExp_comp_measurePreserving
 #print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
 #print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving
