@@ -6,11 +6,19 @@ Authors: Cameron Freer
 import Graphon.CutDistance
 
 /-!
-# Cross-carrier cut-norm contraction under measure-preserving pullback
+# Cross-carrier cut-norm contraction, isometry, and stability under measure-preserving pullback
 
 `cutNormDiff_pullback_le_measurePreserving`: pulling two graphons back along a
 measure-preserving map **between different carriers** does not increase their cut-norm
 difference. Step 1 of the step-approximation programme.
+
+Step 4 adds the two generic halves that live at this level of generality:
+`cutNormDiff_pullback_eq_measurePreserving` — for kernels factoring through the same
+measure-preserving map the pullback is an exact cut-norm **isometry**, since every rectangle
+test transports with equal value (`rectIntegralDiff_pullback_preimage`) — and
+`abs_cutNormDiff_pullback_sub_le`, **Lipschitz stability of coupling cost**: changing both
+marginal kernels moves the pulled-back cut-norm difference by at most the sum of the marginal
+cut-norm differences.
 
 **No standard Borel hypothesis.** The same-carrier `cutNormDiff_pullback_le` carries
 `[StandardBorelSpace α]`, but its proof is a pure Radon–Nikodym argument: the weight of a
@@ -22,8 +30,9 @@ the proof supports: arbitrary probability carriers on both sides. Zero-mass rect
 need no special treatment — the density of a zero measure is zero.
 
 Deliberately **not** here: pushing couplings to quotients is the companion result in
-`Graphon.ForMathlib.CouplingGluing`; lifting glued couplings back, step-kernel cost transport,
-and any triangle-inequality claim are later units of the programme.
+`Graphon.ForMathlib.CouplingGluing`; lifting factor laws back is
+`Graphon.ForMathlib.CountableFactorLift`; step-kernel cost transport consumes this file in
+`Graphon.StepCostTransport`; any triangle-inequality claim is a later unit of the programme.
 -/
 
 open MeasureTheory
@@ -154,5 +163,106 @@ theorem cutNormDiff_pullback_le_measurePreserving (U W : Graphon β ν) (φ : α
         rw [hstep1, hkey, hcongr]
     _ ≤ cutNormDiff U W :=
         abs_weighted_integral_diff_le U W f g hf_meas hg_meas hf_bound hg_bound
+
+/-- **Rectangle transport**: the rectangle integral of a pulled-back difference over a
+pulled-back rectangle equals the original rectangle integral — change of variables along the
+measure-preserving map, restricted to the rectangle sides. -/
+theorem rectIntegralDiff_pullback_preimage (U W : Graphon β ν) (φ : α → β)
+    (hφ : MeasurePreserving φ μ ν) {S T : Set β} (hS : MeasurableSet S) (hT : MeasurableSet T) :
+    rectIntegralDiff (pullback U φ hφ) (pullback W φ hφ) (φ ⁻¹' S) (φ ⁻¹' T) =
+      rectIntegralDiff U W S T := by
+  set D : β × β → ℝ := fun q ↦ U.toAEEqFun q - W.toAEEqFun q with hD
+  have hD_sm : StronglyMeasurable D :=
+    U.toAEEqFun.stronglyMeasurable.sub W.toAEEqFun.stronglyMeasurable
+  have hstep : rectIntegralDiff (pullback U φ hφ) (pullback W φ hφ) (φ ⁻¹' S) (φ ⁻¹' T) =
+      ∫ p in (φ ⁻¹' S) ×ˢ (φ ⁻¹' T), D (φ p.1, φ p.2) ∂(μ.prod μ) := by
+    unfold rectIntegralDiff
+    apply setIntegral_congr_ae ((hφ.measurable hS).prod (hφ.measurable hT))
+    filter_upwards [pullback_ae U φ hφ, pullback_ae W φ hφ] with p hU hW _
+    rw [hU, hW]
+  have hΦ : MeasurePreserving (Prod.map φ φ)
+      ((μ.restrict (φ ⁻¹' S)).prod (μ.restrict (φ ⁻¹' T)))
+      ((ν.restrict S).prod (ν.restrict T)) :=
+    (hφ.restrict_preimage hS).prod (hφ.restrict_preimage hT)
+  rw [hstep]
+  unfold rectIntegralDiff
+  calc ∫ p in (φ ⁻¹' S) ×ˢ (φ ⁻¹' T), D (φ p.1, φ p.2) ∂(μ.prod μ)
+      = ∫ p, D (φ p.1, φ p.2) ∂((μ.restrict (φ ⁻¹' S)).prod (μ.restrict (φ ⁻¹' T))) := by
+        rw [Measure.prod_restrict]
+    _ = ∫ p, D (Prod.map φ φ p) ∂((μ.restrict (φ ⁻¹' S)).prod (μ.restrict (φ ⁻¹' T))) := rfl
+    _ = ∫ q, D q ∂(Measure.map (Prod.map φ φ)
+          ((μ.restrict (φ ⁻¹' S)).prod (μ.restrict (φ ⁻¹' T)))) :=
+        (integral_map hΦ.measurable.aemeasurable hD_sm.aestronglyMeasurable).symm
+    _ = ∫ q, D q ∂((ν.restrict S).prod (ν.restrict T)) := by rw [hΦ.map_eq]
+    _ = ∫ q in S ×ˢ T, D q ∂(ν.prod ν) := by rw [Measure.prod_restrict]
+
+/-- **Cross-carrier cut-norm expansion bound**: the original cut-norm difference is attained
+among the pulled-back kernels — every rectangle test on the target lifts to the pulled-back
+rectangle test on the source with the same value. -/
+theorem le_cutNormDiff_pullback_measurePreserving (U W : Graphon β ν) (φ : α → β)
+    (hφ : MeasurePreserving φ μ ν) :
+    cutNormDiff U W ≤ cutNormDiff (pullback U φ hφ) (pullback W φ hφ) := by
+  have hnn := cutNormDiff_nonneg (pullback U φ hφ) (pullback W φ hφ)
+  unfold cutNormDiff
+  apply Real.iSup_le _ hnn
+  intro S; apply Real.iSup_le _ hnn
+  intro hS; apply Real.iSup_le _ hnn
+  intro T; apply Real.iSup_le _ hnn
+  intro hT
+  calc |rectIntegralDiff U W S T|
+      = |rectIntegralDiff (pullback U φ hφ) (pullback W φ hφ) (φ ⁻¹' S) (φ ⁻¹' T)| := by
+        rw [rectIntegralDiff_pullback_preimage U W φ hφ hS hT]
+    _ ≤ cutNormDiff (pullback U φ hφ) (pullback W φ hφ) :=
+        abs_rectIntegralDiff_le _ _ (hφ.measurable hS) (hφ.measurable hT)
+
+/-- **Cross-carrier cut-norm isometry**: for kernels that factor through the map — both
+compared kernels are pullbacks along the same measure-preserving map — the pullback is an
+exact cut-norm isometry, not merely a contraction. Combines the contraction
+(`cutNormDiff_pullback_le_measurePreserving`) with rectangle transport. -/
+theorem cutNormDiff_pullback_eq_measurePreserving (U W : Graphon β ν) (φ : α → β)
+    (hφ : MeasurePreserving φ μ ν) :
+    cutNormDiff (pullback U φ hφ) (pullback W φ hφ) = cutNormDiff U W :=
+  le_antisymm (cutNormDiff_pullback_le_measurePreserving U W φ hφ)
+    (le_cutNormDiff_pullback_measurePreserving U W φ hφ)
+
+/-- **Generic Lipschitz stability of coupling cost under changing both marginal kernels**:
+for two measure-preserving maps out of a common carrier — coupling projections are the
+intended instance — the pulled-back cut-norm difference moves by at most the sum of the two
+marginal cut-norm differences. Two triangle inequalities plus the cross-carrier contraction,
+once along each map. -/
+theorem abs_cutNormDiff_pullback_sub_le {γ : Type*} [MeasurableSpace γ] {ρ : Measure γ}
+    [IsProbabilityMeasure ρ] (U U' : Graphon β ν) (W W' : Graphon γ ρ)
+    (φ : α → β) (ψ : α → γ) (hφ : MeasurePreserving φ μ ν) (hψ : MeasurePreserving ψ μ ρ) :
+    |cutNormDiff (pullback U φ hφ) (pullback W ψ hψ) -
+        cutNormDiff (pullback U' φ hφ) (pullback W' ψ hψ)| ≤
+      cutNormDiff U U' + cutNormDiff W W' := by
+  have key : ∀ (A A' : Graphon β ν) (B B' : Graphon γ ρ),
+      cutNormDiff (pullback A φ hφ) (pullback B ψ hψ) ≤
+        cutNormDiff A A' + cutNormDiff B B' +
+          cutNormDiff (pullback A' φ hφ) (pullback B' ψ hψ) := by
+    intro A A' B B'
+    calc cutNormDiff (pullback A φ hφ) (pullback B ψ hψ)
+        ≤ cutNormDiff (pullback A φ hφ) (pullback A' φ hφ) +
+            cutNormDiff (pullback A' φ hφ) (pullback B ψ hψ) := cutNormDiff_triangle _ _ _
+      _ ≤ cutNormDiff (pullback A φ hφ) (pullback A' φ hφ) +
+            (cutNormDiff (pullback A' φ hφ) (pullback B' ψ hψ) +
+              cutNormDiff (pullback B' ψ hψ) (pullback B ψ hψ)) := by
+          gcongr
+          exact cutNormDiff_triangle _ _ _
+      _ ≤ cutNormDiff A A' +
+            (cutNormDiff (pullback A' φ hφ) (pullback B' ψ hψ) + cutNormDiff B' B) := by
+          gcongr
+          · exact cutNormDiff_pullback_le_measurePreserving A A' φ hφ
+          · exact cutNormDiff_pullback_le_measurePreserving B' B ψ hψ
+      _ = cutNormDiff A A' + cutNormDiff B B' +
+            cutNormDiff (pullback A' φ hφ) (pullback B' ψ hψ) := by
+          rw [cutNormDiff_symm B' B]; ring
+  rw [abs_sub_le_iff]
+  refine ⟨?_, ?_⟩
+  · have h := key U U' W W'
+    linarith
+  · have h := key U' U W' W
+    rw [cutNormDiff_symm U' U, cutNormDiff_symm W' W] at h
+    linarith
 
 end Graphon
