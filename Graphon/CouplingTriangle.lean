@@ -7,11 +7,16 @@ import Graphon.StepCostTransport
 import Graphon.FiniteFactorApproximation
 
 /-!
-# The coupling triangle inequality across arbitrary carriers
+# The arbitrary-carrier coupling-cost triangle
 
 Step 5b of the step-approximation programme (#107 remains open): the assembly.
 
-`cutNormDiff_gluedOuterCoupling_le` — **the finite-level triangle**: on standard-Borel factors,
+Everything here is at the level of the **coupling cost** at fixed couplings — the cut-norm
+difference of the two pullbacks. No infimum over couplings is taken, so nothing here is a
+statement about a coupling *distance*; this repository does not define a cross-carrier one.
+
+`cutNormDiff_gluedOuterCoupling_le` — **the finite-level cost triangle**: on standard-Borel
+factors,
 the cost of the glued outer coupling is at most the sum of the two input costs. Every cost is
 pulled back to the glued triple law, where a single `cutNormDiff_triangle` applies; the
 cross-carrier isometry identifies each pulled-back cost with the original one, so no error is
@@ -36,7 +41,7 @@ variable {ι₁ ι₂ ι₃ : Type*}
   {lam₁₂ : Measure (ι₁ × ι₂)} {lam₂₃ : Measure (ι₂ × ι₃)}
   [IsProbabilityMeasure lam₁₂] [IsProbabilityMeasure lam₂₃]
 
-/-- **The triangle inequality at the factor level.** The cost of the glued outer coupling is at
+/-- **The coupling-cost triangle at the factor level.** The cost of the glued outer coupling is at
 most the sum of the two input costs — exactly, with no error term. All three costs are pulled
 back to the glued triple law, where one application of `cutNormDiff_triangle` finishes; the
 cross-carrier isometry (`cutNormDiff_pullback_eq_measurePreserving`) identifies each pulled-back
@@ -93,7 +98,7 @@ variable {Ω₁ Ω₂ Ω₃ : Type*} [MeasurableSpace Ω₁] [MeasurableSpace Ω
   {μ₁ : Measure Ω₁} {μ₂ : Measure Ω₂} {μ₃ : Measure Ω₃}
   [IsProbabilityMeasure μ₁] [IsProbabilityMeasure μ₂] [IsProbabilityMeasure μ₃]
 
-/-- **The coupling triangle inequality across arbitrary carriers.** Given couplings of
+/-- **The arbitrary-carrier coupling-cost triangle.** Given couplings of
 `(U₁, U₂)` and `(U₂, U₃)` and a finite-factor approximation of each graphon — with the **same**
 approximation of the middle graphon used on both sides — there is a coupling of `(U₁, U₃)` whose
 cost is at most the sum of the two given costs plus `2 * (e₁ + e₂ + e₃)`.
@@ -190,7 +195,7 @@ theorem exists_coupling_cutNormDiff_le_add_add
   rw [abs_le] at b₁₃ b₁₂ b₂₃
   linarith [b₁₃.1, b₁₃.2, b₁₂.1, b₁₂.2, b₂₃.1, b₂₃.2]
 
-/-- **The triangle inequality up to an arbitrarily small error.** No approximation data is
+/-- **The coupling-cost triangle up to an arbitrarily small error.** No approximation data is
 supplied: `exists_finiteFactorApproximation` is invoked at scale `ε / 6` for each graphon, and
 the three shared errors contribute `2 * (ε/6 + ε/6 + ε/6) = ε`. The middle graphon's
 approximation is chosen once and reused on both sides, which is what makes the two factor laws
