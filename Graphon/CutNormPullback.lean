@@ -6,11 +6,19 @@ Authors: Cameron Freer
 import Graphon.CutDistance
 
 /-!
-# Cross-carrier cut-norm contraction under measure-preserving pullback
+# Cross-carrier cut-norm contraction, isometry, and stability under measure-preserving pullback
 
 `cutNormDiff_pullback_le_measurePreserving`: pulling two graphons back along a
 measure-preserving map **between different carriers** does not increase their cut-norm
 difference. Step 1 of the step-approximation programme.
+
+Step 4 adds the two generic halves that live at this level of generality:
+`cutNormDiff_pullback_eq_measurePreserving` — for kernels factoring through the same
+measure-preserving map the pullback is an exact cut-norm **isometry**, since every rectangle
+test transports with equal value (`rectIntegralDiff_pullback_preimage`) — and
+`abs_cutNormDiff_pullback_sub_le`, **Lipschitz stability of coupling cost**: changing both
+marginal kernels moves the pulled-back cut-norm difference by at most the sum of the marginal
+cut-norm differences.
 
 **No standard Borel hypothesis.** The same-carrier `cutNormDiff_pullback_le` carries
 `[StandardBorelSpace α]`, but its proof is a pure Radon–Nikodym argument: the weight of a
@@ -22,8 +30,9 @@ the proof supports: arbitrary probability carriers on both sides. Zero-mass rect
 need no special treatment — the density of a zero measure is zero.
 
 Deliberately **not** here: pushing couplings to quotients is the companion result in
-`Graphon.ForMathlib.CouplingGluing`; lifting glued couplings back, step-kernel cost transport,
-and any triangle-inequality claim are later units of the programme.
+`Graphon.ForMathlib.CouplingGluing`; lifting factor laws back is
+`Graphon.ForMathlib.CountableFactorLift`; step-kernel cost transport consumes this file in
+`Graphon.StepCostTransport`; any triangle-inequality claim is a later unit of the programme.
 -/
 
 open MeasureTheory
