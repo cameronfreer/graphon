@@ -274,6 +274,12 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.measurePreserving_snd_countableFactorLift
 #print axioms Graphon.cutNormDiff_pullback_countableFactorLift
 #print axioms Graphon.abs_cutNormDiff_pullback_sub_stepCost_le
+
+-- Step 5a: finite-factor approximation existence.
+#print axioms Graphon.measurable_partIndex
+#print axioms Graphon.measurePreserving_partIndex
+#print axioms Graphon.pullback_stepKernel
+#print axioms Graphon.exists_finiteFactorApproximation
 #print axioms MeasureTheory.condExp_comp_measurePreserving
 #print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
 #print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving
