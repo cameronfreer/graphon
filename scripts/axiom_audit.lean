@@ -280,6 +280,11 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.measurePreserving_partIndex
 #print axioms Graphon.pullback_stepKernel
 #print axioms Graphon.exists_finiteFactorApproximation
+
+-- Step 5b: the arbitrary-carrier coupling triangle inequality.
+#print axioms Graphon.cutNormDiff_gluedOuterCoupling_le
+#print axioms Graphon.exists_coupling_cutNormDiff_le_add_add
+#print axioms Graphon.exists_coupling_cutNormDiff_le_add_add_of_pos
 #print axioms MeasureTheory.condExp_comp_measurePreserving
 #print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
 #print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving
