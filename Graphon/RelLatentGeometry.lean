@@ -30,7 +30,7 @@ namespace RelSignature
 
 universe u v
 
-variable {S : RelSignature.{u}} {V W : S.Srt → Type v}
+variable {S : RelSignature.{u}} {V W Z : S.Srt → Type v}
 
 /-! ### Supports, the latent cube, and its source -/
 
@@ -204,5 +204,27 @@ theorem latentRestrictOver_latentRelabelOver_of_intertwines (e : ∀ s, V s ↪ 
   show ω (latentIndexPerm ρ n (latentIndexEmbed e n A))
     = ω (latentIndexEmbed e n (latentIndexPerm τ n A))
   exact congrArg ω (latentIndexPerm_latentIndexEmbed e ρ τ h n A)
+
+open scoped Classical in
+/-- Index-level functoriality of restriction along carrier embeddings. -/
+theorem latentIndexEmbed_comp (e : ∀ s, V s ↪ W s) (f : ∀ s, W s ↪ Z s) (n : ℕ)
+    (A : LatentIndexOver S V n) :
+    latentIndexEmbed f n (latentIndexEmbed e n A)
+      = latentIndexEmbed (fun s => (e s).trans (f s)) n A := by
+  refine Subtype.ext ?_
+  rw [latentIndexEmbed_coe, latentIndexEmbed_coe, latentIndexEmbed_coe, Finset.image_image]
+  refine Finset.image_congr fun v _ => ?_
+  obtain ⟨s, x⟩ := v
+  rfl
+
+/-- **Functoriality of restriction**: restricting along `f` and then along `e` is restricting
+along the composite embedding. -/
+theorem latentRestrictOver_comp (e : ∀ s, V s ↪ W s) (f : ∀ s, W s ↪ Z s) (n : ℕ) :
+    latentRestrictOver (S := S) e n ∘ latentRestrictOver f n =
+      latentRestrictOver (fun s => (e s).trans (f s)) n := by
+  funext ω A
+  show ω (latentIndexEmbed f n (latentIndexEmbed e n A))
+    = ω (latentIndexEmbed (fun s => (e s).trans (f s)) n A)
+  rw [latentIndexEmbed_comp]
 
 end RelSignature
