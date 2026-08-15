@@ -238,6 +238,21 @@ theorem latentRestrictOver_toEmbedding (ρ : ∀ s, Equiv.Perm (V s)) (n : ℕ) 
   refine Finset.ext fun v => ?_
   simp [Finset.mem_image]
 
+open scoped Classical in
+/-- **Support-wise agreement**: if a permutation of the target carrier carries one embedding to
+another on every vertex of a support, the two induced index maps agree there. Stated with
+abstract carriers, so instantiating never manipulates `Finset.image` under a derived
+`DecidableEq`. -/
+theorem latentIndexEmbed_eq_of_agree {e f : ∀ s, V s ↪ W s} {ρ : ∀ s, Equiv.Perm (W s)} {n : ℕ}
+    {A : LatentIndexOver S V n} (h : ∀ v ∈ A.1, ρ v.1 (e v.1 v.2) = f v.1 v.2) :
+    latentIndexEmbed f n A = latentIndexPerm ρ n (latentIndexEmbed e n A) := by
+  refine Subtype.ext ?_
+  rw [latentIndexEmbed_coe, latentIndexPerm_apply_coe, latentIndexEmbed_coe, Finset.image_image]
+  refine Finset.image_congr fun v hv => ?_
+  obtain ⟨s, x⟩ := v
+  show (⟨s, f s x⟩ : Σ s : S.Srt, W s) = ⟨s, ρ s (e s x)⟩
+  rw [h ⟨s, x⟩ hv]
+
 /-- **The conjugation square for a carrier equivalence** — the latent-side mirror of
 `RelStructure.congrCarrier_relabel`. Transporting along `e` intertwines a permutation of the
 source carrier with its conjugate on the target. Proved carrier-generically, so instantiating at

@@ -309,6 +309,13 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.latentRestrictOver_comp
 #print axioms RelSignature.latentRestrictOver_latentRelabelOver_conj
 #print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.pooledExtension
+
+-- R4 converse (#107): the joint restriction theorem for a pooled extension (gate 1a, stage 3).
+#print axioms exists_perm_extend_of_injOn
+#print axioms RelSignature.latentIndexEmbed_eq_of_agree
+#print axioms RelSignature.InfiniteRelExchangeableLaw.exists_poolPerm_agree
+#print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.map_restrict_embedding
+#print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.map_poolVertexEquiv
 #print axioms MeasureTheory.condExp_comp_measurePreserving
 #print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
 #print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving

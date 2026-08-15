@@ -1,0 +1,207 @@
+/-
+Copyright (c) 2026 Cameron Freer. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Cameron Freer
+-/
+import Graphon.RelPooledExtension
+
+/-!
+# The joint restriction theorem for a pooled rank extension (R4 converse, #107)
+
+Stage 3 of the pooled-latent extension gate, organizing result:
+
+`PooledRankExtension.map_restrict_embedding` — for **every** sortwise embedding
+`e : ∀ s, Vinfinite S s ↪ PoolVertex S s`, restricting the extension jointly along `e` returns the
+representation exactly:
+
+```
+Q.law.map (Prod.map (RelStructure.restrict e) (latentRestrictOver e n)) = C.P
+```
+
+This is joint, not a structure marginal: the structure and the latents are restricted along the
+same embedding, so it recovers the joint `(X, U_{<n})` law and says strictly more than a
+structure-only window theorem.
+
+The proof is joint-cylinder extensionality together with finite agreement by a mixed pooled
+permutation. On a joint cylinder the combined vertex support is finite; the partial assignment
+`originalVertex v ↦ e v` on it is a finite partial injection of the pooled carrier, since both
+embeddings are injective, so it extends to a pooled permutation `ρ` with `ρ (ov v) = e v` there.
+Both restrictions then read the same moved coordinates, and the full mixed invariance of the
+extension absorbs `ρ`. Choosing `ρ` separately on each sort is exactly what the *full* action
+permits — no finite-support or uniform-bound issue arises.
+-/
+
+open MeasureTheory
+
+namespace RelSignature
+
+namespace InfiniteRelExchangeableLaw
+
+universe u
+
+variable {S : RelSignature.{u}} [Countable S.Srt] [Countable S.Rel]
+  {M : InfiniteRelExchangeableLaw S} {n : ℕ}
+
+/-- **Finite agreement by a pooled permutation**: any sortwise embedding into the pooled carrier
+agrees with a pooled permutation composed with the original embedding, on any finite set of
+original vertices. The permutation is chosen independently on each sort, which the full mixed
+action allows. -/
+theorem exists_poolPerm_agree (e : ∀ s, Vinfinite S s ↪ PoolVertex S s)
+    (V : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    ∃ ρ : ∀ s, Equiv.Perm (PoolVertex S s),
+      ∀ v ∈ V, ρ v.1 (originalVertex S v.1 v.2) = e v.1 v.2 := by
+  classical
+  set W : Finset ℕ := V.image (fun v => v.2) with hW
+  have hsort : ∀ s : S.Srt, ∃ ρ : Equiv.Perm (PoolVertex S s),
+      ∀ x ∈ W, ρ (originalVertex S s x) = e s x := by
+    intro s
+    set pv : PoolVertex S s ≃ ℕ := poolVertexEquiv S s with hpv
+    set g : ℕ → ℕ := fun y =>
+      if h : ∃ x, pv (originalVertex S s x) = y then pv (e s h.choose) else y with hg
+    have hinj : ∀ x₁ x₂ : ℕ, pv (originalVertex S s x₁) = pv (originalVertex S s x₂) → x₁ = x₂ :=
+      fun x₁ x₂ h => (originalVertex S s).injective (pv.injective h)
+    have hgval : ∀ x : ℕ, g (pv (originalVertex S s x)) = pv (e s x) := by
+      intro x
+      have hex : ∃ x', pv (originalVertex S s x') = pv (originalVertex S s x) := ⟨x, rfl⟩
+      rw [hg]
+      simp only [dif_pos hex]
+      exact congrArg (fun z => pv (e s z)) (hinj _ _ hex.choose_spec)
+    have hInjOn : Set.InjOn g ↑(W.image fun x => pv (originalVertex S s x)) := by
+      intro y₁ hy₁ y₂ hy₂ hy
+      simp only [Finset.coe_image, Set.mem_image, Finset.mem_coe] at hy₁ hy₂
+      obtain ⟨x₁, -, rfl⟩ := hy₁
+      obtain ⟨x₂, -, rfl⟩ := hy₂
+      rw [hgval, hgval] at hy
+      exact congrArg (fun z => pv (originalVertex S s z))
+        ((e s).injective (pv.injective hy))
+    obtain ⟨σ, hσ⟩ := exists_perm_extend_of_injOn hInjOn
+    refine ⟨pv.symm.permCongr σ, fun x hx => ?_⟩
+    have hmem : pv (originalVertex S s x) ∈ W.image fun x => pv (originalVertex S s x) :=
+      Finset.mem_image.mpr ⟨x, hx, rfl⟩
+    show pv.symm (σ (pv (originalVertex S s x))) = e s x
+    rw [hσ _ hmem, hgval, Equiv.symm_apply_apply]
+  choose ρ hρ using hsort
+  refine ⟨ρ, fun v hv => hρ v.1 v.2 ?_⟩
+  exact Finset.mem_image.mpr ⟨v, hv, rfl⟩
+
+/-- **The joint restriction theorem.** Restricting a pooled rank extension along *any* sortwise
+embedding into the pooled carrier — structure and latents together — returns the representation
+exactly. Mixed windows are included: the embedding may land anywhere in the pooled carrier. -/
+theorem PooledRankExtension.map_restrict_embedding {C : M.RankRepresentation n}
+    (Q : PooledRankExtension C) (e : ∀ s, Vinfinite S s ↪ PoolVertex S s) :
+    (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+      (Prod.map (RelStructure.restrict e) (latentRestrictOver e n)) = C.P := by
+  classical
+  haveI := C.isProbabilityMeasure_P
+  have hjointE : Measurable
+      (Prod.map (RelStructure.restrict e) (latentRestrictOver (S := S) e n)) :=
+    (measurable_restrict e).prodMap (measurable_latentRestrictOver e n)
+  haveI : IsProbabilityMeasure
+      ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+        (Prod.map (RelStructure.restrict e) (latentRestrictOver (S := S) e n))) :=
+    Measure.isProbabilityMeasure_map hjointE.aemeasurable
+  refine ext_of_prod_cylinders ?_ (by simp)
+  rintro A hA B hB
+  have hAmeas : MeasurableSet A := MeasurableSet.of_mem_measurableCylinders hA
+  have hBmeas : MeasurableSet B := MeasurableSet.of_mem_measurableCylinders hB
+  rw [mem_measurableCylinders] at hA hB
+  obtain ⟨Fs, T, hT, rfl⟩ := hA
+  obtain ⟨Fl, T', hT', rfl⟩ := hB
+  obtain ⟨ρ, hρ⟩ := exists_poolPerm_agree e
+    (Fs.biUnion RelCoord.support ∪ Fl.biUnion fun A => A.1)
+  have hmemL : ∀ v ∈ Fs.biUnion RelCoord.support,
+      ρ v.1 (originalVertex S v.1 v.2) = e v.1 v.2 := fun v hv =>
+    hρ v (Finset.mem_union_left _ hv)
+  have hmemR : ∀ v ∈ Fl.biUnion fun A => A.1,
+      ρ v.1 (originalVertex S v.1 v.2) = e v.1 v.2 := fun v hv =>
+    hρ v (Finset.mem_union_right _ hv)
+  -- on this cylinder, restricting along `e` is restricting along `ov` after relabeling by `ρ`
+  have hstruct : RelStructure.restrict e ⁻¹' cylinder Fs T
+      = (restrictOriginal S ∘ RelStructure.relabel ρ) ⁻¹' cylinder Fs T := by
+    ext X
+    simp only [Set.mem_preimage, mem_cylinder, Function.comp_apply]
+    refine Iff.of_eq (congrArg (fun y => y ∈ T) ?_)
+    funext c
+    show X (RelCoord.map (fun s => ⇑(e s)) c)
+      = X (RelCoord.map (fun s => ⇑(ρ s)) (RelCoord.map (fun s => ⇑(originalVertex S s)) c))
+    refine congrArg X (Sigma.ext rfl (heq_of_eq (funext fun i => ?_)))
+    exact (hmemL ((c : RelCoord S (Vinfinite S)).taggedValue i)
+      (Finset.mem_biUnion.mpr ⟨c, c.2, (RelCoord.mem_support_iff _ _).mpr ⟨i, rfl⟩⟩)).symm
+  have hlat : latentRestrictOver e n ⁻¹' cylinder Fl T'
+      = (restrictOriginalLatents S n ∘ pooledRankLatentRelabel ρ n) ⁻¹' cylinder Fl T' := by
+    ext ω
+    simp only [Set.mem_preimage, mem_cylinder, Function.comp_apply]
+    refine Iff.of_eq (congrArg (fun y => y ∈ T') ?_)
+    funext i
+    show ω (latentIndexEmbed e n i)
+      = ω (latentIndexPerm ρ n (latentIndexEmbed (fun s => originalVertex S s) n i))
+    exact congrArg ω (latentIndexEmbed_eq_of_agree fun v hv =>
+      hmemR v (Finset.mem_biUnion.mpr ⟨i, i.2, hv⟩))
+  have hOvMeas : Measurable (Prod.map (restrictOriginal S) (restrictOriginalLatents S n)) :=
+    (measurable_restrictOriginal).prodMap (measurable_restrictOriginalLatents n)
+  have hRhoMeas : Measurable
+      (Prod.map (RelStructure.relabel ρ) (pooledRankLatentRelabel ρ n)) :=
+    (measurable_relabel ρ).prodMap (pooledRankLatentRelabel ρ n).measurable
+  have hcomp : Prod.map (RelStructure.restrict e) (latentRestrictOver (S := S) e n) ⁻¹'
+        (cylinder Fs T ×ˢ cylinder Fl T')
+      = Prod.map (RelStructure.relabel ρ) (pooledRankLatentRelabel ρ n) ⁻¹'
+          (Prod.map (restrictOriginal S) (restrictOriginalLatents S n) ⁻¹'
+            (cylinder Fs T ×ˢ cylinder Fl T')) := by
+    rw [Set.preimage_prod_map_prod, hstruct, hlat, Set.preimage_prod_map_prod,
+      Set.preimage_prod_map_prod, Set.preimage_comp, Set.preimage_comp]
+  calc ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+        (Prod.map (RelStructure.restrict e) (latentRestrictOver (S := S) e n)))
+        (cylinder Fs T ×ˢ cylinder Fl T')
+      = (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))
+          (Prod.map (RelStructure.relabel ρ) (pooledRankLatentRelabel ρ n) ⁻¹'
+            (Prod.map (restrictOriginal S) (restrictOriginalLatents S n) ⁻¹'
+              (cylinder Fs T ×ˢ cylinder Fl T'))) := by
+        rw [Measure.map_apply hjointE (hAmeas.prod hBmeas), hcomp]
+    _ = ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+          (Prod.map (RelStructure.relabel ρ) (pooledRankLatentRelabel ρ n)))
+            (Prod.map (restrictOriginal S) (restrictOriginalLatents S n) ⁻¹'
+              (cylinder Fs T ×ˢ cylinder Fl T')) :=
+        (Measure.map_apply hRhoMeas (hOvMeas (hAmeas.prod hBmeas))).symm
+    _ = (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))
+          (Prod.map (restrictOriginal S) (restrictOriginalLatents S n) ⁻¹'
+            (cylinder Fs T ×ˢ cylinder Fl T')) := by rw [Q.invariant ρ]
+    _ = C.P (cylinder Fs T ×ˢ cylinder Fl T') := by
+        rw [← Measure.map_apply hOvMeas (hAmeas.prod hBmeas), Q.map_restrictOriginal]
+
+/-! ### The transport characterization -/
+
+/-- **Transport characterization**: identifying the pooled carrier with the original one by
+`poolVertexEquiv` carries *any* pooled rank extension back to the representation, jointly. This is
+the organizing theorem at the canonical embedding, and it is stated before recovery or screening
+deliberately — it isolates the map directions while the claim is still just an equality of joint
+laws. -/
+theorem PooledRankExtension.map_poolVertexEquiv {C : M.RankRepresentation n}
+    (Q : PooledRankExtension C) :
+    (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+        (Prod.map (RelStructure.restrict fun s => (poolVertexEquiv S s).symm.toEmbedding)
+          (latentRestrictOver (fun s => (poolVertexEquiv S s).symm.toEmbedding) n)) = C.P :=
+  Q.map_restrict_embedding _
+
+/-- **Any two pooled rank extensions agree after the canonical identification.** Both are carried
+to the same representation, so the pooled object is unique as far as that identification sees. -/
+theorem PooledRankExtension.map_poolVertexEquiv_congr {C : M.RankRepresentation n}
+    (Q Q' : PooledRankExtension C) :
+    (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+        (Prod.map (RelStructure.restrict fun s => (poolVertexEquiv S s).symm.toEmbedding)
+          (latentRestrictOver (fun s => (poolVertexEquiv S s).symm.toEmbedding) n)) =
+      (Q'.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+        (Prod.map (RelStructure.restrict fun s => (poolVertexEquiv S s).symm.toEmbedding)
+          (latentRestrictOver (fun s => (poolVertexEquiv S s).symm.toEmbedding) n)) := by
+  rw [Q.map_poolVertexEquiv, Q'.map_poolVertexEquiv]
+
+/-- The cheap extension satisfies the joint restriction theorem, for every embedding. -/
+theorem RankRepresentation.pooledExtension_map_restrict_embedding (C : M.RankRepresentation n)
+    (e : ∀ s, Vinfinite S s ↪ PoolVertex S s) :
+    ((C.pooledExtension).law :
+        Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+      (Prod.map (RelStructure.restrict e) (latentRestrictOver e n)) = C.P :=
+  (C.pooledExtension).map_restrict_embedding e
+
+end InfiniteRelExchangeableLaw
+
+end RelSignature
