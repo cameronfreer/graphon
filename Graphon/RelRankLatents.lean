@@ -342,4 +342,25 @@ theorem rankLatentSpaceSuccEquiv_rankLatentRelabel (σ : FinSuppPerm S) (n : ℕ
       MeasurableEquiv.prodCongr (rankLatentRelabel σ n) (rankSupportLatentRelabel σ n) ∘
         rankLatentSpaceSuccEquiv n := rfl
 
+/-! ### Bridge to the carrier-parametric core
+
+The rank-indexed operations were built before the carrier-parametric core and choose their own
+`Decidable` instances; they agree with the generic ones extensionally but not by `rfl`. -/
+
+theorem rankLatentIndexEquiv_eq_latentIndexPerm (σ : FinSuppPerm S) (n : ℕ)
+    (A : RankLatentIndex S n) :
+    rankLatentIndexEquiv σ n A = latentIndexPerm (fun s => σ.1 s) n A := by
+  classical
+  refine Subtype.ext (Finset.ext fun v => ?_)
+  rw [rankLatentIndexEquiv_apply_coe, latentIndexPerm_apply_coe]
+  simp [Finset.mem_image]
+
+/-- **Bridge**: the rank-indexed relabeling is the carrier-parametric action at `Vinfinite S`. -/
+theorem rankLatentRelabel_eq_latentRelabelOver (σ : FinSuppPerm S) (n : ℕ) :
+    rankLatentRelabel σ n = latentRelabelOver (fun s => σ.1 s) n := by
+  refine MeasurableEquiv.ext (funext fun ω => funext fun A => ?_)
+  show ω (rankLatentIndexEquiv σ n A) = ω (latentIndexPerm _ n A)
+  rw [rankLatentIndexEquiv_eq_latentIndexPerm]
+
+
 end RelSignature

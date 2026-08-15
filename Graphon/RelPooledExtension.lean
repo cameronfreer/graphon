@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelPooledLatents
+import Graphon.RelRankInjectionInvariance
 
 /-!
 # The pooled rank extension (R4 converse, #107)
@@ -29,8 +30,9 @@ the bridges of `Graphon.RelPooledLatents`:
   **permutation** of the original carrier — that is `invariant`, for every mixed `ρ`, since a
   permutation is in particular an injection.
 
-Mixed-window recovery is a named acceptance theorem elsewhere, not a field here. Screening and
-anything route-specific stay outside this stage.
+The structure deliberately carries **no mixed-window field**: the joint mixed-window marginal, and
+current-rank recovery and screening on mixed pooled supports, are separate derived consequences of
+these three fields rather than part of the primitive. Nothing route-specific belongs here.
 -/
 
 open MeasureTheory

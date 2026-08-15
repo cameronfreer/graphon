@@ -222,4 +222,24 @@ theorem RankRepresentation.map_prodMap_restrict_self
 
 end InfiniteRelExchangeableLaw
 
+/-! ### Bridge to the carrier-parametric core -/
+
+theorem rankLatentIndexInj_eq_latentIndexEmbed (ι : ∀ s, Vinfinite S s ↪ Vinfinite S s) (n : ℕ)
+    (A : RankLatentIndex S n) :
+    rankLatentIndexInj ι n A = latentIndexEmbed ι n A := by
+  classical
+  refine Subtype.ext (Finset.ext fun v => ?_)
+  rw [rankLatentIndexInj_coe, latentIndexEmbed_coe]
+  simp [Finset.mem_image]
+
+/-- **Bridge**: the self-injection reindexing of `Graphon.RelRankInjectionInvariance` is
+restriction along that injection in the carrier-parametric core. This is where #194's invariance
+theorem meets the generic pooled API. -/
+theorem rankLatentReindex_eq_latentRestrictOver (ι : ∀ s, Vinfinite S s ↪ Vinfinite S s)
+    (n : ℕ) :
+    rankLatentReindex ι n = latentRestrictOver ι n := by
+  funext ω A
+  show ω (rankLatentIndexInj ι n A) = ω (latentIndexEmbed ι n A)
+  rw [rankLatentIndexInj_eq_latentIndexEmbed]
+
 end RelSignature
