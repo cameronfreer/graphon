@@ -27,10 +27,11 @@ pooled invariance later costs no additional mathematics.
 * `RankRepresentation.map_prodMap_restrict_self` — **the theorem**: the joint law is invariant
   under the diagonal action of any sortwise self-injection.
 
-## No finiteness hypothesis on sorts
+## No finiteness hypothesis beyond ambient countability
 
 Testing measure equality on *coordinate* cylinders — finitely many `RelCoord`s and finitely many
-`RankLatentIndex`es — is what keeps `[Fintype S.Srt]` out of this file. Their combined vertex
+`RankLatentIndex`es — is what keeps `[Fintype S.Srt]` out of this file; nothing here is assumed
+about the sort type beyond `RankRepresentation`'s ambient `[Countable S.Srt]`. Their combined vertex
 support is a single finite `Finset (Σ s, Vinfinite S s)`, so only finitely many sorts are active,
 and a self-injection is matched there by a finitely supported permutation: extend it separately on
 each active sort, take the identity elsewhere, and take the maximum of the finitely many support
@@ -97,7 +98,7 @@ theorem rankLatentIndexInj_eq_of_agree {ι : ∀ s, Vinfinite S s ↪ Vinfinite 
 /-- **Finite-support agreement**: a sortwise self-injection agrees with some finitely supported
 permutation on any finite set of tagged vertices. Only the finitely many sorts occurring in that
 set are active; every other sort takes the identity, so the support bounds to be maximized are
-finite in number — no hypothesis on the sort type is needed. -/
+finite in number — no finiteness hypothesis on the sort type is needed. -/
 theorem exists_finSuppPerm_agree_on_finset (ι : ∀ s, Vinfinite S s ↪ Vinfinite S s)
     (V : Finset (Σ s : S.Srt, Vinfinite S s)) :
     ∃ σ : FinSuppPerm S, ∀ v ∈ V, σ.1 v.1 v.2 = ι v.1 v.2 := by
@@ -165,8 +166,9 @@ variable [Countable S.Srt] [Countable S.Rel] {M : InfiniteRelExchangeableLaw S} 
 /-- **Joint invariance under an arbitrary sortwise self-injection.** `RankRepresentation.invariant`
 gives this only for finitely supported permutations; finite-cylinder extensionality upgrades it to
 every self-injection, because on any single joint coordinate cylinder the injection agrees with
-some finitely supported permutation. No hypothesis on the sort type: the cylinder's combined
-vertex support is finite, hence touches finitely many sorts. This is the theorem the cheap pooled
+some finitely supported permutation. No finiteness hypothesis beyond `RankRepresentation`'s
+ambient `[Countable S.Srt]`: the cylinder's combined vertex support is finite, hence touches only
+finitely many sorts. This is the theorem the cheap pooled
 construction rests on. -/
 theorem RankRepresentation.map_prodMap_restrict_self
     (C : M.RankRepresentation n) (ι : ∀ s, Vinfinite S s ↪ Vinfinite S s) :
