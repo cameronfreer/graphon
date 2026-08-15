@@ -75,7 +75,7 @@ theorem measurable_blockMap_fixingAlgebra [Countable S.Rel]
   refine measurable_pi_iff.mpr fun c => measurable_to_bool ?_
   convert key c.1 c.2 using 1
   ext X
-  simp [blockMap]
+  simp [blockMap, blockMapOver]
 
 namespace InfiniteRelExchangeableLaw
 

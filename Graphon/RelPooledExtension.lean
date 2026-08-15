@@ -77,6 +77,7 @@ noncomputable def pooledTransport :
   Prod.map (RelStructure.congrCarrier fun s => (poolVertexEquiv S s).symm)
     (latentRestrictOver (fun s => (poolVertexEquiv S s).toEmbedding) n)
 
+omit [Countable S.Srt] [Countable S.Rel] in
 theorem measurable_pooledTransport :
     Measurable (pooledTransport (S := S) (n := n)) :=
   (RelStructure.congrCarrier _).measurable.prodMap

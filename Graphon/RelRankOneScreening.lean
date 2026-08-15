@@ -188,9 +188,9 @@ theorem condIndepFun_blockMap_restObservation_one {S : RelSignature.{u}}
     refine Prod.ext ?_ rfl
     funext c
     by_cases hc : c.1.support = ∅
-    · simp only [restObservation, dif_pos hc]
+    · simp only [restObservation, restObservationOver, dif_pos hc]
       exact congrFun hp ⟨c.1, hc⟩
-    · simp only [restObservation, dif_neg hc]
+    · simp only [restObservation, restObservationOver, dif_neg hc]
   -- assemble
   have h3 := condIndep_of_condIndep_of_le_right h2 (measurable_iff_comap_le.mp hR'measJ)
   have h4 := (condIndepFun_iff_condIndep _ _ (singletonBlockRead S v₀) R' P).mpr h3
