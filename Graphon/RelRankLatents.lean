@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelRankSuccessor
+import Graphon.RelLatentGeometry
 import Graphon.SamplerSources
 import Mathlib.Probability.Independence.InfinitePi
 
@@ -33,7 +34,7 @@ variable {S : RelSignature}
 /-- Finite tagged supports of cardinality strictly below `n`; this includes the empty support
 when `0 < n`. -/
 def RankLatentIndex (S : RelSignature) (n : ℕ) :=
-  {A : Finset (Σ s : S.Srt, Vinfinite S s) // A.card < n}
+  LatentIndexOver S (Vinfinite S) n
 
 instance [Countable S.Srt] (n : ℕ) : Countable (RankLatentIndex S n) :=
   Subtype.countable
