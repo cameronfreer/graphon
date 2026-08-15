@@ -227,4 +227,27 @@ theorem latentRestrictOver_comp (e : ∀ s, V s ↪ W s) (f : ∀ s, W s ↪ Z s
     = ω (latentIndexEmbed (fun s => (e s).trans (f s)) n A)
   rw [latentIndexEmbed_comp]
 
+/-- Restriction along a permutation-as-embedding is that permutation's action. -/
+theorem latentRestrictOver_toEmbedding (ρ : ∀ s, Equiv.Perm (V s)) (n : ℕ) :
+    latentRestrictOver (S := S) (fun s => (ρ s).toEmbedding) n = latentRelabelOver ρ n := by
+  classical
+  funext ω A
+  show ω (latentIndexEmbed (fun s => (ρ s).toEmbedding) n A) = ω (latentIndexPerm ρ n A)
+  refine congrArg ω (Subtype.ext ?_)
+  rw [latentIndexEmbed_coe, latentIndexPerm_apply_coe]
+  refine Finset.ext fun v => ?_
+  simp [Finset.mem_image]
+
+/-- **The conjugation square for a carrier equivalence** — the latent-side mirror of
+`RelStructure.congrCarrier_relabel`. Transporting along `e` intertwines a permutation of the
+source carrier with its conjugate on the target. Proved carrier-generically, so instantiating at
+a concrete carrier never manipulates `Finset.image` under a derived `DecidableEq`. -/
+theorem latentRestrictOver_latentRelabelOver_conj (e : ∀ s, V s ≃ W s)
+    (ρ : ∀ s, Equiv.Perm (V s)) (n : ℕ) :
+    latentRestrictOver (S := S) (fun s => (e s).toEmbedding) n ∘
+        latentRelabelOver (fun s => (e s).symm.trans ((ρ s).trans (e s))) n =
+      latentRelabelOver ρ n ∘ latentRestrictOver (fun s => (e s).toEmbedding) n :=
+  latentRestrictOver_latentRelabelOver_of_intertwines _ _ ρ
+    (fun s x => by simp) n
+
 end RelSignature

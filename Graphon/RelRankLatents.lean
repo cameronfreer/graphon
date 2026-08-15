@@ -33,7 +33,7 @@ variable {S : RelSignature}
 
 /-- Finite tagged supports of cardinality strictly below `n`; this includes the empty support
 when `0 < n`. -/
-def RankLatentIndex (S : RelSignature) (n : ℕ) :=
+@[reducible] def RankLatentIndex (S : RelSignature) (n : ℕ) :=
   LatentIndexOver S (Vinfinite S) n
 
 instance [Countable S.Srt] (n : ℕ) : Countable (RankLatentIndex S n) :=

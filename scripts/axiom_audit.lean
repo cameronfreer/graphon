@@ -302,6 +302,13 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.measurable_restrictOriginalLatents
 #print axioms RelSignature.restrictOriginalLatents_pooledRankLatentRelabel
 #print axioms RelSignature.restrictOriginalLatents_sumCongr
+
+-- R4 converse (#107): the pooled rank extension and its cheap constructor (gate 1a, stage 2).
+#print axioms RelSignature.rankLatentRelabel_eq_latentRelabelOver
+#print axioms RelSignature.rankLatentReindex_eq_latentRestrictOver
+#print axioms RelSignature.latentRestrictOver_comp
+#print axioms RelSignature.latentRestrictOver_latentRelabelOver_conj
+#print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.pooledExtension
 #print axioms MeasureTheory.condExp_comp_measurePreserving
 #print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
 #print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving
