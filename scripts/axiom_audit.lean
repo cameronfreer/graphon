@@ -292,6 +292,16 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.rankLatentReindex_toEmbedding
 #print axioms RelSignature.ext_of_prod_cylinders
 #print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.map_prodMap_restrict_self
+
+-- R4 converse (#107): carrier-parametric latent geometry and the pooled mixed action (gate 1a, stage 1).
+#print axioms RelSignature.latentSourceOver_map_latentRelabelOver
+#print axioms RelSignature.latentRestrictOver_latentRelabelOver
+#print axioms RelSignature.latentRestrictOver_latentRelabelOver_of_intertwines
+#print axioms RelSignature.pooledRankLatentRelabel_comp
+#print axioms RelSignature.pooledRankLatentSource_map_pooledRankLatentRelabel
+#print axioms RelSignature.measurable_restrictOriginalLatents
+#print axioms RelSignature.restrictOriginalLatents_pooledRankLatentRelabel
+#print axioms RelSignature.restrictOriginalLatents_sumCongr
 #print axioms MeasureTheory.condExp_comp_measurePreserving
 #print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
 #print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving
