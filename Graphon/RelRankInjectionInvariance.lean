@@ -17,29 +17,27 @@ pooled invariance later costs no additional mathematics.
 ## Contents
 
 * `rankLatentIndexInj` / `rankLatentReindex` — the latent action of a sortwise self-injection.
-  Only injectivity is used (cardinality of a support is preserved), so this extends
+  Only injectivity is used (a support keeps its cardinality), so this extends
   `rankLatentIndexEquiv` / `rankLatentRelabel` from permutations to injections; on a permutation
-  the two agree (`rankLatentReindex_eq_rankLatentRelabel`).
-* `exists_finSuppPerm_agree_on` — a sortwise self-injection agrees with some **finitely
-  supported permutation** on any bounded window of vertices.
+  the two agree (`rankLatentReindex_toEmbedding`).
+* `exists_finSuppPerm_agree_on_finset` — a sortwise self-injection agrees with some **finitely
+  supported permutation** on any finite set of tagged vertices.
 * `ext_of_prod_cylinders` — joint extensionality: two finite measures on
-  `RelStructure × RankLatentSpace` agreeing on all rectangles of structure cylinders with latent
-  cylinders are equal.
+  `RelStructure × RankLatentSpace` agreeing on all rectangles of coordinate cylinders are equal.
 * `RankRepresentation.map_prodMap_restrict_self` — **the theorem**: the joint law is invariant
   under the diagonal action of any sortwise self-injection.
 
-## The finiteness hypothesis on sorts
+## No finiteness hypothesis on sorts
 
-`map_prodMap_restrict_self` assumes `[Fintype S.Srt]`, which `RankRepresentation` itself does
-not. This is not slack in the proof. `SortwiseFinSupp` demands a **uniform** support bound `N`
-valid for every sort simultaneously, while a self-injection may push the window arbitrarily far
-in each sort independently; with infinitely many sorts no finitely supported permutation need
-agree with it on a window, and `invariant` — quantified over `FinSuppPerm S` — then gives
-nothing to transport. The same `Finset.univ.sup` assembly appears for the same reason in
-`RelInvariantAction` and `RelPollingInfrastructure`. Structure-only self-injection invariance
-(`InfiniteRelExchangeableLaw.law_map_restrict_self`) needs no such hypothesis precisely because
-`exchangeable` quantifies over *all* sortwise permutations rather than the finitely supported
-ones.
+Testing measure equality on *coordinate* cylinders — finitely many `RelCoord`s and finitely many
+`RankLatentIndex`es — is what keeps `[Fintype S.Srt]` out of this file. Their combined vertex
+support is a single finite `Finset (Σ s, Vinfinite S s)`, so only finitely many sorts are active,
+and a self-injection is matched there by a finitely supported permutation: extend it separately on
+each active sort, take the identity elsewhere, and take the maximum of the finitely many support
+bounds. The coarser `cylinders S` family would not do — a cylinder there is an arbitrary
+measurable event after `restrictFin m`, whose finite level can still involve every sort, forcing a
+uniform all-sort bound that no self-injection need admit.
+
 -/
 
 open MeasureTheory Set
@@ -74,7 +72,7 @@ theorem measurable_rankLatentReindex (ι : ∀ s, Vinfinite S s ↪ Vinfinite S 
     Measurable (rankLatentReindex (S := S) ι n) :=
   measurable_pi_lambda _ fun _ => measurable_pi_apply _
 
-/-! ### Agreement of an injection with a permutation on a window -/
+/-! ### Agreement of an injection with a permutation on a finite support -/
 
 /-- If a sortwise self-injection and a permutation agree on every vertex of a support, they send
 that support to the same index. -/
@@ -89,52 +87,72 @@ theorem rankLatentIndexInj_eq_of_agree {ι : ∀ s, Vinfinite S s ↪ Vinfinite 
   obtain ⟨s, x⟩ := v
   exact Sigma.ext rfl (heq_of_eq (h ⟨s, x⟩ hv))
 
-/-- **Window agreement**: a sortwise self-injection agrees with a finitely supported permutation
-on every vertex below a prescribed bound. Needs finitely many sorts: the support bound of the
-extension must hold uniformly across sorts, while the injection may move each sort's window
-arbitrarily far. -/
-theorem exists_finSuppPerm_agree_on [Fintype S.Srt]
-    (ι : ∀ s, Vinfinite S s ↪ Vinfinite S s) (K : S.Srt → ℕ) :
-    ∃ σ : FinSuppPerm S, ∀ (s : S.Srt) (x : ℕ), x < K s → σ.1 s x = ι s x := by
+@[simp] theorem rankLatentReindex_toEmbedding (σ : FinSuppPerm S) (n : ℕ) :
+    rankLatentReindex (S := S) (fun s => (σ.1 s).toEmbedding) n = rankLatentRelabel σ n := by
+  funext ω A
+  show ω (rankLatentIndexInj (fun s => (σ.1 s).toEmbedding) n A) = _
+  rw [rankLatentIndexInj_eq_of_agree (σ := σ) fun v _ => rfl]
+  rfl
+
+/-- **Finite-support agreement**: a sortwise self-injection agrees with some finitely supported
+permutation on any finite set of tagged vertices. Only the finitely many sorts occurring in that
+set are active; every other sort takes the identity, so the support bounds to be maximized are
+finite in number — no hypothesis on the sort type is needed. -/
+theorem exists_finSuppPerm_agree_on_finset (ι : ∀ s, Vinfinite S s ↪ Vinfinite S s)
+    (V : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    ∃ σ : FinSuppPerm S, ∀ v ∈ V, σ.1 v.1 v.2 = ι v.1 v.2 := by
   classical
-  have hemb : ∀ s, ∃ (π : Equiv.Perm ℕ) (N : ℕ), (∀ x, N ≤ x → π x = x) ∧
-      ∀ a : Fin (K s), π (a : ℕ) = ι s (a : ℕ) := by
+  have hext : ∀ s, ∃ (π : Equiv.Perm ℕ) (N : ℕ), (∀ x, N ≤ x → π x = x) ∧
+      ∀ a : Fin ((V.sup fun v => v.2) + 1), π (a : ℕ) = ι s (a : ℕ) := by
     intro s
     exact exists_finSupp_perm_extend
-      ⟨fun a : Fin (K s) => ι s (a : ℕ), fun a b hab =>
+      ⟨fun a : Fin ((V.sup fun v => v.2) + 1) => ι s (a : ℕ), fun a b hab =>
         Fin.val_injective ((ι s).injective hab)⟩
-  choose π N hsupp hagree using hemb
-  refine ⟨⟨π, ⟨Finset.univ.sup N, fun s x hx =>
-    hsupp s x (le_trans (Finset.le_sup (Finset.mem_univ s)) hx)⟩⟩, fun s x hx => ?_⟩
-  exact hagree s ⟨x, hx⟩
+  choose π N hsupp hagree using hext
+  refine ⟨⟨fun s => if s ∈ V.image Sigma.fst then π s else 1,
+    ⟨(V.image Sigma.fst).sup N, fun s x hx => ?_⟩⟩, fun v hv => ?_⟩
+  · by_cases hs : s ∈ V.image Sigma.fst
+    · simpa only [if_pos hs] using hsupp s x (le_trans (Finset.le_sup hs) hx)
+    · simp only [if_neg hs]
+      rfl
+  · have hs : v.1 ∈ V.image Sigma.fst := Finset.mem_image.mpr ⟨v, hv, rfl⟩
+    have hlt : v.2 < (V.sup fun w => w.2) + 1 :=
+      Nat.lt_succ_of_le (Finset.le_sup (f := fun w : Σ s : S.Srt, Vinfinite S s => w.2) hv)
+    simpa only [if_pos hs] using hagree v.1 ⟨v.2, hlt⟩
 
 /-! ### Joint cylinder extensionality -/
 
 variable (S) in
-/-- The latent cylinders: Mathlib's measurable cylinders of the latent cube. -/
+/-- The coordinate cylinders of the structure cube: finitely many `RelCoord`s constrained. -/
+abbrev structureCylinders : Set (Set (RelStructure S (Vinfinite S))) :=
+  measurableCylinders fun _ : RelCoord S (Vinfinite S) => Bool
+
+variable (S) in
+/-- The coordinate cylinders of the latent cube: finitely many latent indices constrained. -/
 abbrev latentCylinders (n : ℕ) : Set (Set (RankLatentSpace S n)) :=
   measurableCylinders fun _ : RankLatentIndex S n => ℝ
 
-theorem isCountablySpanning_cylinders : IsCountablySpanning (cylinders S) :=
-  ⟨fun _ => Set.univ, fun _ =>
-    Set.mem_iUnion.mpr ⟨fun _ => 0, Set.univ, MeasurableSet.univ, rfl⟩, Set.iUnion_const _⟩
+theorem isCountablySpanning_structureCylinders :
+    IsCountablySpanning (structureCylinders S) :=
+  ⟨fun _ => Set.univ, fun _ => univ_mem_measurableCylinders _, Set.iUnion_const _⟩
 
 theorem isCountablySpanning_latentCylinders (n : ℕ) :
     IsCountablySpanning (latentCylinders S n) :=
   ⟨fun _ => Set.univ, fun _ => univ_mem_measurableCylinders _, Set.iUnion_const _⟩
 
 /-- **Joint extensionality**: two finite measures on the structure–latent product agreeing on
-every rectangle of a structure cylinder with a latent cylinder are equal. -/
+every rectangle of coordinate cylinders are equal. -/
 theorem ext_of_prod_cylinders {n : ℕ}
     {μ ν : Measure (RelStructure S (Vinfinite S) × RankLatentSpace S n)} [IsFiniteMeasure μ]
-    (h : ∀ A ∈ cylinders S, ∀ B ∈ latentCylinders S n, μ (A ×ˢ B) = ν (A ×ˢ B))
+    (h : ∀ A ∈ structureCylinders S, ∀ B ∈ latentCylinders S n, μ (A ×ˢ B) = ν (A ×ˢ B))
     (huniv : μ Set.univ = ν Set.univ) : μ = ν := by
   refine MeasureTheory.ext_of_generate_finite
-    (Set.image2 (· ×ˢ ·) (cylinders S) (latentCylinders S n)) ?_
-    (isPiSystem_cylinders.prod isPiSystem_measurableCylinders) ?_ huniv
-  · exact (generateFrom_eq_prod (C := cylinders S) generateFrom_cylinders_eq
+    (Set.image2 (· ×ˢ ·) (structureCylinders S) (latentCylinders S n)) ?_
+    (isPiSystem_measurableCylinders.prod isPiSystem_measurableCylinders) ?_ huniv
+  · exact (generateFrom_eq_prod (C := structureCylinders S)
+      (generateFrom_measurableCylinders (α := fun _ : RelCoord S (Vinfinite S) => Bool))
       (generateFrom_measurableCylinders (α := fun _ : RankLatentIndex S n => ℝ))
-      isCountablySpanning_cylinders (isCountablySpanning_latentCylinders n)).symm
+      isCountablySpanning_structureCylinders (isCountablySpanning_latentCylinders n)).symm
   · rintro _ ⟨A, hA, B, hB, rfl⟩
     exact h A hA B hB
 
@@ -146,9 +164,11 @@ variable [Countable S.Srt] [Countable S.Rel] {M : InfiniteRelExchangeableLaw S} 
 
 /-- **Joint invariance under an arbitrary sortwise self-injection.** `RankRepresentation.invariant`
 gives this only for finitely supported permutations; finite-cylinder extensionality upgrades it to
-every self-injection, because on any single joint cylinder the injection agrees with some finitely
-supported permutation. This is the theorem the cheap pooled construction rests on. -/
-theorem RankRepresentation.map_prodMap_restrict_self [Fintype S.Srt]
+every self-injection, because on any single joint coordinate cylinder the injection agrees with
+some finitely supported permutation. No hypothesis on the sort type: the cylinder's combined
+vertex support is finite, hence touches finitely many sorts. This is the theorem the cheap pooled
+construction rests on. -/
+theorem RankRepresentation.map_prodMap_restrict_self
     (C : M.RankRepresentation n) (ι : ∀ s, Vinfinite S s ↪ Vinfinite S s) :
     C.P.map (Prod.map (RelStructure.restrict ι) (rankLatentReindex ι n)) = C.P := by
   classical
@@ -161,42 +181,41 @@ theorem RankRepresentation.map_prodMap_restrict_self [Fintype S.Srt]
     Measure.isProbabilityMeasure_map hjoint.aemeasurable
   refine ext_of_prod_cylinders ?_ (by simp)
   rintro A hA B hB
-  simp only [cylinders, Set.mem_iUnion, Set.mem_setOf_eq] at hA
-  obtain ⟨m, T, hT, rfl⟩ := hA
+  have hAmeas : MeasurableSet A := MeasurableSet.of_mem_measurableCylinders hA
   have hBmeas : MeasurableSet B := MeasurableSet.of_mem_measurableCylinders hB
-  rw [mem_measurableCylinders] at hB
-  obtain ⟨F, T', hT', rfl⟩ := hB
-  -- a window bound covering the structure cylinder and every support of the latent cylinder
-  obtain ⟨σ, hσ⟩ := exists_finSuppPerm_agree_on ι
-    (fun s => max (m s) (F.sup fun A => A.1.sup fun v => v.2 + 1))
-  have hstruct : RelStructure.restrict ι ⁻¹' (RelStructure.restrictFin m ⁻¹' T)
-      = RelStructure.relabel σ.1 ⁻¹' (RelStructure.restrictFin m ⁻¹' T) := by
-    rw [← Set.preimage_comp, ← Set.preimage_comp]
-    congr 1
-    show RelStructure.restrict (fun s => Fin.valEmbedding.trans (ι s))
-      = RelStructure.restrict (fun s => Fin.valEmbedding.trans (σ.1 s).toEmbedding)
-    congr 1
-    funext s
-    refine Function.Embedding.ext fun i => ?_
-    exact (hσ s i (lt_of_lt_of_le i.2 (le_max_left _ _))).symm
-  have hlat : rankLatentReindex ι n ⁻¹' cylinder F T'
-      = rankLatentRelabel σ n ⁻¹' cylinder F T' := by
+  rw [mem_measurableCylinders] at hA hB
+  obtain ⟨Fs, T, hT, rfl⟩ := hA
+  obtain ⟨Fl, T', hT', rfl⟩ := hB
+  -- the combined vertex support of the two cylinders: finite, so finitely many sorts are active
+  obtain ⟨σ, hσ⟩ := exists_finSuppPerm_agree_on_finset ι
+    (Fs.biUnion RelCoord.support ∪ Fl.biUnion fun A => A.1)
+  have hmemL : ∀ v ∈ Fs.biUnion RelCoord.support, ι v.1 v.2 = σ.1 v.1 v.2 := fun v hv =>
+    (hσ v (Finset.mem_union_left _ hv)).symm
+  have hmemR : ∀ v ∈ Fl.biUnion fun A => A.1, ι v.1 v.2 = σ.1 v.1 v.2 := fun v hv =>
+    (hσ v (Finset.mem_union_right _ hv)).symm
+  have hstruct : RelStructure.restrict ι ⁻¹' cylinder Fs T
+      = RelStructure.relabel σ.1 ⁻¹' cylinder Fs T := by
+    ext X
+    simp only [Set.mem_preimage, mem_cylinder]
+    refine Iff.of_eq (congrArg (fun y => y ∈ T) ?_)
+    funext c
+    show X (RelCoord.map (fun s => ⇑(ι s)) c) = X (RelCoord.map (fun s => ⇑(σ.1 s)) c)
+    refine congrArg X (Sigma.ext rfl (heq_of_eq (funext fun i => ?_)))
+    exact hmemL ((c : RelCoord S (Vinfinite S)).taggedValue i)
+      (Finset.mem_biUnion.mpr ⟨c, c.2, (RelCoord.mem_support_iff _ _).mpr ⟨i, rfl⟩⟩)
+  have hlat : rankLatentReindex ι n ⁻¹' cylinder Fl T'
+      = rankLatentRelabel σ n ⁻¹' cylinder Fl T' := by
     ext ω
     simp only [Set.mem_preimage, mem_cylinder]
     refine Iff.of_eq (congrArg (fun y => y ∈ T') ?_)
     funext i
-    have hagree : ∀ v ∈ (i : RankLatentIndex S n).1, ι v.1 v.2 = σ.1 v.1 v.2 := by
-      intro v hv
-      refine (hσ v.1 v.2 (lt_of_lt_of_le ?_ (le_max_right (m v.1) _))).symm
-      exact lt_of_lt_of_le (Nat.lt_succ_self _)
-        (le_trans (Finset.le_sup (f := fun w : Σ s : S.Srt, Vinfinite S s => w.2 + 1) hv)
-          (Finset.le_sup (f := fun A : RankLatentIndex S n => A.1.sup fun v => v.2 + 1) i.2))
     show ω (rankLatentIndexInj ι n i) = ω (rankLatentIndexEquiv σ n i)
-    rw [rankLatentIndexInj_eq_of_agree hagree]
-  rw [Measure.map_apply hjoint ((measurable_restrictFin m hT).prod hBmeas),
-    Set.preimage_prod_map_prod, hstruct, hlat, ← Set.preimage_prod_map_prod,
+    exact congrArg ω (rankLatentIndexInj_eq_of_agree fun v hv =>
+      hmemR v (Finset.mem_biUnion.mpr ⟨i, i.2, hv⟩))
+  rw [Measure.map_apply hjoint (hAmeas.prod hBmeas), Set.preimage_prod_map_prod, hstruct, hlat,
+    ← Set.preimage_prod_map_prod,
     ← Measure.map_apply ((measurable_relabel σ.1).prodMap (rankLatentRelabel σ n).measurable)
-      ((measurable_restrictFin m hT).prod hBmeas),
+      (hAmeas.prod hBmeas),
     C.invariant σ]
 
 end InfiniteRelExchangeableLaw
