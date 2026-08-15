@@ -43,3 +43,25 @@ theorem exists_perm_extend {k : ℕ} (g : Fin k ↪ ℕ) :
   show ((Equiv.ofInjective g g.injective)
     ((Equiv.ofInjective _ Fin.val_injective).symm ⟨(↑a : ℕ), ⟨a, rfl⟩⟩) : ℕ) = g a
   rw [h1]; rfl
+
+/-- **Every finite partial injection of `ℕ` extends to a permutation**: the domain and its image
+are finite, so their complements are countably infinite and hence equivalent, and
+`Equiv.Set.compl` assembles the permutation. Generalizes `exists_perm_extend` from an initial
+segment to an arbitrary finite domain. -/
+theorem exists_perm_extend_of_injOn {A : Finset ℕ} {g : ℕ → ℕ} (hg : Set.InjOn g ↑A) :
+    ∃ σ : Equiv.Perm ℕ, ∀ a ∈ A, σ a = g a := by
+  classical
+  let e₀ : (↑A : Set ℕ) ≃ (g '' ↑A : Set ℕ) := Equiv.Set.imageOfInjOn g (↑A : Set ℕ) hg
+  have hsc : ((↑A : Set ℕ)ᶜ).Infinite := (A.finite_toSet).infinite_compl
+  have htc : ((g '' ↑A : Set ℕ)ᶜ).Infinite :=
+    ((A.finite_toSet).image g).infinite_compl
+  haveI := hsc.to_subtype
+  haveI := htc.to_subtype
+  haveI : Denumerable ((↑A : Set ℕ)ᶜ : Set ℕ) := Denumerable.ofEncodableOfInfinite _
+  haveI : Denumerable ((g '' ↑A : Set ℕ)ᶜ : Set ℕ) := Denumerable.ofEncodableOfInfinite _
+  obtain ⟨σ, hσ⟩ := (Equiv.Set.compl e₀).symm
+    ((Denumerable.eqv _).trans (Denumerable.eqv _).symm)
+  refine ⟨σ, fun a ha => ?_⟩
+  have h := hσ ⟨a, ha⟩
+  rw [h]
+  rfl
