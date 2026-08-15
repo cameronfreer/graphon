@@ -285,6 +285,12 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms Graphon.cutNormDiff_gluedOuterCoupling_le
 #print axioms Graphon.exists_coupling_cutNormDiff_le_add_add
 #print axioms Graphon.exists_coupling_cutNormDiff_le_add_add_of_pos
+
+-- R4 converse (#107): the pooled-latent gate's isolated risk — self-injection invariance.
+#print axioms RelSignature.rankLatentIndexInj_eq_of_agree
+#print axioms RelSignature.exists_finSuppPerm_agree_on
+#print axioms RelSignature.ext_of_prod_cylinders
+#print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.map_prodMap_restrict_self
 #print axioms MeasureTheory.condExp_comp_measurePreserving
 #print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
 #print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving
