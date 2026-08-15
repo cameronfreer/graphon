@@ -234,6 +234,17 @@ theorem PooledRankExtension.law_eq {C : M.RankRepresentation n} (Q : PooledRankE
     _ = ((C.pooledExtension).law :
           Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) := rfl
 
+/-- **The canonical identification is measure-preserving** from a pooled extension to the
+representation. This is the handle for transporting conditional-independence statements: composing
+with a measure-preserving map pulls `C.P`-statements *back* to `Q.law`, so nothing has to be pushed
+forward and no further conditional-expectation theorem is needed. -/
+theorem PooledRankExtension.measurePreserving_pooledJointEquiv {C : M.RankRepresentation n}
+    (Q : PooledRankExtension C) :
+    MeasurePreserving (pooledJointEquiv S n)
+      (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) C.P :=
+  ⟨(pooledJointEquiv S n).measurable, by
+    rw [pooledJointEquiv_coe]; exact Q.map_poolVertexEquiv⟩
+
 /-- The cheap extension satisfies the joint restriction theorem, for every embedding. -/
 theorem RankRepresentation.pooledExtension_map_restrict_embedding (C : M.RankRepresentation n)
     (e : ∀ s, Vinfinite S s ↪ PoolVertex S s) :

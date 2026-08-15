@@ -121,4 +121,42 @@ theorem measurable_restObservationOver [Countable S.Rel] [∀ s, Countable (V s)
     Measurable (restObservationOver (S := S) n A) :=
   (measurable_pi_lambda _ fun _ => measurable_fst.eval).prodMk measurable_snd
 
+/-! ### Support and index transport
+
+Equivalences first, with pointwise `_apply` lemmas; the function-level naturality laws are derived
+from these. Keeping the bijections primitive is what limits coercion and `DecidableEq` friction. -/
+
+open scoped Classical in
+/-- The image of a support under a sortwise embedding of carriers. -/
+noncomputable def supportImage (e : ∀ s, V s ↪ W s) (A : Finset (Σ s : S.Srt, V s)) :
+    Finset (Σ s : S.Srt, W s) :=
+  A.image (Sigma.map id fun s => ⇑(e s))
+
+theorem injective_sigmaMap (e : ∀ s, V s ↪ W s) :
+    Function.Injective (Sigma.map id fun s => ⇑(e s) : (Σ s : S.Srt, V s) → Σ s : S.Srt, W s) :=
+  Function.injective_id.sigma_map fun s => (e s).injective
+
+open scoped Classical in
+@[simp] theorem mem_supportImage_map {e : ∀ s, V s ↪ W s} {A : Finset (Σ s : S.Srt, V s)}
+    {v : Σ s : S.Srt, V s} :
+    Sigma.map id (fun s => ⇑(e s)) v ∈ supportImage e A ↔ v ∈ A :=
+  (injective_sigmaMap e).mem_finset_image
+
+open scoped Classical in
+/-- **A support lies inside `A` exactly when its image lies inside the image of `A`.** This is the
+bijection underlying local naturality: an embedding restricts to a bijection between the supports
+inside `A` and those inside its image. -/
+theorem latentIndexEmbed_subset_supportImage_iff (e : ∀ s, V s ↪ W s)
+    {A : Finset (Σ s : S.Srt, V s)} {n : ℕ} (B : LatentIndexOver S V n) :
+    (latentIndexEmbed e n B).1 ⊆ supportImage e A ↔ B.1 ⊆ A := by
+  classical
+  rw [latentIndexEmbed_coe, supportImage]
+  constructor
+  · intro h v hv
+    have hmem := h (Finset.mem_image_of_mem (Sigma.map id fun s => ⇑(e s)) hv)
+    rwa [(injective_sigmaMap e).mem_finset_image] at hmem
+  · intro h w hw
+    obtain ⟨v, hv, rfl⟩ := Finset.mem_image.mp hw
+    exact Finset.mem_image_of_mem _ (h hv)
+
 end RelSignature
