@@ -281,6 +281,8 @@ AUDITED_DECLS = {
     "RelSignature.InfiniteRelExchangeableLaw.exists_poolPerm_agree",
     "RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.map_restrict_embedding",
     "RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.map_poolVertexEquiv",
+    "RelSignature.latentCongrOver",
+    "RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.law_eq",
     "MeasureTheory.condExp_comp_measurePreserving",
     "ProbabilityTheory.condExp_set_comp_measurePreserving",
     "ProbabilityTheory.condIndepFun_comp_measurePreserving",

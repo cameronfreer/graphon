@@ -253,6 +253,52 @@ theorem latentIndexEmbed_eq_of_agree {e f : ∀ s, V s ↪ W s} {ρ : ∀ s, Equ
   show (⟨s, f s x⟩ : Σ s : S.Srt, W s) = ⟨s, ρ s (e s x)⟩
   rw [h ⟨s, x⟩ hv]
 
+open scoped Classical in
+/-- Restriction along the identity embedding is the identity. -/
+theorem latentIndexEmbed_refl (n : ℕ) (A : LatentIndexOver S V n) :
+    latentIndexEmbed (fun s => Function.Embedding.refl (V s)) n A = A := by
+  refine Subtype.ext ?_
+  rw [latentIndexEmbed_coe]
+  refine (Finset.image_congr fun v _ => ?_).trans A.1.image_id
+  obtain ⟨s, x⟩ := v
+  rfl
+
+/-- **The index bijection induced by a carrier equivalence.** -/
+noncomputable def latentIndexCongr (e : ∀ s, V s ≃ W s) (n : ℕ) :
+    LatentIndexOver S V n ≃ LatentIndexOver S W n where
+  toFun := latentIndexEmbed (fun s => (e s).toEmbedding) n
+  invFun := latentIndexEmbed (fun s => (e s).symm.toEmbedding) n
+  left_inv A := by
+    rw [latentIndexEmbed_comp]
+    refine Eq.trans ?_ (latentIndexEmbed_refl n A)
+    congr 1
+    funext s
+    exact Function.Embedding.ext fun x => (e s).symm_apply_apply x
+  right_inv A := by
+    rw [latentIndexEmbed_comp]
+    refine Eq.trans ?_ (latentIndexEmbed_refl n A)
+    congr 1
+    funext s
+    exact Function.Embedding.ext fun x => (e s).apply_symm_apply x
+
+/-- **Transport of the latent cube along a carrier equivalence**, as a measurable equivalence.
+Its forward map is restriction along the equivalence, so the organizing restriction theorem can be
+cancelled rather than merely stated. -/
+noncomputable def latentCongrOver (e : ∀ s, V s ≃ W s) (n : ℕ) :
+    LatentSpaceOver S W n ≃ᵐ LatentSpaceOver S V n where
+  toEquiv := Equiv.arrowCongr (latentIndexCongr e n).symm (Equiv.refl ℝ)
+  measurable_toFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+  measurable_invFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+
+@[simp] theorem latentCongrOver_apply (e : ∀ s, V s ≃ W s) (n : ℕ)
+    (ω : LatentSpaceOver S W n) :
+    latentCongrOver e n ω = latentRestrictOver (fun s => (e s).toEmbedding) n ω := rfl
+
+@[simp] theorem latentCongrOver_symm_apply (e : ∀ s, V s ≃ W s) (n : ℕ)
+    (ω : LatentSpaceOver S V n) :
+    (latentCongrOver e n).symm ω =
+      latentRestrictOver (fun s => (e s).symm.toEmbedding) n ω := rfl
+
 /-- **The conjugation square for a carrier equivalence** — the latent-side mirror of
 `RelStructure.congrCarrier_relabel`. Transporting along `e` intertwines a permutation of the
 source carrier with its conjugate on the target. Proved carrier-generically, so instantiating at

@@ -194,6 +194,46 @@ theorem PooledRankExtension.map_poolVertexEquiv_congr {C : M.RankRepresentation 
           (latentRestrictOver (fun s => (poolVertexEquiv S s).symm.toEmbedding) n)) := by
   rw [Q.map_poolVertexEquiv, Q'.map_poolVertexEquiv]
 
+/-! ### The canonical law identity -/
+
+variable (S n) in
+/-- **The canonical joint identification** of the pooled objects with the original ones, bundled as
+a measurable equivalence: `poolVertexEquiv` on the structure and its latent transport. Its forward
+map is exactly the restriction appearing in `map_poolVertexEquiv`, which is what lets that theorem
+be *cancelled* rather than merely stated. -/
+noncomputable def pooledJointEquiv :
+    (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n) ≃ᵐ
+      (RelStructure S (Vinfinite S) × RankLatentSpace S n) :=
+  (RelStructure.congrCarrier fun s => poolVertexEquiv S s).prodCongr
+    (latentCongrOver (fun s => (poolVertexEquiv S s).symm) n)
+
+theorem pooledJointEquiv_coe :
+    ((pooledJointEquiv S n : _ ≃ᵐ _) : _ → _) =
+      Prod.map (RelStructure.restrict fun s => (poolVertexEquiv S s).symm.toEmbedding)
+        (latentRestrictOver (fun s => (poolVertexEquiv S s).symm.toEmbedding) n) := rfl
+
+theorem pooledJointEquiv_symm_coe :
+    (((pooledJointEquiv S n : _ ≃ᵐ _).symm : _ ≃ᵐ _) : _ → _) =
+      RankRepresentation.pooledTransport (S := S) (n := n) := rfl
+
+/-- **The canonical law identity**: a pooled rank extension is *determined* — it is the cheap one.
+Every marginal, `StationaryExtension`, recovery and screening statement about a pooled extension is
+therefore a transport of the corresponding statement about `C.P`, rather than a separate measure
+argument. -/
+theorem PooledRankExtension.law_eq {C : M.RankRepresentation n} (Q : PooledRankExtension C) :
+    (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) =
+      ((C.pooledExtension).law :
+        Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) := by
+  haveI := C.isProbabilityMeasure_P
+  calc (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))
+      = ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+          (pooledJointEquiv S n)).map (pooledJointEquiv S n).symm :=
+        (MeasurableEquiv.map_symm_map _).symm
+    _ = C.P.map (pooledJointEquiv S n).symm := by
+        rw [pooledJointEquiv_coe, Q.map_poolVertexEquiv]
+    _ = ((C.pooledExtension).law :
+          Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) := rfl
+
 /-- The cheap extension satisfies the joint restriction theorem, for every embedding. -/
 theorem RankRepresentation.pooledExtension_map_restrict_embedding (C : M.RankRepresentation n)
     (e : ∀ s, Vinfinite S s ↪ PoolVertex S s) :
