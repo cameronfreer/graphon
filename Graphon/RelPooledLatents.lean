@@ -6,6 +6,7 @@ Authors: Cameron Freer
 import Graphon.RelLatentGeometry
 import Graphon.RelPoolGeometry
 import Graphon.RelRankLatents
+import Graphon.RelRankInjectionInvariance
 
 /-!
 # Pooled latent geometry and the mixed action (R4 converse, #107)
@@ -27,6 +28,14 @@ the pooled cube to the rank-`n` cube.
   mixed permutation does not commute with restriction to the original latents; what holds is that
   restricting after relabeling is restriction along the moved embedding. The split case is the
   corollary `restrictOriginalLatents_sumCongr`.
+
+* the **extensional bridges** `rankLatentRelabel_eq_latentRelabelOver` and
+  `rankLatentReindex_eq_latentRestrictOver` — the rank-indexed action and the self-injection
+  reindexing of `Graphon.RelRankInjectionInvariance` *are* the carrier-parametric operations at
+  `Vinfinite S`. They are equalities, not `rfl`: the two constructions pick different `Decidable`
+  instances under `open scoped Classical`, which is invisible propositionally. These are what let
+  `RankRepresentation.invariant` and the self-injection invariance theorem be applied through the
+  generic pooled API.
 
 Deliberately absent: any law, `RankRepresentation`, recovery, screening, or coupling. Those enter
 at stages 2 and 3 of the gate.
@@ -127,5 +136,43 @@ theorem restrictOriginalLatents_sumCongr (σ : ∀ s, Equiv.Perm (Vinfinite S s)
         pooledRankLatentRelabel (fun s => Equiv.sumCongr (σ s) (Equiv.refl _)) n =
       latentRelabelOver σ n ∘ restrictOriginalLatents S n :=
   latentRestrictOver_latentRelabelOver_of_intertwines _ _ σ (fun _ _ => rfl) n
+
+/-! ### Bridges to the rank-indexed API
+
+The rank-indexed operations were built before the carrier-parametric core and choose their own
+`Decidable` instances; they agree with the generic ones extensionally but not by `rfl`. -/
+
+theorem rankLatentIndexEquiv_eq_latentIndexPerm (σ : FinSuppPerm S) (n : ℕ)
+    (A : RankLatentIndex S n) :
+    rankLatentIndexEquiv σ n A = latentIndexPerm (fun s => σ.1 s) n A := by
+  classical
+  refine Subtype.ext (Finset.ext fun v => ?_)
+  rw [rankLatentIndexEquiv_apply_coe, latentIndexPerm_apply_coe]
+  simp [Finset.mem_image]
+
+/-- **Bridge**: the rank-indexed relabeling is the carrier-parametric action at `Vinfinite S`. -/
+theorem rankLatentRelabel_eq_latentRelabelOver (σ : FinSuppPerm S) (n : ℕ) :
+    rankLatentRelabel σ n = latentRelabelOver (fun s => σ.1 s) n := by
+  refine MeasurableEquiv.ext (funext fun ω => funext fun A => ?_)
+  show ω (rankLatentIndexEquiv σ n A) = ω (latentIndexPerm _ n A)
+  rw [rankLatentIndexEquiv_eq_latentIndexPerm]
+
+theorem rankLatentIndexInj_eq_latentIndexEmbed (ι : ∀ s, Vinfinite S s ↪ Vinfinite S s) (n : ℕ)
+    (A : RankLatentIndex S n) :
+    rankLatentIndexInj ι n A = latentIndexEmbed ι n A := by
+  classical
+  refine Subtype.ext (Finset.ext fun v => ?_)
+  rw [rankLatentIndexInj_coe, latentIndexEmbed_coe]
+  simp [Finset.mem_image]
+
+/-- **Bridge**: the self-injection reindexing of `Graphon.RelRankInjectionInvariance` is
+restriction along that injection in the carrier-parametric core. This is where #194's invariance
+theorem meets the generic pooled API. -/
+theorem rankLatentReindex_eq_latentRestrictOver (ι : ∀ s, Vinfinite S s ↪ Vinfinite S s)
+    (n : ℕ) :
+    rankLatentReindex ι n = latentRestrictOver ι n := by
+  funext ω A
+  show ω (rankLatentIndexInj ι n A) = ω (latentIndexEmbed ι n A)
+  rw [rankLatentIndexInj_eq_latentIndexEmbed]
 
 end RelSignature
