@@ -296,6 +296,7 @@ AUDITED_DECLS = {
     "RelSignature.latentSourceOver_map_latentCongrOver",
     "RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.map_snd",
     "RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.toStationaryExtension",
+    "RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.lower_recovers",
     "MeasureTheory.condExp_comp_measurePreserving",
     "ProbabilityTheory.condExp_set_comp_measurePreserving",
     "ProbabilityTheory.condIndepFun_comp_measurePreserving",

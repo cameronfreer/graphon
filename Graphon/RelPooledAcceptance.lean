@@ -208,11 +208,13 @@ noncomputable def pooledJointEquiv :
   (RelStructure.congrCarrier fun s => poolVertexEquiv S s).prodCongr
     (latentCongrOver (fun s => (poolVertexEquiv S s).symm) n)
 
+omit [Countable S.Srt] [Countable S.Rel] in
 theorem pooledJointEquiv_coe :
     ((pooledJointEquiv S n : _ ≃ᵐ _) : _ → _) =
       Prod.map (RelStructure.restrict fun s => (poolVertexEquiv S s).symm.toEmbedding)
         (latentRestrictOver (fun s => (poolVertexEquiv S s).symm.toEmbedding) n) := rfl
 
+omit [Countable S.Srt] [Countable S.Rel] in
 theorem pooledJointEquiv_symm_coe :
     (((pooledJointEquiv S n : _ ≃ᵐ _).symm : _ ≃ᵐ _) : _ → _) =
       RankRepresentation.pooledTransport (S := S) (n := n) := rfl
@@ -301,6 +303,52 @@ noncomputable def PooledRankExtension.toStationaryExtension {C : M.RankRepresent
       ← Measure.map_map measurable_fst
         ((measurable_relabel ρ).prodMap (pooledRankLatentRelabel ρ n).measurable),
       Q.invariant ρ]
+
+/-! ### Consequence 3: local recovery on pooled supports -/
+
+open scoped Classical in
+/-- **Local recovery holds on every pooled support below rank `n`** — mixed supports included.
+`C.lower_recovers` is pulled back along the canonical identification, and the decoder is conjugated
+through the local and block measurable equivalences. The only almost-everywhere step is the
+transported identity itself. -/
+theorem PooledRankExtension.lower_recovers {C : M.RankRepresentation n}
+    (Q : PooledRankExtension C) (A : Finset (Σ s : S.Srt, PoolVertex S s)) (hA : A.card < n) :
+    ∃ g : LocalLatentSpaceOver (PoolVertex S) A n → BlockSpaceOver (PoolVertex S) A,
+      Measurable g ∧
+      blockMapOver A ∘ Prod.fst =ᵐ[(Q.law :
+          Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))]
+        g ∘ localLatentsOver A n ∘ Prod.snd := by
+  haveI := C.isProbabilityMeasure_P
+  classical
+  set e : ∀ s, Vinfinite S s ↪ PoolVertex S s :=
+    fun s => (poolVertexEquiv S s).symm.toEmbedding with he
+  -- present the pooled support as the image of an original one, once and for all
+  obtain ⟨A₀, hA₀card, rfl⟩ :
+      ∃ A₀ : Finset (Σ s : S.Srt, Vinfinite S s), A₀.card < n ∧ supportImage e A₀ = A := by
+    refine ⟨supportImage (fun s => (poolVertexEquiv S s).toEmbedding) A, ?_, ?_⟩
+    · rw [card_supportImage]; exact hA
+    · rw [he]; exact supportImage_symm_supportImage (fun s => poolVertexEquiv S s) A
+  obtain ⟨g₀, hg₀meas, hg₀⟩ := C.lower_recovers A₀ hA₀card
+  have hpull := (Q.measurePreserving_pooledJointEquiv).quasiMeasurePreserving.ae_eq_comp hg₀
+  refine ⟨(blockSpaceCongr e A₀).symm ∘ g₀ ∘ localLatentSpaceCongr e A₀ n, ?_, ?_⟩
+  · exact ((blockSpaceCongr e A₀).symm.measurable.comp hg₀meas).comp
+      (localLatentSpaceCongr e A₀ n).measurable
+  · filter_upwards [hpull] with p hp
+    have hb : blockMap A₀ (RelStructure.restrict e p.1)
+        = blockSpaceCongr e A₀ (blockMapOver (supportImage e A₀) p.1) :=
+      congrFun (blockMapOver_restrict e A₀) p.1
+    have hl : localLatents A₀ n (latentRestrictOver e n p.2)
+        = localLatentSpaceCongr e A₀ n (localLatentsOver (supportImage e A₀) n p.2) :=
+      congrFun (localLatentsOver_latentRestrictOver e A₀ n) p.2
+    have hp' : blockSpaceCongr e A₀ (blockMapOver (supportImage e A₀) p.1)
+        = g₀ (localLatentSpaceCongr e A₀ n (localLatentsOver (supportImage e A₀) n p.2)) := by
+      rw [← hb, ← hl]; exact hp
+    show blockMapOver (supportImage e A₀) p.1 = _
+    calc blockMapOver (supportImage e A₀) p.1
+        = (blockSpaceCongr e A₀).symm
+            (blockSpaceCongr e A₀ (blockMapOver (supportImage e A₀) p.1)) :=
+          ((blockSpaceCongr e A₀).symm_apply_apply _).symm
+      _ = _ := by rw [hp']; rfl
 
 end InfiniteRelExchangeableLaw
 

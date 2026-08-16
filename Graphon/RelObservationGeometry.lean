@@ -285,6 +285,23 @@ theorem localLatentsOver_latentRestrictOver (e : ∀ s, V s ↪ W s)
   funext ω B
   rfl
 
+open scoped Classical in
+/-- Transporting a support along a carrier equivalence and back is the identity. -/
+theorem supportImage_symm_supportImage (e : ∀ s, V s ≃ W s) (A : Finset (Σ s : S.Srt, V s)) :
+    supportImage (fun s => (e s).symm.toEmbedding) (supportImage (fun s => (e s).toEmbedding) A)
+      = A := by
+  rw [supportImage, supportImage, Finset.image_image]
+  refine (Finset.image_congr fun v _ => ?_).trans A.image_id
+  obtain ⟨s, x⟩ := v
+  show (⟨s, (e s).symm ((e s) x)⟩ : Σ s : S.Srt, V s) = ⟨s, x⟩
+  rw [(e s).symm_apply_apply]
+
+open scoped Classical in
+/-- The transported support has the same cardinality. -/
+theorem card_supportImage (e : ∀ s, V s ↪ W s) (A : Finset (Σ s : S.Srt, V s)) :
+    (supportImage e A).card = A.card :=
+  Finset.card_image_of_injective _ (injective_sigmaMap e)
+
 /-! ### Blocks transport along an embedding
 
 The inverse is the delicate point and is kept **local to the exact-support subtype**: a coordinate
