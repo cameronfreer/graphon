@@ -33,6 +33,14 @@ almost everywhere and not up to isomorphism.
   different means and will not produce canonically equal representations; asserting otherwise
   would be false. The public induction may cite whichever lands first, and the other remains an
   independently audited proof path.
+* **No pool.** `RankSuccessor` exposes no pooled carrier, so no final-output regression here could
+  observe whether a proof actually used boundary-crossing permutations. That property is already
+  formalized by the pooled gate's joint restriction theorem for *every* sortwise embedding
+  (`PooledRankExtension.map_restrict_embedding`); each route's **intermediate** construction is
+  required to consume it, rather than a vacuous check being added at this interface.
+
+The adversarial regressions belong in a separate shared module, so that this file stays
+interface-only and free of the heavier imports they need.
 -/
 
 open MeasureTheory
@@ -66,11 +74,6 @@ theorem measurable_truncation :
       (rankLatentProjection (S := S) (Nat.le_succ n))) :=
   measurable_id.prodMap (measurable_rankLatentProjection _)
 
-/-- The successor's structure marginal is still the law — a consequence of truncation
-compatibility, recorded so consumers need not re-derive it. -/
-theorem next_map_fst : D.next.P.map Prod.fst = (M.law : Measure (RelStructure S (Vinfinite S))) :=
-  D.next.map_fst
-
 end RankSuccessor
 
 /-! ### Regression: the rank-zero base
@@ -85,11 +88,36 @@ instance : IsEmpty (RankLatentIndex S 0) := ⟨fun A => absurd A.2 (Nat.not_lt_z
 instance : Subsingleton (RankLatentSpace S 0) :=
   ⟨fun _ _ => funext fun A => absurd A.2 (Nat.not_lt_zero _)⟩
 
+instance : Unique (RankLatentSpace S 0) := Pi.uniqueOfIsEmpty _
+
 omit [Countable S.Srt] [Countable S.Rel] in
-/-- **The rank-zero latent cube carries no information.** Any two points of it agree, so a
-rank-zero representation is determined by its structure marginal. -/
-theorem rankLatentSpace_zero_subsingleton (ω ω' : RankLatentSpace S 0) : ω = ω' :=
-  Subsingleton.elim _ _
+/-- A measure on a product whose second factor is a single point is determined by its first
+marginal. -/
+private theorem measure_eq_of_map_fst {X Y : Type*} [MeasurableSpace X] [MeasurableSpace Y]
+    [Unique Y] {μ ν : Measure (X × Y)} (h : μ.map Prod.fst = ν.map Prod.fst) : μ = ν := by
+  ext s hs
+  have hsec : Measurable (fun x : X => (x, (default : Y))) :=
+    measurable_id.prodMk measurable_const
+  have hT : MeasurableSet ((fun x : X => (x, (default : Y))) ⁻¹' s) := hsec hs
+  have hrw : s = Prod.fst ⁻¹' ((fun x : X => (x, (default : Y))) ⁻¹' s) := by
+    ext p
+    simp only [Set.mem_preimage]
+    rw [show ((p.1, (default : Y)) : X × Y) = p from Prod.ext rfl (Subsingleton.elim _ _)]
+  rw [hrw, ← Measure.map_apply measurable_fst hT, h, Measure.map_apply measurable_fst hT]
+
+/-- **The truncation equation is automatic at rank zero.** For *any* rank-zero and rank-one
+representations of the same law, truncation holds — the rank-zero latent cube is a single point,
+so both sides are determined by their structure marginals, which `RankRepresentation.map_fst`
+already pins to `M.law`. The base case therefore imposes nothing beyond the representation
+axioms. -/
+theorem truncation_zero (C : M.RankRepresentation 0) (D : M.RankRepresentation 1) :
+    D.P.map (Prod.map id (rankLatentProjection (S := S) (Nat.le_succ 0))) = C.P := by
+  refine measure_eq_of_map_fst ?_
+  rw [Measure.map_map measurable_fst
+      (measurable_id.prodMap (measurable_rankLatentProjection (S := S) (Nat.le_succ 0))),
+    show (Prod.fst ∘ Prod.map (id : RelStructure S (Vinfinite S) → _)
+        (rankLatentProjection (S := S) (Nat.le_succ 0))) = Prod.fst from rfl,
+    D.map_fst, C.map_fst]
 
 /-- **The successor statement**, as a proposition: every rank-`n` representation admits a
 successor witness. Both routes target this exact statement, and neither is proved here. -/
