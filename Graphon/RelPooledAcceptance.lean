@@ -25,8 +25,22 @@ This is joint, not a structure marginal: the structure and the latents are restr
 same embedding, so it recovers the joint `(X, U_{<n})` law and says strictly more than a
 structure-only window theorem.
 
-The proof is joint-cylinder extensionality together with finite agreement by a mixed pooled
-permutation. On a joint cylinder the combined vertex support is finite; the partial assignment
+Cancelling that restriction at the canonical embedding gives `PooledRankExtension.law_eq`, a
+**uniqueness theorem**: every pooled rank extension is the cheap one, `(C.pooledExtension)`. The
+four route-neutral consequences of the gate are transports through that single identity:
+
+* `PooledRankExtension.map_snd` — the pooled latent marginal is the pooled i.i.d. source;
+* `PooledRankExtension.toStationaryExtension` — the structure marginal is a `StationaryExtension M`;
+* `PooledRankExtension.lower_recovers` — local recovery on every pooled support below rank `n`, the
+  decoder conjugated through the local and block measurable equivalences;
+* `PooledRankExtension.screening` — screening on every pooled support of rank `n`, assembled from
+  `condIndepFun_comp_measurePreserving`, `CondIndepFun.comp` on the codomains, and
+  `CondIndepFun.congr_cond` with `comap_measurableEquiv_comp` on the conditioning algebra.
+
+Nothing route-specific appears: no fresh rank-`n` latent extraction and nothing at rank `n + 1`.
+
+The joint restriction theorem is proved by joint-cylinder extensionality together with finite
+agreement by a mixed pooled permutation. On a joint cylinder the combined vertex support is finite; the partial assignment
 `originalVertex v ↦ e v` on it is a finite partial injection of the pooled carrier, since both
 embeddings are injective, so it extends to a pooled permutation `ρ` with `ρ (ov v) = e v` there.
 Both restrictions then read the same moved coordinates, and the full mixed invariance of the
@@ -185,18 +199,6 @@ theorem PooledRankExtension.map_poolVertexEquiv {C : M.RankRepresentation n}
           (latentRestrictOver (fun s => (poolVertexEquiv S s).symm.toEmbedding) n)) = C.P :=
   Q.map_restrict_embedding _
 
-/-- **Any two pooled rank extensions agree after the canonical identification.** Both are carried
-to the same representation, so the pooled object is unique as far as that identification sees. -/
-theorem PooledRankExtension.map_poolVertexEquiv_congr {C : M.RankRepresentation n}
-    (Q Q' : PooledRankExtension C) :
-    (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
-        (Prod.map (RelStructure.restrict fun s => (poolVertexEquiv S s).symm.toEmbedding)
-          (latentRestrictOver (fun s => (poolVertexEquiv S s).symm.toEmbedding) n)) =
-      (Q'.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
-        (Prod.map (RelStructure.restrict fun s => (poolVertexEquiv S s).symm.toEmbedding)
-          (latentRestrictOver (fun s => (poolVertexEquiv S s).symm.toEmbedding) n)) := by
-  rw [Q.map_poolVertexEquiv, Q'.map_poolVertexEquiv]
-
 /-! ### The canonical law identity -/
 
 variable (S n) in
@@ -249,14 +251,6 @@ theorem PooledRankExtension.measurePreserving_pooledJointEquiv {C : M.RankRepres
       (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) C.P :=
   ⟨(pooledJointEquiv S n).measurable, by
     rw [pooledJointEquiv_coe]; exact Q.map_poolVertexEquiv⟩
-
-/-- The cheap extension satisfies the joint restriction theorem, for every embedding. -/
-theorem RankRepresentation.pooledExtension_map_restrict_embedding (C : M.RankRepresentation n)
-    (e : ∀ s, Vinfinite S s ↪ PoolVertex S s) :
-    ((C.pooledExtension).law :
-        Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
-      (Prod.map (RelStructure.restrict e) (latentRestrictOver e n)) = C.P :=
-  (C.pooledExtension).map_restrict_embedding e
 
 /-! ### Consequence 1: the pooled latent marginal -/
 

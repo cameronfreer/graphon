@@ -6,9 +6,9 @@ Authors: Cameron Freer
 import Mathlib.Probability.Independence.Conditional
 
 /-!
-# Two closure properties of conditional independence
+# Three closure properties of conditional independence
 
-Both are glue Mathlib does not currently provide.
+All three are glue Mathlib does not currently provide.
 
 * **Joining the conditioning algebra to one side is free**: from `m₁ ⊥⊥ m₂ ∣ m'` conclude
   `m₁ ⊥⊥ (m' ⊔ m₂) ∣ m'`. Whatever the conditioning algebra already knows cannot carry new
@@ -24,6 +24,12 @@ Both are glue Mathlib does not currently provide.
 
 Neither statement mentions this repository's signatures. The `[StandardBorelSpace Ω]` hypotheses
 come with Mathlib's definition of `CondIndep`/`CondIndepFun` through `condExpKernel`.
+
+* **The conditioning σ-algebra may be replaced by an equal one** (`CondIndepFun.congr_cond`): the
+  dependent `≤` proof moves by proof irrelevance once the σ-algebra equality is substituted. Needed
+  wherever a conditioning map is reindexed — the rank-one coupling and screening arguments and the
+  pooled screening transport all consume it.
+
 -/
 
 open MeasureTheory
