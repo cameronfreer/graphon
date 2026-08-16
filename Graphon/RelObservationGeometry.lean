@@ -121,6 +121,28 @@ theorem measurable_restObservationOver [Countable S.Rel] [∀ s, Countable (V s)
     Measurable (restObservationOver (S := S) n A) :=
   (measurable_pi_lambda _ fun _ => measurable_fst.eval).prodMk measurable_snd
 
+/-! ### Coordinate transport along a carrier equivalence
+
+The coordinate mirror of `RelStructure.congrCarrier`, bundled once here: the remainder index is
+global, so its transport needs a genuine equivalence of coordinates rather than an embedding. -/
+
+/-- **Transport of relation coordinates along a sortwise equivalence of carriers**, bundled. -/
+def RelCoord.congrCarrier (e : ∀ s, V s ≃ W s) : RelCoord S V ≃ RelCoord S W where
+  toFun := RelCoord.map fun s => ⇑(e s)
+  invFun := RelCoord.map fun s => ⇑(e s).symm
+  left_inv c := by
+    refine congrArg (fun w => (⟨c.1, w⟩ : RelCoord S V)) (funext fun i => ?_)
+    exact (e _).symm_apply_apply (c.2 i)
+  right_inv c := by
+    refine congrArg (fun w => (⟨c.1, w⟩ : RelCoord S W)) (funext fun i => ?_)
+    exact (e _).apply_symm_apply (c.2 i)
+
+@[simp] theorem RelCoord.congrCarrier_apply (e : ∀ s, V s ≃ W s) (c : RelCoord S V) :
+    RelCoord.congrCarrier e c = RelCoord.map (fun s => ⇑(e s)) c := rfl
+
+@[simp] theorem RelCoord.congrCarrier_symm_apply (e : ∀ s, V s ≃ W s) (c : RelCoord S W) :
+    (RelCoord.congrCarrier e).symm c = RelCoord.map (fun s => ⇑(e s).symm) c := rfl
+
 /-! ### Support and index transport
 
 Equivalences first, with pointwise `_apply` lemmas; the function-level naturality laws are derived
@@ -158,5 +180,13 @@ theorem latentIndexEmbed_subset_supportImage_iff (e : ∀ s, V s ↪ W s)
   · intro h w hw
     obtain ⟨v, hv, rfl⟩ := Finset.mem_image.mp hw
     exact Finset.mem_image_of_mem _ (h hv)
+
+open scoped Classical in
+/-- Transporting a coordinate carries its support to the image of that support. -/
+theorem RelCoord.support_congrCarrier (e : ∀ s, V s ≃ W s) (c : RelCoord S V) :
+    (RelCoord.congrCarrier e c).support =
+      supportImage (fun s => (e s).toEmbedding) c.support := by
+  rw [RelCoord.congrCarrier_apply, RelCoord.support_map, supportImage]
+  rfl
 
 end RelSignature

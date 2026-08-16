@@ -283,6 +283,7 @@ AUDITED_DECLS = {
     "RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.map_poolVertexEquiv",
     "RelSignature.latentCongrOver",
     "RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.law_eq",
+    "RelSignature.RelCoord.support_congrCarrier",
     "RelSignature.latentIndexEmbed_subset_supportImage_iff",
     "RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.measurePreserving_pooledJointEquiv",
     "MeasureTheory.condExp_comp_measurePreserving",

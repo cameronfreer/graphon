@@ -318,6 +318,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.map_poolVertexEquiv
 #print axioms RelSignature.latentCongrOver
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.law_eq
+#print axioms RelSignature.RelCoord.support_congrCarrier
 #print axioms RelSignature.latentIndexEmbed_subset_supportImage_iff
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.measurePreserving_pooledJointEquiv
 #print axioms MeasureTheory.condExp_comp_measurePreserving
