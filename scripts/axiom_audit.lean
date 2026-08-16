@@ -332,6 +332,8 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.map_snd
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.toStationaryExtension
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.lower_recovers
+#print axioms RelSignature.restObservationOver_congrCarrier
+#print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.screening
 #print axioms MeasureTheory.condExp_comp_measurePreserving
 #print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
 #print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving

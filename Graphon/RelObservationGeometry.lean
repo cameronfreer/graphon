@@ -436,4 +436,18 @@ open scoped Classical in
     (c : RestIndexOver V n A) :
     restSpaceCongr e n A x c = x (restIndexCongr e n A c) := rfl
 
+open scoped Classical in
+/-- **Exact naturality of the remainder against a carrier equivalence.** Observing after
+transporting the whole joint object from `W` back to `V` is observing on `W` and reindexing both
+remainder outputs. An equivalence throughout — the remainder is global. -/
+theorem restObservationOver_congrCarrier (e : ∀ s, V s ≃ W s) (n : ℕ)
+    (A : Finset (Σ s : S.Srt, V s)) :
+    restObservationOver (S := S) n A ∘
+        Prod.map (RelStructure.restrict fun s => (e s).toEmbedding)
+          (latentRestrictOver (fun s => (e s).toEmbedding) n) =
+      Prod.map (restSpaceCongr e n A) (latentCongrOver e n) ∘
+        restObservationOver n (supportImage (fun s => (e s).toEmbedding) A) := by
+  funext p
+  rfl
+
 end RelSignature

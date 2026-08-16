@@ -5,6 +5,8 @@ Authors: Cameron Freer
 -/
 import Graphon.RelPooledExtension
 import Graphon.RelStationaryExtension
+import Graphon.ForMathlib.CondExpComap
+import Graphon.ForMathlib.CondIndepSup
 
 /-!
 # The joint restriction theorem for a pooled rank extension (R4 converse, #107)
@@ -32,7 +34,7 @@ extension absorbs `ρ`. Choosing `ρ` separately on each sort is exactly what th
 permits — no finite-support or uniform-bound issue arises.
 -/
 
-open MeasureTheory
+open MeasureTheory ProbabilityTheory
 
 namespace RelSignature
 
@@ -349,6 +351,73 @@ theorem PooledRankExtension.lower_recovers {C : M.RankRepresentation n}
             (blockSpaceCongr e A₀ (blockMapOver (supportImage e A₀) p.1)) :=
           ((blockSpaceCongr e A₀).symm_apply_apply _).symm
       _ = _ := by rw [hp']; rfl
+
+/-! ### Consequence 4: screening on pooled supports -/
+
+open scoped Classical in
+/-- **Screening holds on every pooled support of rank `n`** — mixed supports included. Pure
+assembly: pull `C.screening` back through the canonical identification, strip the output
+equivalences with `CondIndepFun.comp`, and straighten the conditioning algebra with
+`CondIndepFun.congr_cond`. No conditional-expectation reasoning appears. -/
+theorem PooledRankExtension.screening {C : M.RankRepresentation n}
+    (Q : PooledRankExtension C) (A : Finset (Σ s : S.Srt, PoolVertex S s)) (hA : A.card = n) :
+    CondIndepFun (MeasurableSpace.comap (localLatentsOver A n ∘ Prod.snd) inferInstance)
+      (((measurable_localLatentsOver A n).comp measurable_snd).comap_le)
+      (blockMapOver A ∘ Prod.fst) (restObservationOver n A)
+      (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) := by
+  haveI := C.isProbabilityMeasure_P
+  classical
+  set eqv : ∀ s, Vinfinite S s ≃ PoolVertex S s := fun s => (poolVertexEquiv S s).symm with heqv
+  set e : ∀ s, Vinfinite S s ↪ PoolVertex S s := fun s => (eqv s).toEmbedding with he
+  obtain ⟨A₀, hA₀card, rfl⟩ :
+      ∃ A₀ : Finset (Σ s : S.Srt, Vinfinite S s), A₀.card = n ∧ supportImage e A₀ = A := by
+    refine ⟨supportImage (fun s => (poolVertexEquiv S s).toEmbedding) A, ?_, ?_⟩
+    · rw [card_supportImage]; exact hA
+    · rw [he, heqv]; exact supportImage_symm_supportImage (fun s => poolVertexEquiv S s) A
+  -- step 1: pull the representation's screening back along the canonical identification
+  have hpull := condIndepFun_comp_measurePreserving Q.measurePreserving_pooledJointEquiv
+    ((measurable_localLatents A₀ n).comp measurable_snd).comap_le
+    ((measurable_blockMap A₀).comp measurable_fst) (measurable_restObservation n A₀)
+    (C.screening A₀ hA₀card)
+  -- step 2: strip the output equivalences (post-composition never touches the dependent proof)
+  have hstrip := hpull.comp (blockSpaceCongr e A₀).symm.measurable
+    ((restSpaceCongr eqv n A₀).prodCongr (latentCongrOver eqv n)).symm.measurable
+  have hf : ⇑(blockSpaceCongr e A₀).symm ∘
+      ((blockMap A₀ ∘ Prod.fst) ∘ ⇑(pooledJointEquiv S n)) =
+      blockMapOver (supportImage e A₀) ∘ Prod.fst := by
+    rw [pooledJointEquiv_coe]
+    funext p
+    show (blockSpaceCongr e A₀).symm (blockMapOver A₀ (RelStructure.restrict e p.1)) = _
+    have hnat := congrFun (blockMapOver_restrict e A₀) p.1
+    simp only [Function.comp_apply] at hnat
+    rw [hnat]
+    simp
+  have hg : ⇑((restSpaceCongr eqv n A₀).prodCongr (latentCongrOver eqv n)).symm ∘
+      (restObservation n A₀ ∘ ⇑(pooledJointEquiv S n)) =
+      restObservationOver n (supportImage e A₀) := by
+    rw [pooledJointEquiv_coe]
+    funext p
+    show ((restSpaceCongr eqv n A₀).prodCongr (latentCongrOver eqv n)).symm
+      (restObservationOver n A₀ (Prod.map (RelStructure.restrict e)
+        (latentRestrictOver (S := S) e n) p)) = _
+    have hnat := congrFun (restObservationOver_congrCarrier eqv n A₀) p
+    simp only [Function.comp_apply] at hnat
+    rw [hnat, show Prod.map (⇑(restSpaceCongr eqv n A₀)) (⇑(latentCongrOver eqv n)) =
+        ⇑((restSpaceCongr eqv n A₀).prodCongr (latentCongrOver eqv n)) from rfl,
+      MeasurableEquiv.symm_apply_apply]
+  rw [hf, hg] at hstrip
+  -- step 3: straighten the conditioning algebra
+  refine hstrip.congr_cond ?_ _
+  rw [MeasurableSpace.comap_comp,
+    show (localLatents A₀ n ∘ Prod.snd) ∘ ⇑(pooledJointEquiv S n) =
+      ⇑(localLatentSpaceCongr e A₀ n) ∘
+        (localLatentsOver (supportImage e A₀) n ∘ Prod.snd) from by
+      rw [pooledJointEquiv_coe]
+      funext p
+      have hnat := congrFun (localLatentsOver_latentRestrictOver e A₀ n) p.2
+      simp only [Function.comp_apply] at hnat ⊢
+      exact hnat]
+  exact comap_measurableEquiv_comp (localLatentSpaceCongr e A₀ n) _
 
 end InfiniteRelExchangeableLaw
 
