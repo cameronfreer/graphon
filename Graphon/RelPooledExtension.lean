@@ -77,6 +77,7 @@ noncomputable def pooledTransport :
   Prod.map (RelStructure.congrCarrier fun s => (poolVertexEquiv S s).symm)
     (latentRestrictOver (fun s => (poolVertexEquiv S s).toEmbedding) n)
 
+omit [Countable S.Srt] [Countable S.Rel] in
 theorem measurable_pooledTransport :
     Measurable (pooledTransport (S := S) (n := n)) :=
   (RelStructure.congrCarrier _).measurable.prodMap
@@ -154,6 +155,12 @@ noncomputable def pooledExtension : PooledRankExtension C where
       Measure.map_map (((measurable_relabel ρ)).prodMap
         (pooledRankLatentRelabel ρ n).measurable) measurable_pooledTransport,
       hjoint, ← Measure.map_map measurable_pooledTransport hκmeas, hinvκ]
+
+/-- The cheap extension's law, unfolded. -/
+@[simp] theorem pooledExtension_law_coe :
+    ((C.pooledExtension).law :
+        Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) =
+      C.P.map pooledTransport := rfl
 
 end RankRepresentation
 

@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelRankLatents
+import Graphon.RelObservationGeometry
 import Graphon.RelEqualityPattern
 import Graphon.RelInfiniteLaw
 
@@ -70,8 +71,8 @@ variable {S : RelSignature}
 
 /-- The latent coordinates visible at `A`: supports contained in `A`. Within `RankLatentIndex n`
 this automatically means *proper* subsets when `A.card = n`. -/
-def LocalLatentIndex (A : Finset (Σ s : S.Srt, Vinfinite S s)) (n : ℕ) :=
-  {B : RankLatentIndex S n // B.1 ⊆ A}
+@[reducible] def LocalLatentIndex (A : Finset (Σ s : S.Srt, Vinfinite S s)) (n : ℕ) :=
+  LocalLatentIndexOver (Vinfinite S) A n
 
 instance [Countable S.Srt] (A : Finset (Σ s : S.Srt, Vinfinite S s)) (n : ℕ) :
     Countable (LocalLatentIndex A n) := Subtype.countable
@@ -82,7 +83,7 @@ abbrev LocalLatentSpace (A : Finset (Σ s : S.Srt, Vinfinite S s)) (n : ℕ) :=
 
 /-- Restriction of the latent array to the coordinates visible at `A`. -/
 def localLatents (A : Finset (Σ s : S.Srt, Vinfinite S s)) (n : ℕ) :
-    RankLatentSpace S n → LocalLatentSpace A n := fun ω B => ω B.1
+    RankLatentSpace S n → LocalLatentSpace A n := localLatentsOver A n
 
 theorem measurable_localLatents [Countable S.Srt]
     (A : Finset (Σ s : S.Srt, Vinfinite S s)) (n : ℕ) :
@@ -107,8 +108,8 @@ theorem rankLatentIndex_ssubset_of_card_eq {A : Finset (Σ s : S.Srt, Vinfinite 
 open scoped Classical in
 /-- Raw relation coordinates whose tagged support is exactly `A`. Raw coordinates, not basis
 events: the eventual descent to label-free kernels is indexed by these. -/
-def BlockIndex (A : Finset (Σ s : S.Srt, Vinfinite S s)) :=
-  {c : RelCoord S (Vinfinite S) // c.support = A}
+@[reducible] def BlockIndex (A : Finset (Σ s : S.Srt, Vinfinite S s)) :=
+  BlockIndexOver (Vinfinite S) A
 
 open scoped Classical in
 instance [Countable S.Rel] (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
@@ -121,7 +122,7 @@ abbrev BlockSpace (A : Finset (Σ s : S.Srt, Vinfinite S s)) := BlockIndex A →
 open scoped Classical in
 /-- Read the block at `A` off a structure. -/
 def blockMap (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
-    RelStructure S (Vinfinite S) → BlockSpace A := fun X c => X c.1
+    RelStructure S (Vinfinite S) → BlockSpace A := blockMapOver A
 
 open scoped Classical in
 theorem measurable_blockMap [Countable S.Rel] (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
@@ -134,8 +135,8 @@ open scoped Classical in
 /-- Coordinates of rank at most `n` other than those at `A`. The truncation is essential:
 coordinates of rank above `n` that contain `A` legitimately share `A`'s latents, so screening
 against them would be false. -/
-def RestIndex (n : ℕ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :=
-  {c : RelCoord S (Vinfinite S) // c.support.card ≤ n ∧ c.support ≠ A}
+@[reducible] def RestIndex (n : ℕ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :=
+  RestIndexOver (Vinfinite S) n A
 
 open scoped Classical in
 instance [Countable S.Rel] (n : ℕ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
@@ -150,7 +151,7 @@ open scoped Classical in
 with the whole latent array — which at rank `n` contains no coordinate at `A`. -/
 def restObservation (n : ℕ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     RelStructure S (Vinfinite S) × RankLatentSpace S n → RestSpace n A × RankLatentSpace S n :=
-  fun p => (fun c => p.1 c.1, p.2)
+  restObservationOver n A
 
 open scoped Classical in
 theorem measurable_restObservation [Countable S.Rel] (n : ℕ)

@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelRankOneTransfer
+import Graphon.ForMathlib.CondIndepSup
 import Graphon.RelRankLatents
 import Graphon.ForMathlib.CondExpComap
 
@@ -72,16 +73,6 @@ instance [Countable S.Srt] [Countable S.Rel] (f : ℝ → B.LowerFactorSpace 1) 
     IsFiniteMeasure (B.rankOneLatentCoupling f) := by
   rw [rankOneLatentCoupling]
   exact Measure.isFiniteMeasure_map _ _
-
-/-- Conditional independence is insensitive to replacing the conditioning σ-algebra by an equal
-one; the inclusion proofs move by proof irrelevance. -/
-private theorem condIndepFun_congr_cond {Ω β γ : Type*} [mΩ : MeasurableSpace Ω]
-    [StandardBorelSpace Ω] {μ : Measure Ω} [IsFiniteMeasure μ]
-    [MeasurableSpace β] [MeasurableSpace γ] {f : Ω → β} {g : Ω → γ}
-    {m₁ m₂ : MeasurableSpace Ω} (h12 : m₁ = m₂) {h1 : m₁ ≤ mΩ} (h2 : m₂ ≤ mΩ)
-    (h : CondIndepFun m₁ h1 f g μ) : CondIndepFun m₂ h2 f g μ := by
-  subst h12
-  exact h
 
 open scoped Classical in
 /-- **The transported clauses.** There are a coding `f` and a measurable latent read `g` for
@@ -172,7 +163,7 @@ theorem exists_rankOneLatentCoupling [Countable S.Srt] [Countable S.Rel] :
     rw [show id ∘ (h ∘ Prod.fst) ∘ ⇑(rankOneLatentEquiv S).symm = h ∘ Prod.fst from rfl,
       show ⇑e.symm ∘ Prod.snd ∘ ⇑(rankOneLatentEquiv S).symm = Prod.snd from
         funext fun p => e.symm_apply_apply _] at hstraight
-    exact condIndepFun_congr_cond (by rw [MeasurableSpace.comap_comp]; rfl) _ hstraight
+    exact hstraight.congr_cond (by rw [MeasurableSpace.comap_comp]; rfl) _
 
 end CoherentBasis
 

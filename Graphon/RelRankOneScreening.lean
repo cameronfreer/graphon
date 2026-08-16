@@ -88,16 +88,6 @@ theorem comap_localLatents_one_snd {S : RelSignature.{u}} [Countable S.Srt]
       _ ≤ MeasurableSpace.comap (localLatents A 1 ∘ Prod.snd) inferInstance :=
             MeasurableSpace.comap_mono (measurable_iff_comap_le.mp hρmeas)
 
-/-- Conditional independence is insensitive to replacing the conditioning σ-algebra by an equal
-one; the inclusion proofs move by proof irrelevance. -/
-private theorem condIndepFun_congr_cond {Ω β γ : Type*} [mΩ : MeasurableSpace Ω]
-    [StandardBorelSpace Ω] {μ : Measure Ω} [IsFiniteMeasure μ]
-    [MeasurableSpace β] [MeasurableSpace γ] {f : Ω → β} {g : Ω → γ}
-    {m₁ m₂ : MeasurableSpace Ω} (h12 : m₁ = m₂) {h1 : m₁ ≤ mΩ} (h2 : m₂ ≤ mΩ)
-    (h : CondIndepFun m₁ h1 f g μ) : CondIndepFun m₂ h2 f g μ := by
-  subst h12
-  exact h
-
 open scoped Classical in
 /-- **Per-support screening at rank one.** Given the ladder's conclusion — mutual conditional
 independence of the singleton blocks given the full latent σ-algebra — and the nullary
@@ -188,16 +178,16 @@ theorem condIndepFun_blockMap_restObservation_one {S : RelSignature.{u}}
     refine Prod.ext ?_ rfl
     funext c
     by_cases hc : c.1.support = ∅
-    · simp only [restObservation, dif_pos hc]
+    · simp only [restObservation, restObservationOver, dif_pos hc]
       exact congrFun hp ⟨c.1, hc⟩
-    · simp only [restObservation, dif_neg hc]
+    · simp only [restObservation, restObservationOver, dif_neg hc]
   -- assemble
   have h3 := condIndep_of_condIndep_of_le_right h2 (measurable_iff_comap_le.mp hR'measJ)
   have h4 := (condIndepFun_iff_condIndep _ _ (singletonBlockRead S v₀) R' P).mpr h3
   have h5 := h4.congr (measurable_singletonBlockRead v₀) hR'amb
     (measurable_singletonBlockRead v₀) (measurable_restObservation 1 _)
     Filter.EventuallyEq.rfl hae.symm
-  exact condIndepFun_congr_cond (comap_localLatents_one_snd _).symm _ h5
+  exact h5.congr_cond (comap_localLatents_one_snd _).symm _
 
 namespace CoherentBasis
 

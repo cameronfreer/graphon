@@ -342,6 +342,9 @@ theorem rankLatentSpaceSuccEquiv_rankLatentRelabel (σ : FinSuppPerm S) (n : ℕ
       MeasurableEquiv.prodCongr (rankLatentRelabel σ n) (rankSupportLatentRelabel σ n) ∘
         rankLatentSpaceSuccEquiv n := rfl
 
+theorem rankLatentSource_eq_latentSourceOver (S : RelSignature) (n : ℕ) :
+    rankLatentSource S n = latentSourceOver S (Vinfinite S) n := rfl
+
 /-! ### Bridge to the carrier-parametric core
 
 The rank-indexed operations were built before the carrier-parametric core and choose their own
