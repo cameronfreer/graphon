@@ -299,6 +299,15 @@ noncomputable def latentCongrOver (e : ∀ s, V s ≃ W s) (n : ℕ) :
     (latentCongrOver e n).symm ω =
       latentRestrictOver (fun s => (e s).symm.toEmbedding) n ω := rfl
 
+/-- **Exact source transport along a carrier equivalence.** The same infinite-product
+coordinate-equivalence argument as source invariance, with the index bijection now coming from an
+equivalence of carriers rather than a permutation of one. -/
+theorem latentSourceOver_map_latentCongrOver [Countable S.Srt] [∀ s, Countable (V s)]
+    [∀ s, Countable (W s)] (e : ∀ s, V s ≃ W s) (n : ℕ) :
+    (latentSourceOver S W n).map (latentCongrOver e n) = latentSourceOver S V n := by
+  rw [latentSourceOver, latentSourceOver, iidUniformSource, iidUniformSource]
+  exact Measure.infinitePi_map_comp_equiv _ (latentIndexCongr e n)
+
 /-- **The conjugation square for a carrier equivalence** — the latent-side mirror of
 `RelStructure.congrCarrier_relabel`. Transporting along `e` intertwines a permutation of the
 source carrier with its conjugate on the target. Proved carrier-generically, so instantiating at

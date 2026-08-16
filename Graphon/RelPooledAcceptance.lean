@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelPooledExtension
+import Graphon.RelStationaryExtension
 
 /-!
 # The joint restriction theorem for a pooled rank extension (R4 converse, #107)
@@ -252,6 +253,54 @@ theorem RankRepresentation.pooledExtension_map_restrict_embedding (C : M.RankRep
         Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
       (Prod.map (RelStructure.restrict e) (latentRestrictOver e n)) = C.P :=
   (C.pooledExtension).map_restrict_embedding e
+
+/-! ### Consequence 1: the pooled latent marginal -/
+
+/-- **The pooled latent marginal is the pooled i.i.d. source.** A transport of `C.map_snd` through
+the canonical identity, with the source transport doing the work on the latent factor. -/
+theorem PooledRankExtension.map_snd {C : M.RankRepresentation n} (Q : PooledRankExtension C) :
+    (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map Prod.snd =
+      pooledRankLatentSource S n := by
+  haveI := C.isProbabilityMeasure_P
+  rw [Q.law_eq, RankRepresentation.pooledExtension_law_coe,
+    Measure.map_map measurable_snd RankRepresentation.measurable_pooledTransport,
+    show Prod.snd ∘ RankRepresentation.pooledTransport (S := S) (n := n) =
+      latentCongrOver (fun s => poolVertexEquiv S s) n ∘ Prod.snd from rfl,
+    ← Measure.map_map (latentCongrOver (fun s => poolVertexEquiv S s) n).measurable
+      measurable_snd,
+    C.map_snd, rankLatentSource_eq_latentSourceOver, pooledRankLatentSource,
+    latentSourceOver_map_latentCongrOver (fun s => poolVertexEquiv S s) n]
+
+/-! ### Consequence 2: the structure marginal is a stationary extension -/
+
+/-- **The structure marginal of a pooled rank extension is a stationary extension of the law.**
+Both fields are the corresponding pooled field composed with `Prod.fst`. -/
+noncomputable def PooledRankExtension.toStationaryExtension {C : M.RankRepresentation n}
+    (Q : PooledRankExtension C) : StationaryExtension M where
+  law := ⟨(Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+      Prod.fst, by
+    haveI : IsProbabilityMeasure
+        (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) := Q.law.2
+    exact Measure.isProbabilityMeasure_map measurable_fst.aemeasurable⟩
+  map_restrictOriginal := by
+    haveI := C.isProbabilityMeasure_P
+    rw [ProbabilityMeasure.coe_mk,
+      Measure.map_map measurable_restrictOriginal measurable_fst,
+      show restrictOriginal S ∘ (Prod.fst :
+          RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → _) =
+        Prod.fst ∘ Prod.map (restrictOriginal S) (restrictOriginalLatents S n) from rfl,
+      ← Measure.map_map measurable_fst
+        (measurable_restrictOriginal.prodMap (measurable_restrictOriginalLatents n)),
+      Q.map_restrictOriginal, C.map_fst]
+  invariant := by
+    intro ρ
+    rw [ProbabilityMeasure.coe_mk, Measure.map_map (measurable_relabel ρ) measurable_fst,
+      show RelStructure.relabel ρ ∘ (Prod.fst :
+          RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → _) =
+        Prod.fst ∘ Prod.map (RelStructure.relabel ρ) (pooledRankLatentRelabel ρ n) from rfl,
+      ← Measure.map_map measurable_fst
+        ((measurable_relabel ρ).prodMap (pooledRankLatentRelabel ρ n).measurable),
+      Q.invariant ρ]
 
 end InfiniteRelExchangeableLaw
 
