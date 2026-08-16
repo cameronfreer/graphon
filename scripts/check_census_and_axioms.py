@@ -284,6 +284,7 @@ AUDITED_DECLS = {
     "RelSignature.latentCongrOver",
     "RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.law_eq",
     "RelSignature.RelCoord.support_congrCarrier",
+    "ProbabilityTheory.CondIndepFun.congr_cond",
     "RelSignature.comap_measurableEquiv_comp",
     "RelSignature.localLatentSpaceCongr",
     "RelSignature.localLatentsOver_latentRestrictOver",

@@ -106,4 +106,16 @@ theorem CondIndepFun.congr {β β' : Type*} {mβ : MeasurableSpace β} {mβ' : M
     _ =ᵐ[μ] fun ω => (μ⟦f' ⁻¹' s | m'⟧) ω * (μ⟦g' ⁻¹' t | m'⟧) ω :=
         ((hsets h1).symm.mul (hsets h2).symm)
 
+/-- **The conditioning σ-algebra may be replaced by an equal one.** The dependent `≤` proof is
+handled by proof irrelevance once the σ-algebra equality is substituted. Shared glue: the rank-one
+coupling and screening arguments both need it, and so does any transport of a conditional
+independence statement whose conditioning map has been reindexed. -/
+theorem CondIndepFun.congr_cond {Ω β γ : Type*} [mΩ : MeasurableSpace Ω]
+    [StandardBorelSpace Ω] {μ : Measure Ω} [IsFiniteMeasure μ]
+    [MeasurableSpace β] [MeasurableSpace γ] {f : Ω → β} {g : Ω → γ}
+    {m₁ m₂ : MeasurableSpace Ω} {h1 : m₁ ≤ mΩ} (h : CondIndepFun m₁ h1 f g μ)
+    (h12 : m₁ = m₂) (h2 : m₂ ≤ mΩ) : CondIndepFun m₂ h2 f g μ := by
+  subst h12
+  exact h
+
 end ProbabilityTheory

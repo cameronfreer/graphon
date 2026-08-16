@@ -319,6 +319,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.latentCongrOver
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.law_eq
 #print axioms RelSignature.RelCoord.support_congrCarrier
+#print axioms ProbabilityTheory.CondIndepFun.congr_cond
 #print axioms RelSignature.comap_measurableEquiv_comp
 #print axioms RelSignature.localLatentSpaceCongr
 #print axioms RelSignature.localLatentsOver_latentRestrictOver
