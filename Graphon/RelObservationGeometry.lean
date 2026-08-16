@@ -172,6 +172,17 @@ theorem injective_sigmaMap (e : ∀ s, V s ↪ W s) :
   Function.injective_id.sigma_map fun s => (e s).injective
 
 open scoped Classical in
+theorem supportImage_injective (e : ∀ s, V s ↪ W s) :
+    Function.Injective (supportImage (S := S) e) :=
+  fun _ _ h => Finset.image_injective (injective_sigmaMap e) h
+
+open scoped Classical in
+/-- The image of a coordinate's support is the support of the transported coordinate. -/
+theorem supportImage_support (e : ∀ s, V s ↪ W s) (d : RelCoord S V) :
+    supportImage e d.support = (RelCoord.map (fun s => ⇑(e s)) d).support :=
+  (RelCoord.support_map _ d).symm
+
+open scoped Classical in
 @[simp] theorem mem_supportImage_map {e : ∀ s, V s ↪ W s} {A : Finset (Σ s : S.Srt, V s)}
     {v : Σ s : S.Srt, V s} :
     Sigma.map id (fun s => ⇑(e s)) v ∈ supportImage e A ↔ v ∈ A :=
@@ -202,15 +213,157 @@ theorem RelCoord.support_congrCarrier (e : ∀ s, V s ≃ W s) (c : RelCoord S V
   rw [RelCoord.congrCarrier_apply, RelCoord.support_map, supportImage]
   rfl
 
+/-! ### Local latents transport along an embedding
+
+Index equivalence, then the space-level measurable equivalence, then the pointwise lemma, then the
+exact naturality theorem against `localLatentsOver`. The inverse needs no `Finset.preimage`:
+a support inside the image of `A` is the image of the sub-support of `A` that lands in it. -/
+
+open scoped Classical in
+/-- A support inside `supportImage e A` is the image of the part of `A` that lands in it. -/
+theorem image_filter_mem (e : ∀ s, V s ↪ W s) {A : Finset (Σ s : S.Srt, V s)}
+    {B : Finset (Σ s : S.Srt, W s)} (h : B ⊆ supportImage e A) :
+    (A.filter fun v => Sigma.map id (fun s => ⇑(e s)) v ∈ B).image
+        (Sigma.map id fun s => ⇑(e s)) = B := by
+  ext w
+  simp only [Finset.mem_image, Finset.mem_filter]
+  constructor
+  · rintro ⟨v, ⟨-, hv⟩, rfl⟩
+    exact hv
+  · intro hw
+    obtain ⟨v, hv, rfl⟩ := Finset.mem_image.mp (h hw)
+    exact ⟨v, ⟨hv, hw⟩, rfl⟩
+
+open scoped Classical in
+/-- **The local latent index transports along an embedding.** -/
+noncomputable def localLatentIndexCongr (e : ∀ s, V s ↪ W s)
+    (A : Finset (Σ s : S.Srt, V s)) (n : ℕ) :
+    LocalLatentIndexOver V A n ≃ LocalLatentIndexOver W (supportImage e A) n where
+  toFun B := ⟨latentIndexEmbed e n B.1,
+    (latentIndexEmbed_subset_supportImage_iff e B.1).mpr B.2⟩
+  invFun B := ⟨⟨A.filter fun v => Sigma.map id (fun s => ⇑(e s)) v ∈ B.1.1, by
+      have hcard := B.1.2
+      rw [← image_filter_mem e B.2,
+        Finset.card_image_of_injective _ (injective_sigmaMap e)] at hcard
+      exact hcard⟩,
+    Finset.filter_subset _ _⟩
+  left_inv B := by
+    refine Subtype.ext (Subtype.ext ?_)
+    show A.filter (fun v => Sigma.map id (fun s => ⇑(e s)) v ∈
+      (latentIndexEmbed e n B.1).1) = B.1.1
+    ext v
+    simp only [Finset.mem_filter, latentIndexEmbed_coe]
+    rw [(injective_sigmaMap e).mem_finset_image]
+    exact ⟨fun h => h.2, fun h => ⟨B.2 h, h⟩⟩
+  right_inv B := by
+    refine Subtype.ext (Subtype.ext ?_)
+    rw [latentIndexEmbed_coe]
+    exact image_filter_mem e B.2
+
+open scoped Classical in
+/-- The local latent space equivalence induced by an embedding, as a **measurable** equivalence. -/
+noncomputable def localLatentSpaceCongr (e : ∀ s, V s ↪ W s)
+    (A : Finset (Σ s : S.Srt, V s)) (n : ℕ) :
+    LocalLatentSpaceOver W (supportImage e A) n ≃ᵐ LocalLatentSpaceOver V A n where
+  toEquiv := Equiv.arrowCongr (localLatentIndexCongr e A n).symm (Equiv.refl ℝ)
+  measurable_toFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+  measurable_invFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+
+open scoped Classical in
+@[simp] theorem localLatentSpaceCongr_apply (e : ∀ s, V s ↪ W s)
+    (A : Finset (Σ s : S.Srt, V s)) (n : ℕ)
+    (x : LocalLatentSpaceOver W (supportImage e A) n) (B : LocalLatentIndexOver V A n) :
+    localLatentSpaceCongr e A n x B = x (localLatentIndexCongr e A n B) := rfl
+
+open scoped Classical in
+/-- **Exact naturality of the local latents against an embedding.** Reading the latents visible at
+`A` after restricting along `e` is reading those visible at the image of `A` and transporting. -/
+theorem localLatentsOver_latentRestrictOver (e : ∀ s, V s ↪ W s)
+    (A : Finset (Σ s : S.Srt, V s)) (n : ℕ) :
+    localLatentsOver (S := S) A n ∘ latentRestrictOver e n =
+      localLatentSpaceCongr e A n ∘ localLatentsOver (supportImage e A) n := by
+  funext ω B
+  rfl
+
+/-! ### Blocks transport along an embedding
+
+The inverse is the delicate point and is kept **local to the exact-support subtype**: a coordinate
+whose support is exactly `supportImage e A` has every argument in the image of `e`, which supplies
+the range witness for each argument. Nothing pretends `e` is globally surjective. -/
+
+open scoped Classical in
+/-- Every argument of a coordinate with support exactly `supportImage e A` lies in the range of the
+embedding — the range witness the inverse needs, available only on this subtype. -/
+theorem exists_preimage_of_block (e : ∀ s, V s ↪ W s) {A : Finset (Σ s : S.Srt, V s)}
+    (c : BlockIndexOver W (supportImage e A)) (i : Fin (S.arity c.1.1)) :
+    ∃ v : V (S.argSort c.1.1 i), e _ v = c.1.2 i := by
+  have hmem : c.1.taggedValue i ∈ c.1.support := (RelCoord.mem_support_iff _ _).mpr ⟨i, rfl⟩
+  rw [c.2] at hmem
+  obtain ⟨u, -, heq⟩ := Finset.mem_image.mp hmem
+  obtain ⟨s, v⟩ := u
+  rw [Sigma.mk.injEq] at heq
+  obtain ⟨h1, h2⟩ := heq
+  subst h1
+  exact ⟨v, eq_of_heq h2⟩
+
+open scoped Classical in
+/-- The chosen preimage of an argument. -/
+noncomputable def blockPreimage (e : ∀ s, V s ↪ W s) {A : Finset (Σ s : S.Srt, V s)}
+    (c : BlockIndexOver W (supportImage e A)) (i : Fin (S.arity c.1.1)) :
+    V (S.argSort c.1.1 i) := (exists_preimage_of_block e c i).choose
+
+open scoped Classical in
+@[simp] theorem blockPreimage_spec (e : ∀ s, V s ↪ W s) {A : Finset (Σ s : S.Srt, V s)}
+    (c : BlockIndexOver W (supportImage e A)) (i : Fin (S.arity c.1.1)) :
+    e _ (blockPreimage e c i) = c.1.2 i := (exists_preimage_of_block e c i).choose_spec
+
+open scoped Classical in
+theorem map_blockPreimage (e : ∀ s, V s ↪ W s) {A : Finset (Σ s : S.Srt, V s)}
+    (c : BlockIndexOver W (supportImage e A)) :
+    RelCoord.map (fun s => ⇑(e s)) (⟨c.1.1, blockPreimage e c⟩ : RelCoord S V) = c.1 :=
+  congrArg (fun w => (⟨c.1.1, w⟩ : RelCoord S W)) (funext fun i => blockPreimage_spec e c i)
+
+open scoped Classical in
+/-- **The block index transports along an embedding.** -/
+noncomputable def blockIndexCongr (e : ∀ s, V s ↪ W s) (A : Finset (Σ s : S.Srt, V s)) :
+    BlockIndexOver V A ≃ BlockIndexOver W (supportImage e A) where
+  toFun c := ⟨RelCoord.map (fun s => ⇑(e s)) c.1, by
+    rw [RelCoord.support_map, c.2]; rfl⟩
+  invFun c := ⟨⟨c.1.1, blockPreimage e c⟩, by
+    refine supportImage_injective e ?_
+    rw [supportImage_support, map_blockPreimage e c, c.2]⟩
+  left_inv c := by
+    refine Subtype.ext ?_
+    refine congrArg (fun w => (⟨c.1.1, w⟩ : RelCoord S V)) (funext fun i => ?_)
+    exact (e _).injective (blockPreimage_spec e ⟨RelCoord.map (fun s => ⇑(e s)) c.1, by
+      rw [RelCoord.support_map, c.2]; rfl⟩ i)
+  right_inv c := Subtype.ext (map_blockPreimage e c)
+
+open scoped Classical in
+/-- The block space equivalence induced by an embedding, as a **measurable** equivalence. -/
+noncomputable def blockSpaceCongr (e : ∀ s, V s ↪ W s) (A : Finset (Σ s : S.Srt, V s)) :
+    BlockSpaceOver W (supportImage e A) ≃ᵐ BlockSpaceOver V A where
+  toEquiv := Equiv.arrowCongr (blockIndexCongr e A).symm (Equiv.refl Bool)
+  measurable_toFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+  measurable_invFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+
+open scoped Classical in
+@[simp] theorem blockSpaceCongr_apply (e : ∀ s, V s ↪ W s) (A : Finset (Σ s : S.Srt, V s))
+    (x : BlockSpaceOver W (supportImage e A)) (c : BlockIndexOver V A) :
+    blockSpaceCongr e A x c = x (blockIndexCongr e A c) := rfl
+
+open scoped Classical in
+/-- **Exact naturality of the block against an embedding.** -/
+theorem blockMapOver_restrict (e : ∀ s, V s ↪ W s) (A : Finset (Σ s : S.Srt, V s)) :
+    blockMapOver (S := S) A ∘ RelStructure.restrict e =
+      blockSpaceCongr e A ∘ blockMapOver (supportImage e A) := by
+  funext X c
+  rfl
+
 /-! ### The remainder transports along a carrier equivalence
 
 Bundled as a measurable equivalence, not merely an index bijection, so that the screening assembly
 can straighten the transported remainder codomain directly. -/
-
-open scoped Classical in
-theorem supportImage_injective (e : ∀ s, V s ≃ W s) :
-    Function.Injective (supportImage fun s => (e s).toEmbedding) :=
-  fun _ _ h => Finset.image_injective (injective_sigmaMap fun s => (e s).toEmbedding) h
 
 open scoped Classical in
 /-- **The remainder index transports along a carrier equivalence.** An equivalence is required:
@@ -225,7 +378,7 @@ noncomputable def restIndexCongr (e : ∀ s, V s ≃ W s) (n : ℕ)
     refine ⟨?_, ?_⟩
     · rw [Finset.card_image_of_injective _ (injective_sigmaMap fun s => (e s).toEmbedding)]
       exact hcard
-    · exact fun h => hne (supportImage_injective e h)⟩
+    · exact fun h => hne (supportImage_injective _ h)⟩
   invFun c := ⟨(RelCoord.congrCarrier e).symm c.1, by
     obtain ⟨c, hcard, hne⟩ := c
     refine ⟨?_, ?_⟩
