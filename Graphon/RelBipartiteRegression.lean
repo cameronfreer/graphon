@@ -61,6 +61,20 @@ information, which is what makes its rank-one recovery and screening determinist
 @[simp] theorem arr_diagonal (ω : Colours) (v : ℕ) : arr ω (digraphCoord v v) = false := by
   simp [arr_apply, Bool.xor_self]
 
+/-- Thresholding a measurable real at `1/2` is measurable. -/
+theorem measurable_decideLe {X : Type*} [MeasurableSpace X] {f : X → ℝ} (hf : Measurable f) :
+    Measurable fun x => decide (f x ≤ 1 / 2) := by
+  refine measurable_to_countable' fun b => ?_
+  cases b
+  · have hpre : (fun x => decide (f x ≤ 1 / 2)) ⁻¹' {false} = {x | f x ≤ 1 / 2}ᶜ := by
+      ext x; simp
+    rw [hpre]
+    exact (measurableSet_le hf measurable_const).compl
+  · have hpre : (fun x => decide (f x ≤ 1 / 2)) ⁻¹' {true} = {x | f x ≤ 1 / 2} := by
+      ext x; simp
+    rw [hpre]
+    exact measurableSet_le hf measurable_const
+
 theorem measurable_colour (v : ℕ) : Measurable fun ω : Colours => colour ω v := by
   refine measurable_to_countable' fun b => ?_
   cases b
@@ -376,6 +390,93 @@ theorem lower_recovers_rank_two (A : Finset (Σ _ : Unit, ℕ)) (hA : A.card < 2
         rankTwoCoupling bipartiteLaw :=
       ⟨measurable_fst, rankTwoCoupling_map_fst⟩
     exact hmp.quasiMeasurePreserving.ae (ae_blockMap_singleton v)
+
+/-! ### The two-point deterministic block
+
+The organizing lemma for rank-two screening and for the public XOR identity: on a two-point
+support the whole directed block — *both* coordinates `X_uv` and `X_vu` — is a deterministic
+function of the two singleton latents visible there. Recovering both as the same parity is what
+exhibits symmetry as a property of this law rather than of the signature. -/
+
+/-- The two-point support at a pair of distinct vertices. -/
+def pairSupport (u v : ℕ) : Finset (Σ _ : Unit, ℕ) := {⟨(), u⟩, ⟨(), v⟩}
+
+@[simp] theorem mem_pairSupport_left (u v : ℕ) :
+    (⟨(), u⟩ : Σ _ : Unit, ℕ) ∈ pairSupport u v := by simp [pairSupport]
+
+@[simp] theorem mem_pairSupport_right (u v : ℕ) :
+    (⟨(), v⟩ : Σ _ : Unit, ℕ) ∈ pairSupport u v := by simp [pairSupport]
+
+open scoped Classical in
+/-- A vertex of the pair, as a latent index visible at that support. -/
+def pairLocalIndex (u v w : ℕ) (h : (⟨(), w⟩ : Σ _ : Unit, ℕ) ∈ pairSupport u v) :
+    LocalLatentIndex (S := digraphSig) (pairSupport u v) 2 :=
+  ⟨⟨{⟨(), w⟩}, by simp⟩, by simpa using h⟩
+
+open scoped Classical in
+/-- **The two-point decoder**: read the two singleton latents and return their parity, for every
+coordinate of the block. -/
+noncomputable def twoPointDecoder (u v : ℕ) :
+    LocalLatentSpace (S := digraphSig) (pairSupport u v) 2 →
+      BlockSpace (S := digraphSig) (pairSupport u v) := fun l _ =>
+  xor (decide (l (pairLocalIndex u v u (mem_pairSupport_left u v)) ≤ 1 / 2))
+    (decide (l (pairLocalIndex u v v (mem_pairSupport_right u v)) ≤ 1 / 2))
+
+theorem measurable_twoPointDecoder (u v : ℕ) : Measurable (twoPointDecoder u v) := by
+  refine measurable_pi_lambda _ fun _ => ?_
+  exact (Measurable.of_discrete (f := fun p : Bool × Bool => xor p.1 p.2)).comp
+    ((measurable_decideLe (measurable_pi_apply _)).prodMk
+      (measurable_decideLe (measurable_pi_apply _)))
+
+open scoped Classical in
+/-- A coordinate of a two-point block is one of the two directed pairs. -/
+theorem coord_of_pair {u v : ℕ} (huv : u ≠ v)
+    (c : BlockIndex (S := digraphSig) (pairSupport u v)) :
+    (c.1.2 0 = u ∧ c.1.2 1 = v) ∨ (c.1.2 0 = v ∧ c.1.2 1 = u) := by
+  have h0 : c.1.taggedValue 0 ∈ c.1.support := (RelCoord.mem_support_iff _ _).mpr ⟨0, rfl⟩
+  have h1 : c.1.taggedValue 1 ∈ c.1.support := (RelCoord.mem_support_iff _ _).mpr ⟨1, rfl⟩
+  have hu : (⟨(), u⟩ : Σ _ : Unit, ℕ) ∈ c.1.support := by rw [c.2]; simp
+  have hv : (⟨(), v⟩ : Σ _ : Unit, ℕ) ∈ c.1.support := by rw [c.2]; simp
+  rw [c.2] at h0 h1
+  rw [(RelCoord.mem_support_iff _ _)] at hu hv
+  obtain ⟨iu, hiu⟩ := hu
+  obtain ⟨iv, hiv⟩ := hv
+  simp only [RelCoord.taggedValue, pairSupport, Finset.mem_insert, Finset.mem_singleton,
+    Sigma.mk.injEq, heq_eq_eq, true_and] at h0 h1
+  simp only [RelCoord.taggedValue, Sigma.mk.injEq, heq_eq_eq, true_and] at hiu hiv
+  rcases h0 with h0 | h0 <;> rcases h1 with h1 | h1
+  · exfalso
+    fin_cases iv <;> simp_all
+  · exact Or.inl ⟨h0, h1⟩
+  · exact Or.inr ⟨h0, h1⟩
+  · exfalso
+    fin_cases iu <;> simp_all
+
+open scoped Classical in
+/-- The fresh layer at a vertex is the rank-two latent at that singleton support. -/
+theorem freshLayer_vertexSupport (ω : RankLatentSpace digraphSig 2) (w : ℕ) :
+    freshLayer ω (vertexSupport w) = ω ⟨{⟨(), w⟩}, by simp⟩ := rfl
+
+open scoped Classical in
+/-- **The organizing lemma**: on a two-point support the whole directed block is the deterministic
+parity of the two singleton latents visible there. Both `X_uv` and `X_vu` decode to the same
+value, so the symmetry of this law is exhibited rather than assumed. -/
+theorem blockMap_pair_arr {u v : ℕ} (huv : u ≠ v) (ω : RankLatentSpace digraphSig 2) :
+    blockMap (S := digraphSig) (pairSupport u v) (arr (freshLayer ω)) =
+      twoPointDecoder u v (localLatents (S := digraphSig) (pairSupport u v) 2 ω) := by
+  funext c
+  show arr (freshLayer ω) c.1 = _
+  have hdec : ∀ w : ℕ, colour (freshLayer ω) w = decide (ω ⟨{⟨(), w⟩}, by simp⟩ ≤ 1 / 2) := by
+    intro w
+    rw [colour, freshLayer_vertexSupport]
+  have hl : ∀ (w : ℕ) (h : (⟨(), w⟩ : Σ _ : Unit, ℕ) ∈ pairSupport u v),
+      localLatents (S := digraphSig) (pairSupport u v) 2 ω (pairLocalIndex u v w h)
+        = ω ⟨{⟨(), w⟩}, by simp⟩ := fun _ _ => rfl
+  show xor (colour (freshLayer ω) (c.1.2 0)) (colour (freshLayer ω) (c.1.2 1)) = _
+  rw [twoPointDecoder, hl u (mem_pairSupport_left u v), hl v (mem_pairSupport_right u v)]
+  rcases coord_of_pair huv c with ⟨e0, e1⟩ | ⟨e0, e1⟩
+  · rw [e0, e1, hdec, hdec]
+  · rw [e0, e1, hdec, hdec, Bool.xor_comm]
 
 end BipartiteRegression
 
