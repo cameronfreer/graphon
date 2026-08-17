@@ -272,6 +272,79 @@ noncomputable def rankOneRep : bipartiteExchangeable.RankRepresentation 1 where
       ((measurable_blockMap (S := digraphSig) _).comp measurable_fst)
       (measurable_restObservation 1 _) hae.symm Filter.EventuallyEq.rfl
 
+/-! ### The rank-two coupling and the three central identities
+
+The identities are proved immediately after the definition, before invariance or screening add
+noise. The third is the real gate: it visibly consumes the source factorization. -/
+
+/-- The fresh singleton layer of a rank-two latent point. -/
+noncomputable def freshLayer (ω : RankLatentSpace digraphSig 2) : Colours :=
+  (rankLatentSpaceSuccEquiv 1 ω).2
+
+theorem measurable_freshLayer : Measurable freshLayer :=
+  (rankLatentSpaceSuccEquiv 1).measurable.snd
+
+/-- **The rank-two coupling**: the array is built from the fresh singleton layer, and the whole
+rank-two latent point is retained. -/
+noncomputable def rankTwoCoupling :
+    Measure (RelStructure digraphSig (Vinfinite digraphSig) × RankLatentSpace digraphSig 2) :=
+  (rankLatentSource digraphSig 2).map fun ω => (arr (freshLayer ω), ω)
+
+theorem measurable_rankTwoMap :
+    Measurable fun ω : RankLatentSpace digraphSig 2 => (arr (freshLayer ω), ω) :=
+  (measurable_arr.comp measurable_freshLayer).prodMk measurable_id
+
+instance : IsProbabilityMeasure rankTwoCoupling := by
+  rw [rankTwoCoupling]
+  exact Measure.isProbabilityMeasure_map measurable_rankTwoMap.aemeasurable
+
+/-- The fresh layer carries the i.i.d. singleton source — the second factor of the successor
+split. -/
+theorem map_freshLayer :
+    (rankLatentSource digraphSig 2).map freshLayer =
+      iidUniformSource (RankSupport digraphSig 1) := by
+  have hfl : freshLayer = Prod.snd ∘ (rankLatentSpaceSuccEquiv 1) := rfl
+  rw [hfl, ← Measure.map_map measurable_snd (rankLatentSpaceSuccEquiv 1).measurable,
+    rankLatentSource_map_rankLatentSpaceSuccEquiv, Measure.map_snd_prod]
+  simp
+
+/-- **Identity 1**: the structure marginal is the bipartite law. -/
+@[simp] theorem rankTwoCoupling_map_fst : rankTwoCoupling.map Prod.fst = bipartiteLaw := by
+  rw [rankTwoCoupling, Measure.map_map measurable_fst measurable_rankTwoMap,
+    show (Prod.fst ∘ fun ω : RankLatentSpace digraphSig 2 => (arr (freshLayer ω), ω)) =
+      arr ∘ freshLayer from rfl,
+    ← Measure.map_map measurable_arr measurable_freshLayer, map_freshLayer, bipartiteLaw]
+
+/-- **Identity 2**: the latent marginal is the rank-two source. -/
+@[simp] theorem rankTwoCoupling_map_snd :
+    rankTwoCoupling.map Prod.snd = rankLatentSource digraphSig 2 := by
+  rw [rankTwoCoupling, Measure.map_map measurable_snd measurable_rankTwoMap,
+    show (Prod.snd ∘ fun ω : RankLatentSpace digraphSig 2 => (arr (freshLayer ω), ω)) = id from rfl,
+    Measure.map_id]
+
+/-- **Identity 3 — the gate**: truncating the rank-two coupling's latents to rank one returns the
+*independently defined* rank-one coupling. This is where the source factorization is consumed:
+`U_∅` splits off from the singleton layer, the array depends only on the latter, and the
+truncation reads only the former. -/
+theorem rankTwoCoupling_truncation :
+    rankTwoCoupling.map (Prod.map id (rankLatentProjection (S := digraphSig) (Nat.le_succ 1))) =
+      rankOneCoupling := by
+  rw [rankTwoCoupling,
+    Measure.map_map (measurable_id.prodMap
+        (measurable_rankLatentProjection (S := digraphSig) (Nat.le_succ 1)))
+      measurable_rankTwoMap,
+    show (Prod.map (id : RelStructure digraphSig (Vinfinite digraphSig) → _)
+        (rankLatentProjection (S := digraphSig) (Nat.le_succ 1)) ∘
+        fun ω : RankLatentSpace digraphSig 2 => (arr (freshLayer ω), ω)) =
+      (Prod.map arr (id : RankLatentSpace digraphSig 1 → _)) ∘ Prod.swap ∘
+        (rankLatentSpaceSuccEquiv 1) from rfl,
+    ← Measure.map_map (measurable_arr.prodMap measurable_id)
+      (measurable_swap.comp (rankLatentSpaceSuccEquiv 1).measurable),
+    ← Measure.map_map measurable_swap (rankLatentSpaceSuccEquiv 1).measurable,
+    rankLatentSource_map_rankLatentSpaceSuccEquiv, Measure.prod_swap,
+    ← Measure.map_prod_map _ _ measurable_arr measurable_id, Measure.map_id,
+    rankOneCoupling, bipartiteLaw]
+
 end BipartiteRegression
 
 end RelSignature
