@@ -345,6 +345,38 @@ theorem rankTwoCoupling_truncation :
     ← Measure.map_prod_map _ _ measurable_arr measurable_id, Measure.map_id,
     rankOneCoupling, bipartiteLaw]
 
+/-! ### Recovery below rank two
+
+`lower_recovers` at rank two ranges over supports of cardinality `< 2`, so it sees only the empty
+and singleton cases — never a two-point support. Both blocks are deterministic: the empty one is
+vacuous for this signature, the singleton one is the constantly-false diagonal. The two-point
+decoder plays no part here. -/
+
+open scoped Classical in
+theorem lower_recovers_rank_two (A : Finset (Σ _ : Unit, ℕ)) (hA : A.card < 2) :
+    ∃ g : LocalLatentSpace (S := digraphSig) A 2 → BlockSpace (S := digraphSig) A,
+      Measurable g ∧
+      (fun p : RelStructure digraphSig (Vinfinite digraphSig) × RankLatentSpace digraphSig 2 =>
+          blockMap (S := digraphSig) A p.1) =ᵐ[rankTwoCoupling]
+        fun p => g (localLatents (S := digraphSig) A 2 p.2) := by
+  have hcase : A.card = 0 ∨ A.card = 1 := by omega
+  rcases hcase with h0 | h1
+  · -- the empty support: no coordinate of this signature has empty support
+    have hA0 : A = ∅ := Finset.card_eq_zero.mp h0
+    subst hA0
+    exact ⟨fun _ => default, measurable_const,
+      Filter.Eventually.of_forall fun _ => Subsingleton.elim _ _⟩
+  · -- a singleton support: the block is the constantly-false diagonal
+    obtain ⟨a, rfl⟩ := Finset.card_eq_one.mp h1
+    obtain ⟨u, v⟩ := a
+    cases u
+    refine ⟨fun _ => fun _ => false, measurable_const, ?_⟩
+    have hmp : MeasurePreserving (Prod.fst :
+        RelStructure digraphSig (Vinfinite digraphSig) × RankLatentSpace digraphSig 2 → _)
+        rankTwoCoupling bipartiteLaw :=
+      ⟨measurable_fst, rankTwoCoupling_map_fst⟩
+    exact hmp.quasiMeasurePreserving.ae (ae_blockMap_singleton v)
+
 end BipartiteRegression
 
 end RelSignature
