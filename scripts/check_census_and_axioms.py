@@ -299,6 +299,8 @@ AUDITED_DECLS = {
     "RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.lower_recovers",
     "RelSignature.restObservationOver_congrCarrier",
     "RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.screening",
+    "RelSignature.InfiniteRelExchangeableLaw.truncation_zero",
+    "RelSignature.InfiniteRelExchangeableLaw.austinSuccessor_eq_kallenbergSuccessor",
     "MeasureTheory.condExp_comp_measurePreserving",
     "ProbabilityTheory.condExp_set_comp_measurePreserving",
     "ProbabilityTheory.condIndepFun_comp_measurePreserving",

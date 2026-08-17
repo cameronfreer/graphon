@@ -334,6 +334,10 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.lower_recovers
 #print axioms RelSignature.restObservationOver_congrCarrier
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.screening
+
+-- R4 converse (#107): the shared successor contract (interface only).
+#print axioms RelSignature.InfiniteRelExchangeableLaw.truncation_zero
+#print axioms RelSignature.InfiniteRelExchangeableLaw.austinSuccessor_eq_kallenbergSuccessor
 #print axioms MeasureTheory.condExp_comp_measurePreserving
 #print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
 #print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving
