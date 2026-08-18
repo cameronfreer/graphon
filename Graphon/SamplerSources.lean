@@ -18,7 +18,7 @@ generically (no graph/digraph-specific index types) so the directed sampler need
 * `OffDiagPairIndex V` — the generic off-diagonal unordered-pair index (one uniform per pair of
   distinct vertices); `InfiniteGraph.EdgeIndex` is definitionally `OffDiagPairIndex ℕ`;
 * `uniform01` — the uniform probability measure on `[0,1]`, with `uniform01_Iic` giving the mass
-  of an initial segment;
+  of an initial segment, and `measurable_decideLe` the measurability of thresholding at `1/2`;
 * `iidVertexSource μ` — i.i.d. positions `ℕ → α` with law `μ` (via `Measure.infinitePi`);
 * `iidUniformSource ι` — i.i.d. uniforms on `[0,1]` indexed by an arbitrary type `ι`;
 * `Measure.infinitePi_map_comp_equiv` — invariance/reindexing under an index equivalence;
@@ -69,6 +69,20 @@ noncomputable def uniform01 : Measure ℝ := volume.restrict (Set.Icc (0 : ℝ) 
 instance : IsProbabilityMeasure uniform01 :=
   ⟨by rw [uniform01, Measure.restrict_apply MeasurableSet.univ, Set.univ_inter,
     Real.volume_Icc]; norm_num⟩
+
+/-- Thresholding a measurable real at `1/2` is measurable. -/
+theorem measurable_decideLe {X : Type*} [MeasurableSpace X] {f : X → ℝ} (hf : Measurable f) :
+    Measurable fun x => decide (f x ≤ 1 / 2) := by
+  refine measurable_to_countable' fun b => ?_
+  cases b
+  · have hpre : (fun x => decide (f x ≤ 1 / 2)) ⁻¹' {false} = {x | f x ≤ 1 / 2}ᶜ := by
+      ext x; simp
+    rw [hpre]
+    exact (measurableSet_le hf measurable_const).compl
+  · have hpre : (fun x => decide (f x ≤ 1 / 2)) ⁻¹' {true} = {x | f x ≤ 1 / 2} := by
+      ext x; simp
+    rw [hpre]
+    exact measurableSet_le hf measurable_const
 
 /-- The lower-interval mass of the uniform distribution on `[0,1]`. -/
 theorem uniform01_Iic {c : ℝ} (hc : c ∈ Set.Icc (0 : ℝ) 1) :

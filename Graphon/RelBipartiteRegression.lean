@@ -62,20 +62,6 @@ information, which is what makes its rank-one recovery and screening determinist
 @[simp] theorem arr_diagonal (ω : Colours) (v : ℕ) : arr ω (digraphCoord v v) = false := by
   simp [arr_apply]
 
-/-- Thresholding a measurable real at `1/2` is measurable. -/
-theorem measurable_decideLe {X : Type*} [MeasurableSpace X] {f : X → ℝ} (hf : Measurable f) :
-    Measurable fun x => decide (f x ≤ 1 / 2) := by
-  refine measurable_to_countable' fun b => ?_
-  cases b
-  · have hpre : (fun x => decide (f x ≤ 1 / 2)) ⁻¹' {false} = {x | f x ≤ 1 / 2}ᶜ := by
-      ext x; simp
-    rw [hpre]
-    exact (measurableSet_le hf measurable_const).compl
-  · have hpre : (fun x => decide (f x ≤ 1 / 2)) ⁻¹' {true} = {x | f x ≤ 1 / 2} := by
-      ext x; simp
-    rw [hpre]
-    exact measurableSet_le hf measurable_const
-
 theorem measurable_colour (v : ℕ) : Measurable fun ω : Colours => colour ω v := by
   refine measurable_to_countable' fun b => ?_
   cases b
