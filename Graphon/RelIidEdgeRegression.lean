@@ -104,6 +104,92 @@ noncomputable def iidEdgeLaw : Measure (RelStructure digraphSig (Vinfinite digra
 instance : IsProbabilityMeasure iidEdgeLaw :=
   Measure.isProbabilityMeasure_map measurable_arr.aemeasurable
 
+/-! ### The two couplings, described independently
+
+The rank-two coupling is a product, so independence of the edges from the old latents is literal.
+The rank-three coupling is built from the rank-three source and decodes the array from its fresh
+rank-two layer. The truncation identity is proved immediately, before either representation is
+packaged. -/
+
+/-- **The rank-two coupling**: the i.i.d.-edge law together with an *independent* rank-two latent
+array. Defined without reference to the rank-three object. -/
+noncomputable def rankTwoCoupling :
+    Measure (RelStructure digraphSig (Vinfinite digraphSig) × RankLatentSpace digraphSig 2) :=
+  iidEdgeLaw.prod (rankLatentSource digraphSig 2)
+
+instance : IsProbabilityMeasure rankTwoCoupling := by
+  rw [rankTwoCoupling]; infer_instance
+
+@[simp] theorem rankTwoCoupling_map_fst : rankTwoCoupling.map Prod.fst = iidEdgeLaw := by
+  rw [rankTwoCoupling, Measure.map_fst_prod]; simp
+
+@[simp] theorem rankTwoCoupling_map_snd :
+    rankTwoCoupling.map Prod.snd = rankLatentSource digraphSig 2 := by
+  rw [rankTwoCoupling, Measure.map_snd_prod]; simp
+
+/-- The fresh rank-two layer of a rank-three latent point. -/
+noncomputable def freshLayer (ω : RankLatentSpace digraphSig 3) : Edges :=
+  (rankLatentSpaceSuccEquiv 2 ω).2
+
+theorem measurable_freshLayer : Measurable freshLayer :=
+  (rankLatentSpaceSuccEquiv 2).measurable.snd
+
+theorem map_freshLayer :
+    (rankLatentSource digraphSig 3).map freshLayer =
+      iidUniformSource (RankSupport digraphSig 2) := by
+  have hfl : freshLayer = Prod.snd ∘ (rankLatentSpaceSuccEquiv 2) := rfl
+  rw [hfl, ← Measure.map_map measurable_snd (rankLatentSpaceSuccEquiv 2).measurable,
+    rankLatentSource_map_rankLatentSpaceSuccEquiv, Measure.map_snd_prod]
+  simp
+
+/-- **The rank-three coupling**: the array is decoded from the fresh rank-two layer, and the whole
+rank-three latent point is retained. -/
+noncomputable def rankThreeCoupling :
+    Measure (RelStructure digraphSig (Vinfinite digraphSig) × RankLatentSpace digraphSig 3) :=
+  (rankLatentSource digraphSig 3).map fun ω => (arr (freshLayer ω), ω)
+
+theorem measurable_rankThreeMap :
+    Measurable fun ω : RankLatentSpace digraphSig 3 => (arr (freshLayer ω), ω) :=
+  (measurable_arr.comp measurable_freshLayer).prodMk measurable_id
+
+instance : IsProbabilityMeasure rankThreeCoupling := by
+  rw [rankThreeCoupling]
+  exact Measure.isProbabilityMeasure_map measurable_rankThreeMap.aemeasurable
+
+@[simp] theorem rankThreeCoupling_map_fst : rankThreeCoupling.map Prod.fst = iidEdgeLaw := by
+  rw [rankThreeCoupling, Measure.map_map measurable_fst measurable_rankThreeMap,
+    show (Prod.fst ∘ fun ω : RankLatentSpace digraphSig 3 => (arr (freshLayer ω), ω)) =
+      arr ∘ freshLayer from rfl,
+    ← Measure.map_map measurable_arr measurable_freshLayer, map_freshLayer, iidEdgeLaw]
+
+@[simp] theorem rankThreeCoupling_map_snd :
+    rankThreeCoupling.map Prod.snd = rankLatentSource digraphSig 3 := by
+  rw [rankThreeCoupling, Measure.map_map measurable_snd measurable_rankThreeMap,
+    show (Prod.snd ∘ fun ω : RankLatentSpace digraphSig 3 => (arr (freshLayer ω), ω)) = id from rfl,
+    Measure.map_id]
+
+/-- **The truncation identity — the gate**: truncating the rank-three coupling's latents to rank
+two returns the *independently defined* rank-two coupling. The fresh edge layer splits off from
+the old latents, the array reads only the former and the truncation only the latter. -/
+theorem rankThreeCoupling_truncation :
+    rankThreeCoupling.map (Prod.map id (rankLatentProjection (S := digraphSig) (Nat.le_succ 2))) =
+      rankTwoCoupling := by
+  rw [rankThreeCoupling,
+    Measure.map_map (measurable_id.prodMap
+        (measurable_rankLatentProjection (S := digraphSig) (Nat.le_succ 2)))
+      measurable_rankThreeMap,
+    show (Prod.map (id : RelStructure digraphSig (Vinfinite digraphSig) → _)
+        (rankLatentProjection (S := digraphSig) (Nat.le_succ 2)) ∘
+        fun ω : RankLatentSpace digraphSig 3 => (arr (freshLayer ω), ω)) =
+      (Prod.map arr (id : RankLatentSpace digraphSig 2 → _)) ∘ Prod.swap ∘
+        (rankLatentSpaceSuccEquiv 2) from rfl,
+    ← Measure.map_map (measurable_arr.prodMap measurable_id)
+      (measurable_swap.comp (rankLatentSpaceSuccEquiv 2).measurable),
+    ← Measure.map_map measurable_swap (rankLatentSpaceSuccEquiv 2).measurable,
+    rankLatentSource_map_rankLatentSpaceSuccEquiv, Measure.prod_swap,
+    ← Measure.map_prod_map _ _ measurable_arr measurable_id, Measure.map_id,
+    rankTwoCoupling, iidEdgeLaw]
+
 end IidEdgeRegression
 
 end RelSignature
