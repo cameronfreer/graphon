@@ -478,6 +478,54 @@ theorem blockMap_pair_arr {u v : ℕ} (huv : u ≠ v) (ω : RankLatentSpace digr
   · rw [e0, e1, hdec, hdec]
   · rw [e0, e1, hdec, hdec, Bool.xor_comm]
 
+/-! ### Rank-two screening
+
+The arbitrary two-point support is normalized to `pairSupport u v` *first*, so that the
+deterministic-block lemma applies directly and no dependent block or local-latent space has to be
+transported across a later equality. -/
+
+open scoped Classical in
+/-- A support of cardinality two is a `pairSupport` at distinct vertices. -/
+theorem exists_pairSupport_of_card_two {A : Finset (Σ _ : Unit, ℕ)} (hA : A.card = 2) :
+    ∃ u v : ℕ, u ≠ v ∧ A = pairSupport u v := by
+  obtain ⟨a, b, hab, rfl⟩ := Finset.card_eq_two.mp hA
+  refine ⟨a.2, b.2, fun h => hab ?_, rfl⟩
+  exact Sigma.ext rfl (heq_of_eq h)
+
+open scoped Classical in
+/-- The decoder identity holds a.e. under the rank-two coupling. -/
+theorem ae_blockMap_pair {u v : ℕ} (huv : u ≠ v) :
+    (fun p : RelStructure digraphSig (Vinfinite digraphSig) × RankLatentSpace digraphSig 2 =>
+        blockMap (S := digraphSig) (pairSupport u v) p.1) =ᵐ[rankTwoCoupling]
+      fun p => twoPointDecoder u v (localLatents (S := digraphSig) (pairSupport u v) 2 p.2) := by
+  rw [rankTwoCoupling]
+  refine (ae_map_iff measurable_rankTwoMap.aemeasurable ?_).mpr
+    (Filter.Eventually.of_forall fun ω => blockMap_pair_arr huv ω)
+  exact measurableSet_eq_fun
+    ((measurable_blockMap (S := digraphSig) _).comp measurable_fst)
+    ((measurable_twoPointDecoder u v).comp
+      ((measurable_localLatents (S := digraphSig) _ 2).comp measurable_snd))
+
+open scoped Classical in
+/-- **Rank-two screening**: at a two-point support the block is conditionally independent of the
+rank-truncated remainder given the latents visible there — because it *is* a measurable function
+of them. -/
+theorem screening_rank_two (A : Finset (Σ _ : Unit, ℕ)) (hA : A.card = 2) :
+    CondIndepFun (MeasurableSpace.comap
+        (localLatents (S := digraphSig) A 2 ∘ Prod.snd) inferInstance)
+      (((measurable_localLatents (S := digraphSig) A 2).comp measurable_snd).comap_le)
+      (blockMap (S := digraphSig) A ∘ Prod.fst) (restObservation 2 A) rankTwoCoupling := by
+  obtain ⟨u, v, huv, rfl⟩ := exists_pairSupport_of_card_two hA
+  refine CondIndepFun.congr
+    (condIndepFun_of_measurable_left
+      ((measurable_twoPointDecoder u v).comp (comap_measurable _))
+      (measurable_restObservation 2 _))
+    ((measurable_twoPointDecoder u v).comp
+      ((measurable_localLatents (S := digraphSig) _ 2).comp measurable_snd))
+    (measurable_restObservation 2 _)
+    ((measurable_blockMap (S := digraphSig) _).comp measurable_fst)
+    (measurable_restObservation 2 _) (ae_blockMap_pair huv).symm Filter.EventuallyEq.rfl
+
 end BipartiteRegression
 
 end RelSignature
