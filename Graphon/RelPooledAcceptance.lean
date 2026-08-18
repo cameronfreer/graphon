@@ -59,6 +59,7 @@ universe u
 variable {S : RelSignature.{u}} [Countable S.Srt] [Countable S.Rel]
   {M : InfiniteRelExchangeableLaw S} {n : ℕ}
 
+omit [Countable S.Srt] [Countable S.Rel] in
 /-- **Finite agreement by a pooled permutation**: any sortwise embedding into the pooled carrier
 agrees with a pooled permutation composed with the original embedding, on any finite set of
 original vertices. The permutation is chosen independently on each sort, which the full mixed
