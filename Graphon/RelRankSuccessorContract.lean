@@ -39,8 +39,8 @@ almost everywhere and not up to isomorphism.
   (`PooledRankExtension.map_restrict_embedding`); each route's **intermediate** construction is
   required to consume it, rather than a vacuous check being added at this interface.
 
-The adversarial regressions belong in a separate shared module, so that this file stays
-interface-only and free of the heavier imports they need.
+Adversarial examples are kept in route-independent regression modules, outside this interface, so
+that this file stays interface-only and free of the heavier imports they need.
 -/
 
 open MeasureTheory

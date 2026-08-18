@@ -17,7 +17,8 @@ generically (no graph/digraph-specific index types) so the directed sampler need
 
 * `OffDiagPairIndex V` — the generic off-diagonal unordered-pair index (one uniform per pair of
   distinct vertices); `InfiniteGraph.EdgeIndex` is definitionally `OffDiagPairIndex ℕ`;
-* `uniform01` — the uniform probability measure on `[0,1]`;
+* `uniform01` — the uniform probability measure on `[0,1]`, with `uniform01_Iic` giving the mass
+  of an initial segment;
 * `iidVertexSource μ` — i.i.d. positions `ℕ → α` with law `μ` (via `Measure.infinitePi`);
 * `iidUniformSource ι` — i.i.d. uniforms on `[0,1]` indexed by an arbitrary type `ι`;
 * `Measure.infinitePi_map_comp_equiv` — invariance/reindexing under an index equivalence;
