@@ -33,6 +33,7 @@ the parity `colour u ⊕ colour v`.
 -/
 
 open MeasureTheory ProbabilityTheory
+open scoped ENNReal
 
 namespace RelSignature
 
@@ -638,6 +639,76 @@ theorem ae_edge_xor {u v : ℕ} (huv : u ≠ v) :
         ⟨digraphCoord u v, support_digraphCoord⟩ from rfl, this]
   rw [colour, colour, freshLayer_vertexSupport, freshLayer_vertexSupport]
   rfl
+
+/-! ### The numerical nonindependence witness
+
+"The edge is a function of the colours" would also hold for a constant edge. What rules that out
+is arithmetic: the edge event and the matching colour-parity event each have probability `1/2`,
+they coincide, and so their joint probability is `1/2` against a product of marginals `1/4`. -/
+
+/-- The two vertices `0` and `1`, as fresh-layer indices. -/
+def pairIndex : Fin 2 → RankSupport digraphSig 1 := ![vertexSupport 0, vertexSupport 1]
+
+theorem vertexSupport_injective : Function.Injective vertexSupport := by
+  intro a b h
+  have := congrArg Subtype.val h
+  simpa [vertexSupport] using this
+
+theorem pairIndex_injective : Function.Injective pairIndex := by
+  intro a b h
+  fin_cases a <;> fin_cases b <;>
+    simp_all [pairIndex, vertexSupport_injective.eq_iff]
+
+/-- **The two-vertex marginal** of the fresh source is the two-fold uniform product. -/
+theorem source_map_pairIndex :
+    (iidUniformSource (RankSupport digraphSig 1)).map (fun x d => x (pairIndex d)) =
+      Measure.pi fun _ : Fin 2 => uniform01 := by
+  rw [iidUniformSource]
+  exact Measure.infinitePi_map_comp_of_injective _ pairIndex_injective
+
+theorem uniform01_Iic_half : uniform01 (Set.Iic (1 / 2 : ℝ)) = 1 / 2 := by
+  rw [uniform01_Iic (by norm_num)]
+  rw [show (1 / 2 : ℝ) = ((1 : ℝ) / 2) from rfl]
+  rw [ENNReal.ofReal_div_of_pos (by norm_num), ENNReal.ofReal_one, ENNReal.ofReal_ofNat]
+
+theorem uniform01_Iic_half_compl : uniform01 (Set.Iic (1 / 2 : ℝ))ᶜ = 1 / 2 := by
+  have h := measure_compl (μ := uniform01) (s := Set.Iic (1 / 2 : ℝ)) measurableSet_Iic
+    (measure_ne_top _ _)
+  rw [h, measure_univ, uniform01_Iic_half]
+  rw [ENNReal.sub_eq_of_eq_add (by norm_num)]
+  norm_num
+  exact ENNReal.inv_two_add_inv_two.symm
+
+open scoped Classical in
+/-- **The XOR event has mass one half** on the two-vertex marginal: it is the disjoint union of
+two rectangles, each of mass `1/4`. -/
+theorem measure_xorTrue :
+    (Measure.pi fun _ : Fin 2 => uniform01)
+        {y : Fin 2 → ℝ | xor (decide (y 0 ≤ 1 / 2)) (decide (y 1 ≤ 1 / 2)) = true} = 1 / 2 := by
+  have hset : {y : Fin 2 → ℝ | xor (decide (y 0 ≤ 1 / 2)) (decide (y 1 ≤ 1 / 2)) = true} =
+      (Set.univ.pi ![Set.Iic (1 / 2 : ℝ), (Set.Iic (1 / 2 : ℝ))ᶜ]) ∪
+        (Set.univ.pi ![(Set.Iic (1 / 2 : ℝ))ᶜ, Set.Iic (1 / 2 : ℝ)]) := by
+    ext y
+    simp only [Set.mem_setOf_eq, Set.mem_union, Set.mem_univ_pi, Fin.forall_fin_two,
+      Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons, Set.mem_Iic,
+      Set.mem_compl_iff]
+    by_cases h0 : y 0 ≤ 1 / 2 <;> by_cases h1 : y 1 ≤ 1 / 2 <;>
+      simp only [one_div] at h0 h1 <;> simp [h0, h1, not_le.mp]
+  have hdisj : Disjoint (Set.univ.pi ![Set.Iic (1 / 2 : ℝ), (Set.Iic (1 / 2 : ℝ))ᶜ])
+      (Set.univ.pi ![(Set.Iic (1 / 2 : ℝ))ᶜ, Set.Iic (1 / 2 : ℝ)]) := by
+    refine Set.disjoint_left.mpr fun y hy hy' => ?_
+    simp only [Set.mem_univ_pi, Fin.forall_fin_two, Matrix.cons_val_zero, Matrix.cons_val_one,
+      Matrix.head_cons, Set.mem_Iic, Set.mem_compl_iff] at hy hy'
+    exact hy'.1 hy.1
+  have hmeas : MeasurableSet (Set.univ.pi ![(Set.Iic (1 / 2 : ℝ))ᶜ, Set.Iic (1 / 2 : ℝ)]) := by
+    refine MeasurableSet.univ_pi fun i => ?_
+    fin_cases i
+    · exact measurableSet_Iic.compl
+    · exact measurableSet_Iic
+  rw [hset, measure_union hdisj hmeas, Measure.pi_pi, Measure.pi_pi]
+  simp only [Matrix.cons_val_zero, Matrix.cons_val_one, Matrix.head_cons,
+    Fin.prod_univ_two, uniform01_Iic_half, uniform01_Iic_half_compl]
+  rw [← add_mul, ENNReal.add_halves, one_mul]
 
 end BipartiteRegression
 
