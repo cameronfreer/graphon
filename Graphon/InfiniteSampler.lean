@@ -142,16 +142,6 @@ probability is the clamped edge product; integrating out the positions gives
 
 section Marginal
 
-/-- The lower-interval mass of the uniform distribution on `[0,1]`. -/
-theorem uniform01_Iic {c : ℝ} (hc : c ∈ Set.Icc (0 : ℝ) 1) :
-    uniform01 (Set.Iic c) = ENNReal.ofReal c := by
-  rw [uniform01, Measure.restrict_apply measurableSet_Iic]
-  have h : Set.Iic c ∩ Set.Icc 0 1 = Set.Icc 0 c := by
-    ext x
-    simp only [Set.mem_inter_iff, Set.mem_Iic, Set.mem_Icc]
-    exact ⟨fun h => ⟨h.2.1, h.1⟩, fun h => ⟨h.2, h.1, h.2.trans hc.2⟩⟩
-  rw [h, Real.volume_Icc, sub_zero]
-
 /-- The joint law of the first `k` vertex positions is the finite i.i.d. product. -/
 theorem vertexSource_map_fin [IsProbabilityMeasure μ] (k : ℕ) :
     (vertexSource μ).map (fun (x : ℕ → α) (a : Fin k) => x ↑a) =

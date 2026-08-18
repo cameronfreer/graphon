@@ -59,7 +59,7 @@ noncomputable def arr (ω : Colours) : RelStructure digraphSig (Vinfinite digrap
 /-- **The diagonal is constantly false** — the singleton-support block of this law carries no
 information, which is what makes its rank-one recovery and screening deterministic. -/
 @[simp] theorem arr_diagonal (ω : Colours) (v : ℕ) : arr ω (digraphCoord v v) = false := by
-  simp [arr_apply, Bool.xor_self]
+  simp [arr_apply]
 
 /-- Thresholding a measurable real at `1/2` is measurable. -/
 theorem measurable_decideLe {X : Type*} [MeasurableSpace X] {f : X → ℝ} (hf : Measurable f) :

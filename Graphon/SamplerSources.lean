@@ -69,6 +69,16 @@ instance : IsProbabilityMeasure uniform01 :=
   ⟨by rw [uniform01, Measure.restrict_apply MeasurableSet.univ, Set.univ_inter,
     Real.volume_Icc]; norm_num⟩
 
+/-- The lower-interval mass of the uniform distribution on `[0,1]`. -/
+theorem uniform01_Iic {c : ℝ} (hc : c ∈ Set.Icc (0 : ℝ) 1) :
+    uniform01 (Set.Iic c) = ENNReal.ofReal c := by
+  rw [uniform01, Measure.restrict_apply measurableSet_Iic]
+  have h : Set.Iic c ∩ Set.Icc 0 1 = Set.Icc 0 c := by
+    ext x
+    simp only [Set.mem_inter_iff, Set.mem_Iic, Set.mem_Icc]
+    exact ⟨fun h => ⟨h.2.1, h.1⟩, fun h => ⟨h.2, h.1, h.2.trans hc.2⟩⟩
+  rw [h, Real.volume_Icc, sub_zero]
+
 /-- **The vertex source**: i.i.d. positions `ℕ → α` with law `μ`. -/
 noncomputable def iidVertexSource {α : Type*} [MeasurableSpace α] (μ : Measure α) :
     Measure (ℕ → α) :=
