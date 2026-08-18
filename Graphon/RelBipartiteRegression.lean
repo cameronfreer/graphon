@@ -526,6 +526,84 @@ theorem screening_rank_two (A : Finset (Σ _ : Unit, ℕ)) (hA : A.card = 2) :
     ((measurable_blockMap (S := digraphSig) _).comp measurable_fst)
     (measurable_restObservation 2 _) (ae_blockMap_pair huv).symm Filter.EventuallyEq.rfl
 
+/-! ### The joint action
+
+One exact pointwise lemma, proved before any measure is touched, so that the inverse and
+orientation conventions are isolated in a single place. -/
+
+open scoped Classical in
+/-- The finitely supported rank-support action agrees with the full-permutation helper. Kept local
+to this file: the two serve genuinely different APIs. -/
+theorem rankSupportEquiv_eq_supportPerm (σ : FinSuppPerm digraphSig)
+    (A : RankSupport digraphSig 1) : rankSupportEquiv σ 1 A = supportPerm (σ.1 ()) A := by
+  refine Subtype.ext ?_
+  refine Finset.ext fun w => ?_
+  simp only [rankSupportEquiv, supportPerm, Equiv.coe_fn_mk, Finset.mem_image]
+
+open scoped Classical in
+/-- The fresh layer intertwines the rank-two latent action with the vertex action. -/
+theorem freshLayer_rankLatentRelabel (σ : FinSuppPerm digraphSig)
+    (ω : RankLatentSpace digraphSig 2) :
+    freshLayer (rankLatentRelabel σ 2 ω) = fun A => freshLayer ω (supportPerm (σ.1 ()) A) := by
+  funext A
+  show (rankLatentSpaceSuccEquiv 1 (rankLatentRelabel σ 2 ω)).2 A = _
+  rw [show rankLatentSpaceSuccEquiv 1 (rankLatentRelabel σ 2 ω) =
+      MeasurableEquiv.prodCongr (rankLatentRelabel σ 1) (rankSupportLatentRelabel σ 1)
+        (rankLatentSpaceSuccEquiv 1 ω) from
+    congrFun (rankLatentSpaceSuccEquiv_rankLatentRelabel σ 1) ω]
+  show freshLayer ω (rankSupportEquiv σ 1 A) = _
+  rw [rankSupportEquiv_eq_supportPerm]
+
+open scoped Classical in
+/-- **The exact pointwise joint action.** Relabeling the rank-two latent point and then building
+the pair is the same as building the pair and acting diagonally. -/
+theorem jointMap_rankLatentRelabel (σ : FinSuppPerm digraphSig)
+    (ω : RankLatentSpace digraphSig 2) :
+    (arr (freshLayer (rankLatentRelabel σ 2 ω)), rankLatentRelabel σ 2 ω) =
+      Prod.map (RelStructure.relabel σ.1) (⇑(rankLatentRelabel σ 2))
+        (arr (freshLayer ω), ω) := by
+  refine Prod.ext ?_ rfl
+  show arr (freshLayer (rankLatentRelabel σ 2 ω)) = RelStructure.relabel σ.1 (arr (freshLayer ω))
+  rw [freshLayer_rankLatentRelabel, arr_comp_supportPerm]
+
+/-- **Rank-two invariance**, now just `Measure.map_map`, the joint action, and source
+invariance. -/
+theorem rankTwoCoupling_invariant (σ : FinSuppPerm digraphSig) :
+    rankTwoCoupling.map (Prod.map (RelStructure.relabel σ.1) (⇑(rankLatentRelabel σ 2))) =
+      rankTwoCoupling := by
+  rw [rankTwoCoupling,
+    Measure.map_map ((measurable_relabel σ.1).prodMap (rankLatentRelabel σ 2).measurable)
+      measurable_rankTwoMap,
+    show (Prod.map (RelStructure.relabel σ.1) (⇑(rankLatentRelabel σ 2)) ∘
+        fun ω : RankLatentSpace digraphSig 2 => (arr (freshLayer ω), ω)) =
+      (fun ω : RankLatentSpace digraphSig 2 => (arr (freshLayer ω), ω)) ∘
+        (⇑(rankLatentRelabel σ 2)) from by
+      funext ω
+      exact (jointMap_rankLatentRelabel σ ω).symm,
+    ← Measure.map_map measurable_rankTwoMap (rankLatentRelabel σ 2).measurable,
+    rankLatentSource_map_rankLatentRelabel]
+
+/-! ### The representation and the successor witness -/
+
+open scoped Classical in
+/-- **The rank-two representation.** Every field is one of the theorems above. -/
+noncomputable def rankTwoRep : bipartiteExchangeable.RankRepresentation 2 where
+  P := rankTwoCoupling
+  isProbabilityMeasure_P := inferInstance
+  map_fst := rankTwoCoupling_map_fst
+  map_snd := rankTwoCoupling_map_snd
+  invariant := rankTwoCoupling_invariant
+  lower_recovers := lower_recovers_rank_two
+  screening := screening_rank_two
+
+/-- **The successor witness**: a two-field literal whose truncation proof is exactly the gate
+identity. This is the regression's headline — the contract is satisfied by an explicit rank
+`1 → 2` example whose two couplings were described independently. -/
+noncomputable def bipartiteSuccessor :
+    InfiniteRelExchangeableLaw.RankSuccessor rankOneRep where
+  next := rankTwoRep
+  truncation := rankTwoCoupling_truncation
+
 end BipartiteRegression
 
 end RelSignature
