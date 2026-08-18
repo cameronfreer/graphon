@@ -604,6 +604,41 @@ noncomputable def bipartiteSuccessor :
   next := rankTwoRep
   truncation := rankTwoCoupling_truncation
 
+/-! ### The public XOR identity
+
+A coordinate projection of the deterministic-block lemma — no second pushforward calculation. -/
+
+open scoped Classical in
+/-- The directed coordinate at a pair of distinct vertices lies in that pair's block. -/
+theorem support_digraphCoord {u v : ℕ} :
+    (digraphCoord u v : RelCoord digraphSig (Vinfinite digraphSig)).support = pairSupport u v := by
+  refine Finset.ext fun w => ?_
+  rw [RelCoord.mem_support_iff]
+  simp only [pairSupport, Finset.mem_insert, Finset.mem_singleton]
+  constructor
+  · rintro ⟨i, rfl⟩
+    fin_cases i
+    · exact Or.inl rfl
+    · exact Or.inr rfl
+  · rintro (rfl | rfl)
+    · exact ⟨0, rfl⟩
+    · exact ⟨1, rfl⟩
+
+open scoped Classical in
+/-- **The XOR identity**: almost surely the edge at a pair of distinct vertices is the parity of
+their two colours. Obtained by evaluating the block identity at one coordinate. -/
+theorem ae_edge_xor {u v : ℕ} (huv : u ≠ v) :
+    ∀ᵐ p ∂rankTwoCoupling, p.1 (digraphCoord u v) =
+      xor (colour (freshLayer p.2) u) (colour (freshLayer p.2) v) := by
+  filter_upwards [ae_blockMap_pair huv] with p hp
+  have := congrFun hp ⟨digraphCoord u v, support_digraphCoord⟩
+  rw [twoPointDecoder] at this
+  rw [show p.1 (digraphCoord u v) =
+      blockMap (S := digraphSig) (pairSupport u v) p.1
+        ⟨digraphCoord u v, support_digraphCoord⟩ from rfl, this]
+  rw [colour, colour, freshLayer_vertexSupport, freshLayer_vertexSupport]
+  rfl
+
 end BipartiteRegression
 
 end RelSignature
