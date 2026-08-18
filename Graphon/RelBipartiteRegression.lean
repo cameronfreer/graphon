@@ -710,6 +710,97 @@ theorem measure_xorTrue :
     Fin.prod_univ_two, uniform01_Iic_half, uniform01_Iic_half_compl]
   rw [← add_mul, ENNReal.add_halves, one_mul]
 
+/-! ### Nonindependence
+
+All null-set reasoning lives in one a.e. event-equivalence lemma; the final theorem is purely
+numerical. -/
+
+/-- The latent-side parity event. -/
+def parityEvent : Set (RankLatentSpace digraphSig 2) :=
+  {ω | xor (colour (freshLayer ω) 0) (colour (freshLayer ω) 1) = true}
+
+/-- The structure-side edge event. -/
+def edgeEvent : Set (RelStructure digraphSig (Vinfinite digraphSig)) :=
+  {X | X (digraphCoord 0 1) = true}
+
+theorem measurableSet_parityEvent : MeasurableSet parityEvent :=
+  (Measurable.of_discrete (f := fun p : Bool × Bool => xor p.1 p.2)).comp
+    (((measurable_colour 0).comp measurable_freshLayer).prodMk
+      ((measurable_colour 1).comp measurable_freshLayer)) (measurableSet_singleton true)
+
+theorem measurableSet_edgeEvent : MeasurableSet edgeEvent := by
+  have hset : edgeEvent =
+      (fun X : RelStructure digraphSig (Vinfinite digraphSig) => X (digraphCoord 0 1)) ⁻¹'
+        {true} := rfl
+  rw [hset]
+  exact (measurable_pi_apply _) (measurableSet_singleton true)
+
+/-- **The latent parity event has probability one half**, transported from the two-vertex
+marginal. -/
+theorem measure_parityEvent :
+    rankTwoCoupling (Prod.snd ⁻¹' parityEvent) = 1 / 2 := by
+  have hfun : Measurable
+      (fun (ω : RankLatentSpace digraphSig 2) (d : Fin 2) => freshLayer ω (pairIndex d)) :=
+    measurable_pi_lambda _ fun _ => (measurable_pi_apply _).comp measurable_freshLayer
+  have hxs : MeasurableSet
+      {y : Fin 2 → ℝ | xor (decide (y 0 ≤ 1 / 2)) (decide (y 1 ≤ 1 / 2)) = true} :=
+    (Measurable.of_discrete (f := fun p : Bool × Bool => xor p.1 p.2)).comp
+      ((measurable_decideLe (measurable_pi_apply 0)).prodMk
+        (measurable_decideLe (measurable_pi_apply 1))) (measurableSet_singleton true)
+  have hmap : (rankLatentSource digraphSig 2).map
+      (fun ω d => freshLayer ω (pairIndex d)) = Measure.pi fun _ : Fin 2 => uniform01 := by
+    rw [show (fun (ω : RankLatentSpace digraphSig 2) (d : Fin 2) => freshLayer ω (pairIndex d)) =
+        (fun (x : Colours) (d : Fin 2) => x (pairIndex d)) ∘ freshLayer from rfl,
+      ← Measure.map_map (measurable_pi_lambda _ fun _ => measurable_pi_apply _)
+        measurable_freshLayer, map_freshLayer, source_map_pairIndex]
+  have hpre : parityEvent = (fun ω d => freshLayer ω (pairIndex d)) ⁻¹'
+      {y : Fin 2 → ℝ | xor (decide (y 0 ≤ 1 / 2)) (decide (y 1 ≤ 1 / 2)) = true} := rfl
+  calc rankTwoCoupling (Prod.snd ⁻¹' parityEvent)
+      = (rankTwoCoupling.map Prod.snd) parityEvent :=
+        (Measure.map_apply measurable_snd measurableSet_parityEvent).symm
+    _ = (rankLatentSource digraphSig 2) parityEvent := by rw [rankTwoCoupling_map_snd]
+    _ = ((rankLatentSource digraphSig 2).map fun ω d => freshLayer ω (pairIndex d))
+          {y : Fin 2 → ℝ | xor (decide (y 0 ≤ 1 / 2)) (decide (y 1 ≤ 1 / 2)) = true} := by
+        rw [Measure.map_apply hfun hxs, ← hpre]
+    _ = (Measure.pi fun _ : Fin 2 => uniform01)
+          {y : Fin 2 → ℝ | xor (decide (y 0 ≤ 1 / 2)) (decide (y 1 ≤ 1 / 2)) = true} := by
+        rw [hmap]
+    _ = 1 / 2 := measure_xorTrue
+
+/-- **The one a.e. event equivalence**: the pulled-back edge and parity events agree. -/
+theorem ae_edgeEvent_iff_parityEvent :
+    ∀ᵐ p ∂rankTwoCoupling, (p ∈ Prod.fst ⁻¹' edgeEvent ↔ p ∈ Prod.snd ⁻¹' parityEvent) := by
+  filter_upwards [ae_edge_xor (by norm_num : (0 : ℕ) ≠ 1)] with p hp
+  simp only [Set.mem_preimage, edgeEvent, parityEvent, Set.mem_setOf_eq, hp]
+
+/-- The edge event has probability one half. -/
+theorem measure_edgeEvent : rankTwoCoupling (Prod.fst ⁻¹' edgeEvent) = 1 / 2 := by
+  rw [measure_congr (Filter.eventuallyEq_set.mpr ae_edgeEvent_iff_parityEvent),
+    measure_parityEvent]
+
+/-- Their intersection also has probability one half — they coincide. -/
+theorem measure_edge_inter_parity :
+    rankTwoCoupling (Prod.fst ⁻¹' edgeEvent ∩ Prod.snd ⁻¹' parityEvent) = 1 / 2 := by
+  rw [measure_congr (Filter.EventuallyEq.inter
+      (Filter.eventuallyEq_set.mpr ae_edgeEvent_iff_parityEvent) Filter.EventuallyEq.rfl),
+    Set.inter_self, measure_parityEvent]
+
+/-- **The array is not independent of its new latent layer.** A constant edge would also be "a
+function of the colours"; what rules that out is that `1/2 ≠ 1/4`. -/
+theorem not_indepFun_rankTwoCoupling :
+    ¬ IndepFun (Prod.fst : RelStructure digraphSig (Vinfinite digraphSig) ×
+      RankLatentSpace digraphSig 2 → _) Prod.snd rankTwoCoupling := by
+  intro h
+  have hmul := h.measure_inter_preimage_eq_mul edgeEvent parityEvent
+    measurableSet_edgeEvent measurableSet_parityEvent
+  rw [measure_edge_inter_parity, measure_edgeEvent, measure_parityEvent] at hmul
+  have hne : (1 / 2 : ℝ≥0∞) ≠ 1 / 2 * (1 / 2) := by
+    intro heq
+    have hreal := congrArg ENNReal.toReal heq
+    rw [ENNReal.toReal_mul] at hreal
+    norm_num at hreal
+  exact hne hmul
+
 end BipartiteRegression
 
 end RelSignature
