@@ -338,6 +338,14 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 -- R4 converse (#107): the shared successor contract (interface only).
 #print axioms RelSignature.InfiniteRelExchangeableLaw.truncation_zero
 #print axioms RelSignature.InfiniteRelExchangeableLaw.austinSuccessor_eq_kallenbergSuccessor
+
+-- R4 converse (#196): the bipartite regression for the successor contract.
+#print axioms RelSignature.BipartiteRegression.bipartiteExchangeable
+#print axioms RelSignature.BipartiteRegression.rankTwoCoupling_truncation
+#print axioms RelSignature.BipartiteRegression.blockMap_pair_arr
+#print axioms RelSignature.BipartiteRegression.bipartiteSuccessor
+#print axioms RelSignature.BipartiteRegression.ae_edge_xor
+#print axioms RelSignature.BipartiteRegression.not_indepFun_rankTwoCoupling
 #print axioms MeasureTheory.condExp_comp_measurePreserving
 #print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
 #print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving
