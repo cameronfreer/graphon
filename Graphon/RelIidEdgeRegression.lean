@@ -347,6 +347,144 @@ theorem rankThreeCoupling_truncation :
     ← Measure.map_prod_map _ _ measurable_arr measurable_id, Measure.map_id,
     rankTwoCoupling, iidEdgeLaw]
 
+/-! ### Blocks read a single edge coordinate
+
+Two pointwise lemmas, proved before any measure is touched: a block below rank two is constant
+`false`, and a block at a two-point support reads exactly the edge coordinate keyed by that
+support. Everything downstream — recovery at both ranks and screening at rank two — is a
+consequence of these. -/
+
+open scoped Classical in
+/-- A block whose support does not have two elements is constant `false`. -/
+theorem blockMap_arr_of_card_ne_two {A : Finset (Σ _ : Unit, ℕ)} (hA : A.card ≠ 2) (e : Edges) :
+    blockMap (S := digraphSig) A (arr e) = fun _ => false := by
+  funext c
+  show arr e c.1 = false
+  rw [arr, dif_neg]
+  rw [c.2]
+  exact hA
+
+open scoped Classical in
+/-- A block at a two-point support reads exactly the edge coordinate keyed by that support. -/
+theorem blockMap_arr_of_card_eq_two {A : Finset (Σ _ : Unit, ℕ)} (hA : A.card = 2) (e : Edges) :
+    blockMap (S := digraphSig) A (arr e) =
+      fun _ => decide (e (Subtype.mk A hA : RankSupport digraphSig 2) ≤ 1 / 2) := by
+  funext c
+  show arr e c.1 = _
+  rw [arr, dif_pos (by rw [c.2]; exact hA)]
+  exact congrArg (fun r : ℝ => decide (r ≤ 1 / 2)) (congrArg e (Subtype.ext c.2))
+
+/-! ### Rank-two invariance and recovery -/
+
+/-- **Rank-two invariance**: the coupling is a product of two invariant factors. -/
+theorem rankTwoCoupling_invariant (σ : FinSuppPerm digraphSig) :
+    rankTwoCoupling.map (Prod.map (RelStructure.relabel σ.1) (⇑(rankLatentRelabel σ 2))) =
+      rankTwoCoupling := by
+  rw [rankTwoCoupling, ← Measure.map_prod_map _ _ (measurable_relabel σ.1)
+      (rankLatentRelabel σ 2).measurable,
+    iidEdgeLaw_map_relabel, rankLatentSource_map_rankLatentRelabel]
+
+open scoped Classical in
+/-- **Rank-two local recovery**: below rank two every block is constant `false`, so the decoder
+is a constant and reads no latent at all. -/
+theorem lower_recovers_rank_two (A : Finset (Σ _ : Unit, ℕ)) (hA : A.card < 2) :
+    ∃ g : LocalLatentSpace (S := digraphSig) A 2 → BlockSpace (S := digraphSig) A, Measurable g ∧
+      blockMap (S := digraphSig) A ∘ Prod.fst =ᵐ[rankTwoCoupling]
+        g ∘ localLatents (S := digraphSig) A 2 ∘ Prod.snd := by
+  refine ⟨fun _ _ => false, measurable_const, ?_⟩
+  have hset : MeasurableSet {X : RelStructure digraphSig (Vinfinite digraphSig) |
+      blockMap (S := digraphSig) A X = fun _ => false} :=
+    measurableSet_eq_fun (measurable_blockMap (S := digraphSig) A) measurable_const
+  refine (ae_map_iff measurable_fst.aemeasurable hset).mp ?_
+  rw [rankTwoCoupling_map_fst, iidEdgeLaw]
+  refine (ae_map_iff measurable_arr.aemeasurable hset).mpr
+    (Filter.Eventually.of_forall fun e => ?_)
+  exact blockMap_arr_of_card_ne_two (by omega) e
+
+/-! ### Rank three: deterministic recovery and a vacuous screening clause
+
+At rank three recovery is the substantive clause — a two-point block is decoded from the latent
+coordinate at its own support, which the rank-three array carries. Screening, by contrast, is
+vacuous: over a binary signature no coordinate reads three vertices, so a three-point block space
+is a single point. -/
+
+/-- The fresh rank-two layer of a rank-three latent point reads the coordinate at that support. -/
+theorem freshLayer_apply (ω : RankLatentSpace digraphSig 3) (A : Finset (Σ _ : Unit, ℕ))
+    (hA : A.card = 2) :
+    freshLayer ω (Subtype.mk A hA : RankSupport digraphSig 2) =
+      ω (Subtype.mk A (by omega) : RankLatentIndex digraphSig 3) := rfl
+
+open scoped Classical in
+/-- **The rank-three decoder** at a two-point support: read the local latent at that very
+support. -/
+noncomputable def twoPointDecoder (A : Finset (Σ _ : Unit, ℕ)) (hA : A.card = 2) :
+    LocalLatentSpace (S := digraphSig) A 3 → BlockSpace (S := digraphSig) A :=
+  fun ℓ _ => decide (ℓ ⟨Subtype.mk A (by omega), Finset.Subset.refl A⟩ ≤ 1 / 2)
+
+open scoped Classical in
+theorem measurable_twoPointDecoder (A : Finset (Σ _ : Unit, ℕ)) (hA : A.card = 2) :
+    Measurable (twoPointDecoder A hA) :=
+  measurable_pi_lambda _ fun _ => measurable_decideLe (measurable_pi_apply _)
+
+open scoped Classical in
+/-- **Rank-three local recovery**: below rank three a block is either constant `false` or, at a
+two-point support, decoded from the latent coordinate at that support — which the rank-three
+array carries, since `2 < 3`. This is the staging clause the regression exists to exercise. -/
+theorem lower_recovers_rank_three (A : Finset (Σ _ : Unit, ℕ)) (hA : A.card < 3) :
+    ∃ g : LocalLatentSpace (S := digraphSig) A 3 → BlockSpace (S := digraphSig) A, Measurable g ∧
+      blockMap (S := digraphSig) A ∘ Prod.fst =ᵐ[rankThreeCoupling]
+        g ∘ localLatents (S := digraphSig) A 3 ∘ Prod.snd := by
+  by_cases h2 : A.card = 2
+  · refine ⟨twoPointDecoder A h2, measurable_twoPointDecoder A h2, ?_⟩
+    rw [rankThreeCoupling]
+    refine (ae_map_iff measurable_rankThreeMap.aemeasurable ?_).mpr
+      (Filter.Eventually.of_forall fun ω => ?_)
+    · exact measurableSet_eq_fun ((measurable_blockMap (S := digraphSig) A).comp measurable_fst)
+        ((measurable_twoPointDecoder A h2).comp
+          ((measurable_localLatents (S := digraphSig) A 3).comp measurable_snd))
+    · show blockMap (S := digraphSig) A (arr (freshLayer ω)) = _
+      rw [blockMap_arr_of_card_eq_two h2, freshLayer_apply ω A h2]
+      rfl
+  · refine ⟨fun _ _ => false, measurable_const, ?_⟩
+    rw [rankThreeCoupling]
+    refine (ae_map_iff measurable_rankThreeMap.aemeasurable ?_).mpr
+      (Filter.Eventually.of_forall fun ω => ?_)
+    · exact measurableSet_eq_fun ((measurable_blockMap (S := digraphSig) A).comp measurable_fst)
+        measurable_const
+    · exact blockMap_arr_of_card_ne_two h2 (freshLayer ω)
+
+/-- Over a binary signature a coordinate reads at most two vertices. -/
+theorem card_support_le_two (c : RelCoord digraphSig (Vinfinite digraphSig)) :
+    c.support.card ≤ 2 := RelCoord.card_support_le c
+
+open scoped Classical in
+/-- **No coordinate has a three-point support**, so a rank-three block space is a single point —
+which is why the rank-three screening clause carries no probabilistic content. -/
+theorem isEmpty_blockIndex_of_card_eq_three {A : Finset (Σ _ : Unit, ℕ)} (hA : A.card = 3) :
+    IsEmpty (BlockIndex (S := digraphSig) A) :=
+  ⟨fun c => by
+    have := card_support_le_two c.1
+    rw [c.2, hA] at this
+    omega⟩
+
+open scoped Classical in
+/-- **Rank-three screening**: at a three-point support the block space is a single point, so the
+block is a constant and conditional independence is immediate. -/
+theorem screening_rank_three (A : Finset (Σ _ : Unit, ℕ)) (hA : A.card = 3) :
+    CondIndepFun (MeasurableSpace.comap
+        (localLatents (S := digraphSig) A 3 ∘ Prod.snd) inferInstance)
+      (((measurable_localLatents (S := digraphSig) A 3).comp measurable_snd).comap_le)
+      (blockMap (S := digraphSig) A ∘ Prod.fst) (restObservation 3 A) rankThreeCoupling := by
+  haveI := isEmpty_blockIndex_of_card_eq_three hA
+  haveI : Unique (BlockSpace (S := digraphSig) A) := Pi.uniqueOfIsEmpty _
+  have hconst : (blockMap (S := digraphSig) A ∘ Prod.fst :
+      RelStructure digraphSig (Vinfinite digraphSig) × RankLatentSpace digraphSig 3 →
+        BlockSpace (S := digraphSig) A) = fun _ => default :=
+    funext fun _ => Subsingleton.elim _ _
+  rw [hconst]
+  exact condIndepFun_const_left (default : BlockSpace (S := digraphSig) A)
+    (restObservation (S := digraphSig) 3 A)
+
 end IidEdgeRegression
 
 end RelSignature
