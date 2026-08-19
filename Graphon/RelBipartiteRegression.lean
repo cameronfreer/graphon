@@ -83,32 +83,11 @@ theorem measurable_arr : Measurable arr := by
 
 /-! ### The relabeling action on the fresh layer -/
 
-open scoped Classical in
-/-- A permutation of the vertices permutes the singleton supports. -/
+/-- A permutation of the vertices permutes the singleton supports — the rank-one instance of the
+generic `rankSupportPerm`. -/
 noncomputable def supportPerm (σ : Equiv.Perm ℕ) :
-    RankSupport digraphSig 1 ≃ RankSupport digraphSig 1 where
-  toFun A := ⟨A.1.image (Sigma.map id fun _ => ⇑σ), by
-    rw [Finset.card_image_of_injective _
-      (Function.injective_id.sigma_map fun _ => σ.injective)]
-    exact A.2⟩
-  invFun A := ⟨A.1.image (Sigma.map id fun _ => ⇑σ.symm), by
-    rw [Finset.card_image_of_injective _
-      (Function.injective_id.sigma_map fun _ => σ.symm.injective)]
-    exact A.2⟩
-  left_inv A := Subtype.ext (by
-    show (A.1.image (Sigma.map id fun _ => ⇑σ)).image (Sigma.map id fun _ => ⇑σ.symm) = A.1
-    rw [Finset.image_image]
-    refine (Finset.image_congr fun v _ => ?_).trans A.1.image_id
-    obtain ⟨s, x⟩ := v
-    show (⟨s, σ.symm (σ x)⟩ : Σ _ : Unit, ℕ) = ⟨s, x⟩
-    rw [σ.symm_apply_apply])
-  right_inv A := Subtype.ext (by
-    show (A.1.image (Sigma.map id fun _ => ⇑σ.symm)).image (Sigma.map id fun _ => ⇑σ) = A.1
-    rw [Finset.image_image]
-    refine (Finset.image_congr fun v _ => ?_).trans A.1.image_id
-    obtain ⟨s, x⟩ := v
-    show (⟨s, σ (σ.symm x)⟩ : Σ _ : Unit, ℕ) = ⟨s, x⟩
-    rw [σ.apply_symm_apply])
+    RankSupport digraphSig 1 ≃ RankSupport digraphSig 1 :=
+  rankSupportPerm (fun _ : Unit => σ) 1
 
 open scoped Classical in
 @[simp] theorem supportPerm_vertexSupport (σ : Equiv.Perm ℕ) (v : ℕ) :
