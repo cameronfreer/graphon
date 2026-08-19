@@ -105,6 +105,75 @@ noncomputable def iidEdgeLaw : Measure (RelStructure digraphSig (Vinfinite digra
 instance : IsProbabilityMeasure iidEdgeLaw :=
   Measure.isProbabilityMeasure_map measurable_arr.aemeasurable
 
+/-! ### Equivariance and exchangeability
+
+Relabeling the vertices reindexes the edge layer along `rankSupportPerm`, because a coordinate's
+support transports covariantly and its cardinality is preserved. Exchangeability is then the
+invariance of an i.i.d. product under a coordinate permutation. -/
+
+open scoped Classical in
+set_option maxHeartbeats 400000 in
+/-- **Equivariance of the array**: relabeling the vertices is reindexing the edge layer. -/
+theorem arr_comp_supportPerm (σ : ∀ _ : Unit, Equiv.Perm ℕ) (e : Edges) :
+    arr (fun A => e (rankSupportPerm σ 2 A)) = RelStructure.relabel σ (arr e) := by
+  funext c
+  have hinj : Function.Injective (Sigma.map id (fun s => ⇑(σ s)) :
+      (Σ s : Unit, Vinfinite digraphSig s) → Σ s : Unit, Vinfinite digraphSig s) :=
+    Function.injective_id.sigma_map fun s => (σ s).injective
+  have hmem : ∀ v, v ∈ (RelCoord.map (fun s => ⇑(σ s)) c).support ↔
+      ∃ a ∈ c.support, Sigma.map id (fun s => ⇑(σ s)) a = v := by
+    intro v
+    constructor
+    · intro hv
+      obtain ⟨i, hi⟩ := (RelCoord.mem_support_iff _ _).mp hv
+      exact ⟨c.taggedValue i, (RelCoord.mem_support_iff _ _).mpr ⟨i, rfl⟩, hi⟩
+    · rintro ⟨a, ha, hav⟩
+      obtain ⟨i, hi⟩ := (RelCoord.mem_support_iff _ _).mp ha
+      refine (RelCoord.mem_support_iff _ _).mpr ⟨i, ?_⟩
+      rw [← hav, ← hi]
+      rfl
+  have hcard : (RelCoord.map (fun s => ⇑(σ s)) c).support.card = c.support.card := by
+    refine Finset.card_nbij' (Sigma.map id fun s => ⇑(σ s)⁻¹) (Sigma.map id fun s => ⇑(σ s))
+      (fun v hv => ?_) (fun v hv => ?_) (fun v hv => ?_) (fun v hv => ?_)
+    · obtain ⟨a, ha, rfl⟩ := (hmem v).mp hv
+      obtain ⟨s, x⟩ := a
+      simpa [Sigma.map] using ha
+    · exact (hmem _).mpr ⟨v, hv, rfl⟩
+    · obtain ⟨a, _, rfl⟩ := (hmem v).mp hv
+      obtain ⟨s, x⟩ := a
+      simp [Sigma.map]
+    · obtain ⟨s, x⟩ := v
+      simp [Sigma.map]
+  show arr (fun A => e (rankSupportPerm σ 2 A)) c = arr e (RelCoord.map (fun s => ⇑(σ s)) c)
+  simp only [arr]
+  split_ifs with h₁ h₂ h₂
+  · refine congrArg (fun r : ℝ => decide (r ≤ 1 / 2)) (congrArg e (Subtype.ext ?_))
+    refine Finset.ext fun v => ?_
+    exact (mem_rankSupportPerm σ 2 (Subtype.mk c.support h₁ : RankSupport digraphSig 2) v).trans
+      (hmem v).symm
+  · exact absurd (hcard.trans h₁) h₂
+  · exact absurd (hcard.symm.trans h₂) h₁
+  · rfl
+
+/-- **Exchangeability**: the law is invariant under every sortwise relabeling. -/
+theorem iidEdgeLaw_map_relabel (σ : ∀ _ : Unit, Equiv.Perm ℕ) :
+    iidEdgeLaw.map (RelStructure.relabel σ) = iidEdgeLaw := by
+  rw [iidEdgeLaw, Measure.map_map (measurable_relabel σ) measurable_arr,
+    show RelStructure.relabel σ ∘ arr =
+      arr ∘ (fun e : Edges => fun A => e (rankSupportPerm σ 2 A)) from by
+        funext e
+        exact (arr_comp_supportPerm σ e).symm,
+    ← Measure.map_map measurable_arr
+      (measurable_pi_lambda _ fun _ => measurable_pi_apply _),
+    iidUniformSource,
+    Measure.infinitePi_map_comp_equiv (fun _ : RankSupport digraphSig 2 => uniform01)
+      (rankSupportPerm σ 2)]
+
+/-- The i.i.d.-edge law as an exchangeable law on the infinite structure space. -/
+noncomputable def iidEdgeExchangeable : InfiniteRelExchangeableLaw digraphSig where
+  law := ⟨iidEdgeLaw, inferInstance⟩
+  exchangeable := iidEdgeLaw_map_relabel
+
 /-! ### The product-right conditional-independence lemma
 
 Kept **private**: it has one consumer (rank-two screening below), which is below the promotion bar

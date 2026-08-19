@@ -121,6 +121,16 @@ open scoped Classical in
     (rankSupportPerm σ n A).1 = A.1.image (Sigma.map id fun s => ⇑(σ s)) := rfl
 
 open scoped Classical in
+/-- Membership in a permuted support, stated **without an image** so that no `DecidableEq`
+instance appears in the type. Consumers over a concrete carrier have a natural instance that is
+not definitionally the classical one used to form the image, and `rankSupportPerm_coe` is then
+unusable there; this form is not. -/
+theorem mem_rankSupportPerm (σ : ∀ s, Equiv.Perm (Vinfinite S s)) (n : ℕ) (A : RankSupport S n)
+    (v : Σ s : S.Srt, Vinfinite S s) :
+    v ∈ (rankSupportPerm σ n A).1 ↔ ∃ a ∈ A.1, Sigma.map id (fun s => ⇑(σ s)) a = v := by
+  rw [rankSupportPerm_coe, Finset.mem_image]
+
+open scoped Classical in
 /-- A relabeling permutes the supports of each rank — the finitely supported case. -/
 noncomputable def rankSupportEquiv (σ : FinSuppPerm S) (n : ℕ) :
     RankSupport S n ≃ RankSupport S n :=
