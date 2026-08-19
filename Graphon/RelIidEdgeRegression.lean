@@ -6,6 +6,7 @@ Authors: Cameron Freer
 import Graphon.RelRankSuccessorContract
 import Graphon.InfiniteDigraph
 import Graphon.ForMathlib.CondIndepSup
+import Mathlib.Probability.ConditionalExpectation
 
 /-!
 # The i.i.d.-edge regression for the successor contract (R4 converse, #107, #196)
@@ -103,6 +104,93 @@ noncomputable def iidEdgeLaw : Measure (RelStructure digraphSig (Vinfinite digra
 
 instance : IsProbabilityMeasure iidEdgeLaw :=
   Measure.isProbabilityMeasure_map measurable_arr.aemeasurable
+
+/-! ### The product-right conditional-independence lemma
+
+Kept **private**: it has one consumer (rank-two screening below), which is below the promotion bar
+for `Graphon/ForMathlib/`. Neither Mathlib nor TauCeti has it — `condExp_indep_eq` supplies the
+constant conditional expectation of a left-coordinate observation, but not the intersection
+identity that conditional independence needs. Recorded as a prospective upstream candidate.
+
+Stated for an arbitrary conditioning σ-algebra below `comap Prod.snd`, so conditioning on a
+function of the right coordinate is a corollary rather than the definition.
+
+Two elaboration points are load-bearing. `CondIndepFun` takes the conditioning algebra *before* the
+ambient measurable space, so the conclusion is written in explicit `@` form. And an abstract
+`m' : MeasurableSpace (α × β)` binder **enters local instance search**, shadowing the product
+instance throughout the proof body; the opening `letI` restores the intended ambient instance
+without weakening the statement. -/
+
+private theorem comap_fst_le_prod {α β : Type*} [MeasurableSpace α] [MeasurableSpace β] :
+    MeasurableSpace.comap (Prod.fst : α × β → α) inferInstance ≤
+      (Prod.instMeasurableSpace : MeasurableSpace (α × β)) := by
+  rintro S ⟨T, hT, rfl⟩
+  exact measurable_fst hT
+
+private theorem comap_snd_le_prod {α β : Type*} [MeasurableSpace α] [MeasurableSpace β] :
+    MeasurableSpace.comap (Prod.snd : α × β → β) inferInstance ≤
+      (Prod.instMeasurableSpace : MeasurableSpace (α × β)) := by
+  rintro S ⟨T, hT, rfl⟩
+  exact measurable_snd hT
+
+open scoped Classical in
+/-- Under a product measure, a left-coordinate observation is conditionally independent of a
+right-coordinate observation given **any** σ-algebra below the right coordinate's. -/
+private theorem condIndepFun_of_prod_right {α β γ δ : Type*}
+    [MeasurableSpace α] [MeasurableSpace β] [MeasurableSpace γ] [MeasurableSpace δ]
+    [StandardBorelSpace α] [StandardBorelSpace β] [Nonempty α] [Nonempty β]
+    {μ : Measure α} {ν : Measure β} [IsProbabilityMeasure μ] [IsProbabilityMeasure ν]
+    {m' : MeasurableSpace (α × β)}
+    (hm' : m' ≤ MeasurableSpace.comap (Prod.snd : α × β → β) inferInstance)
+    {f : α → γ} {g : β → δ} (hf : Measurable f) (hg : Measurable g) :
+    @ProbabilityTheory.CondIndepFun (α × β) m' Prod.instMeasurableSpace
+      (StandardBorelSpace.prod) (hm'.trans comap_snd_le_prod)
+      γ δ inferInstance inferInstance
+      (f ∘ (Prod.fst : α × β → α)) (g ∘ (Prod.snd : α × β → β)) (μ.prod ν) inferInstance := by
+  letI mΩ : MeasurableSpace (α × β) := Prod.instMeasurableSpace
+  have hmAmbient : m' ≤ (Prod.instMeasurableSpace : MeasurableSpace (α × β)) :=
+    hm'.trans comap_snd_le_prod
+  have hfst : Measurable (f ∘ (Prod.fst : α × β → α)) := hf.comp measurable_fst
+  have hsnd : Measurable (g ∘ (Prod.snd : α × β → β)) := hg.comp measurable_snd
+  have hcoord : Indep (MeasurableSpace.comap (Prod.fst : α × β → α) inferInstance)
+      (MeasurableSpace.comap (Prod.snd : α × β → β) inferInstance) (μ.prod ν) :=
+    indepFun_prod measurable_id measurable_id
+  rw [condIndepFun_iff_condExp_inter_preimage_eq_mul hfst hsnd]
+  intro s t hs ht
+  set A : Set (α × β) := (f ∘ (Prod.fst : α × β → α)) ⁻¹' s with hAdef
+  set B : Set (α × β) := (g ∘ (Prod.snd : α × β → β)) ⁻¹' t with hBdef
+  have hAmem : MeasurableSet[MeasurableSpace.comap (Prod.fst : α × β → α) inferInstance] A :=
+    ⟨f ⁻¹' s, hf hs, rfl⟩
+  have hBmem : MeasurableSet[MeasurableSpace.comap (Prod.snd : α × β → β) inferInstance] B :=
+    ⟨g ⁻¹' t, hg ht, rfl⟩
+  have hAmeas : MeasurableSet A := hfst hs
+  have hBmeas : MeasurableSet B := hsnd ht
+  have hAconst : (μ.prod ν)⟦A | m'⟧ =ᵐ[μ.prod ν] fun _ => ((μ.prod ν) A).toReal := by
+    have hInd : Indep (MeasurableSpace.comap (Prod.fst : α × β → α) inferInstance) m'
+        (μ.prod ν) := indep_of_indep_of_le_right hcoord hm'
+    refine (condExp_indep_eq (μ := μ.prod ν) comap_fst_le_prod hmAmbient
+      (stronglyMeasurable_const.indicator hAmem) hInd).trans
+      (Filter.Eventually.of_forall fun _ => ?_)
+    rw [integral_indicator_const (1 : ℝ) hAmeas, smul_eq_mul, mul_one, measureReal_def]
+  have hInter : (μ.prod ν)⟦A ∩ B | m'⟧ =ᵐ[μ.prod ν]
+      fun ω => ((μ.prod ν) A).toReal * ((μ.prod ν)⟦B | m'⟧) ω := by
+    refine (ae_eq_condExp_of_forall_setIntegral_eq hmAmbient
+      ((integrable_const (1 : ℝ)).indicator (hAmeas.inter hBmeas))
+      (fun S _ _ => (integrable_condExp.const_mul _).integrableOn)
+      (fun S hSm _ => ?_) (stronglyMeasurable_condExp.const_mul _).aestronglyMeasurable).symm
+    have hSamb : MeasurableSet S := hmAmbient _ hSm
+    have hmul : (μ.prod ν) (A ∩ (S ∩ B)) = (μ.prod ν) A * (μ.prod ν) (S ∩ B) := by
+      simpa using hcoord A (S ∩ B) hAmem ((hm' _ hSm).inter hBmem)
+    rw [integral_const_mul,
+      setIntegral_condExp hmAmbient ((integrable_const (1 : ℝ)).indicator hBmeas) hSm,
+      setIntegral_indicator hBmeas, setIntegral_indicator (hAmeas.inter hBmeas),
+      integral_const, integral_const, measureReal_restrict_apply_univ,
+      measureReal_restrict_apply_univ,
+      show S ∩ (A ∩ B) = A ∩ (S ∩ B) from Set.inter_left_comm _ _ _,
+      measureReal_def, measureReal_def, hmul, ENNReal.toReal_mul]
+    ring
+  filter_upwards [hInter, hAconst] with ω h1 h2
+  rw [h1, h2]
 
 /-! ### The two couplings, described independently
 
