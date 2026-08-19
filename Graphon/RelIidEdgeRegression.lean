@@ -174,82 +174,58 @@ noncomputable def iidEdgeExchangeable : InfiniteRelExchangeableLaw digraphSig wh
   law := ⟨iidEdgeLaw, inferInstance⟩
   exchangeable := iidEdgeLaw_map_relabel
 
-/-! ### The product-right conditional-independence lemma
+/-! ### Conditional independence from unconditional independence
 
 Kept **private**: it has one consumer (rank-two screening below), which is below the promotion bar
 for `Graphon/ForMathlib/`. Neither Mathlib nor TauCeti has it — `condExp_indep_eq` supplies the
-constant conditional expectation of a left-coordinate observation, but not the intersection
-identity that conditional independence needs. Recorded as a prospective upstream candidate.
+constant conditional expectation of an `m₁`-observation, but not the intersection identity that
+conditional independence needs. Recorded as a prospective upstream candidate.
 
-Stated for an arbitrary conditioning σ-algebra below `comap Prod.snd`, so conditioning on a
-function of the right coordinate is a corollary rather than the definition.
+**If `m₁` is independent of `m₂`, then conditioning on anything inside `m₂` cannot create a
+dependence.** Stated for abstract σ-algebras rather than for the two coordinates of a product,
+because the consumer's ambient measure is a *pushforward* of a product and only the independence
+survives that pushforward — conditional independence does not transport forward along a
+non-injective map.
 
-Two elaboration points are load-bearing. `CondIndepFun` takes the conditioning algebra *before* the
-ambient measurable space, so the conclusion is written in explicit `@` form. And an abstract
-`m' : MeasurableSpace (α × β)` binder **enters local instance search**, shadowing the product
-instance throughout the proof body; the opening `letI` restores the intended ambient instance
-without weakening the statement. -/
+One elaboration point is load-bearing: an abstract `MeasurableSpace Ω` binder **enters local
+instance search** and can shadow the ambient instance throughout the proof body. The conclusion is
+therefore written in explicit `@` form and the proof opens with a `letI` restoring the intended
+ambient instance, neither of which weakens the statement. -/
 
-private theorem comap_fst_le_prod {α β : Type*} [MeasurableSpace α] [MeasurableSpace β] :
-    MeasurableSpace.comap (Prod.fst : α × β → α) inferInstance ≤
-      (Prod.instMeasurableSpace : MeasurableSpace (α × β)) := by
-  rintro S ⟨T, hT, rfl⟩
-  exact measurable_fst hT
-
-private theorem comap_snd_le_prod {α β : Type*} [MeasurableSpace α] [MeasurableSpace β] :
-    MeasurableSpace.comap (Prod.snd : α × β → β) inferInstance ≤
-      (Prod.instMeasurableSpace : MeasurableSpace (α × β)) := by
-  rintro S ⟨T, hT, rfl⟩
-  exact measurable_snd hT
-
-open scoped Classical in
-/-- Under a product measure, a left-coordinate observation is conditionally independent of a
-right-coordinate observation given **any** σ-algebra below the right coordinate's. -/
-private theorem condIndepFun_of_prod_right {α β γ δ : Type*}
-    [MeasurableSpace α] [MeasurableSpace β] [MeasurableSpace γ] [MeasurableSpace δ]
-    [StandardBorelSpace α] [StandardBorelSpace β] [Nonempty α] [Nonempty β]
-    {μ : Measure α} {ν : Measure β} [IsProbabilityMeasure μ] [IsProbabilityMeasure ν]
-    {m' : MeasurableSpace (α × β)}
-    (hm' : m' ≤ MeasurableSpace.comap (Prod.snd : α × β → β) inferInstance)
-    {f : α → γ} {g : β → δ} (hf : Measurable f) (hg : Measurable g) :
-    @ProbabilityTheory.CondIndepFun (α × β) m' Prod.instMeasurableSpace
-      (StandardBorelSpace.prod) (hm'.trans comap_snd_le_prod)
-      γ δ inferInstance inferInstance
-      (f ∘ (Prod.fst : α × β → α)) (g ∘ (Prod.snd : α × β → β)) (μ.prod ν) inferInstance := by
-  letI mΩ : MeasurableSpace (α × β) := Prod.instMeasurableSpace
-  have hmAmbient : m' ≤ (Prod.instMeasurableSpace : MeasurableSpace (α × β)) :=
-    hm'.trans comap_snd_le_prod
-  have hfst : Measurable (f ∘ (Prod.fst : α × β → α)) := hf.comp measurable_fst
-  have hsnd : Measurable (g ∘ (Prod.snd : α × β → β)) := hg.comp measurable_snd
-  have hcoord : Indep (MeasurableSpace.comap (Prod.fst : α × β → α) inferInstance)
-      (MeasurableSpace.comap (Prod.snd : α × β → β) inferInstance) (μ.prod ν) :=
-    indepFun_prod measurable_id measurable_id
-  rw [condIndepFun_iff_condExp_inter_preimage_eq_mul hfst hsnd]
+private theorem condIndepFun_of_indep_of_le {Ω γ δ : Type*} [mΩ : MeasurableSpace Ω]
+    [hsb : StandardBorelSpace Ω] [MeasurableSpace γ] [MeasurableSpace δ]
+    {μ : Measure Ω} [IsProbabilityMeasure μ]
+    {m' m₁ m₂ : MeasurableSpace Ω} (h1 : m₁ ≤ mΩ) (h2 : m₂ ≤ mΩ) (hm' : m' ≤ m₂)
+    (hindep : Indep m₁ m₂ μ) {f : Ω → γ} {g : Ω → δ}
+    (hf : Measurable[m₁] f) (hg : Measurable[m₂] g) :
+    @ProbabilityTheory.CondIndepFun Ω m' mΩ hsb (hm'.trans h2) γ δ inferInstance inferInstance
+      f g μ inferInstance := by
+  letI : MeasurableSpace Ω := mΩ
+  have hmAmbient : m' ≤ mΩ := hm'.trans h2
+  have hfm : Measurable f := hf.mono h1 le_rfl
+  have hgm : Measurable g := hg.mono h2 le_rfl
+  rw [condIndepFun_iff_condExp_inter_preimage_eq_mul hfm hgm]
   intro s t hs ht
-  set A : Set (α × β) := (f ∘ (Prod.fst : α × β → α)) ⁻¹' s with hAdef
-  set B : Set (α × β) := (g ∘ (Prod.snd : α × β → β)) ⁻¹' t with hBdef
-  have hAmem : MeasurableSet[MeasurableSpace.comap (Prod.fst : α × β → α) inferInstance] A :=
-    ⟨f ⁻¹' s, hf hs, rfl⟩
-  have hBmem : MeasurableSet[MeasurableSpace.comap (Prod.snd : α × β → β) inferInstance] B :=
-    ⟨g ⁻¹' t, hg ht, rfl⟩
-  have hAmeas : MeasurableSet A := hfst hs
-  have hBmeas : MeasurableSet B := hsnd ht
-  have hAconst : (μ.prod ν)⟦A | m'⟧ =ᵐ[μ.prod ν] fun _ => ((μ.prod ν) A).toReal := by
-    have hInd : Indep (MeasurableSpace.comap (Prod.fst : α × β → α) inferInstance) m'
-        (μ.prod ν) := indep_of_indep_of_le_right hcoord hm'
-    refine (condExp_indep_eq (μ := μ.prod ν) comap_fst_le_prod hmAmbient
+  set A : Set Ω := f ⁻¹' s with hAdef
+  set B : Set Ω := g ⁻¹' t with hBdef
+  have hAmem : MeasurableSet[m₁] A := hf hs
+  have hBmem : MeasurableSet[m₂] B := hg ht
+  have hAmeas : MeasurableSet A := hfm hs
+  have hBmeas : MeasurableSet B := hgm ht
+  have hAconst : μ⟦A | m'⟧ =ᵐ[μ] fun _ => (μ A).toReal := by
+    have hInd : Indep m₁ m' μ := indep_of_indep_of_le_right hindep hm'
+    refine (condExp_indep_eq (μ := μ) h1 hmAmbient
       (stronglyMeasurable_const.indicator hAmem) hInd).trans
       (Filter.Eventually.of_forall fun _ => ?_)
     rw [integral_indicator_const (1 : ℝ) hAmeas, smul_eq_mul, mul_one, measureReal_def]
-  have hInter : (μ.prod ν)⟦A ∩ B | m'⟧ =ᵐ[μ.prod ν]
-      fun ω => ((μ.prod ν) A).toReal * ((μ.prod ν)⟦B | m'⟧) ω := by
+  have hInter : μ⟦A ∩ B | m'⟧ =ᵐ[μ] fun ω => (μ A).toReal * (μ⟦B | m'⟧) ω := by
     refine (ae_eq_condExp_of_forall_setIntegral_eq hmAmbient
       ((integrable_const (1 : ℝ)).indicator (hAmeas.inter hBmeas))
       (fun S _ _ => (integrable_condExp.const_mul _).integrableOn)
       (fun S hSm _ => ?_) (stronglyMeasurable_condExp.const_mul _).aestronglyMeasurable).symm
     have hSamb : MeasurableSet S := hmAmbient _ hSm
-    have hmul : (μ.prod ν) (A ∩ (S ∩ B)) = (μ.prod ν) A * (μ.prod ν) (S ∩ B) := by
-      simpa using hcoord A (S ∩ B) hAmem ((hm' _ hSm).inter hBmem)
+    have hmul : μ (A ∩ (S ∩ B)) = μ A * μ (S ∩ B) := by
+      simpa using hindep A (S ∩ B) hAmem ((hm' _ hSm).inter hBmem)
     rw [integral_const_mul,
       setIntegral_condExp hmAmbient ((integrable_const (1 : ℝ)).indicator hBmeas) hSm,
       setIntegral_indicator hBmeas, setIntegral_indicator (hAmeas.inter hBmeas),
@@ -258,8 +234,8 @@ private theorem condIndepFun_of_prod_right {α β γ δ : Type*}
       show S ∩ (A ∩ B) = A ∩ (S ∩ B) from Set.inter_left_comm _ _ _,
       measureReal_def, measureReal_def, hmul, ENNReal.toReal_mul]
     ring
-  filter_upwards [hInter, hAconst] with ω h1 h2
-  rw [h1, h2]
+  filter_upwards [hInter, hAconst] with ω hi ha
+  rw [hi, ha]
 
 /-! ### The two couplings, described independently
 
@@ -484,6 +460,258 @@ theorem screening_rank_three (A : Finset (Σ _ : Unit, ℕ)) (hA : A.card = 3) :
   rw [hconst]
   exact condIndepFun_const_left (default : BlockSpace (S := digraphSig) A)
     (restObservation (S := digraphSig) 3 A)
+
+/-! ### Rank-two screening
+
+At a two-point support the block reads **one** coordinate of the edge source, while the remainder
+reads the *other* coordinates together with the whole latent array — an independent factor. So the
+block is independent of the remainder outright, and screening follows from independence rather than
+from determinism. That is the case the bipartite regression could not exercise: there the rank-two
+block was a function of the latents visible at its support, so screening was immediate.
+
+Independence, unlike conditional independence, is a property of a joint law and therefore survives
+the pushforward along the (non-injective) thresholding map that builds the structure. The argument
+accordingly establishes the unconditional independence on the source and transports *that*. -/
+
+private theorem indepFun_of_map {Ω Ω' γ δ : Type*} [MeasurableSpace Ω] [MeasurableSpace Ω']
+    [MeasurableSpace γ] [MeasurableSpace δ] {μ : Measure Ω} [IsProbabilityMeasure μ]
+    {T : Ω → Ω'} (hT : Measurable T) {f : Ω' → γ} {g : Ω' → δ}
+    (hf : Measurable f) (hg : Measurable g) (h : IndepFun (f ∘ T) (g ∘ T) μ) :
+    IndepFun f g (μ.map T) := by
+  haveI : IsProbabilityMeasure (μ.map T) := Measure.isProbabilityMeasure_map hT.aemeasurable
+  rw [indepFun_iff_map_prod_eq_prod_map_map hf.aemeasurable hg.aemeasurable,
+    Measure.map_map (hf.prodMk hg) hT, Measure.map_map hf hT, Measure.map_map hg hT]
+  exact (indepFun_iff_map_prod_eq_prod_map_map (hf.comp hT).aemeasurable
+    (hg.comp hT).aemeasurable).mp h
+
+/-- The edge coordinate at the distinguished support. -/
+private abbrev AtIdx (A₀ : RankSupport digraphSig 2) := {x : RankSupport digraphSig 2 // x = A₀}
+
+/-- The edge coordinates away from the distinguished support. -/
+private abbrev OffIdx (A₀ : RankSupport digraphSig 2) :=
+  {x : RankSupport digraphSig 2 // ¬(x = A₀)}
+
+open scoped Classical in
+/-- **Splitting the edge source at one coordinate.** -/
+private theorem iidUniformSource_split (A₀ : RankSupport digraphSig 2) :
+    (iidUniformSource (RankSupport digraphSig 2)).map
+        (fun u : Edges => ((fun B : AtIdx A₀ => u B.1), (fun B : OffIdx A₀ => u B.1))) =
+      (iidUniformSource (AtIdx A₀)).prod (iidUniformSource (OffIdx A₀)) := by
+  have hpre : Measurable fun (u : Edges) (i : AtIdx A₀ ⊕ OffIdx A₀) =>
+      u (Equiv.sumCompl (fun x : RankSupport digraphSig 2 => x = A₀) i) :=
+    measurable_pi_lambda _ fun _ => measurable_pi_apply _
+  rw [show (fun u : Edges => ((fun B : AtIdx A₀ => u B.1), (fun B : OffIdx A₀ => u B.1))) =
+      ⇑(MeasurableEquiv.sumPiEquivProdPi fun _ : AtIdx A₀ ⊕ OffIdx A₀ => ℝ) ∘
+        (fun (u : Edges) (i : AtIdx A₀ ⊕ OffIdx A₀) =>
+          u (Equiv.sumCompl (fun x : RankSupport digraphSig 2 => x = A₀) i)) from rfl,
+    ← Measure.map_map (MeasurableEquiv.sumPiEquivProdPi
+      fun _ : AtIdx A₀ ⊕ OffIdx A₀ => ℝ).measurable hpre,
+    iidUniformSource,
+    Measure.infinitePi_map_comp_equiv _
+      (Equiv.sumCompl (fun x : RankSupport digraphSig 2 => x = A₀)),
+    Measure.infinitePi_map_sumPiEquivProdPi]
+  rfl
+
+/-- The source observation: the distinguished edge coordinate, against everything else. -/
+private def srcObs (A₀ : RankSupport digraphSig 2) :
+    Edges × RankLatentSpace digraphSig 2 →
+      (AtIdx A₀ → ℝ) × ((OffIdx A₀ → ℝ) × RankLatentSpace digraphSig 2) :=
+  fun p => ((fun B => p.1 B.1), ((fun B => p.1 B.1), p.2))
+
+private theorem measurable_srcObs (A₀ : RankSupport digraphSig 2) : Measurable (srcObs A₀) :=
+  ((measurable_pi_lambda _ fun _ => measurable_fst.eval)).prodMk
+    ((measurable_pi_lambda _ fun _ => measurable_fst.eval).prodMk measurable_snd)
+
+private theorem map_srcObs (A₀ : RankSupport digraphSig 2) :
+    ((iidUniformSource (RankSupport digraphSig 2)).prod
+        (rankLatentSource digraphSig 2)).map (srcObs A₀) =
+      (iidUniformSource (AtIdx A₀)).prod
+        ((iidUniformSource (OffIdx A₀)).prod (rankLatentSource digraphSig 2)) := by
+  have hsplit : Measurable
+      (fun u : Edges => ((fun B : AtIdx A₀ => u B.1), (fun B : OffIdx A₀ => u B.1))) :=
+    (measurable_pi_lambda _ fun _ => measurable_pi_apply _).prodMk
+      (measurable_pi_lambda _ fun _ => measurable_pi_apply _)
+  rw [show srcObs A₀ = ⇑(MeasurableEquiv.prodAssoc) ∘
+      Prod.map (fun u : Edges => ((fun B : AtIdx A₀ => u B.1), (fun B : OffIdx A₀ => u B.1)))
+        (id : RankLatentSpace digraphSig 2 → _) from rfl,
+    ← Measure.map_map (MeasurableEquiv.prodAssoc).measurable (hsplit.prodMap measurable_id),
+    ← Measure.map_prod_map _ _ hsplit measurable_id, iidUniformSource_split, Measure.map_id,
+    Measure.prodAssoc_prod]
+
+private theorem indepFun_srcObs (A₀ : RankSupport digraphSig 2) :
+    IndepFun (fun p => (srcObs A₀ p).1) (fun p => (srcObs A₀ p).2)
+      ((iidUniformSource (RankSupport digraphSig 2)).prod (rankLatentSource digraphSig 2)) := by
+  rw [indepFun_iff_map_prod_eq_prod_map_map (measurable_srcObs A₀).fst.aemeasurable
+      (measurable_srcObs A₀).snd.aemeasurable,
+    show (fun p => ((srcObs A₀ p).1, (srcObs A₀ p).2)) = srcObs A₀ from rfl,
+    show (fun p => (srcObs A₀ p).1) = Prod.fst ∘ srcObs A₀ from rfl,
+    show (fun p => (srcObs A₀ p).2) = Prod.snd ∘ srcObs A₀ from rfl,
+    ← Measure.map_map measurable_fst (measurable_srcObs A₀),
+    ← Measure.map_map measurable_snd (measurable_srcObs A₀),
+    map_srcObs A₀, Measure.map_fst_prod, Measure.map_snd_prod]
+  simp
+
+open scoped Classical in
+/-- The block at the distinguished support, read off its own edge coordinate. -/
+private noncomputable def blockDecoder (A₀ : RankSupport digraphSig 2) :
+    (AtIdx A₀ → ℝ) → BlockSpace (S := digraphSig) A₀.1 :=
+  fun t _ => decide (t ⟨A₀, rfl⟩ ≤ 1 / 2)
+
+open scoped Classical in
+private theorem measurable_blockDecoder (A₀ : RankSupport digraphSig 2) :
+    Measurable (blockDecoder A₀) :=
+  measurable_pi_lambda _ fun _ => measurable_decideLe (measurable_pi_apply _)
+
+open scoped Classical in
+/-- The remainder, read off the other edge coordinates and the latent array. -/
+private noncomputable def restDecoder (A₀ : RankSupport digraphSig 2) :
+    (OffIdx A₀ → ℝ) × RankLatentSpace digraphSig 2 →
+      RestSpace (S := digraphSig) 2 A₀.1 × RankLatentSpace digraphSig 2 :=
+  fun q => (fun c => if h : c.1.support.card = 2 then
+      decide (q.1 ⟨⟨c.1.support, h⟩, fun hEq => c.2.2 (congrArg Subtype.val hEq)⟩ ≤ 1 / 2)
+    else false, q.2)
+
+open scoped Classical in
+private theorem measurable_restDecoder (A₀ : RankSupport digraphSig 2) :
+    Measurable (restDecoder A₀) := by
+  refine (measurable_pi_lambda _ fun c => ?_).prodMk measurable_snd
+  by_cases h : c.1.support.card = 2
+  · simp only [dif_pos h]
+    exact measurable_decideLe measurable_fst.eval
+  · simp only [dif_neg h]
+    exact measurable_const
+
+open scoped Classical in
+private theorem block_comp (A₀ : RankSupport digraphSig 2) :
+    (blockMap (S := digraphSig) A₀.1 ∘ Prod.fst) ∘
+        Prod.map arr (id : RankLatentSpace digraphSig 2 → _) =
+      blockDecoder A₀ ∘ fun p => (srcObs A₀ p).1 := by
+  funext p
+  show blockMap (S := digraphSig) A₀.1 (arr p.1) = _
+  rw [blockMap_arr_of_card_eq_two A₀.2]
+  rfl
+
+open scoped Classical in
+private theorem rest_comp (A₀ : RankSupport digraphSig 2) :
+    restObservation (S := digraphSig) 2 A₀.1 ∘
+        Prod.map arr (id : RankLatentSpace digraphSig 2 → _) =
+      restDecoder A₀ ∘ fun p => (srcObs A₀ p).2 := by
+  funext p
+  refine Prod.ext ?_ rfl
+  funext c
+  rfl
+
+open scoped Classical in
+/-- **The block is independent of the remainder**: they read disjoint edge coordinates, and the
+latent array is an independent factor. -/
+private theorem indepFun_block_rest (A₀ : RankSupport digraphSig 2) :
+    IndepFun (blockMap (S := digraphSig) A₀.1 ∘ Prod.fst)
+      (restObservation (S := digraphSig) 2 A₀.1) rankTwoCoupling := by
+  have hcoupling : rankTwoCoupling =
+      ((iidUniformSource (RankSupport digraphSig 2)).prod
+        (rankLatentSource digraphSig 2)).map
+          (Prod.map arr (id : RankLatentSpace digraphSig 2 → _)) := by
+    rw [rankTwoCoupling, iidEdgeLaw, ← Measure.map_prod_map _ _ measurable_arr measurable_id,
+      Measure.map_id]
+  rw [hcoupling]
+  refine indepFun_of_map (measurable_arr.prodMap measurable_id)
+    ((measurable_blockMap (S := digraphSig) A₀.1).comp measurable_fst)
+    (measurable_restObservation 2 A₀.1) ?_
+  rw [block_comp A₀, rest_comp A₀]
+  exact (indepFun_srcObs A₀).comp (measurable_blockDecoder A₀) (measurable_restDecoder A₀)
+
+open scoped Classical in
+/-- **Rank-two screening**: at a two-point support the block is conditionally independent of the
+rank-truncated remainder given the latents visible there — because it is independent of that
+remainder outright, and the conditioning algebra sits inside the remainder's. -/
+theorem screening_rank_two (A : Finset (Σ _ : Unit, ℕ)) (hA : A.card = 2) :
+    CondIndepFun (MeasurableSpace.comap
+        (localLatents (S := digraphSig) A 2 ∘ Prod.snd) inferInstance)
+      (((measurable_localLatents (S := digraphSig) A 2).comp measurable_snd).comap_le)
+      (blockMap (S := digraphSig) A ∘ Prod.fst) (restObservation 2 A) rankTwoCoupling := by
+  have hm' : MeasurableSpace.comap
+      (localLatents (S := digraphSig) A 2 ∘ Prod.snd) inferInstance ≤
+        MeasurableSpace.comap (restObservation (S := digraphSig) 2 A) inferInstance := by
+    rw [show (localLatents (S := digraphSig) A 2 ∘ Prod.snd) =
+        (localLatents (S := digraphSig) A 2 ∘ Prod.snd) ∘
+          restObservation (S := digraphSig) 2 A from rfl,
+      ← MeasurableSpace.comap_comp]
+    exact MeasurableSpace.comap_mono
+      ((measurable_localLatents (S := digraphSig) A 2).comp measurable_snd).comap_le
+  exact condIndepFun_of_indep_of_le
+    ((measurable_blockMap (S := digraphSig) A).comp measurable_fst).comap_le
+    (measurable_restObservation (S := digraphSig) 2 A).comap_le hm'
+    ((IndepFun_iff_Indep _ _ _).mp (indepFun_block_rest (⟨A, hA⟩ : RankSupport digraphSig 2)))
+    (comap_measurable _) (comap_measurable _)
+
+/-! ### Rank-three invariance, the two representations, and the successor witness -/
+
+open scoped Classical in
+/-- The fresh layer intertwines the rank-three latent action with the vertex action. -/
+theorem freshLayer_rankLatentRelabel (σ : FinSuppPerm digraphSig)
+    (ω : RankLatentSpace digraphSig 3) :
+    freshLayer (rankLatentRelabel σ 3 ω) = fun A => freshLayer ω (rankSupportPerm σ.1 2 A) := by
+  funext A
+  show (rankLatentSpaceSuccEquiv 2 (rankLatentRelabel σ 3 ω)).2 A = _
+  rw [show rankLatentSpaceSuccEquiv 2 (rankLatentRelabel σ 3 ω) =
+      MeasurableEquiv.prodCongr (rankLatentRelabel σ 2) (rankSupportLatentRelabel σ 2)
+        (rankLatentSpaceSuccEquiv 2 ω) from
+    congrFun (rankLatentSpaceSuccEquiv_rankLatentRelabel σ 2) ω]
+  rfl
+
+open scoped Classical in
+/-- **The exact pointwise joint action** at rank three. -/
+theorem jointMap_rankLatentRelabel (σ : FinSuppPerm digraphSig)
+    (ω : RankLatentSpace digraphSig 3) :
+    (arr (freshLayer (rankLatentRelabel σ 3 ω)), rankLatentRelabel σ 3 ω) =
+      Prod.map (RelStructure.relabel σ.1) (⇑(rankLatentRelabel σ 3))
+        (arr (freshLayer ω), ω) := by
+  refine Prod.ext ?_ rfl
+  show arr (freshLayer (rankLatentRelabel σ 3 ω)) = RelStructure.relabel σ.1 (arr (freshLayer ω))
+  rw [freshLayer_rankLatentRelabel, arr_comp_supportPerm]
+
+/-- **Rank-three invariance**: the joint action, then source invariance. -/
+theorem rankThreeCoupling_invariant (σ : FinSuppPerm digraphSig) :
+    rankThreeCoupling.map (Prod.map (RelStructure.relabel σ.1) (⇑(rankLatentRelabel σ 3))) =
+      rankThreeCoupling := by
+  rw [rankThreeCoupling, Measure.map_map
+      ((measurable_relabel σ.1).prodMap (rankLatentRelabel σ 3).measurable)
+      measurable_rankThreeMap,
+    show (Prod.map (RelStructure.relabel σ.1) (⇑(rankLatentRelabel σ 3)) ∘
+        fun ω : RankLatentSpace digraphSig 3 => (arr (freshLayer ω), ω)) =
+      (fun ω : RankLatentSpace digraphSig 3 => (arr (freshLayer ω), ω)) ∘
+        (rankLatentRelabel σ 3) from by
+      funext ω
+      exact (jointMap_rankLatentRelabel σ ω).symm,
+    ← Measure.map_map measurable_rankThreeMap (rankLatentRelabel σ 3).measurable,
+    rankLatentSource_map_rankLatentRelabel]
+
+/-- **The rank-two representation** of the i.i.d.-edge law. -/
+noncomputable def rankTwoRep : iidEdgeExchangeable.RankRepresentation 2 where
+  P := rankTwoCoupling
+  isProbabilityMeasure_P := inferInstance
+  map_fst := rankTwoCoupling_map_fst
+  map_snd := rankTwoCoupling_map_snd
+  invariant := rankTwoCoupling_invariant
+  lower_recovers := lower_recovers_rank_two
+  screening := screening_rank_two
+
+/-- **The rank-three representation** of the same law. -/
+noncomputable def rankThreeRep : iidEdgeExchangeable.RankRepresentation 3 where
+  P := rankThreeCoupling
+  isProbabilityMeasure_P := inferInstance
+  map_fst := rankThreeCoupling_map_fst
+  map_snd := rankThreeCoupling_map_snd
+  invariant := rankThreeCoupling_invariant
+  lower_recovers := lower_recovers_rank_three
+  screening := screening_rank_three
+
+/-- **The successor witness**: the rank-three representation truncates back to the
+*independently defined* rank-two one, on the nose. -/
+noncomputable def iidEdgeSuccessor :
+    InfiniteRelExchangeableLaw.RankSuccessor rankTwoRep where
+  next := rankThreeRep
+  truncation := rankThreeCoupling_truncation
 
 end IidEdgeRegression
 
