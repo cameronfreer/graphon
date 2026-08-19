@@ -405,8 +405,12 @@ theorem measurable_twoPointDecoder (A : Finset (Σ _ : Unit, ℕ)) (hA : A.card 
 open scoped Classical in
 /-- **Rank-three local recovery**: below rank three a block is either constant `false` or, at a
 two-point support, decoded from the latent coordinate at that support — which the rank-three
-array carries, since `2 < 3`. This is the staging clause the regression exists to exercise. -/
-theorem lower_recovers_rank_three (A : Finset (Σ _ : Unit, ℕ)) (hA : A.card < 3) :
+array carries, since `2 < 3`. This is the staging clause the regression exists to exercise.
+
+The rank hypothesis is not consumed: for this law recovery happens to hold at *every* support,
+since a block whose support does not have two elements is constant. The hypothesis is kept because
+`lower_recovers` supplies it. -/
+theorem lower_recovers_rank_three (A : Finset (Σ _ : Unit, ℕ)) (_hA : A.card < 3) :
     ∃ g : LocalLatentSpace (S := digraphSig) A 3 → BlockSpace (S := digraphSig) A, Measurable g ∧
       blockMap (S := digraphSig) A ∘ Prod.fst =ᵐ[rankThreeCoupling]
         g ∘ localLatents (S := digraphSig) A 3 ∘ Prod.snd := by
@@ -712,6 +716,92 @@ noncomputable def iidEdgeSuccessor :
     InfiniteRelExchangeableLaw.RankSuccessor rankTwoRep where
   next := rankThreeRep
   truncation := rankThreeCoupling_truncation
+
+/-! ### Nondegeneracy and the decoding identity
+
+Two statements recording that the regression is not vacuous. The half-threshold makes each edge
+present with probability exactly one half, so no block is almost surely constant and the screening
+clause has content; and at rank three the edge at a two-point support is visibly the thresholded
+latent coordinate keyed by that support. -/
+
+open scoped Classical in
+/-- The support of a digraph coordinate is the pair of its endpoints. -/
+theorem support_digraphCoord (u v : ℕ) :
+    (digraphCoord u v : RelCoord digraphSig (Vinfinite digraphSig)).support =
+      {⟨(), u⟩, ⟨(), v⟩} := by
+  refine Finset.ext fun w => ?_
+  rw [RelCoord.mem_support_iff]
+  simp only [Finset.mem_insert, Finset.mem_singleton]
+  constructor
+  · rintro ⟨i, rfl⟩
+    fin_cases i
+    · exact Or.inl rfl
+    · exact Or.inr rfl
+  · rintro (rfl | rfl)
+    · exact ⟨0, rfl⟩
+    · exact ⟨1, rfl⟩
+
+open scoped Classical in
+/-- An off-diagonal digraph coordinate has a two-point support. -/
+theorem card_support_digraphCoord {u v : ℕ} (huv : u ≠ v) :
+    (digraphCoord u v : RelCoord digraphSig (Vinfinite digraphSig)).support.card = 2 := by
+  rw [support_digraphCoord]
+  exact Finset.card_pair fun h => huv (congrArg Sigma.snd h)
+
+open scoped Classical in
+/-- The source mass of a half-threshold event at one coordinate is exactly one half. -/
+theorem iidUniformSource_threshold (A₀ : RankSupport digraphSig 2) :
+    iidUniformSource (RankSupport digraphSig 2) {u : Edges | u A₀ ≤ 1 / 2} =
+      ENNReal.ofReal (1 / 2) := by
+  have hset : {u : Edges | u A₀ ≤ 1 / 2} =
+      Set.pi (↑({A₀} : Finset (RankSupport digraphSig 2))) fun _ => Set.Iic (1 / 2 : ℝ) := by
+    ext u
+    simp
+  rw [hset, iidUniformSource,
+    Measure.infinitePi_pi (μ := fun _ : RankSupport digraphSig 2 => uniform01)
+      (fun i _ => measurableSet_Iic),
+    Finset.prod_singleton, uniform01_Iic (by norm_num)]
+
+open scoped Classical in
+/-- **Nondegeneracy**: each edge at a two-point support is present with probability exactly one
+half. The block is therefore not almost surely constant, so rank-two screening is a genuine
+conditional-independence statement rather than a determinism statement in disguise. -/
+theorem iidEdgeLaw_edge_eq_half {u v : ℕ} (huv : u ≠ v) :
+    iidEdgeLaw {X | X (digraphCoord u v) = true} = ENNReal.ofReal (1 / 2) := by
+  have hcard := card_support_digraphCoord huv
+  have hmeas : MeasurableSet {X : RelStructure digraphSig (Vinfinite digraphSig) |
+      X (digraphCoord u v) = true} := by
+    have h : Measurable fun X : RelStructure digraphSig (Vinfinite digraphSig) =>
+        X (digraphCoord u v) := measurable_pi_apply _
+    exact h (measurableSet_singleton true)
+  have hpre : arr ⁻¹' {X : RelStructure digraphSig (Vinfinite digraphSig) |
+      X (digraphCoord u v) = true} =
+      {e : Edges | e (Subtype.mk _ hcard : RankSupport digraphSig 2) ≤ 1 / 2} := by
+    ext e
+    show arr e (digraphCoord u v) = true ↔ _
+    rw [arr, dif_pos hcard]
+    exact decide_eq_true_iff
+  rw [iidEdgeLaw, Measure.map_apply measurable_arr hmeas, hpre,
+    iidUniformSource_threshold]
+
+open scoped Classical in
+/-- **The decoding identity**: under the rank-three coupling the edge at a two-point support is
+the thresholded latent coordinate keyed by that support — the staging property in its most
+concrete form. -/
+theorem ae_edge_eq_decode {u v : ℕ} (huv : u ≠ v) :
+    (fun p : RelStructure digraphSig (Vinfinite digraphSig) × RankLatentSpace digraphSig 3 =>
+        p.1 (digraphCoord u v)) =ᵐ[rankThreeCoupling]
+      fun p => decide (p.2 (Subtype.mk (digraphCoord u v).support
+        (by rw [card_support_digraphCoord huv]; omega) : RankLatentIndex digraphSig 3) ≤ 1 / 2) := by
+  have hcard := card_support_digraphCoord huv
+  rw [rankThreeCoupling]
+  refine (ae_map_iff measurable_rankThreeMap.aemeasurable ?_).mpr
+    (Filter.Eventually.of_forall fun ω => ?_)
+  · exact measurableSet_eq_fun (measurable_fst.eval)
+      (measurable_decideLe (measurable_snd.eval))
+  · show arr (freshLayer ω) (digraphCoord u v) = _
+    rw [arr, dif_pos hcard]
+    rfl
 
 end IidEdgeRegression
 

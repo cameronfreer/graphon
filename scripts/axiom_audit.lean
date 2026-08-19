@@ -346,6 +346,17 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.BipartiteRegression.bipartiteSuccessor
 #print axioms RelSignature.BipartiteRegression.ae_edge_xor
 #print axioms RelSignature.BipartiteRegression.not_indepFun_rankTwoCoupling
+
+-- R4 converse (#196): the i.i.d.-edge regression for the successor contract.
+#print axioms RelSignature.mem_rankSupportPerm
+#print axioms RelSignature.RelCoord.card_support_le
+#print axioms RelSignature.IidEdgeRegression.iidEdgeExchangeable
+#print axioms RelSignature.IidEdgeRegression.rankThreeCoupling_truncation
+#print axioms RelSignature.IidEdgeRegression.lower_recovers_rank_three
+#print axioms RelSignature.IidEdgeRegression.screening_rank_two
+#print axioms RelSignature.IidEdgeRegression.iidEdgeSuccessor
+#print axioms RelSignature.IidEdgeRegression.iidEdgeLaw_edge_eq_half
+#print axioms RelSignature.IidEdgeRegression.ae_edge_eq_decode
 #print axioms MeasureTheory.condExp_comp_measurePreserving
 #print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
 #print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving
