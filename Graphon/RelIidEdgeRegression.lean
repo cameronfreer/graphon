@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.RelRankSuccessorContract
 import Graphon.InfiniteDigraph
+import Graphon.DigraphCoordSupport
 import Graphon.ForMathlib.CondIndepSup
 import Mathlib.Probability.ConditionalExpectation
 
