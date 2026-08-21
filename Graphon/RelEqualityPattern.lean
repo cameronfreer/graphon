@@ -93,6 +93,14 @@ theorem RelCoord.mem_support_iff (c : RelCoord S V) (v : Σ s : S.Srt, V s) :
     v ∈ c.support ↔ ∃ i, c.taggedValue i = v := by
   simp [RelCoord.support]
 
+open scoped Classical in
+/-- **The support is no larger than the arity**: it is the image of the finitely many positions.
+Stated over an abstract carrier, where no natural `DecidableEq` competes with the classical
+instance used to form the image. -/
+theorem RelCoord.card_support_le (c : RelCoord S V) : c.support.card ≤ S.arity c.1 := by
+  refine le_trans Finset.card_image_le ?_
+  simp
+
 /-- A coordinate of a positive-arity relation has nonempty support. -/
 theorem RelCoord.support_nonempty (c : RelCoord S V) (h : 0 < S.arity c.1) :
     c.support.Nonempty := by

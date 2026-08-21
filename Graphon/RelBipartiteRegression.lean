@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.RelRankSuccessorContract
 import Graphon.InfiniteDigraph
+import Graphon.DigraphCoordSupport
 import Graphon.ForMathlib.CondIndepSup
 
 /-!
@@ -62,33 +63,8 @@ information, which is what makes its rank-one recovery and screening determinist
 @[simp] theorem arr_diagonal (ω : Colours) (v : ℕ) : arr ω (digraphCoord v v) = false := by
   simp [arr_apply]
 
-/-- Thresholding a measurable real at `1/2` is measurable. -/
-theorem measurable_decideLe {X : Type*} [MeasurableSpace X] {f : X → ℝ} (hf : Measurable f) :
-    Measurable fun x => decide (f x ≤ 1 / 2) := by
-  refine measurable_to_countable' fun b => ?_
-  cases b
-  · have hpre : (fun x => decide (f x ≤ 1 / 2)) ⁻¹' {false} = {x | f x ≤ 1 / 2}ᶜ := by
-      ext x; simp
-    rw [hpre]
-    exact (measurableSet_le hf measurable_const).compl
-  · have hpre : (fun x => decide (f x ≤ 1 / 2)) ⁻¹' {true} = {x | f x ≤ 1 / 2} := by
-      ext x; simp
-    rw [hpre]
-    exact measurableSet_le hf measurable_const
-
-theorem measurable_colour (v : ℕ) : Measurable fun ω : Colours => colour ω v := by
-  refine measurable_to_countable' fun b => ?_
-  cases b
-  · have hpre : (fun ω : Colours => colour ω v) ⁻¹' {false}
-        = {ω : Colours | ω (vertexSupport v) ≤ 1 / 2}ᶜ := by
-      ext ω; simp [colour]
-    rw [hpre]
-    exact (measurableSet_le (measurable_pi_apply _) measurable_const).compl
-  · have hpre : (fun ω : Colours => colour ω v) ⁻¹' {true}
-        = {ω : Colours | ω (vertexSupport v) ≤ 1 / 2} := by
-      ext ω; simp [colour]
-    rw [hpre]
-    exact measurableSet_le (measurable_pi_apply _) measurable_const
+theorem measurable_colour (v : ℕ) : Measurable fun ω : Colours => colour ω v :=
+  measurable_decideLe (measurable_pi_apply _)
 
 theorem measurable_arr : Measurable arr := by
   refine measurable_pi_lambda _ fun c => ?_
@@ -97,32 +73,11 @@ theorem measurable_arr : Measurable arr := by
 
 /-! ### The relabeling action on the fresh layer -/
 
-open scoped Classical in
-/-- A permutation of the vertices permutes the singleton supports. -/
+/-- A permutation of the vertices permutes the singleton supports — the rank-one instance of the
+generic `rankSupportPerm`. -/
 noncomputable def supportPerm (σ : Equiv.Perm ℕ) :
-    RankSupport digraphSig 1 ≃ RankSupport digraphSig 1 where
-  toFun A := ⟨A.1.image (Sigma.map id fun _ => ⇑σ), by
-    rw [Finset.card_image_of_injective _
-      (Function.injective_id.sigma_map fun _ => σ.injective)]
-    exact A.2⟩
-  invFun A := ⟨A.1.image (Sigma.map id fun _ => ⇑σ.symm), by
-    rw [Finset.card_image_of_injective _
-      (Function.injective_id.sigma_map fun _ => σ.symm.injective)]
-    exact A.2⟩
-  left_inv A := Subtype.ext (by
-    show (A.1.image (Sigma.map id fun _ => ⇑σ)).image (Sigma.map id fun _ => ⇑σ.symm) = A.1
-    rw [Finset.image_image]
-    refine (Finset.image_congr fun v _ => ?_).trans A.1.image_id
-    obtain ⟨s, x⟩ := v
-    show (⟨s, σ.symm (σ x)⟩ : Σ _ : Unit, ℕ) = ⟨s, x⟩
-    rw [σ.symm_apply_apply])
-  right_inv A := Subtype.ext (by
-    show (A.1.image (Sigma.map id fun _ => ⇑σ.symm)).image (Sigma.map id fun _ => ⇑σ) = A.1
-    rw [Finset.image_image]
-    refine (Finset.image_congr fun v _ => ?_).trans A.1.image_id
-    obtain ⟨s, x⟩ := v
-    show (⟨s, σ (σ.symm x)⟩ : Σ _ : Unit, ℕ) = ⟨s, x⟩
-    rw [σ.apply_symm_apply])
+    RankSupport digraphSig 1 ≃ RankSupport digraphSig 1 :=
+  rankSupportPerm (fun _ : Unit => σ) 1
 
 open scoped Classical in
 @[simp] theorem supportPerm_vertexSupport (σ : Equiv.Perm ℕ) (v : ℕ) :
@@ -612,18 +567,8 @@ A coordinate projection of the deterministic-block lemma — no second pushforwa
 open scoped Classical in
 /-- The directed coordinate at a pair of distinct vertices lies in that pair's block. -/
 theorem support_digraphCoord {u v : ℕ} :
-    (digraphCoord u v : RelCoord digraphSig (Vinfinite digraphSig)).support = pairSupport u v := by
-  refine Finset.ext fun w => ?_
-  rw [RelCoord.mem_support_iff]
-  simp only [pairSupport, Finset.mem_insert, Finset.mem_singleton]
-  constructor
-  · rintro ⟨i, rfl⟩
-    fin_cases i
-    · exact Or.inl rfl
-    · exact Or.inr rfl
-  · rintro (rfl | rfl)
-    · exact ⟨0, rfl⟩
-    · exact ⟨1, rfl⟩
+    (digraphCoord u v : RelCoord digraphSig (Vinfinite digraphSig)).support = pairSupport u v :=
+  _root_.support_digraphCoord u v
 
 open scoped Classical in
 /-- **The XOR identity**: almost surely the edge at a pair of distinct vertices is the parity of

@@ -84,33 +84,57 @@ theorem card_image_sigmaMap {A : Finset (Σ s : S.Srt, Vinfinite S s)} {n : ℕ}
   exact hA
 
 open scoped Classical in
-/-- A relabeling permutes the supports of each rank. -/
-noncomputable def rankSupportEquiv (σ : FinSuppPerm S) (n : ℕ) :
+/-- **An arbitrary sortwise permutation permutes the supports of each rank.** Finite support is
+irrelevant here: only injectivity is used, and that is what preserves cardinality. Stated for
+arbitrary sortwise permutations because the exchangeability of a law is an invariance under *all*
+of them, not only the finitely supported ones. -/
+noncomputable def rankSupportPerm (σ : ∀ s, Equiv.Perm (Vinfinite S s)) (n : ℕ) :
     RankSupport S n ≃ RankSupport S n where
-  toFun A := ⟨A.1.image (Sigma.map id fun s => ⇑(σ.1 s)), by
+  toFun A := ⟨A.1.image (Sigma.map id fun s => ⇑(σ s)), by
     rw [Finset.card_image_of_injective _
-      (Function.injective_id.sigma_map fun s => (σ.1 s).injective)]
+      (Function.injective_id.sigma_map fun s => (σ s).injective)]
     exact A.2⟩
-  invFun A := ⟨A.1.image (Sigma.map id fun s => ⇑(σ.1 s)⁻¹), by
+  invFun A := ⟨A.1.image (Sigma.map id fun s => ⇑(σ s)⁻¹), by
     rw [Finset.card_image_of_injective _
-      (Function.injective_id.sigma_map fun s => ((σ.1 s)⁻¹).injective)]
+      (Function.injective_id.sigma_map fun s => ((σ s)⁻¹).injective)]
     exact A.2⟩
   left_inv A := Subtype.ext (by
-    show (A.1.image (Sigma.map id fun s => ⇑(σ.1 s))).image (Sigma.map id fun s => ⇑(σ.1 s)⁻¹)
+    show (A.1.image (Sigma.map id fun s => ⇑(σ s))).image (Sigma.map id fun s => ⇑(σ s)⁻¹)
       = A.1
     rw [Finset.image_image]
     refine (Finset.image_congr fun v _ => ?_).trans A.1.image_id
     obtain ⟨s, x⟩ := v
-    show (⟨s, (σ.1 s)⁻¹ ((σ.1 s) x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
-    rw [show (σ.1 s)⁻¹ ((σ.1 s) x) = x from (σ.1 s).symm_apply_apply x])
+    show (⟨s, (σ s)⁻¹ ((σ s) x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
+    rw [show (σ s)⁻¹ ((σ s) x) = x from (σ s).symm_apply_apply x])
   right_inv A := Subtype.ext (by
-    show (A.1.image (Sigma.map id fun s => ⇑(σ.1 s)⁻¹)).image (Sigma.map id fun s => ⇑(σ.1 s))
+    show (A.1.image (Sigma.map id fun s => ⇑(σ s)⁻¹)).image (Sigma.map id fun s => ⇑(σ s))
       = A.1
     rw [Finset.image_image]
     refine (Finset.image_congr fun v _ => ?_).trans A.1.image_id
     obtain ⟨s, x⟩ := v
-    show (⟨s, (σ.1 s) ((σ.1 s)⁻¹ x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
-    rw [show (σ.1 s) ((σ.1 s)⁻¹ x) = x from (σ.1 s).apply_symm_apply x])
+    show (⟨s, (σ s) ((σ s)⁻¹ x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
+    rw [show (σ s) ((σ s)⁻¹ x) = x from (σ s).apply_symm_apply x])
+
+open scoped Classical in
+@[simp] theorem rankSupportPerm_coe (σ : ∀ s, Equiv.Perm (Vinfinite S s)) (n : ℕ)
+    (A : RankSupport S n) :
+    (rankSupportPerm σ n A).1 = A.1.image (Sigma.map id fun s => ⇑(σ s)) := rfl
+
+open scoped Classical in
+/-- Membership in a permuted support, stated **without an image** so that no `DecidableEq`
+instance appears in the type. Consumers over a concrete carrier have a natural instance that is
+not definitionally the classical one used to form the image, and `rankSupportPerm_coe` is then
+unusable there; this form is not. -/
+theorem mem_rankSupportPerm (σ : ∀ s, Equiv.Perm (Vinfinite S s)) (n : ℕ) (A : RankSupport S n)
+    (v : Σ s : S.Srt, Vinfinite S s) :
+    v ∈ (rankSupportPerm σ n A).1 ↔ ∃ a ∈ A.1, Sigma.map id (fun s => ⇑(σ s)) a = v := by
+  rw [rankSupportPerm_coe, Finset.mem_image]
+
+open scoped Classical in
+/-- A relabeling permutes the supports of each rank — the finitely supported case. -/
+noncomputable def rankSupportEquiv (σ : FinSuppPerm S) (n : ℕ) :
+    RankSupport S n ≃ RankSupport S n :=
+  rankSupportPerm σ.1 n
 
 
 open scoped Classical in
