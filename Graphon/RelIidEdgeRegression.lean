@@ -731,30 +731,6 @@ clause has content; and at rank three the edge at a two-point support is visibly
 latent coordinate keyed by that support. -/
 
 open scoped Classical in
-/-- The support of a digraph coordinate is the pair of its endpoints. -/
-theorem support_digraphCoord (u v : ℕ) :
-    (digraphCoord u v : RelCoord digraphSig (Vinfinite digraphSig)).support =
-      {⟨(), u⟩, ⟨(), v⟩} := by
-  refine Finset.ext fun w => ?_
-  rw [RelCoord.mem_support_iff]
-  simp only [Finset.mem_insert, Finset.mem_singleton]
-  constructor
-  · rintro ⟨i, rfl⟩
-    fin_cases i
-    · exact Or.inl rfl
-    · exact Or.inr rfl
-  · rintro (rfl | rfl)
-    · exact ⟨0, rfl⟩
-    · exact ⟨1, rfl⟩
-
-open scoped Classical in
-/-- An off-diagonal digraph coordinate has a two-point support. -/
-theorem card_support_digraphCoord {u v : ℕ} (huv : u ≠ v) :
-    (digraphCoord u v : RelCoord digraphSig (Vinfinite digraphSig)).support.card = 2 := by
-  rw [support_digraphCoord]
-  exact Finset.card_pair fun h => huv (congrArg Sigma.snd h)
-
-open scoped Classical in
 /-- The source mass of a half-threshold event at one coordinate is exactly one half. -/
 theorem iidUniformSource_threshold (A₀ : RankSupport digraphSig 2) :
     iidUniformSource (RankSupport digraphSig 2) {u : Edges | u A₀ ≤ 1 / 2} =

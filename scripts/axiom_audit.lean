@@ -347,6 +347,10 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.BipartiteRegression.ae_edge_xor
 #print axioms RelSignature.BipartiteRegression.not_indepFun_rankTwoCoupling
 
+-- Shared digraph-coordinate support geometry (two regression consumers).
+#print axioms support_digraphCoord
+#print axioms card_support_digraphCoord
+
 -- R4 converse (#196): the i.i.d.-edge regression for the successor contract.
 #print axioms RelSignature.mem_rankSupportPerm
 #print axioms RelSignature.RelCoord.card_support_le

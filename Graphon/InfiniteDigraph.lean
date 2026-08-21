@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelationalTopology
+import Graphon.RelEqualityPattern
 import Mathlib.Combinatorics.Digraph.Basic
 
 /-!
@@ -45,6 +46,31 @@ theorem digraphSig_noNullary : NoNullary digraphSig := fun _ => Nat.succ_pos 1
 
 /-- The **coordinate at an ordered vertex pair** `(a, b)`, over any vertex type. -/
 abbrev digraphCoord {V : Type*} (a b : V) : RelCoord digraphSig (fun _ => V) := ⟨(), ![a, b]⟩
+
+open scoped Classical in
+/-- **The support of a digraph coordinate** is the pair of its endpoints. Proved by membership, so
+that the `DecidableEq` instance forming the pair is the caller's rather than the classical one used
+to build `RelCoord.support`. -/
+theorem support_digraphCoord {V : Type*} [DecidableEq V] (a b : V) :
+    (digraphCoord a b : RelCoord digraphSig (fun _ => V)).support =
+      {(⟨(), a⟩ : Σ _ : Unit, V), ⟨(), b⟩} := by
+  refine Finset.ext fun w => ?_
+  rw [RelCoord.mem_support_iff]
+  simp only [Finset.mem_insert, Finset.mem_singleton]
+  constructor
+  · rintro ⟨i, rfl⟩
+    fin_cases i
+    · exact Or.inl rfl
+    · exact Or.inr rfl
+  · rintro (rfl | rfl)
+    · exact ⟨0, rfl⟩
+    · exact ⟨1, rfl⟩
+
+/-- **An off-diagonal digraph coordinate has a two-point support.** -/
+theorem card_support_digraphCoord {V : Type*} [DecidableEq V] {a b : V} (hab : a ≠ b) :
+    (digraphCoord a b : RelCoord digraphSig (fun _ => V)).support.card = 2 := by
+  rw [support_digraphCoord]
+  exact Finset.card_pair fun h => hab (congrArg Sigma.snd h)
 
 /-- **Coordinates are ordered vertex pairs** (full square, diagonal included). -/
 def digraphCoordEquiv (V : Type*) : RelCoord digraphSig (fun _ => V) ≃ (V × V) where

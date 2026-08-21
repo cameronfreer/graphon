@@ -307,6 +307,8 @@ AUDITED_DECLS = {
     "RelSignature.BipartiteRegression.bipartiteSuccessor",
     "RelSignature.BipartiteRegression.ae_edge_xor",
     "RelSignature.BipartiteRegression.not_indepFun_rankTwoCoupling",
+    "support_digraphCoord",
+    "card_support_digraphCoord",
     "RelSignature.mem_rankSupportPerm",
     "RelSignature.RelCoord.card_support_le",
     "RelSignature.IidEdgeRegression.iidEdgeExchangeable",
