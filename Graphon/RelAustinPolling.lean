@@ -131,20 +131,29 @@ theorem measurable_pollingClusters : Measurable (pollingClusters (S := S) (n := 
 
 variable (S n) in
 /-- The enriched observation space: the original structure and old latents, together with the
-clusters. -/
+**auxiliary** polling data — the whole pooled rank-`n` latent array and the clusters.
+
+The pooled latent array is carried *alongside* the original marginal rather than replacing it, so
+the first component is untouched and `enrichedPollingLaw_map_fst` stays literally what it was. It
+is needed because the peel permutations move original vertices into the spare half: an original
+latent index is then sent to a mixed one, so the original latent array is **not** stable under
+those permutations, while the pooled array is — they merely permute pooled indices among
+themselves. Every pooled index still has cardinality `< n`, so no rank-`n` block is revealed. -/
 abbrev EnrichedSpace :=
-  (RelStructure S (Vinfinite S) × RankLatentSpace S n) × ClusterSpace S n
+  (RelStructure S (Vinfinite S) × RankLatentSpace S n) ×
+    (PooledRankLatentSpace S n × ClusterSpace S n)
 
 open scoped Classical in
 /-- **The enriched polling map**: restrict to the original half, and retain the poll. -/
 noncomputable def enrichedPollingMap :
     RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → EnrichedSpace S n :=
-  fun p => (Prod.map (restrictOriginal S) (restrictOriginalLatents S n) p, pollingClusters p)
+  fun p => (Prod.map (restrictOriginal S) (restrictOriginalLatents S n) p, (p.2, pollingClusters p))
 
 open scoped Classical in
 theorem measurable_enrichedPollingMap : Measurable (enrichedPollingMap (S := S) (n := n)) :=
   (((measurable_restrict _).comp measurable_fst).prodMk
-    ((measurable_restrictOriginalLatents n).comp measurable_snd)).prodMk measurable_pollingClusters
+    ((measurable_restrictOriginalLatents n).comp measurable_snd)).prodMk
+      (measurable_snd.prodMk measurable_pollingClusters)
 
 open scoped Classical in
 /-- **The enriched polling law.** Austin's polling data survives here: the clusters are retained
@@ -176,16 +185,20 @@ theorem enrichedPollingLaw_map_fst {C : M.RankRepresentation n} (Q : PooledRankE
 /-! ### The conditioning -/
 
 variable (S n) in
-/-- **The polling conditioning**, pinned concretely: the old latents together with the mixed
-clusters. Not a witness field — an existential factor could be taken to be the whole joint object,
-which would make the mutual conclusion vacuous. -/
+/-- **The polling conditioning**, pinned concretely: the whole pooled rank-`n` latent array
+together with the mixed clusters — that is, the auxiliary component. Not a witness field: an
+existential factor could be taken to be the whole joint object and would make the conclusion
+vacuous.
+
+Reading the *pooled* array rather than its original part is what makes the conditioning stable
+under the permutations the peel uses; every index still has cardinality `< n`, so the latent half
+carries no rank-`n` block. -/
 noncomputable def pollingCond :
-    EnrichedSpace S n → RankLatentSpace S n × ClusterSpace S n :=
-  fun q => (q.1.2, q.2)
+    EnrichedSpace S n → PooledRankLatentSpace S n × ClusterSpace S n :=
+  fun q => q.2
 
 variable (S n) in
-theorem measurable_pollingCond : Measurable (pollingCond S n) :=
-  (measurable_fst.snd).prodMk measurable_snd
+theorem measurable_pollingCond : Measurable (pollingCond S n) := measurable_snd
 
 /-! ### The witness -/
 
