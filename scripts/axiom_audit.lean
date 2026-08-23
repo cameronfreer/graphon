@@ -365,6 +365,8 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms ProbabilityTheory.condExp_set_comp_measurePreserving
 #print axioms ProbabilityTheory.condIndepFun_comp_measurePreserving
 #print axioms ProbabilityTheory.iCondIndepFun_comp_measurePreserving
+#print axioms ProbabilityTheory.condIndepFun_of_map
+#print axioms ProbabilityTheory.iCondIndepFun_of_map
 #print axioms MeasureTheory.condExp_eq_condExp_of_ae_representable
 #print axioms ProbabilityTheory.iCondIndepFun_congr_of_ae_representable
 #print axioms MeasureTheory.eventuallyMeasurableSet_sup

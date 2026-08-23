@@ -34,7 +34,10 @@ formula back. No structure on the fibres of `T` is used.
 * `ProbabilityTheory.condExp_set_comp_measurePreserving` — the single-event form, shared by both
   independence transports;
 * `ProbabilityTheory.condIndepFun_comp_measurePreserving` — the two-function transport;
-* `ProbabilityTheory.iCondIndepFun_comp_measurePreserving` — the family transport.
+* `ProbabilityTheory.iCondIndepFun_comp_measurePreserving` — the family transport;
+* `ProbabilityTheory.condIndepFun_of_map` and `ProbabilityTheory.iCondIndepFun_of_map` — the
+  **forward** companions of the two transports above, from the source law to a pushforward along an
+  arbitrary measurable map. No injectivity, and the target conditioning algebra is arbitrary.
 
 `[StandardBorelSpace]` hypotheses appear only on the conditional-independence statements, forced
 by Mathlib defining conditional independence through `condExpKernel`; the
@@ -190,5 +193,110 @@ theorem iCondIndepFun_comp_measurePreserving (hT : MeasurePreserving T P μ) (hm
   have hclose := hfac.symm
   rw [← hprodcomp] at hclose
   exact h₁.trans (hpull.trans hclose)
+
+/-! ### The forward companions
+
+The transports above run *backward*: a statement on the factor law becomes a statement on the
+source. The two below run **forward**, from the source to the pushforward, and are their exact
+companions — same measurability hypotheses, same pullback conditioning algebra, and **no
+injectivity**. `T` need not be invertible, and no structure on its fibres is used.
+
+The conditioning algebra is an arbitrary sub-σ-algebra `m'` of the target, not merely one generated
+by a function; the proof costs nothing extra for the general form, since all it needs is that the
+source conditions on the pullback `m'.comap T`.
+
+The route is the one the backward transports already use, run in the other direction: regard `T` as
+measure preserving from `P` to `P.map T`, rewrite every source conditional probability as the
+corresponding target one composed with `T` via `condExp_set_comp_measurePreserving`, and descend the
+resulting a.e. identity through `ae_map_iff`. -/
+
+/-- **Conditional independence of a pair pushes forward along a measurable map.** The forward
+companion of `condIndepFun_comp_measurePreserving`: no injectivity, and `m'` is an arbitrary
+sub-σ-algebra of the target. -/
+theorem condIndepFun_of_map (hT : Measurable T) (hm' : m' ≤ mβ)
+    {γ γ' : Type*} {mγ : MeasurableSpace γ} {mγ' : MeasurableSpace γ'}
+    {f : β → γ} {g : β → γ'} (hf : Measurable f) (hg : Measurable g)
+    (h : CondIndepFun (m'.comap T)
+      ((MeasurableSpace.comap_mono hm').trans (measurable_iff_comap_le.mp hT))
+      (f ∘ T) (g ∘ T) P) :
+    CondIndepFun m' hm' f g (P.map T) := by
+  haveI : IsFiniteMeasure (P.map T) := Measure.isFiniteMeasure_map P T
+  have hTmp : MeasurePreserving T P (P.map T) := ⟨hT, rfl⟩
+  have key : ∀ E : Set β, MeasurableSet E →
+      (P⟦T ⁻¹' E | m'.comap T⟧) =ᵐ[P] ((P.map T)⟦E | m'⟧) ∘ T :=
+    fun _ hE => condExp_set_comp_measurePreserving hTmp hm' hE
+  rw [condIndepFun_iff_condExp_inter_preimage_eq_mul hf hg]
+  rw [condIndepFun_iff_condExp_inter_preimage_eq_mul (hf.comp hT) (hg.comp hT)] at h
+  intro s t hs ht
+  have hA : MeasurableSet (f ⁻¹' s) := hf hs
+  have hB : MeasurableSet (g ⁻¹' t) := hg ht
+  have hsrc := h s t hs ht
+  have h₁ := key _ (hA.inter hB)
+  have h₂ := key _ hA
+  have h₃ := key _ hB
+  have hcomp : ((P.map T)⟦f ⁻¹' s ∩ g ⁻¹' t | m'⟧) ∘ T
+      =ᵐ[P] (fun y => ((P.map T)⟦f ⁻¹' s | m'⟧) y * ((P.map T)⟦g ⁻¹' t | m'⟧) y) ∘ T := by
+    have hpre : (f ∘ T) ⁻¹' s ∩ (g ∘ T) ⁻¹' t = T ⁻¹' (f ⁻¹' s ∩ g ⁻¹' t) := by
+      rw [Set.preimage_inter, Set.preimage_comp, Set.preimage_comp]
+    rw [hpre] at hsrc
+    filter_upwards [h₁, h₂, h₃, hsrc] with x e₁ e₂ e₃ esrc
+    rw [Set.preimage_comp, Set.preimage_comp] at esrc
+    simp only [Function.comp_apply] at e₁ e₂ e₃ ⊢
+    rw [← e₁, esrc, e₂, e₃]
+  have hmeas : MeasurableSet {y : β | ((P.map T)⟦f ⁻¹' s ∩ g ⁻¹' t | m'⟧) y =
+      ((P.map T)⟦f ⁻¹' s | m'⟧) y * ((P.map T)⟦g ⁻¹' t | m'⟧) y} :=
+    measurableSet_eq_fun (stronglyMeasurable_condExp.mono hm').measurable
+      ((stronglyMeasurable_condExp.mono hm').measurable.mul
+        (stronglyMeasurable_condExp.mono hm').measurable)
+  exact (ae_map_iff hT.aemeasurable hmeas).mpr hcomp
+
+/-- **Mutual conditional independence pushes forward along a measurable map.** The forward
+companion of `iCondIndepFun_comp_measurePreserving`, on the same terms: no injectivity, arbitrary
+target sub-σ-algebra. This is the form the polling arguments need, where the map that produces the
+enriched law forgets information and is therefore not invertible. -/
+theorem iCondIndepFun_of_map (hT : Measurable T) (hm' : m' ≤ mβ)
+    {ι : Type*} {γ : ι → Type*} [mγ : ∀ i, MeasurableSpace (γ i)] {Y : ∀ i, β → γ i}
+    (hY : ∀ i, Measurable (Y i))
+    (h : iCondIndepFun (m'.comap T)
+      ((MeasurableSpace.comap_mono hm').trans (measurable_iff_comap_le.mp hT))
+      (fun i => Y i ∘ T) P) :
+    iCondIndepFun m' hm' Y (P.map T) := by
+  haveI : IsFiniteMeasure (P.map T) := Measure.isFiniteMeasure_map P T
+  have hTmp : MeasurePreserving T P (P.map T) := ⟨hT, rfl⟩
+  have key : ∀ E : Set β, MeasurableSet E →
+      (P⟦T ⁻¹' E | m'.comap T⟧) =ᵐ[P] ((P.map T)⟦E | m'⟧) ∘ T :=
+    fun _ hE => condExp_set_comp_measurePreserving hTmp hm' hE
+  rw [iCondIndepFun_iff_condExp_inter_preimage_eq_mul _ _ hY]
+  rw [iCondIndepFun_iff_condExp_inter_preimage_eq_mul _ _ fun i => (hY i).comp hT] at h
+  intro S sets hsets
+  have hsrc := h S hsets
+  have hinter : MeasurableSet (⋂ i ∈ S, Y i ⁻¹' sets i) :=
+    MeasurableSet.biInter S.countable_toSet fun i hi => (hY i) (hsets i hi)
+  have hpre : ⋂ i ∈ S, (Y i ∘ T) ⁻¹' sets i = T ⁻¹' ⋂ i ∈ S, Y i ⁻¹' sets i := by
+    simp [Set.preimage_comp, Set.preimage_iInter]
+  rw [hpre] at hsrc
+  have h₁ := key _ hinter
+  have hfac : ∀ᵐ x ∂P, ∀ i ∈ S, (P⟦(Y i ∘ T) ⁻¹' sets i | m'.comap T⟧) x
+      = (((P.map T)⟦Y i ⁻¹' sets i | m'⟧) ∘ T) x := by
+    refine (ae_ball_iff S.countable_toSet).2 fun i hi => ?_
+    rw [Set.preimage_comp]
+    exact key _ ((hY i) (hsets i hi))
+  have hcomp : ((P.map T)⟦⋂ i ∈ S, Y i ⁻¹' sets i | m'⟧) ∘ T
+      =ᵐ[P] (∏ i ∈ S, ((P.map T)⟦Y i ⁻¹' sets i | m'⟧)) ∘ T := by
+    filter_upwards [h₁, hsrc, hfac] with x e₁ esrc efac
+    simp only [Function.comp_apply] at e₁ ⊢
+    rw [← e₁, esrc]
+    show (∏ i ∈ S, (P⟦(Y i ∘ T) ⁻¹' sets i | m'.comap T⟧)) x = _
+    simp only [Finset.prod_apply]
+    exact Finset.prod_congr rfl fun i hi => efac i hi
+  have hmeas : MeasurableSet {y : β | ((P.map T)⟦⋂ i ∈ S, Y i ⁻¹' sets i | m'⟧) y =
+      (∏ i ∈ S, ((P.map T)⟦Y i ⁻¹' sets i | m'⟧)) y} := by
+    refine measurableSet_eq_fun (stronglyMeasurable_condExp.mono hm').measurable ?_
+    have heq : (∏ i ∈ S, ((P.map T)⟦Y i ⁻¹' sets i | m'⟧)) =
+        fun y : β => ∏ i ∈ S, ((P.map T)⟦Y i ⁻¹' sets i | m'⟧) y :=
+      funext fun y => Finset.prod_apply y S _
+    rw [heq]
+    exact Finset.measurable_prod S fun i _ => (stronglyMeasurable_condExp.mono hm').measurable
+  exact (ae_map_iff hT.aemeasurable hmeas).mpr hcomp
 
 end ProbabilityTheory

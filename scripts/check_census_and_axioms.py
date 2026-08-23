@@ -322,6 +322,8 @@ AUDITED_DECLS = {
     "ProbabilityTheory.condExp_set_comp_measurePreserving",
     "ProbabilityTheory.condIndepFun_comp_measurePreserving",
     "ProbabilityTheory.iCondIndepFun_comp_measurePreserving",
+    "ProbabilityTheory.condIndepFun_of_map",
+    "ProbabilityTheory.iCondIndepFun_of_map",
     "MeasureTheory.eventuallyMeasurableSet_sup",
     "ProbabilityTheory.iCondIndep_of_condIndep_iSup",
     "ProbabilityTheory.CondIndep.sup_right",
