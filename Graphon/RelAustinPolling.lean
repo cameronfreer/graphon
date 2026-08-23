@@ -38,12 +38,14 @@ half — the two would overlap.
 
 Austin's polling data must survive into the next law; forgetting it into a bare `C.P` statement
 would discard exactly what the successor construction consumes. That data is the family of
-**mixed** clusters — pooled rank-`n` blocks straddling the two halves — and not merely the induced
-structure on the spare half.
+**mixed** clusters — pooled rank-`n` blocks that are *not wholly original* — and not merely the
+induced structure on the spare half. "Mixed" is exactly that negation: an all-spare support
+qualifies, its original part being empty and therefore proper.
 
 * `pollingClusters` — the mixed cluster observation, indexed by `MixedClusterIndex`: pooled
-  rank-`n` supports containing at least one spare vertex. Each such support has a *proper* original
-  part, since one of its `n` vertices is spare.
+  rank-`n` supports containing at least one spare vertex, all-spare supports included. Each such
+  support has a *proper* original part, since at least one of its `n` vertices is spare; for an
+  all-spare support that part is empty, which is proper as well.
 * `enrichedPollingLaw` — the pushforward of `Q.law` retaining the original structure and old
   latents together with the clusters.
 * `enrichedPollingLaw_map_fst` — the first marginal is `C.P` exactly, proved through
@@ -96,9 +98,12 @@ theorem measurable_originalBlock (A : RankSupport S n) :
 /-! ### The mixed clusters -/
 
 open scoped Classical in
-/-- **Mixed cluster indices**: pooled rank-`n` supports containing at least one spare vertex. The
-original part of such a support is a *proper* subset of it, since one of its `n` vertices is spare
-— this is the sense in which the clusters are indexed by proper original subsets. -/
+/-- **Mixed cluster indices**: pooled rank-`n` supports that are **not wholly original**, i.e.
+containing at least one spare vertex. All-spare supports are included — "mixed" is the negation of
+"wholly original", not a demand that both halves be met. The original part of such a support is a
+*proper* subset of it, since at least one of its `n` vertices is spare, and for an all-spare
+support that part is empty; this is the sense in which the clusters are indexed by proper original
+subsets. -/
 def MixedClusterIndex (S : RelSignature) (n : ℕ) :=
   {A : Finset (Σ s : S.Srt, PoolVertex S s) // A.card = n ∧ ∃ v ∈ A, Sum.isRight v.2}
 
@@ -111,9 +116,9 @@ abbrev ClusterSpace (S : RelSignature) (n : ℕ) :=
   (A : MixedClusterIndex S n) → BlockSpaceOver (PoolVertex S) A.1
 
 open scoped Classical in
-/-- **The mixed cluster observation** — the poll. Each coordinate is a pooled rank-`n` block
-straddling the two halves; no coordinate is an original-half block, since every index carries a
-spare vertex. -/
+/-- **The mixed cluster observation** — the poll. Each coordinate is a pooled rank-`n` block that
+is not wholly original; no coordinate is an original-half block, since every index carries a spare
+vertex. -/
 noncomputable def pollingClusters :
     RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → ClusterSpace S n :=
   fun p A => blockMapOver A.1 p.1
