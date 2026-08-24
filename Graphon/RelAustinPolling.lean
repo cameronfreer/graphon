@@ -493,6 +493,42 @@ private theorem polling_condExp_insert {C : M.RankRepresentation n} (Q : PooledR
   exact ⟨(fun x : FBlockSpace F => x ⟨A, hA⟩) ⁻¹' sets A,
     (measurable_pi_apply _) (hsets A (Finset.mem_insert_of_mem hA)), rfl⟩
 
+/-! ### The source-level mutual theorem
+
+Named rather than inlined into the witness: it is the load-bearing consumer of
+`polling_condExp_insert` and the direct input to the forward descent, so keeping it separate makes
+it independently reviewable and leaves the final constructor carrying no probability argument of
+its own. -/
+
+open scoped Classical in
+/-- **Mutual conditional independence of the whole rank-`n` block family under `Q.law`**, given the
+polling conditioning. The peel is structurally the singleton peel: the empty stage is a constant,
+and each insertion is discharged by `polling_condExp_insert` against the induction hypothesis, with
+the conditioning algebra fixed throughout. -/
+theorem PooledRankExtension.iCondIndepFun_originalBlock_sourcePollingCond
+    {C : M.RankRepresentation n} (Q : PooledRankExtension C) :
+    iCondIndepFun (MeasurableSpace.comap (sourcePollingCond (S := S) (n := n)) inferInstance)
+      (measurable_sourcePollingCond (S := S) (n := n)).comap_le
+      (fun A : RankSupport S n => originalBlock (S := S) (n := n) A)
+      (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) := by
+  haveI := C.isProbabilityMeasure_P
+  rw [iCondIndepFun_iff_condExp_inter_preimage_eq_mul _ _
+    fun A => measurable_originalBlock (S := S) (n := n) A]
+  intro T sets
+  induction T using Finset.induction_on with
+  | empty =>
+      intro _
+      simp only [Finset.notMem_empty, Set.iInter_of_empty, Set.iInter_univ, Finset.prod_empty,
+        Set.indicator_univ]
+      rw [condExp_const (measurable_sourcePollingCond (S := S) (n := n)).comap_le (1 : ℝ)]
+      rfl
+  | insert e F heF ih =>
+      intro hsets
+      have ihs := ih fun A hA => hsets A (Finset.mem_insert_of_mem hA)
+      rw [Finset.set_biInter_insert, Finset.prod_insert heF]
+      exact (polling_condExp_insert Q e F heF sets hsets).trans
+        (Filter.EventuallyEq.mul Filter.EventuallyEq.rfl ihs)
+
 /-! ### The witness -/
 
 variable [Fintype S.Srt]
