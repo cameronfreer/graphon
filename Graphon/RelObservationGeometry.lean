@@ -167,6 +167,16 @@ noncomputable def supportImage (e : ∀ s, V s ↪ W s) (A : Finset (Σ s : S.Sr
     Finset (Σ s : S.Srt, W s) :=
   A.image (Sigma.map id fun s => ⇑(e s))
 
+open scoped Classical in
+/-- **Membership in a support image**, stated without an image in the type so that no `DecidableEq`
+instance appears in it. Over a carrier with a natural instance — `PoolVertex`, whose `Sum` gives
+one — that instance is not definitionally the classical one used to form the image, which makes
+image-shaped rewriting unusable there; this form is not. -/
+theorem mem_supportImage_iff (e : ∀ s, V s ↪ W s) (A : Finset (Σ s : S.Srt, V s))
+    (v : Σ s : S.Srt, W s) :
+    v ∈ supportImage e A ↔ ∃ w ∈ A, Sigma.map id (fun s => ⇑(e s)) w = v :=
+  Finset.mem_image
+
 theorem injective_sigmaMap (e : ∀ s, V s ↪ W s) :
     Function.Injective (Sigma.map id fun s => ⇑(e s) : (Σ s : S.Srt, V s) → Σ s : S.Srt, W s) :=
   Function.injective_id.sigma_map fun s => (e s).injective

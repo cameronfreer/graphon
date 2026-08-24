@@ -342,6 +342,97 @@ theorem comap_localLatents_le_sourcePollingCond (A : Finset (Σ s : S.Srt, PoolV
   exact MeasurableSpace.comap_mono
     ((measurable_localLatentsOver A n).comp measurable_fst).comap_le
 
+/-! ### What the screening remainder supplies
+
+`Q.screening` gives conditional independence of the block at a pooled support `A` from
+`restObservationOver n A` — the other rank-`≤ n` blocks together with the whole pooled latent
+array. Weak union needs that remainder to dominate *both* the accumulated `F`-blocks and the whole
+polling conditioning. `restToPollingData` exhibits that as a single measurable factorization rather
+than as a bare algebra inequality, so it records exactly which information the remainder supplies
+and lets `CondIndepFun.comp` consume the screening statement directly. -/
+
+open scoped Classical in
+omit [Countable S.Rel] in
+/-- A support in the image of the original half carries no spare vertex. -/
+theorem isRight_eq_false_of_mem_supportImage_original
+    {X : Finset (Σ s : S.Srt, Vinfinite S s)} {v : Σ s : S.Srt, PoolVertex S s}
+    (hv : v ∈ supportImage (originalVertex S) X) : Sum.isRight v.2 = false := by
+  obtain ⟨w, -, rfl⟩ := (mem_supportImage_iff _ _ _).mp hv
+  rfl
+
+open scoped Classical in
+omit [Countable S.Rel] in
+/-- **Separation, original against original**: distinct rank-`n` supports have distinct images,
+since `supportImage` is injective. -/
+theorem supportImage_ne_of_ne {B e : RankSupport S n} (h : B ≠ e) :
+    supportImage (originalVertex S) B.1 ≠ supportImage (originalVertex S) e.1 :=
+  fun heq => h (Subtype.ext (supportImage_injective _ heq))
+
+open scoped Classical in
+/-- **Separation, cluster against original**: a mixed cluster carries a spare vertex, while the
+image of an original support is wholly original. -/
+theorem mixedCluster_ne_supportImage (Ac : MixedClusterIndex S n) (e : RankSupport S n) :
+    Ac.1 ≠ supportImage (originalVertex S) e.1 := by
+  obtain ⟨v, hv, hvr⟩ := Ac.2.2
+  intro heq
+  rw [heq] at hv
+  rw [isRight_eq_false_of_mem_supportImage_original hv] at hvr
+  exact absurd hvr (by simp)
+
+open scoped Classical in
+/-- The accumulated block observation space, indexed by a finite family of rank-`n` supports. -/
+abbrev FBlockSpace (F : Finset (RankSupport S n)) :=
+  (B : {x : RankSupport S n // x ∈ F}) →
+    BlockSpaceOver (PoolVertex S) (supportImage (originalVertex S) B.1.1)
+
+open scoped Classical in
+/-- **The screening remainder computes both sides of the weak-union hypothesis**: the accumulated
+`F`-blocks and the entire polling conditioning are read off `restObservationOver n A` alone. -/
+noncomputable def restToPollingData (e : RankSupport S n) (F : Finset (RankSupport S n))
+    (heF : e ∉ F) :
+    RestSpaceOver (PoolVertex S) n (supportImage (originalVertex S) e.1) ×
+        PooledRankLatentSpace S n →
+      FBlockSpace F × (PooledRankLatentSpace S n × ClusterSpace S n) :=
+  fun q =>
+    (fun B c => q.1 ⟨c.1, by
+        refine ⟨?_, ?_⟩
+        · rw [c.2, card_supportImage]; exact le_of_eq B.1.2
+        · rw [c.2]; exact supportImage_ne_of_ne fun h => heF (h ▸ B.2)⟩,
+      (q.2, fun Ac c => q.1 ⟨c.1, by
+        refine ⟨?_, ?_⟩
+        · rw [c.2]; exact le_of_eq Ac.2.1
+        · rw [c.2]; exact mixedCluster_ne_supportImage Ac e⟩))
+
+open scoped Classical in
+theorem measurable_restToPollingData (e : RankSupport S n) (F : Finset (RankSupport S n))
+    (heF : e ∉ F) : Measurable (restToPollingData e F heF) :=
+  (measurable_pi_lambda _ fun _ => measurable_pi_lambda _ fun _ => measurable_fst.eval).prodMk
+    (measurable_snd.prodMk
+      (measurable_pi_lambda _ fun _ => measurable_pi_lambda _ fun _ => measurable_fst.eval))
+
+open scoped Classical in
+/-- **The exact factorization.** Both the accumulated blocks and the polling conditioning are
+functions of the screening remainder, on the nose. -/
+theorem restToPollingData_comp (e : RankSupport S n) (F : Finset (RankSupport S n)) (heF : e ∉ F) :
+    (fun p : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n =>
+        ((fun B : {x : RankSupport S n // x ∈ F} => originalBlock B.1 p), sourcePollingCond p)) =
+      restToPollingData e F heF ∘ restObservationOver n (supportImage (originalVertex S) e.1) :=
+  rfl
+
+/-! ### The conditioning algebra is the fixed one
+
+Named rather than left to `simp`: the forward descent at the end of the construction has to be
+visibly exact, and that requires an explicit identity between the algebra the source statement
+conditions on and the pullback of `pollingCond`. -/
+
+open scoped Classical in
+omit [Countable S.Srt] [Countable S.Rel] in
+/-- **Check 3**: the source conditioning algebra *is* the pullback of the enriched conditioning. -/
+theorem comap_pollingCond_comp_enrichedPollingMap :
+    MeasurableSpace.comap (pollingCond S n ∘ enrichedPollingMap) inferInstance =
+      MeasurableSpace.comap (sourcePollingCond (S := S) (n := n)) inferInstance :=
+  congrArg (fun f => MeasurableSpace.comap f inferInstance) pollingCond_comp_enrichedPollingMap
+
 /-! ### The witness -/
 
 variable [Fintype S.Srt]
