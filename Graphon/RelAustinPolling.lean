@@ -86,7 +86,8 @@ The graphoid axiom this development turns on, and which neither Mathlib nor this
 is conditionally independent of `Y` given `Z` alone.** The containment `W ≤ Z` is what lets the
 conclusion condition on exactly `Z` rather than on an unsimplified `W ⊔ Z`.
 
-Kept **private**: one consumer. When #198 needs the same axiom it should move to `ForMathlib/`.
+Kept **private** under the standing promotion rule: private at one consumer, extracted to
+`ForMathlib/` once a second independent consumer exists.
 
 The proof is the standard one. The key step is that enlarging the conditioning from `W` to any
 algebra between `W` and `Y ⊔ Z` does not change the conditional probability of an `X`-event —
@@ -232,11 +233,9 @@ variable (S n) in
 **auxiliary** polling data — the whole pooled rank-`n` latent array and the clusters.
 
 The pooled latent array is carried *alongside* the original marginal rather than replacing it, so
-the first component is untouched and `enrichedPollingLaw_map_fst` stays literally what it was. It
-is needed because the peel permutations move original vertices into the spare half: an original
-latent index is then sent to a mixed one, so the original latent array is **not** stable under
-those permutations, while the pooled array is — they merely permute pooled indices among
-themselves. Every pooled index still has cardinality `< n`, so no rank-`n` block is revealed. -/
+the first component is untouched and `enrichedPollingLaw_map_fst` stays literally what it was. The pooled array is the right lower-rank factor because `Q.screening`'s remainder
+`restObservationOver n A` already contains it in full, and weak union conditions on exactly that
+factor. Every pooled index has cardinality `< n`, so no rank-`n` block is revealed. -/
 abbrev EnrichedSpace :=
   (RelStructure S (Vinfinite S) × RankLatentSpace S n) ×
     (PooledRankLatentSpace S n × ClusterSpace S n)
@@ -248,6 +247,7 @@ noncomputable def enrichedPollingMap :
   fun p => (Prod.map (restrictOriginal S) (restrictOriginalLatents S n) p, (p.2, pollingClusters p))
 
 open scoped Classical in
+omit [Countable S.Srt] in
 theorem measurable_enrichedPollingMap : Measurable (enrichedPollingMap (S := S) (n := n)) :=
   (((measurable_restrict _).comp measurable_fst).prodMk
     ((measurable_restrictOriginalLatents n).comp measurable_snd)).prodMk
@@ -296,7 +296,51 @@ noncomputable def pollingCond :
   fun q => q.2
 
 variable (S n) in
+omit [Countable S.Srt] [Countable S.Rel] in
 theorem measurable_pollingCond : Measurable (pollingCond S n) := measurable_snd
+
+/-! ### The source-level conditioning
+
+Steps 1–4 of the construction run under `Q.law`, on the pooled space, and only the final descent
+moves to the enriched law. `sourcePollingCond` is the conditioning read there, and it is the
+*same* observation: `pollingCond ∘ enrichedPollingMap` is definitionally `sourcePollingCond`, so
+no transport is needed to relate the two statements. -/
+
+open scoped Classical in
+/-- The polling conditioning read directly on the pooled space. -/
+noncomputable def sourcePollingCond :
+    RelStructure S (PoolVertex S) × PooledRankLatentSpace S n →
+      PooledRankLatentSpace S n × ClusterSpace S n :=
+  fun p => (p.2, pollingClusters p)
+
+open scoped Classical in
+omit [Countable S.Srt] in
+theorem measurable_sourcePollingCond : Measurable (sourcePollingCond (S := S) (n := n)) :=
+  measurable_snd.prodMk measurable_pollingClusters
+
+open scoped Classical in
+omit [Countable S.Srt] [Countable S.Rel] in
+/-- **The two conditionings agree**, definitionally: conditioning on the enriched law and
+conditioning on the pooled law are the same observation composed with the enriching map. -/
+theorem pollingCond_comp_enrichedPollingMap :
+    pollingCond S n ∘ enrichedPollingMap = sourcePollingCond (S := S) (n := n) := rfl
+
+open scoped Classical in
+omit [Countable S.Srt] [Countable S.Rel] in
+/-- **Check 1**: the local conditioning at any pooled support is measurable from the source polling
+conditioning — it is a coordinate projection of the pooled latent component. This is the `W ≤ Z`
+hypothesis of weak union, discharged concretely rather than assumed. -/
+theorem comap_localLatents_le_sourcePollingCond (A : Finset (Σ s : S.Srt, PoolVertex S s)) :
+    MeasurableSpace.comap
+        (localLatentsOver A n ∘ (Prod.snd :
+          RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → _)) inferInstance ≤
+      MeasurableSpace.comap (sourcePollingCond (S := S) (n := n)) inferInstance := by
+  rw [show (localLatentsOver A n ∘ (Prod.snd :
+        RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → _)) =
+      (localLatentsOver A n ∘ Prod.fst) ∘ sourcePollingCond from rfl,
+    ← MeasurableSpace.comap_comp]
+  exact MeasurableSpace.comap_mono
+    ((measurable_localLatentsOver A n).comp measurable_fst).comap_le
 
 /-! ### The witness -/
 
