@@ -433,6 +433,66 @@ theorem comap_pollingCond_comp_enrichedPollingMap :
       MeasurableSpace.comap (sourcePollingCond (S := S) (n := n)) inferInstance :=
   congrArg (fun f => MeasurableSpace.comap f inferInstance) pollingCond_comp_enrichedPollingMap
 
+/-! ### The insertion identity
+
+The peel step, assembled from the pieces above: `Q.screening` at the original image of `e`, its
+remainder pushed through `restToPollingData`, `comap_prodMk` to split the resulting algebra into
+the accumulated blocks joined with the polling conditioning, and weak union to drop back to the
+polling conditioning alone. Stated as a direct conditional-expectation identity so that it feeds
+`Finset.induction_on` with `Set.biInter_insert` and `Finset.prod_insert`, without any dependent
+tuple reindexing inside the induction. -/
+
+open scoped Classical in
+private theorem polling_condExp_insert {C : M.RankRepresentation n} (Q : PooledRankExtension C)
+    (e : RankSupport S n) (F : Finset (RankSupport S n)) (heF : e ∉ F)
+    (sets : ∀ A : RankSupport S n,
+      Set (BlockSpaceOver (PoolVertex S) (supportImage (originalVertex S) A.1)))
+    (hsets : ∀ A, A ∈ insert e F → MeasurableSet (sets A)) :
+    ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))⟦
+        originalBlock e ⁻¹' sets e ∩ ⋂ A ∈ F, originalBlock A ⁻¹' sets A |
+        MeasurableSpace.comap (sourcePollingCond (S := S) (n := n)) inferInstance⟧)
+      =ᵐ[(Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))]
+    ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))⟦
+        originalBlock e ⁻¹' sets e |
+        MeasurableSpace.comap (sourcePollingCond (S := S) (n := n)) inferInstance⟧) *
+      ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))⟦
+        ⋂ A ∈ F, originalBlock A ⁻¹' sets A |
+        MeasurableSpace.comap (sourcePollingCond (S := S) (n := n)) inferInstance⟧) := by
+  haveI := C.isProbabilityMeasure_P
+  have hA₀ : (supportImage (originalVertex S) e.1).card = n := by
+    rw [card_supportImage]; exact e.2
+  -- the paired observation: accumulated blocks against the polling conditioning
+  set Y : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → FBlockSpace F :=
+    fun p B => originalBlock B.1 p with hY
+  have hYmeas : Measurable Y :=
+    measurable_pi_lambda _ fun B => measurable_originalBlock B.1
+  -- screening, with its remainder pushed through the factorization
+  have hcomp := (Q.screening (supportImage (originalVertex S) e.1) hA₀).comp
+    (measurable_id (α := BlockSpaceOver (PoolVertex S) (supportImage (originalVertex S) e.1)))
+    (measurable_restToPollingData e F heF)
+  rw [condIndepFun_iff_condIndep] at hcomp
+  have hpair : (restToPollingData e F heF ∘
+      restObservationOver n (supportImage (originalVertex S) e.1)) =
+      fun p => (Y p, sourcePollingCond p) := (restToPollingData_comp e F heF).symm
+  rw [hpair, show (Prod.instMeasurableSpace :
+      MeasurableSpace (FBlockSpace F × (PooledRankLatentSpace S n × ClusterSpace S n))) =
+        MeasurableSpace.prod _ _ from rfl,
+    MeasurableSpace.comap_prodMk] at hcomp
+  -- weak union: drop the accumulated blocks out of the conditioning
+  have hwu := condIndep_weak_union
+    (((measurable_localLatentsOver (supportImage (originalVertex S) e.1) n).comp
+      measurable_snd).comap_le)
+    ((measurable_id.comp (measurable_originalBlock e)).comap_le)
+    hYmeas.comap_le (measurable_sourcePollingCond (S := S) (n := n)).comap_le
+    (comap_localLatents_le_sourcePollingCond (supportImage (originalVertex S) e.1)) hcomp
+  -- read off the event identity
+  rw [condIndep_iff _ _ _ (measurable_sourcePollingCond (S := S) (n := n)).comap_le
+    ((measurable_id.comp (measurable_originalBlock e)).comap_le) hYmeas.comap_le] at hwu
+  refine hwu _ _ ⟨sets e, hsets e (Finset.mem_insert_self _ _), rfl⟩ ?_
+  refine MeasurableSet.biInter F.countable_toSet fun A hA => ?_
+  exact ⟨(fun x : FBlockSpace F => x ⟨A, hA⟩) ⁻¹' sets A,
+    (measurable_pi_apply _) (hsets A (Finset.mem_insert_of_mem hA)), rfl⟩
+
 /-! ### The witness -/
 
 variable [Fintype S.Srt]
