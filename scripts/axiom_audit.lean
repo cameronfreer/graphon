@@ -348,6 +348,10 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.BipartiteRegression.not_indepFun_rankTwoCoupling
 
 -- R4 converse route A (#197): pooled polling, unit 1.
+#print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.iCondIndepFun_originalBlock_sourcePollingCond
+#print axioms RelSignature.InfiniteRelExchangeableLaw.pooledPollingWitness
+#print axioms RelSignature.InfiniteRelExchangeableLaw.enrichedBlock_comp_enrichedPollingMap
+#print axioms RelSignature.mem_supportImage_iff
 #print axioms RelSignature.InfiniteRelExchangeableLaw.pollingClusters
 #print axioms RelSignature.InfiniteRelExchangeableLaw.enrichedPollingLaw
 #print axioms RelSignature.InfiniteRelExchangeableLaw.enrichedPollingLaw_map_fst

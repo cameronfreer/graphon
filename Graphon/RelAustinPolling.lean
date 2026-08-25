@@ -4,7 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelPooledAcceptance
-import Graphon.RelPollingInfrastructure
 import Graphon.ForMathlib.CondExpComap
 
 /-!
@@ -14,11 +13,20 @@ Route **A** (Austin) only. Nothing from the Kallenberg spine appears here, and n
 module asserts that the two routes' outputs agree — they prove the same statement by different
 means and will not produce canonically equal representations.
 
-Austin's Proposition 3.12 (arXiv:0801.1698) runs its polling argument with finitely supported
-swaps into a **spare vertex set**. The pooled carrier is exactly that: `PoolVertex S s` is
+## What is Austin's here, and what is not
+
+The **construction** follows Austin (arXiv:0801.1698): a spare vertex reservoir, mixed clusters
+straddling it, and an enriched law that carries the polling data forward. `PoolVertex S s` is
 `Vinfinite S s ⊕ Vinfinite S s`, with `originalVertex = Sum.inl` and `poolVertex = Sum.inr`, so the
-two halves are disjoint definitionally; and a `PooledRankExtension` is invariant under the *full*
-pooled permutation family, so the swaps carry no finite-support or uniform-bound side condition.
+two halves are disjoint definitionally, and a `PooledRankExtension` is invariant under the *full*
+pooled permutation family.
+
+The **conditional-independence engine is not Austin's**, and this module does not reprove his
+Proposition 3.12. `RankRepresentation.screening` is a field — an inductive hypothesis assumed at
+rank `n` — and its remainder already contains every other rank-`≤ n` block together with the whole
+pooled latent array. Weak union converts that directly into the mutual statement, so the
+tail-polling argument is not needed at this inductive stage and no tail machinery appears here.
+Stating otherwise would credit this file with a theorem it does not contain.
 
 ## The geometry, and a trap it sets
 
@@ -78,6 +86,18 @@ variable {S : RelSignature} [Countable S.Srt] [Countable S.Rel]
   {M : InfiniteRelExchangeableLaw S} {n : ℕ}
 
 attribute [local instance] RankRepresentation.isProbabilityMeasure_P
+
+/-- **The conditioning σ-algebra may be replaced by an equal one**, for a family. The
+`CondIndepFun` form is shared glue in `ForMathlib/CondIndepSup.lean`; this is its `iCondIndepFun`
+counterpart, private under the standing promotion rule. Needed because the conditioning algebra
+occurs in a dependent position — the `≤` proof mentions it — so `rw` cannot reach it. -/
+private theorem iCondIndepFun_congr_cond {Ω : Type*} [mΩ : MeasurableSpace Ω]
+    [StandardBorelSpace Ω] {μ : Measure Ω} [IsFiniteMeasure μ]
+    {ι : Type*} {γ : ι → Type*} [∀ i, MeasurableSpace (γ i)] {Y : ∀ i, Ω → γ i}
+    {m₁ m₂ : MeasurableSpace Ω} {h1 : m₁ ≤ mΩ} (h : iCondIndepFun m₁ h1 Y μ)
+    (h12 : m₁ = m₂) (h2 : m₂ ≤ mΩ) : iCondIndepFun m₂ h2 Y μ := by
+  subst h12
+  exact h
 
 /-! ### Weak union for conditional independence
 
@@ -529,17 +549,102 @@ theorem PooledRankExtension.iCondIndepFun_originalBlock_sourcePollingCond
       exact (polling_condExp_insert Q e F heF sets hsets).trans
         (Filter.EventuallyEq.mul Filter.EventuallyEq.rfl ihs)
 
+/-! ### Transport to the enriched law
+
+Two obligations, both discharged by named identities so that nothing is coerced ad hoc inside the
+witness constructor: the conditioning algebra (check 3) and the block **codomains**. The source
+family lands in `BlockSpaceOver (PoolVertex S) (supportImage (originalVertex S) A)`, whereas the
+witness reads `blockMap A` on the restricted original structure; `blockSpaceCongr` is the
+measurable equivalence between them and `blockMapOver_restrict` is the naturality that relates the
+two readings exactly. -/
+
+/-- Familywise composition on the codomain, the `iCondIndepFun` counterpart of `CondIndepFun.comp`
+and built the same way, from the kernel-level lemma. Private under the standing promotion rule. -/
+private theorem iCondIndepFun_comp {Ω : Type*} [mΩ : MeasurableSpace Ω] [StandardBorelSpace Ω]
+    {μ : Measure Ω} [IsFiniteMeasure μ] {m' : MeasurableSpace Ω} {hm' : m' ≤ mΩ}
+    {ι : Type*} {β γ : ι → Type*} [∀ i, MeasurableSpace (β i)] [∀ i, MeasurableSpace (γ i)]
+    {f : ∀ i, Ω → β i} (h : iCondIndepFun m' hm' f μ)
+    (φ : ∀ i, β i → γ i) (hφ : ∀ i, Measurable (φ i)) :
+    iCondIndepFun m' hm' (fun i => φ i ∘ f i) μ :=
+  Kernel.iIndepFun.comp h φ hφ
+
+open scoped Classical in
+omit [Countable S.Srt] in
+/-- **The block codomains agree, exactly.** Reading a block of the restricted original structure is
+reading the pooled block at the image support and transporting along `blockSpaceCongr`. -/
+theorem enrichedBlock_comp_enrichedPollingMap (A : RankSupport S n) :
+    ((blockMap A.1 ∘ Prod.fst ∘ Prod.fst) ∘ enrichedPollingMap :
+      RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → BlockSpace (S := S) A.1) =
+      blockSpaceCongr (originalVertex S) A.1 ∘ originalBlock (S := S) (n := n) A := by
+  funext p
+  exact congrFun (blockMapOver_restrict (originalVertex S) A.1) p.1
+
+/-- **Forward transport of mutual conditional independence along a measurable map.** Brought in
+privately, adjacent to its one consumer, under the standing promotion rule; the general form is
+proved and preserved on its own branch and moves to `ForMathlib/` when a second independent
+consumer exists. No injectivity is needed — `enrichedPollingMap` forgets the spare half of the
+structure — which is exactly why neither direction of the existing transport API applies. -/
+private theorem iCondIndepFun_of_map {α β : Type*} {m' : MeasurableSpace β}
+    [mα : MeasurableSpace α] [mβ : MeasurableSpace β]
+    [StandardBorelSpace α] [StandardBorelSpace β]
+    {P : Measure α} [IsFiniteMeasure P] {T : α → β}
+    (hT : Measurable T) (hm' : m' ≤ mβ)
+    {ι : Type*} {γ : ι → Type*} [mγ : ∀ i, MeasurableSpace (γ i)] {Y : ∀ i, β → γ i}
+    (hY : ∀ i, Measurable (Y i))
+    (h : iCondIndepFun (m'.comap T)
+      ((MeasurableSpace.comap_mono hm').trans (measurable_iff_comap_le.mp hT))
+      (fun i => Y i ∘ T) P) :
+    iCondIndepFun m' hm' Y (P.map T) := by
+  haveI : IsFiniteMeasure (P.map T) := Measure.isFiniteMeasure_map P T
+  have hTmp : MeasurePreserving T P (P.map T) := ⟨hT, rfl⟩
+  have key : ∀ E : Set β, MeasurableSet E →
+      (P⟦T ⁻¹' E | m'.comap T⟧) =ᵐ[P] ((P.map T)⟦E | m'⟧) ∘ T :=
+    fun _ hE => condExp_set_comp_measurePreserving hTmp hm' hE
+  rw [iCondIndepFun_iff_condExp_inter_preimage_eq_mul _ _ hY]
+  rw [iCondIndepFun_iff_condExp_inter_preimage_eq_mul _ _ fun i => (hY i).comp hT] at h
+  intro S sets hsets
+  have hsrc := h S hsets
+  have hinter : MeasurableSet (⋂ i ∈ S, Y i ⁻¹' sets i) :=
+    MeasurableSet.biInter S.countable_toSet fun i hi => (hY i) (hsets i hi)
+  have hpre : ⋂ i ∈ S, (Y i ∘ T) ⁻¹' sets i = T ⁻¹' ⋂ i ∈ S, Y i ⁻¹' sets i := by
+    simp [Set.preimage_comp, Set.preimage_iInter]
+  rw [hpre] at hsrc
+  have h₁ := key _ hinter
+  have hfac : ∀ᵐ x ∂P, ∀ i ∈ S, (P⟦(Y i ∘ T) ⁻¹' sets i | m'.comap T⟧) x
+      = (((P.map T)⟦Y i ⁻¹' sets i | m'⟧) ∘ T) x := by
+    refine (ae_ball_iff S.countable_toSet).2 fun i hi => ?_
+    rw [Set.preimage_comp]
+    exact key _ ((hY i) (hsets i hi))
+  have hcomp : ((P.map T)⟦⋂ i ∈ S, Y i ⁻¹' sets i | m'⟧) ∘ T
+      =ᵐ[P] (∏ i ∈ S, ((P.map T)⟦Y i ⁻¹' sets i | m'⟧)) ∘ T := by
+    filter_upwards [h₁, hsrc, hfac] with x e₁ esrc efac
+    simp only [Function.comp_apply] at e₁ ⊢
+    rw [← e₁, esrc]
+    show (∏ i ∈ S, (P⟦(Y i ∘ T) ⁻¹' sets i | m'.comap T⟧)) x = _
+    simp only [Finset.prod_apply]
+    exact Finset.prod_congr rfl fun i hi => efac i hi
+  have hmeas : MeasurableSet {y : β | ((P.map T)⟦⋂ i ∈ S, Y i ⁻¹' sets i | m'⟧) y =
+      (∏ i ∈ S, ((P.map T)⟦Y i ⁻¹' sets i | m'⟧)) y} := by
+    refine measurableSet_eq_fun (stronglyMeasurable_condExp.mono hm').measurable ?_
+    have heq : (∏ i ∈ S, ((P.map T)⟦Y i ⁻¹' sets i | m'⟧)) =
+        fun y : β => ∏ i ∈ S, ((P.map T)⟦Y i ⁻¹' sets i | m'⟧) y :=
+      funext fun y => Finset.prod_apply y S _
+    rw [heq]
+    exact Finset.measurable_prod S fun i _ => (stronglyMeasurable_condExp.mono hm').measurable
+  exact (ae_map_iff hT.aemeasurable hmeas).mpr hcomp
+
 /-! ### The witness -/
 
 variable [Fintype S.Srt]
 
-/-- **What the polling argument must supply**: mutual conditional independence of the *entire*
-rank-`n` block family of the original structure, given the old latents and the mixed clusters,
-under the enriched law.
+/-- **The polling conclusion**: mutual conditional independence of the *entire* rank-`n` block
+family of the original structure, given the pooled latents and the mixed clusters, under the
+enriched law.
 
-`iCondIndepFun` over the whole family is Austin's Proposition 3.12 conclusion. Pairwise
-independence, or one block against the rest, would be strictly weaker, and the adversarial battery
-of #196 exists to keep that distinction honest. -/
+`iCondIndepFun` over the whole family is the shape Austin's Proposition 3.12 delivers, but here it
+is obtained from the assumed rank-`n` screening contract by weak union rather than by a tail-polling
+argument. Pairwise independence, or one block against the rest, would be strictly weaker, and the
+adversarial battery of #196 exists to keep that distinction honest. -/
 structure PooledPollingWitness (C : M.RankRepresentation n) (Q : PooledRankExtension C) where
   /-- **Mutual** conditional independence of the whole rank-`n` block family. -/
   mutualCondIndep :
@@ -547,6 +652,39 @@ structure PooledPollingWitness (C : M.RankRepresentation n) (Q : PooledRankExten
       (measurable_pollingCond S n).comap_le
       (fun A : RankSupport S n => blockMap A.1 ∘ Prod.fst ∘ Prod.fst)
       (enrichedPollingLaw Q)
+
+open scoped Classical in
+/-- **The polling witness exists**, for every pooled rank extension. Pure transport: the
+probability content is `iCondIndepFun_originalBlock_sourcePollingCond`, and this constructor only
+moves it along `enrichedPollingMap`, matching the block codomains by `blockSpaceCongr` and the
+conditioning algebra by the named identity. -/
+noncomputable def pooledPollingWitness {C : M.RankRepresentation n} (Q : PooledRankExtension C) :
+    PooledPollingWitness C Q where
+  mutualCondIndep := by
+    haveI := C.isProbabilityMeasure_P
+    -- step 1: transport the codomains
+    have h1 := iCondIndepFun_comp Q.iCondIndepFun_originalBlock_sourcePollingCond
+      (fun A : RankSupport S n => (blockSpaceCongr (originalVertex S) A.1 : _ → _))
+      fun A => (blockSpaceCongr (originalVertex S) A.1).measurable
+    -- step 2: read the transported family as the enriched blocks precomposed with the map
+    have h2 : (fun A : RankSupport S n =>
+        (blockSpaceCongr (originalVertex S) A.1 : _ → _) ∘ originalBlock (S := S) (n := n) A) =
+        fun A : RankSupport S n =>
+          (blockMap A.1 ∘ Prod.fst ∘ Prod.fst) ∘ enrichedPollingMap :=
+      funext fun A => (enrichedBlock_comp_enrichedPollingMap A).symm
+    rw [h2] at h1
+    -- step 3: match the conditioning algebra to the pullback of the enriched one
+    have halg : MeasurableSpace.comap (sourcePollingCond (S := S) (n := n)) inferInstance =
+        (MeasurableSpace.comap (pollingCond S n) inferInstance).comap enrichedPollingMap :=
+      (MeasurableSpace.comap_comp.trans comap_pollingCond_comp_enrichedPollingMap).symm
+    have h3 := iCondIndepFun_congr_cond h1 halg
+      ((MeasurableSpace.comap_mono (measurable_pollingCond S n).comap_le).trans
+        (measurable_iff_comap_le.mp measurable_enrichedPollingMap))
+    -- step 4: push forward
+    exact iCondIndepFun_of_map measurable_enrichedPollingMap
+      (measurable_pollingCond S n).comap_le
+      (fun A : RankSupport S n =>
+        (measurable_blockMap A.1).comp (measurable_fst.comp measurable_fst)) h3
 
 end InfiniteRelExchangeableLaw
 
