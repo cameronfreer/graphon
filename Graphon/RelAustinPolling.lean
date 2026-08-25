@@ -579,11 +579,10 @@ theorem enrichedBlock_comp_enrichedPollingMap (A : RankSupport S n) :
   funext p
   exact congrFun (blockMapOver_restrict (originalVertex S) A.1) p.1
 
-/-- **Forward transport of mutual conditional independence along a measurable map.** Brought in
-privately, adjacent to its one consumer, under the standing promotion rule; the general form is
-proved and preserved on its own branch and moves to `ForMathlib/` when a second independent
-consumer exists. No injectivity is needed — `enrichedPollingMap` forgets the spare half of the
-structure — which is exactly why neither direction of the existing transport API applies. -/
+/-- **Forward transport of mutual conditional independence along a measurable map.** Kept private
+while it has one consumer; extract a general transport theorem after a second independent consumer
+appears. No injectivity is needed — `enrichedPollingMap` forgets the spare half of the structure —
+which is exactly why neither direction of the existing transport API applies. -/
 private theorem iCondIndepFun_of_map {α β : Type*} {m' : MeasurableSpace β}
     [mα : MeasurableSpace α] [mβ : MeasurableSpace β]
     [StandardBorelSpace α] [StandardBorelSpace β]
