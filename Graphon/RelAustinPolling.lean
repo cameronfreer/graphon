@@ -15,8 +15,9 @@ means and will not produce canonically equal representations.
 
 ## What is Austin's here, and what is not
 
-The **construction** follows Austin (arXiv:0801.1698): a spare vertex reservoir, mixed clusters
-straddling it, and an enriched law that carries the polling data forward. `PoolVertex S s` is
+The **construction** follows Austin (arXiv:0801.1698): a spare vertex reservoir, mixed clusters —
+those not wholly original, all-spare included — and an enriched law that carries the polling data
+forward. `PoolVertex S s` is
 `Vinfinite S s ⊕ Vinfinite S s`, with `originalVertex = Sum.inl` and `poolVertex = Sum.inr`, so the
 two halves are disjoint definitionally, and a `PooledRankExtension` is invariant under the *full*
 pooled permutation family.
@@ -47,8 +48,8 @@ half — the two would overlap.
 Austin's polling data must survive into the next law; forgetting it into a bare `C.P` statement
 would discard exactly what the successor construction consumes. That data is the family of
 **mixed** clusters — pooled rank-`n` blocks that are *not wholly original* — and not merely the
-induced structure on the spare half. "Mixed" is exactly that negation: an all-spare support
-qualifies, its original part being empty and therefore proper.
+induced structure on the spare half. "Mixed" is the negation of "wholly original", so an all-spare
+support qualifies, its original part being empty and therefore proper.
 
 * `pollingClusters` — the mixed cluster observation, indexed by `MixedClusterIndex`: pooled
   rank-`n` supports containing at least one spare vertex, all-spare supports included. Each such
@@ -68,9 +69,9 @@ proper-subset data carrying no rank-`n` block.
 
 ## Scope
 
-* `[Fintype S.Srt]` is carried by the witness, matching the polling/fixing-algebra stack it is to
-  be built from. The pooled API itself remains countable-only; removing the hypothesis is a
-  separate generalization and deliberately not attempted here.
+* Only the ambient `Countable` assumptions are needed. Because the conditional independence comes
+  from the assumed screening contract rather than from a polling argument, the `Fintype S.Srt`
+  hypothesis that the fixing-algebra stack carries is not required here.
 * Rank zero is not this module's business. The successor at `n = 0` is supplied by
   `nonempty_rankRepresentation_one` together with `truncation_zero`, which is also what respects
   `stepKernel`'s deliberate lack of an `A = ∅` realization theorem.
@@ -308,9 +309,9 @@ together with the mixed clusters — that is, the auxiliary component. Not a wit
 existential factor could be taken to be the whole joint object and would make the conclusion
 vacuous.
 
-Reading the *pooled* array rather than its original part is what makes the conditioning stable
-under the permutations the peel uses; every index still has cardinality `< n`, so the latent half
-carries no rank-`n` block. -/
+The array read is the *pooled* one because `Q.screening`'s remainder contains it in full and weak
+union conditions on exactly that lower-rank factor. Every index has cardinality `< n`, so the
+latent half carries no rank-`n` block. -/
 noncomputable def pollingCond :
     EnrichedSpace S n → PooledRankLatentSpace S n × ClusterSpace S n :=
   fun q => q.2
@@ -372,7 +373,7 @@ than as a bare algebra inequality, so it records exactly which information the r
 and lets `CondIndepFun.comp` consume the screening statement directly. -/
 
 open scoped Classical in
-omit [Countable S.Rel] in
+omit [Countable S.Srt] [Countable S.Rel] in
 /-- A support in the image of the original half carries no spare vertex. -/
 theorem isRight_eq_false_of_mem_supportImage_original
     {X : Finset (Σ s : S.Srt, Vinfinite S s)} {v : Σ s : S.Srt, PoolVertex S s}
@@ -381,7 +382,7 @@ theorem isRight_eq_false_of_mem_supportImage_original
   rfl
 
 open scoped Classical in
-omit [Countable S.Rel] in
+omit [Countable S.Srt] [Countable S.Rel] in
 /-- **Separation, original against original**: distinct rank-`n` supports have distinct images,
 since `supportImage` is injective. -/
 theorem supportImage_ne_of_ne {B e : RankSupport S n} (h : B ≠ e) :
@@ -389,6 +390,7 @@ theorem supportImage_ne_of_ne {B e : RankSupport S n} (h : B ≠ e) :
   fun heq => h (Subtype.ext (supportImage_injective _ heq))
 
 open scoped Classical in
+omit [Countable S.Srt] [Countable S.Rel] in
 /-- **Separation, cluster against original**: a mixed cluster carries a spare vertex, while the
 image of an original support is wholly original. -/
 theorem mixedCluster_ne_supportImage (Ac : MixedClusterIndex S n) (e : RankSupport S n) :
@@ -424,6 +426,7 @@ noncomputable def restToPollingData (e : RankSupport S n) (F : Finset (RankSuppo
         · rw [c.2]; exact mixedCluster_ne_supportImage Ac e⟩))
 
 open scoped Classical in
+omit [Countable S.Srt] [Countable S.Rel] in
 theorem measurable_restToPollingData (e : RankSupport S n) (F : Finset (RankSupport S n))
     (heF : e ∉ F) : Measurable (restToPollingData e F heF) :=
   (measurable_pi_lambda _ fun _ => measurable_pi_lambda _ fun _ => measurable_fst.eval).prodMk
@@ -431,6 +434,7 @@ theorem measurable_restToPollingData (e : RankSupport S n) (F : Finset (RankSupp
       (measurable_pi_lambda _ fun _ => measurable_pi_lambda _ fun _ => measurable_fst.eval))
 
 open scoped Classical in
+omit [Countable S.Srt] [Countable S.Rel] in
 /-- **The exact factorization.** Both the accumulated blocks and the polling conditioning are
 functions of the screening remainder, on the nose. -/
 theorem restToPollingData_comp (e : RankSupport S n) (F : Finset (RankSupport S n)) (heF : e ∉ F) :
@@ -569,7 +573,7 @@ private theorem iCondIndepFun_comp {Ω : Type*} [mΩ : MeasurableSpace Ω] [Stan
   Kernel.iIndepFun.comp h φ hφ
 
 open scoped Classical in
-omit [Countable S.Srt] in
+omit [Countable S.Srt] [Countable S.Rel] in
 /-- **The block codomains agree, exactly.** Reading a block of the restricted original structure is
 reading the pooled block at the image support and transporting along `blockSpaceCongr`. -/
 theorem enrichedBlock_comp_enrichedPollingMap (A : RankSupport S n) :
@@ -634,8 +638,6 @@ private theorem iCondIndepFun_of_map {α β : Type*} {m' : MeasurableSpace β}
 
 /-! ### The witness -/
 
-variable [Fintype S.Srt]
-
 /-- **The polling conclusion**: mutual conditional independence of the *entire* rank-`n` block
 family of the original structure, given the pooled latents and the mixed clusters, under the
 enriched law.
@@ -657,7 +659,7 @@ open scoped Classical in
 probability content is `iCondIndepFun_originalBlock_sourcePollingCond`, and this constructor only
 moves it along `enrichedPollingMap`, matching the block codomains by `blockSpaceCongr` and the
 conditioning algebra by the named identity. -/
-noncomputable def pooledPollingWitness {C : M.RankRepresentation n} (Q : PooledRankExtension C) :
+theorem pooledPollingWitness {C : M.RankRepresentation n} (Q : PooledRankExtension C) :
     PooledPollingWitness C Q where
   mutualCondIndep := by
     haveI := C.isProbabilityMeasure_P
