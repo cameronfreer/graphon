@@ -56,14 +56,15 @@ support qualifies, its original part being empty and therefore proper.
   support has a *proper* original part, since at least one of its `n` vertices is spare; for an
   all-spare support that part is empty, which is proper as well.
 * `enrichedPollingLaw` — the pushforward of `Q.law` retaining the original structure and old
-  latents together with the clusters.
+  latents together with the auxiliary polling data: the whole pooled rank-`n` latent array and the
+  clusters.
 * `enrichedPollingLaw_map_fst` — the first marginal is `C.P` exactly, proved through
   `Q.map_restrict_embedding (originalVertex S)`. The gate theorem is a compiled dependency here,
   not a citation.
 
-The conditioning is pinned by `pollingCond`: the old latents together with the clusters. It is a
-definition rather than a witness field, because an existential conditioning factor could be taken
-to be the whole joint object and would make the conclusion vacuous. Every index of
+The conditioning is pinned by `pollingCond`: the whole pooled rank-`n` latent array together with
+the clusters. It is a definition rather than a witness field, because an existential conditioning
+factor could be taken to be the whole joint object and would make the conclusion vacuous. Every index of
 `RankLatentIndex S n` has cardinality `< n`, so the latent half of the conditioning is
 proper-subset data carrying no rank-`n` block.
 
@@ -275,9 +276,9 @@ theorem measurable_enrichedPollingMap : Measurable (enrichedPollingMap (S := S) 
       (measurable_snd.prodMk measurable_pollingClusters)
 
 open scoped Classical in
-/-- **The enriched polling law.** Austin's polling data survives here: the clusters are retained
-alongside the original structure and old latents, rather than being forgotten into a bare `C.P`
-statement. -/
+/-- **The enriched polling law.** Austin's polling data survives here: the whole pooled rank-`n`
+latent array and the clusters are retained alongside the original structure and old latents, rather
+than being forgotten into a bare `C.P` statement. -/
 noncomputable def enrichedPollingLaw {C : M.RankRepresentation n} (Q : PooledRankExtension C) :
     Measure (EnrichedSpace S n) :=
   (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
@@ -463,8 +464,8 @@ The peel step, assembled from the pieces above: `Q.screening` at the original im
 remainder pushed through `restToPollingData`, `comap_prodMk` to split the resulting algebra into
 the accumulated blocks joined with the polling conditioning, and weak union to drop back to the
 polling conditioning alone. Stated as a direct conditional-expectation identity so that it feeds
-`Finset.induction_on` with `Set.biInter_insert` and `Finset.prod_insert`, without any dependent
-tuple reindexing inside the induction. -/
+`Finset.induction_on` with `Finset.set_biInter_insert` and `Finset.prod_insert`, without any
+dependent tuple reindexing inside the induction. -/
 
 open scoped Classical in
 private theorem polling_condExp_insert {C : M.RankRepresentation n} (Q : PooledRankExtension C)
