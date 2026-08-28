@@ -347,6 +347,12 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.BipartiteRegression.ae_edge_xor
 #print axioms RelSignature.BipartiteRegression.not_indepFun_rankTwoCoupling
 
+-- R4 converse route A (#197): the Austin base and its action, unit 2 checkpoint.
+#print axioms RelSignature.InfiniteRelExchangeableLaw.austinBaseRelabel_one
+#print axioms RelSignature.InfiniteRelExchangeableLaw.austinBaseRelabel_mul
+#print axioms RelSignature.InfiniteRelExchangeableLaw.enrichedPollingMap_naturality
+#print axioms RelSignature.InfiniteRelExchangeableLaw.enrichedPollingLaw_map_enrichedAction
+
 -- R4 converse route A (#197): pooled polling, unit 1.
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.iCondIndepFun_originalBlock_sourcePollingCond
 #print axioms RelSignature.InfiniteRelExchangeableLaw.pooledPollingWitness
