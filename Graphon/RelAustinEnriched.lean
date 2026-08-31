@@ -9,7 +9,7 @@ import Graphon.RelFactorLaws
 import Graphon.RelRankSuccessor
 
 /-!
-# The Austin base and its action: unit 2, law-free checkpoint (R4 converse, #107, #197)
+# The Austin base, its action, and the base-extended bundle: unit 2 (R4 converse, #107, #197)
 
 Route **A** (Austin) only. No Kallenberg machinery, and nothing here asserts that the two routes'
 outputs agree.
