@@ -89,17 +89,22 @@ variable {S : RelSignature} [Countable S.Srt] [Countable S.Rel]
 
 attribute [local instance] RankRepresentation.isProbabilityMeasure_P
 
+namespace Austin
+
 /-- **The conditioning σ-algebra may be replaced by an equal one**, for a family. The
 `CondIndepFun` form is shared glue in `ForMathlib/CondIndepSup.lean`; this is its `iCondIndepFun`
-counterpart, private under the standing promotion rule. Needed because the conditioning algebra
-occurs in a dependent position — the `≤` proof mentions it — so `rw` cannot reach it. -/
-private theorem iCondIndepFun_congr_cond {Ω : Type*} [mΩ : MeasurableSpace Ω]
+counterpart, route-local while its consumers are internal to this development. Needed because the
+conditioning algebra occurs in a dependent position — the `≤` proof mentions it — so `rw` cannot
+reach it. -/
+theorem iCondIndepFun_congr_cond {Ω : Type*} [mΩ : MeasurableSpace Ω]
     [StandardBorelSpace Ω] {μ : Measure Ω} [IsFiniteMeasure μ]
     {ι : Type*} {γ : ι → Type*} [∀ i, MeasurableSpace (γ i)] {Y : ∀ i, Ω → γ i}
     {m₁ m₂ : MeasurableSpace Ω} {h1 : m₁ ≤ mΩ} (h : iCondIndepFun m₁ h1 Y μ)
     (h12 : m₁ = m₂) (h2 : m₂ ≤ mΩ) : iCondIndepFun m₂ h2 Y μ := by
   subst h12
   exact h
+
+end Austin
 
 /-! ### Weak union for conditional independence
 
@@ -257,7 +262,9 @@ variable (S n) in
 The pooled latent array is carried *alongside* the original marginal rather than replacing it, so
 the first component is untouched and `enrichedPollingLaw_map_fst` stays literally what it was. The pooled array is the right lower-rank factor because `Q.screening`'s remainder
 `restObservationOver n A` already contains it in full, and weak union conditions on exactly that
-factor. Every pooled index has cardinality `< n`, so no rank-`n` block is revealed. -/
+factor. Every pooled *latent* index has cardinality `< n`, so the latent component reveals no
+rank-`n` block; the clusters, by contrast, are rank-`n` blocks at supports that are not wholly
+original, and carrying them is the point of the poll. -/
 abbrev EnrichedSpace :=
   (RelStructure S (Vinfinite S) × RankLatentSpace S n) ×
     (PooledRankLatentSpace S n × ClusterSpace S n)
@@ -584,11 +591,14 @@ theorem enrichedBlock_comp_enrichedPollingMap (A : RankSupport S n) :
   funext p
   exact congrFun (blockMapOver_restrict (originalVertex S) A.1) p.1
 
-/-- **Forward transport of mutual conditional independence along a measurable map.** Kept private
-while it has one consumer; extract a general transport theorem after a second independent consumer
-appears. No injectivity is needed — `enrichedPollingMap` forgets the spare half of the structure —
-which is exactly why neither direction of the existing transport API applies. -/
-private theorem iCondIndepFun_of_map {α β : Type*} {m' : MeasurableSpace β}
+namespace Austin
+
+/-- **Forward transport of mutual conditional independence along a measurable map.** Route-local:
+public within the Austin development, which has more than one consumer for it, but not promoted to
+`ForMathlib/` — that awaits a consumer independent of this route. No injectivity is needed, which
+is why neither direction of the existing transport API applies: the maps that build the enriched
+objects forget the spare half of the structure. -/
+theorem iCondIndepFun_of_map {α β : Type*} {m' : MeasurableSpace β}
     [mα : MeasurableSpace α] [mβ : MeasurableSpace β]
     [StandardBorelSpace α] [StandardBorelSpace β]
     {P : Measure α} [IsFiniteMeasure P] {T : α → β}
@@ -637,6 +647,8 @@ private theorem iCondIndepFun_of_map {α β : Type*} {m' : MeasurableSpace β}
     exact Finset.measurable_prod S fun i _ => (stronglyMeasurable_condExp.mono hm').measurable
   exact (ae_map_iff hT.aemeasurable hmeas).mpr hcomp
 
+end Austin
+
 /-! ### The witness -/
 
 /-- **The polling conclusion**: mutual conditional independence of the *entire* rank-`n` block
@@ -679,11 +691,11 @@ theorem pooledPollingWitness {C : M.RankRepresentation n} (Q : PooledRankExtensi
     have halg : MeasurableSpace.comap (sourcePollingCond (S := S) (n := n)) inferInstance =
         (MeasurableSpace.comap (pollingCond S n) inferInstance).comap enrichedPollingMap :=
       (MeasurableSpace.comap_comp.trans comap_pollingCond_comp_enrichedPollingMap).symm
-    have h3 := iCondIndepFun_congr_cond h1 halg
+    have h3 := Austin.iCondIndepFun_congr_cond h1 halg
       ((MeasurableSpace.comap_mono (measurable_pollingCond S n).comap_le).trans
         (measurable_iff_comap_le.mp measurable_enrichedPollingMap))
     -- step 4: push forward
-    exact iCondIndepFun_of_map measurable_enrichedPollingMap
+    exact Austin.iCondIndepFun_of_map measurable_enrichedPollingMap
       (measurable_pollingCond S n).comap_le
       (fun A : RankSupport S n =>
         (measurable_blockMap A.1).comp (measurable_fst.comp measurable_fst)) h3
