@@ -401,6 +401,118 @@ theorem enrichedPollingLaw_map_enrichedAction {C : M.RankRepresentation n}
     show (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
         (pooledAction S n σ) = Q.law from Q.invariant (poolLift σ)]
 
+/-! ### The bundle
+
+Compressing the enriched law drops the *original* rank-`n` latents, which are redundant: on the
+image of `enrichedPollingMap` they are `restrictOriginalLatents` of the pooled array, so nothing is
+lost and `map_original` recovers `C.P` from the pooled component alone. -/
+
+open scoped Classical in
+/-- Forget the redundant original-latent coordinate. -/
+noncomputable def compressEnriched :
+    EnrichedSpace S n → RelStructure S (Vinfinite S) × AustinBaseSpace S n :=
+  fun q => (q.1.1, q.2)
+
+open scoped Classical in
+omit [Countable S.Srt] [Countable S.Rel] in
+theorem measurable_compressEnriched :
+    Measurable (compressEnriched (S := S) (n := n)) :=
+  (measurable_fst.fst).prodMk measurable_snd
+
+open scoped Classical in
+/-- **The base-extended law**: the representation's structure together with the Austin base, over
+the existing signature. No synthetic relational signature is introduced, and the pooled real
+latents remain real — they are never encoded as Boolean relation coordinates. -/
+structure AustinEnrichedObject (C : M.RankRepresentation n) where
+  /-- The joint law of the structure and the auxiliary base. -/
+  law : Measure (RelStructure S (Vinfinite S) × AustinBaseSpace S n)
+  /-- It is a probability measure. -/
+  isProbabilityMeasure_law : IsProbabilityMeasure law
+  /-- Its structure marginal is the exchangeable law. -/
+  map_fst : law.map Prod.fst = (M.law : Measure (RelStructure S (Vinfinite S)))
+  /-- **Recovery of the representation**: reading the structure together with the original-support
+  latents of the pooled array returns `C.P` exactly. -/
+  map_original :
+    law.map (fun p => (p.1, restrictOriginalLatents S n p.2.1)) = C.P
+  /-- Invariance under the diagonal action. -/
+  invariant : ∀ σ : FinSuppPerm S,
+    law.map (Prod.map (RelStructure.relabel σ.1) (austinBaseRelabel σ n)) = law
+  /-- **Mutual** conditional independence of the whole rank-`n` block family given the base. -/
+  mutualCondIndep :
+    iCondIndepFun (MeasurableSpace.comap
+        (Prod.snd : RelStructure S (Vinfinite S) × AustinBaseSpace S n → _) inferInstance)
+      measurable_snd.comap_le
+      (fun A : RankSupport S n => blockMap A.1 ∘ Prod.fst) law
+
+open scoped Classical in
+/-- The compressed observation, read directly on the pooled space. -/
+noncomputable def pooledToEnrichedObject :
+    RelStructure S (PoolVertex S) × PooledRankLatentSpace S n →
+      RelStructure S (Vinfinite S) × AustinBaseSpace S n :=
+  fun p => (restrictOriginal S p.1, (p.2, pollingClusters p))
+
+open scoped Classical in
+omit [Countable S.Srt] [Countable S.Rel] in
+theorem compressEnriched_comp_enrichedPollingMap :
+    compressEnriched ∘ (enrichedPollingMap (S := S) (n := n)) = pooledToEnrichedObject := rfl
+
+open scoped Classical in
+omit [Countable S.Srt] in
+theorem measurable_pooledToEnrichedObject :
+    Measurable (pooledToEnrichedObject (S := S) (n := n)) :=
+  ((measurable_restrict _).comp measurable_fst).prodMk
+    (measurable_snd.prodMk measurable_pollingClusters)
+
+open scoped Classical in
+/-- **The bundle exists.** The law is the exact pushforward of the enriched polling law; the four
+laws are transports of results already established, and the mutual conditional independence is the
+unit-1 witness moved forward by the route-local transport rather than reproved. -/
+noncomputable def austinEnrichedObject [Fintype S.Srt] {C : M.RankRepresentation n}
+    (Q : PooledRankExtension C) (W : PooledPollingWitness C Q) :
+    AustinEnrichedObject C where
+  law := (enrichedPollingLaw Q).map compressEnriched
+  isProbabilityMeasure_law := by
+    haveI : IsProbabilityMeasure (enrichedPollingLaw Q) := inferInstance
+    exact Measure.isProbabilityMeasure_map measurable_compressEnriched.aemeasurable
+  map_fst := by
+    haveI := C.isProbabilityMeasure_P
+    rw [Measure.map_map measurable_fst measurable_compressEnriched,
+      show (Prod.fst ∘ compressEnriched (S := S) (n := n)) = Prod.fst ∘ Prod.fst from rfl,
+      ← Measure.map_map measurable_fst measurable_fst, enrichedPollingLaw_map_fst, C.map_fst]
+  map_original := by
+    haveI := C.isProbabilityMeasure_P
+    have hm : Measurable (fun p : RelStructure S (Vinfinite S) × AustinBaseSpace S n =>
+        (p.1, restrictOriginalLatents S n p.2.1)) :=
+      measurable_fst.prodMk ((measurable_restrictOriginalLatents n).comp (measurable_snd.fst))
+    rw [Measure.map_map hm measurable_compressEnriched, enrichedPollingLaw,
+      Measure.map_map (hm.comp measurable_compressEnriched) measurable_enrichedPollingMap,
+      show ((fun p : RelStructure S (Vinfinite S) × AustinBaseSpace S n =>
+            (p.1, restrictOriginalLatents S n p.2.1)) ∘ compressEnriched) ∘
+          (enrichedPollingMap (S := S) (n := n)) =
+        Prod.map (RelStructure.restrict (originalVertex S))
+          (latentRestrictOver (fun s => originalVertex S s) n) from rfl]
+    exact Q.map_restrict_embedding (originalVertex S)
+  invariant := fun σ => by
+    rw [Measure.map_map ((measurable_relabel σ.1).prodMap (measurable_austinBaseRelabel σ n))
+        measurable_compressEnriched,
+      show (Prod.map (RelStructure.relabel σ.1) (austinBaseRelabel σ n) ∘
+          compressEnriched (S := S) (n := n)) =
+        compressEnriched ∘ enrichedAction S n σ from rfl,
+      ← Measure.map_map measurable_compressEnriched (measurable_enrichedAction σ n),
+      enrichedPollingLaw_map_enrichedAction Q σ]
+  mutualCondIndep := by
+    haveI := C.isProbabilityMeasure_P
+    refine Austin.iCondIndepFun_of_map measurable_compressEnriched measurable_snd.comap_le
+      (fun A : RankSupport S n => (measurable_blockMap A.1).comp measurable_fst) ?_
+    have h := W.mutualCondIndep
+    refine Austin.iCondIndepFun_congr_cond h ?_ _
+    show MeasurableSpace.comap (pollingCond S n) inferInstance =
+      (MeasurableSpace.comap
+        (Prod.snd : RelStructure S (Vinfinite S) × AustinBaseSpace S n → _)
+        inferInstance).comap compressEnriched
+    rw [MeasurableSpace.comap_comp]
+    rfl
+
 /-! ### Adapter spaces
 
 Introduced here only so that their standard-Borel structure is available and inferred rather than
@@ -422,6 +534,95 @@ instance (B : CoherentBasis M) (m : ℕ) :
 
 instance (B : CoherentBasis M) (m : ℕ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     StandardBorelSpace (EnrichedBoundarySpace B m A) := inferInstance
+
+/-! ### The adapter into the coherent-basis factor API
+
+For an arbitrary coherent basis: selecting one via `nonempty_coherentBasis` is what would introduce
+`[Fintype S.Srt]`, and that is deliberately not done here. The four commuting laws are exact, and
+the last is the unit-2 regression for eventual exact truncation. -/
+
+variable (B : CoherentBasis M)
+
+/-- The lower factor, extended by the base. -/
+noncomputable def enrichedLowerMap (m : ℕ) :
+    RelStructure S (Vinfinite S) × AustinBaseSpace S m → EnrichedLowerSpace B m :=
+  fun p => (B.lowerFactorMap m p.1, p.2)
+
+/-- The boundary at `A`, extended by the base. -/
+noncomputable def enrichedBoundaryMap (m : ℕ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    RelStructure S (Vinfinite S) × AustinBaseSpace S m → EnrichedBoundarySpace B m A :=
+  fun p => (B.boundaryMap A p.1, p.2)
+
+/-- The rank-`m` layer. The base is **not** attached: the layer is where the fresh rank-`m`
+information lives, and the base is the lower-rank data it is read against. -/
+noncomputable def enrichedLayerMap (m : ℕ) :
+    RelStructure S (Vinfinite S) × AustinBaseSpace S m → B.RankLayerSpace m :=
+  fun p => B.rankLayerMap m p.1
+
+/-- The exact-anchor layer at `A`. -/
+noncomputable def enrichedExactMap (m : ℕ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    RelStructure S (Vinfinite S) × AustinBaseSpace S m → B.ExactSpace A :=
+  fun p => B.exactMap A p.1
+
+omit [Countable S.Srt] [Countable S.Rel] in
+/-- **First commuting law**: projecting the extended lower factor to the boundary, leaving the base
+untouched, is the extended boundary map. -/
+theorem lowerToBoundary_comp_enrichedLowerMap {m : ℕ}
+    {A : Finset (Σ s : S.Srt, Vinfinite S s)} (hA : A.card = m) :
+    Prod.map (B.lowerToBoundaryProjection hA) (id : AustinBaseSpace S m → _) ∘
+        enrichedLowerMap B m = enrichedBoundaryMap B m A := rfl
+
+omit [Countable S.Srt] [Countable S.Rel] in
+/-- **Second commuting law**: the exact-anchor layer factors through the rank-`m` layer. -/
+theorem rankLayerToExact_comp_enrichedLayerMap {m : ℕ}
+    {A : Finset (Σ s : S.Srt, Vinfinite S s)} (hA : A.card = m) :
+    B.rankLayerToExactProjection hA ∘ enrichedLayerMap B m = enrichedExactMap B m A := rfl
+
+omit [Countable S.Srt] [Countable S.Rel] in
+theorem measurable_enrichedLowerMap (m : ℕ) : Measurable (enrichedLowerMap B m) :=
+  ((B.measurable_lowerFactorMap' m).comp measurable_fst).prodMk measurable_snd
+
+omit [Countable S.Srt] [Countable S.Rel] in
+theorem measurable_enrichedLayerMap (m : ℕ) : Measurable (enrichedLayerMap B m) :=
+  (B.measurable_rankLayerMap m).comp measurable_fst
+
+/-- **Third commuting law**: forgetting the auxiliary base from the joint lower/layer observation
+returns the corresponding pushforward of `M.law`. The base carries no structural information — it
+is the lower-rank randomness the structure is read against. -/
+theorem map_forget_base {C : M.RankRepresentation n} (O : AustinEnrichedObject C) :
+    (O.law.map fun p => ((enrichedLowerMap B n p).1, enrichedLayerMap B n p)) =
+      (M.law : Measure (RelStructure S (Vinfinite S))).map
+        fun X => (B.lowerFactorMap n X, B.rankLayerMap n X) := by
+  haveI := O.isProbabilityMeasure_law
+  have hjoint : Measurable fun X : RelStructure S (Vinfinite S) =>
+      (B.lowerFactorMap n X, B.rankLayerMap n X) :=
+    (B.measurable_lowerFactorMap' n).prodMk (B.measurable_rankLayerMap n)
+  rw [show (fun p : RelStructure S (Vinfinite S) × AustinBaseSpace S n =>
+        ((enrichedLowerMap B n p).1, enrichedLayerMap B n p)) =
+      (fun X => (B.lowerFactorMap n X, B.rankLayerMap n X)) ∘ Prod.fst from rfl,
+    ← Measure.map_map hjoint measurable_fst, O.map_fst]
+
+/-- **The unit-2 regression for exact truncation**: recombining the lower and layer coordinates
+through `lowerFactorSpaceSuccEquiv.symm` returns the rank-`(n+1)` lower-factor law, on the nose.
+
+This is an equality of pushed measures with the auxiliary base **forgotten** and no
+almost-everywhere weakening: an a.e. version, or one retaining a base coordinate, would not
+constrain the successor construction where it has to be constrained. -/
+theorem map_recombine {C : M.RankRepresentation n} (O : AustinEnrichedObject C) :
+    ((O.law.map fun p => ((enrichedLowerMap B n p).1, enrichedLayerMap B n p)).map
+        (B.lowerFactorSpaceSuccEquiv n).symm) =
+      (M.law : Measure (RelStructure S (Vinfinite S))).map (B.lowerFactorMap (n + 1)) := by
+  haveI := O.isProbabilityMeasure_law
+  rw [map_forget_base B O,
+    Measure.map_map (B.lowerFactorSpaceSuccEquiv n).symm.measurable
+      ((B.measurable_lowerFactorMap' n).prodMk (B.measurable_rankLayerMap n)),
+    show ((B.lowerFactorSpaceSuccEquiv n).symm ∘
+        fun X => (B.lowerFactorMap n X, B.rankLayerMap n X)) =
+      B.lowerFactorMap (n + 1) from funext fun X => by
+        show (B.lowerFactorSpaceSuccEquiv n).symm
+            (B.lowerFactorMap n X, B.rankLayerMap n X) = B.lowerFactorMap (n + 1) X
+        rw [← B.lowerFactorSpaceSuccEquiv_lowerFactorMap n X,
+          (B.lowerFactorSpaceSuccEquiv n).symm_apply_apply]]
 
 end InfiniteRelExchangeableLaw
 

@@ -89,17 +89,22 @@ variable {S : RelSignature} [Countable S.Srt] [Countable S.Rel]
 
 attribute [local instance] RankRepresentation.isProbabilityMeasure_P
 
+namespace Austin
+
 /-- **The conditioning σ-algebra may be replaced by an equal one**, for a family. The
 `CondIndepFun` form is shared glue in `ForMathlib/CondIndepSup.lean`; this is its `iCondIndepFun`
-counterpart, private under the standing promotion rule. Needed because the conditioning algebra
-occurs in a dependent position — the `≤` proof mentions it — so `rw` cannot reach it. -/
-private theorem iCondIndepFun_congr_cond {Ω : Type*} [mΩ : MeasurableSpace Ω]
+counterpart, route-local while its consumers are internal to this development. Needed because the
+conditioning algebra occurs in a dependent position — the `≤` proof mentions it — so `rw` cannot
+reach it. -/
+theorem iCondIndepFun_congr_cond {Ω : Type*} [mΩ : MeasurableSpace Ω]
     [StandardBorelSpace Ω] {μ : Measure Ω} [IsFiniteMeasure μ]
     {ι : Type*} {γ : ι → Type*} [∀ i, MeasurableSpace (γ i)] {Y : ∀ i, Ω → γ i}
     {m₁ m₂ : MeasurableSpace Ω} {h1 : m₁ ≤ mΩ} (h : iCondIndepFun m₁ h1 Y μ)
     (h12 : m₁ = m₂) (h2 : m₂ ≤ mΩ) : iCondIndepFun m₂ h2 Y μ := by
   subst h12
   exact h
+
+end Austin
 
 /-! ### Weak union for conditional independence
 
@@ -684,7 +689,7 @@ theorem pooledPollingWitness {C : M.RankRepresentation n} (Q : PooledRankExtensi
     have halg : MeasurableSpace.comap (sourcePollingCond (S := S) (n := n)) inferInstance =
         (MeasurableSpace.comap (pollingCond S n) inferInstance).comap enrichedPollingMap :=
       (MeasurableSpace.comap_comp.trans comap_pollingCond_comp_enrichedPollingMap).symm
-    have h3 := iCondIndepFun_congr_cond h1 halg
+    have h3 := Austin.iCondIndepFun_congr_cond h1 halg
       ((MeasurableSpace.comap_mono (measurable_pollingCond S n).comap_le).trans
         (measurable_iff_comap_le.mp measurable_enrichedPollingMap))
     -- step 4: push forward
