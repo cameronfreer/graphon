@@ -16,13 +16,18 @@ outputs agree.
 
 The **auxiliary base** carried alongside the representation is
 `AustinBaseSpace S n = PooledRankLatentSpace S n × ClusterSpace S n`: the pooled lower-rank latents
-together with the mixed clusters. It is the equivariant lower-rank base over which the enriched
-kernel will later be built — not a family of fresh rank-`n` coordinates, and not relational data.
-Every pooled latent index has cardinality `< n`, so the base carries no rank-`n` block.
+together with the mixed clusters. It is the equivariant base over which the enriched kernel will
+later be built.
 
-This module is deliberately **law-free apart from one invariance**: it fixes the action and proves
-it strict, before any bundle, kernel, or conditional-distribution statement is written.
-Equivariance cannot be repaired downstream, so it is established first.
+Its two components differ in kind, and conflating them would be a mistake. The **latent**
+component carries no rank-`n` latent, every pooled index having cardinality `< n`. The **cluster**
+component, by contrast, deliberately does carry rank-`n` blocks — mixed ones, at supports that are
+not wholly original. That is the point of the poll: the clusters are correlated structural data,
+which is exactly why conditioning on them is informative.
+
+The action is fixed and proved strict before the bundle is built, because equivariance cannot be
+repaired downstream. No conditional distribution or kernel identity appears here; those belong to
+the kernel unit, and every such identity there is almost-everywhere under a named law.
 
 ## Contents
 
@@ -35,12 +40,13 @@ Equivariance cannot be repaired downstream, so it is established first.
 * `enrichedPollingMap_naturality` — **one global square** covering the structure, the original
   latents, the pooled latents and the clusters simultaneously. Stated generically in the cluster
   index, so genuinely mixed and all-spare indices are both covered.
-* `enrichedPollingLaw_map_austinBaseRelabel` — exact invariance of the pushed enriched law,
-  derived from that square together with the extension's own invariance.
-
-The adapter spaces `EnrichedLowerSpace` and `EnrichedBoundarySpace` are introduced here only so
-that their standard-Borel structure is available; their maps and commuting laws belong to the
-bundle that follows.
+* `enrichedPollingLaw_map_enrichedAction` — exact invariance of the pushed enriched law, derived
+  from that square together with the extension's own invariance.
+* `AustinEnrichedObject` and `austinEnrichedObject` — the **bundle**: a base-extended law over the
+  existing signature, constructed as the exact pushforward of `enrichedPollingLaw` along the
+  compression that drops the redundant original-latent coordinate.
+* `enrichedLowerMap`, `enrichedBoundaryMap`, `enrichedLayerMap`, `enrichedExactMap` and their four
+  commuting laws — the **adapter** into the coherent-basis factor API, for an arbitrary basis.
 -/
 
 open MeasureTheory ProbabilityTheory
@@ -55,9 +61,10 @@ variable {S : RelSignature} [Countable S.Srt] [Countable S.Rel]
 /-! ### The auxiliary base -/
 
 variable (S n) in
-/-- **The Austin base**: pooled lower-rank latents together with the mixed clusters. The
-equivariant lower-rank base of the construction; it carries no rank-`n` block, since every pooled
-latent index has cardinality `< n` and every cluster index carries a spare vertex. -/
+/-- **The Austin base**: pooled lower-rank latents together with the mixed clusters. The latent
+component carries no rank-`n` latent — every pooled index has cardinality `< n` — while the cluster
+component deliberately carries rank-`n` blocks at supports that are not wholly original. The base
+is therefore lower-rank in its latent part only; its cluster part is structural polling data. -/
 abbrev AustinBaseSpace := PooledRankLatentSpace S n × ClusterSpace S n
 
 instance : StandardBorelSpace (AustinBaseSpace S n) := inferInstance
@@ -467,7 +474,7 @@ open scoped Classical in
 /-- **The bundle exists.** The law is the exact pushforward of the enriched polling law; the four
 laws are transports of results already established, and the mutual conditional independence is the
 unit-1 witness moved forward by the route-local transport rather than reproved. -/
-noncomputable def austinEnrichedObject [Fintype S.Srt] {C : M.RankRepresentation n}
+noncomputable def austinEnrichedObject {C : M.RankRepresentation n}
     (Q : PooledRankExtension C) (W : PooledPollingWitness C Q) :
     AustinEnrichedObject C where
   law := (enrichedPollingLaw Q).map compressEnriched
@@ -539,7 +546,7 @@ instance (B : CoherentBasis M) (m : ℕ) (A : Finset (Σ s : S.Srt, Vinfinite S 
 
 For an arbitrary coherent basis: selecting one via `nonempty_coherentBasis` is what would introduce
 `[Fintype S.Srt]`, and that is deliberately not done here. The four commuting laws are exact, and
-the last is the unit-2 regression for eventual exact truncation. -/
+the last is a prerequisite for eventual exact truncation rather than that statement itself. -/
 
 variable (B : CoherentBasis M)
 
@@ -587,8 +594,11 @@ theorem measurable_enrichedLayerMap (m : ℕ) : Measurable (enrichedLayerMap B m
   (B.measurable_rankLayerMap m).comp measurable_fst
 
 /-- **Third commuting law**: forgetting the auxiliary base from the joint lower/layer observation
-returns the corresponding pushforward of `M.law`. The base carries no structural information — it
-is the lower-rank randomness the structure is read against. -/
+returns the corresponding pushforward of `M.law`.
+
+This asserts nothing about independence, and the base is *not* free of structural information — the
+clusters are correlated structural polling data. What the identity says is only that the
+structural factor law is recovered once the base is discarded, which is what the adapter needs. -/
 theorem map_forget_base {C : M.RankRepresentation n} (O : AustinEnrichedObject C) :
     (O.law.map fun p => ((enrichedLowerMap B n p).1, enrichedLayerMap B n p)) =
       (M.law : Measure (RelStructure S (Vinfinite S))).map
@@ -602,12 +612,13 @@ theorem map_forget_base {C : M.RankRepresentation n} (O : AustinEnrichedObject C
       (fun X => (B.lowerFactorMap n X, B.rankLayerMap n X)) ∘ Prod.fst from rfl,
     ← Measure.map_map hjoint measurable_fst, O.map_fst]
 
-/-- **The unit-2 regression for exact truncation**: recombining the lower and layer coordinates
-through `lowerFactorSpaceSuccEquiv.symm` returns the rank-`(n+1)` lower-factor law, on the nose.
+/-- **Factor-side recombination**: recombining the lower and layer coordinates through
+`lowerFactorSpaceSuccEquiv.symm` returns the rank-`(n+1)` lower-factor law, on the nose — an
+equality of pushed measures with the auxiliary base forgotten, with no almost-everywhere weakening.
 
-This is an equality of pushed measures with the auxiliary base **forgotten** and no
-almost-everywhere weakening: an a.e. version, or one retaining a base coordinate, would not
-constrain the successor construction where it has to be constrained. -/
+It is a **prerequisite** for exact truncation, not that statement itself: it mentions neither `C.P`
+nor `rankLatentProjection`, so it does not pin `RankSuccessor.truncation`. Exact truncation will
+come from `map_original` together with the source-splitting identity of the assembly unit. -/
 theorem map_recombine {C : M.RankRepresentation n} (O : AustinEnrichedObject C) :
     ((O.law.map fun p => ((enrichedLowerMap B n p).1, enrichedLayerMap B n p)).map
         (B.lowerFactorSpaceSuccEquiv n).symm) =

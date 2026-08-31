@@ -262,7 +262,9 @@ variable (S n) in
 The pooled latent array is carried *alongside* the original marginal rather than replacing it, so
 the first component is untouched and `enrichedPollingLaw_map_fst` stays literally what it was. The pooled array is the right lower-rank factor because `Q.screening`'s remainder
 `restObservationOver n A` already contains it in full, and weak union conditions on exactly that
-factor. Every pooled index has cardinality `< n`, so no rank-`n` block is revealed. -/
+factor. Every pooled *latent* index has cardinality `< n`, so the latent component reveals no
+rank-`n` block; the clusters, by contrast, are rank-`n` blocks at supports that are not wholly
+original, and carrying them is the point of the poll. -/
 abbrev EnrichedSpace :=
   (RelStructure S (Vinfinite S) × RankLatentSpace S n) ×
     (PooledRankLatentSpace S n × ClusterSpace S n)
