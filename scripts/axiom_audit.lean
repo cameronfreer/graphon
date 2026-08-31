@@ -347,6 +347,12 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.BipartiteRegression.ae_edge_xor
 #print axioms RelSignature.BipartiteRegression.not_indepFun_rankTwoCoupling
 
+-- R4 converse route A (#197): the enriched kernel layer, unit 3.
+#print axioms RelSignature.InfiniteRelExchangeableLaw.compProd_enrichedLayerKernel
+#print axioms RelSignature.InfiniteRelExchangeableLaw.compProd_enrichedStepKernel
+#print axioms RelSignature.InfiniteRelExchangeableLaw.enrichedLayerKernel_comp_enrichedLowerLaw
+#print axioms RelSignature.InfiniteRelExchangeableLaw.enrichedStepKernel_comp_enrichedBoundaryLaw
+
 -- R4 converse route A (#197): the Austin base and its action, unit 2 checkpoint and bundle.
 #print axioms RelSignature.InfiniteRelExchangeableLaw.austinEnrichedObject
 #print axioms RelSignature.InfiniteRelExchangeableLaw.lowerToBoundary_comp_enrichedLowerMap
