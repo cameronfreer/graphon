@@ -584,11 +584,14 @@ theorem enrichedBlock_comp_enrichedPollingMap (A : RankSupport S n) :
   funext p
   exact congrFun (blockMapOver_restrict (originalVertex S) A.1) p.1
 
-/-- **Forward transport of mutual conditional independence along a measurable map.** Kept private
-while it has one consumer; extract a general transport theorem after a second independent consumer
-appears. No injectivity is needed — `enrichedPollingMap` forgets the spare half of the structure —
-which is exactly why neither direction of the existing transport API applies. -/
-private theorem iCondIndepFun_of_map {α β : Type*} {m' : MeasurableSpace β}
+namespace Austin
+
+/-- **Forward transport of mutual conditional independence along a measurable map.** Route-local:
+public within the Austin development, which has more than one consumer for it, but not promoted to
+`ForMathlib/` — that awaits a consumer independent of this route. No injectivity is needed, which
+is why neither direction of the existing transport API applies: the maps that build the enriched
+objects forget the spare half of the structure. -/
+theorem iCondIndepFun_of_map {α β : Type*} {m' : MeasurableSpace β}
     [mα : MeasurableSpace α] [mβ : MeasurableSpace β]
     [StandardBorelSpace α] [StandardBorelSpace β]
     {P : Measure α} [IsFiniteMeasure P] {T : α → β}
@@ -637,6 +640,8 @@ private theorem iCondIndepFun_of_map {α β : Type*} {m' : MeasurableSpace β}
     exact Finset.measurable_prod S fun i _ => (stronglyMeasurable_condExp.mono hm').measurable
   exact (ae_map_iff hT.aemeasurable hmeas).mpr hcomp
 
+end Austin
+
 /-! ### The witness -/
 
 /-- **The polling conclusion**: mutual conditional independence of the *entire* rank-`n` block
@@ -683,7 +688,7 @@ theorem pooledPollingWitness {C : M.RankRepresentation n} (Q : PooledRankExtensi
       ((MeasurableSpace.comap_mono (measurable_pollingCond S n).comap_le).trans
         (measurable_iff_comap_le.mp measurable_enrichedPollingMap))
     -- step 4: push forward
-    exact iCondIndepFun_of_map measurable_enrichedPollingMap
+    exact Austin.iCondIndepFun_of_map measurable_enrichedPollingMap
       (measurable_pollingCond S n).comap_le
       (fun A : RankSupport S n =>
         (measurable_blockMap A.1).comp (measurable_fst.comp measurable_fst)) h3
