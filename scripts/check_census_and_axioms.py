@@ -307,6 +307,8 @@ AUDITED_DECLS = {
     "RelSignature.BipartiteRegression.bipartiteSuccessor",
     "RelSignature.BipartiteRegression.ae_edge_xor",
     "RelSignature.BipartiteRegression.not_indepFun_rankTwoCoupling",
+    "RelSignature.BipartiteRegression.isDissociated_bipartite",
+    "RelSignature.BipartiteRegression.isErgodic_bipartite",
     "RelSignature.InfiniteRelExchangeableLaw.compProd_enrichedLayerKernel",
     "RelSignature.InfiniteRelExchangeableLaw.compProd_enrichedStepKernel",
     "RelSignature.InfiniteRelExchangeableLaw.enrichedLayerKernel_comp_enrichedLowerLaw",

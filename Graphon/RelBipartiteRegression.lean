@@ -47,6 +47,11 @@ abbrev Colours := RankSupport digraphSig 1 → ℝ
 def vertexSupport (v : ℕ) : RankSupport digraphSig 1 :=
   ⟨{⟨(), v⟩}, Finset.card_singleton _⟩
 
+theorem vertexSupport_injective : Function.Injective vertexSupport := by
+  intro a b h
+  have := congrArg Subtype.val h
+  simpa [vertexSupport] using this
+
 /-- The colour of a vertex, read off its own fresh coordinate. -/
 noncomputable def colour (ω : Colours) (v : ℕ) : Bool := decide (ω (vertexSupport v) ≤ 1 / 2)
 
@@ -130,6 +135,107 @@ theorem bipartiteLaw_map_relabel (σ : ∀ _ : Unit, Equiv.Perm ℕ) :
 noncomputable def bipartiteExchangeable : InfiniteRelExchangeableLaw digraphSig where
   law := ⟨bipartiteLaw, inferInstance⟩
   exchangeable := bipartiteLaw_map_relabel
+
+/-! ### Dissociation and ergodicity
+
+Disjoint vertex blocks of this law read **disjoint** coordinates of the i.i.d. colour source, so
+the joint block law factorizes exactly. That is dissociation, and ergodicity follows through the
+existing R3b equivalence rather than through a bespoke zero-one argument.
+
+The structural statement is proved, not just its eventwise zero-one corollary: the rank-one witness
+below couples the law with a latent that is *independent* of it, so any statement placing an
+invariant event a.e. inside the latent algebra forces that event to be trivial. Ergodicity is what
+supplies that, and it is needed under any formulation of the completeness API.
+
+Both blocks are finite, so the whole argument runs through finite coordinate cylinders and a single
+injection `blockEmb`; no `Fintype`-indexed reindexing of the full support type is introduced. -/
+
+/-- **The array over a finite carrier**, read off a finite colour vector. -/
+noncomputable def arrFin {m : Unit → ℕ} (y : Fin (m ()) → ℝ) :
+    RelStructure digraphSig (Vfinite m) :=
+  fun c => xor (decide (y (c.2 0) ≤ 1 / 2)) (decide (y (c.2 1) ≤ 1 / 2))
+
+theorem measurable_arrFin {m : Unit → ℕ} : Measurable (arrFin (m := m)) := by
+  refine measurable_pi_lambda _ fun c => ?_
+  exact (Measurable.of_discrete (f := fun p : Bool × Bool => xor p.1 p.2)).comp
+    ((measurable_decideLe (measurable_pi_apply _)).prodMk
+      (measurable_decideLe (measurable_pi_apply _)))
+
+/-- The initial `k`-block of the array is the finite array on the first `k` colours. -/
+theorem restrictFin_arr (k : Unit → ℕ) (ω : Colours) :
+    RelStructure.restrictFin k (arr ω)
+      = arrFin (m := k) fun i : Fin (k ()) => ω (vertexSupport i.val) := rfl
+
+/-- The `l`-block after `k` is the finite array on the colours at the shifted vertices. -/
+theorem restrict_shiftEmb_arr (k l : Unit → ℕ) (ω : Colours) :
+    RelStructure.restrict (shiftEmb k l) (arr ω)
+      = arrFin (m := l) fun j : Fin (l ()) => ω (vertexSupport (j.val + k ())) := rfl
+
+/-- The two blocks read **disjoint** families of singleton supports. -/
+def blockEmb (k l : Unit → ℕ) : Fin (k ()) ⊕ Fin (l ()) → RankSupport digraphSig 1 :=
+  Sum.elim (fun i => vertexSupport i.val) (fun j => vertexSupport (j.val + k ()))
+
+theorem blockEmb_injective (k l : Unit → ℕ) : Function.Injective (blockEmb k l) := by
+  have hv : ∀ {a b : ℕ}, vertexSupport a = vertexSupport b → a = b :=
+    fun h => by simpa using vertexSupport_injective h
+  rintro (i | i) (j | j) h <;> simp only [blockEmb, Sum.elim_inl, Sum.elim_inr] at h
+  · exact congrArg Sum.inl (Fin.ext (hv h))
+  · exact absurd (hv h) (by omega)
+  · exact absurd (hv h) (by omega)
+  · exact congrArg Sum.inr (Fin.ext (by have := hv h; omega))
+
+/-- The colours the two blocks read are jointly the two finite uniform blocks. -/
+theorem source_map_blockEmb (k l : Unit → ℕ) :
+    (iidUniformSource (RankSupport digraphSig 1)).map (fun x d => x (blockEmb k l d)) =
+      Measure.pi fun _ : Fin (k ()) ⊕ Fin (l ()) => uniform01 := by
+  rw [iidUniformSource]
+  exact Measure.infinitePi_map_comp_of_injective _ (blockEmb_injective k l)
+
+/-- Each finite block marginal of the law is the finite array pushed off a finite uniform block. -/
+theorem map_restrictFin_bipartiteLaw (m : Unit → ℕ) :
+    bipartiteLaw.map (RelStructure.restrictFin m) =
+      (Measure.pi fun _ : Fin (m ()) => uniform01).map arrFin := by
+  have hinj : Function.Injective fun i : Fin (m ()) => vertexSupport i.val := by
+    intro a b h
+    exact Fin.ext (by simpa using vertexSupport_injective h)
+  rw [bipartiteLaw, Measure.map_map (RelSignature.measurable_restrictFin m) measurable_arr,
+    show RelStructure.restrictFin m ∘ arr
+      = arrFin (m := m) ∘ fun (x : Colours) (i : Fin (m ())) => x (vertexSupport i.val) from
+      funext fun ω => restrictFin_arr m ω,
+    ← Measure.map_map measurable_arrFin
+      (measurable_pi_lambda _ fun _ => measurable_pi_apply _), iidUniformSource,
+    Measure.infinitePi_map_comp_of_injective _ hinj]
+
+/-- **The bipartite law is dissociated.** -/
+theorem isDissociated_bipartite : bipartiteExchangeable.IsDissociated := by
+  intro k l
+  have hlaw : (bipartiteExchangeable.law :
+      Measure (RelStructure digraphSig (Vinfinite digraphSig))) = bipartiteLaw := rfl
+  have hpair : blockPair k l ∘ arr
+      = Prod.map (arrFin (m := k)) (arrFin (m := l)) ∘
+        ⇑(MeasurableEquiv.sumPiEquivProdPi fun _ : Fin (k ()) ⊕ Fin (l ()) => ℝ) ∘
+        fun (x : Colours) (d : Fin (k ()) ⊕ Fin (l ())) => x (blockEmb k l d) := by
+    funext ω
+    exact Prod.ext (restrictFin_arr k ω) (restrict_shiftEmb_arr k l ω)
+  have hre : Measurable fun (x : Colours) (d : Fin (k ()) ⊕ Fin (l ())) => x (blockEmb k l d) :=
+    measurable_pi_lambda _ fun _ => measurable_pi_apply _
+  -- the two block marginals, while the law is still folded
+  rw [hlaw, map_restrictFin_bipartiteLaw k, map_restrictFin_bipartiteLaw l,
+    Measure.map_prod_map _ _ (measurable_arrFin (m := k)) (measurable_arrFin (m := l))]
+  -- the joint block law
+  rw [bipartiteLaw, Measure.map_map (measurable_blockPair k l) measurable_arr, hpair,
+    ← Measure.map_map (measurable_arrFin.prodMap measurable_arrFin)
+      ((MeasurableEquiv.sumPiEquivProdPi fun _ : Fin (k ()) ⊕ Fin (l ()) => ℝ).measurable.comp hre),
+    ← Measure.map_map (MeasurableEquiv.sumPiEquivProdPi
+      fun _ : Fin (k ()) ⊕ Fin (l ()) => ℝ).measurable hre,
+    show (iidUniformSource (RankSupport digraphSig 1)).map
+        (fun (x : Colours) (d : Fin (k ()) ⊕ Fin (l ())) => x (blockEmb k l d))
+      = Measure.pi fun _ : Fin (k ()) ⊕ Fin (l ()) => uniform01 from source_map_blockEmb k l,
+    (measurePreserving_sumPiEquivProdPi fun _ : Fin (k ()) ⊕ Fin (l ()) => uniform01).map_eq]
+
+/-- **The bipartite law is ergodic**, through the existing dissociation equivalence. -/
+theorem isErgodic_bipartite : bipartiteExchangeable.IsErgodic :=
+  (isErgodic_iff_isDissociated bipartiteExchangeable).mpr isDissociated_bipartite
 
 /-! ### Blocks of this signature
 
@@ -593,11 +699,6 @@ they coincide, and so their joint probability is `1/2` against a product of marg
 
 /-- The two vertices `0` and `1`, as fresh-layer indices. -/
 def pairIndex : Fin 2 → RankSupport digraphSig 1 := ![vertexSupport 0, vertexSupport 1]
-
-theorem vertexSupport_injective : Function.Injective vertexSupport := by
-  intro a b h
-  have := congrArg Subtype.val h
-  simpa [vertexSupport] using this
 
 theorem pairIndex_injective : Function.Injective pairIndex := by
   intro a b h

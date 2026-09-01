@@ -346,6 +346,8 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.BipartiteRegression.bipartiteSuccessor
 #print axioms RelSignature.BipartiteRegression.ae_edge_xor
 #print axioms RelSignature.BipartiteRegression.not_indepFun_rankTwoCoupling
+#print axioms RelSignature.BipartiteRegression.isDissociated_bipartite
+#print axioms RelSignature.BipartiteRegression.isErgodic_bipartite
 
 -- R4 converse route A (#197): the enriched kernel layer, unit 3.
 #print axioms RelSignature.InfiniteRelExchangeableLaw.compProd_enrichedLayerKernel
