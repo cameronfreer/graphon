@@ -20,8 +20,11 @@ pooled invariance later costs no additional mathematics.
   Only injectivity is used (a support keeps its cardinality), so this extends
   `rankLatentIndexEquiv` / `rankLatentRelabel` from permutations to injections; on a permutation
   the two agree (`rankLatentReindex_toEmbedding`).
-* `exists_finSuppPerm_agree_on_finset` — a sortwise self-injection agrees with some **finitely
-  supported permutation** on any finite set of tagged vertices.
+* the finite-support agreement lemma `exists_finSuppPerm_agree_on_finset` (imported from
+  `Graphon.RelInvariantAction`) matches a sortwise self-injection by a **finitely supported
+  permutation** on any finite set of tagged vertices, and the latent cylinders `latentCylinders`
+  (imported from `Graphon.RelLatentLocalization`) supply the generating π-system on the latent
+  side.
 * `ext_of_prod_cylinders` — joint extensionality: two finite measures on
   `RelStructure × RankLatentSpace` agreeing on all rectangles of coordinate cylinders are equal.
 * `RankRepresentation.map_prodMap_restrict_self` — **the theorem**: the joint law is invariant
@@ -102,17 +105,8 @@ variable (S) in
 abbrev structureCylinders : Set (Set (RelStructure S (Vinfinite S))) :=
   measurableCylinders fun _ : RelCoord S (Vinfinite S) => Bool
 
-variable (S) in
-/-- The coordinate cylinders of the latent cube: finitely many latent indices constrained. -/
-abbrev latentCylinders (n : ℕ) : Set (Set (RankLatentSpace S n)) :=
-  measurableCylinders fun _ : RankLatentIndex S n => ℝ
-
 theorem isCountablySpanning_structureCylinders :
     IsCountablySpanning (structureCylinders S) :=
-  ⟨fun _ => Set.univ, fun _ => univ_mem_measurableCylinders _, Set.iUnion_const _⟩
-
-theorem isCountablySpanning_latentCylinders (n : ℕ) :
-    IsCountablySpanning (latentCylinders S n) :=
   ⟨fun _ => Set.univ, fun _ => univ_mem_measurableCylinders _, Set.iUnion_const _⟩
 
 /-- **Joint extensionality**: two finite measures on the structure–latent product agreeing on

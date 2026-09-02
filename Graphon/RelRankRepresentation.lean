@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.RelRankLatents
 import Graphon.RelObservationGeometry
+import Graphon.RelLatentLocalization
 import Graphon.RelEqualityPattern
 import Graphon.RelInfiniteLaw
 
@@ -66,29 +67,6 @@ open MeasureTheory ProbabilityTheory
 namespace RelSignature
 
 variable {S : RelSignature}
-
-/-! ### Local latents -/
-
-/-- The latent coordinates visible at `A`: supports contained in `A`. Within `RankLatentIndex n`
-this automatically means *proper* subsets when `A.card = n`. -/
-@[reducible] def LocalLatentIndex (A : Finset (Σ s : S.Srt, Vinfinite S s)) (n : ℕ) :=
-  LocalLatentIndexOver (Vinfinite S) A n
-
-instance [Countable S.Srt] (A : Finset (Σ s : S.Srt, Vinfinite S s)) (n : ℕ) :
-    Countable (LocalLatentIndex A n) := Subtype.countable
-
-/-- The local latent space at `A`. -/
-abbrev LocalLatentSpace (A : Finset (Σ s : S.Srt, Vinfinite S s)) (n : ℕ) :=
-  LocalLatentIndex A n → ℝ
-
-/-- Restriction of the latent array to the coordinates visible at `A`. -/
-def localLatents (A : Finset (Σ s : S.Srt, Vinfinite S s)) (n : ℕ) :
-    RankLatentSpace S n → LocalLatentSpace A n := localLatentsOver A n
-
-theorem measurable_localLatents [Countable S.Srt]
-    (A : Finset (Σ s : S.Srt, Vinfinite S s)) (n : ℕ) :
-    Measurable (localLatents A n) :=
-  measurable_pi_lambda _ fun _ => measurable_pi_apply _
 
 /-- **The staging lemma**: at rank `n` the latent array carries no coordinate at a support of
 cardinality `n`. This is why `screening` may place the whole of `RankLatentSpace S n` opposite the

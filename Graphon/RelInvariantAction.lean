@@ -16,7 +16,10 @@ and ergodicity of an exchangeable relational law:
   support, with closure under composition and inverse;
 * `RelStructure.invariantAlgebra` — the measurable sets strictly invariant under every
   finitely supported sortwise relabeling;
-* `InfiniteRelExchangeableLaw.IsErgodic` — every invariant event has law-measure `0` or `1`.
+* `InfiniteRelExchangeableLaw.IsErgodic` — every invariant event has law-measure `0` or `1`;
+* `RelSignature.exists_finSuppPerm_agree_on_finset` — a sortwise self-injection agrees with some
+  finitely supported permutation on any finite set of tagged vertices (only the finitely many
+  sorts occurring there are active).
 
 This mirrors the undirected `Graphon/InvariantAction.lean`. The arrows into the dissociation
 triangle live in `Graphon.RelErgodicLinks`, the ergodic ↔ extreme-point theorem in

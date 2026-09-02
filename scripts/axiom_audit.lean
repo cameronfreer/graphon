@@ -290,6 +290,11 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.rankLatentIndexInj_eq_of_agree
 #print axioms RelSignature.exists_finSuppPerm_agree_on_finset
 #print axioms RelSignature.exists_finSuppPerm_displacing
+#print axioms RelSignature.rankLatentIndexEquiv_eq_self_of_subset
+#print axioms RelSignature.rankLatentIndexEquiv_subset_iff
+#print axioms RelSignature.localLatents_comp_rankLatentRelabel
+#print axioms RelSignature.comap_localLatents_eq_cylinderEvents
+#print axioms RelSignature.rankLatentSource_exists_local_ae_eq_of_ae_invariant
 #print axioms RelSignature.rankLatentReindex_toEmbedding
 #print axioms RelSignature.ext_of_prod_cylinders
 #print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.map_prodMap_restrict_self
