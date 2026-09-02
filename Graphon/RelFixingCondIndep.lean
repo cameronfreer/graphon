@@ -162,6 +162,17 @@ private theorem pollPerm_apply_of_notMem (N : ℕ) [NeZero N]
   rw [this, if_neg (by rwa [Sigma.eta]), Nat.zero_mul, Nat.zero_add]
 
 open scoped Classical in
+/-- **The polling permutation has finitely many active sorts**: it is the identity on every sort
+not occurring in `D`. -/
+private theorem pollPerm_finiteActive (N : ℕ) [NeZero N]
+    (D : Finset (Σ s : S.Srt, Vinfinite S s)) : SortwiseFiniteActive (S := S) (pollPerm N D) := by
+  refine ⟨D.image Sigma.fst, fun s hs => Equiv.ext fun x => ?_⟩
+  have hx := pollPerm_apply N D s (x / N) (Nat.mod_lt x (Nat.pos_of_neZero N))
+  rw [Nat.div_add_mod' x N] at hx
+  rw [hx, if_neg fun h => hs (Finset.mem_image_of_mem Sigma.fst h), Nat.div_add_mod' x N]
+  rfl
+
+open scoped Classical in
 /-- **The `m`-th poll block**: the copy of `D` translated into poll slot `m`, so that slot `0`
 is `D` itself. -/
 private noncomputable def pollBlock (N : ℕ) (D : Finset (Σ s : S.Srt, Vinfinite S s)) (m : ℕ) :
@@ -282,9 +293,10 @@ private theorem fixingAlgebra_le_pollTailAlgebra_zero {B C D : Finset (Σ s : S.
 
 /-- **Transport of the tail joins**: pulling `𝒯 n` back along the poll shift is exactly
 `𝒯 (n+1)` — an equality of measurable spaces, obtained generator-by-generator from
-`fixingAlgebra_comap_relabel_of_fintype` and the reindexing `m ↦ m + 1`. This is the
+`fixingAlgebra_comap_relabel_of_finiteActive` — the poll permutation moves vertices only on the
+sorts occurring in `D` — and the reindexing `m ↦ m + 1`. This is the
 hypothesis `comap T m₁ = m₂` of the tail engine, with `m₂ ≤ m₁` supplied by antitonicity. -/
-private theorem comap_relabel_pollTailAlgebra [Fintype S.Srt]
+private theorem comap_relabel_pollTailAlgebra
     {C D : Finset (Σ s : S.Srt, Vinfinite S s)} {N : ℕ} [NeZero N] (hC : ∀ v ∈ C, v.2 < N)
     (hCD : ∀ v ∈ C, v ∉ D) (hD : ∀ v ∈ D, v.2 < N) (n : ℕ) :
     MeasurableSpace.comap (RelStructure.relabel (pollPerm N D))
@@ -294,7 +306,7 @@ private theorem comap_relabel_pollTailAlgebra [Fintype S.Srt]
       (RelStructure.fixingAlgebra (pollFactor C D N m)) =
       RelStructure.fixingAlgebra (pollFactor C D N (m + 1)) := by
     intro m
-    rw [RelStructure.fixingAlgebra_comap_relabel_of_fintype]
+    rw [RelStructure.fixingAlgebra_comap_relabel_of_finiteActive (pollPerm_finiteActive N D)]
     congr 1
     refine Finset.ext fun v => ?_
     rw [mem_pollFactor, Finset.mem_image]
@@ -381,7 +393,7 @@ every `n`; induction makes the whole sequence a.e. constant; Lévy downward
 No dissociation is used, and the degenerate case `B ⊆ A` needs no separate treatment: there
 `D = ∅`, every poll block is empty, `𝒯 n = fixingAlgebra C` throughout, and each step above
 holds trivially. -/
-private theorem condExp_fixingAlgebra_ae_eq_of_poll [Fintype S.Srt]
+private theorem condExp_fixingAlgebra_ae_eq_of_poll
     (M : InfiniteRelExchangeableLaw S)
     {A B C D : Finset (Σ s : S.Srt, Vinfinite S s)} {N : ℕ} [NeZero N]
     (hC : ∀ v ∈ C, v.2 < N) (hCD : ∀ v ∈ C, v ∉ D) (hD : ∀ v ∈ D, v.2 < N)
@@ -389,7 +401,8 @@ private theorem condExp_fixingAlgebra_ae_eq_of_poll [Fintype S.Srt]
     (hB : ∀ v, v ∈ B ↔ v ∈ C ∨ v ∈ D) (hCB : C ⊆ B)
     {f : RelStructure S (Vinfinite S) → ℝ}
     (hf : MemLp f 2 (M.law : Measure (RelStructure S (Vinfinite S))))
-    (hinv : ∀ σ : ∀ _ : S.Srt, Equiv.Perm ℕ, (∀ v ∈ A, σ v.1 v.2 = v.2) →
+    (hinv : ∀ σ : ∀ _ : S.Srt, Equiv.Perm ℕ, SortwiseFiniteActive (S := S) σ →
+      (∀ v ∈ A, σ v.1 v.2 = v.2) →
       f ∘ RelStructure.relabel σ =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))] f) :
     (M.law : Measure (RelStructure S (Vinfinite S)))[f|RelStructure.fixingAlgebra B]
         =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))]
@@ -402,7 +415,7 @@ private theorem condExp_fixingAlgebra_ae_eq_of_poll [Fintype S.Srt]
     iInf_pollTailAlgebra
   -- the poll shift fixes every vertex of `A`, so stage-1b invariance applies to it
   have hfρ : f ∘ RelStructure.relabel (pollPerm N D) =ᵐ[μ] f :=
-    hinv _ fun v hv => pollPerm_apply_of_notMem N D (hA v hv) (hAD v hv)
+    hinv _ (pollPerm_finiteActive N D) fun v hv => pollPerm_apply_of_notMem N D (hA v hv) (hAD v hv)
   -- step 1: the tail engine stabilizes the conditional expectations along the tail joins
   have hstep : ∀ n, μ[f|pollTailAlgebra C D N n] =ᵐ[μ] μ[f|pollTailAlgebra C D N (n + 1)] :=
     fun n => condExp_ae_eq_condExp_of_comap_eq (measurable_relabel _)
@@ -455,11 +468,12 @@ Symmetries*, Lemma 7.6): for square-integrable `f` a.e. invariant under every so
 permutation fixing `A`, conditioning on `fixingAlgebra B` is conditioning on
 `fixingAlgebra (A ∩ B)`. The poll blocks are the deep copies of `B \ A`, laid out above the
 common bound of `A` and `B`. -/
-private theorem condExp_fixingAlgebra_ae_eq_condExp_inter [Fintype S.Srt]
+private theorem condExp_fixingAlgebra_ae_eq_condExp_inter
     (M : InfiniteRelExchangeableLaw S) (A B : Finset (Σ s : S.Srt, Vinfinite S s))
     {f : RelStructure S (Vinfinite S) → ℝ}
     (hf : MemLp f 2 (M.law : Measure (RelStructure S (Vinfinite S))))
-    (hinv : ∀ σ : ∀ _ : S.Srt, Equiv.Perm ℕ, (∀ v ∈ A, σ v.1 v.2 = v.2) →
+    (hinv : ∀ σ : ∀ _ : S.Srt, Equiv.Perm ℕ, SortwiseFiniteActive (S := S) σ →
+      (∀ v ∈ A, σ v.1 v.2 = v.2) →
       f ∘ RelStructure.relabel σ =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))] f) :
     (M.law : Measure (RelStructure S (Vinfinite S)))[f|RelStructure.fixingAlgebra B]
         =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))]
@@ -485,7 +499,7 @@ assembly consumes: `E[1_E | 𝓕 B] =ᵐ E[1_E | 𝓕 (A ∩ B)]` for every `fix
 The invariance hypothesis is supplied by stage 1b
 (`relabel_preimage_ae_eq_of_fixingAlgebra`), which upgrades the finitary invariance built into
 `fixingAlgebra A` to invariance under *every* sortwise permutation fixing `A`. -/
-private theorem condExp_indicator_fixingAlgebra_ae_eq_condExp_inter [Fintype S.Srt]
+private theorem condExp_indicator_fixingAlgebra_ae_eq_condExp_inter
     [Countable S.Rel] (M : InfiniteRelExchangeableLaw S)
     (A B : Finset (Σ s : S.Srt, Vinfinite S s)) {E : Set (RelStructure S (Vinfinite S))}
     (hE : MeasurableSet[RelStructure.fixingAlgebra A] E) :
@@ -496,13 +510,14 @@ private theorem condExp_indicator_fixingAlgebra_ae_eq_condExp_inter [Fintype S.S
         RelStructure.fixingAlgebra (A ∩ B)] := by
   haveI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
   refine condExp_fixingAlgebra_ae_eq_condExp_inter M A B
-    (memLp_indicator_const 2 hE.1 1 (Or.inr (measure_ne_top _ _))) fun σ hσ => ?_
+    (memLp_indicator_const 2 hE.1 1 (Or.inr (measure_ne_top _ _))) fun σ hσfin hσ => ?_
   have hcomp : (E.indicator fun _ => (1 : ℝ)) ∘ RelStructure.relabel σ =
       (RelStructure.relabel σ ⁻¹' E).indicator fun _ => (1 : ℝ) := by
     funext X
     simp only [Function.comp_apply, Set.indicator_apply, Set.mem_preimage]
   rw [hcomp]
-  exact indicator_ae_eq_of_ae_eq_set (M.relabel_preimage_ae_eq_of_fixingAlgebra hE hσ)
+  exact indicator_ae_eq_of_ae_eq_set
+    (M.relabel_preimage_ae_eq_of_fixingAlgebra_of_finiteActive hE hσfin hσ)
 
 end Reduction
 
@@ -539,7 +554,7 @@ Proof: `condIndep_iff` reduces to a factorization of `μ⟦E₁ ∩ E₂ | 𝓕 
 `E[1_{E₁} | 𝓕 (A ∩ B)]` using the polled reduction
 `condExp_indicator_fixingAlgebra_ae_eq_condExp_inter`, and pull that `𝓕 (A ∩ B)`-measurable
 factor out. -/
-theorem InfiniteRelExchangeableLaw.condIndep_fixingAlgebra [Fintype S.Srt] [Countable S.Rel]
+theorem InfiniteRelExchangeableLaw.condIndep_fixingAlgebra [Countable S.Rel]
     (M : InfiniteRelExchangeableLaw S) (A B : Finset (Σ s : S.Srt, Vinfinite S s)) :
     CondIndep (RelStructure.fixingAlgebra (A ∩ B)) (RelStructure.fixingAlgebra A)
       (RelStructure.fixingAlgebra B) (RelStructure.fixingAlgebra_le _)

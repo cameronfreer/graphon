@@ -38,7 +38,13 @@ deliberately separate, later PR.
 * `RelStructure.fixingAlgebra_comap_relabel` — **transport**: pulling back along a finitely
   supported relabeling is an *equality of measurable spaces*
   `comap (relabel σ) (fixingAlgebra A) = fixingAlgebra (image σ A)`, by conjugating
-  stabilizers.
+  stabilizers;
+* `RelSignature.SortwiseFiniteActive` — sortwise families that are the identity outside a
+  finite set of sorts, with `SortwiseFixing.conj_of_finiteActive` and
+  `RelStructure.fixingAlgebra_comap_relabel_of_finiteActive`: conjugation and transport need
+  no vertex-support bound on such a family, since only the active sorts need a common bound.
+  This is the support notion the polling permutations have, and it replaces the artificial
+  `[Fintype S.Srt]` (whose statements are now the `T = univ` corollaries).
 -/
 
 open Function
@@ -54,6 +60,23 @@ fixing every tagged vertex of `A`. At `A = ∅` this is `SortwiseFinSupp` — th
 of `RelStructure.invariantAlgebra`. -/
 def SortwiseFixing (A : Finset (Σ s : S.Srt, Vinfinite S s)) (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) : Prop :=
   SortwiseFinSupp (S := S) σ ∧ ∀ v ∈ A, σ v.1 v.2 = v.2
+
+/-- **Finitely many active sorts**: a sortwise permutation family that is the identity on every
+sort outside some finite set. This is the support notion the polling permutations actually have —
+they move vertices only on the sorts occurring in the poll block — and it is what conjugation and
+transport of the fixing algebras need, in place of the artificial `[Fintype S.Srt]`. -/
+def SortwiseFiniteActive (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) : Prop :=
+  ∃ T : Finset S.Srt, ∀ s, s ∉ T → σ s = 1
+
+theorem SortwiseFiniteActive.inv {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} (hσ : SortwiseFiniteActive σ) :
+    SortwiseFiniteActive fun s => (σ s)⁻¹ := by
+  obtain ⟨T, hT⟩ := hσ
+  exact ⟨T, fun s hs => by show (σ s)⁻¹ = 1; rw [hT s hs, inv_one]⟩
+
+/-- Under finitely many sorts every sortwise family has finitely many active sorts. -/
+theorem SortwiseFiniteActive.of_fintype [Fintype S.Srt] (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) :
+    SortwiseFiniteActive σ :=
+  ⟨Finset.univ, fun s hs => absurd (Finset.mem_univ s) hs⟩
 
 namespace SortwiseFixing
 
@@ -97,36 +120,51 @@ theorem conj (hσ : SortwiseFinSupp (S := S) σ)
     exact (σ s).symm_apply_apply x
 
 open scoped Classical in
-/-- **Conjugation under finitely many sorts needs no support bound on `σ`**: with
-`[Fintype S.Srt]` the sortwise suprema of the finitely many inverse images of the bound of
-`τ` give a common finite bound for the conjugate — the hypothesis dropped from
-`SortwiseFixing.conj`, which is genuinely necessary over infinitely many sorts. -/
-theorem conj_of_fintype [Fintype S.Srt]
+/-- **Conjugation needs no support bound on `σ` when only finitely many sorts are active**: on
+the active sorts the finitely many inverse images below the bound of `τ` give a common bound,
+and on every other sort `σ` is the identity, so the conjugate is `τ` there. This is the
+hypothesis dropped from `SortwiseFixing.conj`, which is genuinely necessary over infinitely
+many active sorts. -/
+theorem conj_of_finiteActive (hσ : SortwiseFiniteActive (S := S) σ)
     (hτ : SortwiseFixing (S := S) (A.image (Sigma.map id fun s => ⇑(σ s))) τ) :
     SortwiseFixing (S := S) A fun s => (σ s)⁻¹ * τ s * σ s := by
+  obtain ⟨T, hT⟩ := hσ
   constructor
   · obtain ⟨M, hM⟩ := hτ.1
-    refine ⟨(Finset.univ.sup fun s : S.Srt => (Finset.range M).sup fun y => (σ s)⁻¹ y) + 1,
+    refine ⟨max M ((T.sup fun s : S.Srt => (Finset.range M).sup fun y => (σ s)⁻¹ y) + 1),
       fun s x hx => ?_⟩
     show (σ s)⁻¹ (τ s (σ s x)) = x
-    have hbig : M ≤ σ s x := by
-      by_contra hlt
-      push Not at hlt
-      have h1 : x = (σ s)⁻¹ (σ s x) := ((σ s).symm_apply_apply x).symm
-      have h2 : (σ s)⁻¹ (σ s x) ≤ (Finset.range M).sup fun y => (σ s)⁻¹ y :=
-        Finset.le_sup (f := fun y => (σ s)⁻¹ y) (Finset.mem_range.mpr hlt)
-      have h3 : ((Finset.range M).sup fun y => (σ s)⁻¹ y) ≤
-          Finset.univ.sup fun s : S.Srt => (Finset.range M).sup fun y => (σ s)⁻¹ y :=
-        Finset.le_sup (f := fun s : S.Srt => (Finset.range M).sup fun y => (σ s)⁻¹ y)
-          (Finset.mem_univ s)
-      omega
-    rw [hM s (σ s x) hbig]
-    exact (σ s).symm_apply_apply x
+    by_cases hs : s ∈ T
+    · have hbig : M ≤ σ s x := by
+        by_contra hlt
+        push Not at hlt
+        have h1 : x = (σ s)⁻¹ (σ s x) := ((σ s).symm_apply_apply x).symm
+        have h2 : (σ s)⁻¹ (σ s x) ≤ (Finset.range M).sup fun y => (σ s)⁻¹ y :=
+          Finset.le_sup (f := fun y => (σ s)⁻¹ y) (Finset.mem_range.mpr hlt)
+        have h3 : ((Finset.range M).sup fun y => (σ s)⁻¹ y) ≤
+            T.sup fun s : S.Srt => (Finset.range M).sup fun y => (σ s)⁻¹ y :=
+          Finset.le_sup (f := fun s : S.Srt => (Finset.range M).sup fun y => (σ s)⁻¹ y) hs
+        have h4 := le_max_right M
+          ((T.sup fun s : S.Srt => (Finset.range M).sup fun y => (σ s)⁻¹ y) + 1)
+        omega
+      rw [hM s (σ s x) hbig]
+      exact (σ s).symm_apply_apply x
+    · rw [hT s hs]
+      show τ s x = x
+      exact hM s x (le_trans (le_max_left _ _) hx)
   · rintro ⟨s, x⟩ hv
     have himg := hτ.2 (Sigma.map id (fun s => ⇑(σ s)) ⟨s, x⟩) (Finset.mem_image_of_mem _ hv)
     show (σ s)⁻¹ (τ s (σ s x)) = x
     rw [show τ s (σ s x) = σ s x from himg]
     exact (σ s).symm_apply_apply x
+
+open scoped Classical in
+/-- **Conjugation under finitely many sorts needs no support bound on `σ`**: the finite-active
+statement at `T = univ`. -/
+theorem conj_of_fintype [Fintype S.Srt]
+    (hτ : SortwiseFixing (S := S) (A.image (Sigma.map id fun s => ⇑(σ s))) τ) :
+    SortwiseFixing (S := S) A fun s => (σ s)⁻¹ * τ s * σ s :=
+  conj_of_finiteActive (SortwiseFiniteActive.of_fintype σ) hτ
 
 end SortwiseFixing
 
@@ -250,15 +288,26 @@ theorem RelStructure.fixingAlgebra_comap_relabel {σ : ∀ _ : S.Srt, Equiv.Perm
     (fixingAlgebra_comap_relabel_le _ _ fun _ hτ => SortwiseFixing.conj hσ.inv hτ)
 
 open scoped Classical in
+/-- **Transport along a sortwise permutation with finitely many active sorts**: no support bound
+on `σ` is needed, since conjugation recovers a common bound on the active sorts
+(`SortwiseFixing.conj_of_finiteActive`). -/
+theorem RelStructure.fixingAlgebra_comap_relabel_of_finiteActive
+    {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} (hσ : SortwiseFiniteActive (S := S) σ)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    MeasurableSpace.comap (RelStructure.relabel σ) (RelStructure.fixingAlgebra (S := S) A) =
+      RelStructure.fixingAlgebra (A.image (Sigma.map id fun s => ⇑(σ s))) :=
+  fixingAlgebra_comap_relabel_of_le σ A
+    (fixingAlgebra_comap_relabel_le σ A fun _ hτ => SortwiseFixing.conj_of_finiteActive hσ hτ)
+    (fixingAlgebra_comap_relabel_le _ _ fun _ hτ =>
+      SortwiseFixing.conj_of_finiteActive hσ.inv hτ)
+
+open scoped Classical in
 /-- **Transport under finitely many sorts holds for an arbitrary sortwise permutation
-family**: finite sorts let conjugation recover a common finite bound
-(`SortwiseFixing.conj_of_fintype`), so no support hypothesis on `σ` is needed. -/
+family**: the finite-active statement at `T = univ`. -/
 theorem RelStructure.fixingAlgebra_comap_relabel_of_fintype [Fintype S.Srt]
     (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     MeasurableSpace.comap (RelStructure.relabel σ) (RelStructure.fixingAlgebra (S := S) A) =
       RelStructure.fixingAlgebra (A.image (Sigma.map id fun s => ⇑(σ s))) :=
-  fixingAlgebra_comap_relabel_of_le σ A
-    (fixingAlgebra_comap_relabel_le σ A fun _ hτ => SortwiseFixing.conj_of_fintype hτ)
-    (fixingAlgebra_comap_relabel_le _ _ fun _ hτ => SortwiseFixing.conj_of_fintype hτ)
+  RelStructure.fixingAlgebra_comap_relabel_of_finiteActive (SortwiseFiniteActive.of_fintype σ) A
 
 end RelSignature

@@ -167,6 +167,10 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.RelStructure.fixingAlgebra_empty
 #print axioms RelSignature.RelStructure.fixingAlgebra_comap_relabel
 #print axioms RelSignature.RelStructure.fixingAlgebra_comap_relabel_of_fintype
+#print axioms RelSignature.SortwiseFiniteActive.inv
+#print axioms RelSignature.SortwiseFiniteActive.of_fintype
+#print axioms RelSignature.SortwiseFixing.conj_of_finiteActive
+#print axioms RelSignature.RelStructure.fixingAlgebra_comap_relabel_of_finiteActive
 #print axioms Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le
 #print axioms Graphon.abs_sampleMass_ofSimpleGraphOn_sub_tInd_le
 #print axioms MeasureTheory.Digraphon.sampleAdj_pair_of_lt
@@ -214,6 +218,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.condExp_ae_eq_condExp_of_comap_eq
 #print axioms RelSignature.InfiniteRelExchangeableLaw.measurePreserving_relabel
 #print axioms RelSignature.InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra
+#print axioms RelSignature.InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra_of_finiteActive
 #print axioms RelSignature.RelStructure.lowerRankAlgebra_le
 #print axioms RelSignature.RelStructure.fixingAlgebra_le_lowerRankAlgebra
 #print axioms RelSignature.RelStructure.lowerRankAlgebra_mono

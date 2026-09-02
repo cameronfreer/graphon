@@ -193,7 +193,10 @@ variable {S : RelSignature}
 
 /-- **Arbitrary-permutation a.e. invariance of fixing-algebra events** (the `f ∘ T =ᵐ f`
 input of the tail engine): a `fixingAlgebra A`-event `E` is invariant under *every* sortwise
-permutation fixing `A` pointwise — not merely finitely supported ones — modulo `M.law`. This
+permutation fixing `A` pointwise with finitely many active sorts — no finite-support bound on
+the vertices is required — modulo `M.law`. Only the active sorts need a common support bound
+for the approximating finitely supported permutation; on the inactive sorts both are the
+identity, which is what keeps `[Fintype S.Srt]` out. This
 bridges Austin's literally-window-measurable colours (arXiv:0801.1698, Prop 3.12) to the
 larger invariance-measurable `fixingAlgebra A`. Proof: approximate `E` in measure by an
 initial cylinder `D` (`exists_initialAlgebra_measure_symmDiff_lt`, R3); build a finitely
@@ -202,12 +205,14 @@ all of `A` (`exists_finSupp_perm_extend`) — since `σ` fixes `A` and the windo
 `π` fixes `A`, so `relabel π ⁻¹' E = E` exactly; then
 `μ(σ⁻¹E ∆ E) ≤ μ(σ⁻¹(E ∆ D)) + μ(π⁻¹(D ∆ E)) = 2·μ(E ∆ D)` using `σ⁻¹D = π⁻¹D` (window
 agreement) and measure preservation, and let the approximation error vanish. -/
-theorem InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra
-    [Fintype S.Srt] [Countable S.Rel] (M : InfiniteRelExchangeableLaw S) {A : Finset (Σ s : S.Srt, Vinfinite S s)}
-    {E : Set (RelStructure S (Vinfinite S))}
+theorem InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra_of_finiteActive
+    [Countable S.Rel] (M : InfiniteRelExchangeableLaw S)
+    {A : Finset (Σ s : S.Srt, Vinfinite S s)} {E : Set (RelStructure S (Vinfinite S))}
     (hE : MeasurableSet[RelStructure.fixingAlgebra A] E)
-    {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} (hσ : ∀ v ∈ A, σ v.1 v.2 = v.2) :
+    {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} (hσfin : SortwiseFiniteActive (S := S) σ)
+    (hσ : ∀ v ∈ A, σ v.1 v.2 = v.2) :
     RelStructure.relabel σ ⁻¹' E =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))] E := by
+  classical
   set μ : Measure (RelStructure S (Vinfinite S)) :=
     (M.law : Measure (RelStructure S (Vinfinite S))) with hμ
   haveI : IsProbabilityMeasure μ := M.law.2
@@ -225,10 +230,22 @@ theorem InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra
         (lt_of_lt_of_le (Nat.lt_succ_self _) (le_max_right _ _))
     set e : ∀ s, Fin (n s) ↪ ℕ := fun s =>
       ⟨fun i => σ s (i : ℕ), fun a b h => Fin.val_injective ((σ s).injective h)⟩ with he
-    choose π N hsupp hagree using fun s => exists_finSupp_perm_extend (e s)
-    have hπ_fs : SortwiseFinSupp (S := S) π :=
-      ⟨Finset.univ.sup N, fun s x hx =>
-        hsupp s x (le_trans (Finset.le_sup (Finset.mem_univ s)) hx)⟩
+    obtain ⟨T, hT⟩ := hσfin
+    choose π₀ N hsupp hagree₀ using fun s => exists_finSupp_perm_extend (e s)
+    -- take the identity on the inactive sorts, where `σ` is the identity too
+    set π : ∀ s : S.Srt, Equiv.Perm ℕ := fun s => if s ∈ T then π₀ s else 1 with hπdef
+    have hagree : ∀ s (i : Fin (n s)), π s (i : ℕ) = σ s (i : ℕ) := by
+      intro s i
+      by_cases hs : s ∈ T
+      · simp only [hπdef, if_pos hs]
+        exact hagree₀ s i
+      · simp only [hπdef, if_neg hs, hT s hs, Equiv.Perm.one_apply]
+    have hπ_fs : SortwiseFinSupp (S := S) π := by
+      refine ⟨T.sup N, fun s x hx => ?_⟩
+      by_cases hs : s ∈ T
+      · simp only [hπdef, if_pos hs]
+        exact hsupp s x (le_trans (Finset.le_sup hs) hx)
+      · simp only [hπdef, if_neg hs, Equiv.Perm.one_apply]
     have hπ_fix : ∀ v ∈ A, π v.1 v.2 = v.2 := by
       intro v hv
       have hval : π v.1 v.2 = σ v.1 v.2 := hagree v.1 ⟨v.2, hAn v hv⟩
@@ -268,6 +285,18 @@ theorem InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra
   rw [← measure_symmDiff_eq_zero_iff]
   by_contra hne
   exact absurd (key _ (pos_iff_ne_zero.mpr hne)) (lt_irrefl _)
+
+
+/-- The finite-active statement at `T = univ`: under finitely many sorts, every sortwise
+permutation fixing `A` preserves each `fixingAlgebra A`-event modulo `M.law`. -/
+theorem InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra
+    [Fintype S.Srt] [Countable S.Rel] (M : InfiniteRelExchangeableLaw S)
+    {A : Finset (Σ s : S.Srt, Vinfinite S s)} {E : Set (RelStructure S (Vinfinite S))}
+    (hE : MeasurableSet[RelStructure.fixingAlgebra A] E)
+    {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} (hσ : ∀ v ∈ A, σ v.1 v.2 = v.2) :
+    RelStructure.relabel σ ⁻¹' E =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))] E :=
+  M.relabel_preimage_ae_eq_of_fixingAlgebra_of_finiteActive hE
+    (SortwiseFiniteActive.of_fintype σ) hσ
 
 end AeInvariance
 
