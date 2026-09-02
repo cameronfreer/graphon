@@ -228,24 +228,6 @@ private theorem comp_eq_self_of_measurable_comap {Ω β γ : Type*} [MeasurableS
   rw [hV] at hTω
   exact hTω
 
-private theorem abs_measureReal_sub_le_symmDiff {α : Type*} [MeasurableSpace α]
-    {μ : Measure α} [IsFiniteMeasure μ] (s t : Set α) :
-    |μ.real s - μ.real t| ≤ μ.real (s ∆ t) := by
-  have h1 : μ.real s ≤ μ.real t + μ.real (s ∆ t) :=
-    (measureReal_mono (show s ⊆ t ∪ s ∆ t from fun x hx => by
-      by_cases hxt : x ∈ t
-      · exact Or.inl hxt
-      · exact Or.inr (Set.mem_symmDiff.mpr (Or.inl ⟨hx, hxt⟩)))).trans
-      (measureReal_union_le _ _)
-  have h2 : μ.real t ≤ μ.real s + μ.real (s ∆ t) :=
-    (measureReal_mono (show t ⊆ s ∪ s ∆ t from fun x hx => by
-      by_cases hxs : x ∈ s
-      · exact Or.inl hxs
-      · exact Or.inr (Set.mem_symmDiff.mpr (Or.inr ⟨hx, hxs⟩)))).trans
-      (measureReal_union_le _ _)
-  rw [abs_sub_le_iff]
-  constructor <;> linarith
-
 private theorem condIndep_of_indep {Ω : Type*} [mΩ : MeasurableSpace Ω] [StandardBorelSpace Ω]
     {μ : Measure Ω} [IsFiniteMeasure μ] {m' m₁ m₂ : MeasurableSpace Ω}
     (hm' : m' ≤ mΩ) (hm₁ : m₁ ≤ mΩ) (hm₂ : m₂ ≤ mΩ)
@@ -500,7 +482,9 @@ theorem rankLatentSource_exists_local_ae_eq_of_ae_invariant [Countable S.Srt]
             (Filter.EventuallyEq.refl (ae μ) D).inter (hinv σ hσ)
         simp only [measureReal_def, measure_congr hae]
       rw [hDD]
-      refine (abs_measureReal_sub_le_symmDiff _ _).trans ?_
+      refine (abs_measureReal_sub_le_measureReal_symmDiff
+        (hCmeas.inter ((rankLatentRelabel σ n).measurable hCmeas)).nullMeasurableSet
+        (hD.inter ((rankLatentRelabel σ n).measurable hD)).nullMeasurableSet).trans ?_
       have hsub : (C ∩ rankLatentRelabel σ n ⁻¹' C) ∆ (D ∩ rankLatentRelabel σ n ⁻¹' D) ⊆
           (C ∆ D) ∪ rankLatentRelabel σ n ⁻¹' (C ∆ D) := by
         intro x hx
