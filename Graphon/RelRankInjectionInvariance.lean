@@ -95,32 +95,6 @@ theorem rankLatentIndexInj_eq_of_agree {ι : ∀ s, Vinfinite S s ↪ Vinfinite 
   rw [rankLatentIndexInj_eq_of_agree (σ := σ) fun v _ => rfl]
   rfl
 
-/-- **Finite-support agreement**: a sortwise self-injection agrees with some finitely supported
-permutation on any finite set of tagged vertices. Only the finitely many sorts occurring in that
-set are active; every other sort takes the identity, so the support bounds to be maximized are
-finite in number — no finiteness hypothesis on the sort type is needed. -/
-theorem exists_finSuppPerm_agree_on_finset (ι : ∀ s, Vinfinite S s ↪ Vinfinite S s)
-    (V : Finset (Σ s : S.Srt, Vinfinite S s)) :
-    ∃ σ : FinSuppPerm S, ∀ v ∈ V, σ.1 v.1 v.2 = ι v.1 v.2 := by
-  classical
-  have hext : ∀ s, ∃ (π : Equiv.Perm ℕ) (N : ℕ), (∀ x, N ≤ x → π x = x) ∧
-      ∀ a : Fin ((V.sup fun v => v.2) + 1), π (a : ℕ) = ι s (a : ℕ) := by
-    intro s
-    exact exists_finSupp_perm_extend
-      ⟨fun a : Fin ((V.sup fun v => v.2) + 1) => ι s (a : ℕ), fun a b hab =>
-        Fin.val_injective ((ι s).injective hab)⟩
-  choose π N hsupp hagree using hext
-  refine ⟨⟨fun s => if s ∈ V.image Sigma.fst then π s else 1,
-    ⟨(V.image Sigma.fst).sup N, fun s x hx => ?_⟩⟩, fun v hv => ?_⟩
-  · by_cases hs : s ∈ V.image Sigma.fst
-    · simpa only [if_pos hs] using hsupp s x (le_trans (Finset.le_sup hs) hx)
-    · simp only [if_neg hs]
-      rfl
-  · have hs : v.1 ∈ V.image Sigma.fst := Finset.mem_image.mpr ⟨v, hv, rfl⟩
-    have hlt : v.2 < (V.sup fun w => w.2) + 1 :=
-      Nat.lt_succ_of_le (Finset.le_sup (f := fun w : Σ s : S.Srt, Vinfinite S s => w.2) hv)
-    simpa only [if_pos hs] using hagree v.1 ⟨v.2, hlt⟩
-
 /-! ### Joint cylinder extensionality -/
 
 variable (S) in
