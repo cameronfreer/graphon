@@ -298,6 +298,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.lower_fixing_complete
 #print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.fixing_complete_of_map_truncate
 #print axioms RelSignature.snd_preimage_ae_eq_fst_preimage_map_graph
+#print axioms RelSignature.InfiniteRelExchangeableLaw.AustinEnrichedObject.exists_comap_snd_ae_eq_of_enrichedLowerMap
 #print axioms RelSignature.rankLatentReindex_toEmbedding
 #print axioms RelSignature.ext_of_prod_cylinders
 #print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.map_prodMap_restrict_self

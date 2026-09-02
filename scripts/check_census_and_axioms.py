@@ -269,6 +269,7 @@ AUDITED_DECLS = {
     "RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.lower_fixing_complete",
     "RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.fixing_complete_of_map_truncate",
     "RelSignature.snd_preimage_ae_eq_fst_preimage_map_graph",
+    "RelSignature.InfiniteRelExchangeableLaw.AustinEnrichedObject.exists_comap_snd_ae_eq_of_enrichedLowerMap",
     "RelSignature.rankLatentReindex_toEmbedding",
     "RelSignature.ext_of_prod_cylinders",
     "RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.map_prodMap_restrict_self",

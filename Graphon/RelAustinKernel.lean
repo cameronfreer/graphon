@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.RelAustinEnriched
 import Graphon.RelStepKernel
+import Graphon.ForMathlib.CondExpRepresentable
 
 /-!
 # The enriched kernel layer: unit 3 (R4 converse, #107, #197)
@@ -24,6 +25,12 @@ kept visible throughout.
 `enrichedStepKernel` is **not** `stepKernel`: their conditioning spaces differ, and the Austin base
 genuinely refines the conditioning. What does hold is that forgetting the base from the enriched
 disintegration returns the ordinary joint law exactly.
+
+**Base redundancy** (`AustinEnrichedObject.exists_comap_snd_ae_eq_of_enrichedLowerMap`): every
+enriched-lower-factor event is, modulo the enriched law, a base event. This is what the
+representation's below-rank fixing completeness buys the enriched layer. It is strictly a
+below-rank statement: an exact-layer event at a support of cardinality `n` is not represented
+through the block and the base by anything here.
 
 ## Scope
 
@@ -269,6 +276,72 @@ private theorem iCondIndepFun_prodMk_of_comap_le {Ω : Type*} [mΩ : MeasurableS
     exact (MeasurableSpace.comap_prodMk (Y i) Z).symm
   rw [heq] at hclosed
   exact hclosed
+
+/-! ### Base redundancy
+
+**Every enriched-lower-factor event is, modulo the enriched law, a base event.** This is the
+consequence of below-rank fixing completeness the enriched layer consumes: the lower factor reads
+only fixing events at supports of cardinality `< n`, each of which has a local latent
+representative under `C.P` (`lower_fixing_complete`), and the original latents are recovered from
+the base by `map_original`. Representability is closed under joins, so the base half of the
+enriched lower factor comes for free.
+
+This is a statement **strictly below rank `n`**. An exact-layer event at a support of cardinality
+`n` lies in the fixing algebra at that support, and nothing here represents it through the block
+and the base — that remains the exact-rank content of the route. -/
+
+/-- A fixing event below rank `n`, pulled back to the enriched space, has a base representative. -/
+private theorem exists_comap_snd_ae_eq_of_fixingAlgebra (O : AustinEnrichedObject C)
+    {A : Finset (Σ s : S.Srt, Vinfinite S s)} (hA : A.card < n)
+    {E : Set (RelStructure S (Vinfinite S))} (hE : MeasurableSet[RelStructure.fixingAlgebra A] E) :
+    ∃ E', MeasurableSet[MeasurableSpace.comap
+        (Prod.snd : RelStructure S (Vinfinite S) × AustinBaseSpace S n → _) inferInstance] E' ∧
+      Prod.fst ⁻¹' E =ᵐ[O.law] E' := by
+  haveI := O.isProbabilityMeasure_law
+  haveI := C.isProbabilityMeasure_P
+  obtain ⟨E', ⟨U, hU, rfl⟩, hE'⟩ := C.lower_fixing_complete A hA E hE
+  have hψ : Measure.QuasiMeasurePreserving
+      (fun p : RelStructure S (Vinfinite S) × AustinBaseSpace S n =>
+        (p.1, restrictOriginalLatents S n p.2.1)) O.law C.P :=
+    ⟨measurable_fst.prodMk ((measurable_restrictOriginalLatents n).comp measurable_snd.fst),
+      O.map_original ▸ Measure.AbsolutelyContinuous.rfl⟩
+  refine ⟨Prod.snd ⁻¹' ((localLatents A n ∘ restrictOriginalLatents S n ∘ Prod.fst) ⁻¹' U),
+    ⟨_, ((measurable_localLatents A n).comp
+      ((measurable_restrictOriginalLatents n).comp measurable_fst)) hU, rfl⟩, ?_⟩
+  exact hψ.preimage_ae_eq hE'
+
+/-- **Base redundancy**: every event measurable for the enriched lower factor agrees, modulo the
+enriched law, with an event measurable for the base alone. -/
+theorem AustinEnrichedObject.exists_comap_snd_ae_eq_of_enrichedLowerMap
+    (O : AustinEnrichedObject C) (B : CoherentBasis M)
+    {E : Set (RelStructure S (Vinfinite S) × AustinBaseSpace S n)}
+    (hE : MeasurableSet[MeasurableSpace.comap (enrichedLowerMap B n) inferInstance] E) :
+    ∃ E', MeasurableSet[MeasurableSpace.comap
+        (Prod.snd : RelStructure S (Vinfinite S) × AustinBaseSpace S n → _) inferInstance] E' ∧
+      E =ᵐ[O.law] E' := by
+  haveI := O.isProbabilityMeasure_law
+  have hsplit : MeasurableSpace.comap (enrichedLowerMap B n) inferInstance =
+      MeasurableSpace.comap (B.lowerFactorMap n ∘ Prod.fst) inferInstance ⊔
+        MeasurableSpace.comap
+          (Prod.snd : RelStructure S (Vinfinite S) × AustinBaseSpace S n → _) inferInstance :=
+    MeasurableSpace.comap_prodMk (B.lowerFactorMap n ∘ Prod.fst) Prod.snd
+  rw [hsplit] at hE
+  refine eventuallyMeasurableSet_sup (fun s hs => ?_) hE
+  -- the lower factor reads only fixing events below rank `n`
+  have hle : MeasurableSpace.comap (B.lowerFactorMap n ∘ Prod.fst) inferInstance ≤
+      eventuallyMeasurableSpace (MeasurableSpace.comap
+        (Prod.snd : RelStructure S (Vinfinite S) × AustinBaseSpace S n → _) inferInstance)
+        (ae O.law) := by
+    rw [← MeasurableSpace.comap_comp]
+    refine (MeasurableSpace.comap_mono (B.comap_lowerFactorMap_le n)).trans ?_
+    rw [RelStructure.lowerRankAlgebra, MeasurableSpace.comap_iSup]
+    refine iSup_le fun A => ?_
+    rw [MeasurableSpace.comap_iSup]
+    refine iSup_le fun hA => ?_
+    rintro _ ⟨E₀, hE₀, rfl⟩
+    obtain ⟨E', hE'meas, hE'⟩ := exists_comap_snd_ae_eq_of_fixingAlgebra O hA hE₀
+    exact ⟨E', hE'meas, hE'⟩
+  exact hle s hs
 
 end InfiniteRelExchangeableLaw
 
