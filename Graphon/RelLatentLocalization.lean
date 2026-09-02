@@ -590,4 +590,3 @@ theorem rankLatentSource_exists_local_ae_eq_of_ae_invariant [Countable S.Srt]
     simp [hω, Set.mem_preimage, Set.mem_Ioi, hBω]
 
 end RelSignature
-

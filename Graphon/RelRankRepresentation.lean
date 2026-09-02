@@ -189,7 +189,7 @@ structure RankRepresentation [Countable S.Srt] [Countable S.Rel] (M : InfiniteRe
   the latent array. This is a **one-sided, modulo-null** completeness property — the latents
   capture the fixing information, not conversely — and it is **not** an identification of the
   fixing σ-algebra with a latent σ-algebra. It is required only strictly below rank `n`: at
-  `A.card = n` the missing fixing information is exactly what the fresh rank-`n` latent must
+  `A.card = n` the missing fixing information is information the fresh rank-`n` layer must
   encode, so demanding it there would reject valid successors. The **local-window** form,
   measurability for `localLatents A n ∘ Prod.snd`, is not a separate field: it is derived once,
   for every representation, by `lower_fixing_complete` through the relative Hewitt–Savage theorem
