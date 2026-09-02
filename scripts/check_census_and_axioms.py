@@ -260,6 +260,7 @@ AUDITED_DECLS = {
     "Graphon.exists_coupling_cutNormDiff_le_add_add_of_pos",
     "RelSignature.rankLatentIndexInj_eq_of_agree",
     "RelSignature.exists_finSuppPerm_agree_on_finset",
+    "RelSignature.exists_finSuppPerm_displacing",
     "RelSignature.rankLatentReindex_toEmbedding",
     "RelSignature.ext_of_prod_cylinders",
     "RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.map_prodMap_restrict_self",
