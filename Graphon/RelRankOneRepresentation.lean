@@ -21,6 +21,9 @@ The fields, by provenance:
 * the coupling and its marginals, probability, and joint relabeling invariance are the
   transported #161 coupling (`exists_rankOneLatentCoupling`);
 * `lower_recovers` is the nullary-block recovery (`exists_blockMap_recovery_of_card_lt_one`);
+* `fixing_complete` reads a fixing event below rank one off the lower-rank factor
+  (`exists_comap_factorMap_ae_eq`, `comap_factorMap_le_comap_lowerFactorMap`) and transports it
+  across the coupling's recovery identity;
 * `screening` is the per-support specialization (`condIndepFun_blockMap_restObservation_one`)
   of the conditioning ladder (`iCondIndepFun_blockMap_singleton_comap_snd`), fed by the
   coupling's conditional-independence clause at the identity reading.
@@ -54,8 +57,28 @@ theorem InfiniteRelExchangeableLaw.nonempty_rankRepresentation_one
     (∅ : Finset (Σ s : S.Srt, Vinfinite S s)) (by simp)
   have hladder := B.iCondIndepFun_blockMap_singleton_comap_snd hfst hg hres
     (hci measurable_id)
-  exact ⟨⟨B.rankOneLatentCoupling f, hprob, hfst, hsnd, hinv,
+  have hqmp : Measure.QuasiMeasurePreserving
+      (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S 1 → _)
+      (B.rankOneLatentCoupling f) (M.law : Measure (RelStructure S (Vinfinite S))) :=
+    ⟨measurable_fst, hfst ▸ Measure.AbsolutelyContinuous.rfl⟩
+  refine ⟨⟨B.rankOneLatentCoupling f, hprob, hfst, hsnd, hinv,
     fun A hA => B.exists_blockMap_recovery_of_card_lt_one hfst hg hres A hA,
+    fun A hA E hE => ?_,
     fun A hA => condIndepFun_blockMap_restObservation_one hladder hg₀ hrec A hA⟩⟩
+  -- fixing completeness: a representative read off the lower-rank factor, transported to the
+  -- coupling and across the recovery identity
+  obtain ⟨E₀, hE₀meas, hE₀ae⟩ := B.exists_comap_factorMap_ae_eq A hE
+  obtain ⟨T, hT, hTE⟩ := B.comap_factorMap_le_comap_lowerFactorMap hA _ hE₀meas
+  refine ⟨g ⁻¹' T, hg hT, ?_⟩
+  have h1 : Prod.fst ⁻¹' E =ᵐ[B.rankOneLatentCoupling f] Prod.fst ⁻¹' E₀ :=
+    hqmp.preimage_ae_eq hE₀ae.symm
+  have h2 : Prod.fst ⁻¹' E₀ =ᵐ[B.rankOneLatentCoupling f] Prod.snd ⁻¹' (g ⁻¹' T) := by
+    rw [← hTE]
+    refine Filter.eventuallyEq_set.mpr ?_
+    filter_upwards [hres] with p hp
+    show p.1 ∈ B.lowerFactorMap 1 ⁻¹' T ↔ p ∈ Prod.snd ⁻¹' (g ⁻¹' T)
+    simp only [Set.mem_preimage]
+    rw [show B.lowerFactorMap 1 p.1 = g p.2 from hp]
+  exact (h1.trans h2).symm
 
 end RelSignature

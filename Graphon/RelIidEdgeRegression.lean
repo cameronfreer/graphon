@@ -697,17 +697,8 @@ theorem rankThreeCoupling_invariant (σ : FinSuppPerm digraphSig) :
     ← Measure.map_map measurable_rankThreeMap (rankLatentRelabel σ 3).measurable,
     rankLatentSource_map_rankLatentRelabel]
 
-/-- **The rank-two representation** of the i.i.d.-edge law. -/
-noncomputable def rankTwoRep : iidEdgeExchangeable.RankRepresentation 2 where
-  P := rankTwoCoupling
-  isProbabilityMeasure_P := inferInstance
-  map_fst := rankTwoCoupling_map_fst
-  map_snd := rankTwoCoupling_map_snd
-  invariant := rankTwoCoupling_invariant
-  lower_recovers := lower_recovers_rank_two
-  screening := screening_rank_two
-
-/-- **The rank-three representation** of the same law. -/
+/-- **The rank-three representation** of the i.i.d.-edge law. Defined first: the rank-two
+representation's fixing completeness descends from it along the truncation identity. -/
 noncomputable def rankThreeRep : iidEdgeExchangeable.RankRepresentation 3 where
   P := rankThreeCoupling
   isProbabilityMeasure_P := inferInstance
@@ -715,7 +706,26 @@ noncomputable def rankThreeRep : iidEdgeExchangeable.RankRepresentation 3 where
   map_snd := rankThreeCoupling_map_snd
   invariant := rankThreeCoupling_invariant
   lower_recovers := lower_recovers_rank_three
+  fixing_complete := fun _ _ E hE =>
+    ⟨(arr ∘ freshLayer) ⁻¹' E,
+      (measurable_arr.comp measurable_freshLayer) (RelStructure.fixingAlgebra_le _ E hE),
+      snd_preimage_ae_eq_fst_preimage_map_graph (measurable_arr.comp measurable_freshLayer)
+        (RelStructure.fixingAlgebra_le _ E hE)⟩
   screening := screening_rank_three
+
+/-- **The rank-two representation** of the same law. -/
+noncomputable def rankTwoRep : iidEdgeExchangeable.RankRepresentation 2 where
+  P := rankTwoCoupling
+  isProbabilityMeasure_P := inferInstance
+  map_fst := rankTwoCoupling_map_fst
+  map_snd := rankTwoCoupling_map_snd
+  invariant := rankTwoCoupling_invariant
+  lower_recovers := lower_recovers_rank_two
+  fixing_complete :=
+    -- the rank-two coupling is an independent product, so this is not read off a function of
+    -- the latents; it descends from the rank-three representation along the gate identity
+    rankThreeRep.fixing_complete_of_map_truncate (Nat.le_succ 2) rankThreeCoupling_truncation
+  screening := screening_rank_two
 
 /-- **The successor witness**: the rank-three representation truncates back to the
 *independently defined* rank-two one, on the nose. -/

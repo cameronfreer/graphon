@@ -331,6 +331,23 @@ noncomputable def rankOneRep : bipartiteExchangeable.RankRepresentation 1 where
     subst hA0
     exact ⟨fun _ => default, measurable_const,
       Filter.Eventually.of_forall fun _ => Subsingleton.elim _ _⟩
+  fixing_complete := by
+    -- below rank one the fixing algebra is the invariant algebra, trivial by ergodicity
+    intro A hA E hE
+    have hA0 : A = ∅ := Finset.card_eq_zero.mp (Nat.lt_one_iff.mp hA)
+    subst hA0
+    rw [RelStructure.fixingAlgebra_empty] at hE
+    have hEmeas : MeasurableSet E := hE.1
+    have hfst : rankOneCoupling (Prod.fst ⁻¹' E) = bipartiteLaw E := by
+      rw [← rankOneCoupling_map_fst, Measure.map_apply measurable_fst hEmeas]
+    rcases isErgodic_bipartite E hE with h0 | h1
+    · refine ⟨∅, MeasurableSet.empty, ?_⟩
+      rw [Set.preimage_empty]
+      exact (ae_eq_empty.mpr (hfst.trans h0)).symm
+    · refine ⟨Set.univ, MeasurableSet.univ, ?_⟩
+      rw [Set.preimage_univ]
+      exact (ae_eq_univ.mpr ((prob_compl_eq_zero_iff (measurable_fst hEmeas)).mpr
+        (hfst.trans h1))).symm
   screening := by
     intro A hA
     obtain ⟨a, rfl⟩ := Finset.card_eq_one.mp hA
@@ -656,6 +673,11 @@ noncomputable def rankTwoRep : bipartiteExchangeable.RankRepresentation 2 where
   map_snd := rankTwoCoupling_map_snd
   invariant := rankTwoCoupling_invariant
   lower_recovers := lower_recovers_rank_two
+  fixing_complete := fun _ _ E hE =>
+    ⟨(arr ∘ freshLayer) ⁻¹' E,
+      (measurable_arr.comp measurable_freshLayer) (RelStructure.fixingAlgebra_le _ E hE),
+      snd_preimage_ae_eq_fst_preimage_map_graph (measurable_arr.comp measurable_freshLayer)
+        (RelStructure.fixingAlgebra_le _ E hE)⟩
   screening := screening_rank_two
 
 /-- **The successor witness**: a two-field literal whose truncation proof is exactly the gate
