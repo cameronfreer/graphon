@@ -2,7 +2,7 @@
 Spectral section for #77 (historically targeting the since-REFUTED and removed
 conjecture `vertex_orbit_of_closed_walks_eq`).
 
-Per 2026-05-18 design plan: provide a finite-dimensional spectral
+This file provides a finite-dimensional spectral
 section for the weighted adjacency operator, isolated from
 `Graphon/Lovasz.lean` so that `Real.sqrt` and spectral simp lemmas
 don't pollute the rest of the codebase.
@@ -13,9 +13,9 @@ don't pollute the rest of the codebase.
 - (Later) bridge `closedWalkProfile` to diagonal of `S^m`.
 - (Later) finite spectral decomposition + orbit upgrade under twin-free.
 
-This file's original PUBLIC API target — `vertex_orbit_of_closed_walks_eq`
-(Lovász §3 K=1 spectral closing) — was REFUTED (2026-05-18) and later removed as a stub
-(2026-07-10, issue #19); the bridge lemmas here remain valuable representation
+The natural PUBLIC API target of this file — `vertex_orbit_of_closed_walks_eq`
+(Lovász §3 K=1 spectral closing) — is FALSE (see the refutation notes below) and is
+not a declaration; the bridge lemmas here remain valuable representation
 translations.
 -/
 import Mathlib.Algebra.BigOperators.Fin
@@ -202,21 +202,19 @@ The full closure requires:
 Step 3 is the genuine paper-root content. Empirically robust across
 4 falsification corpora (>25,000 twin-free graphs, 0 counterexamples). -/
 
-/-! ### Removed refuted conjecture: `same_diag_powers_imp_vertex_orbit`
+/-! ### Refuted conjecture: `same_diag_powers_imp_vertex_orbit`
 
-Deleted as a `sorry` stub (2026-07-10, issue #19); the refutation documentation is
-retained below, and the former statement is quoted for the record. Do NOT reintroduce.
- **Named spectral theorem for #77** (REFUTED 2026-05-18).
+This conjecture is FALSE; it is not a declaration of this file, and the refutation
+is documented here so that it is not reintroduced (the statement is quoted for the
+record). It was the candidate "named spectral theorem" for #77.
 
 **REFUTATION**: vertices 1 and 5 in the 9-vertex "double-pin tree"
 (scripts/spectral_orbit_validation.py) have identical diagonal
 moments [1, 0, 2, 0, 6, 0, ...] but |Aut| = 1 (different orbits).
 The graph IS twin-free. So this conjecture is FALSE.
 
-The statement was retained for a time as a sorry'd FALSE conjecture and has now been
-removed (this block documents it). It must NOT be assumed in downstream
-proofs. The correct route to the (likewise refuted and removed)
-`vertex_orbit_of_closed_walks_eq` would have required the FULL rooted
+It must NOT be assumed in downstream proofs. The correct route to the (likewise
+refuted) `vertex_orbit_of_closed_walks_eq` would require the FULL rooted
 simple-graph family (Lovász §3 rank theorem), NOT just closed
 walks / diagonal moments.
 
@@ -230,18 +228,17 @@ mapping i to j.
          (0,4), (4,5), (5,6), (4,8) — arm 2 (extra leaf at 4)
   Vertices 1, 5 are cospectral (equal moments) but not orbit-related.
 
-**Architectural impact (historical, since resolved)**: the downstream lemmas that
-once routed through this conjecture were all re-proved through
-`rootedProfileEquiv_imp_vertexOrbitRel` (the full rooted simple-graph family /
-Lovász §3 rank-theorem route in `Lovasz.lean`):
-- `closed_walk_profiles_separate_vertex_orbits` — refuted and removed alongside this one;
-- `rooted_profiles_separate_vertex_orbits` — PROVED via the rank-theorem route;
-- `diagonal_observable_K1` + `_of_tupleEquivSimple` — PROVED via the above.
+**Architectural consequence**: the downstream lemmas that would naturally route
+through this conjecture instead go through `rootedProfileEquiv_imp_vertexOrbitRel`
+(the full rooted simple-graph family / Lovász §3 rank-theorem route in `Lovasz.lean`):
+- `closed_walk_profiles_separate_vertex_orbits` — likewise false, not a declaration;
+- `rooted_profiles_separate_vertex_orbits` — proved via the rank-theorem route;
+- `diagonal_observable_K1` + `_of_tupleEquivSimple` — proved via the above.
 
 The "rooted_profiles_separate" THEOREM is TRUE (Lovász Lemma 2.4 K=1) and is now
 proved by the valid route; only the historical closed-walk route was invalid.
 
-Former statement (removed):
+Refuted statement (not a declaration):
 ```
 theorem same_diag_powers_imp_vertex_orbit {T : ℕ}
     (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
@@ -790,7 +787,7 @@ theorem connectionMatrix_full_rank {T : ℕ} (K : ℕ) (B : Fin T → Fin T → 
 
 /-- **Signed-measure moment problem** — a *nonzero* signed measure `μ` on the orbit
 classes has a nonzero rooted-multigraph moment `∑_q μ q · multiEvalOnOrbit M q` for
-some `M`. Now PROVED (no longer the paper-root sorry): a corollary of
+some `M`. A corollary of
 `multiOrbitSpan_eq_top` (the descended evals span everything, via the Lovász §3
 point-separation theorem) through the moment ⟺ full-rank equivalence
 `moment_nondegenerate_iff_multiOrbitSpan_eq_top`. -/
@@ -1642,14 +1639,14 @@ theorem avgMatrix_commutes (s : Setoid (Fin T)) (hB : ∀ i j, B i j = B j i)
   rw [hLeq, hReq, ← mul_div_assoc, div_eq_div_iff hcwa.ne' hcwb.ne']
   linear_combination W b * hstar
 
-/-! ### Removed refuted conjecture: `stable_imp_vertexOrbitRel`
+/-! ### Refuted conjecture: `stable_imp_vertexOrbitRel`
 
-Deleted as a `sorry` stub (2026-07-10, issue #19); the refutation documentation is
-retained below, and the former statement is quoted for the record. Do NOT reintroduce.
- **Reverse inclusion: stable class ⟹ orbit.**
+The "reverse inclusion: stable class ⟹ orbit" is FALSE; it is not a declaration of
+this file, and the refutation is documented here so that it is not reintroduced (the
+statement is quoted for the record).
 
-⚠️ **KNOWN FALSE as stated** (a proof would yield `False`; the former `sorry` stub has
-been removed — do not reintroduce the statement). `stableSetoid` is the fixed point of `refineRel`, which refines a vertex
+⚠️ **KNOWN FALSE as stated** (a proof would yield `False`).
+`stableSetoid` is the fixed point of `refineRel`, which refines a vertex
 by the multiset of `(neighbour class, edge value)` — i.e. it is exactly **1-WL /
 color refinement**. The 1-WL partition is strictly *coarser* than the
 automorphism-orbit partition in general, even with the hypotheses below:
@@ -1673,10 +1670,9 @@ What `stableSetoid` *does* certify is fractional-automorphism equivalence
 **To actually close `multiEvalOnOrbit_separates`** one needs refinement by the
 *full rooted-multigraph evaluation hierarchy* (higher-order WL / the coherent
 configuration generated by all `multiLabeledEvalK`), which is strictly stronger
-than the 1-WL `refineRel`. The statement was retained for a time as a frozen, clearly marked `sorry` and has now
-been removed; this block preserves the refutation record.
+than the 1-WL `refineRel`.
 
-Former statement (removed):
+Refuted statement (not a declaration):
 ```
 theorem stable_imp_vertexOrbitRel (hB : ∀ i j, B i j = B j i) (hW : ∀ i, 0 < W i)
     (htwin : ∀ i j, i ≠ j → B i ≠ B j) {i j : Fin T}

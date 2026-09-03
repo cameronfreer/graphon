@@ -8,10 +8,10 @@ import Graphon.SamplingICL
 /-!
 # Concentration scaffold for the First Sampling Lemma
 
-The First Sampling Lemma (`first_sampling_lemma`, **proved 2026-07-08** in
-`Graphon/SamplingLemma.lean`) was the sampling route's one analytic sorry. This file
-decomposes it along the classical two-stage analysis: all statements here are proved
-or packaged as hypotheses of a proved reduction.
+The First Sampling Lemma (`first_sampling_lemma`, proved in `Graphon/SamplingLemma.lean`)
+is the sampling route's one genuinely analytic input. This file decomposes it along the
+classical two-stage analysis: all statements here are proved or packaged as hypotheses of
+a proved reduction.
 
 **The two-stage decomposition** (Lovász, *Large Networks and Graph Limits*, §10.5–10.6):
 condition on the sampled points `x : Fin k → α`, and interpolate through the *weighted*
@@ -28,7 +28,7 @@ the equal-measure `k`-partition):
 bound demanded by `first_sampling_lemma`; the deterministic triangle route
 `cutDistance_ofSimpleGraphOn_le` is the gluing inequality. Both events were established
 with `W`-uniform `k` (`point_sampling_event_of_large_k`, `rounding_event_of_large_k`),
-completing `first_sampling_lemma` (2026-07-08, `Graphon/SamplingLemma.lean`).
+completing `first_sampling_lemma` (`Graphon/SamplingLemma.lean`).
 
 ## Main declarations
 

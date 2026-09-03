@@ -4182,16 +4182,16 @@ private theorem eval2Span_eq_edgeFree_sup_mulByEdge {T : ℕ}
 
 /-! ### Lovász TR-2004-82 k-labeled infrastructure
 
-The former 5-motif route (see the "Refuted 5-motif route" note below) was refuted
-by the `C₅ ⊔ C₆` counterexample (`scripts/counterexample_C5_C6.py`) and deleted in
-issue #19. This section installs the **honest book path** from Lovász's
+The 5-motif route (see the "Refuted 5-motif route" note below) is refuted
+by the `C₅ ⊔ C₆` counterexample (`scripts/counterexample_C5_C6.py`) and is not
+used. This section installs the **honest book path** from Lovász's
 *The rank of connection matrices and the dimension of graph algebras*
 (Microsoft Research Technical Report TR-2004-82, August 2004;
 <https://www.microsoft.com/en-us/research/wp-content/uploads/2016/02/tr-2004-82.pdf>;
 book form: *Large Networks and Graph Limits*, AMS Colloquium Publications 60):
 k-labeled evaluation, equivalence, orbit relation, cheap consistency/invariance
-lemmas, and Claims 4.1 (restriction) / 4.2 (trace-extension). The chain is now
-fully proved (no `sorry`).
+lemmas, and Claims 4.1 (restriction) / 4.2 (trace-extension). The chain is
+fully proved.
 -/
 
 /-- **Lovász TR-2004-82 eq. (1)**, p. 4. Normalized k-labeled hom count.
@@ -6841,10 +6841,7 @@ restructure cannot eliminate the content; what's needed is either:
        of the A_k algebra argument with specific trace structure).
   (b') Pivot to explicit Lovász A_k / connection-matrix machinery.
   (c') Accept current state, with the algebraic chain wired through a
-       single semantic root. [Census note: as of 2026-07-02 this file
-       carried 6 sorries; all have since been proved or — for the
-       known-false motif/separation stubs — deleted (issue #19).
-       The file is now sorry-free.]
+       single semantic root.
 
 **OFF-AXIS** (post-bridge consolidation): this theorem is **no longer**
 the canonical root. The active chain now routes through
@@ -6854,13 +6851,12 @@ generalization (its formerly narrowed `∃ a, lu0Mult a ≥ 1` case has
 since been proved), but is not on the active proof axis. Future
 sessions: do NOT route new content through this theorem. -/
 /-! **Restricted invariance theorem** (with `h_noDiag` hypothesis) — the theorem itself
-MOVED below the multigraph bridge (2026-07-02) and is PROVED there; this note retains the
-falsification analysis that motivated the `h_noDiag` restriction.
+lives below the multigraph bridge and is proved there; this note records the
+falsification analysis that motivates the `h_noDiag` restriction.
 
-**Falsification of the original unrestricted statement.** The earlier
-version of this theorem quantified over arbitrary
-`Dtr : DecLabeledGraphTr K n` without a no-diagonal-LL hypothesis. That
-statement is FALSE.
+**Falsification of the unrestricted statement.** Quantifying over arbitrary
+`Dtr : DecLabeledGraphTr K n` without a no-diagonal-LL hypothesis gives a
+statement that is FALSE.
 
 Counterexample: `K = 1, n = 0, W ≡ 0`, symmetric `B` with distinct
 diagonal entries (e.g., `B 0 0 = 0`, `B 1 1 = 1`). Then `tupleEquiv B W
@@ -6876,10 +6872,10 @@ satisfied by every traced object arising from the
 `DecLabeledGraph.ofSimple/mul/one/.trace` pipeline (see the
 `exists_decGraph_for_connCol` construction).
 
-**Proof status (2026-07-02): CLOSED.** For `n > 0` the whole σ-sum is a single multigraph
-evaluation (`DecLabeledGraphTr.eval_eq_multiEval`), descended by the (proved) multigraph
-bridge `multiLabeledEvalK_tupleEquiv_invariant`; the parallel-edge frontier the old note
-described dissolved into the multigraph semantics. -/
+**Proof.** For `n > 0` the whole σ-sum is a single multigraph
+evaluation (`DecLabeledGraphTr.eval_eq_multiEval`), descended by the multigraph
+bridge `multiLabeledEvalK_tupleEquiv_invariant`; the parallel-edge content is
+absorbed into the multigraph semantics. -/
 
 /-! **The named algebraic residue.** σ-sum equality for the trace-origin
 parallel-edge case: `∃ a, D.trace.lu0Mult a ≥ 2`.
@@ -7050,9 +7046,7 @@ private theorem multiLabeledEvalK_ofSimple {T K n : ℕ}
   -- After `set`, both σ-sum bodies should reference τ.
   exact congrArg _ (hprod τ)
 
-/-- **The multigraph bridge** — PROVED, sorry-free (the "canonical sorry"
-framing below is historical; it was discharged when the Lovász-module orbit
-route landed).
+/-- **The multigraph bridge**, proved via the Lovász-module orbit route.
 
 Every multigraph evaluation descends through `tupleEquiv` at level K.
 This is the Lovász §3 content (Theorem 2.2 / Lemma 2.5) translated to
@@ -7060,15 +7054,14 @@ our framework: simple-graph `tupleEquiv` ⟹ all multigraph evaluations
 agree (since simple-graph evaluations span the multigraph evaluation
 algebra `f_k(𝒢_k) ⊆ 𝒜_k`, and aut-orbits coincide).
 
-**Status (historical)**: single canonical sorry replacing all of:
-  - `tupleEquiv_single_coord_square_moment_independent` (closed below);
-  - `DecLabeledGraph.trace_parallel_lu0_descends` (closed below);
-  - `DecLabeledGraphTr.eval_tupleEquiv_invariant` (off-axis, unaffected).
+This single theorem subsumes:
+  - `tupleEquiv_single_coord_square_moment_independent` (below);
+  - `DecLabeledGraph.trace_parallel_lu0_descends` (below);
+  - `DecLabeledGraphTr.eval_tupleEquiv_invariant` (off-axis).
 
-**Future proof**: substantial — needs a connection-matrix / quantum-
-graph algebra section (~300-500 lines), not a small algebraic step.
-Required infrastructure (assessed post-`MultiLabeledGraph.ofSimple`
-validation):
+**A self-contained proof** (not the one used) would need a connection-matrix /
+quantum-graph algebra section (~300-500 lines), not a small algebraic step.
+Required infrastructure:
   - **Multiplicative closure** (Lovász's F₁F₂ product): disjoint-glue
     of unlabeled vertices, multiplicity-aware version of
     `labeledEvalK_glue` (L5785, ~250 lines). Same-vertex-set
@@ -7252,8 +7245,8 @@ private theorem DecLabeledGraphTr.eval_eq_multiEval {T K n : ℕ} (Dtr : DecLabe
     (fun a => dif_pos a.isLt)
     ((dif_neg (Nat.lt_irrefl K)).trans (congrArg σ (Fin.ext (Nat.sub_self K))))
 
-/-- **σ-sum + LL-factor invariance for traced decorated graphs** — the former σ-sum
-frontier, CLOSED (2026-07-02): for `n > 0` the entire σ-sum is a multigraph evaluation
+/-- **σ-sum + LL-factor invariance for traced decorated graphs**: for `n > 0` the
+entire σ-sum is a multigraph evaluation
 (`eval_eq_multiEval`), and the multigraph bridge (`multiLabeledEvalK_tupleEquiv_invariant`,
 via the Lovász orbit route) descends it through `tupleEquiv`. Requires `hW`/`htwin`
 (inherited from the bridge); the `n = 0` case is direct. -/
@@ -8221,13 +8214,13 @@ private theorem DecLabeledGraph.eval_mul {T K n₁ n₂ : ℕ}
     Finset.prod_mul_distrib, bridgeF₃, hglue, bridgeG₁, bridgeG₂]
   ring
 
-/-! ### Multigraph / A_k extension frontier (OPEN)
+/-! ### Multigraph / A_k extension frontier
 
-**Central open claim.** `DecLabeledGraphTr.eval_tupleEquiv_invariant`
+**Central claim.** `DecLabeledGraphTr.eval_tupleEquiv_invariant`
 — the invariance of the decorated multigraph evaluation under
-simple-graph `tupleEquiv`. This is the single mathematical frontier now
-blocking the IH-free Lovász Lemma-2.4 path. All other critical-path
-sorries (`product_trace_identity`, `coeffRestrict_equiv`,
+simple-graph `tupleEquiv`. This is the single mathematical input of the
+IH-free Lovász Lemma-2.4 path. All other critical-path steps
+(`product_trace_identity`, `coeffRestrict_equiv`,
 `tupleEquiv_extend`, and the non-surjective branch of
 `tupleEquiv_implies_tupleOrbitRel`) reduce to it transitively.
 
@@ -8256,22 +8249,20 @@ multigraph evaluations follows from this structural closure. Closing
   its proof body is a one-liner calling
   `product_trace_identity_of_eval_tupleEquiv_invariant` with
   `DecLabeledGraphTr.eval_tupleEquiv_invariant` as the extension
-  hypothesis. No standalone sorry.
+  hypothesis.
 - `coeffRestrict_equiv` is proved modulo `product_trace_identity` (and
   hence modulo the extension theorem).
 - `tupleEquiv_extend` is proved modulo `coeffRestrict_equiv`.
 - The non-surjective branch of `tupleEquiv_implies_tupleOrbitRel`
-  carried its own sorry at the time; it has since been closed via the
-  Lovász-module bridge.
-  With the extension theorem and `tupleEquiv_extend` unblocked, the
-  Lovász extend-and-recurse closes that branch: pick
+  is closed via the Lovász-module bridge. Alternatively, with the
+  extension theorem and `tupleEquiv_extend`, the Lovász
+  extend-and-recurse closes that branch: pick
   `r ∉ range α ∪ {a, b}`, apply `tupleEquiv_extend` to produce
   `(Fin.snoc Φ r, ν)` at level `k+2` with a strictly smaller deficit,
   recurse via the WF measure, and restrict back.
 
 This section isolates the reduction; the central theorem itself
-(`DecLabeledGraphTr.eval_tupleEquiv_invariant`) was still sorry'd at the
-time of this note and has since been proved. -/
+(`DecLabeledGraphTr.eval_tupleEquiv_invariant`) is proved separately. -/
 
 /-- **Reduction 1** (`product_trace_identity` → extension theorem).
 If `DecLabeledGraphTr.eval_tupleEquiv_invariant` holds — i.e., every
@@ -8364,40 +8355,38 @@ private theorem product_trace_identity_of_eval_tupleEquiv_invariant
       rw [DecLabeledGraph.eval_ofSimple p.2 B hB W φ]
       simp [List.map_cons, List.prod_cons]
 
-/-! ### A_k extension project — SKELETON
+/-! ### A_k extension project — structure
 
-The multigraph / A_k extension is now the **single real frontier** for
-the main Lemma-2.4 path. All other critical-path sorries reduce to it.
-This section stubs the intermediate theorems and names the concrete
-targets for the follow-up proving sessions.
+The multigraph / A_k extension is the single real input for the main
+Lemma-2.4 path; all other critical-path steps reduce to it. This section
+lays out the intermediate theorems.
 
 **Dependency DAG (topological order, shortest honest route):**
 
 ```
   Level 1 (frontier)
-    tupleEquiv_power_sum_invariance          [STUB]
-    tupleEquiv_polynomial_moment_invariance  [STUB — generalizes L1; ended as a vacuous placeholder, deleted 2026-07-14]
+    tupleEquiv_power_sum_invariance
       ↓
   Level 2 (core claim)
-    DecLabeledGraphTr.eval_tupleEquiv_invariant  [STUB at L6705]
-      ↓ (existing reductions, already wired)
-  Level 3 (downstream — already proved modulo the frontier)
-    product_trace_identity           [L7166, one-liner via Reduction 1]
+    DecLabeledGraphTr.eval_tupleEquiv_invariant
+      ↓ (reductions)
+  Level 3 (downstream — proved modulo the frontier)
+    product_trace_identity           [one-liner via Reduction 1]
     coeffRestrict_equiv              [next section, uses L3a]
     tupleEquiv_extend                [next section, uses L3b]
       ↓
-  Level 4 (architectural refactor — NEW stubs below)
-    tupleEquiv_bijective_case_ext    [STUB — Claim 4.3 via extension]
-    tupleEquiv_surjective_case_ext   [STUB — Claim 4.4 via extension]
+  Level 4 (extension variants below)
+    tupleEquiv_bijective_case_ext    [Claim 4.3 via extension]
+    tupleEquiv_surjective_case_ext   [Claim 4.4 via extension]
       ↓
   Level 5 (main theorem — WF rebuild)
-    tupleEquiv_implies_tupleOrbitRel  [non-surj branch at L7643, stub]
+    tupleEquiv_implies_tupleOrbitRel  [non-surj branch]
       ↓
   Level 6 (downstream)
-    twinfree_bijection_of_weightedHomSum_eq  [stub at L8790]
+    twinfree_bijection_of_weightedHomSum_eq
 ```
 
-**Why Levels 4–5 are NEW work even after Level 1 lands:**
+**Why Levels 4–5 are separate work beyond Level 1:**
 
 The existing `tupleEquiv_bijective_case` / `tupleEquiv_id_bijective`
 (Claim 4.3) and `tupleEquiv_surjective_case` (Claim 4.4) internally
@@ -8895,16 +8884,15 @@ descends through the level-K tupleEquiv**, i.e., iff
 **The canonical semantic root** (`tr_k_descends_to_A_k` below): this
 descent property holds for every class function `f`. All three
 "frontier" theorems in this file are restatements of this content:
-  - `DecLabeledGraphTr.eval_tupleEquiv_invariant` (L6902, then sorry'd;
-    since proved): applies `tr_k`'s descent to a specific `g` from `Dtr`.
+  - `DecLabeledGraphTr.eval_tupleEquiv_invariant`: applies `tr_k`'s
+    descent to a specific `g` from `Dtr`.
   - `traceMeasure_eq_of_tupleEquiv` (L7944, proved modulo cycle):
     pointwise equivalent to `tr_k`'s descent via `simpleGraphEvalOn_spans`.
   - `starMultigraphEval_tupleEquiv_invariant_direct` (L8670, proved
     modulo cycle): applies `tr_k`'s descent to `g := starKernelClass`.
 
-**Status (historical)**: this canonical root was the single live sorry
-under the A_k framing and has since been proved. The three frontiers
-above are semantically equivalent restatements. -/
+This canonical root is the single semantic root under the A_k framing;
+the three frontiers above are semantically equivalent restatements. -/
 
 /-- **Trace operator** `tr_k` on class functions: pushforward of `t`
 along `Fin.snoc ξ`. Output is a function on raw tuples `Fin K → Fin T`
@@ -8990,9 +8978,9 @@ Equivalently (via `traceMeasure_pushforward`):
   ∑ t, W t · (L.map (fun p => labeledEvalK p.1 p.2 B W (Fin.snoc ξ t))).prod =
   ∑ t, W t · (L.map (fun p => labeledEvalK p.1 p.2 B W (Fin.snoc ξ' t))).prod.
 ```
-This was the **canonical sorry** at the time (since proved). All
-downstream theorems (`tr_k_descends_to_A_k` by wrapper, and the three
-frontiers by corollary chain) route through `tr_k_generator_descends` below.
+This is the canonical root of the A_k framing. All downstream theorems
+(`tr_k_descends_to_A_k` by wrapper, and the three frontiers by corollary chain)
+route through `tr_k_generator_descends` below.
 
 **Requires** `hB`: symmetric B (same reason as `starKernel_tupleEquiv_invariant`). -/
 
@@ -9114,8 +9102,8 @@ private abbrev AkFun (T K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → �
 /-! ##### Connection-matrix view — paper-faithful frontier
 
 Per user directive (post-`Ak_trace_stable_generators` session): the
-actual mathematical content of the then-remaining sorry is Lovász's
-connection-matrix trace-stability theorem (since proved). Name it in
+actual mathematical content of the semantic root is Lovász's
+connection-matrix trace-stability theorem. Name it in
 those terms by introducing the **column view** `connCol` and phrasing
 the claim as a weighted inner product of two columns.
 
@@ -9201,9 +9189,8 @@ private lemma connCol_singleton {T K : ℕ}
 
 Per user directive: build the closure of `weightedInnerProduct_descends`
 via the `DecLabeledGraph.ofSimple` / `mul` / `trace` layer, landing the
-descent claim at the existing `DecLabeledGraphTr.eval_tupleEquiv_invariant`
-sorry (L6913; since proved). This collapsed two equivalent live sorries
-into one canonical Lovász §3 frontier theorem.
+descent claim at `DecLabeledGraphTr.eval_tupleEquiv_invariant`. This
+collapses two equivalent claims into one canonical Lovász §3 theorem.
 
 Pipeline:
 1. `connListD L`: fold the list into a single `DecLabeledGraph (K+1) N`
@@ -9216,8 +9203,7 @@ Pipeline:
 4. `DecLabeledGraph.trace_eval`: `∑_t W(t) · D.eval (snoc ξ t) = D.trace.eval ξ`
    (requires `noSelfLastLL`).
 5. `DecLabeledGraphTr.eval_tupleEquiv_invariant`: `D.trace.eval` descends
-   through `tupleEquiv` at level `K`. (This was the canonical sorry;
-   since proved.) -/
+   through `tupleEquiv` at level `K` (the canonical root). -/
 
 /-- **Existence of a decorated-graph carrier for a list of `(K+1)`-labeled
 simple graphs.** Built by list induction using `DecLabeledGraph.one`,
@@ -9286,10 +9272,10 @@ tuples `ξ, ξ'` with `tupleEquiv B W ξ ξ'`:
 This is `Tr(M(L₁) * M(L₂))` at row index `ξ`, with `*` the Hadamard
 product of connection matrices.
 
-**Status.** PROVED via the assembly route through the
-`DecLabeledGraph.ofSimple` / `mul` / `trace` layer; the sole live
-sorry in the chain was `DecLabeledGraphTr.eval_tupleEquiv_invariant`
-(L6913; since proved) — the canonical Lovász §3 frontier theorem.
+**Proof.** Via the assembly route through the
+`DecLabeledGraph.ofSimple` / `mul` / `trace` layer; the semantic root of
+the chain is `DecLabeledGraphTr.eval_tupleEquiv_invariant` — the canonical
+Lovász §3 theorem.
 
 **Falsification gate** (see `scripts/falsify_weighted_inner_product.py`):
 1.13M random tests across `K ∈ {1, 2}`, `T ∈ {2, 3, 4}`, with
@@ -9297,7 +9283,7 @@ positive / signed / zero / all-zero `W`, twin-row B, and degenerate
 B/W patterns. Zero failures observed. Statement holds without a
 positivity hypothesis `hW : ∀ i, 0 < W i`.
 
-**Proof outline** (now wired):
+**Proof outline**:
 1. `exists_decGraph_for_connCol`: list-induction builds a single
    `D : DecLabeledGraph (K + 1) N` with `D.eval (snoc ξ t) = connCol L ξ t`
    and `D.llMult s(last K, last K) = 0`. The induction uses
@@ -9307,8 +9293,7 @@ positivity hypothesis `hW : ∀ i, 0 < W i`.
 3. `DecLabeledGraph.trace_eval`: `∑_t W(t) · D.eval (snoc ξ t) = D.trace.eval ξ`
    (uses the `noSelfLastLL` hypothesis).
 4. `DecLabeledGraphTr.eval_tupleEquiv_invariant`: descent of the
-   traced object at level `K`. **(Then sorry'd at L6913 — canonical
-   Lovász §3 frontier; since proved.)** -/
+   traced object at level `K` (the canonical Lovász §3 root). -/
 private theorem weightedInnerProduct_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -9502,11 +9487,11 @@ private theorem Ak_trace_stable {T K : ℕ}
     rw [hsplitF ξ, hsplitF ξ', ihF]
     rw [tr_k_smul, tr_k_smul, inner pF.2 csG]
 
-/-- **Binary product descent** — now PROVED as a direct specialization
+/-- **Binary product descent** — a direct specialization
 of `Ak_trace_stable` to generator arguments.
 
-See `Ak_trace_stable` (above) for what was then the actual sorry
-(since proved), and the Lovász connection-matrix framing. -/
+See `Ak_trace_stable` (above) for the semantic root and the Lovász
+connection-matrix framing. -/
 private theorem tr_k_binary_product_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -9516,14 +9501,14 @@ private theorem tr_k_binary_product_descends {T K : ℕ}
     tr_k B W (fun q => simpleGraphEvalOn B W L₁ q * simpleGraphEvalOn B W L₂ q) ξ' :=
   Ak_trace_stable_generators B hB W hW htwin L₁ L₂ h
 
-/-- The canonical frontier. PROVED as:
+/-- The canonical generator theorem. Proved as:
   - `L = []`: trivial (both sides equal `∑ t, W t`).
   - `L = [⟨n, F⟩]`: reduces to `tr_k_singleton_descends`.
   - `L = p :: rest` multi-element: induction via
     `simpleGraphEvalOn_append` + `tr_k_binary_product_descends`.
 
-The "multi-element sorry" was pushed into `tr_k_binary_product_descends`
-(since proved), the actual semantic root per the pass-3 analysis. -/
+The multi-element content lives in `tr_k_binary_product_descends`,
+the actual semantic root. -/
 private theorem tr_k_generator_descends {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -9756,8 +9741,8 @@ descends for every `g`, by pairing against the `simpleGraphEvalOn`
 generator family and `simpleGraphEvalOn_spans`. The current proof
 goes through `traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv` →
 `product_trace_identity_of_eval_tupleEquiv_invariant` →
-`DecLabeledGraphTr.eval_tupleEquiv_invariant` (L6902, then sorry'd;
-since proved) — the "cycle" manifesting as three names for one theorem. -/
+`DecLabeledGraphTr.eval_tupleEquiv_invariant` — the "cycle" manifesting as
+three names for one theorem. -/
 private theorem traceMeasure_eq_of_tupleEquiv {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -9834,7 +9819,7 @@ NOT the frontier.
 
 **Dependency reorganization (as of this commit)**:
 ```
-  starMultigraphEval_tupleEquiv_invariant_direct    [FRONTIER, then sorry'd; since proved]
+  starMultigraphEval_tupleEquiv_invariant_direct    [semantic root; proved]
     ↓ (quotient descent + simpleGraphEvalOn_spans)
   starMultigraphEval_in_simpleGraphSpan             [proved]
     ↓
@@ -10087,10 +10072,8 @@ the multigraph A_k content, not a weaker statement. -/
 — the diagnostic target per user directive. Stated separately with
 explicit `K = 1` type to make downstream attacks concrete.
 
-**Status after analysis**: reduces to the same multigraph A_k content as
-the general frontier (see docstring of the parent section). K=1 is NOT
-genuinely easier. (Originally left as a sorry'd stub so the structure
-was explicit; since proved.) -/
+Reduces to the same multigraph A_k content as the general frontier (see
+docstring of the parent section). K=1 is NOT genuinely easier. -/
 private theorem starMultigraphEval_tupleEquiv_invariant_direct_K1 {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) (r : ℕ)
@@ -10179,8 +10162,8 @@ unlabeled with an edge between them) — neither of which reduces to
       **Blocked at two layers**:
         - `tupleEquiv_extend` depends on `coeffRestrict_equiv` →
           `product_trace_identity` → `eval_tupleEquiv_invariant` (the
-          frontier). Using it re-introduced the very sorry we were trying
-          to break down.
+          frontier). Using it re-introduces the very content being
+          broken down.
         - Even assuming we had some extension-free `ν`, the RHS features
           `ν_last` as a free Classical.choose witness. No auxiliary
           level-K tupleEquiv fact forces `ν_last = ξ' a` without already
@@ -10391,8 +10374,8 @@ picture; no further docstring here. -/
 
 /-! #### Level 6 — downstream twin-free bijection
 
-`twinfree_bijection_of_weightedHomSum_eq` is PROVED (2026-07-06) — but NOT by this
-level's original plan: row-collapse (`matrix_quotient_of_weightedHomSum_eq_pos`) is the
+`twinfree_bijection_of_weightedHomSum_eq` is proved — but NOT by
+row-collapse: row-collapse (`matrix_quotient_of_weightedHomSum_eq_pos`) is the
 CONSUMER of the twin-free bijection, not its proof route. The actual proof is the
 cross-matrix transport chain + `Graphon.CrossSuper.cross_super_partition` route
 documented at the theorem (see the *Cross-matrix transport* section below, ~L12100).
@@ -10464,8 +10447,7 @@ back to the weighted-sum equality via class decomposition.
 
 **IH-free**: the automorphism-based argument (requiring Lemma 2.4 at
 level k) is replaced entirely by `functional_span_zero` +
-`product_trace_identity`. The single combinatorial sorry was localized
-to `product_trace_identity` (since proved). -/
+`product_trace_identity`, which carries the single combinatorial input. -/
 private theorem coeffRestrict_equiv {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i) (htwin : ∀ i j, i ≠ j → B i ≠ B j) {k : ℕ}
@@ -10719,8 +10701,8 @@ there is an equivalent extension `ν` of `ψ`.
 
 Assembled from `coeffRestrict_pos_at_restrict`, `coeffRestrict_equiv`,
 and `exists_extension_of_coeffRestrict_pos`. IH-free modulo
-`product_trace_identity` (formerly the combinatorial sorry inside
-`coeffRestrict_equiv`; since proved); no Lemma-2.4 input needed. -/
+`product_trace_identity` (the combinatorial input of `coeffRestrict_equiv`);
+no Lemma-2.4 input needed. -/
 private theorem tupleEquiv_extend {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -10737,13 +10719,14 @@ private theorem tupleEquiv_extend {T : ℕ}
   -- Extract a witness.
   exact exists_extension_of_coeffRestrict_pos B W hW μ ψ hpos_ψ
 
-/-! **Refuted separation route (removed, issue #19).** A known-false stub
-`labeledEvalK_separates` claimed that for twin-free `B` any two distinct
-snoc-extensions of a base tuple are separated by some `labeledEvalK` evaluation.
-FALSE: with `T = 3`, `K = 1`, `B = I`, uniform `W`, the transposition `(1 2)` is a
-`(B, W)`-automorphism, so every evaluation is symmetric in `1` and `2`. Lemma 2.4's
-non-surjective case instead constructs the automorphism directly via Claim 4.4 +
-extension (`tupleEquiv_implies_tupleOrbitRel`), needing no separation argument. -/
+/-! **Refuted separation route.** The candidate statement
+`labeledEvalK_separates` (not a declaration) would claim that for twin-free `B`
+any two distinct snoc-extensions of a base tuple are separated by some
+`labeledEvalK` evaluation. FALSE: with `T = 3`, `K = 1`, `B = I`, uniform `W`, the
+transposition `(1 2)` is a `(B, W)`-automorphism, so every evaluation is symmetric in
+`1` and `2`. Lemma 2.4's non-surjective case instead constructs the automorphism
+directly via Claim 4.4 + extension (`tupleEquiv_implies_tupleOrbitRel`), needing no
+separation argument. -/
 
 /-! ### Surjective-base extension uniqueness -/
 
@@ -10815,13 +10798,13 @@ private theorem tupleEquiv_ext_eq_of_surj {T : ℕ}
 For twin-free `(B, W)` with positive weights, `tupleEquiv B W φ ψ` implies
 `tupleOrbitRel B W φ ψ` at every label level `k`.
 
-PROVED (2026-07-02, sorry-free): bridged to the Lovász module's simple-graph
-Lemma 2.4 (`Lovasz.tupleEquivSimple_implies_orbit_via_2_5`, itself proved via the
-#70 rank theorem / Cai–Govorov machinery) — `tupleEquiv` is definitionally
-`Lovasz.tupleEquivSimple` after unfolding `labeledEvalK`. (The previous body ran
-Lovász's induction on `k` with Claims 4.1–4.4 and carried the non-surjective
-base case as the file's architectural sorry; the intermediate claims remain
-above as standalone theorems.) -/
+Proved by bridging to the Lovász module's simple-graph Lemma 2.4
+(`Lovasz.tupleEquivSimple_implies_orbit_via_2_5`, itself proved via the #70 rank
+theorem / Cai–Govorov machinery) — `tupleEquiv` is definitionally
+`Lovasz.tupleEquivSimple` after unfolding `labeledEvalK`. (An alternative body
+runs Lovász's induction on `k` with Claims 4.1–4.4, whose non-surjective base
+case is the hard step; the intermediate claims remain above as standalone
+theorems.) -/
 private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
     (hB : ∀ i j, B i j = B j i)
@@ -10829,7 +10812,7 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
     {k : ℕ} {φ ψ : Fin k → Fin T}
     (h : tupleEquiv B W φ ψ) :
     tupleOrbitRel B W φ ψ := by
-  -- Bridge to the sorry-free Lovász simple-graph Lemma 2.4 (via the rank theorem):
+  -- Bridge to the Lovász simple-graph Lemma 2.4 (via the rank theorem):
   -- `tupleEquiv` is definitionally `Lovasz.tupleEquivSimple` (unfold `labeledEvalK`),
   -- and the orbit conclusions coincide (identical `IsWeightedAutomorphism` bodies).
   have h_simple : Graphon.Lovasz.tupleEquivSimple B W φ ψ := by
@@ -10871,13 +10854,14 @@ private theorem tupleEquiv_surjective_case_ext {T : ℕ}
     tupleOrbitRel B W φ ψ :=
   tupleEquiv_implies_tupleOrbitRel B W hW hB htwin h
 
-/-! ### Refuted 5-motif route (removed, issue #19)
+/-! ### Refuted 5-motif route
 
-This file formerly contained a "pair profile" CT-1 route here: five edge-free
-2-labeled motif evaluations (`star0Eval`, `star1Eval`, `pathEval`, `tri0Eval`,
-`tri1Eval`) were conjectured to determine pair orbits for twin-free matrices with
-positive weights (`pairOrbitRel_of_pairProfile_eq`, assembled from the subclaim
-stubs `vertexOrbit_of_star0_tri0_eq` and `pairOrbit_of_vertexOrbits_and_path`).
+A tempting "pair profile" CT-1 route: five edge-free 2-labeled motif
+evaluations (`star0Eval`, `star1Eval`, `pathEval`, `tri0Eval`, `tri1Eval`) would
+determine pair orbits for twin-free matrices with positive weights
+(`pairOrbitRel_of_pairProfile_eq`, assembled from the subclaims
+`vertexOrbit_of_star0_tri0_eq` and `pairOrbit_of_vertexOrbits_and_path`).
+None of these are declarations of this file.
 
 The route is **refuted** by the `C₅ ⊔ C₆` counterexample
 (`scripts/counterexample_C5_C6.py`): the disjoint union of a 5-cycle and a 6-cycle,
@@ -10885,21 +10869,21 @@ as a `{0,1}`-matrix on `Fin 11` with uniform weights, is symmetric, twin-free, a
 positively weighted, yet every vertex has `star0 = 2/11` and `tri0 = 0` (no
 triangles), so the 5-motif profile cannot distinguish the pairs `(0, 0)` and
 `(5, 5)`, which lie in different pair orbits under `Aut(C₅ ⊔ C₆) = D₅ × D₆`.
-(Earlier computational validation missed this by testing only dense matrices with
-entries in `[0.1, 0.9]`.)
+(Computational validation restricted to dense matrices with entries in
+`[0.1, 0.9]` misses this.)
 
-The known-false stubs and their dead consumers (`vertexOrbit_of_star1_tri1_eq`,
-`pairOrbit_separated_by_edgeFreeEval`, `edgeFreeIndist_implies_pairOrbitRel`,
-`fullIndist_implies_pairOrbitRel`, `pairOrbitRel_iff_edgeFreeIndist`,
-`pairOrbit_indicator_mem_edgeFreeEvalSpan`, `eval2Span_eq_pairInvariantSubspace`,
-and the supporting motif-graph and `edgeFreeIndist`-span sections) were deleted in
-issue #19. The live proof of `matrix_quotient_of_weightedHomSum_eq` routes through
-the Lovász TR-2004-82 machinery above and the cross-matrix transport chain below
-and never depended on them. -/
+The same counterexample refutes the derived claims
+(`vertexOrbit_of_star1_tri1_eq`, `pairOrbit_separated_by_edgeFreeEval`,
+`edgeFreeIndist_implies_pairOrbitRel`, `fullIndist_implies_pairOrbitRel`,
+`pairOrbitRel_iff_edgeFreeIndist`, `pairOrbit_indicator_mem_edgeFreeEvalSpan`,
+`eval2Span_eq_pairInvariantSubspace`). The proof of
+`matrix_quotient_of_weightedHomSum_eq` routes through the Lovász TR-2004-82
+machinery above and the cross-matrix transport chain below and does not depend
+on any of them. -/
 
 /-! ### Cross-matrix transport (Lovász §5.2 / Cai–Govorov bridge)
 
-Skeleton for `twinfree_bijection_of_weightedHomSum_eq` (design cycle, 2026-07-06).
+Structure of the proof of `twinfree_bijection_of_weightedHomSum_eq`.
 The single-matrix Lemma 2.4 (`tupleEquiv_implies_tupleOrbitRel`, proved via the Lovász
 module's rank theorem) handles tuples into ONE matrix; the twin-free bijection needs a
 CROSS-matrix bridge from the hom-sum hypothesis. The route:
@@ -10920,8 +10904,7 @@ CROSS-matrix bridge from the hom-sum hypothesis. The route:
   positive W-weight, so its matching right class is nonempty: every `φ₀` has a right tuple
   with an identical test-moment profile. Applied at `K = T`, `φ₀ = id`.
 
-**Crux resolution (2026-07-06, PROVED)**: the route through `id_T`-matching and
-composition was abandoned. Instead, match a SUPER-SURJECTIVE left tuple (L5,
+**Crux**: rather than `id_T`-matching and composition, match a SUPER-SURJECTIVE left tuple (L5,
 `exists_superSurjective_tuple`) and port the proved single-matrix chunk 3A `superMap`
 argument cross-matrix in **partition form** (`Graphon/CrossSuper.lean`,
 `cross_super_partition`): star/edge tests cannot break a fractional refinement across
@@ -11177,7 +11160,7 @@ private theorem card_le_of_nonempty_disjoint {a b : ℕ} (E : Fin a → Finset (
 have equal weighted hom sums for all graphs, there is a permutation matching weights and
 entries. This is Lovász [2012] Theorem 5.30 for the twin-free case.
 
-**Status**: PROVED (2026-07-06), axiom-clean. Route: the cross-matrix transport chain
+**Route**: the cross-matrix transport chain
 (`labeledEvalK_weighted_sum` → `cross_testProfile_pushforward_eq` →
 `cross_matched_tuple_exists`) matches a super-surjective left tuple to a right tuple
 with an identical test-moment profile; `Graphon.CrossSuper.cross_super_partition`
@@ -11203,7 +11186,7 @@ The formalization here probes with a SUPER-SURJECTIVE label tuple instead of k=2
 endpoint-pinning: profile matching + the CrossSuper partition machinery replace the
 k≥2 entry probe, and the entries fall out of the singleton-collapsed edge relation.
 
-**Axioms**: `propext`, `Classical.choice`, `Quot.sound` only (no `sorryAx`). -/
+**Axioms**: `propext`, `Classical.choice`, `Quot.sound` only. -/
 private theorem twinfree_bijection_of_weightedHomSum_eq {T T' : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (B' : Fin T' → Fin T' → ℝ) (W' : Fin T' → ℝ)

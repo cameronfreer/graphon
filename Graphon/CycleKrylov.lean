@@ -881,9 +881,8 @@ Combines (from `SimpleRank.lean`): `sqMoment_sub_eq_wInner` (gap = `⟪ε, u⟫_
 (closed-walk diffs = `⟪ε, M^[q] u⟫_W`), and the weighted Krylov-kernel lemma
 above. The remaining content of `sqMoment_descends_of_rootedProfileEquiv` is
 graph plumbing: rooted cycles realize `closedWalkProfile`
-(`rootedProfile_rootedCycleGraph_eq_closedWalkProfile`, formerly a focused
-sorry in `Lovasz.lean`, since proved there), and rpe makes their profiles
-agree. -/
+(`rootedProfile_rootedCycleGraph_eq_closedWalkProfile`, proved in `Lovasz.lean`),
+and rpe makes their profiles agree. -/
 theorem sqMoment_eq_of_closedWalkProfile_eq
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ t, 0 < W t) (i j : Fin T)
@@ -905,10 +904,10 @@ theorem sqMoment_eq_of_closedWalkProfile_eq
 
 /-! ### The assembled theorem: square-moment descent -/
 
-/-- **Square-moment descent** (#70 minimal test case) — **PROVED**.
+/-- **Square-moment descent** (#70 minimal test case).
 
 If `i` and `j` are rooted-profile equivalent (twin-freeness NOT needed), their
-`W`-weighted square moments agree. This was the designated first obstruction
+`W`-weighted square moments agree. This is the first obstruction
 beyond the simple rooted algebra: `∑ t, W t * B i t ^ 2` is inherently a
 multigraph observable (double edge `i–t`), yet rooted simple CYCLES pin it.
 
@@ -919,10 +918,8 @@ give equal closed-walk profiles at all
 lengths ≥ 3, and `sqMoment_eq_of_closedWalkProfile_eq` (the spectral slice)
 concludes.
 
-Supersedes the version formerly in `SimpleRank.lean` that was derived from the
-(then still open, strictly stronger — since proved below)
-`classwise_sqMoment_descends`; this proof is
-sorry-free and drops the `htwin` hypothesis. -/
+Unlike a derivation from the strictly stronger `classwise_sqMoment_descends`
+(proved below), this direct proof needs no `htwin` hypothesis. -/
 theorem sqMoment_descends_of_rootedProfileEquiv {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
@@ -1737,10 +1734,8 @@ multigraph). The k = 2 proof recovered the forbidden diagonal 2-tensor via
 level up. Note `B^{∘(k-1)}` itself is NOT in the observable kernel algebra
 (even off the root), so the lift is a genuine extension, not a substitution. -/
 
-/-- **Cube-moment descent** — **MATHEMATICALLY RESOLVED (2026-06-10);
-formalization COMPLETE** (an earlier revision carried a SORRY marker
-pending the K₂,₃-arms plumbing, which has since landed — see
-`k23Arms_eval` and `rootedProfile_k23Arms_sub_eq_polarizedCubeObs`).
+/-- **Cube-moment descent** (the K₂,₃-arms plumbing is `k23Arms_eval` and
+`rootedProfile_k23Arms_sub_eq_polarizedCubeObs`).
 
 **The K₂,₃-ARMS proof** (machine-precision validated,
 `scripts/validate_cube_k23_arms.py`; mechanism UNIFORM in k — at k = 2 the
@@ -1977,7 +1972,7 @@ theorem k2kArmsStructured_edgeFinset (k : ℕ) (armLen : Fin k → ℕ) :
 
 /-! #### Commit 1 — Fin/structured edge transport + edge-product factorization -/
 
--- `out_pair_eq'` MOVED upstream to `Lovasz.lean` (2026-07-02), where the Cai–Govorov
+-- `out_pair_eq'` lives upstream in `Lovasz.lean`, where the Cai–Govorov
 -- stack also needs it; all uses below resolve through the import chain.
 
 /-- Arm index of a vertex (anchors/internals carry their arm; root/hub `none`).
@@ -4030,7 +4025,7 @@ theorem InRootedProfileSpan.of_const_on_orbit_noncircular {T : ℕ}
 
 /-! ### Eval spans as `Submodule`s + Phase C1+D rank skeleton
 
-MOVED upstream to `Lovasz.lean` (§ the rank-theorem section, 2026-07-02): the submodule
+Located upstream in `Lovasz.lean` (§ the rank-theorem section): the submodule
 packaging (`simpleEvalSubmodule`/`multiEvalSubmodule`/`orbitInvariantSubmodule` + membership
 iffs and inclusions) and the full rank skeleton (incl. `instFintypeOrbitClass` and the PROVED
 `simpleEvalSubmodule_eq_orbitInvariantSubmodule`) now live directly after

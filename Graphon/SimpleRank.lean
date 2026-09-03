@@ -8,29 +8,25 @@ import Graphon.Lovasz
 /-!
 # The simple-graph rank theorem, K=1 (task #70) — non-circular algebra-atom framing
 
-This module is the FRESH-PROJECT scaffold for the K=1 simple-graph rank theorem
-(Lovász TR-2004-82 §3/§4.2 for *simple* rooted profiles), the last open paper-root
-after #62/#73 (multigraph reconstruction) closed sorry-free.
+This module is the algebra-atom scaffold for the K=1 simple-graph rank theorem
+(Lovász TR-2004-82 §3/§4.2 for *simple* rooted profiles), complementing the
+multigraph reconstruction of #62/#73.
 
-> **Historical note (resolved 2026-07-02).** The narrative below describes the
-> scaffold as designed and is retained as the design/history record. The two
-> results it marks "SORRY" have both since been PROVED in
-> `Graphon/CycleKrylov.lean`: the #70 paper-root
-> `vertexOrbitRel_of_rootedProfileEquiv` (item 3) and
-> `classwise_sqMoment_descends` (item 4) — the focused bridge
-> `tupleEquivMulti_of_rootedProfileEquiv` landed, closing #70. The
-> "triangular cycle" sorry at the "both non-surjective" branch of Lemma 2.4
-> K=1 (`Lovasz.lean`) was closed by the Cai–Govorov descent. This file itself
-> is sorry-free (see the inventory at the end of this header).
+> **Where the main results live.** The #70 paper-root
+> `vertexOrbitRel_of_rootedProfileEquiv` (item 3 below) and
+> `classwise_sqMoment_descends` (item 4) are proved in `Graphon/CycleKrylov.lean`
+> via the bridge `tupleEquivMulti_of_rootedProfileEquiv`. The "both
+> non-surjective" branch of Lemma 2.4 K=1 (`Lovasz.lean`) is proved by the
+> Cai–Govorov descent.
 
 ## The problem
 
 `Graphon/Lovasz.lean` proves `InRootedProfileSpan.of_const_on_orbit` (orbit-invariant
 functions lie in the rooted simple-profile span) via `mkRootedSeparator` →
-`k1_orbit_sep_aux` → `tupleEquivSimple_implies_orbit` — a **triangular cycle** whose
-actual sorry sits at the "both non-surjective" branch of Lemma 2.4 K=1
-(`Lovasz.lean` L7589). All three statements are mutually equivalent; none has an
-independently proved base case.
+`k1_orbit_sep_aux` → `tupleEquivSimple_implies_orbit` — a **triangular cycle** of
+three mutually equivalent statements whose common base case is the "both
+non-surjective" branch of Lemma 2.4 K=1 (`Lovasz.lean`). This file gives a
+reformulation that does not depend on that cycle.
 
 ## The non-circular reformulation (this file)
 
@@ -48,16 +44,15 @@ Replace orbit-separators (which need the cycle) by **definitional** separators:
    (`InRootedProfileSpan.of_const_on_rpe`). Both PROVED below, non-circularly —
    only `hB` (symmetry) is needed, no `hW`/`htwin`.
 
-3. **The hard theorem** (the genuine #70 content, SORRY at the time; since
-   PROVED in `Graphon/CycleKrylov.lean`):
+3. **The hard theorem** (the genuine #70 content, proved in
+   `Graphon/CycleKrylov.lean`):
    `vertexOrbitRel_of_rootedProfileEquiv` : atoms = orbits, i.e.
    `rootedProfileEquiv B W i j → vertexOrbitRel B W i j` (twin-free `B`, `W > 0`).
-   Once proved, `of_const_on_orbit` is re-derived non-circularly
-   (`InRootedProfileSpan.of_const_on_orbit_noncircular`, PROVED modulo the hard theorem),
-   and the whole #70 cascade closes.
+   From it, `of_const_on_orbit` is re-derived non-circularly
+   (`InRootedProfileSpan.of_const_on_orbit_noncircular`), and the whole #70
+   cascade follows.
 
-4. **Minimal test case — FULLY PROVED (2026-06-10, sorry-free)**: plain
-   square-moment descent `sqMoment_descends_of_rootedProfileEquiv` is
+4. **Minimal test case**: plain square-moment descent `sqMoment_descends_of_rootedProfileEquiv` is
    formalized in `Graphon/CycleKrylov.lean` via the
    **cycle–Krylov–kernel argument** (see also
    `scripts/validate_sqmoment_cycle_krylov.py`): with `ε = B i - B j`,
@@ -65,8 +60,8 @@ Replace orbit-separators (which need the cycle) by **definitional** separators:
    `⟨ε, M^q u⟩_W`; rpe kills them for `q ≥ 1`; `u = M (D_W⁻¹ (e i + e j)) ∈ Im M`
    and self-adjointness give `u ∈ span{M^q u : q ≥ 1}`; hence
    `gap = ⟨ε, u⟩_W = 0`. Needs only `hB`, `hW` — no twin-freeness. The classwise
-   form (`classwise_sqMoment_descends`, SORRY at the time; since PROVED in
-   `Graphon/CycleKrylov.lean`) is reduced by the same argument
+   form (`classwise_sqMoment_descends`, proved in `Graphon/CycleKrylov.lean`)
+   is also reducible by the same argument
    (palindromic decorated cycles) to the **singular-`M` stratum**:
    `gap_g = ⟨D_g ε, P_ker(M) (D_g u)⟩_W`, zero whenever `det B ≠ 0`.
 
@@ -89,13 +84,13 @@ Replace orbit-separators (which need the cycle) by **definitional** separators:
 - "the proved multigraph theorem shortcuts it": converting multi-separators to simple
   ones is exactly the cycle.
 
-## Sorry inventory of this file (0)
+## Location of the paper-root
 
-This file is now SORRY-FREE. The #70 paper-root `vertexOrbitRel_of_rootedProfileEquiv`
-(and `classwise_sqMoment_descends`) were relocated to `Graphon/CycleKrylov.lean`,
-where #70 was reduced — via the proved multigraph Lemma 2.4 — to the single focused
-bridge `tupleEquivMulti_of_rootedProfileEquiv` (simple-rpe ⟹ multigraph equivalence);
-that bridge has since been PROVED there, closing #70 (2026-07-02).
+The #70 paper-root `vertexOrbitRel_of_rootedProfileEquiv` (and
+`classwise_sqMoment_descends`) live in `Graphon/CycleKrylov.lean`, where #70 is
+reduced — via the multigraph Lemma 2.4 — to the single bridge
+`tupleEquivMulti_of_rootedProfileEquiv` (simple-rpe ⟹ multigraph equivalence), which
+is proved there.
 -/
 
 namespace Graphon.Lovasz
@@ -869,8 +864,7 @@ theorem closedWalkProfile_eq_wInner {T : ℕ} (B : Fin T → Fin T → ℝ)
 cycle–Krylov proof): closed-walk profile differences are exactly
 `⟨ε, M^[q] u⟩_W`. The graph side — `rootedProfile` of `rootedCycleGraph`
 equals `closedWalkProfile` — is the separate plumbing slice, PROVED as
-`rootedProfile_rootedCycleGraph_eq_closedWalkProfile` in `Lovasz.lean`
-(an earlier version of this docstring called it a "focused sorry"; stale). -/
+`rootedProfile_rootedCycleGraph_eq_closedWalkProfile` in `Lovasz.lean`. -/
 theorem closedWalkProfile_sub_eq_wInner {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) (q : ℕ) :
     closedWalkProfile B W i (q + 2) - closedWalkProfile B W j (q + 2) =
@@ -878,38 +872,33 @@ theorem closedWalkProfile_sub_eq_wInner {T : ℕ} (B : Fin T → Fin T → ℝ)
   rw [closedWalkProfile_eq_wInner B hB W i q, closedWalkProfile_eq_wInner B hB W j q]
   exact (wInner_sub_iter_add B hB W q (fun t => B i t) (fun t => B j t)).symm
 
-/-! **Classwise square-moment descent** — now PROVED (no twin-free needed) as
+/-! **Classwise square-moment descent** — proved (no twin-freeness needed) as
 `classwise_sqMoment_descends` in `Graphon/CycleKrylov.lean`, via
 `decoratedPowerSum_descends_of_rootedProfileEquiv` at `k = 2` with span
-membership from `InRootedProfileSpan.of_const_on_rpe`. Historical notes follow.
+membership from `InRootedProfileSpan.of_const_on_rpe`.
 
 If `i, j` are rooted-profile equivalent and `g` is atom-invariant, the
 `g`-decorated square moments agree. With `g = 1_C` this is the within-atom
 square moment `∑_{t ∈ C} W t * B i t ^ 2`.
 
-**Status after the cycle–Krylov breakthrough** (the `g = 1` case is PROVED:
-`sqMoment_descends_of_rootedProfileEquiv` in `Graphon/CycleKrylov.lean`):
-
-**BEST KNOWN ROUTE (2026-06-10, weight modification — no singular-`B` issue)**:
+**Alternative route (weight modification — no singular-`B` issue)**:
 for atom-invariant positive `g`, rooted profiles of `(B, W·g)` are the
 `(B, W)`-profiles with `g` hung at every unlabeled vertex, hence
-rpe(B, W) ⟹ rpe(B, W·g); applying the PROVED plain theorem to `(B, W·g)`
-gives this classwise statement for positive `g`, and general atom-invariant
-`g` follows by linearity (`g = (g + c·1) - c·1`). The only missing piece is
-multi-vertex decoration plumbing: a glue-at-arbitrary-vertex construction
-(`rootAttach` only attaches at the root) plus induction hanging one vertex
-at a time. No new analysis needed.
+rpe(B, W) ⟹ rpe(B, W·g); applying the plain theorem
+`sqMoment_descends_of_rootedProfileEquiv` to `(B, W·g)` gives the classwise
+statement for positive `g`, and general atom-invariant `g` follows by
+linearity (`g = (g + c·1) - c·1`). This needs multi-vertex decoration plumbing:
+a glue-at-arbitrary-vertex construction (`rootAttach` only attaches at the
+root) plus induction hanging one vertex at a time.
 
-(Older route, superseded: palindromic decorated cycles reduce the classwise
-gap to `⟨D_g ε, P₀ (D_g u)⟩_W` with `P₀` the `ker M`-projection — closes only
-`det B ≠ 0`.) Numerical search for counterexamples (LM cutting-plane,
-`scripts/falsify_classwise_sqmoment.py`) found none and went infeasible at
-both T=4 and T=5 once long-cycle cuts entered.
+(A weaker route: palindromic decorated cycles reduce the classwise gap to
+`⟨D_g ε, P₀ (D_g u)⟩_W` with `P₀` the `ker M`-projection — this closes only
+the `det B ≠ 0` stratum.)
 
-No harder than #70: it follows from the rank theorem
+No harder than #70: it also follows from the rank theorem
 (`classwise_sqMoment_of_rank_theorem` below). -/
 /-! **Minimal test case for the rank theorem** — square-moment descent:
-**FULLY PROVED** (sorry-free, no twin-freeness) as
+proved (no twin-freeness needed) as
 `sqMoment_descends_of_rootedProfileEquiv` in `Graphon/CycleKrylov.lean`, by
 the cycle–Krylov–kernel argument (`docs/sqmoment-cycle-krylov.md`): the
 algebraic slices in this file (`sqMoment_sub_eq_wInner`,
@@ -920,8 +909,8 @@ that must stay out of the `Lovasz.lean` import chain. -/
 
 /-- The reduction direction, made formal: the rank theorem implies square-moment
 descent. (So the test case is no harder than #70; the conjecture is that it is
-also the crux.) Stated with the rank theorem as an explicit hypothesis to keep
-this lemma sorry-free. -/
+also the crux.) Stated with the rank theorem as an explicit hypothesis so that
+this lemma is independent of `Graphon/CycleKrylov.lean`. -/
 theorem sqMoment_descends_of_rank_theorem {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (hrank : ∀ {i j : Fin T}, rootedProfileEquiv B W i j → vertexOrbitRel B W i j)
@@ -932,7 +921,7 @@ theorem sqMoment_descends_of_rank_theorem {T : ℕ}
 /-- The classwise reduction direction: the rank theorem implies classwise
 square-moment descent (reindex by the automorphism; the decoration is
 atom-invariant, hence invariant along orbits). So the sharpened test case is
-also no harder than #70. Sorry-free (rank theorem as explicit hypothesis). -/
+also no harder than #70 (rank theorem as explicit hypothesis). -/
 theorem classwise_sqMoment_of_rank_theorem {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     (hrank : ∀ {a b : Fin T}, rootedProfileEquiv B W a b → vertexOrbitRel B W a b)
