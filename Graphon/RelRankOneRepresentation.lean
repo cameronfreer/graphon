@@ -47,7 +47,7 @@ the law with the rank-one latents satisfying all `RankRepresentation` clauses �
 joint relabeling invariance, local recovery of everything below rank one, and rank-truncated
 local screening at every rank-one support. -/
 theorem InfiniteRelExchangeableLaw.nonempty_rankRepresentation_one
-    [Fintype S.Srt] [Countable S.Rel] (M : InfiniteRelExchangeableLaw S) :
+    [Countable S.Srt] [Countable S.Rel] (M : InfiniteRelExchangeableLaw S) :
     Nonempty (M.RankRepresentation 1) := by
   classical
   obtain ⟨B⟩ := M.nonempty_coherentBasis

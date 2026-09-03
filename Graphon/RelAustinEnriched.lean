@@ -524,8 +524,8 @@ noncomputable def austinEnrichedObject {C : M.RankRepresentation n}
 
 Introduced here only so that their standard-Borel structure is available and inferred rather than
 assumed; their maps and commuting laws belong to the bundle that follows. Stated for an arbitrary
-coherent basis — selecting one via `nonempty_coherentBasis` is what would introduce
-`[Fintype S.Srt]`, and that is deliberately not done here. -/
+coherent basis rather than a selected one: a basis is chosen data, and consumers take it as an
+argument. -/
 
 /-- The lower-factor space extended by the Austin base. -/
 abbrev EnrichedLowerSpace (B : CoherentBasis M) (m : ℕ) :=
@@ -544,8 +544,8 @@ instance (B : CoherentBasis M) (m : ℕ) (A : Finset (Σ s : S.Srt, Vinfinite S 
 
 /-! ### The adapter into the coherent-basis factor API
 
-For an arbitrary coherent basis: selecting one via `nonempty_coherentBasis` is what would introduce
-`[Fintype S.Srt]`, and that is deliberately not done here. The four commuting laws are exact, and
+For an arbitrary coherent basis, taken as an argument rather than selected here (a basis is
+chosen data). The four commuting laws are exact, and
 the last is a prerequisite for eventual exact truncation rather than that statement itself. -/
 
 variable (B : CoherentBasis M)

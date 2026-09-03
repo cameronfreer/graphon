@@ -34,8 +34,8 @@ through the block and the base by anything here.
 
 ## Scope
 
-For an arbitrary coherent basis, under ambient countability only — no selected basis and no
-`Fintype S.Srt`. Rank zero is not handled here; it takes the existing rank-one route, and nothing
+For an arbitrary coherent basis, under ambient countability only, with no basis selected here.
+Rank zero is not handled here; it takes the existing rank-one route, and nothing
 in this module manufactures an `A = ∅` realization theorem.
 
 Contains no randomization map, uniforms, source splitting, fresh rank-`n` latent layer,

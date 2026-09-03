@@ -70,9 +70,8 @@ proper-subset data carrying no rank-`n` block.
 
 ## Scope
 
-* Only the ambient `Countable` assumptions are needed. Because the conditional independence comes
-  from the assumed screening contract rather than from a polling argument, the `Fintype S.Srt`
-  hypothesis that the fixing-algebra stack carries is not required here.
+* Only the ambient `Countable` assumptions are needed: the conditional independence comes from
+  the assumed screening contract rather than from a polling argument.
 * Rank zero is not this module's business. The successor at `n = 0` is supplied by
   `nonempty_rankRepresentation_one` together with `truncation_zero`, which is also what respects
   `stepKernel`'s deliberate lack of an `A = ∅` realization theorem.
