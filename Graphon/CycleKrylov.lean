@@ -1414,9 +1414,8 @@ theorem k23Assign_arm2 {T : ℕ} (a b c : ℕ) (x : Fin 3 → Fin T)
   rw [appendFn_high _ _ (show ¬4 + a + b + k < 4 + a + b by omega)]
   exact congrArg σc (Fin.ext (show 4 + a + b + k - (4 + a + b) = k by omega))
 
-/-- **Raw evaluation of the K₂,₃-arms profile** (PROVED — the brittle
-`Fin`/edge-product slice, isolated here per plan; an earlier revision
-carried a SORRY marker while the plumbing was pending): the rooted profile
+/-- **Raw evaluation of the K₂,₃-arms profile** (the brittle `Fin`/edge-product slice,
+isolated here): the rooted profile
 factorizes through the hub as a `wTriple` of `weightedAdjIter`s of the
 root's row. Mathematically: summing each arm's internals gives the walk
 kernel `K_{armLen+1}(anchor, hub)`; summing each anchor against its root
@@ -2482,7 +2481,7 @@ theorem rootedProfile_k2kArms_sub_eq_polarizedPowObs (k : ℕ) (armLen : Fin k �
       (fun l => weightedAdjIter B W (armLen l + 1) (fun s => B j s) t)]
   ring
 
-/-- **Weighted power sums descend** — now PROVED for ALL `k` (k ≤ 2 directly,
+/-- **Weighted power sums descend** for ALL `k` (k ≤ 2 directly,
 k = 3 via `cubeMoment_descends_of_rootedProfileEquiv`, k ≥ 4 via the
 `K₂,ₖ`-arms bridge `rootedProfile_k2kArms_sub_eq_polarizedPowObs` feeding
 `powGap_eq_zero_of_polarized_obs`).
@@ -2731,7 +2730,7 @@ theorem consAppend_hDecorEmb {T n m : ℕ} (v : Fin T) (σF : Fin n → Fin T)
       Fin.cons_succ, Fin.cons_succ, appendFn_high σF σH (by simp)]
     exact congrArg σH (Fin.ext (by simp))
 
-/-- **Single-vertex decoration factorization** (Commit 1 target — PROVED):
+/-- **Single-vertex decoration factorization**:
 gluing `H` at vertex `u` multiplies each `F`-assignment's contribution by the
 `H`-profile rooted at the value `u` receives. Analogue of `rootedProfile_rootAttach`,
 but the attachment point is an arbitrary unlabeled vertex, not a fresh pendant root.
@@ -3476,7 +3475,7 @@ theorem InRootedProfileSpan.finset_sum' {T : ℕ} {B : Fin T → Fin T → ℝ} 
     funext v
     rw [Finset.sum_insert ha_notin]; rfl
 
-/-- **C3 — modified-weight profile stays in the span** (PROVED). For any `g` in the
+/-- **C3 — modified-weight profile stays in the span**. For any `g` in the
 `(B, W)`-rooted-profile span and any graph `F`, the modified-weight profile
 `v ↦ rootedProfile B (W·g) v F` lies in `InRootedProfileSpan B W`.
 
@@ -3537,10 +3536,10 @@ theorem weightMod_profile_mem_span {T n : ℕ} (B : Fin T → Fin T → ℝ)
     (InRootedProfileSpan.of_profile B W
       (decorateAllFam F (fun w => (gdata (φ w)).2.1))).smul (∏ w : Fin n, c (φ w))
 
-/-- **Weight modification preserves rooted-profile equivalence** (C4 — PROVED
-modulo the focused span-membership lemma `weightMod_profile_mem_span`). For any
+/-- **Weight modification preserves rooted-profile equivalence** (C4, via the
+span-membership lemma `weightMod_profile_mem_span`). For any
 `g` in the `(B, W)`-rooted-profile span, rooted-profile-equivalent vertices stay
-equivalent under the modified weight `W · g`. The analytic content is discharged:
+equivalent under the modified weight `W · g`. The analytic content is that
 the modified-weight profile lies in the span (`weightMod_profile_mem_span`), and
 span elements are constant on rpe-classes (`InRootedProfileSpan.const_on_rpe`). -/
 theorem rootedProfileEquiv_weightMod {T : ℕ} (B : Fin T → Fin T → ℝ)
@@ -3551,8 +3550,7 @@ theorem rootedProfileEquiv_weightMod {T : ℕ} (B : Fin T → Fin T → ℝ)
   intro n F _
   exact (weightMod_profile_mem_span B hB W F hg).const_on_rpe h
 
-/-- **Decorated power sums descend** (PROVED, via
-`rootedProfileEquiv_weightMod` above).
+/-- **Decorated power sums descend** (via `rootedProfileEquiv_weightMod` above).
 For `g` in the rooted-profile span (e.g. an atom indicator `rpeIndicator C`),
 the `g`-decorated power sums of rpe-equivalent rows agree at every degree `k`.
 With `g = 1_C` and `k = 2` this is `classwise_sqMoment_descends`; in general it
@@ -3588,7 +3586,7 @@ theorem decoratedPowerSum_descends_of_rootedProfileEquiv {T : ℕ}
     exact Finset.sum_congr rfl fun t _ => by ring
   rw [ei i, ei j, hgc_des, hplain]
 
-/-- **Classwise square-moment descent** (PROVED — no twin-free needed). For any
+/-- **Classwise square-moment descent** (no twin-freeness needed). For any
 atom-invariant `g`, the `g`-decorated square moments of rpe-equivalent rows agree.
 The `k = 2` specialization of `decoratedPowerSum_descends_of_rootedProfileEquiv`,
 with span membership supplied by the K=1 fullness theorem
@@ -3609,7 +3607,7 @@ theorem classwise_sqMoment_descends {T : ℕ}
     _ = ∑ t : Fin T, W t * g t * B j t ^ 2 := hpow
     _ = ∑ t : Fin T, W t * B j t ^ 2 * g t := Finset.sum_congr rfl fun t _ => by ring
 
-/-- **Classwise row-value measures descend** (PROVED). Under rooted-profile
+/-- **Classwise row-value measures descend**. Under rooted-profile
 equivalence `i ~ j`, the two rows `B i` and `B j` have the SAME `W`-weighted
 value distribution INSIDE every atom class `C = atom(r)` (the rpe-class of a
 representative `r`). Phrased with the atom-restricting weight `W · rpeIndicator B W r`
@@ -3703,17 +3701,16 @@ theorem atom_row_signature_eq {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ 
 /-! ### §7 — atoms = orbits (#70 paper-root), via the DIRECT multigraph route
 
 The #70 rank theorem `vertexOrbitRel_of_rootedProfileEquiv` factors through the
-PROVED, axiom-clean multigraph Lemma 2.4 `tupleEquivMulti_implies_orbit`:
+multigraph Lemma 2.4 `tupleEquivMulti_implies_orbit`:
 
   `rootedProfileEquiv → tupleEquivMulti → vertexOrbitRel`.
 
-The middle arrow was the only remaining content when this section was
-written — the focused bridge `tupleEquivMulti_of_rootedProfileEquiv`
-(simple-rpe ⟹ multigraph tuple-equivalence at K=1) — and it is now PROVED
-below, closing #70. No marker/augmentation is needed: `tupleEquivMulti` uses the SAME `(B,W)`,
-with multigraphs as the PROBES. These declarations were relocated here from
-`SimpleRank.lean` (they have no upstream consumers) because the bridge's eventual
-proof uses the decorated/classwise power-sum machinery defined above. -/
+The middle arrow is the bridge `tupleEquivMulti_of_rootedProfileEquiv`
+(simple-rpe ⟹ multigraph tuple-equivalence at K=1), proved below. No
+marker/augmentation is needed: `tupleEquivMulti` uses the SAME `(B,W)`, with
+multigraphs as the PROBES. These declarations live here rather than in
+`SimpleRank.lean` because the bridge's proof uses the decorated/classwise
+power-sum machinery defined above. -/
 
 /-- **Tree-fragment, base case**: the multiplicity-`a` star probe descends — its
 evaluation is the `a`-th weighted power sum, which descends by `powerSum_descends`. -/
@@ -3784,7 +3781,7 @@ theorem rootedMultiEval_decoratedProbe_mem {T m : ℕ} (B : Fin T → Fin T → 
     (fun _ _ h => decoratedProbe_descends B hB W hW a Mχ
       (fun _ _ hpq => hMχ.const_on_rpe hpq) h)
 
-/-- **Warm-up diagonal primitive** (one neighbour, PROVED): for `g, h` in the span,
+/-- **Warm-up diagonal primitive** (one neighbour): for `g, h` in the span,
 the "same-vertex" decorated first moment `v ↦ ∑ₛ W s · B v s · g s · h s` lies in the
 span — via `InRootedProfileSpan.mul` then `.weightedAdj`. This extracts a coincidence
 at ONE neighbour; the internal doubled edge needs the two-variable coincidence
@@ -3818,7 +3815,8 @@ theorem commonNeighborGraph_edgeFinset :
   refine ⟨fun ⟨he, _⟩ => he, fun he => ⟨he, ?_⟩⟩
   rcases he with he | he <;> rw [he, Sym2.mk_isDiag_iff] <;> decide
 
-/-- **Common-neighbour evaluation**: `simpleEvalAt commonNeighborGraph ξ = ∑ₜ W t · B (ξ 0) t · B (ξ 1) t`
+/-- **Common-neighbour evaluation**:
+`simpleEvalAt commonNeighborGraph ξ = ∑ₜ W t · B (ξ 0) t · B (ξ 1) t`
 `= ⟨B (ξ 0), B (ξ 1)⟩_W`. -/
 theorem simpleEvalAt_commonNeighbor {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (ξ : Fin 2 → Fin T) :
@@ -3845,9 +3843,8 @@ theorem simpleEvalAt_commonNeighbor {T : ℕ} (B : Fin T → Fin T → ℝ)
   show W (σ 0) * (B (ξ 0) (σ 0) * B (ξ 1) (σ 0)) = W (σ 0) * B (ξ 0) (σ 0) * B (ξ 1) (σ 0)
   ring
 
-/-- **Coincidence detector** (`tupleEquivSimple` preserves the diagonal) — the KEY
-book step for internal multi-edge elimination (formerly a FOCUSED SORRY;
-PROVED below). If two `2`-tuples are
+/-- **Coincidence detector** (`tupleEquivSimple` preserves the diagonal) — the key
+book step for internal multi-edge elimination. If two `2`-tuples are
 simple-equivalent and one is diagonal (`ξ 0 = ξ 1`), so is the other.
 
 **Mechanism (non-circular, settled)**: instantiate `tupleEquivSimple` at the
@@ -3912,7 +3909,7 @@ theorem tupleEquivSimple_preserves_diagonal {T : ℕ} (B : Fin T → Fin T → �
   have hsymm : tupleEquivSimple B W ξ' ξ := by intro n' F _inst; exact (h n' F).symm
   exact ⟨fwd ξ ξ' h, fwd ξ' ξ hsymm⟩
 
-/-- **Diagonal indicator in the simple profile closure** (PROVED): the function
+/-- **Diagonal indicator in the simple profile closure**: the function
 `ξ ↦ [ξ 0 = ξ 1]` lies in the `K = 2` simple-profile closure. Since
 `tupleEquivSimple_preserves_diagonal` shows it is constant on
 `tupleEquivSimple`-classes, the proved Lagrange-fullness
@@ -3949,8 +3946,7 @@ theorem InRootedProfileSpan.of_tupleSimpleEvalSpan {T : ℕ} (B : Fin T → Fin 
 Lemma 2.5 specialized to a single root). For every rooted multigraph probe `M`, the
 function `v ↦ multiLabeledEvalK 1 n M B W (·↦v)` lies in `InRootedProfileSpan B W`.
 
-**PROVED via the (formerly canonical-residue, since-proved)**
-`InTupleMultiEvalSpan.toSimple` (Lovász §3 /
+**Proof via** `InTupleMultiEvalSpan.toSimple` (Lovász §3 /
 Lemma 2.5): the K=1 multigraph eval lies in the multigraph-eval span (`of_multi`);
 `toSimple hB hW htwin` collapses it into the simple-eval span (this is where the
 Hadamard-square obstruction — internal multiplicity ≥2 — genuinely lives, equivalently
@@ -3967,9 +3963,9 @@ theorem rootedMultiEval_mem_rootedProfileSpan {T n : ℕ} (B : Fin T → Fin T �
   InRootedProfileSpan.of_tupleSimpleEvalSpan B W
     (InTupleMultiEvalSpan.toSimple hB hW htwin (InTupleMultiEvalSpan.of_multi B W M))
 
-/-- **The simple → multigraph bridge at K=1** (PROVED, via
-`rootedMultiEval_mem_rootedProfileSpan`, itself proved above — closing
-#70). Rooted simple-profile equivalence implies
+/-- **The simple → multigraph bridge at K=1** (via
+`rootedMultiEval_mem_rootedProfileSpan` above; this closes #70).
+Rooted simple-profile equivalence implies
 MULTIGRAPH tuple-equivalence: every multigraph probe evaluates identically on
 rpe-equivalent vertices. Immediate from membership of each rooted multigraph eval in
 the simple span (`rootedMultiEval_mem_rootedProfileSpan`) and the fact that span
@@ -3984,9 +3980,8 @@ theorem tupleEquivMulti_of_rootedProfileEquiv {T : ℕ} (B : Fin T → Fin T →
 
 /-- **The K=1 simple-graph rank theorem** (#70): rooted-profile equivalence implies
 vertex-orbit equivalence — the atoms of the rooted simple-profile algebra are exactly
-the `(B, W)`-automorphism orbits. Fully PROVED: routes through the focused
-bridge `tupleEquivMulti_of_rootedProfileEquiv` (proved above) and the proved
-multigraph Lemma 2.4. -/
+the `(B, W)`-automorphism orbits. Routes through the bridge
+`tupleEquivMulti_of_rootedProfileEquiv` (above) and the multigraph Lemma 2.4. -/
 theorem vertexOrbitRel_of_rootedProfileEquiv {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
@@ -3997,9 +3992,8 @@ theorem vertexOrbitRel_of_rootedProfileEquiv {T : ℕ}
     (tupleEquivMulti_of_rootedProfileEquiv B hB W hW htwin h)
   exact ⟨σ, haut, (hσ 0).symm⟩
 
-/-- **Atoms = orbits**, packaged form of the rank theorem. Fully PROVED, via
-`tupleEquivMulti_of_rootedProfileEquiv` (proved above) and
-`vertexOrbitRel_of_rootedProfileEquiv`. -/
+/-- **Atoms = orbits**, packaged form of the rank theorem, via
+`tupleEquivMulti_of_rootedProfileEquiv` and `vertexOrbitRel_of_rootedProfileEquiv`. -/
 theorem algebraAtomRel_eq_vertexOrbitRel {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
@@ -4010,9 +4004,9 @@ theorem algebraAtomRel_eq_vertexOrbitRel {T : ℕ}
     rootedProfileEquiv_of_vertexOrbitRel B W⟩
 
 /-- **Non-circular `of_const_on_orbit`** — an orbit-invariant function is
-atom-invariant (atoms = orbits) hence in the span (`of_const_on_rpe`). Replaces the
-cyclically-proved `InRootedProfileSpan.of_const_on_orbit` in `Lovasz.lean`. Fully
-PROVED, via `tupleEquivMulti_of_rootedProfileEquiv` (proved above). -/
+atom-invariant (atoms = orbits) hence in the span (`of_const_on_rpe`). An
+alternative to `InRootedProfileSpan.of_const_on_orbit` in `Lovasz.lean` that does
+not pass through the Lemma 2.4 cycle; via `tupleEquivMulti_of_rootedProfileEquiv`. -/
 theorem InRootedProfileSpan.of_const_on_orbit_noncircular {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
@@ -4027,8 +4021,8 @@ theorem InRootedProfileSpan.of_const_on_orbit_noncircular {T : ℕ}
 
 Located upstream in `Lovasz.lean` (§ the rank-theorem section): the submodule
 packaging (`simpleEvalSubmodule`/`multiEvalSubmodule`/`orbitInvariantSubmodule` + membership
-iffs and inclusions) and the full rank skeleton (incl. `instFintypeOrbitClass` and the PROVED
-`simpleEvalSubmodule_eq_orbitInvariantSubmodule`) now live directly after
+iffs and inclusions) and the full rank skeleton (incl. `instFintypeOrbitClass` and
+`simpleEvalSubmodule_eq_orbitInvariantSubmodule`) live directly after
 `simpleEvalAt_aut_invariant` in `Lovasz.lean`, where the Cai–Govorov machinery they need is
 in scope. All names resolve through the import chain.  -/
 

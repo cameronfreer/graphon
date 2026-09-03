@@ -37,7 +37,7 @@ for both events and close `first_sampling_lemma` via `sampleGoodMassOn_of_events
   quadratic-form argument, and only then concentrates the (bounded-differences)
   random variable `x ↦ d_□(W, H_{W,x})` around its expectation via McDiarmid/Azuma.
 * **Step reduction helps but does not dodge the core.** With Frieze–Kannan
-  (`regularity`, PROVED) one may reduce `W` to a step graphon `U` with `m(ε)` parts:
+  (`regularity`) one may reduce `W` to a step graphon `U` with `m(ε)` parts:
   `d(W,H_{W,x}) ≤ d(W,U) + d(U,H_{U,x}) + d(H_{U,x},H_{W,x})`. The middle term is
   finite (cell-frequency concentration, `m` cells, honest union bound). The last term
   is the empirical matrix of the small-cut-norm kernel `D := W − U`, and bounding ITS
@@ -72,10 +72,10 @@ for both events and close `first_sampling_lemma` via `sampleGoodMassOn_of_events
 Reference mechanisms: Lovász Lemmas 10.6/10.7 (bounded kernels); the modern
 generalization arXiv:2203.07581 confirms the split into *systematic error*
 (expectation bound; Q-subsample ghost argument, their §6.2) and *dispersion*
-(vertex-exposure martingale + Azuma — deferred to PR #11B).
+(vertex-exposure martingale + Azuma).
 
 **Majorant + triangle decomposition.** Fix ε; let `P` be the Frieze–Kannan partition
-of `W` at quality `ε' := ε/8` with `m = m(ε')` parts (uniform in `W` — PROVED
+of `W` at quality `ε' := ε/8` with `m = m(ε')` parts (uniform in `W`, by
 `regularity`), `U := stepify P W`. Then
 
   `d_□(W, H_{W,x}) ≤ ε' + d_□(U, H_{U,x}) + maxcut((W−U)[x])`
@@ -104,7 +104,7 @@ of `W` at quality `ε' := ε/8` with `m = m(ε')` parts (uniform in `W` — PROV
 * **Deliverable shape** (`point_sampling_expectation_bound`): ∃K, ∀ k ≥ K, ∀ W, ∃ a
   measurable nonnegative integrable majorant `M` with
   `∀ᵐ x, cutDistance W (sampleWeightedGraphonOn W x) ≤ M x` and `∫ M < ε`.
-* **KEY SIMPLIFICATION — PR #11B is just Markov.** Given the expectation bound at
+* **Simplification — the bad-set form is just Markov.** Given the expectation bound at
   accuracy `ε·η`, Markov's inequality on the nonnegative majorant gives
   `π{M ≥ ε} ≤ η`, and `X := {M < ε} \ N` (N a measurable null superset of the
   domination-failure set) is the measurable witness for
@@ -3744,7 +3744,7 @@ private theorem guessBlock_integral_le_cutNormDiff (W : Graphon α μ) (ε' : �
   rw [hcB_def] at hfinal
   linarith [hfinal, hbudget]
 
-/-- **Layer 3 core — AFKK cut-norm sampling** (the one deep step of PR #11A; PROVED). The
+/-- **Layer 3 core — AFKK cut-norm sampling** (the one deep analytic step). The
 expectation of the empirical (normalized, `1/k²`-weighted) discrete cut norm of the sampled
 difference matrix `D(x)ᵢⱼ = clampEval W x i j − clampEval (chosenStep W ε') x i j` is at most
 the *continuous* cut norm `cutNormDiff W (chosenStep W ε')` plus a `k`-vanishing dispersion
@@ -3912,7 +3912,7 @@ private theorem exists_event_set_of_integral_lt {Ω : Type*} [MeasurableSpace Ω
     have hfx : f x < c := hxY
     linarith
 
-/-- **The point-sampling half of the First Sampling Lemma** (PR #11 target; PROVED).
+/-- **The point-sampling half of the First Sampling Lemma**.
 With `W`-uniform `K`: for all `k ≥ K`, the weighted sampled graphon `H_{W,x}` is within
 cut distance `ε` of `W` outside a bad set of measure `≤ η`.
 

@@ -2544,7 +2544,7 @@ private lemma multigraphEval_LL_excess_descends_aux {T K n : ℕ}
 
 /-! ### §3.6.4 — The bridge via h_orbit (Lovász Lemma 2.4)
 
-**KEY INSIGHT**: given `h_orbit` (Lovász Lemma 2.4
+**Key observation**: given `h_orbit` (Lovász Lemma 2.4
 packaged: `tupleEquivSimple ξ ξ' ⟹ ∃ σ aut with ξ' = σ ∘ ξ`),
 the entire `multiLabeledEvalK ξ = multiLabeledEvalK ξ'` equality
 holds by pure change-of-variables for ANY multigraph M.
@@ -4001,9 +4001,9 @@ all required dependencies (`tupleEquivSimple_restrict_along`,
 
 **Mathematical content**: `η ↦ B(η a, η a)` is orbit-invariant. The
 proof reduces to the K=1 case (via `tupleEquivSimple_restrict_along`)
-which routes through `rooted_profiles_separate_vertex_orbits` — PROVED via
-`rootedProfileEquiv_imp_vertexOrbitRel` (the rank-theorem route; the historical
-#77 closed-walk route was refuted and removed). -/
+which routes through `rooted_profiles_separate_vertex_orbits`, proved via
+`rootedProfileEquiv_imp_vertexOrbitRel` (the rank-theorem route; the
+#77 closed-walk route is refuted). -/
 
 -- The n=0 loop bridge from `tupleEquivSimple` follows by combining:
 --   1. existing `multiLabeledEvalK_tupleEquiv_invariant_n_zero` (off-diagonal),
@@ -9674,7 +9674,7 @@ theorem InTupleSimpleEvalSpan.finset_sum {T K : ℕ} {B : Fin T → Fin T → �
 
 The multigraph analog of `InTupleSimpleEvalSpan`. Products of evaluations live
 naturally here (disjoint glue = multiplication in Lovász's algebra `𝒢_k`), so
-`.mul` is a bounded consequence of the PROVED `multiLabeledEvalK_glue` — no
+`.mul` is a bounded consequence of `multiLabeledEvalK_glue` — no
 `simpleEvalAt_tupleProduct` is possible, because for `K ≥ 2` two simple graphs
 sharing a label–label edge would force a Hadamard square `B(ξ_a,ξ_b)²` that no
 simple graph can represent (`ofSimple` caps multiplicity at 1 while `glue`
@@ -9791,7 +9791,7 @@ theorem InTupleMultiEvalSpan.finset_sum {T K : ℕ} {B : Fin T → Fin T → ℝ
 
 /-- **Closure under pointwise multiplication** — the bounded payoff of the
 multigraph route. Mirrors `InRootedProfileSpan.mul`, but products factor
-through the disjoint glue `MultiLabeledGraph.glue` and the PROVED
+through the disjoint glue `MultiLabeledGraph.glue` and
 `multiLabeledEvalK_glue` (no `ofSimple`/`tupleProduct` detour, no decidability
 alignment). Requires symmetric `B` for `multiLabeledEvalK_glue`. -/
 theorem InTupleMultiEvalSpan.mul {T K : ℕ} {B : Fin T → Fin T → ℝ}
@@ -10688,7 +10688,7 @@ theorem multiLabeledEvalK_twoLeafProbe {T : ℕ} (B : Fin T → Fin T → ℝ)
   · refine Fintype.sum_equiv (Equiv.funUnique (Fin 1) (Fin T)) _ _ (fun σ => ?_)
     simp [Equiv.funUnique, Fin.default_eq_zero]
 
-/-- **Diagonal observability residue, `K = 1` core — PROVED.** If the singleton tuples `· ↦ i` and
+/-- **Diagonal observability residue, `K = 1` core.** If the singleton tuples `· ↦ i` and
 `· ↦ j` are multigraph-equivalent then their diagonal entries agree, `B i i = B j j`. The general
 `tupleEquivMulti_preserves_diagonal` reduces here per coordinate via `tupleEquivMulti_restrict_along`.
 
@@ -11844,8 +11844,8 @@ noncomputable def evalRepPairing {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : 
     (c : OrbitClass T K B W → ℝ) (f : (Fin K → Fin T) → ℝ) :
     evalRepPairing B W c f = ∑ q, c q * f (Quotient.out q) := rfl
 
-/-- **The simple-side lower bound** (the genuine Lovász §3 content, formerly the sole #70
-residue): the simple-eval span has dimension at least the number of orbit classes. The
+/-- **The simple-side lower bound** (the genuine Lovász §3 content of #70): the
+simple-eval span has dimension at least the number of orbit classes. The
 composite `Ψ := subtype.dualMap ∘ evalRepPairing` is injective by the annihilator lemma, so
 `#OrbitClass = finrank (OrbitClass → ℝ) ≤ finrank (Dual simpleEvalSubmodule)
 = finrank simpleEvalSubmodule`. -/
@@ -11931,7 +11931,7 @@ In our notation: `f : (Fin K → Fin T) → ℝ` is in the span of
 `{simpleEvalAt B W F : F : SimpleGraph (Fin (n + K))}` iff `f` is
 `(B, W)`-automorphism-invariant on tuples.
 
-**Status**: orbit-basis decomposition step PROVED. Substance reduces
+The orbit-basis decomposition step is elementary; the substance reduces
 to `tupleOrbitIndicator_mem_simpleEvalSpan` (the orbit indicators are
 in the simple-eval span — Lovász §3 idempotent construction).
 
@@ -12768,7 +12768,7 @@ private theorem rootedProfileEquiv_of_tupleEquivSimple {T K : ℕ}
       rw [h_edge_rep τF x y, h_edge_rep τG (emb x) (emb y)]
       rw [hτ x, hτ y]
 
-/-- **FINAL PAPER-ROOT** — K=1 square moment identity, PROVED via
+/-- **Paper-root** — K=1 square moment identity, via
 Route 2 (rooted-profile span + orbit invariance + K→K=1 reduction).
 
 This is the genuine Lovász §3 bottleneck. Closes the
@@ -13510,7 +13510,7 @@ specialized to vertex (single-label) tuples.
 - The full rooted simple-graph family (paths + cycles + trees +
   arbitrary connected) suffices in all tested cases.
 
-**STATUS**: PROVED, via `rootedProfileEquiv_imp_vertexOrbitRel` — the FULL rooted
+**Proof**: via `rootedProfileEquiv_imp_vertexOrbitRel` — the FULL rooted
 simple-graph family (paths, trees, asymmetric shapes), i.e. the Lovász §3 rank
 theorem content.
 
@@ -13574,13 +13574,13 @@ theorem orbit_separation_by_simple_graph_K1 {T : ℕ}
 For K=1, the diagonal observable `B(ξ 0, ξ 0) = B(ξ' 0, ξ' 0)` follows
 from `tupleEquivSimple B W ξ ξ'` via:
 1. `tupleEquivSimple` at K=1 ⟹ all rooted profiles agree at (ξ 0, ξ' 0).
-2. Contrapositive of `rooted_profiles_separate_vertex_orbits` (PROVED via
+2. Contrapositive of `rooted_profiles_separate_vertex_orbits` (via
    `rootedProfileEquiv_imp_vertexOrbitRel`) ⟹ `vertexOrbitRel B W (ξ 0) (ξ' 0)`.
 3. Vertex orbit relation gives `σ` automorphism with `σ (ξ 0) = ξ' 0`.
 4. `B(ξ 0, ξ 0) = B(σ (ξ 0), σ (ξ 0)) = B(ξ' 0, ξ' 0)` by aut B-preservation.
 
-**Status**: PROVED (the separation input comes from the rank-theorem route;
-the historical #77 closed-walk paper-root was refuted and removed). -/
+The separation input comes from the rank-theorem route; the #77 closed-walk
+route is refuted (see above). -/
 theorem diagonal_observable_K1 {T : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i)

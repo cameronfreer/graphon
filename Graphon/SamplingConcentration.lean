@@ -24,9 +24,9 @@ the equal-measure `k`-partition):
    rounding `G` of `H_{W,x}` satisfies `d_□(H_{W,x}, K_G) < ε/2` with conditional
    probability `≥ 1 − η₂` — a finite union bound over cuts.
 
-`sampleGoodMassOn_of_events` (PROVED) recombines the two stages into the good-mass
+`sampleGoodMassOn_of_events` recombines the two stages into the good-mass
 bound demanded by `first_sampling_lemma`; the deterministic triangle route
-`cutDistance_ofSimpleGraphOn_le` is the gluing inequality. Both events were established
+`cutDistance_ofSimpleGraphOn_le` is the gluing inequality. Both events are established
 with `W`-uniform `k` (`point_sampling_event_of_large_k`, `rounding_event_of_large_k`),
 completing `first_sampling_lemma` (`Graphon/SamplingLemma.lean`).
 
@@ -37,7 +37,7 @@ completing `first_sampling_lemma` (`Graphon/SamplingLemma.lean`).
 * `Graphon.sampleWeightedGraphonOn` — the weighted sampled step graphon `H_{W,x}`
 * `Graphon.cutDistance_ofSimpleGraphOn_le` — the deterministic triangle route
 * `Graphon.PointSamplingEvent`, `Graphon.RoundingEvent` — the two concentration events
-* `Graphon.sampleGoodMassOn_of_events` — the PROVED reduction: both events ⟹ the
+* `Graphon.sampleGoodMassOn_of_events` — the reduction: both events ⟹ the
   good-mass bound of `first_sampling_lemma`
 -/
 
@@ -155,10 +155,10 @@ def RoundingEvent (W : Graphon α μ) (k : ℕ) [NeZero k] (ε η : ℝ) : Prop 
         cutDistance (sampleWeightedGraphonOn W x) (ofSimpleGraphOn G) < ε),
       sampleMassAt W x G
 
-/-- **The recombination** (PROVED): the two concentration events at accuracy `ε/2` yield
-the good-mass bound demanded by `first_sampling_lemma` at accuracy `ε`. Both events were
-subsequently established with `W`-uniform `k` (`point_sampling_event_of_large_k`,
-`rounding_event_of_large_k`), completing the First Sampling Lemma — no new independent
+/-- **The recombination**: the two concentration events at accuracy `ε/2` yield
+the good-mass bound demanded by `first_sampling_lemma` at accuracy `ε`. Both events are
+established with `W`-uniform `k` (`point_sampling_event_of_large_k`,
+`rounding_event_of_large_k`), which yields the First Sampling Lemma — no independent
 assumption is introduced anywhere in the chain. -/
 theorem sampleGoodMassOn_of_events (W : Graphon α μ) (k : ℕ) [NeZero k] (ε η₁ η₂ : ℝ)
     (hη₂ : 0 ≤ η₂)

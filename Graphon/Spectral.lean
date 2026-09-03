@@ -492,7 +492,7 @@ lemma multiOrbitSpan_mul_le {T K : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ 
   funext q
   exact multiEvalOnOrbit_glue B hB W p.2 p'.2 q
 
-/-- **Orthogonality ⟹ full rank** (the bounded wrapper, PROVED). If no nonzero
+/-- **Orthogonality ⟹ full rank** (the bounded wrapper). If no nonzero
 orbit-class function is orthogonal to all descended evals, the evals span
 everything. Via the dual-pairing map `Ψ : h ↦ ⟨h, ·⟩|_{multiOrbitSpan}`: its kernel
 is the orthogonal complement (`= 0` by hypothesis), so `Ψ` is injective, giving

@@ -44,18 +44,17 @@ annotation attribute; strip it when upstreaming).
 ## Roadmap (R1)
 
 * **R1b** `continuous_cdf_of_noAtoms` — the CDF of an atomless probability measure on `ℝ` is
-  continuous. **PROVED.**
+  continuous.
 * **R1c** `cdf_map_eq_volume_restrict` — the *probability integral transform*: the CDF pushes
-  an atomless probability measure on `ℝ` to Lebesgue measure on `[0,1]`. **PROVED.**
+  an atomless probability measure on `ℝ` to Lebesgue measure on `[0,1]`.
 * **R1d** the quantile map is a mod-0 inverse of the CDF (a.e. inverse both directions).
-  **PROVED.**
 * **R1e** transport a general atomless standard-Borel probability space to the real line via
   `embeddingReal`, then assemble the mod-0 iso
-  (`atomless_standardBorel_mod0MeasureIso_unitInterval`). **PROVED.**
+  (`atomless_standardBorel_mod0MeasureIso_unitInterval`).
 * **R2.0** the mod-0 → everywhere upgrade (`Mod0MeasureIso.toMeasurableEquiv`), via
-  null-reservoir patching and `exists_uncountable_null_measurableSet`. **PROVED.**
+  null-reservoir patching and `exists_uncountable_null_measurableSet`.
 
-**R2/R3** then derive the four cores by conjugating through the isomorphism — all complete.
+**R2/R3** then derive the four cores by conjugating through the isomorphism.
 -/
 
 open MeasureTheory ProbabilityTheory Filter Topology Set Function

@@ -28,9 +28,9 @@ will be developed with that blocker).
   atomless standard Borel space (equal-measure cells)
 * `Graphon.sampleGoodMassOn` — probability that the sampled graph lands within cut
   distance `ε` of `W`
-* (moved) `Graphon.first_sampling_lemma` and `Graphon.sampling_quantitative_icl` now
-  live in `Graphon/SamplingLemma.lean`, downstream of the two proved concentration
-  events — the First Sampling Lemma is PROVED there by recombination
+* `Graphon.first_sampling_lemma` and `Graphon.sampling_quantitative_icl`
+  live in `Graphon/SamplingLemma.lean`, downstream of the two concentration
+  events — the First Sampling Lemma is proved there by recombination
 
 ## References
 

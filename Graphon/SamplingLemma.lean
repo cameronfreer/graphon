@@ -73,7 +73,7 @@ theorem first_sampling_lemma_of_large_k (ε η : ℝ) (hε : 0 < ε) (hη : 0 < 
     (hpt _ h₁ hkz W) (hrd _ h₂ hkz W)
   linarith
 
-/-- **The First Sampling Lemma** (space-generic interface; PROVED).
+/-- **The First Sampling Lemma** (space-generic interface).
 
 For every accuracy `ε` and failure probability `η`, some sample size `k` works for
 EVERY graphon on the space simultaneously: the sampled graph `G(k, W)` lies within cut

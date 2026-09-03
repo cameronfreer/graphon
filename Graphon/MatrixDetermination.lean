@@ -5124,7 +5124,7 @@ structure needed for `product_trace_identity`:
   no-LL graph, via iterated `labeledEvalK_glue`. This handles the "glue
   no-LL graphs" half.
 
-The remaining gap (inside `product_trace_identity`) is no longer generic
+The content of `product_trace_identity` is not generic
 graph products, but specifically: **handling the accumulated multiplicity
 map on label-label edges across the list**. That is a decorated
 (no-LL graph × label-edge-multiplicity-map) layer, not a full multigraph
@@ -6843,13 +6843,10 @@ restructure cannot eliminate the content; what's needed is either:
   (c') Accept current state, with the algebraic chain wired through a
        single semantic root.
 
-**OFF-AXIS** (post-bridge consolidation): this theorem is **no longer**
-the canonical root. The active chain now routes through
-`multiLabeledEvalK_tupleEquiv_invariant` (the multigraph bridge,
-L7150). This `Dtr` theorem remains in the file as a documented
-generalization (its formerly narrowed `∃ a, lu0Mult a ≥ 1` case has
-since been proved), but is not on the active proof axis. Future
-sessions: do NOT route new content through this theorem. -/
+**OFF-AXIS**: this theorem is **not** the canonical root. The active chain
+routes through `multiLabeledEvalK_tupleEquiv_invariant` (the multigraph
+bridge). This `Dtr` theorem is kept as a documented generalization but is
+not on the active proof axis; do NOT route new content through it. -/
 /-! **Restricted invariance theorem** (with `h_noDiag` hypothesis) — the theorem itself
 lives below the multigraph bridge and is proved there; this note records the
 falsification analysis that motivates the `h_noDiag` restriction.
@@ -7094,7 +7091,7 @@ private theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
     { mult := M.mult, multNoLoop := M.multNoLoop }
   -- Route via h_orbit (Lovász Lemma 2.4 via Lemma 2.5 + change-of-variables).
   -- Uses `tupleEquivSimple_implies_orbit_via_2_5` (cycle-free; depended only
-  -- on Lemma 2.5, itself since proved) rather than `tupleEquivSimple_implies_orbit`
+  -- on Lemma 2.5) rather than `tupleEquivSimple_implies_orbit`
   -- (depends on the triangular cycle Lemma 2.4 ↔ k1_orbit_sep_aux ↔
   -- of_const_on_orbit).
   have h_simple_lovasz : Graphon.Lovasz.tupleEquivSimple B W ξ ξ' := by
@@ -7292,7 +7289,7 @@ coordinate `a : Fin K`,
 ∑ t : Fin T, W t * B (ξ a) t ^ 2 = ∑ t : Fin T, W t * B (ξ' a) t ^ 2.
 ```
 
-**PROVED** (modulo `multiLabeledEvalK_tupleEquiv_invariant`): instantiate
+**Proof** (from `multiLabeledEvalK_tupleEquiv_invariant`): instantiate
 the bridge with the multigraph at level K, n = 1 unlabeled vertex (at
 position K in `Fin (1 + K)`), with a single multi-edge of multiplicity 2
 between label `a` and the unlabeled vertex K. The evaluation
@@ -8426,8 +8423,7 @@ Infrastructure for Path (d) — the Lovász A_k algebra argument — following
 the user's bounded "infrastructure only" directive. Defines the
 tupleEquiv-quotient, the simple-graph evaluation subalgebra on it, and
 the three structural facts (constants / multiplication / point-separation).
-Fullness is stated as a dual of `functional_span_zero` (initially a
-stub; since proved). -/
+Fullness is stated as a dual of `functional_span_zero`. -/
 
 /-- **Step 1 (setoid)**: tupleEquiv as a setoid on `Fin K → Fin T`. -/
 private def tupleClassSetoid (T K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ) :
@@ -9138,13 +9134,12 @@ case through `tr_k_binary_product_descends`, which routes through
 `Ak_trace_stable_generators`, which (below) routes through
 `weightedInnerProduct_descends`. The cycle confirms this is the
 *precise* Lovász connection-matrix frontier — not a Lean bookkeeping
-artifact. Further progress requires the paper-faithful connection-matrix
-argument (or the graph-gadget route via `labeledEvalK_glue`) — both
-since proved.
+artifact. Closing it requires the paper-faithful connection-matrix
+argument (or the graph-gadget route via `labeledEvalK_glue`).
 
-**Wiring.** `Ak_trace_stable_generators` (below) is now a proved
-corollary of `weightedInnerProduct_descends` via pointwise reshape of
-`tr_k`-of-product into `connCol`-inner-product form. -/
+**Wiring.** `Ak_trace_stable_generators` (below) is a corollary of
+`weightedInnerProduct_descends` via pointwise reshape of `tr_k`-of-product into
+`connCol`-inner-product form. -/
 
 /-- Column view of the connection matrix: `connCol B W L ξ t` is the
 product of `labeledEvalK` evaluations of `L` at the labeled tuple
@@ -9341,7 +9336,7 @@ private lemma weightedInnerProduct_descends_singleton {T K : ℕ}
   simp_rw [connCol_nil, connCol_singleton, mul_one]
   exact tr_k_singleton_descends B hB W n F h
 
-/-- **Generator-pair trace stability** — PROVED as a corollary of
+/-- **Generator-pair trace stability** — a corollary of
 `weightedInnerProduct_descends`.
 
 The `tr_k`-trace of a product of two `simpleGraphEvalOn` generators
@@ -9565,8 +9560,8 @@ private theorem tr_k_generator_descends {T K : ℕ}
     rw [h_ξ, h_ξ']
     exact tr_k_binary_product_descends B hB W hW htwin [p] (q :: rest) h
 
-/-- **`tr_k_descends_to_A_k`** — the FULL trace-descent theorem, now
-PROVED as a wrapper over the generator theorem via
+/-- **`tr_k_descends_to_A_k`** — the FULL trace-descent theorem,
+a wrapper over the generator theorem via
 `simpleGraphEvalOn_spans` + linearity.
 
 Per user directive: the mathematical content lives entirely in
@@ -9641,10 +9636,10 @@ statement subsumes the parallel frontiers we have accumulated:
   - an appropriately-decorated `g` recovers
     `DecLabeledGraphTr.eval_tupleEquiv_invariant` (L6710).
 
-The remaining gap is therefore no longer "which functions are in the
-algebra" (Step 4 settled that) and no longer "is the star-multigraph
-descent the frontier" — it is **"does the trace functional descend to
-the quotient?"** That is the A_k frontier in its cleanest form. -/
+The essential content is therefore neither "which functions are in the
+algebra" (Step 4 settles that) nor "is the star-multigraph descent the
+frontier" — it is **"does the trace functional descend to the
+quotient?"** That is the A_k frontier in its cleanest form. -/
 
 /-- **Trace measure**: W-weighted pushforward of `t : Fin T` onto the
 `(K+1)`-tuple class of `Fin.snoc ξ t`. For `ξ : Fin K → Fin T`,
@@ -9731,7 +9726,7 @@ private theorem traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv {T K : ℕ}
   -- Each side is now `tr_k B W (simpleGraphEvalOn B W L) ξ/ξ'`.
   exact tr_k_generator_descends B hB W hW htwin L h
 
-/-- **Trace-measure class-invariance** — PROVED via the two-piece
+/-- **Trace-measure class-invariance** — via the two-piece
 A_k package (generator theorem + quotient fullness).
 
 **CANONICAL ROOT** (added per user's A_k/tr_k reframing directive):
@@ -9840,15 +9835,13 @@ handle via the descent-then-span chain above. -/
 /-! ##### Kernel-side refactor (per user directive)
 
 The direct invariance theorem `starMultigraphEval_tupleEquiv_invariant_direct`
-is now PROVED via the two A_k pieces:
+is proved via the two A_k pieces:
   - `traceMeasure_eq_of_tupleEquiv` — trace descent for quotient-defined
-    functions (closed in the previous commit via the generator theorem
-    + quotient fullness).
+    functions (via the generator theorem + quotient fullness).
   - `starKernel_tupleEquiv_invariant` — kernel descent for the
     multigraph-valued function
-    `starKernel B m η := ∏_a B(η a.castSucc)(η last)^{m a}`.
-    The NEW frontier, making the remaining gap explicit as a pure
-    equality on tuples.
+    `starKernel B m η := ∏_a B(η a.castSucc)(η last)^{m a}`,
+    a pure equality on tuples.
 
 **Falsification gate passed** (from the previous stub's docstring):
   - `T = 2, K = 1`: 4096 (B, W) pairs (including non-symmetric B and
@@ -9891,11 +9884,10 @@ the star kernel agrees:
   starKernel B m η = starKernel B m η'.
 ```
 
-**Status**: STUB. This is the "multigraph kernel descent" piece of the
-user's two-family split. Proving it closes the full A_k package
-together with the already-proved `traceMeasure_eq_of_tupleEquiv`.
+This is the "multigraph kernel descent" piece of the two-family split;
+together with `traceMeasure_eq_of_tupleEquiv` it closes the full A_k package.
 
-**Strategy** (same as before): Lovász A_k algebra / polynomial identity
+**Strategy**: Lovász A_k algebra / polynomial identity
 in `ℝ[B_{ij}]`, applied at level `K+1`. The question reduces to: do
 multigraph B-power products descend to the `(K+1)`-tupleEquiv quotient?
 
@@ -9985,7 +9977,7 @@ private lemma starKernelClass_mk_snoc {T K : ℕ}
   show starKernel B m (Fin.snoc ξ t) = _
   exact starKernel_snoc B m ξ t
 
-/-- **Direct tupleEquiv-invariance of `starMultigraphEval`** — now PROVED
+/-- **Direct tupleEquiv-invariance of `starMultigraphEval`** —
 via the two-piece A_k package (trace descent + kernel descent).
 
 **CANONICAL ROOT** (added per user's A_k/tr_k reframing directive):
@@ -10354,7 +10346,7 @@ private theorem tupleEquiv_power_sum_invariance {T K : ℕ}
 declared **after** `tupleEquiv_implies_tupleOrbitRel` (the main theorem)
 since they delegate to it directly. The original Claim 4.3/4.4 ext design
 called for an upward-extension proof avoiding deficit-1 IHs, but with
-the main theorem available (its non-surjective branch since proved via
+the main theorem available (its non-surjective branch closed via
 the Lovász-module bridge), direct delegation is the simplest closure. -/
 
 /-! #### Level 5 — main theorem via WF induction

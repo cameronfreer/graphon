@@ -34,14 +34,14 @@ Replace orbit-separators (which need the cycle) by **definitional** separators:
 
 1. **Algebra atoms.** `algebraAtomRel B W i j ↔ ∀ f ∈ InRootedProfileSpan, f i = f j`.
    This relation is *exactly* `rootedProfileEquiv` (`algebraAtomRel_iff_rootedProfileEquiv`,
-   PROVED below — both directions are trivial). The atoms of the rooted-profile algebra
+   below — both directions are trivial). The atoms of the rooted-profile algebra
    are the rooted-profile-equivalence classes, NOT (a priori) the orbits.
 
 2. **Idempotent indicators.** For ¬`rootedProfileEquiv i j` a separating rooted profile
    exists **by definition** (`exists_rpe_separator` — no `k1_orbit_sep_aux`!). Lagrange
    interpolation over the atom partition then puts each atom indicator `rpeIndicator`
    in the span (`rpeIndicator_mem_span`), and every atom-invariant function follows
-   (`InRootedProfileSpan.of_const_on_rpe`). Both PROVED below, non-circularly —
+   (`InRootedProfileSpan.of_const_on_rpe`). Both proved below, non-circularly —
    only `hB` (symmetry) is needed, no `hW`/`htwin`.
 
 3. **The hard theorem** (the genuine #70 content, proved in
@@ -65,7 +65,7 @@ Replace orbit-separators (which need the cycle) by **definitional** separators:
    (palindromic decorated cycles) to the **singular-`M` stratum**:
    `gap_g = ⟨D_g ε, P_ker(M) (D_g u)⟩_W`, zero whenever `det B ≠ 0`.
 
-5. **Decorated tree observables** (PROVED, §6): the span is closed under the
+5. **Decorated tree observables** (§6): the span is closed under the
    weighted adjacency step `weightedAdj` (pendant attachment), so all tree
    observables with atom-invariant decorations descend; in particular classwise
    FIRST moments descend (`first_moment_descends_of_rootedProfileEquiv`) — the
@@ -624,7 +624,7 @@ theorem InRootedProfileSpan.weightedAdj {T : ℕ} {B : Fin T → Fin T → ℝ}
   refine Finset.sum_congr rfl fun t _ => ?_
   ring
 
-/-- **Classwise first moments descend** (attack steps 1+3, PROVED).
+/-- **Classwise first moments descend** (attack steps 1+3).
 
 If `i, j` are rooted-profile equivalent and `g` is any atom-invariant
 decoration (e.g. the atom indicator `1_C`), the `g`-decorated first moments
@@ -643,14 +643,13 @@ theorem first_moment_descends_of_rootedProfileEquiv {T : ℕ}
 
 /-! **The K=1 simple-graph rank theorem** (#70 paper-root) and its two packaged
 corollaries `algebraAtomRel_eq_vertexOrbitRel` and
-`InRootedProfileSpan.of_const_on_orbit_noncircular` now live in
+`InRootedProfileSpan.of_const_on_orbit_noncircular` live in
 `Graphon/CycleKrylov.lean` — they are reduced there, via the DIRECT multigraph
-route, to the single focused bridge `tupleEquivMulti_of_rootedProfileEquiv`
-(simple-rpe ⟹ multigraph tuple-equivalence at K=1) composed with the PROVED
+route, to the single bridge `tupleEquivMulti_of_rootedProfileEquiv`
+(simple-rpe ⟹ multigraph tuple-equivalence at K=1) composed with the
 multigraph Lemma 2.4 `tupleEquivMulti_implies_orbit`. The reduction needs the
 decorated/classwise power-sum machinery (`decoratedPowerSum_descends_*`), which is
-downstream of this file, so the declarations were relocated to break the import
-cycle. The three leaf decls had no upstream consumers. -/
+downstream of this file, so the declarations live there to avoid an import cycle. -/
 
 /-! ### §8 — The minimal obstruction: square-moment descent
 
@@ -863,7 +862,7 @@ theorem closedWalkProfile_eq_wInner {T : ℕ} (B : Fin T → Fin T → ℝ)
 /-- **Cycle difference identity, recursive/algebraic form** (Step 1 of the
 cycle–Krylov proof): closed-walk profile differences are exactly
 `⟨ε, M^[q] u⟩_W`. The graph side — `rootedProfile` of `rootedCycleGraph`
-equals `closedWalkProfile` — is the separate plumbing slice, PROVED as
+equals `closedWalkProfile` — is the separate plumbing slice, proved as
 `rootedProfile_rootedCycleGraph_eq_closedWalkProfile` in `Lovasz.lean`. -/
 theorem closedWalkProfile_sub_eq_wInner {T : ℕ} (B : Fin T → Fin T → ℝ)
     (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ) (i j : Fin T) (q : ℕ) :

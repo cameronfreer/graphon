@@ -68,7 +68,7 @@ theorem WeaklyIsomorphic.refl (W : Graphon α μ) : WeaklyIsomorphic W W :=
 
 /-- Weak isomorphism is symmetric.
 
-Note: With the two-sided cut distance definition, this no longer requires `StandardBorelSpace`. -/
+Note: with the two-sided cut distance definition, this does not require `StandardBorelSpace`. -/
 theorem WeaklyIsomorphic.symm {U W : Graphon α μ}
     (h : WeaklyIsomorphic U W) : WeaklyIsomorphic W U := by
   unfold WeaklyIsomorphic at *

@@ -749,9 +749,9 @@ The proof decomposes into three steps (all inputs now proved):
    across type classes, the pullback `pullback (mkStepGraphon P c') e` then
    equals `mkStepGraphon P c` a.e.
 
-**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin cell-alignment core, proved in campaign R2)
-only — the algebraic core `matrix_quotient_of_weightedHomSum_eq` (Lovász [2012]
-Theorem 5.30) is PROVED as of 2026-07-06 (axiom-clean). -/
+**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin cell-alignment
+core) and the algebraic core `matrix_quotient_of_weightedHomSum_eq` (Lovász [2012]
+Theorem 5.30), both axiom-clean. -/
 private theorem exists_pullback_eq_of_step_homDensity_eq
     (P : MeasurablePartition α μ) (c c' : Set α → Set α → ℝ)
     (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
@@ -978,8 +978,8 @@ measure-preserving bijection `e` with `pullback (mkStepGraphon P c') e = mkStepG
 Then `cutDistance_pullback_eq_zero` gives `cutDistance W' (pullback W' e) = 0`,
 and substituting the pullback equality yields the result.
 
-**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core, proved in R2) only —
-the algebraic core is PROVED as of 2026-07-06. -/
+**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core) and
+the algebraic core `matrix_quotient_of_weightedHomSum_eq`. -/
 private theorem cutDistance_zero_of_step_homDensity_eq
     (P : MeasurablePartition α μ) (c c' : Set α → Set α → ℝ)
     (hc_symm : ∀ S ∈ P.parts, ∀ T ∈ P.parts, c S T = c T S)
@@ -1043,11 +1043,11 @@ For partitions with at most K cells, the quantitative step ICL gives parameters
 as delta decreases, this constrains delta from below. A solution always exists
 because for fixed K, the step ICL gives fixed positive delta_step.
 
-**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin cell-alignment core, proved in campaign R2)
-only, via `cutDistance_zero_of_step_homDensity_eq` — the algebraic core
-`matrix_quotient_of_weightedHomSum_eq` (Lovasz [2012] Theorem 5.30) is PROVED as of
-2026-07-06 (axiom-clean). The simultaneous regularity is a standard extension of
-Frieze-Kannan and does not introduce any new axiom. -/
+**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin cell-alignment
+core), via `cutDistance_zero_of_step_homDensity_eq`, and the algebraic core
+`matrix_quotient_of_weightedHomSum_eq` (Lovasz [2012] Theorem 5.30), axiom-clean. The
+simultaneous regularity is a standard extension of Frieze-Kannan and does not
+introduce any new axiom. -/
 /-- Simultaneous weak regularity lemma for a pair of graphons.
 
 For any δ > 0, there exists a partition P with at most `4 ^ (2 * (⌈1/δ²⌉ + 1))` parts
@@ -2482,9 +2482,9 @@ private theorem stepify_homDensity_transfer
     _ ≤ (m * m : ℝ) * δ + (m * m : ℝ) * δ := add_le_add hUside hWside
     _ = 2 * (m * m : ℝ) * δ := by ring
 
-/-- **THE headline parameter selection** — formerly the single remaining gap in the assembly
+/-- **THE headline parameter selection** — the key step in the assembly
 of `cutDistance_zero_of_homDensity_eq`, discharged via the sampling route (First Sampling
-Lemma, proved 2026-07-08); the whole chain is now fully axiom-clean.
+Lemma); the whole chain is axiom-clean.
 
 It demands, for each accuracy `ε`, a regularity quality `δ`, a density tolerance
 `δ_step`, and a graph size `m` such that (a) `δ ≤ ε/3`, (b) the counting-bridge
