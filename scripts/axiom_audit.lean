@@ -212,6 +212,9 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.SaturatedAtom.anchor_act
 #print axioms RelSignature.SaturatedAtom.event_act
 #print axioms RelSignature.SaturatedAtom.event_mem
+#print axioms RelSignature.SaturatedAtom.extendPerm_apply
+#print axioms RelSignature.SaturatedAtom.relabel_preimage_eq_of_agree
+#print axioms RelSignature.SaturatedAtom.anchor_eq_image
 #print axioms MeasureTheory.Measure.MeasureDense.mono
 #print axioms RelSignature.measureDense_seedOf
 #print axioms RelSignature.InfiniteRelExchangeableLaw.nonempty_coherentBasis
