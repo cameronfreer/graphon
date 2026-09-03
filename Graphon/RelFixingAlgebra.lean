@@ -58,7 +58,8 @@ variable {S : RelSignature}
 /-- **The `A`-fixing stabilizer**: a sortwise permutation family with common finite support
 fixing every tagged vertex of `A`. At `A = ∅` this is `SortwiseFinSupp` — the acting group
 of `RelStructure.invariantAlgebra`. -/
-def SortwiseFixing (A : Finset (Σ s : S.Srt, Vinfinite S s)) (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) : Prop :=
+def SortwiseFixing (A : Finset (Σ s : S.Srt, Vinfinite S s)) (σ : ∀ _ : S.Srt, Equiv.Perm ℕ) :
+    Prop :=
   SortwiseFinSupp (S := S) σ ∧ ∀ v ∈ A, σ v.1 v.2 = v.2
 
 /-- **Finitely many active sorts**: a sortwise permutation family that is the identity on every

@@ -90,7 +90,7 @@ an arbitrary exchangeable law, with no dissociation and no `NoNullary`.
 
 Stated over the whole vertex index rather than a fixed finite family: `iCondIndepFun` already
 quantifies over finite subfamilies. -/
-theorem iCondIndepFun_of_fixingAlgebra_singleton [Fintype S.Srt] [Countable S.Rel]
+theorem iCondIndepFun_of_fixingAlgebra_singleton [Countable S.Rel]
     (M : InfiniteRelExchangeableLaw S) {β : (Σ s : S.Srt, Vinfinite S s) → Type*}
     [∀ v, MeasurableSpace (β v)] {Y : ∀ v, RelStructure S (Vinfinite S) → β v}
     (hY : ∀ v, Measurable[RelStructure.fixingAlgebra {v}] (Y v)) :
@@ -140,7 +140,7 @@ open scoped Classical in
 /-- **Mutual conditional independence of the raw singleton blocks** given the invariant
 σ-algebra, for an arbitrary exchangeable law. An instance of the peel above, phrased entirely in
 raw relation coordinates — no coherent basis appears. -/
-theorem iCondIndepFun_blockMap_singleton [Fintype S.Srt] [Countable S.Rel]
+theorem iCondIndepFun_blockMap_singleton [Countable S.Rel]
     (M : InfiniteRelExchangeableLaw S) :
     iCondIndepFun RelStructure.invariantAlgebra (RelStructure.invariantAlgebra_le (S := S))
       (fun v : Σ s : S.Srt, Vinfinite S s => blockMap ({v} : Finset (Σ s : S.Srt, Vinfinite S s)))

@@ -198,7 +198,7 @@ open scoped Classical in
 structure marginal the law, rank-one factor resolved by a measurable latent read, structure and
 latent conditionally independent given the factor — the singleton blocks are **mutually**
 conditionally independent given the full latent σ-algebra. -/
-theorem iCondIndepFun_blockMap_singleton_comap_snd [Fintype S.Srt] [Countable S.Rel]
+theorem iCondIndepFun_blockMap_singleton_comap_snd [Countable S.Rel]
     {P : Measure (RelStructure S (Vinfinite S) × RankLatentSpace S 1)}
     [IsProbabilityMeasure P]
     (hfst : P.map Prod.fst = (M.law : Measure (RelStructure S (Vinfinite S))))

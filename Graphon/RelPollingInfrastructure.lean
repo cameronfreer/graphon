@@ -24,9 +24,13 @@ Three declarations are public, and are the whole intended interface:
 * `InfiniteRelExchangeableLaw.measurePreserving_relabel` — the sortwise action is measure
   preserving under any exchangeable law, for *every* permutation family, not merely finitely
   supported ones;
-* `InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra` — a
-  `fixingAlgebra A`-event is invariant modulo the law under every sortwise permutation fixing
-  `A`, which is what supplies the engine's `f ∘ T =ᵐ f`.
+* `InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra_of_finiteActive` — a
+  `fixingAlgebra A`-event is invariant modulo the law under every **finite-active** sortwise
+  permutation fixing `A` (identity outside finitely many sorts), which is what supplies the
+  engine's `f ∘ T =ᵐ f`; countable-only, since the approximating finitely supported permutation
+  is the identity on the inactive sorts;
+* `InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra` — the `[Fintype S.Srt]`
+  corollary for an arbitrary sortwise permutation fixing `A`.
 
 The `L²` squeeze and the conditional-expectation transport along `MeasurableSpace.comap` remain
 private: they are the proof of the tail engine, not part of its interface.

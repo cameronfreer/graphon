@@ -68,7 +68,7 @@ open scoped Classical in
 
 Stated over the whole vertex index rather than for a fixed finite family: `iCondIndepFun` already
 quantifies over finite subfamilies, so finite families are a corollary. -/
-theorem iCondIndepFun_exactMap_singleton [Fintype S.Srt] [Countable S.Rel] :
+theorem iCondIndepFun_exactMap_singleton [Countable S.Rel] :
     iCondIndepFun RelStructure.invariantAlgebra (RelStructure.invariantAlgebra_le (S := S))
       (fun v : Σ s : S.Srt, Vinfinite S s => B.exactMap {v})
       (M.law : Measure (RelStructure S (Vinfinite S))) :=

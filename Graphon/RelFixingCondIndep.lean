@@ -34,8 +34,10 @@ This first layer is the measure-theoretic engine, all `private`:
   abstracted.
 
 No completion and no law enter any definition here. On top of the engine sit the **a.e.
-invariance** of `fixingAlgebra A`-events under *every* sortwise permutation fixing `A`
-(`relabel_preimage_ae_eq_of_fixingAlgebra`, the `f ∘ T =ᵐ f` input), and the **poll geometry**
+invariance** of `fixingAlgebra A`-events under every **finite-active** sortwise permutation
+fixing `A` (`relabel_preimage_ae_eq_of_fixingAlgebra_of_finiteActive`, the `f ∘ T =ᵐ f` input;
+the poll permutation is finite-active since it moves vertices only on the sorts of the poll
+block, which is why no `[Fintype S.Srt]` appears anywhere in this file), and the **poll geometry**
 the engine runs on:
 
 * `pollIndex` / `pollShift` — poll slots along a two-sided `ℤ`-orbit transported to `ℕ`. The
@@ -379,8 +381,8 @@ open Filter Topology
 variable {S : RelSignature}
 
 /-- **The polled reduction**, in the raw form the poll geometry produces it: for a
-square-integrable `f` that is a.e. invariant under every sortwise permutation fixing `A`,
-conditioning on `fixingAlgebra B` is conditioning on `fixingAlgebra C`, whenever `B` splits as
+square-integrable `f` that is a.e. invariant under every finite-active sortwise permutation fixing
+`A`, conditioning on `fixingAlgebra B` is conditioning on `fixingAlgebra C`, whenever `B` splits as
 `C ⊔ D` with `D` laid out below the bound `N` and disjoint from `A ∪ C`.
 
 The proof is Austin's polling argument (arXiv:0801.1698, Prop. 3.12) run on the tail joins:
@@ -464,8 +466,8 @@ private theorem condExp_fixingAlgebra_ae_eq_of_poll
 
 open scoped Classical in
 /-- **The core reduction** (Austin, arXiv:0801.1698, Prop. 3.12; Kallenberg, *Probabilistic
-Symmetries*, Lemma 7.6): for square-integrable `f` a.e. invariant under every sortwise
-permutation fixing `A`, conditioning on `fixingAlgebra B` is conditioning on
+Symmetries*, Lemma 7.6): for square-integrable `f` a.e. invariant under every finite-active
+sortwise permutation fixing `A`, conditioning on `fixingAlgebra B` is conditioning on
 `fixingAlgebra (A ∩ B)`. The poll blocks are the deep copies of `B \ A`, laid out above the
 common bound of `A` and `B`. -/
 private theorem condExp_fixingAlgebra_ae_eq_condExp_inter
@@ -497,8 +499,9 @@ open scoped Classical in
 /-- **The reduction for a fixing-algebra event** — the form the conditional-independence
 assembly consumes: `E[1_E | 𝓕 B] =ᵐ E[1_E | 𝓕 (A ∩ B)]` for every `fixingAlgebra A`-event `E`.
 The invariance hypothesis is supplied by stage 1b
-(`relabel_preimage_ae_eq_of_fixingAlgebra`), which upgrades the finitary invariance built into
-`fixingAlgebra A` to invariance under *every* sortwise permutation fixing `A`. -/
+(`relabel_preimage_ae_eq_of_fixingAlgebra_of_finiteActive`), which upgrades the finitary
+invariance built into `fixingAlgebra A` to invariance under every finite-active sortwise
+permutation fixing `A`. -/
 private theorem condExp_indicator_fixingAlgebra_ae_eq_condExp_inter
     [Countable S.Rel] (M : InfiniteRelExchangeableLaw S)
     (A B : Finset (Σ s : S.Srt, Vinfinite S s)) {E : Set (RelStructure S (Vinfinite S))}
