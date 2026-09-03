@@ -277,8 +277,8 @@ k cells enumerated by `ι : Fin k → Set α`, and a permutation `π : Equiv.Per
 such that `μ(ι i) = μ(ι (π i))` for all i, there exists a MP bijection
 `e : α ≃ᵐ α` that maps each cell `ι i` a.e. to `ι (π i)`.
 
-**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin cell-alignment core, proved in campaign R2).
-The construction proceeds by applying Rokhlin's theorem to each pair of equal-measure
+**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin cell-alignment
+core). The construction proceeds by applying Rokhlin's theorem to each pair of equal-measure
 cells `(ι i, ι (π i))` independently, producing a MP bijection on each cell, then
 assembling them into a global bijection. -/
 private theorem exists_cell_permuting_mp_bijection
@@ -430,7 +430,8 @@ private theorem mkStepGraphon_eq_of_ae_coeff
 if type class weight sums match, there exists a MP bijection mapping each
 sub-enumerated cell to a cell in the corresponding type class.
 
-**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin cell-alignment core, proved in campaign R2).
+**Rests on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin cell-alignment
+core).
 Requires `[NullSingletonClass μ]` for mass redistribution within type classes. -/
 private theorem exists_type_class_mp_bijection
     (P : MeasurablePartition α μ) {k k' : ℕ} (ι : Fin k → Set α)
@@ -2514,11 +2515,11 @@ NOT proved by regularity bookkeeping for exactly this reason):
    restriction of the full quantitative ICL to step graphons; no regularity-only proof
    is known).
 
-**DISCHARGED (2026-07-07)** via route 1: `sampling_quantitative_icl`
+**Discharged** via route 1: `sampling_quantitative_icl`
 (`Graphon/SamplingICL.lean`) is the `K`-independent quantitative ICL — for ALL graphon
 pairs, not just step pairs — proved from the sampled-graph distribution by the
-event-intersection argument; `first_sampling_lemma` itself was subsequently proved
-(2026-07-08, `Graphon/SamplingLemma.lean`), so the chain is fully axiom-clean.
+event-intersection argument on top of `first_sampling_lemma`
+(`Graphon/SamplingLemma.lean`), so the chain is axiom-clean.
 The partition-cardinality clause below is vacuously satisfied (never consulted). -/
 private theorem headline_parameter_selection (ε : ℝ) (hε : 0 < ε) :
     ∃ (δ : ℝ) (_ : 0 < δ) (δ_step : ℝ) (_ : 0 < δ_step) (m : ℕ),
@@ -2556,10 +2557,10 @@ private theorem headline_parameter_selection (ε : ℝ) (hε : 0 < ε) :
 /-- **Algebraic determination**: two graphons with equal homomorphism densities
 for all finite graphs have cut distance zero (are weakly isomorphic).
 
-FULLY ASSEMBLED (2026-07-06) modulo the single named parameter-selection lemma
-`headline_parameter_selection`. For any ε > 0: obtain `(δ, δ_step, m)` from the
-selection lemma; apply `simultaneous_regularity U W δ` to get a partition `P` within
-its cardinality bound with both stepifications `δ`-close in cut norm; the counting
+Assembled from the parameter-selection lemma `headline_parameter_selection`. For any
+ε > 0: obtain `(δ, δ_step, m)` from the selection lemma; apply
+`simultaneous_regularity U W δ` to get a partition `P` within its cardinality bound
+with both stepifications `δ`-close in cut norm; the counting
 bridge `stepify_homDensity_transfer` converts the EXACT density equality of `U, W`
 into `2(m·m)δ < δ_step` density closeness of the stepifications; the selection lemma's
 step ICL gives `cutDistance(stepify P U, stepify P W) < ε/3`; two triangle inequalities

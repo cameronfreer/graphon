@@ -13,8 +13,7 @@ import Mathlib.MeasureTheory.Constructions.SimpleGraph
 # The finite sample law of a graphon (S2)
 
 Bundles the sampled-graph masses `sampleMass` (`Graphon/Sampling.lean`) into a finite
-probability law and develops its algebraic API (issues #20 and #22; route vetted
-2026-07-10):
+probability law and develops its algebraic API (issues #20 and #22):
 
 * `Graphon.upperSum` / `Graphon.upperSum_injective` — the finite zeta/upper transform on
   `SimpleGraph (Fin k)` and its injectivity via Möbius inversion

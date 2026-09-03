@@ -9,10 +9,9 @@ import Graphon.SamplingCoordinates
 # Exchangeable graph laws and graphon mixtures (issue #33, foundations)
 
 An exchangeable (infinite) random graph is presented by its consistent finite marginals —
-the form in which the Diaconis–Janson content is cleanest. (Historically this also
-side-stepped laws on `SimpleGraph ℕ` while no extension theorem was available; the
-equivalent infinite formulation now exists — `Graphon/InfiniteLaw.lean` constructs the
-unique extension by compactness, and `Graphon/InfiniteExchangeability.lean` packages
+the form in which the Diaconis–Janson content is cleanest. (The equivalent infinite
+formulation is also available — `Graphon/InfiniteLaw.lean` constructs the unique extension
+by compactness, and `Graphon/InfiniteExchangeability.lean` packages
 `ExchangeableGraphLaw ≃ InfiniteExchangeableGraphLaw`.)
 
 * `Graphon.ExchangeableGraphLaw` — a family `law k : PMF (SimpleGraph (Fin k))`
@@ -28,7 +27,7 @@ unique extension by compactness, and `Graphon/InfiniteExchangeability.lean` pack
 
 The Diaconis–Janson correspondence (issue #33) states the converse: every exchangeable
 graph law is a **unique** graphon mixture. This file provides its objects and the easy
-direction; the representation theorem itself is the campaign target.
+direction; the representation theorem itself is proved downstream.
 -/
 
 open MeasureTheory

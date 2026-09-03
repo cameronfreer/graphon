@@ -49,9 +49,9 @@ namespace Graphon
 
 variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
-/-- Build a `MeasurablePartition` with `K` cells having prescribed measures. (Moved here
-from `Graphon/InverseCounting.lean`, 2026-07-07, and de-privatized so the sampling layer
-can build finite-graph embeddings on arbitrary atomless standard Borel spaces.) -/
+/-- Build a `MeasurablePartition` with `K` cells having prescribed measures (used by the
+sampling layer to build finite-graph embeddings on arbitrary atomless standard Borel
+spaces). -/
 theorem exists_partition_with_measures {K : ℕ}
     (w : Fin K → ℝ) (hw_nn : ∀ i, 0 ≤ w i) (hw_sum : ∑ i, w i = 1) :
     ∃ (P : MeasurablePartition α μ) (ι : Fin K → Set α),

@@ -1709,21 +1709,19 @@ theorem rootedProfile_k23Arms_sub_eq_polarizedCubeObs {T : ℕ}
   refine Finset.sum_congr rfl fun t _ => ?_
   ring
 
-/-! ### The Hadamard-power lift (historical planning note; since closed)
+/-! ### The Hadamard-power lift
 
-**Historical note (resolved)**: this section's "open content" has since
-been closed — `powerSum_descends_of_rootedProfileEquiv` is proved below
-for ALL `k` (k = 3 via the K₂,₃-arms bridge, k ≥ 4 via the K₂,ₖ-arms
-bridge). The analysis below is retained as the design record.
+`powerSum_descends_of_rootedProfileEquiv` is proved below for ALL `k` (k = 3
+via the K₂,₃-arms bridge, k ≥ 4 via the K₂,ₖ-arms bridge).
 
-With the square moment closed, the route to the full rank theorem
+Given the square moment, the route to the full rank theorem
 `vertexOrbitRel_of_rootedProfileEquiv` runs through ALL weighted power sums
-of the rows: `powerSum_descends_of_rootedProfileEquiv` below (k ≥ 3 was the
-open content), then `weighted_powersum_determines_measure` (proved, in
-`Lovasz.lean`) recovers equality of the `W`-weighted row-value measures
+of the rows: `powerSum_descends_of_rootedProfileEquiv` below, then
+`weighted_powersum_determines_measure` (in `Lovasz.lean`) recovers equality
+of the `W`-weighted row-value measures
 (`rowValueMeasure_eq_of_rootedProfileEquiv`).
 
-**Status of k ≥ 3 at the time** (then the genuine open math): writing `ε = B i - B j`, the gap
+**Why k ≥ 3 is harder**: writing `ε = B i - B j`, the gap
 is `⟨ε, ρᵢ^{∘(k-1)} + ρᵢ^{∘(k-2)}∘ρⱼ + ⋯ + ρⱼ^{∘(k-1)}⟩_W` (Hadamard powers
 of the rows). The available rpe-killed observables with `d` root edges give
 `d`-leg kernels from the Hadamard-ordinary closure of walk kernels (theta
@@ -1753,18 +1751,18 @@ K₂,₂-with-arms graph IS the rooted cycle, recovering the proved case):
    = Σ_{a⃗≥1} c_{a₁}c_{a₂}c_{a₃} · ObsDiff(a⃗) = 0`. ∎
 Only `hB`, `hW` needed.
 
-**How it was found**: the LM falsification run (k=2 harness, cube gap pinned)
-went infeasible at T=4 already at the base m≤3 family; at T=5 it was exactly
-feasible at m≤3 and the top m=4 separators were the four rooted K₂,₃'s —
-identifying the family, after which the identity is three lines.
+**Numerical identification of the family**: the LM falsification run (k=2
+harness, cube gap pinned) is infeasible at T=4 already at the base m≤3
+family; at T=5 it is exactly feasible at m≤3 and the top m=4 separators are
+the four rooted K₂,₃'s — identifying the family, after which the identity is
+three lines.
 
-**Superseded analysis** (kept as history; the earlier residual-branch frontier
-is BYPASSED by the right family): in eigenbasis coordinates the theta/wedge/
-triangle-wedge families force `F ≡ 0` generically but left open the branch
-`G = 0 ∧ f_λf_μ = -g_λg_μ ≠ 0 ∧ F ≠ 0`; the K₂,₃-arms constraints close the
-gap without case analysis.
+**Why weaker families do not suffice**: in eigenbasis coordinates the
+theta/wedge/triangle-wedge families force `F ≡ 0` generically but leave open
+the branch `G = 0 ∧ f_λf_μ = -g_λg_μ ≠ 0 ∧ F ≠ 0`; the K₂,₃-arms constraints
+close the gap without case analysis.
 
-**Formalization plan** (as executed): trilinear polarization lemma
+**Formalization structure**: trilinear polarization lemma
 (generalizing `wInner_sub_iter_add`), the direct-sum common-coefficient lemma
 (from `inner_eq_zero_of_orthogonal_pos_powers`'s projection core applied to
 `E ⊕ E` — extract the span-membership statement), and the K₂,₃-arms graph
@@ -1969,7 +1967,7 @@ theorem k2kArmsStructured_edgeFinset (k : ℕ) (armLen : Fin k → ℕ) :
   · rintro ⟨idx, rfl⟩
     exact k2kEdge_mem k armLen idx
 
-/-! #### Commit 1 — Fin/structured edge transport + edge-product factorization -/
+/-! #### Part 1 — Fin/structured edge transport + edge-product factorization -/
 
 -- `out_pair_eq'` lives upstream in `Lovasz.lean`, where the Cai–Govorov
 -- stack also needs it; all uses below resolve through the import chain.
@@ -2146,7 +2144,7 @@ theorem k2kArms_prod_eq_structured (k : ℕ) (armLen : Fin k → ℕ)
   rw [Finset.prod_congr rfl fun E' _ => key E']
   exact k2kArmsStructured_prod_eq k armLen B hB (fun x => τ (K2kVertex_equivFin k armLen x))
 
-/-! #### Commit 2 — structured eval expansion (reindex + per-arm collapse) -/
+/-! #### Part 2 — structured eval expansion (reindex + per-arm collapse) -/
 
 /-- The non-root part of `K2kVertex_equivFin` as a standalone equivalence
 `K2kRest ≃ Fin (k2kRestCard)` (definitionally the rest-equiv inside
@@ -2309,7 +2307,7 @@ theorem k2kRest_weight_prod (k : ℕ) (armLen : Fin k → ℕ) (W : Fin T → �
   · exact Fintype.prod_unique _
   · rw [← Finset.univ_sigma_univ, Finset.prod_sigma]
 
-/-- **Structured eval expansion** (Commit 2b): the rooted profile of `k2kArms`
+/-- **Structured eval expansion** (Part 2b): the rooted profile of `k2kArms`
 expands as a hub sum of an anchor sum of per-arm `armSum` kernels. -/
 theorem k2kArms_eval_expanded (k : ℕ) (armLen : Fin k → ℕ)
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
@@ -2381,7 +2379,7 @@ theorem k2kArms_eval_expanded (k : ℕ) (armLen : Fin k → ℕ)
   refine Finset.sum_congr rfl fun hub _ => ?_
   rw [Finset.mul_sum]
 
-/-! #### Commit 3 — wMulti collapse + polarization bridge -/
+/-! #### Part 3 — wMulti collapse + polarization bridge -/
 
 /-- **3.1 — `k2kArms` evaluation in `wMulti` form**: the rooted profile is the
 weighted `k`-linear form of the root-row walk kernels `M^{armLen l + 1}(B v)`. -/
@@ -2604,7 +2602,7 @@ theorem decorateAtSum_edge_disjoint {n m : ℕ} (F : SimpleGraph (Fin (n + 1)))
     subst ha0 hb0
     exact H.irrefl hadj'
 
-/-- **Edge-product transport + split** (Commit 1 steps 1–2): the `rootedProfile`
+/-- **Edge-product transport + split** (Part 1, steps 1–2): the `rootedProfile`
 edge product over `decorateAt F H u` factors, through `decorVertexEquiv`, into the
 `F`-edge product and the `H`-edge product. -/
 theorem decorateAt_prod_eq {T n m : ℕ} (B : Fin T → Fin T → ℝ)

@@ -27,7 +27,7 @@ The infinite law of an exchangeable graph law is invariant under every relabelin
   `ExchangeableGraphLaw ≃ InfiniteExchangeableGraphLaw`, with finite marginals and the
   infinite extension as inverse maps.
 
-This completes layers 1–2 of the Aldous–Hoover roadmap.
+This provides the first two layers of the Aldous–Hoover development.
 -/
 
 open MeasureTheory InfiniteGraph

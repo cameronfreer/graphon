@@ -9,7 +9,7 @@ import Graphon.LimitGraphon
 import Graphon.SamplingFinite
 
 /-!
-# Vertex-tail infrastructure (issue #97, Campaign A, PR 2)
+# Vertex-tail infrastructure (issue #97)
 
 Tail restriction of infinite graphs, finite-deletion stability of empirical-graphon
 limits, and tail measurability of the universal empirical limit:

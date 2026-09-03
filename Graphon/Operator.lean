@@ -14,9 +14,9 @@ import Mathlib.MeasureTheory.Integral.Prod
 This file defines the integral operator associated with a graphon and proves
 basic properties.
 
-**Experimental**: This module provides a pointwise kernel operator definition.
-The full L² operator API (continuous linear map, Hilbert-Schmidt, compactness)
-is future work.
+This module provides a pointwise kernel operator definition only; the full L²
+operator API (continuous linear map, Hilbert-Schmidt, compactness) is not developed
+here.
 
 ## Main definitions
 
@@ -263,7 +263,7 @@ theorem kernelOpFun_bound_ae (W : Graphon α μ) (f : α → ℝ) (hf : Integrab
 
 end KernelOperator
 
-/-! ### L² operator (future work)
+/-! ### L² operator (not developed here)
 
 The full development of the L² operator `T_W : Lp ℝ 2 μ →L[ℝ] Lp ℝ 2 μ` requires:
 1. Showing kernelOpFun maps L² to L² (uses L² boundedness)

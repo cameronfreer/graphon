@@ -102,7 +102,7 @@ allowed via edge-multiset semantics.
       at unlabeled), OR
   (b) a "vertex weight" multigraph operator analogous to self-loops.
 
-**Recommended next-session design** (separate-carrier approach):
+**Design for a self-loop extension** (separate-carrier approach):
 1. Add `MultiLabeledGraphLoop K n` carrier WITHOUT `multNoLoop`.
 2. Define `multiLabeledEvalKLoop` mirror including `B(τx, τx)^M.mult s(x,x)`.
 3. Lift current `MultiLabeledGraph` content via injection
@@ -383,14 +383,13 @@ theorem multiLabeledEvalK_ofSimple {T K n : ℕ}
 Bounded building blocks: `empty`, `add` (same-vertex pointwise
 addition), and the basic `multiLabeledEvalK_empty` reduction. The
 heavyweight `glue` (Lovász's F₁F₂ product, disjoint union of unlabeled
-vertices) is deferred to a future session — it requires a multigraph
-analog of `labeledEvalK_glue` (~250 lines).
+vertices) is defined further below — it requires a multigraph
+analog of `labeledEvalK_glue`.
 
 The corresponding evaluation factorization for `add` is non-trivial
 even at the same vertex set (W-product gets squared), so it's treated
 as a separate algebra step coupled with the disjoint-glue construction
-in Lovász's framework. Stub theorems are listed in module docstring
-above. -/
+in Lovász's framework. -/
 
 /-- The **empty multigraph**: zero multiplicity on every Sym2-pair. -/
 def MultiLabeledGraph.empty (K n : ℕ) : MultiLabeledGraph K n where
@@ -7141,8 +7140,8 @@ non-twin-free version).
     stronger statement).
 
 For the twin-free version that downstream consumers actually need,
-use `multiLabeledEvalK_tupleEquiv_invariant_twinFree` (already proved
-modulo `connection_matrix_rank_theorem`). This general bridge can be
+use `multiLabeledEvalK_tupleEquiv_invariant_twinFree` (a corollary of
+`connection_matrix_rank_theorem`). This general bridge can be
 treated as off-axis if all consumers can use the twin-free variant.
 
 Every multigraph evaluation descends through the simple-graph version
@@ -7550,8 +7549,8 @@ extract `W` preservation via the `∏ W(σ_inner)` factor. The pair is
 exactly `IsWeightedAutomorphism B W ψ`. (`Equiv.ofBijective` is used
 to convert the function-level bijection to `Equiv.Perm`.)
 
-**Status**: proved via IH-at-`T-1` route (matches `tupleEquiv_bijective_case`
-in `MatrixDetermination.lean:5339`). The proof restricts to the first
+**Proof**: via the IH-at-`T-1` route (matches `tupleEquiv_bijective_case`
+in `MatrixDetermination.lean`). The proof restricts to the first
 `T-1` coordinates (Claim 4.1), applies IH to extract an automorphism `σ`
 agreeing with `ψ` on those coordinates, then uses bijectivity to force
 agreement at the last coordinate. -/
@@ -8123,7 +8122,7 @@ evaluation gives `B (α j) a = B (α j) b`. Surjectivity transfers
 this to `∀ t, B t a = B t b`, hence `B a = B b` by symmetry,
 contradicting twin-freeness unless `a = b`.
 
-**Status**: proved by inlining the single-edge `labeledEvalK_singleEdge`
+**Proof**: by inlining the single-edge `labeledEvalK_singleEdge`
 form directly into the `tupleEquivSimple` unfolding (`n' = 0`,
 `Fintype.sum_unique` collapses the σ-sum). -/
 theorem tupleEquivSimple_ext_eq_of_surj {T k : ℕ}
@@ -9311,7 +9310,7 @@ If `ψ : Fin T → Fin T` is NOT orbit-related to the identity tuple (under
 twin-free `B` and `W > 0`), some simple labeled graph separates the
 evaluations of `id` and `ψ`.
 
-**Status**: proved as a thin wrapper around the general
+**Proof**: a thin wrapper around the general
 `orbit_separation_by_simple_graph`. The narrowed case is exposed as a
 named entry point for downstream consumers that only need separation
 against the identity tuple (e.g. the `id`-bijectivity branch of
@@ -10930,7 +10929,7 @@ theorem tupleEquivMulti_relabel {T K : ℕ} (B : Fin T → Fin T → ℝ) (hB : 
   rw [multiLabeledEvalK_relabel ρ M B hB W ξ, multiLabeledEvalK_relabel ρ M B hB W ξ']
   exact h n (M.relabel ρ)
 
-/-! ### Commit B.2 — weight preservation via trace-collapse -/
+/-! ### Weight preservation via trace-collapse -/
 
 /-- **Snoc injectivity** (isolated): if `ζ` is bijective and `Fin.snoc (ζ ∘ castSucc) t` is bijective,
 then `t = ζ (last)` (the only value completing the restriction to a bijection). -/
@@ -11367,7 +11366,7 @@ theorem multiLabeledEvalK_eq_inj_add_nonInj {T K n : ℕ} (M : MultiLabeledGraph
   exact (Finset.sum_filter_add_sum_filter_not Finset.univ
     (fun σ : Fin n → Fin T => Function.Injective σ) (multiLabeledTerm K n M B W φ)).symm
 
-/-! **Status note (do not delete) — resolved by the W² gate.** The natural next
+/-! **Why the injective variant is no easier (the W² gate).** The natural next
 step would be the full Möbius reduction
 `injMultiLabeledEvalK = ∑_P μ(⊥,P) · (constrained sum at P)`, each constrained
 sum reindexing to a `wexpMultiLabeledEvalKLoop` over the quotient (block-size
@@ -11377,10 +11376,10 @@ exponents + self-loops). But this route is **not a reduction**: the viability ga
 lie in the product-closed span `V` — and since they are orbit-invariant and `V` is
 a unital subalgebra, controlling them is *equivalent* to `dim V = #orbits`, i.e. to
 `multiEval_separates_orbits` itself. So `tupleEquivMulti ⟹ tupleEquivMultiInj`
-holds but is no easier than the goal. The genuine remaining content is the global
+holds but is no easier than the goal. The genuine content is the global
 weighted-hom-determines-isomorphism / connection-rank theorem. This scaffolding has
-no critical-path consumers (the residues stay `multiEval_separates_orbits` and
-`InTupleMultiEvalSpan.toSimple`). -/
+no critical-path consumers (the substantive inputs are `multiEval_separates_orbits`
+and `InTupleMultiEvalSpan.toSimple`). -/
 
 -- `InTupleSimpleEvalSpan.mul` lives below § RankTheorem, proved via
 -- `.toSimple` (with the `hB hW htwin` hypotheses it needs).
@@ -12959,12 +12958,11 @@ Closure path:
    `Matrix.IsSymm.eigenvectorBasis`).
 4. Equal spectral diagonals + twin-free → orbit upgrade.
 
-**Scaffolding deferred**: importing `Real.sqrt` machinery
+**Location of the spectral work**: importing `Real.sqrt` machinery
 (`Analysis.SpecialFunctions.Pow.*`) introduces simp lemmas that
-conflict with earlier proofs in this file. The spectral work
-should be done in a SEPARATE FILE `Graphon/Spectral.lean` that
-imports the necessary analysis modules without polluting Lovasz.lean.
-That refactor is the natural next-session task. -/
+conflict with proofs in this file, so the spectral work lives in the
+SEPARATE FILE `Graphon/Spectral.lean`, which imports the necessary
+analysis modules without polluting Lovasz.lean. -/
 
 /-! **K=1 spectral closing chain** (#77).
 

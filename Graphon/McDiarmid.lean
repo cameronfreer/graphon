@@ -8,7 +8,7 @@ import Mathlib.MeasureTheory.Constructions.Pi
 import Mathlib.MeasureTheory.Integral.Prod
 
 /-!
-# McDiarmid's bounded-differences inequality at MGF level (issue #72, item 1, commit 1)
+# McDiarmid's bounded-differences inequality at MGF level (issue #72, item 1)
 
 Mathlib has Hoeffding's LEMMA (`ProbabilityTheory.hasSubgaussianMGF_of_mem_Icc`) but no
 McDiarmid/Azuma inequality. This module proves the specialized MGF form needed for

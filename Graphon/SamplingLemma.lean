@@ -31,7 +31,7 @@ downstream of `SamplingICL` — prevented the assembly).
 Axiom accounting: both theorems are fully axiom-clean (standard axioms only). The four
 corrected Rokhlin cores they rest on (`exists_common_coupling_maps`, `cutNormDiff_pullback_le`,
 `exists_controlled_cell_alignment`, `exists_mpEquiv_cutNormDiff_lt_add`, via
-`cutDistance_triangle`) were all proved in campaigns R2–R3 from the atomless standard-Borel
+`cutDistance_triangle`) are all derived from the atomless standard-Borel
 measure-isomorphism theorem (`Graphon/MeasureIso.lean`, `Graphon/Overlay.lean`).
 -/
 

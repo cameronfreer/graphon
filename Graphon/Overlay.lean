@@ -7,9 +7,9 @@ import Architect
 import Graphon.Regularity
 
 /-!
-# The overlay theorem: an MP bijection nearly achieves the cut distance (Rokhlin campaign, R3)
+# The overlay theorem: an MP bijection nearly achieves the cut distance (Rokhlin core, R3)
 
-This file proves the last live Rokhlin core, `exists_mpEquiv_cutNormDiff_lt_add`: on an
+This file proves the Rokhlin core `exists_mpEquiv_cutNormDiff_lt_add`: on an
 atomless standard Borel probability space, the cut distance — an infimum over pairs of
 measure-preserving *maps* — is achieved up to any `ε > 0` by pulling back one graphon along a
 single measure-preserving **bijection**, leaving the other bare. This is the classical
@@ -28,14 +28,13 @@ mass exactly `λ_{ik}`, and `exists_controlled_cell_alignment` — applied twice
 answer bijection and once for a proof-only transfer — turns the matched refinements into the
 required measure-preserving `α ≃ᵐ α`. The only `ε` comes from step approximation.
 
-## Roadmap (R3)
+## Structure (R3)
 
 * **O1** `exists_disjoint_subsets_of_measures` — carve finitely many disjoint subsets of
   prescribed masses out of a measurable set; `MeasurablePartition.ofCells` — assemble a
   partition from disjoint cells plus a waste cell.
 * **O2** the exact step-overlay transfer (double alignment).
-* **O3** assembly: `exists_mpEquiv_cutNormDiff_lt_add` (relocated here from
-  `Graphon/CutDistance.lean`).
+* **O3** assembly: `exists_mpEquiv_cutNormDiff_lt_add`.
 -/
 
 open MeasureTheory Set Filter Finset

@@ -134,7 +134,7 @@ noncomputable def mkStepFun (P : MeasurablePartition α μ) (c : Set α → Set 
     (S ×ˢ T).indicator (fun _ => c S T) p
 
 omit [StandardBorelSpace α] in
-/-- (de-privatized 2026-07-07 for the sampling layer) -/
+/-- Measurability of the step function `mkStepFun` (used by the sampling layer). -/
 theorem mkStepFun_measurable (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ) :
     Measurable (mkStepFun P c) := by
   unfold mkStepFun
@@ -143,7 +143,7 @@ theorem mkStepFun_measurable (P : MeasurablePartition α μ) (c : Set α → Set
   exact measurable_const.indicator ((P.measurableSet_part hS).prod (P.measurableSet_part hT))
 
 omit [StandardBorelSpace α] in
-/-- (de-privatized 2026-07-07 for the sampling layer) -/
+/-- Value of `mkStepFun` on a cell pair (used by the sampling layer). -/
 theorem mkStepFun_eq_at (P : MeasurablePartition α μ) (c : Set α → Set α → ℝ)
     {p : α × α} {S : Set α} (hS : S ∈ P.parts) {T : Set α} (hT : T ∈ P.parts)
     (hp : p ∈ S ×ˢ T) : mkStepFun P c p = c S T := by
@@ -1485,8 +1485,8 @@ measure-preserving maps `e_k` and a limit graphon `V` such that
     Given summable consecutive cutDistance, realign and extract limit with
     cutNormDiff convergence.
 
-**Depends on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core, proved in
-campaign R2) and `exists_graphon_with_limiting_rect_integrals` (Radon–Nikodym) — fully proved. -/
+**Depends on**: `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core) and
+`exists_graphon_with_limiting_rect_integrals` (Radon–Nikodym). -/
 private theorem exists_aligned_cutNormDiff_limit [NullSingletonClass μ]
     (W : ℕ → Graphon α μ)
     (h_rapid : ∀ k : ℕ, cutDistance (W (k + 1)) (W k) ≤ 1 / 2 ^ k) :
@@ -1737,8 +1737,7 @@ It follows from total boundedness (regularity lemma) and completeness.
 **Structure**: This is sequential compactness, equivalent to compactness
 for metric spaces (which graphon space is, modulo weak isomorphism).
 
-**Depends on**: `totallyBounded`, `complete`, `cutDistance_triangle` — all fully proved
-(Rokhlin campaigns R0–R3). -/
+**Depends on**: `totallyBounded`, `complete`, `cutDistance_triangle`. -/
 theorem compact [NullSingletonClass μ] :
     ∀ (W : ℕ → Graphon α μ), ∃ (V : Graphon α μ) (φ : ℕ → ℕ),
       StrictMono φ ∧ ∀ ε > 0, ∃ N, ∀ n ≥ N, cutDistance (W (φ n)) V < ε := by
@@ -1930,11 +1929,10 @@ section WeightStability
 variable [IsProbabilityMeasure μ] [StandardBorelSpace α] [NullSingletonClass μ]
 
 /-- **Weight stability for step graphons** on different partitions with the same
-coefficient matrix (moved here from `Graphon/InverseCounting.lean`, 2026-07-07, and
-de-privatized: it is the API boundary for the sampling layer's frequency-term bound).
+coefficient matrix (the API boundary for the sampling layer's frequency-term bound).
 
-NOTE: its proof uses `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core,
-proved in campaign R2) for partition alignment; fully axiom-clean. -/
+NOTE: its proof uses `MeasurePreserving.exists_controlled_cell_alignment` (Rokhlin core)
+for partition alignment; axiom-clean. -/
 theorem cutDistance_step_weight_le {K : ℕ}
     (P Q : MeasurablePartition α μ)
     (c_P c_Q : Set α → Set α → ℝ)

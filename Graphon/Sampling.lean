@@ -357,7 +357,7 @@ theorem sampleMass_sum_eq_one (W : Graphon α μ) :
 `homDensity F W = ∑_{G ⊇ F} sampleMass W G`: the homomorphism density of `F` is exactly
 the probability that the sampled graph contains every edge of `F`. This is the forward
 companion of the inclusion–exclusion expansion `sampleMass_eq_sum_homDensity` above.
-Proof route (vetted 2026-07-10): at fixed vertex positions, supergraphs of `F` are in
+Proof route: at fixed vertex positions, supergraphs of `F` are in
 bijection with subsets of the optional edges `⊤.edgeFinset \ F.edgeFinset`; summing the
 Bernoulli integrand over the Boolean cube via `Finset.prod_add` collapses each optional
 factor to `w e + (1 - w e) = 1`, leaving the plain edge product of `F`. -/

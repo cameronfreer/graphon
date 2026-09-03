@@ -13,17 +13,17 @@ import Mathlib.Analysis.Convex.Integral
 import Mathlib.Analysis.Complex.ExponentialBounds
 
 /-!
-# The point-sampling half of the First Sampling Lemma (scaffold)
+# The point-sampling half of the First Sampling Lemma
 
-Target (PR #11):
+Main theorem:
 
 `point_sampling_event_of_large_k : ∀ ε η > 0, ∃ K, ∀ k ≥ K, ∀ [NeZero k],
   ∀ W : Graphon α μ, PointSamplingEvent W k ε η`
 
-matching the shape of `rounding_event_of_large_k`, so that PR #12 can pick one `k`
-for both events and close `first_sampling_lemma` via `sampleGoodMassOn_of_events`.
+matching the shape of `rounding_event_of_large_k`, so that `first_sampling_lemma` can
+pick one `k` for both events and close via `sampleGoodMassOn_of_events`.
 
-## Design notes (recorded 2026-07-07)
+## Design notes
 
 * **The rounding-style union bound does NOT work here.** For a fixed index cut
   `A, B ⊆ Fin k`, the statistic `(1/k²) ∑_{i∈A,j∈B} D(xᵢ, xⱼ)` is a function of the `k`
@@ -57,7 +57,7 @@ for both events and close `first_sampling_lemma` via `sampleGoodMassOn_of_events
   named lemma for the measurable bad set stays inside the `first_sampling_lemma`
   accounting — NOT a new live input.
 
-## Layer plan (per the PR #11 decomposition)
+## Layer structure
 
 1. `discretized cut norm approximation` — reduce `d_□(W, H_{W,x})` to finitely many
    cut predicates in the sampled coordinates, with controlled error.
@@ -67,7 +67,7 @@ for both events and close `first_sampling_lemma` via `sampleGoodMassOn_of_events
    uniform in `W`.
 4. `event packaging` — the measurable witness set for `PointSamplingEvent`.
 
-## PR #11A architecture (settled 2026-07-07, after literature check)
+## Architecture of the expectation bound
 
 Reference mechanisms: Lovász Lemmas 10.6/10.7 (bounded kernels); the modern
 generalization arXiv:2203.07581 confirms the split into *systematic error*
@@ -99,7 +99,7 @@ of `W` at quality `ε' := ε/8` with `m = m(ε')` parts (uniform in `W`, by
   Union over `2^q` rules with second-moment control; `q := ⌈√k⌉` gives `O(k^{−1/4})`.
   Both `±` directions by applying to `D` and `−D`.
 
-## PR #11A execution notes (2026-07-07 survey of repo APIs)
+## Implementation notes
 
 * **Deliverable shape** (`point_sampling_expectation_bound`): ∃K, ∀ k ≥ K, ∀ W, ∃ a
   measurable nonnegative integrable majorant `M` with
@@ -146,13 +146,12 @@ variable {α : Type*} [MeasurableSpace α] {μ : Measure α}
 
 namespace Graphon
 
-/-! ## PR #11A Layers 1+2: the point-sampling majorant and its frequency accounting
+/-! ## Layers 1+2: the point-sampling majorant and its frequency accounting
 
 This section builds the nonnegative, measurable, integrable **majorant**
 `pointSamplingMajorant W ε' k x` dominating `cutDistance W (H_{W,x})` a.e., and bounds the
 expectation of its *frequency* term. The deep *core* term (Layer 3, the AFKK Q-subsample
-ghost argument) is isolated in the private lemma `coreTerm_expectation_bound` (fully proved;
-this section's layering dates from when it was the last open obligation).
+ghost argument) is isolated in the private lemma `coreTerm_expectation_bound`.
 
 The triangle decomposition through `U := stepify P W` (`P` the Frieze–Kannan partition of
 `W` at quality `ε'`) is
@@ -161,7 +160,7 @@ The triangle decomposition through `U := stepify P W` (`P` the Frieze–Kannan p
                   ` ≤ ε'      + freqTerm       + coreTerm`.
 
 * `d_□(W, U) ≤ cutNormDiff W U ≤ ε'` — `cutDistance_le_cutNormDiff` + `regularity`.
-* `d_□(H_{U,x}, H_{W,x}) ≤ coreTerm` — the PR #10 cut certificate
+* `d_□(H_{U,x}, H_{W,x}) ≤ coreTerm` — the cut certificate
   `cutNormDiff_mkStepGraphon_le_of_cuts`, pointwise in `x`.
 * `d_□(U, H_{U,x}) ≤ freqTerm` — the weight-perturbation construction (see
   `cutDistance_chosenStep_sampleWeighted_le_freqTerm`). -/
@@ -3923,7 +3922,7 @@ majorant plus the a.e. domination `ae_cutDistance_le_pointSamplingMajorant` pack
 measurable event set.
 
 Together with `rounding_event_of_large_k` and `sampleGoodMassOn_of_events`, this
-closes `first_sampling_lemma` (the PR #12 recombination). -/
+closes `first_sampling_lemma` (the recombination). -/
 theorem point_sampling_event_of_large_k (ε η : ℝ) (hε : 0 < ε) (hη : 0 < η) :
     ∃ K : ℕ, ∀ k : ℕ, K ≤ k → ∀ (_ : NeZero k), ∀ W : Graphon α μ,
       PointSamplingEvent W k ε η := by

@@ -356,7 +356,7 @@ private theorem map_exposedSample_apply_le_event [IsProbabilityMeasure μ]
       (Graphon.homDensityIntegrand_nonneg_ae F W),
     ← Graphon.homDensity_eq_integral]
 
-/-- **The law identification** (issue #72, item 1, commit 2): the exposed sampled graph
+/-- **The law identification** (issue #72, item 1): the exposed sampled graph
 of the exposure source has law exactly `samplePMF W k` — the padded coin rows are
 integrated out. Singleton masses via `Measure.ext_of_singleton`, then Möbius inversion
 via `Graphon.upperSum_injective` on the upper-event masses. -/
@@ -475,7 +475,7 @@ theorem measurable_homDensity_exposedSample (W : Graphon α μ) {k : ℕ} [NeZer
     measurable_of_countable _
   exact h.comp (measurable_exposedSample W k)
 
-/-- **The oscillation bound** (issue #72, item 1, commit 2): updating one exposed
+/-- **The oscillation bound** (issue #72, item 1): updating one exposed
 vertex moves the hom-density of a fixed `F` on `q` vertices by at most `q / k` — only
 the at most `q * k ^ (q - 1)` vertex maps whose range contains the updated vertex can
 change upper-event status (`homDensity_ofSimpleGraphOn`). This is the bounded-differences

@@ -20,15 +20,14 @@ import Mathlib.Topology.Metrizable.CompletelyMetrizable
 import Mathlib.Topology.Order.LeftRightLim
 
 /-!
-# The atomless standard-Borel measure-isomorphism theorem (Rokhlin campaign, R1)
+# The atomless standard-Borel measure-isomorphism theorem (Rokhlin core, R1)
 
 This file builds, from the ground up, the measure-theoretic core that the graphon program's
 four corrected Rokhlin cores (`exists_common_coupling_maps`, `cutNormDiff_pullback_le`,
 `exists_controlled_cell_alignment` in `Graphon/CutDistance.lean`;
 `exists_mpEquiv_cutNormDiff_lt_add` in `Graphon/Overlay.lean`) all reduce to (see
-`docs/rokhlin-scoping.md` §7–8). **All four are proved** (campaigns R2 + R3, 2026-07-09;
-see `docs/overlay-scoping.md` for the overlay), so the graphon program carries no live
-measure-theory obligation:
+`docs/rokhlin-scoping.md` §7–8; see `docs/overlay-scoping.md` for the overlay). All four
+follow from:
 
 > An atomless standard-Borel probability space `(α, μ)` is measure-preservingly isomorphic
 > mod 0 to `([0,1], Lebesgue)`.
@@ -41,7 +40,7 @@ It is deliberately **independent of graphons** — pure Mathlib-style measure th
 plausible upstreaming target (the `Architect` import supplies only the `@[blueprint]`
 annotation attribute; strip it when upstreaming).
 
-## Roadmap (R1)
+## Structure (R1)
 
 * **R1b** `continuous_cdf_of_noAtoms` — the CDF of an atomless probability measure on `ℝ` is
   continuous.

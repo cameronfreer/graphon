@@ -1035,16 +1035,15 @@ theorem cutDistance_le_one (U W : Graphon α μ) : cutDistance U W ≤ 1 := by
       ≤ cutNormDiff U W := csInf_le h_bdd h_in_set
     _ ≤ 1 := cutNormDiff_le_one U W
 
-/-! ### Scoping: the former `exists_common_extension` monolith was unprovable as stated
+/-! ### Scoping: a monolithic "common extension" statement is unprovable as stated
 
-See `docs/rokhlin-scoping.md`. The old monolithic Rokhlin stub bundled three conjuncts, **two
-of which are false as written**; it has now been **deleted** and replaced by four corrected,
+See `docs/rokhlin-scoping.md`. A monolithic Rokhlin statement bundling three conjuncts has
+**two conjuncts that are false as written**; this file instead provides four corrected,
 consumer-shaped cores (`exists_common_coupling_maps`, `cutNormDiff_pullback_le`,
 `exists_controlled_cell_alignment` in this file; `exists_mpEquiv_cutNormDiff_lt_add` in
 `Graphon/Overlay.lean`, whose overlay proof needs the downstream regularity lemma), each a
-standard consequence of the atomless standard-Borel measure-isomorphism theorem. All four are
-now **proved** (campaigns R2 + R3). The two lemmas below
-certify the "measure-obvious" necessity facts that forced those corrections; the historical
+standard consequence of the atomless standard-Borel measure-isomorphism theorem. The two
+lemmas below certify the "measure-obvious" necessity facts that force those corrections; the
 counterexamples:
 
 * **Map alignment via bijections is FALSE.** `(α, μ) = ([0,1], λ)`, `ψ₁ = id`, `φ₂ = ` the
@@ -1540,11 +1539,11 @@ families of cells from two partitions with *matching measures*, over an *atomles
 Borel probability space, there is a measure-preserving bijection mapping each cell `ι_S i`
 a.e. into `ι_T i`.
 
-This is the honest, true form of the third conjunct of the old `exists_common_extension`
-stub: it adds `[NullSingletonClass μ]` (necessary — see the atom counterexample in the scoping note and
-`mp_maps_into_forces_measure_le`) and is now a standalone obligation resting only on the
-measure-isomorphism theorem (campaign phase R1), not on the unprovable monolithic stub. It is
-the sole cell-matching interface used by the inverse-counting route. -/
+This is the honest, true form of the third conjunct of the monolithic "common extension"
+statement: it adds `[NullSingletonClass μ]` (necessary — see the atom counterexample in the
+scoping note and `mp_maps_into_forces_measure_le`) and rests only on the
+measure-isomorphism theorem. It is the sole cell-matching interface used by the
+inverse-counting route. -/
 @[blueprint "thm:cell-alignment"
   (title := /-- Controlled cell alignment (equal-measure cells) -/)]
 theorem MeasurePreserving.exists_controlled_cell_alignment [StandardBorelSpace α] [NullSingletonClass μ]
@@ -1635,7 +1634,7 @@ kernels via the disintegration of `μ` along `φ`, each indicator `1_S` becomes 
 probability `E[1_S ∣ φ] ∈ [0,1]`, so the pulled-back cut norm is a *weighted* cut norm with
 `[0,1]`-weights, which the cut norm dominates (`abs_weighted_integral_diff_le`). This is the
 map-level companion the corrected coupling triangle needs; it rests on the standard-Borel
-disintegration (campaign phase R1/R2). -/
+disintegration. -/
 @[blueprint "thm:pullback-contraction"
   (title := /-- Cut-norm contraction under measure-preserving pullback -/)]
 theorem cutNormDiff_pullback_le [StandardBorelSpace α] (U W : Graphon α μ)

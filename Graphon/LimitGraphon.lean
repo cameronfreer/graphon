@@ -35,9 +35,9 @@ stated at the canonical instance (`α := unitInterval`, `μ := volume`, codomain
   `infiniteMixtureLawEquiv.symm M` — the empirical limit realizes the mixture
   coordinate as a genuine random variable.
 
-Pointwise finite-permutation invariance of `limitGraphon` is deferred to issue #59: it
+Pointwise finite-permutation invariance of `limitGraphon` is the subject of issue #59: it
 needs isomorphism-invariance of the finite graph classes (`graphClass ∘ comap` by a
-`Fin`-permutation), which is not yet in the library.
+`Fin`-permutation).
 -/
 
 open MeasureTheory InfiniteGraph Filter

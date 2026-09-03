@@ -433,7 +433,7 @@ multiplied in before each `weightedAdj` step). In particular the classwise
 first moments `∑ t, W t * B v t * 1_C(t)` (atom `C`) are atom-invariant
 functions of the root (`first_moment_descends_of_rootedProfileEquiv`).
 
-**Why no direct expression of the square moment exists** (attack step 2,
+**Why no direct expression of the square moment exists** (step 2,
 negative): under the scaling `W ↦ λW`, the profile of a rooted graph with
 `m` unlabeled vertices scales as `λ^m`, while `∑ t, W t * B v t ^ 2` scales
 as `λ¹`. A `(B, W)`-uniform span representation could therefore use only
@@ -624,7 +624,7 @@ theorem InRootedProfileSpan.weightedAdj {T : ℕ} {B : Fin T → Fin T → ℝ}
   refine Finset.sum_congr rfl fun t _ => ?_
   ring
 
-/-- **Classwise first moments descend** (attack steps 1+3).
+/-- **Classwise first moments descend** (steps 1+3).
 
 If `i, j` are rooted-profile equivalent and `g` is any atom-invariant
 decoration (e.g. the atom indicator `1_C`), the `g`-decorated first moments
@@ -655,8 +655,8 @@ downstream of this file, so the declarations live there to avoid an import cycle
 
 §6 proved that **first** moments with atom-invariant decorations descend.
 The square moment `∑ t, W t * B i t ^ 2` decomposes over atoms as
-`∑_C ∑_{t ∈ C} W t * B i t ^ 2`, so the sharpest currently-underivable
-family (attack step 4) is the **classwise square moments**: within each
+`∑_C ∑_{t ∈ C} W t * B i t ^ 2`, so the sharpest family not derivable
+from tree observables (step 4) is the **classwise square moments**: within each
 atom `C`, the distribution of `B(i, ·)|_C` beyond its (known) mean.
 Cycle-type observables (triangles etc. through the root, decorated) give
 bilinear couplings `∑_{t,s} W t W s B(i,t) B(t,s) B(s,i) 1_C(t) 1_D(s)` —

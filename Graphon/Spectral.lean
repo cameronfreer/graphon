@@ -1,6 +1,6 @@
 /-
-Spectral section for #77 (historically targeting the since-REFUTED and removed
-conjecture `vertex_orbit_of_closed_walks_eq`).
+Spectral section for #77 (the natural target, the conjecture
+`vertex_orbit_of_closed_walks_eq`, is REFUTED — see below).
 
 This file provides a finite-dimensional spectral
 section for the weighted adjacency operator, isolated from
@@ -235,8 +235,8 @@ through this conjecture instead go through `rootedProfileEquiv_imp_vertexOrbitRe
 - `rooted_profiles_separate_vertex_orbits` — proved via the rank-theorem route;
 - `diagonal_observable_K1` + `_of_tupleEquivSimple` — proved via the above.
 
-The "rooted_profiles_separate" THEOREM is TRUE (Lovász Lemma 2.4 K=1) and is now
-proved by the valid route; only the historical closed-walk route was invalid.
+The "rooted_profiles_separate" THEOREM is TRUE (Lovász Lemma 2.4 K=1) and is
+proved by the rank-theorem route; only the closed-walk route is invalid.
 
 Refuted statement (not a declaration):
 ```

@@ -5031,8 +5031,7 @@ consequence: apply the orbit automorphism `σ` from `IH` to `μ`, and
 `σ ∘ μ` extends `ψ` and is equivalent to `μ` by the easy direction
 (`tupleEquiv_of_tupleOrbitRel`).
 
-This lemma anchors the induction structure for Session D's proof of
-Lemma 2.4 (the full theorem). -/
+This lemma anchors the induction structure of the proof of Lemma 2.4. -/
 private theorem tupleEquiv_extend_of_ih {T : ℕ}
     (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ)
     {k : ℕ} {φ ψ : Fin k → Fin T}
@@ -5128,7 +5127,7 @@ The content of `product_trace_identity` is not generic
 graph products, but specifically: **handling the accumulated multiplicity
 map on label-label edges across the list**. That is a decorated
 (no-LL graph × label-edge-multiplicity-map) layer, not a full multigraph
-theory. It is the missing algebraic object for the next session. -/
+theory. -/
 
 /-- **Strip label-label edges.** Given a `k`-labeled graph `F` on
 `Fin (n + K)`, `stripLL F` has the same underlying vertex set but only the
@@ -5986,8 +5985,7 @@ product of their `labeledEvalK` evaluations is the evaluation of a single
 application of `labeledEvalK_glue`. The "glue half" of the product-trace
 algebra, complementing `labeledEvalK_factor_LL` (the "LL-strip half").
 
-**Proof sketch** (stubbed — structural forward step for this session):
-induction on `L`.
+**Proof sketch**: induction on `L`.
 - `nil`: take `N = 0`, `G = ⊥`. `labeledEvalK_empty` gives evaluation `1`,
   and `⊥` trivially has no LL edges.
 - `cons p L'`: by IH on `L'` get `(N', G', _, hG'noLL, hG'eq)`. `p.2` has no
@@ -5997,10 +5995,8 @@ induction on `L`.
   when `G'` and `p.2` are no-LL. Evaluation equality propagates.
 
 The no-LL preservation of `labeledEvalK_glue`'s witness requires reasoning
-about the construction inside the `∃`, which currently isn't exposed — a
-small strengthening of `labeledEvalK_glue`'s conclusion (or a companion
-lemma) unlocks this proof. (Historical note: initially left as a stub;
-since fully proved.) -/
+about the construction inside the `∃`, via a strengthening of
+`labeledEvalK_glue`'s conclusion (or a companion lemma). -/
 private theorem labeledEvalK_prod_no_LL {K : ℕ}
     (L : List (Σ (n : ℕ), SimpleGraph (Fin (n + K))))
     (hL : ∀ p ∈ L, ∀ a b : Fin (p.1 + K), a.val < K → b.val < K → ¬ p.2.Adj a b) :
@@ -6720,128 +6716,26 @@ private theorem DecLabeledGraph.trace_eval {T K n : ℕ}
       simp only [Fin.val_cast]; exact this
     rw [h1, h2]
 
-/-! **`tupleEquiv`-invariance of the traced evaluation** — historical context.
+/-! **`tupleEquiv`-invariance of the traced evaluation** — structural context.
 
-Per user directive (after the kernel-side refactor lands): this theorem
-should reduce to an **assembly proof** using the newly-canonical A_k
-frontier (`starKernel_tupleEquiv_invariant`) plus the already-proved
-trace-descent piece. No new math required.
+A natural assembly proof of `DecLabeledGraphTr.eval_tupleEquiv_invariant`
+decomposes `Dtr.eval B W ξ` as `LLFactor(ξ) * (σ-sum)`: the LL factor is a
+product of `B(ξ a, ξ b)^{llMult}` terms, invariant by
+`labeledEvalK_singleEdge` + the diagonal hypothesis; the σ-sum, after
+packaging `η = Fin.snoc ξ σ_0`, is a trace pairing of a level-`(K+1)`
+class function (a `starKernel` factor times a simple-graph `labeledEvalK`),
+which descends by `traceMeasure_eq_of_tupleEquiv` at level `K`.
 
-**Assembly sketch** (forward-referenced definitions — defer to next
-proving session):
-
-Decompose `Dtr.eval B W ξ` as:
-  `LLFactor(ξ) * (σ-sum)`
-where
-  - `LLFactor(ξ) := ∏ s : Sym2 (Fin K), B(ξ·,ξ·)^{Dtr.llMult s}`
-    is ξ-only. Invariance: each `B(ξ a, ξ b)` is a single-LL-edge
-    labeledEvalK at level `K`, n=0; tupleEquiv at level `K` makes each
-    factor invariant; raising to powers + product preserves invariance.
-    (NO multigraph frontier needed — just simple-graph tupleEquiv.)
-  - `σ-sum := ∑ σ : Fin n → Fin T, (∏ W σ) · lu0FactorAt(ξ, σ) · edgeProd(ξ, σ)`.
-    For `n = 0`: trivial (∑_σ reduces to singleton, lu0FactorAt = 1,
-    no edges). Already ξ-invariant.
-    For `n = n'+1`: split `σ = Fin.cons σ_0 σ_rest`. The σ_0-dependent
-    factor is `W(σ_0) · (∏_a B(ξ a, σ_0)^{Dtr.lu0Mult a}) · G(ξ, σ_0)`
-    where `G(ξ, σ_0) = ∑_{σ_rest} (∏ W σ_rest) · (edgeProd at σ)`.
-
-    Now package: for `η = Fin.snoc ξ σ_0 : Fin (K+1) → Fin T`,
-    the integrand becomes
-    `W(η last) · starKernel B Dtr.lu0Mult η · G_η`
-    where `G_η` is a level-`(K+1)` `labeledEvalK`-like quantity over
-    `Dtr.graph` re-viewed at level `K+1` (position `K` in `Fin (n+K)`
-    becomes the `Fin.last K` label at level `K+1`).
-
-    Both factors descend to `TupleClass T (K+1) B W`:
-    * `starKernel B Dtr.lu0Mult η` descends by
-      `starKernel_tupleEquiv_invariant` (the NEW frontier).
-    * `G_η` descends by the definition of tupleEquiv at level `K+1`
-      (it's a simple-graph `labeledEvalK`).
-
-    Their product descends. Apply `traceMeasure_eq_of_tupleEquiv` at
-    level `K`: the trace pairing equals for ξ and ξ'. QED.
-
-**Status**: BLOCKED by circular dependency (discovered after the kernel
-frontier was closed and an assembly attempt was made).
-
-**Circular dependency** (revealed by attempted cash-out):
-The assembly route needs `traceMeasure_eq_of_tupleEquiv` (L7810) to
-descend the σ-sum integrand to the quotient. But
-`traceMeasure_eq_of_tupleEquiv` is proved via
-`traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv` (L7788), which in
-turn calls `DecLabeledGraphTr.eval_tupleEquiv_invariant` directly
-(at L7805, inside the `product_trace_identity_of_eval_tupleEquiv_invariant`
-application). Cycle:
-```
-L6746 (Dtr.eval_tupleEquiv_invariant)
-  → traceMeasure_eq_of_tupleEquiv (L7810)
-  → traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv (L7788)
-  → Dtr.eval_tupleEquiv_invariant  [forward reference to L6746]
-```
-
-**Resolution options** (future session):
-  (a) **Refactor**: move `Dtr.eval_tupleEquiv_invariant` to AFTER the
-      `traceMeasure`/`starKernel` infrastructure (~L8100+), and rewrite
-      `traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv` to NOT directly
-      call `Dtr.eval_tupleEquiv_invariant` — e.g., by inlining the
-      algebra it relies on, or by making the theorem parametric over
-      multigraph invariance.
-  (b) **Direct proof**: find a proof of `Dtr.eval_tupleEquiv_invariant`
-      using ONLY infrastructure declared before L6746 (simple-graph
-      `tupleEquiv`, `labeledEvalK_singleEdge`, `hB`) — NOT via
-      `traceMeasure` or `starKernel`. Likely requires a fresh proof
-      technique.
-  (c) **Hypothesis relaxation**: add `h_noSelfLL : ∀ x, Dtr.llMult s(x, x) = 0`
-      to the theorem — needed anyway for the LL-factor diagonal case,
-      and already done in `trace_eval`. Allows a cleaner proof of the
-      LL factor piece.
-
-**Partial progress during the attempt (reverted)**: LL-factor invariance
-via `labeledEvalK_singleEdge` + diagonal hypothesis WAS verified to
-compile. The `n = 0` case WAS verified modulo instance-mismatch
-workarounds. The `n = n'+1` Dup construction WAS designed but its
-completion hit (1) the circular dependency and (2) rewriting motive
-issues with `SimpleGraph.map` + `Fintype` instance shadowing inside
-`DecLabeledGraphTr.eval`'s body.
-
-**Recommendation**: option (a) — structural refactor. The
-reorganization itself is ~50 lines; then the Dup assembly lands via
-the user's original plan.
-
-**UPDATE (post step-1 analysis — cycle is SEMANTIC)**: the user's
-stop-rule for the cycle-breaker attempt is triggered. Tracing the
-dependency closely:
-
-  - Closing `traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv` (the
-    generator theorem) directly — without invoking any traced-graph
-    invariance — reduces by `eval_ofSimple` / `eval_mul` / `trace_eval`
-    to closing `D.trace.eval B W ξ = D.trace.eval B W ξ'` for
-    `D : DecLabeledGraph (K+1) n` built via ofSimple/mul.
-  - That in turn, via `trace_eval`, reduces to closing
-    `∑ t, W t · D.eval B W (Fin.snoc ξ t) = same for ξ'`.
-  - `D.eval` at level K+1 is tupleEquiv-invariant at level K+1 (via the
-    just-proved `DecLabeledGraph.eval_tupleEquiv_invariant`), so
-    descends to `TupleClass T (K+1) B W → ℝ` as some `g`.
-  - The sum equality then reduces to `traceMeasure_eq_of_tupleEquiv`
-    for this specific `g` — which, via `simpleGraphEvalOn_spans`, is
-    equivalent to the generator theorem we started with.
-
-**Conclusion**: the true root theorem is the generator/trace-descent
-content, whatever name we give it. Renaming to
-`DecLabeledGraph.trace_tupleEquiv_invariant` does not eliminate the
-content — it relabels. The cycle is **semantic**, not just file order.
-
-**Per user's stop-rule**: the honest framing is that the frontier is
-`product_trace_identity` itself (the generator theorem with specific
-trace-descent content), NOT `Dtr.eval_tupleEquiv_invariant` at the
-arbitrary-Dtr level. The renaming clarifies this: future work should
-attack the generator theorem directly as the root. A pure file
-restructure cannot eliminate the content; what's needed is either:
-  (a') New mathematical content for the generator theorem (some form
-       of the A_k algebra argument with specific trace structure).
-  (b') Pivot to explicit Lovász A_k / connection-matrix machinery.
-  (c') Accept current state, with the algebraic chain wired through a
-       single semantic root.
+That assembly is **semantically circular**: `traceMeasure_eq_of_tupleEquiv`
+is proved via `traceMeasure_simpleGraphEvalOn_eq_of_tupleEquiv`, which is
+`product_trace_identity_of_eval_tupleEquiv_invariant` applied to
+`DecLabeledGraphTr.eval_tupleEquiv_invariant` itself. Closing the generator
+theorem directly reduces (via `eval_ofSimple` / `eval_mul` / `trace_eval`)
+to `∑ t, W t · D.eval B W (Fin.snoc ξ t)` being equal for `ξ, ξ'`, which is
+again `traceMeasure_eq_of_tupleEquiv` for a specific `g`. So the true root
+theorem is the generator/trace-descent content
+(`product_trace_identity`), whatever name it carries; renaming does not
+eliminate it.
 
 **OFF-AXIS**: this theorem is **not** the canonical root. The active chain
 routes through `multiLabeledEvalK_tupleEquiv_invariant` (the multigraph
@@ -6905,9 +6799,8 @@ starMultigraphEval_tupleEquiv_invariant_direct  (L9456)
 Same applies to `tupleEquiv_power_sum_invariance` (one-liner via the
 star-multigraph theorem, plus `hW` + `htwin` strengthenings).
 
-**Conclusion (per user step 4)**: this theorem is the **canonical
-named algebraic root** of the Lovász §3 multigraph content. Future
-attacks must either:
+**Conclusion**: this theorem is the **canonical named algebraic root** of
+the Lovász §3 multigraph content. Any proof must either:
   - Provide an independent proof that does not route through the A_k
     chain (e.g., direct multigraph algebra, or a tupleEquiv extension
     handling parallel edges natively); or
@@ -7074,8 +6967,8 @@ Required infrastructure:
 
 Lovász's argument in §3 is a clean ~5-page algebra proof on paper;
 the Lean formalization expands by ~10x due to Sym2 / Fin manipulation
-overhead. Future sessions: stage as a separate `Lovasz.lean` module
-since the multigraph algebra is independent infrastructure. -/
+overhead; the multigraph algebra lives in the separate `Lovasz.lean` module
+since it is independent infrastructure. -/
 private theorem multiLabeledEvalK_tupleEquiv_invariant {T K n : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
     (hW : ∀ i, 0 < W i) (htwin : ∀ i j, i ≠ j → B i ≠ B j)
@@ -8282,8 +8175,7 @@ level `K` — then `product_trace_identity` follows by the
    `D.trace.eval B W ξ = D.trace.eval B W ξ'`.
 6. Apply `trace_eval` again (symmetrically for `ξ'`) and conclude.
 
-The proof body — mechanical `DecLabeledGraph`-algebra — was initially
-left as a stub and has since been completed. -/
+The proof body is mechanical `DecLabeledGraph`-algebra. -/
 private theorem product_trace_identity_of_eval_tupleEquiv_invariant
     {T : ℕ} (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ)
@@ -8395,10 +8287,9 @@ instead *extending* from deficit-0 size-T instances — i.e., consuming
 `tupleEquiv_extend` rather than restriction. Proving them requires the
 extension theorem (Level 1) to be in place first.
 
-Each stub below is named, typed, and documented. (Historical: the stub
-bodies were placeholders at the time; all have since been proved.) -/
+Each theorem below is named, typed, and documented. -/
 
-/-! #### Level 1 stubs — power-sum / moment invariance
+/-! #### Level 1 — power-sum / moment invariance
 
 **Minimal evaluation object for Level 1 work** (`starMultigraphEval`).
 The exact quantity that `tupleEquiv_power_sum_invariance` is about: the
@@ -8408,14 +8299,14 @@ each label incident to the center with multiplicity `m_a`). Not full
 multigraph theory, not the full A_k algebra — just the minimal object
 needed to name the frontier precisely.
 
-**Project order** (per user directive after Level 1 narrowing):
+**Logical order**:
   1. `tupleEquiv_single_coord_square_moment` — **smallest non-simple
      seed case**: `m = 2 • δ_a`. The atomic multigraph content.
   2. `tupleEquiv_single_coord_plus_background` — one repeated coord
      `r • δ_{a₀}` plus an arbitrary 0/1 background on `S ⊆ Fin K \ {a₀}`.
-     The exact bridge to `DecLabeledGraphTr.eval` (Level 2 stub).
-  3. Only after (1) and (2) close should the `∃ a, m_a ≥ 2` branch of
-     `tupleEquiv_power_sum_invariance` be tackled in full generality. -/
+     The exact bridge to `DecLabeledGraphTr.eval` (Level 2).
+  3. The `∃ a, m_a ≥ 2` branch of `tupleEquiv_power_sum_invariance` in
+     full generality. -/
 
 /-! ##### A_k algebra infrastructure (Steps 1-4 of the extension project)
 
@@ -8882,10 +8773,10 @@ descent property holds for every class function `f`. All three
 "frontier" theorems in this file are restatements of this content:
   - `DecLabeledGraphTr.eval_tupleEquiv_invariant`: applies `tr_k`'s
     descent to a specific `g` from `Dtr`.
-  - `traceMeasure_eq_of_tupleEquiv` (L7944, proved modulo cycle):
+  - `traceMeasure_eq_of_tupleEquiv`:
     pointwise equivalent to `tr_k`'s descent via `simpleGraphEvalOn_spans`.
-  - `starMultigraphEval_tupleEquiv_invariant_direct` (L8670, proved
-    modulo cycle): applies `tr_k`'s descent to `g := starKernelClass`.
+  - `starMultigraphEval_tupleEquiv_invariant_direct`: applies `tr_k`'s
+    descent to `g := starKernelClass`.
 
 This canonical root is the single semantic root under the A_k framing;
 the three frontiers above are semantically equivalent restatements. -/
@@ -8946,21 +8837,20 @@ private lemma tr_k_smul {T K : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T →
   refine Finset.sum_congr rfl fun t _ => ?_
   ring
 
-/-! ##### Generator theorem — the NEW canonical root
+/-! ##### Generator theorem — the canonical root
 
-Per user directive (narrower than full `tr_k_descends_to_A_k`): attack
-the single-generator case first. The full theorem
-`tr_k_descends_to_A_k` reduces to this via `simpleGraphEvalOn_spans`
-+ `tr_k` linearity (the wrapper proof below).
+The single-generator case (narrower than full `tr_k_descends_to_A_k`). The
+full theorem `tr_k_descends_to_A_k` reduces to this via
+`simpleGraphEvalOn_spans` + `tr_k` linearity (the wrapper proof below).
 
-If this generator theorem lands, all three current frontiers collapse:
+From this generator theorem all three frontier statements follow:
   - `traceMeasure_eq_of_tupleEquiv` (equivalent via pushforward).
   - `starMultigraphEval_tupleEquiv_invariant_direct` (via kernel descent).
-  - `Dtr.eval_tupleEquiv_invariant` (via Dup assembly + `DecLabeledGraph.eval_tupleEquiv_invariant`).
+  - `Dtr.eval_tupleEquiv_invariant` (via Dup assembly +
+    `DecLabeledGraph.eval_tupleEquiv_invariant`).
 
-If this theorem resists, the honest conclusion is that the root is
-specifically "trace of generator products descends", and we should
-stop renaming and attack the Lovász A_k connection-matrix machinery. -/
+The root is specifically "trace of generator products descends", i.e. the
+Lovász A_k connection-matrix content. -/
 
 /-! **Generator theorem context**
 
@@ -8980,9 +8870,9 @@ route through `tr_k_generator_descends` below.
 
 **Requires** `hB`: symmetric B (same reason as `starKernel_tupleEquiv_invariant`). -/
 
-/-- **Singleton trace-descent lemma** (pass 1 of the tr_k_generator_descends
-attack): extracts the argument from `trace_eq` inside `coeffRestrict_equiv`
-into a reusable form.
+/-- **Singleton trace-descent lemma** (the single-graph case of
+`tr_k_generator_descends`): extracts the argument from `trace_eq` inside
+`coeffRestrict_equiv` into a reusable form.
 
 For a single simple graph `F` at level `K+1` with `n` unlabeled vertices,
 the `W`-weighted sum over the last label is a level-`K` `labeledEvalK`
@@ -9097,8 +8987,7 @@ private abbrev AkFun (T K : ℕ) (B : Fin T → Fin T → ℝ) (W : Fin T → �
 
 /-! ##### Connection-matrix view — paper-faithful frontier
 
-Per user directive (post-`Ak_trace_stable_generators` session): the
-actual mathematical content of the semantic root is Lovász's
+The actual mathematical content of the semantic root is Lovász's
 connection-matrix trace-stability theorem. Name it in
 those terms by introducing the **column view** `connCol` and phrasing
 the claim as a weighted inner product of two columns.
@@ -9624,10 +9513,9 @@ private theorem tr_k_descends_to_A_k {T K : ℕ}
 
 /-! ##### Trace measure on `(K+1)`-tuple classes — canonical frontier
 
-Per user directive (after the K=1 diagnostic confirmed the same A_k
-content appears at every depth): promote **"trace measure descends
-to the tupleEquiv-quotient"** to the canonical frontier. This single
-statement subsumes the parallel frontiers we have accumulated:
+Since the same A_k content appears at every depth (see the K=1 diagnostic
+below), **"trace measure descends to the tupleEquiv-quotient"** is the
+canonical frontier. This single statement subsumes the parallel frontiers:
 
   - `g := edgeValClass^r` on `TupleClass T 2 B W` recovers the
     `starMultigraphEval_tupleEquiv_invariant_direct` K=1 case.
@@ -9803,16 +9691,15 @@ private theorem traceMeasure_eq_of_tupleEquiv {T K : ℕ}
 
 /-! ##### Tuple-level representation theorem (the real frontier)
 
-Per user directive after closing `simpleGraphEvalOn_spans` (Step 4): the
-hard mathematical content is now **`starMultigraphEval` respects
-`tupleEquiv`**, stated as `starMultigraphEval_tupleEquiv_invariant_direct`
-below. Once that is known, the span representation is a short corollary
-by quotient descent (apply `simpleGraphEvalOn_spans` to the descended
-function). The representation theorem
-`starMultigraphEval_in_simpleGraphSpan` is now algebraic bookkeeping,
+Given `simpleGraphEvalOn_spans` (Step 4), the hard mathematical content is
+**`starMultigraphEval` respects `tupleEquiv`**, stated as
+`starMultigraphEval_tupleEquiv_invariant_direct` below. From it, the span
+representation is a short corollary by quotient descent (apply
+`simpleGraphEvalOn_spans` to the descended function). The representation
+theorem `starMultigraphEval_in_simpleGraphSpan` is algebraic bookkeeping,
 NOT the frontier.
 
-**Dependency reorganization (as of this commit)**:
+**Dependency structure**:
 ```
   starMultigraphEval_tupleEquiv_invariant_direct    [semantic root; proved]
     ↓ (quotient descent + simpleGraphEvalOn_spans)
@@ -9825,14 +9712,14 @@ NOT the frontier.
   tupleEquiv_single_coord_plus_background
 ```
 
-The frontier is now a pure-equality statement on tuples — cleaner to
-attack than the existential representation.
+The frontier is a pure-equality statement on tuples — cleaner than the
+existential representation.
 
 **Proof strategy for the direct frontier** (Lovász TR-2004-82 §3–4):
-multigraph A_k algebra. The span argument is deferred to a cleaner
-handle via the descent-then-span chain above. -/
+multigraph A_k algebra; the span argument follows via the descent-then-span
+chain above. -/
 
-/-! ##### Kernel-side refactor (per user directive)
+/-! ##### Kernel-side decomposition
 
 The direct invariance theorem `starMultigraphEval_tupleEquiv_invariant_direct`
 is proved via the two A_k pieces:
@@ -9843,7 +9730,7 @@ is proved via the two A_k pieces:
     `starKernel B m η := ∏_a B(η a.castSucc)(η last)^{m a}`,
     a pure equality on tuples.
 
-**Falsification gate passed** (from the previous stub's docstring):
+**Falsification gate** (numerical evidence for the kernel-descent statement):
   - `T = 2, K = 1`: 4096 (B, W) pairs (including non-symmetric B and
     signed weights), 328 satisfy tupleEquiv up to n=4, **0
     counterexamples** for m ∈ {2, 3}.
@@ -9874,9 +9761,8 @@ private lemma starKernel_snoc {T K : ℕ}
   refine Finset.prod_congr rfl fun a _ => ?_
   rw [Fin.snoc_castSucc, Fin.snoc_last]
 
-/-- **Kernel descent** — the NEW canonical frontier (kernel side of the
-two-piece A_k package). Pure equality, no existential coefficients,
-stated on tuples (not the quotient).
+/-- **Kernel descent** — the kernel side of the two-piece A_k package. Pure
+equality, no existential coefficients, stated on tuples (not the quotient).
 
 For `η η' : Fin (K+1) → Fin T` with `tupleEquiv B W η η'` at level `K+1`,
 the star kernel agrees:
@@ -10013,10 +9899,9 @@ private theorem starMultigraphEval_tupleEquiv_invariant_direct {T K : ℕ}
 
 /-! ##### K = 1 diagnostic: trace-measure recasting
 
-Per user directive after falsification: attack `K = 1` first as a
-diagnostic for whether the obstruction is already present at the
-one-coordinate moment problem, or whether it only arises with
-coordinate mixing.
+The `K = 1` case is a diagnostic for whether the obstruction is already
+present at the one-coordinate moment problem, or whether it only arises
+with coordinate mixing.
 
 **Recasting** (canonical shape at K=1):
 - For `ξ : Fin 1 → Fin T`, define the **trace measure**
@@ -10035,11 +9920,11 @@ coordinate mixing.
    traceMeasureK1 ξ = traceMeasureK1 ξ'`
   as functions on `TupleClass T 2 B W`.
 
-If annihilation lands, `simpleGraphEvalOn_spans` (Step 4, closed) applied
+Given annihilation, `simpleGraphEvalOn_spans` (Step 4) applied
 to `edgeValClass ^ r` gives the K=1, all-r theorem immediately:
 `∑ q μ_ξ(q) · edgeValClass(q)^r = ∑ q μ_ξ'(q) · edgeValClass(q)^r`.
 
-**Diagnostic finding** (per analysis after stating the stub):
+**Diagnostic finding**:
 
 The annihilation sublemma is *equivalent* to `product_trace_identity` at
 `k = 1`:
@@ -10061,8 +9946,7 @@ precisely: the "annihilation of trace measures on 2-tuple classes" IS
 the multigraph A_k content, not a weaker statement. -/
 
 /-- **K = 1 specialization** of `starMultigraphEval_tupleEquiv_invariant_direct`
-— the diagnostic target per user directive. Stated separately with
-explicit `K = 1` type to make downstream attacks concrete.
+— the diagnostic target. Stated separately with explicit `K = 1` type.
 
 Reduces to the same multigraph A_k content as the general frontier (see
 docstring of the parent section). K=1 is NOT genuinely easier. -/
@@ -10081,9 +9965,9 @@ private theorem starMultigraphEval_tupleEquiv_invariant_direct_K1 {T : ℕ}
 /-- **Span representation of `starMultigraphEval`**, derived from the
 direct invariance frontier via quotient descent + `simpleGraphEvalOn_spans`.
 
-**No longer the frontier**: proved fully from
+Not itself the frontier: proved from
 `starMultigraphEval_tupleEquiv_invariant_direct` (the real frontier) plus
-`simpleGraphEvalOn_spans` (Step 4, closed). Kept for the downstream
+`simpleGraphEvalOn_spans` (Step 4). Used for the downstream
 `tupleEquiv_power_sum_invariance` wiring. -/
 private theorem starMultigraphEval_in_simpleGraphSpan {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i) (W : Fin T → ℝ)
@@ -10249,13 +10133,12 @@ plus an arbitrary 0/1 background. For tupleEquiv(ξ, ξ') at level K, any
 `DecLabeledGraphTr.eval`'s σ-sum integrand for the frontier case
 `lu0Mult ≥ 2`: the `a₀` coord with repeated multiplicity `r` is the
 "multi-incidence" label, and `S` is the "simple-incidence" background.
-Closing this stub delivers the full Level 2 statement
+It delivers the full Level 2 statement
 (`DecLabeledGraphTr.eval_tupleEquiv_invariant`) modulo trivial assembly.
 
-**Strategy**: reduces to `tupleEquiv_single_coord_square_moment` by
-induction on `r` once the `r = 2` case is in hand — via a "peel one
-copy" argument that moves between `r` and `r-1` power. Details TBD
-in the follow-up session. -/
+**Alternative strategy**: reduce to `tupleEquiv_single_coord_square_moment`
+by induction on `r` from the `r = 2` case — via a "peel one copy" argument
+that moves between the `r` and `r-1` powers. -/
 private theorem tupleEquiv_single_coord_plus_background {T K : ℕ}
     (B : Fin T → Fin T → ℝ) (hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (hW : ∀ i, 0 < W i)
@@ -10301,7 +10184,7 @@ private theorem tupleEquiv_single_coord_plus_background {T K : ℕ}
 
 /-! #### Level 1 (main) — power-sum invariance for arbitrary multiplicity -/
 
-/-- **Level-1 core stub** (`tupleEquiv_power_sum_invariance`).
+/-- **Level-1 core** (`tupleEquiv_power_sum_invariance`).
 For `tupleEquiv B W ξ ξ'` at level `K`, every power-sum moment of the
 weighted B-row sequences agrees:
 ```
@@ -10316,7 +10199,8 @@ centered on an unlabeled vertex), so follows from simple-graph
 that is *not* a simple-graph evaluation — it is the multigraph power
 that gadget-style reductions cannot reach.
 
-**Proof strategies to explore (future session):**
+**Alternative proof strategies** (the proof below goes through
+`starMultigraphEval_tupleEquiv_invariant`):
   - Newton–Girard interchange between power sums and elementary
     symmetric polynomials of the weighted B-row entries. The
     elementary symmetric functions up to degree `T` are
@@ -10340,7 +10224,7 @@ private theorem tupleEquiv_power_sum_invariance {T K : ℕ}
     ∑ t : Fin T, W t * ∏ a : Fin K, B (ξ' a) t ^ m a := by
   exact starMultigraphEval_tupleEquiv_invariant B hB W hW htwin m h
 
-/-! #### Level 4 stubs — Claim 4.3 / 4.4 refactored via extension
+/-! #### Level 4 — Claim 4.3 / 4.4 refactored via extension
 
 `tupleEquiv_bijective_case_ext` and `tupleEquiv_surjective_case_ext` are
 declared **after** `tupleEquiv_implies_tupleOrbitRel` (the main theorem)
@@ -10352,8 +10236,8 @@ the Lovász-module bridge), direct delegation is the simplest closure. -/
 /-! #### Level 5 — main theorem via WF induction
 
 The WF rebuild of `tupleEquiv_implies_tupleOrbitRel` does NOT get its own
-stub here: it reuses the existing declaration at L7513. Once Levels 1–4
-are closed, the non-surjective branch at L7643 closes by:
+declaration here: it reuses the existing declaration. Given Levels 1–4,
+the non-surjective branch closes by:
   1. WF induction on `(deficit, size)` lex with deficit primary.
   2. Extension step via `tupleEquiv_extend`: deficit strictly decreases.
   3. Surjective case via `tupleEquiv_surjective_case_ext`: does not
@@ -10361,7 +10245,7 @@ are closed, the non-surjective branch at L7643 closes by:
      `tupleEquiv_surjective_case`).
   4. Restriction step (when deficit preserved): standard.
 
-The existing comment at L7643 already documents the architectural
+The comment at the non-surjective branch documents the architectural
 picture; no further docstring here. -/
 
 /-! #### Level 6 — downstream twin-free bijection
@@ -10372,10 +10256,9 @@ CONSUMER of the twin-free bijection, not its proof route. The actual proof is th
 cross-matrix transport chain + `Graphon.CrossSuper.cross_super_partition` route
 documented at the theorem (see the *Cross-matrix transport* section below, ~L12100).
 
-**End of skeleton.** Follow-up proving sessions should target
-Level 1 first (`tupleEquiv_power_sum_invariance`), which is both the
-simplest and the deepest mathematical content in this tree. All other
-stubs reduce to it by routine assembly modulo the architectural
+**End of skeleton.** Level 1 (`tupleEquiv_power_sum_invariance`) is both the
+simplest and the deepest mathematical content in this tree; all other
+statements reduce to it by routine assembly modulo the architectural
 refactors at Level 4. -/
 
 /-- **Product trace identity** — generalizes the single-graph trace identity
@@ -10816,12 +10699,12 @@ private theorem tupleEquiv_implies_tupleOrbitRel {T : ℕ}
     Graphon.Lovasz.tupleEquivSimple_implies_orbit_via_2_5 B hB W hW htwin h_simple
   exact ⟨σ, ⟨hσ_aut.1, hσ_aut.2⟩, hσconj⟩
 
-/-! #### Level 4 ext stubs — delegations to the main theorem
+/-! #### Level 4 ext theorems — delegations to the main theorem
 
-These were originally architectural placeholders for an upward-extension
-proof. With `tupleEquiv_implies_tupleOrbitRel` available (fully proved),
-both ext theorems become trivial delegations. The bijective and surjective
-cases are fully closed inside the main theorem's strong-rec body. -/
+These are the extension-form variants of Claims 4.3/4.4. With
+`tupleEquiv_implies_tupleOrbitRel` available, both are trivial delegations. The
+bijective and surjective cases are closed inside the main theorem's strong-rec
+body. -/
 
 /-- **Level-4 closure** (`tupleEquiv_bijective_case_ext`). Direct
 delegation to `tupleEquiv_implies_tupleOrbitRel`. -/

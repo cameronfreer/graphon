@@ -9,8 +9,7 @@ import Graphon.Compactness
 /-!
 # The graphon space: compact metric quotient of graphons under weak isomorphism (issue #23)
 
-Packages the proved pseudometric theory of `cutDistance` into a bundled state space
-(route vetted 2026-07-10):
+Packages the pseudometric theory of `cutDistance` into a bundled state space:
 
 * a `PseudoMetricSpace` instance on raw `Graphon α μ` with `dist = cutDistance`
   (the triangle inequality fixes the instance boundary at
@@ -30,8 +29,8 @@ Packages the proved pseudometric theory of `cutDistance` into a bundled state sp
 * `StandardGraphonSpace` — the fixed unit-interval alias for probability-facing APIs,
   so downstream theorems need not carry base-space typeclasses.
 
-Deferred explicitly (separate campaigns): isometry/transport between quotients over
-different atomless standard bases (a `MeasureIso` application), measurable selectors.
+Not covered here: isometry/transport between quotients over different atomless standard
+bases (a `MeasureIso` application), measurable selectors.
 -/
 
 open MeasureTheory
