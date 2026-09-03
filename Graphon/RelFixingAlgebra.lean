@@ -322,8 +322,9 @@ theorem RelStructure.fixingAlgebra_comap_relabel_of_fintype [Fintype S.Srt]
 
 Route-local auxiliaries for the R4 converse. The contract-level `fixingAlgebra` demands invariance
 under *every* finitely supported sortwise permutation; over infinitely many sorts that group is
-uncountable (a permutation of `{0, …, N-1}` may be chosen independently on each sort), so an
-almost-surely invariant event need not have a strictly invariant version. The finitely supported
+uncountable (a permutation of `{0, …, N-1}` may be chosen independently on each sort), so the
+countable invariant-hull argument, which strictifies an almost-surely invariant event by
+intersecting its translates, is unavailable for the full group. The finitely supported
 permutations with **finitely many active sorts** form a countable subgroup under
 `[Countable S.Srt]`, and invariance under it defines a larger σ-algebra in which the countable
 invariant hull strictifies almost-sure invariance. Under `[Fintype S.Srt]` the two notions
