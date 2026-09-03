@@ -44,7 +44,14 @@ deliberately separate, later PR.
   `RelStructure.fixingAlgebra_comap_relabel_of_finiteActive`: conjugation and transport need
   no vertex-support bound on such a family, since only the active sorts need a common bound.
   This is the support notion the polling permutations have, and it replaces the artificial
-  `[Fintype S.Srt]` (whose statements are now the `T = univ` corollaries).
+  `[Fintype S.Srt]` (whose statements are now the `T = univ` corollaries);
+* `RelSignature.FiniteActiveFinSuppPerm` / `RelStructure.finiteActiveFixingAlgebra` — the
+  route-local **finite-active subgroup** (finitely supported with finitely many active sorts;
+  **countable** under `[Countable S.Srt]`) and the σ-algebra of events invariant under its
+  `A`-stabilizer. It contains `fixingAlgebra A`, equals it under `[Fintype S.Srt]`, and
+  transports along finite-active relabelings. Countability is what lets an almost-surely
+  invariant event be strictified by its invariant hull; the raw fixing algebra keeps its
+  contract-level role.
 -/
 
 open Function
@@ -310,5 +317,178 @@ theorem RelStructure.fixingAlgebra_comap_relabel_of_fintype [Fintype S.Srt]
     MeasurableSpace.comap (RelStructure.relabel σ) (RelStructure.fixingAlgebra (S := S) A) =
       RelStructure.fixingAlgebra (A.image (Sigma.map id fun s => ⇑(σ s))) :=
   RelStructure.fixingAlgebra_comap_relabel_of_finiteActive (SortwiseFiniteActive.of_fintype σ) A
+
+/-! ### The finite-active subgroup and its fixing σ-algebra
+
+Route-local auxiliaries for the R4 converse. The contract-level `fixingAlgebra` demands invariance
+under *every* finitely supported sortwise permutation; over infinitely many sorts that group is
+uncountable (a permutation of `{0, …, N-1}` may be chosen independently on each sort), so an
+almost-surely invariant event need not have a strictly invariant version. The finitely supported
+permutations with **finitely many active sorts** form a countable subgroup under
+`[Countable S.Srt]`, and invariance under it defines a larger σ-algebra in which the countable
+invariant hull strictifies almost-sure invariance. Under `[Fintype S.Srt]` the two notions
+coincide. -/
+
+/-- Finite support together with finitely many active sorts is closed under composition. -/
+theorem SortwiseFiniteActive.mul {σ τ : ∀ _ : S.Srt, Equiv.Perm ℕ}
+    (hσ : SortwiseFiniteActive (S := S) σ) (hτ : SortwiseFiniteActive (S := S) τ) :
+    SortwiseFiniteActive (S := S) fun s => σ s * τ s := by
+  classical
+  obtain ⟨T, hT⟩ := hσ
+  obtain ⟨U, hU⟩ := hτ
+  refine ⟨T ∪ U, fun s hs => ?_⟩
+  show σ s * τ s = 1
+  rw [hT s fun h => hs (Finset.mem_union_left _ h), hU s fun h => hs (Finset.mem_union_right _ h),
+    one_mul]
+
+theorem SortwiseFiniteActive.one : SortwiseFiniteActive (S := S) fun _ => 1 :=
+  ⟨∅, fun _ _ => rfl⟩
+
+/-- **The finite-active finitely supported permutations**, as a subgroup. -/
+def finiteActiveFinSuppSubgroup (S : RelSignature) : Subgroup (∀ _ : S.Srt, Equiv.Perm ℕ) where
+  carrier := {σ | SortwiseFinSupp (S := S) σ ∧ SortwiseFiniteActive (S := S) σ}
+  mul_mem' := fun hσ hτ => ⟨SortwiseFinSupp.mul hσ.1 hτ.1, SortwiseFiniteActive.mul hσ.2 hτ.2⟩
+  one_mem' := ⟨SortwiseFinSupp.one, SortwiseFiniteActive.one⟩
+  inv_mem' := fun hσ => ⟨SortwiseFinSupp.inv hσ.1, SortwiseFiniteActive.inv hσ.2⟩
+
+/-- A finitely supported sortwise permutation family with finitely many active sorts, bundled. -/
+abbrev FiniteActiveFinSuppPerm (S : RelSignature) := finiteActiveFinSuppSubgroup S
+
+@[simp] theorem mem_finiteActiveFinSuppSubgroup {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} :
+    σ ∈ finiteActiveFinSuppSubgroup S ↔
+      SortwiseFinSupp (S := S) σ ∧ SortwiseFiniteActive (S := S) σ := Iff.rfl
+
+/-- Under finitely many sorts every finitely supported family is finite-active. -/
+theorem finiteActiveFinSuppSubgroup_eq_of_fintype [Fintype S.Srt] :
+    finiteActiveFinSuppSubgroup S = sortwiseFinSuppSubgroup S :=
+  Subgroup.ext fun σ => ⟨fun h => h.1, fun h => ⟨h, SortwiseFiniteActive.of_fintype σ⟩⟩
+
+/-- **The finite-active subgroup is countable** under `[Countable S.Srt]`: a member is determined
+by its finite graph on the active sorts below its support bound. -/
+instance [Countable S.Srt] : Countable (FiniteActiveFinSuppPerm S) := by
+  classical
+  let enc : FiniteActiveFinSuppPerm S → Finset (S.Srt × ℕ × ℕ) := fun σ =>
+    ((Classical.choose σ.2.2) ×ˢ Finset.range (Classical.choose σ.2.1)).image
+      fun p => (p.1, p.2, σ.1 p.1 p.2)
+  refine Function.Injective.countable (f := enc) fun σ τ h' => ?_
+  -- membership in the graph is determined by the value
+  have hval : ∀ (ρ : FiniteActiveFinSuppPerm S) (s : S.Srt) (x y : ℕ),
+      (s, x, y) ∈ enc ρ ↔ (s ∈ Classical.choose ρ.2.2 ∧ x < Classical.choose ρ.2.1) ∧
+        ρ.1 s x = y := by
+    intro ρ s x y
+    simp only [enc, Finset.mem_image, Finset.mem_product, Finset.mem_range, Prod.exists]
+    constructor
+    · rintro ⟨s', x', ⟨hs', hx'⟩, hxy⟩
+      obtain ⟨rfl, hxy'⟩ := Prod.mk.inj hxy
+      obtain ⟨rfl, rfl⟩ := Prod.mk.inj hxy'
+      exact ⟨⟨hs', hx'⟩, rfl⟩
+    · rintro ⟨⟨hs, hx⟩, rfl⟩
+      exact ⟨s, x, ⟨hs, hx⟩, rfl⟩
+  -- outside the graph a member is the identity
+  have hout : ∀ (ρ : FiniteActiveFinSuppPerm S) (s : S.Srt) (x : ℕ),
+      ¬ (s ∈ Classical.choose ρ.2.2 ∧ x < Classical.choose ρ.2.1) → ρ.1 s x = x := by
+    intro ρ s x hn
+    by_cases hs : s ∈ Classical.choose ρ.2.2
+    · have hx : Classical.choose ρ.2.1 ≤ x := Nat.le_of_not_lt fun h => hn ⟨hs, h⟩
+      exact Classical.choose_spec ρ.2.1 s x hx
+    · rw [Classical.choose_spec ρ.2.2 s hs]
+      rfl
+  apply Subtype.ext
+  funext s
+  apply Equiv.ext
+  intro x
+  by_cases hσ : s ∈ Classical.choose σ.2.2 ∧ x < Classical.choose σ.2.1
+  · have hmem : (s, x, σ.1 s x) ∈ enc τ := by
+      rw [← h']
+      exact (hval σ s x _).mpr ⟨hσ, rfl⟩
+    exact ((hval τ s x _).mp hmem).2.symm
+  · by_cases hτ : s ∈ Classical.choose τ.2.2 ∧ x < Classical.choose τ.2.1
+    · have hmem : (s, x, τ.1 s x) ∈ enc σ := by
+        rw [h']
+        exact (hval τ s x _).mpr ⟨hτ, rfl⟩
+      exact ((hval σ s x _).mp hmem).2
+    · rw [hout σ s x hσ, hout τ s x hτ]
+
+/-- **The finite-active fixing σ-algebra** of `A`: measurable events invariant under every
+finite-active finitely supported sortwise relabeling fixing `A` pointwise. Contains the
+contract-level `fixingAlgebra A`, with equality under `[Fintype S.Srt]`. -/
+@[implicit_reducible]
+def RelStructure.finiteActiveFixingAlgebra (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    MeasurableSpace (RelStructure S (Vinfinite S)) where
+  MeasurableSet' E := MeasurableSet E ∧
+    ∀ σ, SortwiseFixing (S := S) A σ → SortwiseFiniteActive (S := S) σ →
+      RelStructure.relabel σ ⁻¹' E = E
+  measurableSet_empty := ⟨MeasurableSet.empty, fun _ _ _ => Set.preimage_empty⟩
+  measurableSet_compl := fun E hE => ⟨hE.1.compl, fun σ h h' => by
+    rw [Set.preimage_compl, hE.2 σ h h']⟩
+  measurableSet_iUnion := fun f hf => ⟨MeasurableSet.iUnion fun i => (hf i).1, fun σ h h' => by
+    rw [Set.preimage_iUnion]
+    exact Set.iUnion_congr fun i => (hf i).2 σ h h'⟩
+
+theorem RelStructure.finiteActiveFixingAlgebra_le (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    RelStructure.finiteActiveFixingAlgebra (S := S) A ≤
+      (inferInstance : MeasurableSpace (RelStructure S (Vinfinite S))) :=
+  fun _ hE => hE.1
+
+/-- **Raw containment**: invariance under all finitely supported relabelings fixing `A` implies
+invariance under the finite-active ones. -/
+theorem RelStructure.fixingAlgebra_le_finiteActiveFixingAlgebra
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    RelStructure.fixingAlgebra (S := S) A ≤ RelStructure.finiteActiveFixingAlgebra A :=
+  fun _ hE => ⟨hE.1, fun σ hσ _ => hE.2 σ hσ⟩
+
+/-- Under finitely many sorts the two fixing σ-algebras coincide. -/
+theorem RelStructure.finiteActiveFixingAlgebra_eq_of_fintype [Fintype S.Srt]
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    RelStructure.finiteActiveFixingAlgebra (S := S) A = RelStructure.fixingAlgebra A :=
+  le_antisymm (fun _ hE => ⟨hE.1, fun σ hσ => hE.2 σ hσ (SortwiseFiniteActive.of_fintype σ)⟩)
+    (RelStructure.fixingAlgebra_le_finiteActiveFixingAlgebra A)
+
+open scoped Classical in
+/-- One-sided transport of the finite-active fixing algebra along a finite-active relabeling:
+conjugating a finite-active stabilizer of the image by a finite-active `σ` gives a finite-active
+stabilizer of `A`. -/
+private theorem finiteActiveFixingAlgebra_comap_relabel_le {σ : ∀ _ : S.Srt, Equiv.Perm ℕ}
+    (hσ : SortwiseFiniteActive (S := S) σ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    MeasurableSpace.comap (RelStructure.relabel σ)
+        (RelStructure.finiteActiveFixingAlgebra (S := S) A) ≤
+      RelStructure.finiteActiveFixingAlgebra (A.image (Sigma.map id fun s => ⇑(σ s))) := by
+  rintro - ⟨E, hE, rfl⟩
+  refine ⟨measurable_relabel σ hE.1, fun τ hτ hτ' => ?_⟩
+  rw [RelStructure.relabel_preimage_relabel_preimage,
+    show (fun s => τ s * σ s) = fun s => σ s * ((σ s)⁻¹ * τ s * σ s) from
+      funext fun s => by group,
+    ← RelStructure.relabel_preimage_relabel_preimage,
+    hE.2 _ (SortwiseFixing.conj_of_finiteActive hσ hτ) (by
+      have h1 : SortwiseFiniteActive (S := S) fun s => (σ s)⁻¹ * τ s := hσ.inv.mul hτ'
+      exact h1.mul hσ)]
+
+open scoped Classical in
+/-- **Transport of the finite-active fixing σ-algebra** along a finite-active relabeling — an
+equality of pulled-back measurable spaces, the finite-active counterpart of
+`fixingAlgebra_comap_relabel`. -/
+theorem RelStructure.finiteActiveFixingAlgebra_comap_relabel {σ : ∀ _ : S.Srt, Equiv.Perm ℕ}
+    (hσ : SortwiseFiniteActive (S := S) σ) (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    MeasurableSpace.comap (RelStructure.relabel σ)
+        (RelStructure.finiteActiveFixingAlgebra (S := S) A) =
+      RelStructure.finiteActiveFixingAlgebra (A.image (Sigma.map id fun s => ⇑(σ s))) := by
+  refine le_antisymm (finiteActiveFixingAlgebra_comap_relabel_le hσ A) ?_
+  have h₂ := finiteActiveFixingAlgebra_comap_relabel_le hσ.inv
+    (A.image (Sigma.map id fun s => ⇑(σ s)))
+  have himg : ((A.image (Sigma.map id fun s => ⇑(σ s))).image
+      (Sigma.map id fun s => ⇑(σ s)⁻¹)) = A := by
+    rw [Finset.image_image]
+    refine (Finset.image_congr fun v _ => ?_).trans A.image_id
+    obtain ⟨s, x⟩ := v
+    show ⟨s, (σ s)⁻¹ (σ s x)⟩ = (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s)
+    rw [show (σ s)⁻¹ (σ s x) = x from (σ s).symm_apply_apply x]
+  rw [himg] at h₂
+  have := MeasurableSpace.comap_mono (g := RelStructure.relabel (V := Vinfinite S) σ) h₂
+  rwa [MeasurableSpace.comap_comp, RelStructure.relabel_comp_relabel,
+    show (fun s => σ s * (σ s)⁻¹) = fun _ : S.Srt => (1 : Equiv.Perm ℕ) from
+      funext fun s => mul_inv_cancel (σ s),
+    show RelStructure.relabel (V := Vinfinite S) (fun _ : S.Srt => (1 : Equiv.Perm ℕ)) = id from
+      rfl,
+    MeasurableSpace.comap_id] at this
 
 end RelSignature

@@ -171,6 +171,13 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.SortwiseFiniteActive.of_fintype
 #print axioms RelSignature.SortwiseFixing.conj_of_finiteActive
 #print axioms RelSignature.RelStructure.fixingAlgebra_comap_relabel_of_finiteActive
+#print axioms RelSignature.SortwiseFiniteActive.mul
+#print axioms RelSignature.SortwiseFiniteActive.one
+#print axioms RelSignature.finiteActiveFinSuppSubgroup_eq_of_fintype
+#print axioms RelSignature.RelStructure.finiteActiveFixingAlgebra_le
+#print axioms RelSignature.RelStructure.fixingAlgebra_le_finiteActiveFixingAlgebra
+#print axioms RelSignature.RelStructure.finiteActiveFixingAlgebra_eq_of_fintype
+#print axioms RelSignature.RelStructure.finiteActiveFixingAlgebra_comap_relabel
 #print axioms Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le
 #print axioms Graphon.abs_sampleMass_ofSimpleGraphOn_sub_tInd_le
 #print axioms MeasureTheory.Digraphon.sampleAdj_pair_of_lt
