@@ -541,4 +541,100 @@ theorem PooledRankExtension.exists_pooledFiniteActiveFixingAlgebra_ae_eq_fst
 
 end InfiniteRelExchangeableLaw
 
+/-! ### Invariance of pooled finite-active fixing events under finite-active motions
+
+The tail argument moves the reservoir by a permutation with **infinite** vertex support but
+finitely many active sorts (the poll shift). The membership hypothesis of the doubled theorem
+above is too strong for it; what is needed is invariance of the pooled finite-active fixing
+events themselves under every pooled permutation whose conjugate is finite-active and fixes the
+support — modulo the pooled structure marginal, and then modulo the joint law. -/
+
+/-- A pooled permutation family whose conjugate to the identified carrier has finitely many
+active sorts: the identity on every sort outside a finite set. -/
+theorem sortwiseFiniteActive_conjPooled {ρ : ∀ s, Equiv.Perm (PoolVertex S s)}
+    (hρ : ∃ T : Finset S.Srt, ∀ s, s ∉ T → ρ s = 1) :
+    SortwiseFiniteActive (S := S) (conjPooled ρ) := by
+  obtain ⟨T, hT⟩ := hρ
+  refine ⟨T, fun s hs => ?_⟩
+  show (poolVertexEquiv S s).symm.trans ((ρ s).trans (poolVertexEquiv S s)) = 1
+  rw [hT s hs]
+  ext x
+  simp
+
+/-- The vertex set of the identified carrier fixed by the conjugate: the image of a pooled
+vertex set under the identification. -/
+noncomputable def identifiedSupport (X : Finset (Σ s : S.Srt, PoolVertex S s)) :
+    Finset (Σ s : S.Srt, Vinfinite S s) :=
+  supportImage (fun s => (poolVertexEquiv S s).toEmbedding) X
+
+/-- A pooled permutation fixing `X` pointwise conjugates to a permutation fixing the identified
+support. -/
+theorem conjPooled_fixes {ρ : ∀ s, Equiv.Perm (PoolVertex S s)}
+    {X : Finset (Σ s : S.Srt, PoolVertex S s)} (hρ : ∀ v ∈ X, ρ v.1 v.2 = v.2) :
+    ∀ v ∈ identifiedSupport X, conjPooled ρ v.1 v.2 = v.2 := by
+  intro v hv
+  obtain ⟨w, hw, rfl⟩ := (mem_supportImage_iff _ _ _).mp hv
+  show poolVertexEquiv S w.1 (ρ w.1 ((poolVertexEquiv S w.1).symm (poolVertexEquiv S w.1 w.2))) =
+    poolVertexEquiv S w.1 w.2
+  rw [Equiv.symm_apply_apply, hρ w hw]
+
+/-- Relabeling by a pooled permutation, read through the identification, is relabeling by the
+conjugate. -/
+theorem poolStructureEquiv_relabel (ρ : ∀ s, Equiv.Perm (PoolVertex S s))
+    (X : RelStructure S (PoolVertex S)) :
+    poolStructureEquiv S (RelStructure.relabel ρ X) =
+      RelStructure.relabel (conjPooled ρ) (poolStructureEquiv S X) :=
+  RelStructure.congrCarrier_relabel _ ρ X
+
+namespace InfiniteRelExchangeableLaw
+
+variable {M : InfiniteRelExchangeableLaw S} {n : ℕ} [Countable S.Srt] [Countable S.Rel]
+  {C : M.RankRepresentation n}
+
+/-- **A.e. invariance of a pooled finite-active fixing event under a finite-active pooled
+motion**, modulo the pooled structure marginal. The motion may have infinite vertex support. -/
+theorem PooledRankExtension.relabel_preimage_ae_eq_of_pooledFiniteActiveFixingAlgebra
+    (Q : PooledRankExtension C) {X : Finset (Σ s : S.Srt, PoolVertex S s)}
+    {E : Set (RelStructure S (PoolVertex S))}
+    (hE : MeasurableSet[pooledFiniteActiveFixingAlgebra X] E)
+    {ρ : ∀ s, Equiv.Perm (PoolVertex S s)} (hρfin : ∃ T : Finset S.Srt, ∀ s, s ∉ T → ρ s = 1)
+    (hρ : ∀ v ∈ X, ρ v.1 v.2 = v.2) :
+    RelStructure.relabel ρ ⁻¹' E =ᵐ[(Q.law : Measure (RelStructure S (PoolVertex S) ×
+      PooledRankLatentSpace S n)).map Prod.fst] E := by
+  haveI := C.isProbabilityMeasure_P
+  obtain ⟨E₀, hE₀, rfl⟩ := hE
+  have hinv := M.relabel_preimage_ae_eq_of_finiteActiveFixingAlgebra hE₀
+    (sortwiseFiniteActive_conjPooled hρfin) (conjPooled_fixes hρ)
+  have hqmp : Measure.QuasiMeasurePreserving (poolStructureEquiv S)
+      ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+        Prod.fst) (M.law : Measure (RelStructure S (Vinfinite S))) :=
+    ⟨(poolStructureEquiv S).measurable, Q.map_fst_poolStructureEquiv ▸
+      Measure.AbsolutelyContinuous.rfl⟩
+  have h := hqmp.preimage_ae_eq hinv
+  rwa [show poolStructureEquiv S ⁻¹' (RelStructure.relabel (conjPooled ρ) ⁻¹' E₀) =
+      RelStructure.relabel ρ ⁻¹' (poolStructureEquiv S ⁻¹' E₀) from by
+    ext Y
+    simp only [Set.mem_preimage]
+    rw [poolStructureEquiv_relabel]] at h
+
+/-- The same, lifted to the joint pooled law through the structure coordinate. -/
+theorem PooledRankExtension.relabel_preimage_ae_eq_of_pooledFiniteActiveFixingAlgebra_fst
+    (Q : PooledRankExtension C) {X : Finset (Σ s : S.Srt, PoolVertex S s)}
+    {E : Set (RelStructure S (PoolVertex S))}
+    (hE : MeasurableSet[pooledFiniteActiveFixingAlgebra X] E)
+    {ρ : ∀ s, Equiv.Perm (PoolVertex S s)} (hρfin : ∃ T : Finset S.Srt, ∀ s, s ∉ T → ρ s = 1)
+    (hρ : ∀ v ∈ X, ρ v.1 v.2 = v.2) :
+    Prod.fst ⁻¹' (RelStructure.relabel ρ ⁻¹' E) =ᵐ[(Q.law : Measure (RelStructure S (PoolVertex S) ×
+      PooledRankLatentSpace S n))] Prod.fst ⁻¹' E := by
+  have hqmp : Measure.QuasiMeasurePreserving
+      (Prod.fst : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → _)
+      (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))
+      ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+        Prod.fst) :=
+    ⟨measurable_fst, Measure.AbsolutelyContinuous.rfl⟩
+  exact hqmp.preimage_ae_eq
+    (Q.relabel_preimage_ae_eq_of_pooledFiniteActiveFixingAlgebra hE hρfin hρ)
+
+end InfiniteRelExchangeableLaw
+
 end RelSignature

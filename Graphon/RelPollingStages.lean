@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelAustinPolling
+import Graphon.RelPollGeometry
 
 /-!
 # The finite-stage polling conditionings (R4 converse, #107, #197)
@@ -342,5 +343,166 @@ theorem iSup_avoidAlgebra (W : ℕ → Set (Σ s : S.Srt, PoolVertex S s))
       rfl
     rw [hfac, ← MeasurableSpace.comap_comp]
     exact MeasurableSpace.comap_mono (measurable_snd.eval).comap_le
+
+/-! ### The reservoir: tails of poll blocks -/
+
+section Reservoir
+
+variable (N : ℕ) [NeZero N] (D : Finset (Σ s : S.Srt, Vinfinite S s))
+
+/-- **The reservoir at stage `m`**: the original-half copies of the poll blocks in slots `m`
+and beyond. Antitone in `m`, and every finite set of vertices is eventually avoided. -/
+def reservoir (m : ℕ) : Set (Σ s : S.Srt, PoolVertex S s) :=
+  ⋃ k ∈ Set.Ici m, ((Sigma.map id fun s => ⇑(originalVertex S s)) '' (pollBlock N D k : Set _))
+
+omit [NeZero N] in
+theorem reservoir_antitone : Antitone (reservoir (S := S) N D) := fun _ _ h =>
+  Set.biUnion_subset_biUnion_left fun _ hk => Set.mem_Ici.mpr (le_trans h hk)
+
+omit [NeZero N] in
+theorem mem_reservoir {m : ℕ} {v : Σ s : S.Srt, PoolVertex S s} :
+    v ∈ reservoir N D m ↔ ∃ k, m ≤ k ∧ ∃ w ∈ pollBlock N D k,
+      Sigma.map id (fun s => ⇑(originalVertex S s)) w = v := by
+  simp only [reservoir, Set.mem_iUnion, Set.mem_Ici, Set.mem_image, Finset.mem_coe,
+    exists_prop]
+
+/-- **Finite-set exhaustion**: the reservoirs eventually avoid any finite set. -/
+theorem exists_reservoir_disjoint (F : Finset (Σ s : S.Srt, PoolVertex S s)) :
+    ∃ m, ∀ v ∈ F, v ∉ reservoir N D m := by
+  classical
+  -- a bound above every original vertex of `F`
+  set K : ℕ := (F.sup fun v => Sum.elim id id v.2) + 1 with hK
+  obtain ⟨m, hm⟩ := exists_le_pollIndex K
+  refine ⟨m, fun v hv hres => ?_⟩
+  obtain ⟨k, hmk, w, hw, rfl⟩ := (mem_reservoir N D).mp hres
+  have h1 : pollIndex k * N ≤ w.2 := le_of_mem_pollBlock hw
+  have h2 : K ≤ pollIndex k := hm k hmk
+  have h3 : Sum.elim id id (Sigma.map id (fun s => ⇑(originalVertex S s)) w).2 ≤ K - 1 := by
+    rw [hK, Nat.add_sub_cancel]
+    exact Finset.le_sup (f := fun v : Σ s : S.Srt, PoolVertex S s => Sum.elim id id v.2) hv
+  have h4 : Sum.elim id id (Sigma.map id (fun s => ⇑(originalVertex S s)) w).2 = w.2 := rfl
+  have hN : 1 ≤ N := Nat.one_le_iff_ne_zero.mpr (NeZero.ne N)
+  rw [h4] at h3
+  have h5 : K ≤ pollIndex k * N := le_trans h2 (Nat.le_mul_of_pos_right _ hN)
+  have hK1 : 1 ≤ K := Nat.le_add_left 1 _
+  exact lt_irrefl _ (lt_of_le_of_lt (h5.trans (h1.trans h3)) (Nat.sub_lt hK1 Nat.one_pos))
+
+omit [NeZero N] in
+/-- **The target is avoided**: an original vertex below the layout bound and outside `D` lies in
+no poll block, hence in no reservoir. -/
+theorem notMem_reservoir_of_lt {m : ℕ} {w : Σ s : S.Srt, Vinfinite S s} (hw : w.2 < N)
+    (hwD : w ∉ D) : Sigma.map id (fun s => ⇑(originalVertex S s)) w ∉ reservoir N D m := by
+  classical
+  intro hres
+  obtain ⟨k, -, u, hu, hu'⟩ := (mem_reservoir N D).mp hres
+  have hinj : Function.Injective (Sigma.map id fun s => ⇑(originalVertex S s) :
+      (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, PoolVertex S s) :=
+    Function.injective_id.sigma_map fun s => (originalVertex S s).injective
+  have huw : u = w := hinj hu'
+  subst huw
+  rcases Nat.eq_zero_or_pos k with rfl | hk
+  · rw [pollBlock_zero] at hu
+    exact hwD hu
+  · have h1 : pollIndex k * N ≤ u.2 := le_of_mem_pollBlock hu
+    have h2 : 1 ≤ pollIndex k := by
+      by_contra h0
+      have h0' : pollIndex k = 0 := by omega
+      have : pollEquivInt (k : ℤ) = pollEquivInt 0 := by rw [← pollIndex, h0', pollEquivInt_zero]
+      have := pollEquivInt.injective this
+      omega
+    have h3 : N ≤ u.2 := le_trans (Nat.le_mul_of_pos_left _ h2) h1
+    exact lt_irrefl _ (lt_of_lt_of_le hw h3)
+
+/-- **The pooled poll shift**: the poll permutation on the original half, the identity on the
+spare half. Half-preserving, with finitely many active sorts and infinite vertex support. -/
+noncomputable def pooledPollPerm : ∀ s, Equiv.Perm (PoolVertex S s) :=
+  fun s => Equiv.sumCongr (pollPerm N D s) (Equiv.refl _)
+
+theorem halfPreserving_pooledPollPerm : HalfPreserving (pooledPollPerm (S := S) N D) := by
+  intro s v
+  cases v <;> rfl
+
+open scoped Classical in
+theorem pooledPollPerm_eq_one : ∀ s, s ∉ D.image Sigma.fst → pooledPollPerm (S := S) N D s = 1 := by
+  intro s hs
+  show Equiv.sumCongr (pollPerm N D s) (Equiv.refl _) = 1
+  rw [pollPerm_eq_one_of_notMem N D hs]
+  ext x
+  cases x <;> rfl
+
+/-- The pooled shift carries the original copy of a vertex to the original copy of its image. -/
+theorem pooledPollPerm_original (w : Σ s : S.Srt, Vinfinite S s) :
+    Sigma.map id (fun s => ⇑(pooledPollPerm (S := S) N D s))
+        (Sigma.map id (fun s => ⇑(originalVertex S s)) w) =
+      Sigma.map id (fun s => ⇑(originalVertex S s))
+        (Sigma.map id (fun s => ⇑(pollPerm N D s)) w) := rfl
+
+open scoped Classical in
+/-- **The image law**: the pooled shift carries the reservoir at stage `m` onto the reservoir at
+stage `m + 1`, exactly. -/
+theorem imageSet_pooledPollPerm_reservoir (hD : ∀ v ∈ D, v.2 < N) (m : ℕ) :
+    imageSet (pooledPollPerm (S := S) N D) (reservoir N D m) = reservoir N D (m + 1) := by
+  ext v
+  rw [imageSet, Set.mem_image]
+  constructor
+  · rintro ⟨u, hu, rfl⟩
+    obtain ⟨k, hmk, w, hw, rfl⟩ := (mem_reservoir N D).mp hu
+    refine (mem_reservoir N D).mpr ⟨k + 1, by omega,
+      Sigma.map id (fun s => ⇑(pollPerm N D s)) w, ?_, pooledPollPerm_original N D w⟩
+    rw [← pollBlock_image_pollPerm hD k]
+    exact Finset.mem_image_of_mem _ hw
+  · intro hv
+    obtain ⟨k, hmk, w, hw, rfl⟩ := (mem_reservoir N D).mp hv
+    obtain ⟨k', rfl⟩ : ∃ k', k = k' + 1 := ⟨k - 1, by omega⟩
+    rw [← pollBlock_image_pollPerm hD k'] at hw
+    obtain ⟨u, hu, rfl⟩ := Finset.mem_image.mp hw
+    exact ⟨Sigma.map id (fun s => ⇑(originalVertex S s)) u,
+      (mem_reservoir N D).mpr ⟨k', by omega, u, hu, rfl⟩, (pooledPollPerm_original N D u).symm⟩
+
+/-- **The inverse orientation**: pulling the reservoir at stage `m + 1` back along the inverse
+shift is the reservoir at stage `m`. -/
+theorem imageSet_pooledPollPerm_inv_reservoir (hD : ∀ v ∈ D, v.2 < N) (m : ℕ) :
+    imageSet (fun s => (pooledPollPerm (S := S) N D s)⁻¹) (reservoir N D (m + 1)) =
+      reservoir N D m := by
+  rw [← imageSet_pooledPollPerm_reservoir N D hD m, imageSet, imageSet, Set.image_image]
+  convert Set.image_id _ using 2
+  funext u
+  obtain ⟨s, x⟩ := u
+  show (⟨s, (pooledPollPerm N D s)⁻¹ (pooledPollPerm N D s x)⟩ : Σ s : S.Srt, PoolVertex S s) =
+    ⟨s, x⟩
+  rw [show (pooledPollPerm N D s)⁻¹ (pooledPollPerm N D s x) = x from
+    (pooledPollPerm N D s).symm_apply_apply x]
+
+/-- **The reservoir filtration**: the stages avoiding the reservoirs, increasing in `m`. -/
+noncomputable def reservoirFiltration (n : ℕ) : Filtration ℕ
+    (inferInstance : MeasurableSpace (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))
+    where
+  seq m := avoidAlgebra n (reservoir N D m)
+  mono' := fun _ _ h => avoidAlgebra_mono (reservoir_antitone N D h)
+  le' := fun _ => avoidAlgebra_le n _
+
+omit [NeZero N] in
+theorem reservoirFiltration_apply (n m : ℕ) :
+    reservoirFiltration (S := S) N D n m = avoidAlgebra n (reservoir N D m) := rfl
+
+/-- The filtration's supremum is the polling conditioning. -/
+theorem iSup_reservoirFiltration (n : ℕ) :
+    (⨆ m, reservoirFiltration (S := S) N D n m) =
+      MeasurableSpace.comap (InfiniteRelExchangeableLaw.sourcePollingCond (S := S) (n := n))
+        inferInstance := by
+  rw [← avoidAlgebra_empty]
+  exact iSup_avoidAlgebra (reservoir N D) (exists_reservoir_disjoint N D)
+
+/-- **Adjacent stages under the inverse shift**: the larger stage `m + 1` pulls back along the
+inverse pooled shift to the smaller stage `m`, exactly. This is the `comap T m₁ = m₂` input of
+the tail engine, in the orientation Lévy upward needs. -/
+theorem comap_pooledJointRelabel_inv_reservoirFiltration (hD : ∀ v ∈ D, v.2 < N) (n m : ℕ) :
+    MeasurableSpace.comap (pooledJointRelabel (fun s => (pooledPollPerm (S := S) N D s)⁻¹) n)
+        (reservoirFiltration N D n (m + 1)) = reservoirFiltration N D n m := by
+  rw [reservoirFiltration_apply, reservoirFiltration_apply,
+    comap_pooledJointRelabel_avoidAlgebra (halfPreserving_pooledPollPerm N D).inv,
+    imageSet_pooledPollPerm_inv_reservoir N D hD m]
+
+end Reservoir
 
 end RelSignature

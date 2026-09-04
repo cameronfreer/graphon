@@ -195,9 +195,10 @@ section AeInvariance
 
 variable {S : RelSignature}
 
-/-- **Arbitrary-permutation a.e. invariance of fixing-algebra events** (the `f ∘ T =ᵐ f`
-input of the tail engine): a `fixingAlgebra A`-event `E` is invariant under *every* sortwise
-permutation fixing `A` pointwise with finitely many active sorts — no finite-support bound on
+/-- **Arbitrary-permutation a.e. invariance of finite-active fixing events** (the `f ∘ T =ᵐ f`
+input of the tail engine): a `finiteActiveFixingAlgebra A`-event `E` — in particular any
+`fixingAlgebra A`-event — is invariant under *every* sortwise permutation fixing `A` pointwise
+with finitely many active sorts — no finite-support bound on
 the vertices is required — modulo `M.law`. Only the active sorts need a common support bound
 for the approximating finitely supported permutation; on the inactive sorts both are the
 identity, which is what keeps `[Fintype S.Srt]` out. This
@@ -209,10 +210,10 @@ all of `A` (`exists_finSupp_perm_extend`) — since `σ` fixes `A` and the windo
 `π` fixes `A`, so `relabel π ⁻¹' E = E` exactly; then
 `μ(σ⁻¹E ∆ E) ≤ μ(σ⁻¹(E ∆ D)) + μ(π⁻¹(D ∆ E)) = 2·μ(E ∆ D)` using `σ⁻¹D = π⁻¹D` (window
 agreement) and measure preservation, and let the approximation error vanish. -/
-theorem InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra_of_finiteActive
+theorem InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_finiteActiveFixingAlgebra
     [Countable S.Rel] (M : InfiniteRelExchangeableLaw S)
     {A : Finset (Σ s : S.Srt, Vinfinite S s)} {E : Set (RelStructure S (Vinfinite S))}
-    (hE : MeasurableSet[RelStructure.fixingAlgebra A] E)
+    (hE : MeasurableSet[RelStructure.finiteActiveFixingAlgebra A] E)
     {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} (hσfin : SortwiseFiniteActive (S := S) σ)
     (hσ : ∀ v ∈ A, σ v.1 v.2 = v.2) :
     RelStructure.relabel σ ⁻¹' E =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))] E := by
@@ -254,7 +255,8 @@ theorem InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra_of_fi
       intro v hv
       have hval : π v.1 v.2 = σ v.1 v.2 := hagree v.1 ⟨v.2, hAn v hv⟩
       rw [hval]; exact hσ v hv
-    have hπE : RelStructure.relabel π ⁻¹' E = E := hE.2 π ⟨hπ_fs, hπ_fix⟩
+    have hπ_fa : SortwiseFiniteActive (S := S) π := ⟨T, fun s hs => by simp only [hπdef, if_neg hs]⟩
+    have hπE : RelStructure.relabel π ⁻¹' E = E := hE.2 π ⟨hπ_fs, hπ_fix⟩ hπ_fa
     have hMPπ : MeasurePreserving (RelStructure.relabel π) μ μ := measurePreserving_relabel M π
     have hcompeq : RelStructure.restrictFin n ∘ RelStructure.relabel σ
         = RelStructure.restrictFin n ∘ RelStructure.relabel π := by
@@ -290,6 +292,17 @@ theorem InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra_of_fi
   by_contra hne
   exact absurd (key _ (pos_iff_ne_zero.mpr hne)) (lt_irrefl _)
 
+
+/-- The raw-fixing-event form: `fixingAlgebra A ≤ finiteActiveFixingAlgebra A`. -/
+theorem InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra_of_finiteActive
+    [Countable S.Rel] (M : InfiniteRelExchangeableLaw S)
+    {A : Finset (Σ s : S.Srt, Vinfinite S s)} {E : Set (RelStructure S (Vinfinite S))}
+    (hE : MeasurableSet[RelStructure.fixingAlgebra A] E)
+    {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} (hσfin : SortwiseFiniteActive (S := S) σ)
+    (hσ : ∀ v ∈ A, σ v.1 v.2 = v.2) :
+    RelStructure.relabel σ ⁻¹' E =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))] E :=
+  M.relabel_preimage_ae_eq_of_finiteActiveFixingAlgebra
+    (RelStructure.fixingAlgebra_le_finiteActiveFixingAlgebra A E hE) hσfin hσ
 
 /-- The finite-active statement at `T = univ`: under finitely many sorts, every sortwise
 permutation fixing `A` preserves each `fixingAlgebra A`-event modulo `M.law`. -/
