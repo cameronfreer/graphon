@@ -4,7 +4,6 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelBasisSyntax
-import Graphon.RelErgodicExtreme
 
 /-!
 # The saturated atom family (R4 converse piece 3, #107)
@@ -46,14 +45,6 @@ open MeasureTheory MeasurableSpace
 namespace RelSignature
 
 variable {S : RelSignature}
-
-/-! ### Countability of the relabeling subgroup -/
-
-/-- The finitely supported sortwise permutations form a countable group under finitely many
-sorts — the subgroup itself lives beside `SortwiseFinSupp` in `Graphon.RelInvariantAction`;
-countability is recorded here, where `Fintype S.Srt` is in play. -/
-instance [Fintype S.Srt] : Countable (FinSuppPerm S) :=
-  (countable_setOf_sortwiseFinSupp (S := S)).to_subtype
 
 /-! ### Seed data -/
 
