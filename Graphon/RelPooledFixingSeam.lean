@@ -48,8 +48,8 @@ Both are then stated on the pooled structure marginal
 (`PooledRankExtension.exists_pooledFiniteActiveFixingAlgebra_ae_eq`) and lifted to the joint
 pooled law (`PooledRankExtension.exists_pooledFiniteActiveFixingAlgebra_ae_eq_fst`).
 
-The hull construction and the bundled stabilizer are private: no second consumer justifies
-extracting them yet.
+The hull construction and the bundled stabilizer are public: the finite-active coherent basis
+consumes them, and needs the hull's exact equivariance.
 -/
 
 open MeasureTheory
@@ -314,11 +314,14 @@ theorem relabel_preimage_ae_eq_of_fixingAlgebra_doubled [Countable S.Rel]
   by_contra hne
   exact absurd (key _ (pos_iff_ne_zero.mpr hne)) (lt_irrefl _)
 
-/-! ### The countable invariant hull -/
+/-! ### The countable invariant hull
 
-/-- The finite-active stabilizer of a tagged vertex set, bundled. Private: it indexes the hull
-and nothing else. -/
-private def finiteActiveStabilizer (X : Finset (Σ s : S.Srt, Vinfinite S s)) :
+The stabilizer and the hull are public: the finite-active coherent basis is their second
+consumer, and it needs the hull's exact equivariance (`finiteActiveHull_relabel`) to make the
+distinguished doubled coordinates act compatibly. -/
+
+/-- The finite-active stabilizer of a tagged vertex set, bundled as a subgroup. -/
+def finiteActiveStabilizer (X : Finset (Σ s : S.Srt, Vinfinite S s)) :
     Subgroup (∀ _ : S.Srt, Equiv.Perm ℕ) where
   carrier := {σ | σ ∈ finiteActiveFinSuppSubgroup S ∧ ∀ v ∈ X, σ v.1 v.2 = v.2}
   mul_mem' := fun {σ τ} hσ hτ => ⟨(finiteActiveFinSuppSubgroup S).mul_mem hσ.1 hτ.1,
@@ -331,16 +334,117 @@ private def finiteActiveStabilizer (X : Finset (Σ s : S.Srt, Vinfinite S s)) :
     conv_lhs => rw [← hσ.2 v hv]
     exact (σ v.1).symm_apply_apply v.2⟩
 
-private instance [Countable S.Srt] (X : Finset (Σ s : S.Srt, Vinfinite S s)) :
+theorem mem_finiteActiveStabilizer {X : Finset (Σ s : S.Srt, Vinfinite S s)}
+    {σ : ∀ _ : S.Srt, Equiv.Perm ℕ} :
+    σ ∈ finiteActiveStabilizer (S := S) X ↔
+      σ ∈ finiteActiveFinSuppSubgroup S ∧ ∀ v ∈ X, σ v.1 v.2 = v.2 := Iff.rfl
+
+instance [Countable S.Srt] (X : Finset (Σ s : S.Srt, Vinfinite S s)) :
     Countable (finiteActiveStabilizer (S := S) X) :=
   Function.Injective.countable (f := fun σ : finiteActiveStabilizer (S := S) X =>
     (⟨σ.1, σ.2.1⟩ : FiniteActiveFinSuppPerm S)) fun _ _ h =>
       Subtype.ext (by simpa using congrArg Subtype.val h)
 
-/-- The countable invariant hull of an event over the finite-active stabilizer. -/
-private def finiteActiveHull (X : Finset (Σ s : S.Srt, Vinfinite S s))
+/-- **The countable invariant hull** of an event over the finite-active stabilizer of `X`. -/
+def finiteActiveHull (X : Finset (Σ s : S.Srt, Vinfinite S s))
     (F : Set (RelStructure S (Vinfinite S))) : Set (RelStructure S (Vinfinite S)) :=
   ⋂ σ : finiteActiveStabilizer (S := S) X, RelStructure.relabel σ.1 ⁻¹' F
+
+theorem finiteActiveHull_subset (X : Finset (Σ s : S.Srt, Vinfinite S s))
+    (F : Set (RelStructure S (Vinfinite S))) : finiteActiveHull X F ⊆ F := fun _ hY =>
+  Set.mem_iInter.mp hY ⟨1, (finiteActiveStabilizer (S := S) X).one_mem⟩
+
+/-- The hull is measurable for the finite-active fixing algebra of `X`: measurable as a countable
+intersection, and exactly invariant by reindexing the intersection through multiplication. -/
+theorem measurableSet_finiteActiveHull [Countable S.Srt]
+    (X : Finset (Σ s : S.Srt, Vinfinite S s)) {F : Set (RelStructure S (Vinfinite S))}
+    (hF : MeasurableSet F) :
+    MeasurableSet[RelStructure.finiteActiveFixingAlgebra X] (finiteActiveHull X F) := by
+  refine ⟨MeasurableSet.iInter fun σ => measurable_relabel _ hF, ?_⟩
+  intro τ hτ hτ'
+  have hτmem : τ ∈ finiteActiveStabilizer (S := S) X := ⟨⟨hτ.1, hτ'⟩, hτ.2⟩
+  have hcomp : ∀ (a b : ∀ _ : S.Srt, Equiv.Perm ℕ) (Y : RelStructure S (Vinfinite S)),
+      RelStructure.relabel a (RelStructure.relabel b Y) =
+        RelStructure.relabel (fun s => b s * a s) Y :=
+    fun a b Y => congrFun (RelStructure.relabel_comp_relabel a b) Y
+  ext Y
+  simp only [finiteActiveHull, Set.mem_preimage, Set.mem_iInter]
+  constructor
+  · intro h σ
+    have := h ⟨τ⁻¹ * σ.1, (finiteActiveStabilizer (S := S) X).mul_mem
+      ((finiteActiveStabilizer (S := S) X).inv_mem hτmem) σ.2⟩
+    rw [hcomp] at this
+    convert this using 2
+    funext s
+    show σ.1 s = τ s * ((τ s)⁻¹ * σ.1 s)
+    group
+  · intro h σ
+    have := h ⟨τ * σ.1, (finiteActiveStabilizer (S := S) X).mul_mem hτmem σ.2⟩
+    rw [hcomp]
+    exact this
+
+/-- The hull of an event that is almost surely invariant under the stabilizer is almost surely
+equal to it: it sits inside the event, and misses it by a countable union of null sets. -/
+theorem finiteActiveHull_ae_eq [Countable S.Srt] {μ : Measure (RelStructure S (Vinfinite S))}
+    (X : Finset (Σ s : S.Srt, Vinfinite S s)) {F : Set (RelStructure S (Vinfinite S))}
+    (hinv : ∀ σ : finiteActiveStabilizer (S := S) X,
+      RelStructure.relabel σ.1 ⁻¹' F =ᵐ[μ] F) :
+    finiteActiveHull X F =ᵐ[μ] F := by
+  refine ae_eq_set.mpr ⟨?_, ?_⟩
+  · rw [Set.sdiff_eq_empty.mpr (finiteActiveHull_subset X F), measure_empty]
+  · refine measure_mono_null (fun Y hY => ?_)
+      (measure_iUnion_null fun σ : finiteActiveStabilizer (S := S) X => (ae_eq_set.mp (hinv σ)).2)
+    obtain ⟨hYF, hYnot⟩ := hY
+    rw [Set.mem_iUnion]
+    simp only [finiteActiveHull, Set.mem_iInter, not_forall] at hYnot
+    obtain ⟨σ, hσ⟩ := hYnot
+    exact ⟨σ, hYF, hσ⟩
+
+open scoped Classical in
+/-- **Exact equivariance of the hull** under the finite-active subgroup: pulling the hull back
+along `g` is the hull, at the moved vertex set, of the pulled-back event. The stabilizers
+conjugate by `g`, and the two intersections reindex along that conjugation. This is what makes
+the distinguished doubled coordinates of the finite-active basis act compatibly. -/
+theorem finiteActiveHull_relabel {g : ∀ _ : S.Srt, Equiv.Perm ℕ}
+    (hg : g ∈ finiteActiveFinSuppSubgroup S) (X : Finset (Σ s : S.Srt, Vinfinite S s))
+    (F : Set (RelStructure S (Vinfinite S))) :
+    RelStructure.relabel g ⁻¹' finiteActiveHull X F =
+      finiteActiveHull (X.image (Sigma.map id fun s => ⇑(g s))) (RelStructure.relabel g ⁻¹' F) := by
+  have hcomp : ∀ (a b : ∀ _ : S.Srt, Equiv.Perm ℕ) (Y : RelStructure S (Vinfinite S)),
+      RelStructure.relabel a (RelStructure.relabel b Y) =
+        RelStructure.relabel (fun s => b s * a s) Y :=
+    fun a b Y => congrFun (RelStructure.relabel_comp_relabel a b) Y
+  ext Y
+  simp only [finiteActiveHull, Set.mem_preimage, Set.mem_iInter]
+  constructor
+  · intro h σ
+    -- conjugate the stabilizer of the image back to a stabilizer of `X`
+    have hk : g⁻¹ * σ.1 * g ∈ finiteActiveStabilizer (S := S) X := by
+      refine ⟨(finiteActiveFinSuppSubgroup S).mul_mem ((finiteActiveFinSuppSubgroup S).mul_mem
+        ((finiteActiveFinSuppSubgroup S).inv_mem hg) σ.2.1) hg, fun v hv => ?_⟩
+      show (g v.1)⁻¹ (σ.1 v.1 (g v.1 v.2)) = v.2
+      rw [σ.2.2 ⟨v.1, g v.1 v.2⟩ (Finset.mem_image_of_mem _ hv)]
+      exact (g v.1).symm_apply_apply v.2
+    have := h ⟨_, hk⟩
+    rw [hcomp] at this ⊢
+    convert this using 2
+    funext s
+    show σ.1 s * g s = g s * ((g s)⁻¹ * σ.1 s * g s)
+    group
+  · intro h σ
+    have hk : g * σ.1 * g⁻¹ ∈ finiteActiveStabilizer (S := S)
+        (X.image (Sigma.map id fun s => ⇑(g s))) := by
+      refine ⟨(finiteActiveFinSuppSubgroup S).mul_mem ((finiteActiveFinSuppSubgroup S).mul_mem
+        hg σ.2.1) ((finiteActiveFinSuppSubgroup S).inv_mem hg), fun v hv => ?_⟩
+      obtain ⟨w, hw, rfl⟩ := Finset.mem_image.mp hv
+      show g w.1 (σ.1 w.1 ((g w.1)⁻¹ (g w.1 w.2))) = g w.1 w.2
+      rw [show (g w.1)⁻¹ (g w.1 w.2) = w.2 from (g w.1).symm_apply_apply w.2, σ.2.2 w hw]
+    have := h ⟨_, hk⟩
+    rw [hcomp] at this ⊢
+    convert this using 2
+    funext s
+    show g s * σ.1 s = g s * σ.1 s * (g s)⁻¹ * g s
+    group
 
 /-- **Strictification**: the countable invariant hull of a fixing event read on the doubled
 sub-copy is measurable for the finite-active fixing algebra of the doubled support and a.e.
@@ -350,52 +454,11 @@ theorem exists_finiteActiveFixingAlgebra_ae_eq_doubled [Countable S.Srt] [Counta
     (hE : MeasurableSet[RelStructure.fixingAlgebra A] E) :
     ∃ Ê, MeasurableSet[RelStructure.finiteActiveFixingAlgebra (doubleSupport A)] Ê ∧
       Ê =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))]
-        RelStructure.restrict (doubleEmb S) ⁻¹' E := by
-  classical
-  set F : Set (RelStructure S (Vinfinite S)) := RelStructure.restrict (doubleEmb S) ⁻¹' E with hF
-  have hFmeas : MeasurableSet F := measurable_restrict _ hE.1
-  refine ⟨finiteActiveHull (doubleSupport A) F, ⟨?_, ?_⟩, ?_⟩
-  · exact MeasurableSet.iInter fun σ => measurable_relabel _ hFmeas
-  · -- exact invariance: reindex the intersection by multiplication
-    intro τ hτ hτ'
-    have hτmem : τ ∈ finiteActiveStabilizer (S := S) (doubleSupport A) :=
-      ⟨⟨hτ.1, hτ'⟩, hτ.2⟩
-    have hcomp : ∀ (a b : ∀ _ : S.Srt, Equiv.Perm ℕ) (Y : RelStructure S (Vinfinite S)),
-        RelStructure.relabel a (RelStructure.relabel b Y) =
-          RelStructure.relabel (fun s => b s * a s) Y :=
-      fun a b Y => congrFun (RelStructure.relabel_comp_relabel a b) Y
-    ext Y
-    simp only [finiteActiveHull, Set.mem_preimage, Set.mem_iInter]
-    constructor
-    · intro h σ
-      have := h ⟨τ⁻¹ * σ.1, (finiteActiveStabilizer (S := S) (doubleSupport A)).mul_mem
-        ((finiteActiveStabilizer (S := S) (doubleSupport A)).inv_mem hτmem) σ.2⟩
-      rw [hcomp] at this
-      convert this using 2
-      funext s
-      show σ.1 s = τ s * ((τ s)⁻¹ * σ.1 s)
-      group
-    · intro h σ
-      have := h ⟨τ * σ.1, (finiteActiveStabilizer (S := S) (doubleSupport A)).mul_mem hτmem σ.2⟩
-      rw [hcomp]
-      exact this
-  · -- a.e. equality: the hull sits inside the event, and misses it by a countable union of
-    -- null sets
-    have hinv : ∀ σ : finiteActiveStabilizer (S := S) (doubleSupport A),
-        RelStructure.relabel σ.1 ⁻¹' F =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))] F :=
-      fun σ => M.relabel_preimage_ae_eq_of_fixingAlgebra_doubled hE σ.2.1 σ.2.2
-    refine ae_eq_set.mpr ⟨?_, ?_⟩
-    · rw [Set.sdiff_eq_empty.mpr fun Y hY => ?_, measure_empty]
-      have := Set.mem_iInter.mp hY ⟨1, (finiteActiveStabilizer (S := S) (doubleSupport A)).one_mem⟩
-      exact this
-    · refine measure_mono_null (fun Y hY => ?_)
-        (measure_iUnion_null fun σ : finiteActiveStabilizer (S := S) (doubleSupport A) =>
-          (ae_eq_set.mp (hinv σ)).2)
-      obtain ⟨hYF, hYnot⟩ := hY
-      rw [Set.mem_iUnion]
-      simp only [finiteActiveHull, Set.mem_iInter, not_forall] at hYnot
-      obtain ⟨σ, hσ⟩ := hYnot
-      exact ⟨σ, hYF, hσ⟩
+        RelStructure.restrict (doubleEmb S) ⁻¹' E :=
+  ⟨finiteActiveHull (doubleSupport A) (RelStructure.restrict (doubleEmb S) ⁻¹' E),
+    measurableSet_finiteActiveHull _ (measurable_restrict _ hE.1),
+    finiteActiveHull_ae_eq _ fun σ =>
+      M.relabel_preimage_ae_eq_of_fixingAlgebra_doubled hE σ.2.1 σ.2.2⟩
 
 end InfiniteRelExchangeableLaw
 

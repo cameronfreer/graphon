@@ -95,32 +95,44 @@ def eval (atomEvent : α → Set (RelStructure S (Vinfinite S))) :
 /-- Every expression evaluates into the fixing algebra of its own anchor, provided the atoms do.
 The intersection case is where the anchor-as-union convention pays: both sides are pushed up to
 the union by `fixingAlgebra_mono`. -/
+theorem eval_mem_of_mono {alg : Finset (Σ s : S.Srt, Vinfinite S s) →
+      MeasurableSpace (RelStructure S (Vinfinite S))}
+    (halg : ∀ {A B : Finset (Σ s : S.Srt, Vinfinite S s)}, A ⊆ B → alg A ≤ alg B)
+    {atomAnchor : α → Finset (Σ s : S.Srt, Vinfinite S s)}
+    {atomEvent : α → Set (RelStructure S (Vinfinite S))}
+    (hatom : ∀ a, MeasurableSet[alg (atomAnchor a)] (atomEvent a)) :
+    ∀ e : BasisExpr α, MeasurableSet[alg (anchorOf atomAnchor e)] (eval atomEvent e)
+  | .bot => @MeasurableSet.empty _ (alg _)
+  | .atom a => hatom a
+  | .compl e => (eval_mem_of_mono halg hatom e).compl
+  | .inter e f => by
+      classical
+      exact ((halg Finset.subset_union_left) _ (eval_mem_of_mono halg hatom e)).inter
+        ((halg Finset.subset_union_right) _ (eval_mem_of_mono halg hatom f))
+
+/-- The fixing-algebra instance of `eval_mem_of_mono`. -/
 theorem eval_mem {atomAnchor : α → Finset (Σ s : S.Srt, Vinfinite S s)}
     {atomEvent : α → Set (RelStructure S (Vinfinite S))}
     (hatom : ∀ a, MeasurableSet[RelStructure.fixingAlgebra (atomAnchor a)] (atomEvent a)) :
     ∀ e : BasisExpr α,
-      MeasurableSet[RelStructure.fixingAlgebra (anchorOf atomAnchor e)] (eval atomEvent e)
-  | .bot => @MeasurableSet.empty _ (RelStructure.fixingAlgebra _)
-  | .atom a => hatom a
-  | .compl e => (eval_mem hatom e).compl
-  | .inter e f => by
-      classical
-      exact ((RelStructure.fixingAlgebra_mono Finset.subset_union_left) _
-          (eval_mem hatom e)).inter
-        ((RelStructure.fixingAlgebra_mono Finset.subset_union_right) _ (eval_mem hatom f))
+      MeasurableSet[RelStructure.fixingAlgebra (anchorOf atomAnchor e)] (eval atomEvent e) :=
+  eval_mem_of_mono (fun h => RelStructure.fixingAlgebra_mono h) hatom
 
 /-! ### The relabeling action -/
 
-/-- **The action on expressions**, induced by an action on atoms. Typed by the finitely
-supported subgroup, matching `CoherentBasis.act`. -/
-def act (atomAct : FinSuppPerm S → α → α) (σ : FinSuppPerm S) : BasisExpr α → BasisExpr α
+variable {H : Subgroup (∀ _ : S.Srt, Equiv.Perm ℕ)}
+
+/-- **The action on expressions**, induced by an action on atoms. Typed by a subgroup of the
+sortwise permutation group — the finitely supported subgroup for `CoherentBasis.act`, its
+finite-active subgroup for the finite-active basis. -/
+def act (atomAct : H → α → α) (σ : H) : BasisExpr α → BasisExpr α
   | .bot => .bot
   | .atom a => .atom (atomAct σ a)
   | .compl e => .compl (act atomAct σ e)
   | .inter e f => .inter (act atomAct σ e) (act atomAct σ f)
 
 /-- The action is trivial at the identity, by induction from the atom-level law. -/
-theorem act_one {atomAct : FinSuppPerm S → α → α} (hone : ∀ a, atomAct 1 a = a) :
+theorem act_one {atomAct : H → α → α} (hone : ∀ a, atomAct 1 a = a) :
     ∀ e : BasisExpr α, act atomAct 1 e = e
   | .bot => rfl
   | .atom a => by simp only [act, hone]
@@ -129,7 +141,7 @@ theorem act_one {atomAct : FinSuppPerm S → α → α} (hone : ∀ a, atomAct 1
 
 /-- The action is multiplicative, by induction from the atom-level law. The orientation matches
 the contravariance of `RelStructure.relabel`. -/
-theorem act_mul {atomAct : FinSuppPerm S → α → α} {σ τ : FinSuppPerm S}
+theorem act_mul {atomAct : H → α → α} {σ τ : H}
     (hmul : ∀ a, atomAct (σ * τ) a = atomAct σ (atomAct τ a)) :
     ∀ e : BasisExpr α, act atomAct (σ * τ) e = act atomAct σ (act atomAct τ e)
   | .bot => rfl
@@ -140,7 +152,7 @@ theorem act_mul {atomAct : FinSuppPerm S → α → α} {σ τ : FinSuppPerm S}
 open scoped Classical in
 /-- The action transports anchors by the image map, provided the atoms do. -/
 theorem anchorOf_act {atomAnchor : α → Finset (Σ s : S.Srt, Vinfinite S s)}
-    {atomAct : FinSuppPerm S → α → α} {σ : FinSuppPerm S}
+    {atomAct : H → α → α} {σ : H}
     (hanchor : ∀ a, atomAnchor (atomAct σ a) =
       (atomAnchor a).image (Sigma.map id fun s => ⇑(σ.1 s))) :
     ∀ e : BasisExpr α, anchorOf atomAnchor (act atomAct σ e) =
@@ -156,7 +168,7 @@ theorem anchorOf_act {atomAnchor : α → Finset (Σ s : S.Srt, Vinfinite S s)}
 atoms do. Complement and intersection commute with preimage on the nose, which is the whole
 reason the syntax layer keeps the action strict. -/
 theorem eval_act {atomEvent : α → Set (RelStructure S (Vinfinite S))}
-    {atomAct : FinSuppPerm S → α → α} {σ : FinSuppPerm S}
+    {atomAct : H → α → α} {σ : H}
     (hevent : ∀ a, atomEvent (atomAct σ a) = RelStructure.relabel σ.1 ⁻¹' atomEvent a) :
     ∀ e : BasisExpr α,
       eval atomEvent (act atomAct σ e) = RelStructure.relabel σ.1 ⁻¹' eval atomEvent e

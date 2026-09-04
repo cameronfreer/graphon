@@ -431,6 +431,13 @@ theorem RelStructure.finiteActiveFixingAlgebra_le (A : Finset (Σ s : S.Srt, Vin
       (inferInstance : MeasurableSpace (RelStructure S (Vinfinite S))) :=
   fun _ hE => hE.1
 
+/-- **Monotonicity**: a larger fixed set is a smaller finite-active stabilizer. -/
+theorem RelStructure.finiteActiveFixingAlgebra_mono
+    {A B : Finset (Σ s : S.Srt, Vinfinite S s)} (hAB : A ⊆ B) :
+    RelStructure.finiteActiveFixingAlgebra (S := S) A ≤
+      RelStructure.finiteActiveFixingAlgebra (S := S) B :=
+  fun _ hE => ⟨hE.1, fun σ hσ hσ' => hE.2 σ ⟨hσ.1, fun v hv => hσ.2 v (hAB hv)⟩ hσ'⟩
+
 /-- **Raw containment**: invariance under all finitely supported relabelings fixing `A` implies
 invariance under the finite-active ones. -/
 theorem RelStructure.fixingAlgebra_le_finiteActiveFixingAlgebra

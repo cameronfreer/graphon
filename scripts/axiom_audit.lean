@@ -178,6 +178,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.RelStructure.fixingAlgebra_le_finiteActiveFixingAlgebra
 #print axioms RelSignature.RelStructure.finiteActiveFixingAlgebra_eq_of_fintype
 #print axioms RelSignature.RelStructure.finiteActiveFixingAlgebra_comap_relabel
+#print axioms RelSignature.RelStructure.finiteActiveFixingAlgebra_mono
 #print axioms RelSignature.poolVertexEquiv_inl
 #print axioms RelSignature.poolVertexEquiv_inr
 #print axioms RelSignature.mem_doubleSupport
@@ -186,6 +187,11 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.InfiniteRelExchangeableLaw.restrict_doubleEmb_relabel_doubledLift
 #print axioms RelSignature.InfiniteRelExchangeableLaw.relabel_preimage_ae_eq_of_fixingAlgebra_doubled
 #print axioms RelSignature.InfiniteRelExchangeableLaw.exists_finiteActiveFixingAlgebra_ae_eq_doubled
+#print axioms RelSignature.InfiniteRelExchangeableLaw.mem_finiteActiveStabilizer
+#print axioms RelSignature.InfiniteRelExchangeableLaw.finiteActiveHull_subset
+#print axioms RelSignature.InfiniteRelExchangeableLaw.measurableSet_finiteActiveHull
+#print axioms RelSignature.InfiniteRelExchangeableLaw.finiteActiveHull_ae_eq
+#print axioms RelSignature.InfiniteRelExchangeableLaw.finiteActiveHull_relabel
 #print axioms RelSignature.doubleSupport_eq
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.map_fst_poolStructureEquiv
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.exists_pooledFiniteActiveFixingAlgebra_ae_eq
@@ -205,6 +211,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.CoherentBasis.exists_comap_factorMap_ae_eq
 #print axioms RelSignature.CoherentBasis.measurable_factorMap
 #print axioms RelSignature.BasisExpr.eval_mem
+#print axioms RelSignature.BasisExpr.eval_mem_of_mono
 #print axioms RelSignature.BasisExpr.act_mul
 #print axioms RelSignature.BasisExpr.anchorOf_act
 #print axioms RelSignature.BasisExpr.eval_act
@@ -316,6 +323,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 -- R4 converse (#107): the pooled-latent gate's isolated risk — self-injection invariance.
 #print axioms RelSignature.rankLatentIndexInj_eq_of_agree
 #print axioms RelSignature.exists_finSuppPerm_agree_on_finset
+#print axioms RelSignature.exists_finSuppPerm_agree_on_finset'
 #print axioms RelSignature.exists_finSuppPerm_displacing
 #print axioms RelSignature.rankLatentIndexEquiv_eq_self_of_subset
 #print axioms RelSignature.rankLatentIndexEquiv_subset_iff
