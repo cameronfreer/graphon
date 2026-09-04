@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.RelAustinPolling
 import Graphon.RelPollGeometry
+import Graphon.RelPooledFixingSeam
 
 /-!
 # The finite-stage polling conditionings (R4 converse, #107, #197)
@@ -344,16 +345,25 @@ theorem iSup_avoidAlgebra (W : ℕ → Set (Σ s : S.Srt, PoolVertex S s))
     rw [hfac, ← MeasurableSpace.comap_comp]
     exact MeasurableSpace.comap_mono (measurable_snd.eval).comap_le
 
-/-! ### The reservoir: tails of poll blocks -/
+/-! ### The reservoir: tails of poll blocks, in both halves
+
+The reservoir must contain the poll blocks in **both** halves: the insertion step swaps an
+original block with its spare copy, and a swap moving an original vertex necessarily moves a spare
+one, so both must lie inside the avoided set for the stage to be fixed. The shift accordingly
+applies the poll permutation synchronously to both halves. -/
 
 section Reservoir
 
 variable (N : ℕ) [NeZero N] (D : Finset (Σ s : S.Srt, Vinfinite S s))
 
-/-- **The reservoir at stage `m`**: the original-half copies of the poll blocks in slots `m`
-and beyond. Antitone in `m`, and every finite set of vertices is eventually avoided. -/
+/-- The original and spare copies of a vertex set of the original carrier. -/
+def bothHalves (B : Finset (Σ s : S.Srt, Vinfinite S s)) : Set (Σ s : S.Srt, PoolVertex S s) :=
+  (Sigma.map id fun s => ⇑(originalVertex S s)) '' (B : Set _) ∪
+    (Sigma.map id fun s => ⇑(poolVertex S s)) '' (B : Set _)
+
+/-- **The reservoir at stage `m`**: both copies of the poll blocks in slots `m` and beyond. -/
 def reservoir (m : ℕ) : Set (Σ s : S.Srt, PoolVertex S s) :=
-  ⋃ k ∈ Set.Ici m, ((Sigma.map id fun s => ⇑(originalVertex S s)) '' (pollBlock N D k : Set _))
+  ⋃ k ∈ Set.Ici m, bothHalves (pollBlock N D k)
 
 omit [NeZero N] in
 theorem reservoir_antitone : Antitone (reservoir (S := S) N D) := fun _ _ h =>
@@ -362,61 +372,87 @@ theorem reservoir_antitone : Antitone (reservoir (S := S) N D) := fun _ _ h =>
 omit [NeZero N] in
 theorem mem_reservoir {m : ℕ} {v : Σ s : S.Srt, PoolVertex S s} :
     v ∈ reservoir N D m ↔ ∃ k, m ≤ k ∧ ∃ w ∈ pollBlock N D k,
-      Sigma.map id (fun s => ⇑(originalVertex S s)) w = v := by
-  simp only [reservoir, Set.mem_iUnion, Set.mem_Ici, Set.mem_image, Finset.mem_coe,
-    exists_prop]
+      Sigma.map id (fun s => ⇑(originalVertex S s)) w = v ∨
+        Sigma.map id (fun s => ⇑(poolVertex S s)) w = v := by
+  simp only [reservoir, bothHalves, Set.mem_iUnion, Set.mem_Ici, Set.mem_union, Set.mem_image,
+    Finset.mem_coe, exists_prop]
+  constructor
+  · rintro ⟨k, hk, ⟨w, hw, rfl⟩ | ⟨w, hw, rfl⟩⟩
+    · exact ⟨k, hk, w, hw, Or.inl rfl⟩
+    · exact ⟨k, hk, w, hw, Or.inr rfl⟩
+  · rintro ⟨k, hk, w, hw, rfl | rfl⟩
+    · exact ⟨k, hk, Or.inl ⟨w, hw, rfl⟩⟩
+    · exact ⟨k, hk, Or.inr ⟨w, hw, rfl⟩⟩
+
+/-- The underlying original vertex of a pooled vertex. -/
+def poolValue (v : Σ s : S.Srt, PoolVertex S s) : ℕ := Sum.elim id id v.2
+
+omit [NeZero N] in
+theorem poolValue_of_mem_reservoir {m : ℕ} {v : Σ s : S.Srt, PoolVertex S s}
+    (hv : v ∈ reservoir N D m) : ∃ k, m ≤ k ∧ pollIndex k * N ≤ poolValue v := by
+  obtain ⟨k, hk, w, hw, rfl | rfl⟩ := (mem_reservoir N D).mp hv <;>
+    exact ⟨k, hk, le_of_mem_pollBlock hw⟩
 
 /-- **Finite-set exhaustion**: the reservoirs eventually avoid any finite set. -/
 theorem exists_reservoir_disjoint (F : Finset (Σ s : S.Srt, PoolVertex S s)) :
     ∃ m, ∀ v ∈ F, v ∉ reservoir N D m := by
   classical
-  -- a bound above every original vertex of `F`
-  set K : ℕ := (F.sup fun v => Sum.elim id id v.2) + 1 with hK
+  set K : ℕ := (F.sup poolValue) + 1 with hK
   obtain ⟨m, hm⟩ := exists_le_pollIndex K
   refine ⟨m, fun v hv hres => ?_⟩
-  obtain ⟨k, hmk, w, hw, rfl⟩ := (mem_reservoir N D).mp hres
-  have h1 : pollIndex k * N ≤ w.2 := le_of_mem_pollBlock hw
+  obtain ⟨k, hmk, h1⟩ := poolValue_of_mem_reservoir N D hres
   have h2 : K ≤ pollIndex k := hm k hmk
-  have h3 : Sum.elim id id (Sigma.map id (fun s => ⇑(originalVertex S s)) w).2 ≤ K - 1 := by
+  have h3 : poolValue v ≤ K - 1 := by
     rw [hK, Nat.add_sub_cancel]
-    exact Finset.le_sup (f := fun v : Σ s : S.Srt, PoolVertex S s => Sum.elim id id v.2) hv
-  have h4 : Sum.elim id id (Sigma.map id (fun s => ⇑(originalVertex S s)) w).2 = w.2 := rfl
+    exact Finset.le_sup (f := poolValue) hv
   have hN : 1 ≤ N := Nat.one_le_iff_ne_zero.mpr (NeZero.ne N)
-  rw [h4] at h3
   have h5 : K ≤ pollIndex k * N := le_trans h2 (Nat.le_mul_of_pos_right _ hN)
   have hK1 : 1 ≤ K := Nat.le_add_left 1 _
   exact lt_irrefl _ (lt_of_le_of_lt (h5.trans (h1.trans h3)) (Nat.sub_lt hK1 Nat.one_pos))
 
 omit [NeZero N] in
-/-- **The target is avoided**: an original vertex below the layout bound and outside `D` lies in
-no poll block, hence in no reservoir. -/
+/-- A vertex of a positive slot sits at or above the layout bound. -/
+theorem le_of_mem_pollBlock_pos {k : ℕ} (hk : 0 < k) {w : Σ s : S.Srt, Vinfinite S s}
+    (hw : w ∈ pollBlock N D k) : N ≤ w.2 := by
+  have h1 : pollIndex k * N ≤ w.2 := le_of_mem_pollBlock hw
+  have h2 : 1 ≤ pollIndex k := by
+    by_contra h0
+    have h0' : pollIndex k = 0 := by omega
+    have : pollEquivInt (k : ℤ) = pollEquivInt 0 := by rw [← pollIndex, h0', pollEquivInt_zero]
+    have := pollEquivInt.injective this
+    omega
+  exact le_trans (Nat.le_mul_of_pos_left _ h2) h1
+
+omit [NeZero N] in
+/-- An original-carrier vertex below the bound and outside `D` lies in no poll block. -/
+theorem notMem_pollBlock_of_lt {w : Σ s : S.Srt, Vinfinite S s} (hw : w.2 < N) (hwD : w ∉ D)
+    (k : ℕ) : w ∉ pollBlock N D k := by
+  intro hk
+  rcases Nat.eq_zero_or_pos k with rfl | hpos
+  · rw [pollBlock_zero] at hk
+    exact hwD hk
+  · exact lt_irrefl _ (lt_of_lt_of_le hw (le_of_mem_pollBlock_pos N D hpos hk))
+
+omit [NeZero N] in
+/-- **The target is avoided**: the original copy of a vertex below the bound and outside `D` lies
+in no reservoir. -/
 theorem notMem_reservoir_of_lt {m : ℕ} {w : Σ s : S.Srt, Vinfinite S s} (hw : w.2 < N)
     (hwD : w ∉ D) : Sigma.map id (fun s => ⇑(originalVertex S s)) w ∉ reservoir N D m := by
-  classical
   intro hres
   obtain ⟨k, -, u, hu, hu'⟩ := (mem_reservoir N D).mp hres
-  have hinj : Function.Injective (Sigma.map id fun s => ⇑(originalVertex S s) :
-      (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, PoolVertex S s) :=
-    Function.injective_id.sigma_map fun s => (originalVertex S s).injective
-  have huw : u = w := hinj hu'
-  subst huw
-  rcases Nat.eq_zero_or_pos k with rfl | hk
-  · rw [pollBlock_zero] at hu
-    exact hwD hu
-  · have h1 : pollIndex k * N ≤ u.2 := le_of_mem_pollBlock hu
-    have h2 : 1 ≤ pollIndex k := by
-      by_contra h0
-      have h0' : pollIndex k = 0 := by omega
-      have : pollEquivInt (k : ℤ) = pollEquivInt 0 := by rw [← pollIndex, h0', pollEquivInt_zero]
-      have := pollEquivInt.injective this
-      omega
-    have h3 : N ≤ u.2 := le_trans (Nat.le_mul_of_pos_left _ h2) h1
-    exact lt_irrefl _ (lt_of_lt_of_le hw h3)
+  rcases hu' with hu' | hu'
+  · have hinj : Function.Injective (Sigma.map id fun s => ⇑(originalVertex S s) :
+        (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, PoolVertex S s) :=
+      Function.injective_id.sigma_map fun s => (originalVertex S s).injective
+    exact notMem_pollBlock_of_lt N D hw hwD k (hinj hu' ▸ hu)
+  · -- an original copy is never a spare copy
+    have := congrArg (fun v : Σ s : S.Srt, PoolVertex S s => Sum.isRight v.2) hu'
+    exact Bool.noConfusion this
 
-/-- **The pooled poll shift**: the poll permutation on the original half, the identity on the
-spare half. Half-preserving, with finitely many active sorts and infinite vertex support. -/
+/-- **The synchronous pooled poll shift**: the poll permutation on both halves at once.
+Half-preserving, with finitely many active sorts and infinite vertex support. -/
 noncomputable def pooledPollPerm : ∀ s, Equiv.Perm (PoolVertex S s) :=
-  fun s => Equiv.sumCongr (pollPerm N D s) (Equiv.refl _)
+  fun s => Equiv.sumCongr (pollPerm N D s) (pollPerm N D s)
 
 theorem halfPreserving_pooledPollPerm : HalfPreserving (pooledPollPerm (S := S) N D) := by
   intro s v
@@ -425,39 +461,53 @@ theorem halfPreserving_pooledPollPerm : HalfPreserving (pooledPollPerm (S := S) 
 open scoped Classical in
 theorem pooledPollPerm_eq_one : ∀ s, s ∉ D.image Sigma.fst → pooledPollPerm (S := S) N D s = 1 := by
   intro s hs
-  show Equiv.sumCongr (pollPerm N D s) (Equiv.refl _) = 1
+  show Equiv.sumCongr (pollPerm N D s) (pollPerm N D s) = 1
   rw [pollPerm_eq_one_of_notMem N D hs]
   ext x
   cases x <;> rfl
 
-/-- The pooled shift carries the original copy of a vertex to the original copy of its image. -/
 theorem pooledPollPerm_original (w : Σ s : S.Srt, Vinfinite S s) :
     Sigma.map id (fun s => ⇑(pooledPollPerm (S := S) N D s))
         (Sigma.map id (fun s => ⇑(originalVertex S s)) w) =
       Sigma.map id (fun s => ⇑(originalVertex S s))
         (Sigma.map id (fun s => ⇑(pollPerm N D s)) w) := rfl
 
+theorem pooledPollPerm_pool (w : Σ s : S.Srt, Vinfinite S s) :
+    Sigma.map id (fun s => ⇑(pooledPollPerm (S := S) N D s))
+        (Sigma.map id (fun s => ⇑(poolVertex S s)) w) =
+      Sigma.map id (fun s => ⇑(poolVertex S s))
+        (Sigma.map id (fun s => ⇑(pollPerm N D s)) w) := rfl
+
 open scoped Classical in
-/-- **The image law**: the pooled shift carries the reservoir at stage `m` onto the reservoir at
-stage `m + 1`, exactly. -/
+/-- **The image law**: the synchronous shift carries the reservoir at stage `m` onto the reservoir
+at stage `m + 1`, exactly. -/
 theorem imageSet_pooledPollPerm_reservoir (hD : ∀ v ∈ D, v.2 < N) (m : ℕ) :
     imageSet (pooledPollPerm (S := S) N D) (reservoir N D m) = reservoir N D (m + 1) := by
   ext v
   rw [imageSet, Set.mem_image]
   constructor
   · rintro ⟨u, hu, rfl⟩
-    obtain ⟨k, hmk, w, hw, rfl⟩ := (mem_reservoir N D).mp hu
-    refine (mem_reservoir N D).mpr ⟨k + 1, by omega,
-      Sigma.map id (fun s => ⇑(pollPerm N D s)) w, ?_, pooledPollPerm_original N D w⟩
-    rw [← pollBlock_image_pollPerm hD k]
-    exact Finset.mem_image_of_mem _ hw
+    obtain ⟨k, hmk, w, hw, rfl | rfl⟩ := (mem_reservoir N D).mp hu
+    · refine (mem_reservoir N D).mpr ⟨k + 1, by omega,
+        Sigma.map id (fun s => ⇑(pollPerm N D s)) w, ?_, Or.inl (pooledPollPerm_original N D w)⟩
+      rw [← pollBlock_image_pollPerm hD k]
+      exact Finset.mem_image_of_mem _ hw
+    · refine (mem_reservoir N D).mpr ⟨k + 1, by omega,
+        Sigma.map id (fun s => ⇑(pollPerm N D s)) w, ?_, Or.inr (pooledPollPerm_pool N D w)⟩
+      rw [← pollBlock_image_pollPerm hD k]
+      exact Finset.mem_image_of_mem _ hw
   · intro hv
-    obtain ⟨k, hmk, w, hw, rfl⟩ := (mem_reservoir N D).mp hv
+    obtain ⟨k, hmk, w, hw, hw'⟩ := (mem_reservoir N D).mp hv
     obtain ⟨k', rfl⟩ : ∃ k', k = k' + 1 := ⟨k - 1, by omega⟩
     rw [← pollBlock_image_pollPerm hD k'] at hw
     obtain ⟨u, hu, rfl⟩ := Finset.mem_image.mp hw
-    exact ⟨Sigma.map id (fun s => ⇑(originalVertex S s)) u,
-      (mem_reservoir N D).mpr ⟨k', by omega, u, hu, rfl⟩, (pooledPollPerm_original N D u).symm⟩
+    rcases hw' with rfl | rfl
+    · exact ⟨Sigma.map id (fun s => ⇑(originalVertex S s)) u,
+        (mem_reservoir N D).mpr ⟨k', by omega, u, hu, Or.inl rfl⟩,
+        (pooledPollPerm_original N D u).symm⟩
+    · exact ⟨Sigma.map id (fun s => ⇑(poolVertex S s)) u,
+        (mem_reservoir N D).mpr ⟨k', by omega, u, hu, Or.inr rfl⟩,
+        (pooledPollPerm_pool N D u).symm⟩
 
 /-- **The inverse orientation**: pulling the reservoir at stage `m + 1` back along the inverse
 shift is the reservoir at stage `m`. -/
@@ -494,14 +544,118 @@ theorem iSup_reservoirFiltration (n : ℕ) :
   exact iSup_avoidAlgebra (reservoir N D) (exists_reservoir_disjoint N D)
 
 /-- **Adjacent stages under the inverse shift**: the larger stage `m + 1` pulls back along the
-inverse pooled shift to the smaller stage `m`, exactly. This is the `comap T m₁ = m₂` input of
-the tail engine, in the orientation Lévy upward needs. -/
+inverse synchronous shift to the smaller stage `m`, exactly. This is the `comap T m₁ = m₂` input
+of the tail engine, in the orientation Lévy upward needs. -/
 theorem comap_pooledJointRelabel_inv_reservoirFiltration (hD : ∀ v ∈ D, v.2 < N) (n m : ℕ) :
     MeasurableSpace.comap (pooledJointRelabel (fun s => (pooledPollPerm (S := S) N D s)⁻¹) n)
         (reservoirFiltration N D n (m + 1)) = reservoirFiltration N D n m := by
   rw [reservoirFiltration_apply, reservoirFiltration_apply,
     comap_pooledJointRelabel_avoidAlgebra (halfPreserving_pooledPollPerm N D).inv,
     imageSet_pooledPollPerm_inv_reservoir N D hD m]
+
+/-! ### The boundary swap
+
+The insertion step exchanges the original block at slot `m` with its spare copy. The swap is a
+finite boundary-crossing motion: it moves exactly the two copies of the slot-`m` block, both of
+which lie in the stage-`m` reservoir, so the stage at `m` is fixed by
+`comap_pooledJointRelabel_avoidAlgebra_of_fix`, while the target support — original, below the
+bound, outside `D` — is fixed pointwise. -/
+
+open scoped Classical in
+/-- The swap of the two halves on the vertices of `B`, on one sort. -/
+noncomputable def swapHalvesFun (B : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt) :
+    PoolVertex S s → PoolVertex S s
+  | Sum.inl x => if (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ B then Sum.inr x else Sum.inl x
+  | Sum.inr x => if (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ B then Sum.inl x else Sum.inr x
+
+open scoped Classical in
+theorem swapHalvesFun_involutive (B : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt) :
+    Function.Involutive (swapHalvesFun (S := S) B s) := by
+  intro x
+  rcases x with x | x <;> by_cases hx : (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ B <;>
+    simp [swapHalvesFun, hx]
+
+open scoped Classical in
+/-- **The boundary swap** of a vertex set of the original carrier: exchanges each vertex's
+original and spare copies, fixing everything else. -/
+noncomputable def boundarySwap (B : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    ∀ s, Equiv.Perm (PoolVertex S s) :=
+  fun s => (swapHalvesFun_involutive B s).toPerm
+
+open scoped Classical in
+theorem boundarySwap_apply (B : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt)
+    (x : PoolVertex S s) : boundarySwap (S := S) B s x = swapHalvesFun B s x := rfl
+
+open scoped Classical in
+/-- A vertex moved by the swap lies in one of the two copies of `B`. -/
+theorem mem_bothHalves_of_boundarySwap_ne (B : Finset (Σ s : S.Srt, Vinfinite S s))
+    (v : Σ s : S.Srt, PoolVertex S s) (hv : boundarySwap B v.1 v.2 ≠ v.2) :
+    v ∈ bothHalves B := by
+  obtain ⟨s, x | x⟩ := v
+  · by_cases hx : (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ B
+    · exact Or.inl ⟨⟨s, x⟩, hx, rfl⟩
+    · exact absurd (by simp [boundarySwap_apply, swapHalvesFun, hx]) hv
+  · by_cases hx : (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ B
+    · exact Or.inr ⟨⟨s, x⟩, hx, rfl⟩
+    · exact absurd (by simp [boundarySwap_apply, swapHalvesFun, hx]) hv
+
+omit [NeZero N] in
+/-- Both copies of the slot-`m` block lie in the stage-`m` reservoir. -/
+theorem bothHalves_subset_reservoir (m : ℕ) :
+    bothHalves (pollBlock N D m) ⊆ reservoir N D m :=
+  Set.subset_biUnion_of_mem (u := fun k => bothHalves (pollBlock N D k)) (Set.mem_Ici.mpr le_rfl)
+
+omit [NeZero N] in
+open scoped Classical in
+/-- **The swap is supported inside the reservoir**: every vertex outside the stage-`m` reservoir
+is fixed. This is the hypothesis of the exact stage-invariance theorem. -/
+theorem boundarySwap_fix_of_notMem_reservoir (m : ℕ) :
+    ∀ v : Σ s : S.Srt, PoolVertex S s, v ∉ reservoir N D m →
+      boundarySwap (pollBlock N D m) v.1 v.2 = v.2 := by
+  intro v hv
+  by_contra hne
+  exact hv (bothHalves_subset_reservoir N D m (mem_bothHalves_of_boundarySwap_ne _ v hne))
+
+omit [NeZero N] in
+open scoped Classical in
+/-- **The target is fixed** by every boundary swap: an original vertex below the bound and outside
+`D` lies in no poll block. -/
+theorem boundarySwap_original_of_lt (m : ℕ) {w : Σ s : S.Srt, Vinfinite S s} (hw : w.2 < N)
+    (hwD : w ∉ D) :
+    boundarySwap (pollBlock N D m) w.1 (originalVertex S w.1 w.2) = originalVertex S w.1 w.2 := by
+  show swapHalvesFun (pollBlock N D m) w.1 (Sum.inl w.2) = Sum.inl w.2
+  simp [swapHalvesFun, notMem_pollBlock_of_lt N D hw hwD m]
+
+open scoped Classical in
+/-- **The swap carries the original copy of the block to the spare copy.** -/
+theorem boundarySwap_original_of_mem (B : Finset (Σ s : S.Srt, Vinfinite S s))
+    {w : Σ s : S.Srt, Vinfinite S s} (hw : w ∈ B) :
+    boundarySwap (S := S) B w.1 (originalVertex S w.1 w.2) = poolVertex S w.1 w.2 := by
+  show swapHalvesFun B w.1 (Sum.inl w.2) = Sum.inr w.2
+  simp [swapHalvesFun, hw]
+
+open scoped Classical in
+/-- The swap has finite support on both halves and finitely many active sorts, so it conjugates
+into the finite-active subgroup. -/
+theorem pooledFiniteActive_boundarySwap (B : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    PooledFiniteActive (boundarySwap (S := S) B) := by
+  refine ⟨⟨(B.sup fun v => v.2) + 1, fun s x hx => ?_⟩, ⟨B.image Sigma.fst, fun s hs => ?_⟩⟩
+  · have hnot : (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∉ B := fun h =>
+      absurd (Nat.lt_succ_of_le (Finset.le_sup (f := fun v : Σ s : S.Srt, Vinfinite S s => v.2) h))
+        (not_lt.mpr hx)
+    constructor <;> simp [boundarySwap_apply, swapHalvesFun, hnot]
+  · ext x
+    have hnot : ∀ y : ℕ, (⟨s, y⟩ : Σ s : S.Srt, Vinfinite S s) ∉ B := fun y h =>
+      hs (Finset.mem_image_of_mem Sigma.fst h)
+    rcases x with x | x <;> simp [boundarySwap_apply, swapHalvesFun, hnot]
+
+omit [NeZero N] in
+/-- **The insertion geometry, packaged**: the boundary swap at slot `m` fixes the stage-`m`
+reservoir's conditioning algebra exactly. -/
+theorem comap_pooledJointRelabel_boundarySwap_reservoirFiltration (n m : ℕ) :
+    MeasurableSpace.comap (pooledJointRelabel (boundarySwap (pollBlock N D m)) n)
+        (reservoirFiltration N D n m) = reservoirFiltration N D n m :=
+  comap_pooledJointRelabel_avoidAlgebra_of_fix (boundarySwap_fix_of_notMem_reservoir N D m)
 
 end Reservoir
 
