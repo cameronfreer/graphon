@@ -235,6 +235,15 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.FiniteActiveExtension.faIndexEmbedding_faIndexEquiv
 #print axioms RelSignature.FiniteActiveExtension.faProjection_faIndexEquiv
 #print axioms RelSignature.FiniteActiveExtension.rawIndex_injective
+#print axioms RelSignature.measurable_avoidCond
+#print axioms RelSignature.avoidAlgebra_le
+#print axioms RelSignature.avoidAlgebra_mono
+#print axioms RelSignature.avoidAlgebra_empty
+#print axioms RelSignature.measurable_pooledJointRelabel
+#print axioms RelSignature.HalfPreserving.inv
+#print axioms RelSignature.comap_pooledJointRelabel_avoidAlgebra
+#print axioms RelSignature.comap_pooledJointRelabel_avoidAlgebra_of_fix
+#print axioms RelSignature.iSup_avoidAlgebra
 #print axioms RelSignature.nonempty_finiteActiveExtension
 #print axioms RelSignature.SaturatedAtom.globalInj_apply_of_mem
 #print axioms Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le
