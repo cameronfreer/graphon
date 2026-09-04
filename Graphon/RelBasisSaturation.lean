@@ -151,7 +151,7 @@ instance [Countable S.Srt] : Countable (SaturatedAtom D) := by
 open scoped Classical in
 /-- A global sortwise injection agreeing with `f` on `A`: `f` on `A`, and a shift above all the
 values of `f` elsewhere. -/
-private noncomputable def globalInj {A : Finset (Σ s : S.Srt, Vinfinite S s)}
+noncomputable def globalInj {A : Finset (Σ s : S.Srt, Vinfinite S s)}
     {f : {v // v ∈ A} → ℕ} (hf : SortwiseInjOn A f) (s : S.Srt) : Vinfinite S s ↪ Vinfinite S s :=
   ⟨fun x => if h : (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ A then f ⟨⟨s, x⟩, h⟩
       else x + (A.attach.sup f + 1), by
@@ -176,6 +176,14 @@ private noncomputable def globalInj {A : Finset (Σ s : S.Srt, Vinfinite S s)}
       have h2 : (a : ℕ) + (A.attach.sup f + 1) = (b : ℕ) + (A.attach.sup f + 1) := hab
       exact Nat.add_right_cancel h2⟩
 
+open scoped Classical in
+theorem globalInj_apply_of_mem {A : Finset (Σ s : S.Srt, Vinfinite S s)}
+    {f : {v // v ∈ A} → ℕ} (hf : SortwiseInjOn A f) (v : Σ s : S.Srt, Vinfinite S s)
+    (hv : v ∈ A) : globalInj hf v.1 v.2 = f ⟨v, hv⟩ := by
+  show (if h : (⟨v.1, v.2⟩ : Σ s : S.Srt, Vinfinite S s) ∈ A then f ⟨⟨v.1, v.2⟩, h⟩
+    else v.2 + (A.attach.sup f + 1)) = f ⟨v, hv⟩
+  rw [dif_pos (by simpa using hv)]
+
 /-- A finitely supported relabeling agreeing with the reassignment on the anchor. -/
 noncomputable def extendPerm {A : Finset (Σ s : S.Srt, Vinfinite S s)}
     {f : {v // v ∈ A} → ℕ} (hf : SortwiseInjOn A f) : FinSuppPerm S :=
@@ -188,9 +196,7 @@ theorem extendPerm_apply {A : Finset (Σ s : S.Srt, Vinfinite S s)}
   have h := Classical.choose_spec (exists_finSuppPerm_agree_on_finset (globalInj hf) A) v hv
   unfold extendPerm
   rw [h]
-  show (if h : (⟨v.1, v.2⟩ : Σ s : S.Srt, Vinfinite S s) ∈ A then f ⟨⟨v.1, v.2⟩, h⟩
-    else v.2 + (A.attach.sup f + 1)) = f ⟨v, hv⟩
-  rw [dif_pos (by simpa using hv)]
+  exact globalInj_apply_of_mem hf v hv
 
 /-- **Orbit compression**: two finitely supported relabelings agreeing on `A` pull a
 `fixingAlgebra A`-event back to the same event. -/
