@@ -385,8 +385,10 @@ structure FiniteActiveExtension (B : CoherentBasis M) where
       ((M.law : Measure (RelStructure S (Vinfinite S))).trim
         (RelStructure.finiteActiveFixingAlgebra_le A))
       {E | ∃ i, anchor i ⊆ A ∧ event i = E}
-  /-- **The distinguished coordinates**: one per raw index. -/
+  /-- **The distinguished coordinates**: one per raw index, injectively — so that the projection
+  to the raw factor is literally a coordinate restriction. -/
   raw : B.ι → ι
+  raw_injective : Function.Injective raw
   /-- Anchored at the doubled support of the raw anchor. -/
   anchor_raw : ∀ j, anchor (raw j) = doubleSupport (B.anchor j)
   /-- Naming, almost surely, the raw event read on the doubled sub-copy. -/
@@ -484,6 +486,150 @@ theorem toRaw_faFactorMap_ae_eq (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
   funext j
   exact hX j
 
+/-! ### Measurability and generation -/
+
+/-- The factor map at `A` is measurable for `finiteActiveFixingAlgebra A`. -/
+theorem measurable_faFactorMap (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    Measurable[RelStructure.finiteActiveFixingAlgebra A] (F.faFactorMap A) := by
+  classical
+  letI : MeasurableSpace (RelStructure S (Vinfinite S)) :=
+    RelStructure.finiteActiveFixingAlgebra A
+  refine measurable_pi_iff.mpr fun i => measurable_to_bool ?_
+  have hmem : MeasurableSet[RelStructure.finiteActiveFixingAlgebra A] (F.event i.1) :=
+    RelStructure.finiteActiveFixingAlgebra_mono i.2 _ (F.event_mem i.1)
+  convert hmem using 1
+  ext X
+  simp [faFactorMap]
+
+/-- The factor map is measurable for the ambient σ-algebra. -/
+theorem measurable_faFactorMap' (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    Measurable (F.faFactorMap A) :=
+  (F.measurable_faFactorMap A).mono (RelStructure.finiteActiveFixingAlgebra_le A) le_rfl
+
+theorem comap_faFactorMap_le (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    MeasurableSpace.comap (F.faFactorMap A) inferInstance ≤
+      RelStructure.finiteActiveFixingAlgebra A :=
+  (F.measurable_faFactorMap A).comap_le
+
+/-- **Generation modulo the law**: every `finiteActiveFixingAlgebra A`-event has an a.e.
+representative in the pullback of the factor map at `A`. Eventwise, never as an equality of
+σ-algebras modulo null sets. -/
+theorem exists_comap_faFactorMap_ae_eq (A : Finset (Σ s : S.Srt, Vinfinite S s))
+    {E : Set (RelStructure S (Vinfinite S))}
+    (hE : MeasurableSet[RelStructure.finiteActiveFixingAlgebra A] E) :
+    ∃ E', MeasurableSet[MeasurableSpace.comap (F.faFactorMap A) inferInstance] E' ∧
+      E' =ᵐ[(M.law : Measure (RelStructure S (Vinfinite S)))] E := by
+  classical
+  haveI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
+  obtain ⟨E', hE'gen, hE'ae⟩ :=
+    (F.density A).exists_generateFrom_ae_eq (RelStructure.finiteActiveFixingAlgebra_le A) hE
+  refine ⟨E', ?_, hE'ae⟩
+  refine (MeasurableSpace.generateFrom_le ?_) E' hE'gen
+  rintro - ⟨i, hiA, rfl⟩
+  refine ⟨{f | f ⟨i, hiA⟩ = true}, ?_, ?_⟩
+  · have hcoord : Measurable fun f : F.FaIndex A → Bool => f ⟨i, hiA⟩ := measurable_pi_apply _
+    exact hcoord (measurableSet_singleton true)
+  · ext X
+    simp [faFactorMap]
+
+/-! ### Relabeling equivariance -/
+
+open scoped Classical in
+theorem image_image_inv_fa (σ : FiniteActiveFinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    (A.image (Sigma.map id fun s => ⇑(σ.1 s))).image
+      (Sigma.map id fun s => ⇑((σ⁻¹ : FiniteActiveFinSuppPerm S).1 s)) = A := by
+  rw [Finset.image_image]
+  refine (Finset.image_congr fun v _ => ?_).trans A.image_id
+  obtain ⟨s, x⟩ := v
+  show (⟨s, (σ.1 s)⁻¹ (σ.1 s x)⟩ : Σ s : S.Srt, Vinfinite S s) = ⟨s, x⟩
+  rw [show (σ.1 s)⁻¹ (σ.1 s x) = x from (σ.1 s).symm_apply_apply x]
+
+open scoped Classical in
+/-- **A finite-active relabeling is an equivalence of index sets.** -/
+noncomputable def faIndexEquiv (σ : FiniteActiveFinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    F.FaIndex A ≃ F.FaIndex (A.image (Sigma.map id fun s => ⇑(σ.1 s))) where
+  toFun i := ⟨F.act σ i.1, by
+    rw [F.anchor_act]
+    exact Finset.image_subset_image i.2⟩
+  invFun j := ⟨F.act σ⁻¹ j.1, by
+    have h := Finset.image_subset_image
+      (f := (Sigma.map id fun s => ⇑((σ⁻¹ : FiniteActiveFinSuppPerm S).1 s) :
+        (Σ s : S.Srt, Vinfinite S s) → Σ s : S.Srt, Vinfinite S s)) j.2
+    rw [image_image_inv_fa σ A] at h
+    rw [F.anchor_act]
+    exact h⟩
+  left_inv i := by
+    refine Subtype.ext ?_
+    show F.act σ⁻¹ (F.act σ i.1) = i.1
+    rw [← F.act_mul, inv_mul_cancel, F.act_one]
+  right_inv j := by
+    refine Subtype.ext ?_
+    show F.act σ (F.act σ⁻¹ j.1) = j.1
+    rw [← F.act_mul, mul_inv_cancel, F.act_one]
+
+open scoped Classical in
+@[simp] theorem faIndexEquiv_apply_coe (σ : FiniteActiveFinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) (i : F.FaIndex A) :
+    (F.faIndexEquiv σ A i).1 = F.act σ i.1 := rfl
+
+open scoped Classical in
+/-- **Exact naturality of the factor map** under the finite-active action. -/
+theorem faFactorMap_faIndexEquiv (σ : FiniteActiveFinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) (X : RelStructure S (Vinfinite S))
+    (i : F.FaIndex A) :
+    F.faFactorMap (A.image (Sigma.map id fun s => ⇑(σ.1 s))) X (F.faIndexEquiv σ A i) =
+      F.faFactorMap A (RelStructure.relabel σ.1 X) i := by
+  show decide (X ∈ F.event (F.act σ i.1)) = decide (RelStructure.relabel σ.1 X ∈ F.event i.1)
+  rw [F.event_act]
+  rfl
+
+open scoped Classical in
+/-- A finite-active relabeling as a measurable equivalence of factor spaces. -/
+noncomputable def faFactorSpaceEquiv (σ : FiniteActiveFinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    F.FaFactorSpace (A.image (Sigma.map id fun s => ⇑(σ.1 s))) ≃ᵐ F.FaFactorSpace A where
+  toEquiv := Equiv.arrowCongr (F.faIndexEquiv σ A).symm (Equiv.refl Bool)
+  measurable_toFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+  measurable_invFun := measurable_pi_lambda _ fun _ => measurable_pi_apply _
+
+open scoped Classical in
+@[simp] theorem faFactorSpaceEquiv_apply (σ : FiniteActiveFinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s))
+    (f : F.FaFactorSpace (A.image (Sigma.map id fun s => ⇑(σ.1 s)))) :
+    F.faFactorSpaceEquiv σ A f = f ∘ F.faIndexEquiv σ A := rfl
+
+open scoped Classical in
+/-- The naturality equation as a commuting square. -/
+theorem faFactorMap_comp_relabel (σ : FiniteActiveFinSuppPerm S)
+    (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    F.faFactorSpaceEquiv σ A ∘ F.faFactorMap (A.image (Sigma.map id fun s => ⇑(σ.1 s))) =
+      F.faFactorMap A ∘ RelStructure.relabel σ.1 :=
+  funext fun X => funext fun i => F.faFactorMap_faIndexEquiv σ A X i
+
+/-- The sub-index inclusion. -/
+def faIndexEmbedding {C A : Finset (Σ s : S.Srt, Vinfinite S s)} (hCA : C ⊆ A) :
+    F.FaIndex C → F.FaIndex A := fun i => ⟨i.1, i.2.trans hCA⟩
+
+open scoped Classical in
+theorem faIndexEmbedding_faIndexEquiv {C A : Finset (Σ s : S.Srt, Vinfinite S s)}
+    (hCA : C ⊆ A) (σ : FiniteActiveFinSuppPerm S) :
+    F.faIndexEmbedding (Finset.image_subset_image hCA) ∘ F.faIndexEquiv σ C =
+      F.faIndexEquiv σ A ∘ F.faIndexEmbedding hCA := rfl
+
+open scoped Classical in
+theorem faProjection_faIndexEquiv {C A : Finset (Σ s : S.Srt, Vinfinite S s)}
+    (hCA : C ⊆ A) (σ : FiniteActiveFinSuppPerm S)
+    (f : F.FaFactorSpace (A.image (Sigma.map id fun s => ⇑(σ.1 s)))) :
+    F.faProjection hCA (f ∘ F.faIndexEquiv σ A) =
+      (F.faProjection (Finset.image_subset_image hCA) f) ∘ F.faIndexEquiv σ C := rfl
+
+/-- The distinguished index map is injective: `toRaw` is literally a coordinate restriction. -/
+theorem rawIndex_injective (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    Function.Injective (F.rawIndex (A := A)) := fun _ _ h =>
+  Subtype.ext (F.raw_injective (congrArg Subtype.val h))
+
 end FiniteActiveExtension
 
 /-! ### The construction -/
@@ -546,6 +692,10 @@ noncomputable def finiteActiveExtensionOf : FiniteActiveExtension B where
       (BasisExpr.eval_mem_of_mono (fun h => RelStructure.finiteActiveFixingAlgebra_mono h)
         FaAtom.event_mem i)
   raw := fun j => .atom (FaAtom.raw j)
+  raw_injective := fun j j' h => by
+    have h1 : FaAtom.raw (B := B) j = FaAtom.raw j' := BasisExpr.atom.inj h
+    have h2 : (Sum.inl j : FaTag B) = Sum.inl j' := congrArg Sigma.fst h1
+    exact Sum.inl.inj h2
   anchor_raw := fun j => FaAtom.anchor_raw j
   event_raw_ae := fun j => by
     show FaAtom.event (FaAtom.raw j) =ᵐ[_] _
