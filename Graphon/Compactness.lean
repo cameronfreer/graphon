@@ -288,7 +288,7 @@ theorem cutNormDiff_mkStepGraphon_le (P : MeasurablePartition α μ)
           simp only [ENNReal.ofReal_one]; exact h_le)
     _ = δ := one_mul δ
 
-section  -- relocated weight-stability lemmas needed by `totallyBounded`
+section  -- weight-stability lemmas needed by `totallyBounded`
 variable [NullSingletonClass μ]
 
 /-- If two graphons agree a.e. off a "strip" `E × univ ∪ univ × E`, then their
@@ -1922,7 +1922,7 @@ theorem compact [NullSingletonClass μ] :
 end Compactness
 
 
-/-! ### Step-graphon weight stability (moved from `Graphon/InverseCounting.lean`) -/
+/-! ### Step-graphon weight stability -/
 
 section WeightStability
 

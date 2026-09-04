@@ -4008,8 +4008,8 @@ which routes through `rooted_profiles_separate_vertex_orbits`, proved via
 --   1. existing `multiLabeledEvalK_tupleEquiv_invariant_n_zero` (off-diagonal),
 --   2. `diagonal_observable_of_tupleEquivSimple` (proved, via the rank-theorem route),
 --   3. `multiLabeledEvalKLoop_n_zero_of_diag` (assembly).
--- Wiring deferred (avoids motive-not-type-correct issues with naive rw
--- on Fin.mk constructions during off-diagonal extraction).
+-- (Not wired here: naive `rw` on `Fin.mk` constructions during off-diagonal
+-- extraction hits motive-not-type-correct issues.)
 
 /-- **Multi ⟹ simple** (trivial direction).
 
@@ -4102,7 +4102,7 @@ noncomputable def rangeFinset {T k : ℕ} (φ : Fin k → Fin T) : Finset (Fin T
 /-- Deficit of `φ : Fin k → Fin T`: `T - |range φ|`. Zero iff `φ` is
 surjective. The deficit strictly decreases when extending by a fresh
 element (see `deficit_lt_of_not_mem`), giving the well-founded measure
-used in Lovász's "extend-and-recurse" plan for Lemma 2.4's
+used in Lovász's "extend-and-recurse" argument for Lemma 2.4's
 non-surjective branch. -/
 noncomputable def deficit {T k : ℕ} (φ : Fin k → Fin T) : ℕ :=
   T - (rangeFinset φ).card
@@ -6153,7 +6153,7 @@ theorem superExt_superSurjective {T : ℕ} (ξ : Fin K → Fin T) :
 weighted-automorphism orbit of `superExt ξ` is *not* simple-equivalent to it — some simple
 graph separates them.
 
-NB not on the live descent path: the paper's plan built a finite separating family from this
+NB not on the live descent path: the paper builds a finite separating family from this
 oracle, but the formalized descent (chunk 4F, `exists_matching_extension`) runs the
 class-balance Vandermonde directly and never consumes this statement. Kept as the documented
 separation form of the super-case. -/
@@ -6745,8 +6745,8 @@ private theorem multigraphEval_unlabeled_excess_descends {T K n : ℕ}
 
 /-- **Label-unlabeled non-isolated reduction**: same orientation as above
 but with other edges touching `b`. Reduces to the isolated case via peeling
-those other edges. BLOCKED BY: label_unlabeled_square_moment_descends +
-non-LL peel infrastructure. -/
+those other edges (via `label_unlabeled_square_moment_descends` and non-LL
+peeling); proved here directly via the orbit route. -/
 private theorem multigraphEval_label_unlabeled_nonisolated_descends
     {T K n : ℕ} (B : Fin T → Fin T → ℝ) (_hB : ∀ i j, B i j = B j i)
     (W : Fin T → ℝ) (_hW : ∀ i, 0 < W i)
@@ -6867,11 +6867,10 @@ private theorem multigraphEval_unlabeled_unlabeled_nonisolated_descends
           (∏ v : Fin n', W (σ v)) *
           ∏ e ∈ F.edgeFinset, B (τ (Quot.out e).1) (τ (Quot.out e).2))) :
     multiLabeledEvalK K n M B W ξ = multiLabeledEvalK K n M B W ξ' := by
-  -- BLOCKED BY: peel reduction to isolated UU case
-  -- (`multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends` is proved).
-  -- Each peel removes one other edge touching `a` or `b`. Peel must handle
-  -- non-LL edges (since other edges have at least one unlabeled endpoint —
-  -- specifically `a` or `b`). Requires new non-LL peel infrastructure.
+  -- A peel reduction to the isolated UU case
+  -- (`multigraphEval_isolated_unlabeled_unlabeled_doubled_edge_descends`) would
+  -- remove one other edge touching `a` or `b` per step and must handle non-LL
+  -- edges; the orbit route below avoids that infrastructure.
   obtain ⟨σ, hσ_aut, hconj⟩ :=
     tupleEquivSimple_implies_orbit_general B _hB W hW htwin ξ ξ' _h_simple
   exact multiLabeledEvalK_eq_of_orbit B _hB W M ⟨σ, hσ_aut.1, hσ_aut.2, hconj⟩
@@ -9397,7 +9396,7 @@ Steps in the inductive case `m = k + 1`:
    - `α` non-surjective, but `ξ` surjective ⟹ Claim 4.4
      (`tupleEquivSimple_surjective_case`) at IH level `T - 1`.
    - Both `α` and `ξ` non-surjective: the hard branch. Lovász's standard
-     plan goes through Claim 4.2 (extend by a fresh element
+     argument goes through Claim 4.2 (extend by a fresh element
      `r ∉ range α ∪ {a, b}`) and recurses on a strictly smaller
      `(deficit, size)` measure, which requires a well-founded induction on
      `(deficit, size)` beyond a strong `Nat`-induction on `size` alone.
@@ -9433,7 +9432,7 @@ These require either:
 The current `tupleEquivSimple_id_bijective` proof bridges this gap
 via the IH at T-1 (where deficit-1 supplies the missing automorphism
 τ to use as a B-aut for change-of-variable). Replacing this without
-IH requires substantive new infrastructure — beyond a simple refactor.
+IH requires substantive new infrastructure.
 
 Claims 4.1, 4.3, 4.4 and `tupleEquivSimple_ext_eq_of_surj` are all
 closed inline. The wiring is paper-faithful and matches the structure
@@ -11890,11 +11889,11 @@ theorem orbitInvariantSubmodule_le_simpleEvalSubmodule {T K : ℕ}
     orbitInvariantSubmodule B W K ≤ simpleEvalSubmodule B W K :=
   (simpleEvalSubmodule_eq_orbitInvariantSubmodule B hB W hW htwin).ge
 
-/-! ### Corollaries of the rank collapse: the former §3 residues -/
+/-! ### Corollaries of the rank collapse: the §3 residues -/
 
 /-- **Multigraph algebra collapses to the simple-graph algebra** (Lovász Lemma 2.5 content).
 Under twin-free `B` and positive `W`, every multigraph-eval span element is also a
-simple-eval span element. Formerly the Hadamard-square residue; now a direct corollary of
+simple-eval span element. This is the Hadamard-square residue, a direct corollary of
 the rank collapse: multigraph evals are automorphism-invariant, and orbit-invariant
 functions lie in the simple-eval span. -/
 theorem InTupleMultiEvalSpan.toSimple {T K : ℕ} {B : Fin T → Fin T → ℝ}
@@ -12196,12 +12195,12 @@ theorem tupleEquivSimple_implies_orbit_via_2_5 {T K : ℕ}
   exact absurd hcols_eq (by norm_num)
 
 /-- **K=1 Stone-Weierstrass / Lagrange interpolation closure**
-(named algebraic residue, deferred). **This is the K=1 rank theorem proper.**
+**This is the K=1 rank theorem proper.**
 
 Any function on `Fin T` that is constant on `(B, W)`-vertex orbits lies
 in the rooted-profile ℝ-span.
 
-**Proof outline** (deferred, the closing lemma for #80):
+**Proof outline** (the closing lemma for #80):
 1. Quotient `Fin T` by `vertexOrbitRel`; the quotient is finite.
 2. For each pair of distinct orbits, pick a separating rooted-profile
    function `F` via the rank theorem (the algebra of rooted-profile
@@ -12948,7 +12947,7 @@ The (refuted, see below) K=1 spectral closing lemma
 spectral theory on the symmetric operator `S := D^{1/2} B D^{1/2}`
 where `D = diag(W)`.
 
-**Key identity** (to be proved as a stepping stone):
+**Key identity** (the stepping stone):
 `closedWalkProfile B W i (m + 1) = (S^m)[i, i] / W i` for `m ≥ 1`.
 
 Closure path:

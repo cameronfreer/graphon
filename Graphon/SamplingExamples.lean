@@ -21,7 +21,7 @@ random-graph distribution `G(V, p)` (`SimpleGraph.binomialRandom`):
   `dirac ⊤`.
 
 This file exists so that the binomial-random-graph import stays out of
-`Graphon/SamplingLaw.lean`. The stochastic-block-model law is deliberately deferred
+`Graphon/SamplingLaw.lean`. The stochastic-block-model law is not treated here
 (see issue #21).
 -/
 

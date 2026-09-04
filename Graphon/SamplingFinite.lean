@@ -21,7 +21,7 @@ is exactly uniform sampling of a vertex map `Fin k → Fin n` followed by pullin
   `upperSum_injective` (both sides have upper transform equal to the hom density).
 
 The collision bound (splitting maps into injective and noninjective) and the
-identification of the empirical mixing limits build on this in the next step.
+identification of the empirical mixing limits build on this.
 -/
 
 open MeasureTheory

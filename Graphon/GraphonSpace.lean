@@ -154,7 +154,7 @@ end GraphonSpace
 canonical fixed-domain state space for probability measures on graphons (downstream
 probability APIs need not carry base-space typeclasses). Base-independence — isometry
 with `GraphonSpace α μ` over any atomless standard Borel probability base — is a
-deferred `MeasureIso` application. -/
+a `MeasureIso` application not developed here. -/
 abbrev StandardGraphonSpace :=
   GraphonSpace unitInterval (volume : Measure unitInterval)
 

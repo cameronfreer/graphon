@@ -17,13 +17,11 @@ Everything is stated over an arbitrary atomless standard Borel probability space
 classical sampling lemma is not inherently about `[0,1]` — the unit interval is just a
 convenient presentation — and the space-generic statement is the honest interface, since
 transferring cut distances between spaces would require the measure isomorphism theorem
-(`α ≅ ([0,1], volume)` mod 0), which mathlib currently lacks (it is Rokhlin-adjacent and
-will be developed with that blocker).
+(`α ≅ ([0,1], volume)` mod 0; `Graphon/MeasureIso.lean`).
 
 ## Main declarations
 
 * `Graphon.exists_partition_with_measures` — partitions with prescribed cell measures
-  (moved from `Graphon/InverseCounting.lean`)
 * `Graphon.ofSimpleGraphOn` — the finite-graph step-graphon embedding on an arbitrary
   atomless standard Borel space (equal-measure cells)
 * `Graphon.sampleGoodMassOn` — probability that the sampled graph lands within cut

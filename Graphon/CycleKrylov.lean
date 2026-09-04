@@ -3453,7 +3453,7 @@ theorem rootedProfile_decorateAllFam {T n : ℕ} {mfam : Fin n → ℕ} (B : Fin
 /-! ### Decorated power sums — the bridge to classwise row-value measures
 
 `rowValueMeasure_eq_of_rootedProfileEquiv` gives equality of the GLOBAL
-`W`-weighted row-value measures. The next step toward the rank theorem
+`W`-weighted row-value measures. The further input for the rank theorem
 `vertexOrbitRel_of_rootedProfileEquiv` is equality INSIDE each rooted-profile
 atom class — obtained by decorating the power sums with atom indicators. -/
 

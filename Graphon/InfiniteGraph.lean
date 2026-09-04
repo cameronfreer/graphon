@@ -34,7 +34,7 @@ space, with continuous/measurable finite restrictions:
   `restrictFin k` are equal (the restriction fibers form a generating π-system).
 
 This is the infrastructure brick for the infinite exchangeable graph law (bricks
-A2–A3): the specialized Kolmogorov extension will be proved from compactness of
+A2–A3): the specialized Kolmogorov extension is proved from compactness of
 `ProbabilityMeasure InfiniteGraph` plus this extensionality, with no general
 projective-limit machinery.
 -/

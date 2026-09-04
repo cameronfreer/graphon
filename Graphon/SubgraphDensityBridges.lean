@@ -11,8 +11,8 @@ import Graphon.SubgraphDensities
 
 The analytic half of the `t`/`t_inj`/`t_ind` interlude: on the equipartition step graphon of a
 finite host `H`, the homomorphism density *is* `SimpleGraph.t` and the sampling mass *is* the
-normalized exact-pullback count. Split from `Graphon.SubgraphDensities` so the pure density
-API keeps a combinatorics-only import closure. PR 2 of #94 adds the collision-comparison
+normalized exact-pullback count. Separate from `Graphon.SubgraphDensities` so the pure
+density API keeps a combinatorics-only import closure. Also the collision-comparison
 forms: the analytic homomorphism density is within `k²/n` of `t_inj`, and the sampling mass
 within `k²/n` of `t_ind` — the quantitative content of "sampling ≈ injective sampling".
 -/

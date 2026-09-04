@@ -10,8 +10,8 @@ import Mathlib.Analysis.SpecialFunctions.Pow.NNReal
 /-!
 # Counting vertex maps: the birthday bound and injective-map counts (#94, shared infrastructure)
 
-Pure finite combinatorics about maps `Fin k → Fin n`, extracted from the mixture-existence
-collision estimate so the `t`/`t_inj`/`t_ind` subgraph-density interlude (#94) can share it:
+Pure finite combinatorics about maps `Fin k → Fin n`, shared by the mixture-existence
+collision estimate and the `t`/`t_inj`/`t_ind` subgraph-density interlude (#94):
 
 * `Graphon.card_not_injective_le` — the union (birthday) bound: at most `k² · n^(k−1)` maps are
   non-injective;

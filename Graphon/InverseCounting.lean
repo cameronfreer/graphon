@@ -1410,7 +1410,6 @@ private theorem step_quantitative_icl
     apply Filter.Tendsto.const_mul
     apply tendsto_finsetProd _ (fun e _ => ?_)
     exact h_pw _ _ 1
-  -- The original bridges will be instantiated per-graphon below
   -- Equal hom densities: pass |t(F,step U_n) - t(F,step W_n)| < 1/(n+1) to the limit
   -- Helper: homDensity of stepify equals homDensity of mkStepGraphon with rectAverage
   -- (since their toAEEqFun values are equal—both are AEEqFun.mk of the same function)

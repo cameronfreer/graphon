@@ -50,7 +50,7 @@ pick one `k` for both events and close via `sampleGoodMassOn_of_events`.
   conditional sub-Gaussian route (Doob/vertex-exposure decomposition of
   `f(x) − E f`) or a bespoke finite version in the style of `SamplingRounding`.
 * **Measurability of the witness set** (`PointSamplingEvent` carries it as data): the
-  plan is to take `X := {x | discretized majorant of d_□(W, H_{W,x}) < ε}` for a
+  witness is `X := {x | discretized majorant of d_□(W, H_{W,x}) < ε}` for a
   FINITE discretization of the cut-norm sup (cell-cuts on the `H`-side suffice for a
   2-sided estimate up to constants), making `X` a finite intersection/union of
   preimages of measurable coordinate functions. If this still turns ugly, a narrowed
@@ -112,8 +112,7 @@ of `W` at quality `ε' := ε/8` with `m = m(ε')` parts (uniform in `W`, by
   qualitative statement — concentration would only improve η-rates.
 * `regularity W ε hε : ∃ P, P.parts.card ≤ regularityBound ε ∧
   cutNormDiff W (stepify P W) ≤ ε` (proved) — the `m(ε)` source.
-* `cutDistance_step_weight_le` (InverseCounting, PRIVATE — de-privatize like
-  `exists_partition_with_measures`; carries the Rokhlin trace, acceptable): needs the
+* `cutDistance_step_weight_le` (`Compactness.lean`; rests on the Rokhlin core): needs the
   SAME cell count on both sides via injective enumerations. For the frequency term
   (`d(U, H_{U,x})`), the coarsened partition (equicells grouped by the P-cell of their
   sample point) can have EMPTY groups, which break enumeration injectivity — pad empty

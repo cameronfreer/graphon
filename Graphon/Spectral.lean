@@ -85,7 +85,7 @@ lemma symAdjIter_succ {T : ℕ} (B : Fin T → Fin T → ℝ) (W : Fin T → ℝ
 
 /-! ### Bridge: closed walk profiles ↔ diagonal moments of `S^m`
 
-The key identity (to be proved by induction):
+The key identity (proved by induction):
 `closedWalkProfile B W i k = symAdjIter B W k i i / W i` for `k ≥ 1`.
 
 Proof outline: by induction on m, using the conjugation
@@ -1043,7 +1043,8 @@ as an equivalence relation `r` (same color ⇔ related). One refinement step
 measure — exactly `refineMeasure` against class-indicator features. This section
 establishes the operator and that it only *splits* classes (monotonicity) and
 preserves the equivalence-relation structure. Termination and the
-automorphism-orbit endpoint are deferred. -/
+automorphism-orbit endpoint are not part of this section (and the latter is
+FALSE for 1-WL — see the refutation below). -/
 
 section Refinement
 
@@ -1234,7 +1235,7 @@ noncomputable def stableSetoid (s : Setoid (Fin T)) : Setoid (Fin T) :=
 
 /-- **Orbit ⟹ stable-class** (easy direction of `stable = orbit`): weighted
 automorphism orbits are contained in the stable refinement classes. The reverse
-inclusion (stable class ⟹ orbit) is the coherent-configuration theorem, deferred. -/
+inclusion (stable class ⟹ orbit) is FALSE for 1-WL — see the refutation below. -/
 theorem vertexOrbitRel_imp_stable {i j : Fin T} (h : vertexOrbitRel B W i j) :
     (stableSetoid B W ⊤).r i j :=
   vertexOrbitRel_imp_refineSetoidIter B W h _
@@ -1244,7 +1245,7 @@ theorem vertexOrbitRel_imp_stable {i j : Fin T} (h : vertexOrbitRel B W i j) :
 At a refinement fixed point the defining condition of `refineRel` already holds
 on each class, so same-class vertices share *all* their weighted
 edge-distribution data. This is the equitable-partition / coherent-configuration
-property — the algebraic input for the (deferred) reconstruction theorem. -/
+property — the algebraic input for a reconstruction argument. -/
 
 /-- `stableSetoid B W s` is a fixed point of one refinement step (the iteration
 stops increasing the class count by step `T`). -/
@@ -1350,7 +1351,7 @@ every class `k`, and every value `v`, the two `(class, value)` fibers (members `
 of class `k` with `B i t = v`, resp. `B j t = v`) have equal total `W`-weight
 (`stable_classMeasure_eq`), hence a nonnegative coupling matching the `W`-weight
 of `i`'s fiber against `j`'s. The local building block of a fractional
-automorphism (which the deferred reconstruction assembles across all fibers). -/
+automorphism (which a reconstruction argument assembles across all fibers). -/
 theorem exists_fiber_coupling (s : Setoid (Fin T)) (hW : ∀ t, 0 ≤ W t) {i j : Fin T}
     (hij : (stableSetoid B W s).r i j) (k : Fin T) (v : ℝ) :
     ∃ c : Fin T → Fin T → ℝ, (∀ a b, 0 ≤ c a b) ∧
@@ -1473,7 +1474,7 @@ The `couplingMatrix` above is tailored to the `i/j` rows and does not commute wi
 `B`. The *class-averaging* matrix `avgMatrix a b = [stable a b] · W b / classWeight a`
 is the canonical `W`-weighted projection onto stable-class-constant functions; its
 `B`-commutation follows from equitability (`stable_classMoment_eq`). Here we prove
-its marginals/positivity; the commutation is the next step.
+its marginals/positivity; the commutation is not needed downstream.
 
 CAVEAT on the commutation form: for weighted graphs the *plain* matrix identity
 `∑_c X a c · B c b = ∑_c B a c · X c b` is FALSE (it would force `W a = W b` across

@@ -661,7 +661,7 @@ atom `C`, the distribution of `B(i, ·)|_C` beyond its (known) mean.
 Cycle-type observables (triangles etc. through the root, decorated) give
 bilinear couplings `∑_{t,s} W t W s B(i,t) B(t,s) B(s,i) 1_C(t) 1_D(s)` —
 quadratic in the row but never the diagonal `t = s` term in isolation;
-formalizing those requires a two-point attachment construction (deferred). -/
+formalizing those requires a two-point attachment construction, not developed here. -/
 
 /-- The `W`-weighted square moment of row `i`: `∑ t, W t * B i t ^ 2`.
 This is `starProbe 2` (a MULTIGRAPH observable — it needs a double edge `i–t`);
