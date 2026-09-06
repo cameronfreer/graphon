@@ -22,7 +22,7 @@ support, since its spare destination is itself a mixed support it disturbs.
   (`crossSwap_fix_of_notMem`), fixes every original vertex outside `D` below `K`
   (`crossSwap_original_of_notMem`), and has finite support on both halves with finitely many
   active sorts (`pooledFiniteActive_crossSwap`).
-* `crossSwap_image_original` — a remainder support meeting `D` is carried onto a **mixed**
+* `crossSwap_mixed_of_meets` — a remainder support meeting `D` is carried onto a **mixed**
   support; `crossSwap_mixed_of_fresh` — a mixed support whose vertices lie below `K` stays mixed.
 -/
 
