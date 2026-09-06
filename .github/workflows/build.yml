@@ -40,6 +40,29 @@ jobs:
       - name: Check docbuild sync (toolchain and Mathlib match the root)
         run: python3 scripts/check_docbuild_sync.py
 
+      # doc-gen4's incremental state lives in docbuild/.lake, a separate Lake workspace from the
+      # root .lake that lean-action caches, so without this it was regenerated from scratch on
+      # every master push. Restore it here, before lean-action saves this run's large root
+      # cache, so the small docs entry is retrieved and its last-access refreshed before more
+      # storage pressure is added (eviction is by last access); save immediately after successful
+      # generation, so a later TeX, Jekyll, or Pages failure cannot discard a valid cache. The
+      # build command stays unconditional: the cache supplies prior state, Lake decides freshness.
+      # Key: format version, OS, arch, both toolchains, both manifests, both Lake configurations,
+      # and the exact commit; the fallback drops only the commit, restoring the latest compatible
+      # prior state. Bump docbuild-v1 if the cached path or doc-gen4 layout changes.
+      # API generation runs on master pushes and on manual dispatch (so the cache can be
+      # exercised from a branch); assembly and deployment stay master-only below.
+      - name: Restore docbuild cache
+        if: (github.ref == 'refs/heads/master' && github.event_name != 'pull_request') || github.event_name == 'workflow_dispatch'
+        id: docbuild-cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: docbuild/.lake/build
+          key: docbuild-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'docbuild/lean-toolchain', 'lake-manifest.json', 'docbuild/lake-manifest.json', 'lakefile.toml', 'docbuild/lakefile.toml') }}-${{ github.sha }}
+          restore-keys: |
+            docbuild-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'docbuild/lean-toolchain', 'lake-manifest.json', 'docbuild/lake-manifest.json', 'lakefile.toml', 'docbuild/lakefile.toml') }}-
+
+
       - name: Build Lean project and blueprint
         uses: leanprover/lean-action@c544e89643240c6b398f14a431bcdc6309e36b3e
         with:
@@ -78,26 +101,6 @@ jobs:
 
       - name: Build blueprint PDF
         run: leanblueprint pdf
-
-      # doc-gen4's incremental state lives in docbuild/.lake, a separate Lake workspace from the
-      # root .lake that lean-action caches, so without this it was regenerated from scratch on
-      # every master push. Restore before generation and save immediately after successful
-      # generation, so a later TeX, Jekyll, or Pages failure cannot discard a valid cache. The
-      # build command stays unconditional: the cache supplies prior state, Lake decides freshness.
-      # Key: format version, OS, arch, both toolchains, both manifests, both Lake configurations,
-      # and the exact commit; the fallback drops only the commit, restoring the latest compatible
-      # prior state. Bump docbuild-v1 if the cached path or doc-gen4 layout changes.
-      # API generation runs on master pushes and on manual dispatch (so the cache can be
-      # exercised from a branch); assembly and deployment stay master-only below.
-      - name: Restore docbuild cache
-        if: (github.ref == 'refs/heads/master' && github.event_name != 'pull_request') || github.event_name == 'workflow_dispatch'
-        id: docbuild-cache-restore
-        uses: actions/cache/restore@v4
-        with:
-          path: docbuild/.lake/build
-          key: docbuild-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'docbuild/lean-toolchain', 'lake-manifest.json', 'docbuild/lake-manifest.json', 'lakefile.toml', 'docbuild/lakefile.toml') }}-${{ github.sha }}
-          restore-keys: |
-            docbuild-v1-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('lean-toolchain', 'docbuild/lean-toolchain', 'lake-manifest.json', 'docbuild/lake-manifest.json', 'lakefile.toml', 'docbuild/lakefile.toml') }}-
 
       - name: Build API docs
         if: (github.ref == 'refs/heads/master' && github.event_name != 'pull_request') || github.event_name == 'workflow_dispatch'
