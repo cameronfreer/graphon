@@ -11,8 +11,9 @@ import Graphon.RelPollingTail
 The unit-3 refinement of the polling conditioning: the pooled latents together with the **pooled
 finite-active fixing algebras at every mixed support**, in place of the raw blocks there. The
 insertion step of the fixing-factor polling argument needs it: a fixing event carried by a swap
-onto a mixed support is a fixing event there, not a function of the raw block, and identifying
-the two is Austin's conclusion rather than an input.
+onto a mixed support is a fixing event there, and the available interfaces do not represent the
+transported fixing events through the raw polling base. The obstruction is a missing premise for
+this proof, not a claim about every proof.
 
 The existing Austin base is preserved; this is a separate, richer conditioning, and nothing here
 claims that conditional independence given it descends to the raw base.

@@ -109,7 +109,7 @@ private theorem condExp_ae_eq_condExp_of_integral_sq_le
 
 /-- **Transport**: conditional expectation commutes with a measure-preserving map, the
 conditioning algebra pulled back along `MeasurableSpace.comap`. -/
-private theorem condExp_comp_of_measurePreserving
+theorem condExp_comp_of_measurePreserving
     {T : Ω → Ω} (hT : Measurable T) (hTμ : MeasurePreserving T μ μ)
     (hm : m₁ ≤ mΩ) {f : Ω → ℝ} (hf : Integrable f μ) :
     μ[f ∘ T | MeasurableSpace.comap T m₁] =ᵐ[μ] (μ[f | m₁]) ∘ T := by
