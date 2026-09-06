@@ -360,6 +360,8 @@ AUDITED_DECLS = {
     "RelSignature.comap_pooledJointRelabel_fixBaseGen_inr",
     "RelSignature.comap_crossSwapJoint_fixBaseGen_le",
     "RelSignature.comap_crossSwapJoint_remainder_le",
+    "RelSignature.crossSwapJoint_comp_self",
+    "RelSignature.setIntegral_insertion_cylinder",
     "RelSignature.nonempty_finiteActiveExtension",
     "RelSignature.SaturatedAtom.globalInj_apply_of_mem",
     "Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le",

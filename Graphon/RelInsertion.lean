@@ -413,4 +413,138 @@ theorem comap_crossSwapJoint_remainder_le (K : ℕ) (D : Finset (Σ s : S.Srt, V
     exact hcard
   exact le_iSup (fixBaseGen (S := S) n) (.inr ⟨_, hcard', hmix⟩)
 
+/-! ### The generator integral identity -/
+
+omit [Countable S.Srt] [Countable S.Rel] in
+open scoped Classical in
+/-- The cross swap, as a joint relabeling, is an involution. -/
+theorem crossSwapJoint_comp_self (K : ℕ) (D : Finset (Σ s : S.Srt, Vinfinite S s)) (n : ℕ) :
+    crossSwapJoint (S := S) K D n ∘ crossSwapJoint K D n = id := by
+  have hmul : ∀ s, crossSwap (S := S) K D s * crossSwap K D s = 1 := fun s =>
+    Equiv.ext fun x => crossSwapFun_involutive K D s x
+  funext p
+  refine Prod.ext ?_ ?_
+  · show RelStructure.comap _ (RelStructure.comap _ p.1) = p.1
+    rw [← RelStructure.comap_comp]
+    convert RelStructure.comap_id p.1 using 2
+    funext s x
+    exact crossSwapFun_involutive K D s x
+  · show pooledRankLatentRelabel (crossSwap K D) n (pooledRankLatentRelabel (crossSwap K D) n p.2)
+      = p.2
+    funext I
+    rw [pooledRankLatentRelabel_apply, pooledRankLatentRelabel_apply]
+    have h := congrFun (congrArg (fun e : PooledRankLatentIndex S n ≃ PooledRankLatentIndex S n =>
+      ⇑e) (latentIndexPerm_comp (S := S) (crossSwap K D) (crossSwap K D) n)) I
+    simp only [Equiv.trans_apply] at h
+    rw [← h, show (fun s => crossSwap (S := S) K D s * crossSwap K D s) = fun _ => 1 from
+      funext hmul, latentIndexPerm_one, Equiv.refl_apply]
+
+omit [Countable S.Srt] [Countable S.Rel] in
+open scoped Classical in
+/-- The cross swap as a measurable equivalence of the pooled space. -/
+noncomputable def crossSwapJointEquiv (K : ℕ) (D : Finset (Σ s : S.Srt, Vinfinite S s)) (n : ℕ) :
+    (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n) ≃ᵐ
+      (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n) where
+  toFun := crossSwapJoint K D n
+  invFun := crossSwapJoint K D n
+  left_inv := fun p => congrFun (crossSwapJoint_comp_self K D n) p
+  right_inv := fun p => congrFun (crossSwapJoint_comp_self K D n) p
+  measurable_toFun := measurable_pooledJointRelabel _ n
+  measurable_invFun := measurable_pooledJointRelabel _ n
+
+open scoped Classical in
+/-- **The generator integral identity.** For the target `e`, a remainder family `F ∌ e` of rank-`n`
+supports, `D ⊇ (⋃ F) \ e` disjoint from `e`, and a finite cylinder `⋂ i ∈ t, f i` of generator
+events, with `K` above every vertex of the target, the remainder, and the cylinder's footprint
+and `N` above the target and the layout `D ∪ (D + K)`:
+
+`∫_{G ∩ H} 1_{E_e} = ∫_{G ∩ H} E[1_{E_e} | 𝔅_fix]`
+
+where `G` is the intersection of the remainder's fixing events and `H` the cylinder. The cross
+swap at `K` carries `G ∩ H` into `𝔅_fix` while fixing `1_{E_e}` and `E[1_{E_e} | 𝔅_fix]` almost
+surely. -/
+theorem setIntegral_insertion_cylinder (Q : PooledRankExtension C) (N : ℕ) [NeZero N] (K : ℕ)
+    (D : Finset (Σ s : S.Srt, Vinfinite S s)) (e : RankSupport S n) (F : Finset (RankSupport S n))
+    (heF : e ∉ F) (hDe : ∀ w ∈ D, w ∉ e.1) (hFD : ∀ A ∈ F, ∀ w ∈ A.1, w ∉ e.1 → w ∈ D)
+    (hKe : ∀ w ∈ e.1, w.2 < K) (hN : ∀ v ∈ D ∪ shiftSet K D, v.2 < N) (hNe : ∀ w ∈ e.1, w.2 < N)
+    {E : RankSupport S n → Set (RelStructure S (PoolVertex S))}
+    (hE : ∀ A, MeasurableSet[pooledFiniteActiveFixingAlgebra (supportImage (originalVertex S) A.1)]
+      (E A))
+    (t : Finset (FixBaseIndex S n))
+    {f : FixBaseIndex S n → Set (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)}
+    (hf : ∀ i ∈ t, MeasurableSet[fixBaseGen n i] (f i))
+    (hKt : ∀ i ∈ t, ∀ v ∈ genSupport n i, poolValue v < K) :
+    ∫ x in (⋂ A ∈ F, Prod.fst ⁻¹' E A) ∩ ⋂ i ∈ t, f i,
+        (Prod.fst ⁻¹' E e).indicator (fun _ => (1 : ℝ)) x
+        ∂(Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) =
+      ∫ x in (⋂ A ∈ F, Prod.fst ⁻¹' E A) ∩ ⋂ i ∈ t, f i,
+        ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))⟦
+          Prod.fst ⁻¹' E e | fixBase n⟧) x
+        ∂(Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) := by
+  haveI := C.isProbabilityMeasure_P
+  set μ : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n) :=
+    (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) with hμ
+  set σ := crossSwapJoint (S := S) K D n with hσ
+  set G : Set (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n) :=
+    (⋂ A ∈ F, Prod.fst ⁻¹' E A) ∩ ⋂ i ∈ t, f i with hG
+  set E' : Set (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n) := Prod.fst ⁻¹' E e
+    with hE'
+  have hEmeas : ∀ A, MeasurableSet (E A) := fun A =>
+    pooledFiniteActiveFixingAlgebra_le _ _ (hE A)
+  have hE'meas : MeasurableSet E' := measurable_fst (hEmeas e)
+  have hGmeas : MeasurableSet G := by
+    refine (Finset.measurableSet_biInter F fun A _ => measurable_fst (hEmeas A)).inter
+      (Finset.measurableSet_biInter t fun i hi => fixStage_le _ _ (fixBaseGen_le i _ (hf i hi)))
+  have hMP : MeasurePreserving σ μ μ := measurePreserving_crossSwapJoint Q K D
+  -- the swap carries `G` into `𝔅_fix`
+  have hσG : MeasurableSet[fixBase n] (σ ⁻¹' G) := by
+    rw [hG, Set.preimage_inter, Set.preimage_iInter₂, Set.preimage_iInter₂]
+    refine MeasurableSet.inter ?_ ?_
+    · refine MeasurableSet.biInter F.countable_toSet fun A hA => ?_
+      -- a remainder support differs from the target, hence meets `D`
+      have hne : A ≠ e := fun h => heF (h ▸ hA)
+      obtain ⟨w, hwA, hwe⟩ : ∃ w ∈ A.1, w ∉ e.1 := by
+        by_contra hall
+        push Not at hall
+        exact hne (Subtype.ext (Finset.eq_of_subset_of_card_le hall (by rw [A.2, e.2])))
+      exact comap_crossSwapJoint_remainder_le K D A (hFD A hA w hwA hwe) hwA _
+        ⟨_, ⟨E A, hE A, rfl⟩, rfl⟩
+    · exact MeasurableSet.biInter t.countable_toSet fun i hi =>
+        comap_crossSwapJoint_fixBaseGen_le K D i (hKt i hi) _ ⟨f i, hf i hi, rfl⟩
+  -- the swap fixes the target's event almost surely, and its conditional probability
+  have hAD : ∀ w ∈ e.1, w ∉ D ∪ shiftSet K D := by
+    intro w hw hmem
+    rcases Finset.mem_union.mp hmem with h | h
+    · exact hDe w h hw
+    · obtain ⟨u, -, hu⟩ := mem_shiftSet.mp h
+      subst hu
+      exact absurd (hKe _ hw) (not_lt.mpr (Nat.le_add_left K u.2))
+  have hfix : ∀ v ∈ supportImage (originalVertex S) e.1, crossSwap (S := S) K D v.1 v.2 = v.2 := by
+    intro v hv
+    obtain ⟨w, hw, rfl⟩ := (mem_supportImage_iff _ _ _).mp hv
+    exact crossSwap_original_of_notMem K D fun h => hAD w hw (Finset.mem_union_left _ h)
+  have hinv : σ ⁻¹' E' =ᵐ[μ] E' :=
+    Q.relabel_preimage_ae_eq_of_pooledFiniteActiveFixingAlgebra_fst (hE e) (crossSwap_eq_one K D)
+      hfix
+  have hqσ := condExp_fixBase_comp_crossSwapJoint Q N K D hN hNe hAD (hE e)
+  have hint : Integrable (E'.indicator fun _ => (1 : ℝ)) μ :=
+    (integrable_const 1).indicator hE'meas
+  -- both sides as masses and set integrals
+  rw [setIntegral_indicator hE'meas, setIntegral_const, smul_eq_mul, mul_one]
+  have h1 : μ.real (G ∩ E') = μ.real (σ ⁻¹' G ∩ E') := by
+    rw [measureReal_def, measureReal_def, ← hMP.measure_preimage (hGmeas.inter hE'meas).nullMeasurableSet,
+      Set.preimage_inter, measure_congr ((Filter.EventuallyEq.refl _ _).inter hinv)]
+  have h2 : μ.real (σ ⁻¹' G ∩ E') = ∫ x in σ ⁻¹' G, (μ⟦E' | fixBase n⟧) x ∂μ := by
+    rw [setIntegral_condExp (fixStage_le _) hint hσG, setIntegral_indicator hE'meas,
+      setIntegral_const, smul_eq_mul, mul_one]
+  have h3 : ∫ x in σ ⁻¹' G, (μ⟦E' | fixBase n⟧) x ∂μ =
+      ∫ x in G, ((μ⟦E' | fixBase n⟧) ∘ σ) x ∂μ := by
+    have hpre := hMP.setIntegral_preimage_emb (crossSwapJointEquiv K D n).measurableEmbedding
+      (μ⟦E' | fixBase n⟧) (σ ⁻¹' G)
+    rw [← hpre, ← Set.preimage_comp, hσ, crossSwapJoint_comp_self, Set.preimage_id]
+    rfl
+  have h4 : ∫ x in G, ((μ⟦E' | fixBase n⟧) ∘ σ) x ∂μ = ∫ x in G, (μ⟦E' | fixBase n⟧) x ∂μ :=
+    setIntegral_congr_ae hGmeas (hqσ.mono fun x hx _ => hx)
+  rw [h1, h2, h3, h4]
+
 end RelSignature
