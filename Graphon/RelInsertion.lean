@@ -6,9 +6,10 @@ Authors: Cameron Freer
 import Graphon.RelFixingStages
 
 /-!
-# The insertion step: the fresh cross swap (R4 converse, #107, #197)
+# The insertion step (R4 converse, #107, #197)
 
-The second analytic step of the pooled fixing-factor polling argument. Given the target support
+The second analytic step of the pooled fixing-factor polling argument, ending in the mutual
+conditional independence of the pooled fixing events given `𝔅_fix`. Given the target support
 `e`, a finite remainder family `F` of other rank-`n` supports, and a finite test event `H`, the
 **fresh cross swap** exchanges the original copies of `D = (⋃ F) \ e` with the spare copies of a
 fresh translate `D + K` of `D`, where `K` exceeds every vertex used by the target, the remainder,
@@ -24,6 +25,15 @@ support, since its spare destination is itself a mixed support it disturbs.
   active sorts (`pooledFiniteActive_crossSwap`).
 * `crossSwap_mixed_of_meets` — a remainder support meeting `D` is carried onto a **mixed**
   support; `crossSwap_mixed_of_fresh` — a mixed support whose vertices lie below `K` stays mixed.
+* `crossSwapJoint` — the swap acting on the enriched carrier, measure preserving, and leaving
+  `𝔅_fix`-conditional expectations invariant (`condExp_fixBase_comp_crossSwapJoint`).
+* `fixBaseCylinders` — the generating π-system of `𝔅_fix` (`fixBase_eq_generateFrom`).
+* `setIntegral_insertion_cylinder` — the generator identity: over a remainder event and a
+  cylinder, the target's fixing indicator integrates like its `𝔅_fix`-conditional probability.
+* `setIntegral_insertion` — the identity on every `𝔅_fix`-event, by the π-λ theorem.
+* `condExp_insertion` — the conditional factorization of the target against the remainder.
+* `condExp_iInter_fixing_eq_prod` — **mutual** conditional independence of any finite family of
+  pooled fixing events given `𝔅_fix`.
 -/
 
 open MeasureTheory ProbabilityTheory
@@ -532,8 +542,9 @@ theorem setIntegral_insertion_cylinder (Q : PooledRankExtension C) (N : ℕ) [Ne
   -- both sides as masses and set integrals
   rw [setIntegral_indicator hE'meas, setIntegral_const, smul_eq_mul, mul_one]
   have h1 : μ.real (G ∩ E') = μ.real (σ ⁻¹' G ∩ E') := by
-    rw [measureReal_def, measureReal_def, ← hMP.measure_preimage (hGmeas.inter hE'meas).nullMeasurableSet,
-      Set.preimage_inter, measure_congr ((Filter.EventuallyEq.refl _ _).inter hinv)]
+    rw [measureReal_def, measureReal_def,
+      ← hMP.measure_preimage (hGmeas.inter hE'meas).nullMeasurableSet, Set.preimage_inter,
+      measure_congr ((Filter.EventuallyEq.refl _ _).inter hinv)]
   have h2 : μ.real (σ ⁻¹' G ∩ E') = ∫ x in σ ⁻¹' G, (μ⟦E' | fixBase n⟧) x ∂μ := by
     rw [setIntegral_condExp (fixStage_le _) hint hσG, setIntegral_indicator hE'meas,
       setIntegral_const, smul_eq_mul, mul_one]
@@ -546,5 +557,188 @@ theorem setIntegral_insertion_cylinder (Q : PooledRankExtension C) (N : ℕ) [Ne
   have h4 : ∫ x in G, ((μ⟦E' | fixBase n⟧) ∘ σ) x ∂μ = ∫ x in G, (μ⟦E' | fixBase n⟧) x ∂μ :=
     setIntegral_congr_ae hGmeas (hqσ.mono fun x hx _ => hx)
   rw [h1, h2, h3, h4]
+
+/-! ### Extension to `𝔅_fix`, the factorization, and mutuality -/
+
+/-- The set `D = (⋃ F) \ e`. -/
+noncomputable def remainderSet (e : RankSupport S n) (F : Finset (RankSupport S n)) :
+    Finset (Σ s : S.Srt, Vinfinite S s) := by
+  classical
+  exact (F.biUnion fun A => A.1) \ e.1
+
+open scoped Classical in
+/-- **The insertion identity on every `𝔅_fix`-event.** Extension of the generator identity by
+the π-λ theorem: the cylinders form a π-system generating `𝔅_fix`, the identity is stable under
+complement (using the cylinder `univ`) and countable disjoint union, and for each cylinder the
+bounds `K` and `N` are chosen after it. -/
+theorem setIntegral_insertion (Q : PooledRankExtension C) (e : RankSupport S n)
+    (F : Finset (RankSupport S n)) (heF : e ∉ F)
+    {E : RankSupport S n → Set (RelStructure S (PoolVertex S))}
+    (hE : ∀ A, MeasurableSet[pooledFiniteActiveFixingAlgebra (supportImage (originalVertex S) A.1)]
+      (E A))
+    {H : Set (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)}
+    (hH : MeasurableSet[fixBase n] H) :
+    ∫ x in (⋂ A ∈ F, Prod.fst ⁻¹' E A) ∩ H, (Prod.fst ⁻¹' E e).indicator (fun _ => (1 : ℝ)) x
+        ∂(Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) =
+      ∫ x in (⋂ A ∈ F, Prod.fst ⁻¹' E A) ∩ H,
+        ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))⟦
+          Prod.fst ⁻¹' E e | fixBase n⟧) x
+        ∂(Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) := by
+  haveI := C.isProbabilityMeasure_P
+  set μ : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n) :=
+    (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) with hμ
+  set G : Set (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n) :=
+    ⋂ A ∈ F, Prod.fst ⁻¹' E A with hG
+  set g₁ : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → ℝ :=
+    (Prod.fst ⁻¹' E e).indicator fun _ => (1 : ℝ) with hg₁
+  set g₂ : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → ℝ :=
+    μ⟦Prod.fst ⁻¹' E e | fixBase n⟧ with hg₂
+  have hEmeas : ∀ A, MeasurableSet (E A) := fun A =>
+    pooledFiniteActiveFixingAlgebra_le _ _ (hE A)
+  have hGmeas : MeasurableSet G :=
+    Finset.measurableSet_biInter F fun A _ => measurable_fst (hEmeas A)
+  have hg₁ : Integrable g₁ μ := (integrable_const 1).indicator (measurable_fst (hEmeas e))
+  have hg₂ : Integrable g₂ μ := integrable_condExp
+  -- the bounds, chosen after a cylinder
+  set D := remainderSet e F with hD
+  have hDe : ∀ w ∈ D, w ∉ e.1 := fun w hw => (Finset.mem_sdiff.mp hw).2
+  have hFD : ∀ A ∈ F, ∀ w ∈ A.1, w ∉ e.1 → w ∈ D := fun A hA w hw hwe =>
+    Finset.mem_sdiff.mpr ⟨Finset.mem_biUnion.mpr ⟨A, hA, hw⟩, hwe⟩
+  -- the generator case
+  have hbasic : ∀ H ∈ fixBaseCylinders S n,
+      ∫ x in G ∩ H, g₁ x ∂μ = ∫ x in G ∩ H, g₂ x ∂μ := by
+    rintro H ⟨t, -, f, hf, rfl⟩
+    set K : ℕ := ((t.biUnion (genSupport n)).sup poolValue ⊔ e.1.sup (fun v => v.2)) + 1 with hK
+    set N : ℕ := ((D ∪ shiftSet K D) ∪ e.1).sup (fun v => v.2) + 1 with hN
+    haveI : NeZero N := ⟨Nat.succ_ne_zero _⟩
+    have hKe : ∀ w ∈ e.1, w.2 < K := fun w hw => Nat.lt_succ_of_le
+      (le_trans (Finset.le_sup (f := fun v : Σ s : S.Srt, Vinfinite S s => v.2) hw)
+        le_sup_right)
+    have hKt : ∀ i ∈ t, ∀ v ∈ genSupport n i, poolValue v < K := fun i hi v hv =>
+      Nat.lt_succ_of_le (le_trans (Finset.le_sup (f := poolValue)
+        (Finset.mem_biUnion.mpr ⟨i, hi, hv⟩)) le_sup_left)
+    have hN' : ∀ v ∈ D ∪ shiftSet K D, v.2 < N := fun v hv => Nat.lt_succ_of_le
+      (Finset.le_sup (f := fun v : Σ s : S.Srt, Vinfinite S s => v.2) (Finset.mem_union_left _ hv))
+    have hNe : ∀ w ∈ e.1, w.2 < N := fun w hw => Nat.lt_succ_of_le
+      (Finset.le_sup (f := fun v : Σ s : S.Srt, Vinfinite S s => v.2) (Finset.mem_union_right _ hw))
+    exact setIntegral_insertion_cylinder Q N K D e F heF hDe hFD hKe hN' hNe hE t
+      (fun i hi => hf i hi) hKt
+  -- the universal case, from the empty cylinder
+  have huniv : ∫ x in G, g₁ x ∂μ = ∫ x in G, g₂ x ∂μ := by
+    have h := hbasic Set.univ ⟨∅, by simp, fun _ => Set.univ,
+      fun _ h => absurd h (Finset.notMem_empty _), by simp⟩
+    simpa only [Set.inter_univ] using h
+  -- the π-λ extension
+  refine MeasurableSpace.induction_on_inter (m := fixBase n)
+    (C := fun H _ => ∫ x in G ∩ H, g₁ x ∂μ = ∫ x in G ∩ H, g₂ x ∂μ)
+    fixBase_eq_generateFrom isPiSystem_fixBaseCylinders ?_ (fun H hH => hbasic H hH) ?_ ?_ H hH
+  · simp only [Set.inter_empty, Measure.restrict_empty, integral_zero_measure]
+  · intro H hHm ih
+    have hHm' : MeasurableSet H := fixStage_le _ _ hHm
+    have hsplit : ∀ g : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → ℝ,
+        Integrable g μ → ∫ x in G ∩ Hᶜ, g x ∂μ = ∫ x in G, g x ∂μ - ∫ x in G ∩ H, g x ∂μ := by
+      intro g hg
+      have h := integral_add_compl (μ := μ.restrict G) hHm' hg.integrableOn
+      rw [Measure.restrict_restrict hHm', Measure.restrict_restrict hHm'.compl,
+        Set.inter_comm H, Set.inter_comm Hᶜ] at h
+      linarith
+    rw [hsplit g₁ hg₁, hsplit g₂ hg₂, huniv, ih]
+  · intro f hdisj hfm ih
+    have hfm' : ∀ i, MeasurableSet (f i) := fun i => fixStage_le _ _ (hfm i)
+    have hdisj' : Pairwise (Function.onFun Disjoint fun i => G ∩ f i) := fun i j hij =>
+      Disjoint.mono Set.inter_subset_right Set.inter_subset_right (hdisj hij)
+    rw [Set.inter_iUnion, integral_iUnion (fun i => hGmeas.inter (hfm' i)) hdisj' hg₁.integrableOn,
+      integral_iUnion (fun i => hGmeas.inter (hfm' i)) hdisj' hg₂.integrableOn]
+    exact tsum_congr fun i => ih i
+
+open scoped Classical in
+/-- **The conditional insertion identity**: the target's fixing event and the remainder's fixing
+events factor under conditioning on `𝔅_fix`. -/
+theorem condExp_insertion (Q : PooledRankExtension C) (e : RankSupport S n)
+    (F : Finset (RankSupport S n)) (heF : e ∉ F)
+    {E : RankSupport S n → Set (RelStructure S (PoolVertex S))}
+    (hE : ∀ A, MeasurableSet[pooledFiniteActiveFixingAlgebra (supportImage (originalVertex S) A.1)]
+      (E A)) :
+    ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))⟦
+        Prod.fst ⁻¹' E e ∩ ⋂ A ∈ F, Prod.fst ⁻¹' E A | fixBase n⟧)
+      =ᵐ[(Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))]
+    ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))⟦
+        Prod.fst ⁻¹' E e | fixBase n⟧) *
+      ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))⟦
+        ⋂ A ∈ F, Prod.fst ⁻¹' E A | fixBase n⟧) := by
+  haveI := C.isProbabilityMeasure_P
+  set μ : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n) :=
+    (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) with hμ
+  set G : Set (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n) :=
+    ⋂ A ∈ F, Prod.fst ⁻¹' E A with hG
+  set E' : Set (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n) := Prod.fst ⁻¹' E e
+    with hE'
+  have hEmeas : ∀ A, MeasurableSet (E A) := fun A =>
+    pooledFiniteActiveFixingAlgebra_le _ _ (hE A)
+  have hGmeas : MeasurableSet G :=
+    Finset.measurableSet_biInter F fun A _ => measurable_fst (hEmeas A)
+  have hE'meas : MeasurableSet E' := measurable_fst (hEmeas e)
+  set q : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → ℝ := μ⟦E' | fixBase n⟧
+    with hq
+  have hqmeas : StronglyMeasurable[fixBase n] q := stronglyMeasurable_condExp
+  obtain ⟨hq0, hq1⟩ := condExp_indicator_bounds (μ := μ) (fixStage_le _) hE'meas
+  have hqbdd : ∀ᵐ x ∂μ, ‖q x‖ ≤ 1 := by
+    filter_upwards [hq0, hq1] with x h0 h1
+    rw [Pi.zero_apply] at h0
+    rw [Real.norm_eq_abs, abs_le]; exact ⟨by linarith, h1⟩
+  have hG_int : Integrable (G.indicator fun _ => (1 : ℝ)) μ := (integrable_const 1).indicator hGmeas
+  have hqG_int : Integrable (q * G.indicator fun _ => (1 : ℝ)) μ :=
+    hG_int.bdd_mul (hqmeas.mono (fixStage_le _)).aestronglyMeasurable hqbdd
+  have hpull : μ[q * G.indicator (fun _ => (1 : ℝ)) | fixBase n] =ᵐ[μ]
+      q * μ[G.indicator (fun _ => (1 : ℝ)) | fixBase n] :=
+    condExp_mul_of_stronglyMeasurable_left hqmeas hqG_int hG_int
+  have hqG : q * G.indicator (fun _ => (1 : ℝ)) = G.indicator q := by
+    ext x; by_cases hx : x ∈ G <;> simp [hx]
+  -- the candidate `q · E[1_G | 𝔅_fix]` has the right set integrals
+  refine (ae_eq_condExp_of_forall_setIntegral_eq (fixStage_le _)
+    ((integrable_const 1).indicator (hE'meas.inter hGmeas)) (fun s _ _ => ?_) (fun s hs _ => ?_)
+    ?_).symm
+  · exact (integrable_condExp.bdd_mul (hqmeas.mono (fixStage_le _)).aestronglyMeasurable
+      hqbdd).integrableOn
+  · have hs' : MeasurableSet s := fixStage_le _ _ hs
+    calc ∫ x in s, (q * μ[G.indicator (fun _ => (1 : ℝ)) | fixBase n]) x ∂μ
+        = ∫ x in s, (μ[q * G.indicator (fun _ => (1 : ℝ)) | fixBase n]) x ∂μ :=
+          setIntegral_congr_ae hs' (hpull.mono fun x hx _ => hx.symm)
+      _ = ∫ x in s, (q * G.indicator (fun _ => (1 : ℝ))) x ∂μ :=
+          setIntegral_condExp (fixStage_le _) hqG_int hs
+      _ = ∫ x in G ∩ s, q x ∂μ := by
+          rw [hqG, setIntegral_indicator hGmeas, Set.inter_comm]
+      _ = ∫ x in G ∩ s, E'.indicator (fun _ => (1 : ℝ)) x ∂μ :=
+          (setIntegral_insertion Q e F heF hE hs).symm
+      _ = ∫ x in s, (E' ∩ G).indicator (fun _ => (1 : ℝ)) x ∂μ := by
+          rw [Set.inter_comm E' G, ← Set.indicator_indicator, setIntegral_indicator hGmeas,
+            Set.inter_comm]
+  · exact (hqmeas.mul stronglyMeasurable_condExp).aestronglyMeasurable
+
+open scoped Classical in
+/-- **Mutual conditional independence of the fixing events given `𝔅_fix`.** For every finite
+family of rank-`n` supports and every choice of a pooled finite-active fixing event at each
+support, the conditional probability of the intersection is the product of the conditional
+probabilities. -/
+theorem condExp_iInter_fixing_eq_prod (Q : PooledRankExtension C)
+    (T : Finset (RankSupport S n))
+    {E : RankSupport S n → Set (RelStructure S (PoolVertex S))}
+    (hE : ∀ A, MeasurableSet[pooledFiniteActiveFixingAlgebra (supportImage (originalVertex S) A.1)]
+      (E A)) :
+    ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))⟦
+        ⋂ A ∈ T, Prod.fst ⁻¹' E A | fixBase n⟧)
+      =ᵐ[(Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))]
+    ∏ A ∈ T, ((Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))⟦
+        Prod.fst ⁻¹' E A | fixBase n⟧) := by
+  haveI := C.isProbabilityMeasure_P
+  induction T using Finset.induction_on with
+  | empty =>
+    simp only [Finset.notMem_empty, Set.iInter_of_empty, Set.iInter_univ, Finset.prod_empty]
+    rw [Set.indicator_univ, condExp_const (fixStage_le _)]
+    exact Filter.EventuallyEq.rfl
+  | insert e F heF ih =>
+    rw [Finset.set_biInter_insert, Finset.prod_insert heF]
+    exact (condExp_insertion Q e F heF hE).trans
+      ((Filter.EventuallyEq.refl _ _).mul ih)
 
 end RelSignature

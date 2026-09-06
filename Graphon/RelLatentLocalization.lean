@@ -253,7 +253,8 @@ private theorem condIndep_of_indep {Ω : Type*} [mΩ : MeasurableSpace Ω] [Stan
   filter_upwards [e1, e2, e12] with ω h1 h2 h12'
   simp only [Pi.mul_apply, h1, h2, h12', hmul]
 
-private theorem condExp_indicator_bounds {Ω : Type*} [mΩ : MeasurableSpace Ω]
+/-- The conditional probability of an event lies a.e. in `[0, 1]`. -/
+theorem condExp_indicator_bounds {Ω : Type*} [mΩ : MeasurableSpace Ω]
     {μ : Measure Ω} [IsFiniteMeasure μ] {m : MeasurableSpace Ω} (hm : m ≤ mΩ)
     {s : Set Ω} (hs : MeasurableSet[mΩ] s) :
     0 ≤ᵐ[μ] (μ⟦s | m⟧) ∧ (μ⟦s | m⟧) ≤ᵐ[μ] fun _ => (1 : ℝ) := by

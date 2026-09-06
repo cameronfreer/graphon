@@ -338,6 +338,9 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.comap_crossSwapJoint_remainder_le
 #print axioms RelSignature.crossSwapJoint_comp_self
 #print axioms RelSignature.setIntegral_insertion_cylinder
+#print axioms RelSignature.setIntegral_insertion
+#print axioms RelSignature.condExp_insertion
+#print axioms RelSignature.condExp_iInter_fixing_eq_prod
 #print axioms RelSignature.nonempty_finiteActiveExtension
 #print axioms RelSignature.SaturatedAtom.globalInj_apply_of_mem
 #print axioms Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le
@@ -475,6 +478,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.rankLatentIndexEquiv_subset_iff
 #print axioms RelSignature.localLatents_comp_rankLatentRelabel
 #print axioms RelSignature.comap_localLatents_eq_cylinderEvents
+#print axioms RelSignature.condExp_indicator_bounds
 #print axioms RelSignature.rankLatentSource_exists_local_ae_eq_of_ae_invariant
 #print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.lower_fixing_complete
 #print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.fixing_complete_of_map_truncate
