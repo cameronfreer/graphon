@@ -8,9 +8,13 @@ import Graphon.RelPollingStages
 /-!
 # The tail property of the reservoir stages (R4 converse, #107, #197)
 
-The first analytic step of the pooled fixing-factor polling argument, Austin's Lemma 3.11 in the
-pooled setting: conditioning a fixing event of the target support on the **full** polling base
-agrees with conditioning on the stage avoiding the whole reservoir.
+The first analytic step of the pooled fixing-factor polling argument: a **reservoir tail lemma**,
+proved by Austin's energy argument (the `L²` squeeze of the tail engine). It says that
+conditioning a fixing event of the target support on the **full** polling base agrees with
+conditioning on the stage avoiding the whole reservoir. The observable is a pooled finite-active
+fixing event and the conditioning is the raw polling base with its reservoir stages; neither is
+Austin's, whose Lemma 3.11 concerns a different observable and conditioning, and the distinction
+matters for the insertion step that follows.
 
 ## The argument
 
