@@ -276,4 +276,141 @@ theorem condExp_fixBase_comp_crossSwapJoint (Q : PooledRankExtension C) (N : ℕ
         exact condExp_congr_ae hfσ
     _ =ᵐ[μ] μ⟦Prod.fst ⁻¹' E | fixBase n⟧ := htail.symm
 
+/-! ### `𝔅_fix` as an indexed join, and its generating π-system -/
+
+/-- The generators of `𝔅_fix`: one latent coordinate, or the fixing algebra at one mixed
+support. -/
+abbrev FixBaseIndex (S : RelSignature.{u}) (n : ℕ) :=
+  PooledRankLatentIndex S n ⊕ MixedClusterIndex S n
+
+/-- The σ-algebra of one generator. -/
+@[implicit_reducible]
+noncomputable def fixBaseGen (n : ℕ) :
+    FixBaseIndex S n →
+      MeasurableSpace (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)
+  | .inl I => MeasurableSpace.comap (fun p => p.2 I) inferInstance
+  | .inr X => MeasurableSpace.comap
+      (Prod.fst : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → _)
+      (pooledFiniteActiveFixingAlgebra X.1)
+
+omit [Countable S.Srt] [Countable S.Rel] in
+open scoped Classical in
+/-- **`𝔅_fix` is the join of its generators.** -/
+theorem fixBase_eq_iSup : fixBase (S := S) n = ⨆ i, fixBaseGen n i := by
+  rw [fixBase, fixStage, iSup_sum (f := fixBaseGen (S := S) n)]
+  congr 1
+  · -- the latent half is the join of the latent coordinates
+    rw [latentStage, show (inferInstance : MeasurableSpace (AvoidLatentIndex S n ∅ → ℝ)) =
+        MeasurableSpace.pi from rfl, MeasurableSpace.pi, MeasurableSpace.comap_iSup]
+    refine le_antisymm (iSup_le fun I => ?_) (iSup_le fun I => ?_)
+    · rw [MeasurableSpace.comap_comp]
+      exact le_iSup (fun I : PooledRankLatentIndex S n => fixBaseGen (S := S) n (.inl I)) I.1
+    · refine le_iSup_of_le ⟨I, fun _ _ h => h⟩ ?_
+      rw [MeasurableSpace.comap_comp]
+      exact le_rfl
+  · rw [fixingStage]
+    refine le_antisymm (iSup_le fun X => ?_) (iSup_le fun X => ?_)
+    · exact le_iSup (fun X : MixedClusterIndex S n => fixBaseGen (S := S) n (.inr X)) X.1
+    · exact le_iSup (fun X : MixedAvoiding S n ∅ => MeasurableSpace.comap
+        (Prod.fst : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → _)
+        (pooledFiniteActiveFixingAlgebra X.1.1)) ⟨X, fun _ _ h => h⟩
+
+/-- The generating π-system: finite intersections of generator events. -/
+def fixBaseCylinders (S : RelSignature.{u}) (n : ℕ) :
+    Set (Set (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)) :=
+  piiUnionInter (fun i => {s | MeasurableSet[fixBaseGen (S := S) n i] s}) Set.univ
+
+omit [Countable S.Srt] [Countable S.Rel] in
+theorem isPiSystem_fixBaseCylinders : IsPiSystem (fixBaseCylinders S n) :=
+  isPiSystem_piiUnionInter _ (fun i => @MeasurableSpace.isPiSystem_measurableSet _
+    (fixBaseGen (S := S) n i)) _
+
+omit [Countable S.Srt] [Countable S.Rel] in
+theorem fixBase_eq_generateFrom :
+    fixBase (S := S) n = MeasurableSpace.generateFrom (fixBaseCylinders S n) := by
+  rw [fixBaseCylinders, generateFrom_piiUnionInter_measurableSet (fixBaseGen (S := S) n) Set.univ,
+    fixBase_eq_iSup]
+  simp only [Set.mem_univ, iSup_true]
+
+omit [Countable S.Srt] [Countable S.Rel] in
+theorem fixBaseGen_le (i : FixBaseIndex S n) : fixBaseGen (S := S) n i ≤ fixBase n := by
+  rw [fixBase_eq_iSup]; exact le_iSup (fixBaseGen (S := S) n) i
+
+/-- The pooled vertices a generator index reads: the latent support, or the mixed anchor. -/
+def genSupport (n : ℕ) : FixBaseIndex S n → Finset (Σ s : S.Srt, PoolVertex S s)
+  | .inl I => I.1
+  | .inr X => X.1
+
+/-! ### Transport of generator events under the cross swap -/
+
+omit [Countable S.Srt] [Countable S.Rel] in
+open scoped Classical in
+/-- A latent-coordinate event is carried by any joint relabeling into the latent half. -/
+theorem comap_pooledJointRelabel_fixBaseGen_inl (ρ : ∀ s, Equiv.Perm (PoolVertex S s))
+    (I : PooledRankLatentIndex S n) :
+    MeasurableSpace.comap (pooledJointRelabel ρ n) (fixBaseGen (S := S) n (.inl I)) ≤
+      fixBase n := by
+  rw [fixBaseGen, MeasurableSpace.comap_comp, fixBase_eq_iSup]
+  refine le_trans (le_of_eq ?_) (le_iSup (fixBaseGen (S := S) n) (.inl (latentIndexPerm ρ n I)))
+  rfl
+
+omit [Countable S.Srt] [Countable S.Rel] in
+open scoped Classical in
+/-- A generator event at a mixed anchor is carried by a finite-active joint relabeling into the
+fixing algebra at the moved anchor, which lies in `𝔅_fix` when that anchor stays mixed. -/
+theorem comap_pooledJointRelabel_fixBaseGen_inr {ρ : ∀ s, Equiv.Perm (PoolVertex S s)}
+    (hρfin : ∃ T : Finset S.Srt, ∀ s, s ∉ T → ρ s = 1) (X : MixedClusterIndex S n)
+    (hmix : ∃ v ∈ X.1.image (Sigma.map id fun s => ⇑(ρ s)), Sum.isRight v.2) :
+    MeasurableSpace.comap (pooledJointRelabel ρ n) (fixBaseGen (S := S) n (.inr X)) ≤
+      fixBase n := by
+  rw [fixBaseGen, MeasurableSpace.comap_comp, show (Prod.fst ∘ pooledJointRelabel ρ n :
+      RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → RelStructure S (PoolVertex S)) =
+      RelStructure.relabel ρ ∘ Prod.fst from rfl,
+    ← MeasurableSpace.comap_comp, comap_relabel_pooledFiniteActiveFixingAlgebra hρfin,
+    fixBase_eq_iSup]
+  have hcard : (X.1.image (Sigma.map id fun s => ⇑(ρ s))).card = n := by
+    rw [Finset.card_image_of_injective _ (Function.injective_id.sigma_map fun s => (ρ s).injective)]
+    exact X.2.1
+  exact le_iSup (fixBaseGen (S := S) n) (.inr ⟨_, hcard, hmix⟩)
+
+omit [Countable S.Srt] [Countable S.Rel] in
+open scoped Classical in
+/-- Every generator event of a finite cylinder is carried into `𝔅_fix` by the cross swap, once
+`K` exceeds the cylinder's footprint. -/
+theorem comap_crossSwapJoint_fixBaseGen_le (K : ℕ) (D : Finset (Σ s : S.Srt, Vinfinite S s))
+    (i : FixBaseIndex S n) (hK : ∀ v ∈ genSupport n i, poolValue v < K) :
+    MeasurableSpace.comap (crossSwapJoint K D n) (fixBaseGen (S := S) n i) ≤ fixBase n := by
+  cases i with
+  | inl I => exact comap_pooledJointRelabel_fixBaseGen_inl _ I
+  | inr X =>
+    exact comap_pooledJointRelabel_fixBaseGen_inr (crossSwap_eq_one K D) X
+      (crossSwap_mixed_of_fresh K D (fun v hv => hK v hv) X.2.2)
+
+omit [Countable S.Srt] [Countable S.Rel] in
+open scoped Classical in
+/-- A remainder support's fixing algebra is carried into `𝔅_fix` by the cross swap, provided
+the support meets `D`. -/
+theorem comap_crossSwapJoint_remainder_le (K : ℕ) (D : Finset (Σ s : S.Srt, Vinfinite S s))
+    (A : RankSupport S n) {w : Σ s : S.Srt, Vinfinite S s} (hwD : w ∈ D) (hwA : w ∈ A.1) :
+    MeasurableSpace.comap (crossSwapJoint K D n) (MeasurableSpace.comap
+      (Prod.fst : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → _)
+      (pooledFiniteActiveFixingAlgebra (supportImage (originalVertex S) A.1))) ≤ fixBase n := by
+  have hcard : (supportImage (originalVertex S) A.1).card = n := by
+    rw [card_supportImage]; exact A.2
+  have hmix : ∃ v ∈ (supportImage (originalVertex S) A.1).image
+      (Sigma.map id fun s => ⇑(crossSwap (S := S) K D s)), Sum.isRight v.2 :=
+    crossSwap_mixed_of_meets K D hwD ((mem_supportImage_iff _ _ _).mpr ⟨w, hwA, rfl⟩)
+  -- reuse the mixed-anchor transport with the moved support supplied directly
+  rw [MeasurableSpace.comap_comp, show (Prod.fst ∘ crossSwapJoint K D n :
+      RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → RelStructure S (PoolVertex S)) =
+      RelStructure.relabel (crossSwap K D) ∘ Prod.fst from rfl,
+    ← MeasurableSpace.comap_comp,
+    comap_relabel_pooledFiniteActiveFixingAlgebra (crossSwap_eq_one K D), fixBase_eq_iSup]
+  have hcard' : ((supportImage (originalVertex S) A.1).image
+      (Sigma.map id fun s => ⇑(crossSwap (S := S) K D s))).card = n := by
+    rw [Finset.card_image_of_injective _
+      (Function.injective_id.sigma_map fun s => (crossSwap K D s).injective)]
+    exact hcard
+  exact le_iSup (fixBaseGen (S := S) n) (.inr ⟨_, hcard', hmix⟩)
+
 end RelSignature

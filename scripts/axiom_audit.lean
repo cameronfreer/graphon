@@ -328,6 +328,14 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.crossSwap_mixed_of_fresh
 #print axioms RelSignature.measurePreserving_crossSwapJoint
 #print axioms RelSignature.condExp_fixBase_comp_crossSwapJoint
+#print axioms RelSignature.fixBase_eq_iSup
+#print axioms RelSignature.isPiSystem_fixBaseCylinders
+#print axioms RelSignature.fixBase_eq_generateFrom
+#print axioms RelSignature.fixBaseGen_le
+#print axioms RelSignature.comap_pooledJointRelabel_fixBaseGen_inl
+#print axioms RelSignature.comap_pooledJointRelabel_fixBaseGen_inr
+#print axioms RelSignature.comap_crossSwapJoint_fixBaseGen_le
+#print axioms RelSignature.comap_crossSwapJoint_remainder_le
 #print axioms RelSignature.nonempty_finiteActiveExtension
 #print axioms RelSignature.SaturatedAtom.globalInj_apply_of_mem
 #print axioms Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le
