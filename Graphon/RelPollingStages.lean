@@ -657,6 +657,47 @@ theorem comap_pooledJointRelabel_boundarySwap_reservoirFiltration (n m : ℕ) :
         (reservoirFiltration N D n m) = reservoirFiltration N D n m :=
   comap_pooledJointRelabel_avoidAlgebra_of_fix (boundarySwap_fix_of_notMem_reservoir N D m)
 
+/-! ### Packaged facts for transport
+
+The two identities the kernel and factor transport consume: the shift and its inverse fix every
+original target vertex, and the boundary swap carries the whole original copy of the slot block
+onto its spare copy as an equality of finite sets. -/
+
+theorem pooledPollPerm_original_of_lt {w : Σ s : S.Srt, Vinfinite S s} (hw : w.2 < N)
+    (hwD : w ∉ D) :
+    pooledPollPerm (S := S) N D w.1 (originalVertex S w.1 w.2) = originalVertex S w.1 w.2 := by
+  show Sum.inl (pollPerm N D w.1 w.2) = Sum.inl w.2
+  rw [pollPerm_apply_of_notMem N D hw hwD]
+
+theorem pooledPollPerm_inv_original_of_lt {w : Σ s : S.Srt, Vinfinite S s} (hw : w.2 < N)
+    (hwD : w ∉ D) :
+    (pooledPollPerm (S := S) N D w.1)⁻¹ (originalVertex S w.1 w.2) = originalVertex S w.1 w.2 := by
+  conv_lhs => rw [← pooledPollPerm_original_of_lt N D hw hwD]
+  exact (pooledPollPerm N D w.1).symm_apply_apply _
+
+omit [NeZero N] in
+open scoped Classical in
+/-- **The swap carries the original copy of the block onto its spare copy**, as an equality of
+finite sets of pooled vertices. -/
+theorem image_boundarySwap_supportImage_original (B : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    (supportImage (originalVertex S) B).image (Sigma.map id fun s => ⇑(boundarySwap (S := S) B s)) =
+      supportImage (poolVertex S) B := by
+  ext v
+  simp only [Finset.mem_image, mem_supportImage_iff]
+  constructor
+  · rintro ⟨u, ⟨w, hw, rfl⟩, rfl⟩
+    refine ⟨w, hw, ?_⟩
+    obtain ⟨s, x⟩ := w
+    show (⟨s, poolVertex S s x⟩ : Σ s : S.Srt, PoolVertex S s) =
+      ⟨s, boundarySwap B s (originalVertex S s x)⟩
+    rw [boundarySwap_original_of_mem B hw]
+  · rintro ⟨w, hw, rfl⟩
+    refine ⟨Sigma.map id (fun s => ⇑(originalVertex S s)) w, ⟨w, hw, rfl⟩, ?_⟩
+    obtain ⟨s, x⟩ := w
+    show (⟨s, boundarySwap B s (originalVertex S s x)⟩ : Σ s : S.Srt, PoolVertex S s) =
+      ⟨s, poolVertex S s x⟩
+    rw [boundarySwap_original_of_mem B hw]
+
 end Reservoir
 
 end RelSignature

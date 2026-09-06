@@ -286,6 +286,9 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.boundarySwap_original_of_mem
 #print axioms RelSignature.pooledFiniteActive_boundarySwap
 #print axioms RelSignature.comap_pooledJointRelabel_boundarySwap_reservoirFiltration
+#print axioms RelSignature.pooledPollPerm_original_of_lt
+#print axioms RelSignature.pooledPollPerm_inv_original_of_lt
+#print axioms RelSignature.image_boundarySwap_supportImage_original
 #print axioms RelSignature.nonempty_finiteActiveExtension
 #print axioms RelSignature.SaturatedAtom.globalInj_apply_of_mem
 #print axioms Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le
