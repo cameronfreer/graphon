@@ -289,6 +289,11 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.pooledPollPerm_original_of_lt
 #print axioms RelSignature.pooledPollPerm_inv_original_of_lt
 #print axioms RelSignature.image_boundarySwap_supportImage_original
+#print axioms RelSignature.measurePreserving_inverseShift
+#print axioms RelSignature.inverseShift_eq_one
+#print axioms RelSignature.condExp_reservoirFiltration_succ
+#print axioms RelSignature.condExp_reservoirFiltration_eq_zero
+#print axioms RelSignature.condExp_sourcePollingCond_eq_reservoirFiltration_zero
 #print axioms RelSignature.nonempty_finiteActiveExtension
 #print axioms RelSignature.SaturatedAtom.globalInj_apply_of_mem
 #print axioms Graphon.abs_homDensity_ofSimpleGraphOn_sub_tInj_le
