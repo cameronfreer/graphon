@@ -30,11 +30,18 @@ are almost everywhere under a named marginal, here `refinedLowerLaw F n Q`.
   retained refined coordinates; `exists_comap_snd_ae_eq_of_refinedBoundaryMap` through `p_A`.
 * `refinedLayerKernel`, `refinedStepKernel` — the two conditional kernels, Markov, with the
   exact disintegrations and marginal recoveries.
-* `condDistrib_ae_eq_comap_of_ae_representable` — conditioning on a finer observation whose
-  events are all represented by a coarser one gives the coarser conditional law, pulled back.
 * `refinedLayerKernel_map_ae_eq_refinedStepKernel` — **the support comparison**: projecting
   the layer kernel to the exact component at `A` is the step kernel at `p_A ℓ`, for
   `refinedLowerLaw`-almost every `ℓ`.
+* `layerReindex` — the layer cube as the product of the exact layers over the rank-`n`
+  supports, with the definitional exact observation identity.
+* `iCondIndepFun_refinedExactMap_refinedLowerMap` — mutual conditional independence of the
+  exact layers given the refined lower observation, by refined base redundancy.
+* `layerCylinder`, `exactCylinder`, `cylinderAnchors` — the countable determining family of
+  Boolean-coordinate cylinders, a π-system generating the layer cube's σ-algebra.
+* `refinedLayerKernel_map_ae_eq_infinitePi` — **the product identity**: for
+  `refinedLowerLaw`-almost every `ℓ`, the reindexed layer kernel at `ℓ` is the infinite product
+  of the step kernels at `p_A ℓ`, as an equality of measures on one conull set.
 -/
 
 open MeasureTheory ProbabilityTheory
@@ -48,7 +55,7 @@ variable {α β γ Ω : Type*} [mα : MeasurableSpace α] [mβ : MeasurableSpace
 /-- **Conditioning on a finer observation that is represented by a coarser one.** If every event
 of `comap X` has a representative in `comap (g ∘ X)` modulo `μ`, then the conditional law given
 `X` is, `μ.map X`-almost everywhere, the conditional law given `g ∘ X` read at `g`. -/
-theorem condDistrib_ae_eq_comap_of_ae_representable {X : α → β} {g : β → γ} {Y : α → Ω}
+private theorem condDistrib_ae_eq_comap_of_ae_representable {X : α → β} {g : β → γ} {Y : α → Ω}
     (hX : Measurable X) (hg : Measurable g) (hY : Measurable Y)
     (hrep : ∀ s, MeasurableSet[mβ.comap X] s →
       ∃ t, MeasurableSet[mγ.comap (g ∘ X)] t ∧ s =ᵐ[μ] t) :
@@ -325,6 +332,269 @@ theorem refinedLayerKernel_map_ae_eq_refinedStepKernel (W : PooledPollingWitness
   filter_upwards [h1, h2] with ℓ h1ℓ h2ℓ
   rw [refinedLayerKernel, ← Kernel.map_apply _ (B.measurable_rankLayerToExactProjection A.2),
     ← h1ℓ, h2ℓ, Kernel.comap_apply]
+
+/-! ### The reindexing of the layer by supports -/
+
+variable (B) in
+/-- The anchor of a layer index, as a rank-`n` support. -/
+def layerAnchor (j : B.RankLayerIndex n) : RankSupport S n := ⟨B.anchor j.1, j.2⟩
+
+variable (B) in
+/-- A layer index as an exact index at its anchor. -/
+def layerExactIndex (j : B.RankLayerIndex n) : B.ExactIndex (layerAnchor B n j).1 := ⟨j.1, rfl⟩
+
+variable (B) in
+/-- **The reindexing**: the layer cube is the product over the rank-`n` supports of the exact
+layers, through `rankLayerToExactProjection` at each support. -/
+noncomputable def layerReindex :
+    B.RankLayerSpace n ≃ᵐ (∀ A : RankSupport S n, B.ExactSpace A.1) where
+  toFun f A := B.rankLayerToExactProjection A.2 f
+  invFun g j := g (layerAnchor B n j) (layerExactIndex B n j)
+  left_inv f := by
+    funext j
+    exact congrArg f (Subtype.ext rfl)
+  right_inv g := by
+    funext A i
+    rcases A with ⟨A, hA⟩
+    rcases i with ⟨i, hi⟩
+    cases hi
+    rfl
+  measurable_toFun := measurable_pi_lambda _ fun A => B.measurable_rankLayerToExactProjection A.2
+  measurable_invFun := by
+    show Measurable fun g : ∀ A : RankSupport S n, B.ExactSpace A.1 =>
+      fun j => g (layerAnchor B n j) (layerExactIndex B n j)
+    exact measurable_pi_lambda _ fun _ => (measurable_pi_apply _).comp (measurable_pi_apply _)
+
+omit [Countable S.Srt] [Countable S.Rel] in
+@[simp] theorem layerReindex_apply (f : B.RankLayerSpace n) (A : RankSupport S n) :
+    layerReindex B n f A = B.rankLayerToExactProjection A.2 f := rfl
+
+omit [Countable S.Srt] [Countable S.Rel] in
+@[simp] theorem layerReindex_symm_apply (g : ∀ A : RankSupport S n, B.ExactSpace A.1)
+    (j : B.RankLayerIndex n) :
+    (layerReindex B n).symm g j = g (layerAnchor B n j) (layerExactIndex B n j) := rfl
+
+omit [Countable S.Srt] [Countable S.Rel] in
+/-- **The exact observation identity**: reindexing the layer map reads the exact-anchor map at
+every support. Definitional. -/
+theorem layerReindex_comp_refinedLayerMap :
+    ⇑(layerReindex B n) ∘ refinedLayerMap F n =
+      fun p (A : RankSupport S n) => refinedExactMap F n A.1 p := by
+  funext p A
+  rfl
+
+/-! ### Mutuality under the lower conditioning -/
+
+/-- **Mutual conditional independence of the exact layers given the refined lower observation**,
+transferred from the refined base through refined base redundancy. -/
+theorem iCondIndepFun_refinedExactMap_refinedLowerMap (W : PooledPollingWitness C Q) :
+    iCondIndepFun (MeasurableSpace.comap (refinedLowerMap F n) inferInstance)
+      (measurable_refinedLowerMap F n).comap_le
+      (fun A : RankSupport S n => refinedExactMap F n A.1) (refinedLaw F Q) := by
+  have hle : MeasurableSpace.comap
+      (Prod.snd : RelStructure S (Vinfinite S) × RefinedBaseSpace F n → _) inferInstance ≤
+      MeasurableSpace.comap (refinedLowerMap F n) inferInstance := by
+    have h : (Prod.snd : RelStructure S (Vinfinite S) × RefinedBaseSpace F n → _) =
+        Prod.snd ∘ refinedLowerMap F n := rfl
+    rw [h, ← MeasurableSpace.comap_comp]
+    exact MeasurableSpace.comap_mono measurable_snd.comap_le
+  exact (iCondIndepFun_congr_of_ae_representable hle (measurable_refinedLowerMap F n).comap_le
+    (fun _ hs => exists_comap_snd_ae_eq_of_refinedLowerMap F n Q W hs)
+    (fun A : RankSupport S n => measurable_refinedExactMap F n A.1)).mpr
+    (iCondIndepFun_exactMap_refinedLaw F Q)
+
+/-! ### The countable determining family -/
+
+variable (B) in
+/-- A finite Boolean-coordinate cylinder of the layer cube. -/
+def layerCylinder (T : List (B.RankLayerIndex n × Bool)) : Set (B.RankLayerSpace n) :=
+  {f | ∀ x ∈ T, f x.1 = x.2}
+
+variable (B) in
+/-- The coordinates of a cylinder anchored at `A`, as a cylinder of the exact layer at `A`. -/
+def exactCylinder (T : List (B.RankLayerIndex n × Bool)) (A : RankSupport S n) :
+    Set (B.ExactSpace A.1) :=
+  {y | ∀ x ∈ T, ∀ h : B.anchor x.1.1 = A.1, y ⟨x.1.1, h⟩ = x.2}
+
+open scoped Classical in
+variable (B) in
+/-- The anchors of a cylinder's coordinates. -/
+noncomputable def cylinderAnchors (T : List (B.RankLayerIndex n × Bool)) :
+    Finset (RankSupport S n) :=
+  (T.map fun x => layerAnchor B n x.1).toFinset
+
+omit [Countable S.Srt] [Countable S.Rel] in
+theorem measurableSet_layerCylinder (T : List (B.RankLayerIndex n × Bool)) :
+    MeasurableSet (layerCylinder B n T) := by
+  have h : layerCylinder B n T = ⋂ x ∈ T, (fun f : B.RankLayerSpace n => f x.1) ⁻¹' {x.2} := by
+    ext f
+    simp [layerCylinder]
+  rw [h]
+  exact Set.Finite.measurableSet_biInter (List.finite_toSet T) fun x _ =>
+    measurable_pi_apply x.1 (measurableSet_singleton x.2)
+
+omit [Countable S.Srt] [Countable S.Rel] in
+theorem measurableSet_exactCylinder (T : List (B.RankLayerIndex n × Bool)) (A : RankSupport S n) :
+    MeasurableSet (exactCylinder B n T A) := by
+  have h : exactCylinder B n T A = ⋂ x ∈ T, ⋂ h : B.anchor x.1.1 = A.1,
+      (fun y : B.ExactSpace A.1 => y ⟨x.1.1, h⟩) ⁻¹' {x.2} := by
+    ext y
+    simp [exactCylinder]
+  rw [h]
+  exact Set.Finite.measurableSet_biInter (List.finite_toSet T) fun x _ =>
+    MeasurableSet.iInter fun _ => measurable_pi_apply _ (measurableSet_singleton x.2)
+
+omit [Countable S.Srt] [Countable S.Rel] in
+theorem layerCylinder_append (T₁ T₂ : List (B.RankLayerIndex n × Bool)) :
+    layerCylinder B n (T₁ ++ T₂) = layerCylinder B n T₁ ∩ layerCylinder B n T₂ := by
+  ext f
+  simp [layerCylinder, or_imp, forall_and]
+
+omit [Countable S.Srt] [Countable S.Rel] in
+theorem isPiSystem_layerCylinder : IsPiSystem (Set.range (layerCylinder B n)) := by
+  rintro _ ⟨T₁, rfl⟩ _ ⟨T₂, rfl⟩ -
+  exact ⟨T₁ ++ T₂, layerCylinder_append n T₁ T₂⟩
+
+omit [Countable S.Srt] [Countable S.Rel] in
+/-- The Boolean-coordinate cylinders generate the layer cube's σ-algebra. -/
+theorem generateFrom_layerCylinder :
+    MeasurableSpace.generateFrom (Set.range (layerCylinder B n)) =
+      (inferInstance : MeasurableSpace (B.RankLayerSpace n)) := by
+  refine le_antisymm (MeasurableSpace.generateFrom_le ?_) ?_
+  · rintro _ ⟨T, rfl⟩
+    exact measurableSet_layerCylinder n T
+  · refine iSup_le fun j => ?_
+    refine Measurable.comap_le (measurable_to_bool ?_)
+    refine MeasurableSpace.measurableSet_generateFrom ⟨[(j, true)], ?_⟩
+    ext f
+    simp [layerCylinder]
+
+omit [Countable S.Srt] [Countable S.Rel] in
+/-- A cylinder, reindexed, is the finite product of its exact cylinders. -/
+theorem layerReindex_symm_preimage_layerCylinder (T : List (B.RankLayerIndex n × Bool)) :
+    (layerReindex B n).symm ⁻¹' layerCylinder B n T =
+      Set.pi (cylinderAnchors B n T) (exactCylinder B n T) := by
+  classical
+  ext g
+  simp only [Set.mem_preimage, layerCylinder, Set.mem_setOf_eq, Set.mem_pi, exactCylinder,
+    cylinderAnchors, Finset.mem_coe, List.mem_toFinset, List.mem_map, layerReindex_symm_apply]
+  constructor
+  · rintro h A - x hx hA
+    rcases A with ⟨A, hA'⟩
+    cases hA
+    exact h x hx
+  · intro h x hx
+    exact h (layerAnchor B n x.1) ⟨x, hx, rfl⟩ x hx rfl
+
+omit [Countable S.Srt] [Countable S.Rel] in
+/-- The layer observation lies in a cylinder exactly when each exact observation lies in the
+corresponding exact cylinder. -/
+theorem preimage_layerCylinder_refinedLayerMap (T : List (B.RankLayerIndex n × Bool)) :
+    refinedLayerMap F n ⁻¹' layerCylinder B n T =
+      ⋂ A ∈ cylinderAnchors B n T, refinedExactMap F n A.1 ⁻¹' exactCylinder B n T A := by
+  classical
+  ext p
+  simp only [Set.mem_preimage, layerCylinder, Set.mem_setOf_eq, Set.mem_iInter, exactCylinder,
+    cylinderAnchors, List.mem_toFinset, List.mem_map]
+  constructor
+  · rintro h A - x hx hA
+    rcases A with ⟨A, hA'⟩
+    cases hA
+    exact h x hx
+  · intro h x hx
+    exact h (layerAnchor B n x.1) ⟨x, hx, rfl⟩ x hx rfl
+
+/-! ### The product identity -/
+
+/-- **The cylinder identity**: for `λ`-almost every `ℓ`, the layer kernel gives a cylinder the
+product over its anchors of the step kernels' masses of the exact cylinders. Independence is
+used between supports only. -/
+theorem ae_refinedLayerKernel_layerCylinder (W : PooledPollingWitness C Q)
+    (T : List (B.RankLayerIndex n × Bool)) :
+    ∀ᵐ ℓ ∂refinedLowerLaw F n Q,
+      refinedLayerKernel F n Q ℓ (layerCylinder B n T) =
+        ∏ A ∈ cylinderAnchors B n T,
+          refinedStepKernel F n Q A.1 (boundaryProjection F n A ℓ) (exactCylinder B n T A) := by
+  set ν := refinedLaw F Q with hν
+  set L := refinedLowerMap F n with hL
+  have hLm : Measurable L := measurable_refinedLowerMap F n
+  have hcyl := measurableSet_layerCylinder n T
+  have hex : ∀ A, MeasurableSet (exactCylinder B n T A) := measurableSet_exactCylinder n T
+  -- the real-valued identity under `ν`
+  have h1 : (fun a => (refinedLayerKernel F n Q (L a)).real (layerCylinder B n T)) =ᵐ[ν]
+      ν⟦refinedLayerMap F n ⁻¹' layerCylinder B n T | MeasurableSpace.comap L inferInstance⟧ :=
+    condDistrib_ae_eq_condExp hLm (measurable_refinedLayerMap F n) hcyl
+  rw [preimage_layerCylinder_refinedLayerMap F n T] at h1
+  have h3 := (iCondIndepFun_iff_condExp_inter_preimage_eq_mul _ _
+    (fun A : RankSupport S n => measurable_refinedExactMap F n A.1)).mp
+    (iCondIndepFun_refinedExactMap_refinedLowerMap F n Q W) (cylinderAnchors B n T)
+    (sets := fun A => exactCylinder B n T A) (fun A _ => hex A)
+  have h4 : ∀ A : RankSupport S n,
+      ν⟦refinedExactMap F n A.1 ⁻¹' exactCylinder B n T A | MeasurableSpace.comap L inferInstance⟧
+        =ᵐ[ν] fun a =>
+          (condDistrib (refinedExactMap F n A.1) L ν (L a)).real (exactCylinder B n T A) :=
+    fun A => (condDistrib_ae_eq_condExp hLm (measurable_refinedExactMap F n A.1) (hex A)).symm
+  have h5 : ∀ A : RankSupport S n, ∀ᵐ a ∂ν,
+      condDistrib (refinedExactMap F n A.1) L ν (L a) =
+        refinedStepKernel F n Q A.1 (boundaryProjection F n A (L a)) := by
+    intro A
+    have h := condDistrib_refinedExactMap_ae_eq F n Q W A
+    rw [refinedLowerLaw] at h
+    filter_upwards [ae_of_ae_map hLm.aemeasurable h] with a ha
+    rw [ha, Kernel.comap_apply]
+  have hreal : ∀ᵐ a ∂ν,
+      (refinedLayerKernel F n Q (L a)).real (layerCylinder B n T) =
+        ∏ A ∈ cylinderAnchors B n T,
+          (refinedStepKernel F n Q A.1 (boundaryProjection F n A (L a))).real
+            (exactCylinder B n T A) := by
+    filter_upwards [h1, h3, (Filter.eventually_all_finset (cylinderAnchors B n T)).mpr
+      fun A _ => h4 A, (Filter.eventually_all_finset (cylinderAnchors B n T)).mpr
+      fun A _ => h5 A] with a ha1 ha3 ha4 ha5
+    rw [ha1, ha3, Finset.prod_apply]
+    exact Finset.prod_congr rfl fun A hA => by rw [ha4 A hA, ha5 A hA]
+  -- transfer to `λ`
+  have hmeas : MeasurableSet {ℓ : RefinedLowerSpace F n |
+      (refinedLayerKernel F n Q ℓ).real (layerCylinder B n T) =
+        ∏ A ∈ cylinderAnchors B n T,
+          (refinedStepKernel F n Q A.1 (boundaryProjection F n A ℓ)).real
+            (exactCylinder B n T A)} := by
+    refine measurableSet_eq_fun ?_ (Finset.measurable_prod _ fun A _ => ?_)
+    · exact ((refinedLayerKernel F n Q).measurable_coe hcyl).ennreal_toReal
+    · exact (((refinedStepKernel F n Q A.1).measurable_coe (hex A)).comp
+        (measurable_boundaryProjection F n A)).ennreal_toReal
+  have hlam := (ae_map_iff hLm.aemeasurable hmeas).mpr hreal
+  rw [refinedLowerLaw]
+  filter_upwards [hlam] with ℓ hℓ
+  simp only [measureReal_def] at hℓ
+  rw [← ENNReal.toReal_prod] at hℓ
+  exact (ENNReal.toReal_eq_toReal_iff' (measure_ne_top _ _)
+    (ENNReal.prod_ne_top fun A _ => measure_ne_top _ _)).mp hℓ
+
+/-- **The product identity.** For `λ`-almost every `ℓ`, the layer kernel at `ℓ`, reindexed by
+supports, **is** the product of the step kernels at `p_A ℓ`: an equality of measures on the
+product of the exact layers, obtained on one conull set from the countable family of
+Boolean-coordinate cylinders by measure uniqueness. -/
+theorem refinedLayerKernel_map_ae_eq_infinitePi (W : PooledPollingWitness C Q) :
+    (fun ℓ => (refinedLayerKernel F n Q ℓ).map (layerReindex B n))
+      =ᵐ[refinedLowerLaw F n Q]
+        fun ℓ => Measure.infinitePi fun A : RankSupport S n =>
+          refinedStepKernel F n Q A.1 (boundaryProjection F n A ℓ) := by
+  have hall := ae_all_iff.mpr fun T => ae_refinedLayerKernel_layerCylinder F n Q W T
+  filter_upwards [hall] with ℓ hℓ
+  set κ : ∀ A : RankSupport S n, Measure (B.ExactSpace A.1) := fun A =>
+    refinedStepKernel F n Q A.1 (boundaryProjection F n A ℓ) with hκ
+  haveI : ∀ A, IsProbabilityMeasure (κ A) := fun A => inferInstance
+  have hcube : refinedLayerKernel F n Q ℓ = (Measure.infinitePi κ).map (layerReindex B n).symm := by
+    refine ext_of_generate_finite _ (generateFrom_layerCylinder n).symm
+      (isPiSystem_layerCylinder n) ?_ ?_
+    · rintro _ ⟨T, rfl⟩
+      rw [hℓ T, (layerReindex B n).symm.map_apply, layerReindex_symm_preimage_layerCylinder n,
+        Measure.infinitePi_pi κ fun A _ => measurableSet_exactCylinder n T A]
+    · haveI : IsProbabilityMeasure ((Measure.infinitePi κ).map (layerReindex B n).symm) :=
+        Measure.isProbabilityMeasure_map (layerReindex B n).symm.measurable.aemeasurable
+      rw [measure_univ, measure_univ]
+  rw [hcube, Measure.map_map (layerReindex B n).measurable (layerReindex B n).symm.measurable,
+    (layerReindex B n).self_comp_symm, Measure.map_id]
 
 end InfiniteRelExchangeableLaw
 
