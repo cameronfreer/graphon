@@ -238,6 +238,39 @@ theorem Measure.infinitePi_map_comp_of_injective
     Finset.prod_image fun a _ b _ hab => hf hab]
   exact Finset.prod_congr rfl fun d _ => by rw [hf.extend_apply]
 
+/-- Pushing an infinite product of probability measures forward along precomposition with an
+injection from an arbitrary index type gives the infinite product of the selected factors. -/
+theorem Measure.infinitePi_map_comp_of_injective'
+    {ι δ γ : Type*} [MeasurableSpace γ] (ν : ι → Measure γ)
+    [∀ i, IsProbabilityMeasure (ν i)] {f : δ → ι} (hf : Function.Injective f) :
+    (Measure.infinitePi ν).map (fun (x : ι → γ) (d : δ) => x (f d)) =
+      Measure.infinitePi fun d => ν (f d) := by
+  classical
+  refine Measure.eq_infinitePi (fun d => ν (f d)) fun s t ht => ?_
+  have hm : Measurable fun (x : ι → γ) (d : δ) => x (f d) :=
+    measurable_pi_iff.mpr fun d => measurable_pi_apply _
+  rw [Measure.map_apply hm (MeasurableSet.pi s.countable_toSet fun d _ => ht d)]
+  have hpre : (fun (x : ι → γ) (d : δ) => x (f d)) ⁻¹' Set.pi s t =
+      Set.pi ↑(s.image f) (Function.extend f t fun _ => Set.univ) := by
+    ext u
+    simp only [Set.mem_preimage, Set.mem_pi, Finset.mem_coe, Finset.coe_image, Set.mem_image,
+      forall_exists_index, and_imp]
+    constructor
+    · rintro h i d hd rfl
+      rw [hf.extend_apply]
+      exact h d hd
+    · intro h d hd
+      have := h (f d) d hd rfl
+      rwa [hf.extend_apply] at this
+  have hmeas : ∀ i ∈ s.image f,
+      MeasurableSet (Function.extend f t (fun _ => Set.univ) i) := by
+    intro i hi
+    obtain ⟨d, -, rfl⟩ := Finset.mem_image.mp hi
+    rw [hf.extend_apply]
+    exact ht d
+  rw [hpre, Measure.infinitePi_pi ν hmeas, Finset.prod_image fun a _ b _ hab => hf hab]
+  exact Finset.prod_congr rfl fun d _ => by rw [hf.extend_apply]
+
 /-- **Disjoint finite projections of an infinite product source are independent** (product
 form): pushing an infinite product of probability measures forward along a *pair* of
 precompositions with injections from finite index types with disjoint ranges gives the
