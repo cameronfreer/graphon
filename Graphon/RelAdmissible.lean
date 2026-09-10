@@ -185,6 +185,80 @@ theorem admissible_of_ae_eq_snd {g : RankLatentSpace S n → RelStructure S (Vin
     obtain ⟨i, hi, hpi⟩ := h
     exact (Finset.prod_eq_zero hi (by rw [Set.indicator_of_notMem hpi])).symm
 
+/-- **Conditioning on latents independent of the structure is no conditioning**: for functions of
+the structure, mutual conditional independence given the latents is mutual independence. -/
+theorem iCondIndepFun_snd_iff_iIndepFun
+    (hind : IndepFun (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _)
+      Prod.snd C.P) {ι : Type*} {γ : ι → Type*} [∀ i, MeasurableSpace (γ i)]
+    {X : ∀ i, RelStructure S (Vinfinite S) → γ i} (hX : ∀ i, Measurable (X i)) :
+    haveI := C.isProbabilityMeasure_P
+    iCondIndepFun (MeasurableSpace.comap
+        (Prod.snd : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance)
+      measurable_snd.comap_le (fun i => X i ∘ Prod.fst) C.P ↔
+    iIndepFun (fun i => X i ∘
+      (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _)) C.P := by
+  haveI := C.isProbabilityMeasure_P
+  have hm : ∀ i, Measurable (X i ∘
+      (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _)) :=
+    fun i => (hX i).comp measurable_fst
+  rw [iCondIndepFun_iff_condExp_inter_preimage_eq_mul _ _ hm,
+    iIndepFun_iff_measure_inter_preimage_eq_mul]
+  -- conditional expectations of structure events given the latents are their probabilities
+  have hce : ∀ s : Set (RelStructure S (Vinfinite S) × RankLatentSpace S n),
+      MeasurableSet[MeasurableSpace.comap
+        (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance] s →
+      C.P⟦s | MeasurableSpace.comap
+        (Prod.snd : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance⟧
+        =ᵐ[C.P] fun _ => (C.P s).toReal := by
+    intro s hs
+    refine (condExp_indep_eq measurable_fst.comap_le measurable_snd.comap_le
+      ((stronglyMeasurable_const : StronglyMeasurable[MeasurableSpace.comap
+        (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance]
+        fun _ => (1 : ℝ)).indicator hs) hind).trans ?_
+    refine Filter.EventuallyEq.of_eq (funext fun _ => ?_)
+    rw [integral_indicator_const _ (measurable_fst.comap_le _ hs), smul_eq_mul, mul_one,
+      measureReal_def]
+  have hsm : ∀ (T : Finset ι) (sets : ∀ i, Set (γ i)),
+      (∀ i ∈ T, MeasurableSet (sets i)) → ∀ i ∈ T, MeasurableSet[MeasurableSpace.comap
+        (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance]
+        ((X i ∘ Prod.fst) ⁻¹' sets i) := fun T sets hsets i hi =>
+    ⟨_, (hX i) (hsets i hi), rfl⟩
+  have hprod : ∀ (T : Finset ι) (sets : ∀ i, Set (γ i)),
+      (∀ i ∈ T, MeasurableSet (sets i)) →
+      (∏ i ∈ T, C.P⟦(X i ∘ Prod.fst) ⁻¹' sets i | MeasurableSpace.comap
+        (Prod.snd : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance⟧)
+        =ᵐ[C.P] fun _ => ∏ i ∈ T, (C.P ((X i ∘ Prod.fst) ⁻¹' sets i)).toReal := by
+    intro T sets hsets
+    have : ∀ i ∈ T, C.P⟦(X i ∘ Prod.fst) ⁻¹' sets i | MeasurableSpace.comap
+        (Prod.snd : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance⟧
+        =ᵐ[C.P] fun _ => (C.P ((X i ∘ Prod.fst) ⁻¹' sets i)).toReal :=
+      fun i hi => hce _ (hsm T sets hsets i hi)
+    filter_upwards [(Filter.eventually_all_finset T).mpr this] with p hp
+    simp only [Finset.prod_apply]
+    exact Finset.prod_congr rfl fun i hi => hp i hi
+  constructor
+  · intro h T sets hsets
+    have hinter : MeasurableSet[MeasurableSpace.comap
+        (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance]
+        (⋂ i ∈ T, (X i ∘ Prod.fst) ⁻¹' sets i) :=
+      Finset.measurableSet_biInter T (hsm T sets hsets)
+    have h2 : (fun _ => (C.P (⋂ i ∈ T, (X i ∘ Prod.fst) ⁻¹' sets i)).toReal)
+        =ᵐ[C.P] fun _ => ∏ i ∈ T, (C.P ((X i ∘ Prod.fst) ⁻¹' sets i)).toReal :=
+      (hce _ hinter).symm.trans ((h T hsets).trans (hprod T sets hsets))
+    obtain ⟨p, hp⟩ := h2.exists
+    have := congrArg ENNReal.ofReal hp
+    rw [ENNReal.ofReal_toReal (measure_ne_top _ _), ← ENNReal.toReal_prod,
+      ENNReal.ofReal_toReal (ENNReal.prod_ne_top fun i _ => measure_ne_top _ _)] at this
+    exact this
+  · intro h T sets hsets
+    have hinter : MeasurableSet[MeasurableSpace.comap
+        (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance]
+        (⋂ i ∈ T, (X i ∘ Prod.fst) ⁻¹' sets i) :=
+      Finset.measurableSet_biInter T (hsm T sets hsets)
+    refine (hce _ hinter).trans ((Filter.EventuallyEq.of_eq (funext fun _ => ?_)).trans
+      (hprod T sets hsets).symm)
+    rw [h T hsets, ENNReal.toReal_prod]
+
 /-- **For a coupling whose structure is independent of its latents**, admissibility is
 unconditional mutual independence of the induced structures. -/
 theorem admissible_iff_iIndepFun_of_indep
@@ -192,76 +266,11 @@ theorem admissible_iff_iIndepFun_of_indep
       Prod.snd C.P) :
     C.Admissible ↔ ∀ (k : ℕ) (A : Fin k → Finset (Σ s : S.Srt, Vinfinite S s)), SmallOverlap n A →
       iIndepFun (fun i => inducedMap (A i) ∘
-        (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _)) C.P := by
-  haveI := C.isProbabilityMeasure_P
-  have hkey : ∀ (k : ℕ) (A : Fin k → Finset (Σ s : S.Srt, Vinfinite S s)),
-      iCondIndepFun (MeasurableSpace.comap
-          (Prod.snd : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance)
-        measurable_snd.comap_le (fun i => inducedMap (A i) ∘ Prod.fst) C.P ↔
-      iIndepFun (fun i => inducedMap (A i) ∘
-        (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _)) C.P := by
-    intro k A
-    have hm : ∀ i, Measurable (inducedMap (A i) ∘
-        (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _)) :=
-      fun i => (measurable_inducedMap (A i)).comp measurable_fst
-    rw [iCondIndepFun_iff_condExp_inter_preimage_eq_mul _ _ hm,
-      iIndepFun_iff_measure_inter_preimage_eq_mul]
-    -- conditional expectations of structure events given the latents are their probabilities
-    have hce : ∀ s : Set (RelStructure S (Vinfinite S) × RankLatentSpace S n),
-        MeasurableSet[MeasurableSpace.comap
-          (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance] s →
-        C.P⟦s | MeasurableSpace.comap
-          (Prod.snd : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance⟧
-          =ᵐ[C.P] fun _ => (C.P s).toReal := by
-      intro s hs
-      refine (condExp_indep_eq measurable_fst.comap_le measurable_snd.comap_le
-        ((stronglyMeasurable_const : StronglyMeasurable[MeasurableSpace.comap
-          (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance]
-          fun _ => (1 : ℝ)).indicator hs) hind).trans ?_
-      refine Filter.EventuallyEq.of_eq (funext fun _ => ?_)
-      rw [integral_indicator_const _ (measurable_fst.comap_le _ hs), smul_eq_mul, mul_one,
-        measureReal_def]
-    have hsm : ∀ (T : Finset (Fin k)) (sets : ∀ i, Set (InducedSpace (S := S) (A i))),
-        (∀ i ∈ T, MeasurableSet (sets i)) → ∀ i ∈ T, MeasurableSet[MeasurableSpace.comap
-          (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance]
-          ((inducedMap (A i) ∘ Prod.fst) ⁻¹' sets i) := fun T sets hsets i hi =>
-      ⟨_, (measurable_inducedMap (A i)) (hsets i hi), rfl⟩
-    have hprod : ∀ (T : Finset (Fin k)) (sets : ∀ i, Set (InducedSpace (S := S) (A i))),
-        (∀ i ∈ T, MeasurableSet (sets i)) →
-        (∏ i ∈ T, C.P⟦(inducedMap (A i) ∘ Prod.fst) ⁻¹' sets i | MeasurableSpace.comap
-          (Prod.snd : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance⟧)
-          =ᵐ[C.P] fun _ => ∏ i ∈ T, (C.P ((inducedMap (A i) ∘ Prod.fst) ⁻¹' sets i)).toReal := by
-      intro T sets hsets
-      have : ∀ i ∈ T, C.P⟦(inducedMap (A i) ∘ Prod.fst) ⁻¹' sets i | MeasurableSpace.comap
-          (Prod.snd : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance⟧
-          =ᵐ[C.P] fun _ => (C.P ((inducedMap (A i) ∘ Prod.fst) ⁻¹' sets i)).toReal :=
-        fun i hi => hce _ (hsm T sets hsets i hi)
-      filter_upwards [(Filter.eventually_all_finset T).mpr this] with p hp
-      simp only [Finset.prod_apply]
-      exact Finset.prod_congr rfl fun i hi => hp i hi
-    constructor
-    · intro h T sets hsets
-      have hinter : MeasurableSet[MeasurableSpace.comap
-          (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance]
-          (⋂ i ∈ T, (inducedMap (A i) ∘ Prod.fst) ⁻¹' sets i) :=
-        Finset.measurableSet_biInter T (hsm T sets hsets)
-      have h2 : (fun _ => (C.P (⋂ i ∈ T, (inducedMap (A i) ∘ Prod.fst) ⁻¹' sets i)).toReal)
-          =ᵐ[C.P] fun _ => ∏ i ∈ T, (C.P ((inducedMap (A i) ∘ Prod.fst) ⁻¹' sets i)).toReal :=
-        (hce _ hinter).symm.trans ((h T hsets).trans (hprod T sets hsets))
-      obtain ⟨p, hp⟩ := h2.exists
-      have := congrArg ENNReal.ofReal hp
-      rw [ENNReal.ofReal_toReal (measure_ne_top _ _), ← ENNReal.toReal_prod,
-        ENNReal.ofReal_toReal (ENNReal.prod_ne_top fun i _ => measure_ne_top _ _)] at this
-      exact this
-    · intro h T sets hsets
-      have hinter : MeasurableSet[MeasurableSpace.comap
-          (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _) inferInstance]
-          (⋂ i ∈ T, (inducedMap (A i) ∘ Prod.fst) ⁻¹' sets i) :=
-        Finset.measurableSet_biInter T (hsm T sets hsets)
-      refine (hce _ hinter).trans ((Filter.EventuallyEq.of_eq (funext fun _ => ?_)).trans
-        (hprod T sets hsets).symm)
-      rw [h T hsets, ENNReal.toReal_prod]
-  exact ⟨fun h k A hA => (hkey k A).mp (h k A hA), fun h k A hA => (hkey k A).mpr (h k A hA)⟩
+        (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S n → _)) C.P :=
+  ⟨fun h k A hA => (C.iCondIndepFun_snd_iff_iIndepFun hind
+      (fun i => measurable_inducedMap (A i))).mp (h k A hA),
+    fun h k A hA => (C.iCondIndepFun_snd_iff_iIndepFun hind
+      (fun i => measurable_inducedMap (A i))).mpr (h k A hA)⟩
 
 end RankRepresentation
 

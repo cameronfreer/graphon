@@ -27,7 +27,7 @@ namespace RelSignature
 
 namespace TernaryParityRegression
 
-open InfiniteRelExchangeableLaw
+open InfiniteRelExchangeableLaw ColourLaw
 
 /-- The pooled pair event: some pooled third vertex witnesses the relation. -/
 def pooledPairEvent (a b : PoolVertex ternarySig ()) :

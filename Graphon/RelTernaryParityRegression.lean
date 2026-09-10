@@ -5,6 +5,7 @@ Authors: Cameron Freer
 -/
 import Graphon.RelRankSuccessorContract
 import Graphon.RelAdmissible
+import Graphon.RelColourLaw
 
 /-!
 # The ternary parity regression: no exact successor (R4 converse, #107)
@@ -41,33 +42,13 @@ namespace RelSignature
 
 namespace TernaryParityRegression
 
+open ColourLaw
+
 /-- The one-sort, single ternary relation signature. -/
-abbrev ternarySig : RelSignature where
-  Srt := Unit
-  Rel := Unit
-  arity := fun _ => 3
-  argSort := fun _ _ => ()
+abbrev ternarySig : RelSignature := oneSortSig 3
 
 /-- The coordinate at an ordered vertex triple. -/
 abbrev ternaryCoord {V : Type*} (a b c : V) : RelCoord ternarySig (fun _ => V) := ⟨(), ![a, b, c]⟩
-
-/-- The fresh singleton layer of the rank-two latent cube: one uniform per vertex. -/
-abbrev Colours := RankSupport ternarySig 1 → ℝ
-
-/-- The singleton support at a vertex. -/
-def vertexSupport (v : ℕ) : RankSupport ternarySig 1 :=
-  ⟨{⟨(), v⟩}, Finset.card_singleton _⟩
-
-theorem vertexSupport_injective : Function.Injective vertexSupport := by
-  intro a b h
-  have := congrArg Subtype.val h
-  simpa [vertexSupport] using this
-
-/-- The colour of a vertex, read off its own fresh coordinate. -/
-noncomputable def colour (ω : Colours) (v : ℕ) : Bool := decide (ω (vertexSupport v) ≤ 1 / 2)
-
-theorem measurable_colour (v : ℕ) : Measurable fun ω : Colours => colour ω v :=
-  measurable_decideLe (measurable_pi_apply _)
 
 /-- Pairwise distinctness of a triple. -/
 def Distinct (a b c : ℕ) : Prop := a ≠ b ∧ a ≠ c ∧ b ≠ c
@@ -84,7 +65,7 @@ def arrOf (d : ℕ → Bool) : RelStructure ternarySig (Vinfinite ternarySig) :=
   fun c => if Distinct (c.2 0) (c.2 1) (c.2 2) then xor (d (c.2 0)) (d (c.2 1)) else false
 
 /-- **The parity array** read off the fresh colour layer. -/
-noncomputable def arr (ω : Colours) : RelStructure ternarySig (Vinfinite ternarySig) :=
+noncomputable def arr (ω : Colours 3) : RelStructure ternarySig (Vinfinite ternarySig) :=
   arrOf (colour ω)
 
 theorem arrOf_apply (d : ℕ → Bool) (a b c : ℕ) :
@@ -101,9 +82,6 @@ theorem measurable_arrOf : Measurable arrOf := by
   · simp only [arrOf, if_neg h]
     exact measurable_const
 
-theorem measurable_colours : Measurable fun ω : Colours => fun v => colour ω v :=
-  measurable_pi_lambda _ measurable_colour
-
 theorem measurable_arr : Measurable arr := measurable_arrOf.comp measurable_colours
 
 /-- The array depends on the colouring only through its differences. -/
@@ -113,26 +91,6 @@ theorem arrOf_xor_const (d : ℕ → Bool) (b : Bool) : arrOf (fun v => xor (d v
   split_ifs
   · cases d (c.2 0) <;> cases d (c.2 1) <;> cases b <;> rfl
   · rfl
-
-/-! ### The relabeling action on the fresh layer -/
-
-/-- A permutation of the vertices permutes the singleton supports. -/
-noncomputable def supportPerm (σ : Equiv.Perm ℕ) :
-    RankSupport ternarySig 1 ≃ RankSupport ternarySig 1 :=
-  rankSupportPerm (fun _ : Unit => σ) 1
-
-open scoped Classical in
-@[simp] theorem supportPerm_vertexSupport (σ : Equiv.Perm ℕ) (v : ℕ) :
-    supportPerm σ (vertexSupport v) = vertexSupport (σ v) := by
-  refine Subtype.ext ?_
-  show ({(⟨(), v⟩ : Σ _ : Unit, ℕ)} : Finset _).image (Sigma.map id fun _ => ⇑σ)
-    = ({⟨(), σ v⟩} : Finset (Σ _ : Unit, ℕ))
-  rw [Finset.image_singleton]
-  rfl
-
-theorem colour_comp_supportPerm (σ : Equiv.Perm ℕ) (ω : Colours) (v : ℕ) :
-    colour (fun A => ω (supportPerm σ A)) v = colour ω (σ v) := by
-  simp [colour]
 
 theorem arrOf_comp (d : ℕ → Bool) (σ : Equiv.Perm ℕ) :
     arrOf (d ∘ σ) = RelStructure.relabel (fun _ : Unit => σ) (arrOf d) := by
@@ -145,7 +103,7 @@ theorem arrOf_comp (d : ℕ → Bool) (σ : Equiv.Perm ℕ) :
   · rw [if_neg h, if_neg (mt distinct_map.mp h)]
 
 /-- **Equivariance of the array**: relabeling the vertices is reindexing the fresh layer. -/
-theorem arr_comp_supportPerm (σ : Equiv.Perm ℕ) (ω : Colours) :
+theorem arr_comp_supportPerm (σ : Equiv.Perm ℕ) (ω : Colours 3) :
     arr (fun A => ω (supportPerm σ A)) = RelStructure.relabel (fun _ : Unit => σ) (arr ω) := by
   rw [arr, arr, ← arrOf_comp]
   exact congrArg arrOf (funext fun v => colour_comp_supportPerm σ ω v)
@@ -163,7 +121,7 @@ theorem ternaryLaw_map_relabel (σ : ∀ _ : Unit, Equiv.Perm ℕ) :
     ternaryLaw.map (RelStructure.relabel σ) = ternaryLaw := by
   rw [ternaryLaw, Measure.map_map (measurable_relabel σ) measurable_arr,
     show RelStructure.relabel σ ∘ arr =
-      arr ∘ (fun ω : Colours => fun A => ω (supportPerm (σ ()) A)) from by
+      arr ∘ (fun ω : Colours 3 => fun A => ω (supportPerm (σ ()) A)) from by
         funext ω
         exact (arr_comp_supportPerm (σ ()) ω).symm,
     ← Measure.map_map measurable_arr (measurable_pi_lambda _ fun _ => measurable_pi_apply _),
@@ -250,7 +208,7 @@ theorem mem_pairEvent_arrOf {u v : ℕ} (d : ℕ → Bool) :
     · exact (arrOf_apply d u v _).trans ((if_pos ⟨huv, by have := le_max_left u v; omega,
         by have := le_max_right u v; omega⟩).trans hx)
 
-theorem mem_pairEvent_arr {u v : ℕ} (ω : Colours) :
+theorem mem_pairEvent_arr {u v : ℕ} (ω : Colours 3) :
     arr ω ∈ pairEvent u v ↔ u ≠ v ∧ xor (colour ω u) (colour ω v) = true :=
   mem_pairEvent_arrOf _
 
@@ -303,404 +261,38 @@ theorem ae_blockMap_of_card_lt_three {A : Finset (Σ _ : Unit, ℕ)} (hA : A.car
       (measurableSet_singleton (x := (fun _ => false : BlockSpace (S := ternarySig) A)))
   · exact Filter.Eventually.of_forall fun ω => blockMap_arrOf_of_card_lt_three hA (colour ω)
 
-/-! ### The rank-two cube and the relative colouring -/
+/-- The ternary law is the colour law of `arrOf`. -/
+theorem ternaryLaw_eq_colourLaw : ternaryLaw = colourLaw arrOf := rfl
 
-/-- The rank-two latent cube. -/
-abbrev Cube := RankLatentSpace ternarySig 2
+theorem arrOf_comp' (σ : Equiv.Perm ℕ) (d : ℕ → Bool) :
+    arrOf (d ∘ σ) = RelStructure.relabel (fun _ : Unit => σ) (arrOf d) := arrOf_comp d σ
 
-/-- The fresh singleton layer of a rank-two latent point. -/
-noncomputable def freshLayer (ω : Cube) : Colours := (rankLatentSpaceSuccEquiv 1 ω).2
-
-theorem measurable_freshLayer : Measurable freshLayer :=
-  (rankLatentSpaceSuccEquiv 1).measurable.snd
-
-theorem source_map_freshLayer :
-    (rankLatentSource ternarySig 2).map freshLayer =
-      iidUniformSource (RankSupport ternarySig 1) := by
-  have h : freshLayer = Prod.snd ∘ rankLatentSpaceSuccEquiv 1 := rfl
-  rw [h, ← Measure.map_map measurable_snd (rankLatentSpaceSuccEquiv 1).measurable,
-    rankLatentSource_map_rankLatentSpaceSuccEquiv, Measure.map_snd_prod]
-  simp
-
-/-- The law, read off the rank-two cube. -/
 theorem ternaryLaw_eq_map_cube :
-    ternaryLaw = (rankLatentSource ternarySig 2).map (arr ∘ freshLayer) := by
-  rw [ternaryLaw, ← source_map_freshLayer, Measure.map_map measurable_arr measurable_freshLayer]
+    ternaryLaw = (rankLatentSource ternarySig 2).map (arr ∘ freshLayer) :=
+  colourLaw_eq_map_cube measurable_arrOf
+
+/-- **Fixing events at fewer than two vertices are null or conull.** -/
+theorem fixing_trivial_of_card_lt_two {A : Finset (Σ _ : Unit, ℕ)} (hA : A.card < 2)
+    {E : Set (RelStructure ternarySig (Vinfinite ternarySig))}
+    (hE : MeasurableSet[RelStructure.fixingAlgebra A] E) :
+    ternaryLaw E = 0 ∨ ternaryLaw E = 1 :=
+  ColourLaw.fixing_trivial_of_card_lt_two measurable_arrOf arrOf_comp' arrOf_xor_const hA hE
 
 open scoped Classical in
-theorem rankSupportEquiv_eq_supportPerm (σ : FinSuppPerm ternarySig)
-    (A : RankSupport ternarySig 1) : rankSupportEquiv σ 1 A = supportPerm (σ.1 ()) A := by
-  refine Subtype.ext ?_
-  refine Finset.ext fun w => ?_
-  simp only [rankSupportEquiv, supportPerm, rankSupportPerm, Equiv.coe_fn_mk, Finset.mem_image]
-
-open scoped Classical in
-theorem freshLayer_rankLatentRelabel (σ : FinSuppPerm ternarySig) (ω : Cube) :
-    freshLayer (rankLatentRelabel σ 2 ω) = fun A => freshLayer ω (supportPerm (σ.1 ()) A) := by
-  funext A
-  show (rankLatentSpaceSuccEquiv 1 (rankLatentRelabel σ 2 ω)).2 A = _
-  rw [show rankLatentSpaceSuccEquiv 1 (rankLatentRelabel σ 2 ω) =
-      MeasurableEquiv.prodCongr (rankLatentRelabel σ 1) (rankSupportLatentRelabel σ 1)
-        (rankLatentSpaceSuccEquiv 1 ω) from
-    congrFun (rankLatentSpaceSuccEquiv_rankLatentRelabel σ 1) ω]
-  show freshLayer ω (rankSupportEquiv σ 1 A) = _
-  rw [rankSupportEquiv_eq_supportPerm]
-
-/-- **Exact equivariance on the cube.** -/
-theorem arr_freshLayer_rankLatentRelabel (σ : FinSuppPerm ternarySig) (ω : Cube) :
+theorem arr_freshLayer_rankLatentRelabel (σ : FinSuppPerm ternarySig) (ω : Cube 3) :
     arr (freshLayer (rankLatentRelabel σ 2 ω)) = RelStructure.relabel σ.1 (arr (freshLayer ω)) := by
   rw [freshLayer_rankLatentRelabel, arr_comp_supportPerm]
 
 /-- The singleton latent index at a vertex. -/
-def singIndex (w : ℕ) : RankLatentIndex ternarySig 2 :=
-  ⟨{⟨(), w⟩}, by simp⟩
-
-theorem singIndex_injective : Function.Injective singIndex := by
-  intro a b h
-  have := congrArg Subtype.val h
-  simpa [singIndex] using this
-
-/-- The colour of a vertex reads the singleton coordinate. -/
-theorem colour_freshLayer (ω : Cube) (w : ℕ) :
-    colour (freshLayer ω) w = decide (ω (singIndex w) ≤ 1 / 2) := by
-  show decide ((rankLatentSpaceSuccEquiv 1 ω).2 (vertexSupport w) ≤ 1 / 2) = _
-  rfl
-
-/-- The colouring relative to a reference vertex `v`: the difference of colours. -/
-noncomputable def relColour (v : ℕ) (ω : Cube) : ℕ → Bool :=
-  fun w => xor (colour (freshLayer ω) w) (colour (freshLayer ω) v)
-
-/-- The colouring with the reference vertex blanked out. -/
-noncomputable def offColour (v : ℕ) (ω : Cube) : ℕ → Bool :=
-  fun w => if w = v then false else colour (freshLayer ω) w
-
-/-- Flipping every colour except the reference vertex. -/
-def flipOff (v : ℕ) (b : Bool) (d : ℕ → Bool) : ℕ → Bool :=
-  fun w => if w = v then false else xor (d w) b
-
-theorem measurable_flipOff (v : ℕ) (b : Bool) : Measurable (flipOff v b) :=
-  measurable_pi_lambda _ fun w => by
-    by_cases h : w = v
-    · simp only [flipOff, if_pos h]; exact measurable_const
-    · simp only [flipOff, if_neg h]
-      exact Measurable.comp (g := fun x : Bool => xor x b) Measurable.of_discrete
-        (measurable_pi_apply w)
-
-theorem relColour_eq_flipOff (v : ℕ) (ω : Cube) :
-    relColour v ω = flipOff v (colour (freshLayer ω) v) (offColour v ω) := by
-  funext w
-  by_cases h : w = v
-  · subst h; simp [relColour, flipOff]
-  · simp [relColour, flipOff, offColour, h]
-
-theorem arr_freshLayer_eq_arrOf_relColour (v : ℕ) (ω : Cube) :
+theorem arr_freshLayer_eq_arrOf_relColour (v : ℕ) (ω : Cube 3) :
     arr (freshLayer ω) = arrOf (relColour v ω) :=
   (arrOf_xor_const _ _).symm
-
-theorem measurable_offColour (v : ℕ) : Measurable (offColour v) :=
-  measurable_pi_lambda _ fun w => by
-    by_cases h : w = v
-    · simp only [offColour, if_pos h]; exact measurable_const
-    · simp only [offColour, if_neg h]
-      exact (measurable_colour w).comp measurable_freshLayer
-
-theorem measurable_relColour (v : ℕ) : Measurable (relColour v) :=
-  measurable_pi_lambda _ fun w =>
-    Measurable.comp (g := fun p : Bool × Bool => xor p.1 p.2) Measurable.of_discrete
-      (((measurable_colour w).comp measurable_freshLayer).prodMk
-        ((measurable_colour v).comp measurable_freshLayer))
-
-/-! ### The local window at a vertex is independent of the relative colouring -/
-
-/-- The singleton support at `v`. -/
-def vertexFinset (v : ℕ) : Finset (Σ _ : Unit, ℕ) := {⟨(), v⟩}
-
-/-- The local window at `v`. -/
-noncomputable abbrev window (v : ℕ) :=
-  localLatents (S := ternarySig) (vertexFinset v) 2
-
-theorem measurable_window (v : ℕ) : Measurable (window v) :=
-  measurable_localLatents (S := ternarySig) _ 2
-
-/-- The reference colour is a function of the local window. -/
-theorem colour_v_eq_window (v : ℕ) (ω : Cube) :
-    colour (freshLayer ω) v =
-      decide (window v ω ⟨singIndex v, by simp [singIndex, vertexFinset]⟩ ≤ 1 / 2) :=
-  colour_freshLayer ω v
-
-open scoped Classical in
-/-- The blanked colouring reads only singleton coordinates away from `v`, the window reads only
-coordinates inside `{v}`: they are independent. -/
-theorem indepFun_offColour_window (v : ℕ) :
-    IndepFun (offColour v) (window v) (rankLatentSource ternarySig 2) := by
-  set μ := rankLatentSource ternarySig 2 with hμ
-  set m : RankLatentIndex ternarySig 2 → MeasurableSpace Cube :=
-    fun i => MeasurableSpace.comap (fun ω : Cube => ω i) inferInstance with hm
-  have hind : iIndep m μ := by
-    have h := iIndepFun_infinitePi (P := fun _ : RankLatentIndex ternarySig 2 => uniform01)
-      (X := fun _ x => x) fun _ => measurable_id
-    exact h
-  set Sset : Set (RankLatentIndex ternarySig 2) := {i | ∃ w, w ≠ v ∧ i = singIndex w} with hS
-  set Tset : Set (RankLatentIndex ternarySig 2) := {i | i.1 ⊆ vertexFinset v} with hT
-  have hST : Disjoint Sset Tset := by
-    rw [Set.disjoint_left]
-    rintro i ⟨w, hwv, rfl⟩ hi
-    apply hwv
-    have := hi (Finset.mem_singleton_self (⟨(), w⟩ : Σ _ : Unit, ℕ))
-    simpa [vertexFinset] using this
-  have hdisj := indep_iSup_of_disjoint (fun i => (measurable_pi_apply i).comap_le) hind hST
-  have hoffm : @Measurable Cube (ℕ → Bool) (⨆ i ∈ Sset, m i) _ (offColour v) := by
-    letI : MeasurableSpace Cube := ⨆ i ∈ Sset, m i
-    refine measurable_pi_iff.mpr fun w => ?_
-    by_cases h : w = v
-    · simp only [offColour, if_pos h]; exact measurable_const
-    · simp only [offColour, if_neg h]
-      rw [show (fun ω : Cube => colour (freshLayer ω) w) =
-          fun ω => decide (ω (singIndex w) ≤ 1 / 2) from funext fun ω => colour_freshLayer ω w]
-      refine measurable_decideLe ?_
-      exact Measurable.of_comap_le (le_iSup₂ (f := fun i (_ : i ∈ Sset) => m i)
-        (singIndex w) ⟨w, h, rfl⟩)
-  have hwinm : @Measurable Cube (LocalLatentSpace (S := ternarySig) (vertexFinset v) 2)
-      (⨆ i ∈ Tset, m i) _ (window v) := by
-    letI : MeasurableSpace Cube := ⨆ i ∈ Tset, m i
-    refine measurable_pi_iff.mpr fun B => ?_
-    exact Measurable.of_comap_le (le_iSup₂ (f := fun i (_ : i ∈ Tset) => m i) B.1 B.2)
-  exact indep_of_indep_of_le_right (indep_of_indep_of_le_left hdisj hoffm.comap_le)
-    hwinm.comap_le
-
-/-- The uniform threshold bit is fair. -/
-theorem uniform01_Iic_half : uniform01 (Set.Iic (1 / 2 : ℝ)) = 1 / 2 := by
-  rw [uniform01_Iic (by norm_num)]
-  rw [show (1 / 2 : ℝ) = ((1 : ℝ) / 2) from rfl]
-  rw [ENNReal.ofReal_div_of_pos (by norm_num), ENNReal.ofReal_one, ENNReal.ofReal_ofNat]
-
-theorem uniform01_map_decide_not :
-    (uniform01.map fun t : ℝ => decide (t ≤ 1 / 2)).map not =
-      uniform01.map fun t : ℝ => decide (t ≤ 1 / 2) := by
-  have hm : Measurable fun t : ℝ => decide (t ≤ 1 / 2) := measurable_decideLe measurable_id
-  rw [Measure.map_map Measurable.of_discrete hm]
-  refine Measure.ext_of_singleton fun b => ?_
-  rw [Measure.map_apply (Measurable.of_discrete.comp hm) (measurableSet_singleton b),
-    Measure.map_apply hm (measurableSet_singleton b)]
-  have h1 : (fun t : ℝ => decide (t ≤ 1 / 2)) ⁻¹' {true} = Set.Iic (1 / 2 : ℝ) := by
-    ext t; simp
-  have h2 : (fun t : ℝ => decide (t ≤ 1 / 2)) ⁻¹' {false} = (Set.Iic (1 / 2 : ℝ))ᶜ := by
-    ext t; simp
-  have hc : uniform01 (Set.Iic (1 / 2 : ℝ))ᶜ = 1 / 2 := by
-    rw [prob_compl_eq_one_sub measurableSet_Iic, uniform01_Iic_half, one_div,
-      ENNReal.one_sub_inv_two]
-  cases b
-  · rw [show (not ∘ fun t : ℝ => decide (t ≤ 1 / 2)) ⁻¹' {false} =
-        (fun t : ℝ => decide (t ≤ 1 / 2)) ⁻¹' {true} from by ext t; simp, h1, h2,
-      uniform01_Iic_half, hc]
-  · rw [show (not ∘ fun t : ℝ => decide (t ≤ 1 / 2)) ⁻¹' {true} =
-        (fun t : ℝ => decide (t ≤ 1 / 2)) ⁻¹' {false} from by ext t; simp, h1, h2,
-      uniform01_Iic_half, hc]
-
-/-- The law of the blanked colouring is invariant under flipping all colours off `v`. -/
-theorem map_offColour_flip (v : ℕ) :
-    (rankLatentSource ternarySig 2).map (flipOff v true ∘ offColour v) =
-      (rankLatentSource ternarySig 2).map (offColour v) := by
-  set g : ℕ → ℝ → Bool := fun w t => if w = v then false else decide (t ≤ 1 / 2) with hg
-  set g' : ℕ → ℝ → Bool := fun w t => if w = v then false else !decide (t ≤ 1 / 2) with hg'
-  have hgm : ∀ w, Measurable (g w) := fun w => by
-    by_cases h : w = v
-    · simp only [hg, if_pos h]; exact measurable_const
-    · simp only [hg, if_neg h]; exact measurable_decideLe measurable_id
-  have hgm' : ∀ w, Measurable (g' w) := fun w => by
-    by_cases h : w = v
-    · simp only [hg', if_pos h]; exact measurable_const
-    · simp only [hg', if_neg h]
-      exact Measurable.comp (g := not) Measurable.of_discrete (measurable_decideLe measurable_id)
-  have hread : Measurable fun (ω : Cube) (w : ℕ) => ω (singIndex w) :=
-    measurable_pi_lambda _ fun _ => measurable_pi_apply _
-  have hoff : offColour v = (fun (x : ℕ → ℝ) (w : ℕ) => g w (x w)) ∘
-      fun (ω : Cube) (w : ℕ) => ω (singIndex w) := by
-    funext ω w
-    simp only [offColour, Function.comp_apply, hg, colour_freshLayer]
-  have hflip : flipOff v true ∘ offColour v = (fun (x : ℕ → ℝ) (w : ℕ) => g' w (x w)) ∘
-      fun (ω : Cube) (w : ℕ) => ω (singIndex w) := by
-    funext ω w
-    show (if w = v then false else xor (offColour v ω w) true) =
-      (if w = v then false else !decide (ω (singIndex w) ≤ 1 / 2))
-    by_cases h : w = v
-    · rw [if_pos h, if_pos h]
-    · rw [if_neg h, if_neg h]
-      show xor (if w = v then false else colour (freshLayer ω) w) true = _
-      rw [if_neg h, colour_freshLayer, Bool.xor_true]
-  have hsrc : (rankLatentSource ternarySig 2).map (fun (ω : Cube) (w : ℕ) => ω (singIndex w)) =
-      Measure.infinitePi fun _ : ℕ => uniform01 := by
-    rw [rankLatentSource, iidUniformSource]
-    exact Measure.map_infinitePi_infinitePi_of_inj singIndex_injective
-  have hψ : Measurable fun (x : ℕ → ℝ) (w : ℕ) => g w (x w) :=
-    measurable_pi_lambda _ fun w => (hgm w).comp (measurable_pi_apply w)
-  have hψ' : Measurable fun (x : ℕ → ℝ) (w : ℕ) => g' w (x w) :=
-    measurable_pi_lambda _ fun w => (hgm' w).comp (measurable_pi_apply w)
-  rw [hflip, hoff, ← Measure.map_map hψ' hread, ← Measure.map_map hψ hread, hsrc,
-    Measure.infinitePi_map_pi (μ := fun _ : ℕ => uniform01) (f := g') hgm',
-    Measure.infinitePi_map_pi (μ := fun _ : ℕ => uniform01) (f := g) hgm]
-  congr 1
-  funext w
-  by_cases h : w = v
-  · simp only [hg, hg', if_pos h]
-  · simp only [hg, hg', if_neg h]
-    rw [← uniform01_map_decide_not, Measure.map_map Measurable.of_discrete
-      (measurable_decideLe measurable_id : Measurable fun t : ℝ => decide (t ≤ 1 / 2))]
-    rfl
-
-/-- **The relative colouring is independent of the local window at `v`.** -/
-theorem indepFun_relColour_window (v : ℕ) :
-    IndepFun (relColour v) (window v) (rankLatentSource ternarySig 2) := by
-  set μ := rankLatentSource ternarySig 2 with hμ
-  rw [indepFun_iff_measure_inter_preimage_eq_mul]
-  intro B C hB hC
-  have hoff := (indepFun_iff_measure_inter_preimage_eq_mul.mp (indepFun_offColour_window v))
-  -- the two window events reading the reference bit
-  set C₀ : Set (LocalLatentSpace (S := ternarySig) (vertexFinset v) 2) :=
-    {ℓ | decide (ℓ ⟨singIndex v, by simp [singIndex, vertexFinset]⟩ ≤ 1 / 2) = false} with hC₀
-  set C₁ : Set (LocalLatentSpace (S := ternarySig) (vertexFinset v) 2) :=
-    {ℓ | decide (ℓ ⟨singIndex v, by simp [singIndex, vertexFinset]⟩ ≤ 1 / 2) = true} with hC₁
-  have hC₀m : MeasurableSet C₀ :=
-    (measurable_decideLe (measurable_pi_apply _)) (measurableSet_singleton false)
-  have hC₁m : MeasurableSet C₁ :=
-    (measurable_decideLe (measurable_pi_apply _)) (measurableSet_singleton true)
-  have hbit : ∀ ω : Cube, colour (freshLayer ω) v = false ↔ window v ω ∈ C₀ := fun ω => by
-    rw [colour_v_eq_window]; rfl
-  have hbit' : ∀ ω : Cube, colour (freshLayer ω) v = true ↔ window v ω ∈ C₁ := fun ω => by
-    rw [colour_v_eq_window]; rfl
-  -- split the relative-colour event by the reference bit
-  have hsplit : ∀ D : Set (LocalLatentSpace (S := ternarySig) (vertexFinset v) 2),
-      relColour v ⁻¹' B ∩ window v ⁻¹' D =
-        (offColour v ⁻¹' B ∩ window v ⁻¹' (D ∩ C₀)) ∪
-          (offColour v ⁻¹' (flipOff v true ⁻¹' B) ∩ window v ⁻¹' (D ∩ C₁)) := by
-    intro D
-    ext ω
-    simp only [Set.mem_inter_iff, Set.mem_preimage, Set.mem_union, relColour_eq_flipOff]
-    rcases hcv : colour (freshLayer ω) v with _ | _
-    · have h0 : window v ω ∈ C₀ := (hbit ω).mp hcv
-      have h1 : window v ω ∉ C₁ := fun h => by
-        have := (hbit' ω).mpr h; rw [hcv] at this; exact Bool.false_ne_true this
-      have hid : flipOff v false (offColour v ω) = offColour v ω := by
-        funext w; by_cases h : w = v <;> simp [flipOff, offColour, h]
-      rw [hid]
-      constructor
-      · rintro ⟨hB', hD⟩; exact Or.inl ⟨hB', hD, h0⟩
-      · rintro (⟨hB', hD, -⟩ | ⟨-, -, h⟩)
-        · exact ⟨hB', hD⟩
-        · exact absurd h h1
-    · have h1 : window v ω ∈ C₁ := (hbit' ω).mp hcv
-      have h0 : window v ω ∉ C₀ := fun h => by
-        have := (hbit ω).mpr h; rw [hcv] at this; exact Bool.false_ne_true this.symm
-      constructor
-      · rintro ⟨hB', hD⟩; exact Or.inr ⟨hB', hD, h1⟩
-      · rintro (⟨-, -, h⟩ | ⟨hB', hD, -⟩)
-        · exact absurd h h0
-        · exact ⟨hB', hD⟩
-  have hdisj : ∀ D : Set (LocalLatentSpace (S := ternarySig) (vertexFinset v) 2),
-      Disjoint (offColour v ⁻¹' B ∩ window v ⁻¹' (D ∩ C₀))
-        (offColour v ⁻¹' (flipOff v true ⁻¹' B) ∩ window v ⁻¹' (D ∩ C₁)) := by
-    intro D
-    rw [Set.disjoint_left]
-    rintro ω ⟨-, -, h0⟩ ⟨-, -, h1⟩
-    have := ((hbit ω).mpr h0).symm.trans ((hbit' ω).mpr h1)
-    exact Bool.false_ne_true this
-  have hflipB : MeasurableSet (flipOff v true ⁻¹' B) := measurable_flipOff v true hB
-  have hlaw : μ (offColour v ⁻¹' (flipOff v true ⁻¹' B)) = μ (offColour v ⁻¹' B) := by
-    rw [← Set.preimage_comp, ← Measure.map_apply ((measurable_flipOff v true).comp
-      (measurable_offColour v)) hB, map_offColour_flip,
-      Measure.map_apply (measurable_offColour v) hB]
-  -- the general identity
-  have key : ∀ D : Set (LocalLatentSpace (S := ternarySig) (vertexFinset v) 2), MeasurableSet D →
-      μ (relColour v ⁻¹' B ∩ window v ⁻¹' D) = μ (offColour v ⁻¹' B) * μ (window v ⁻¹' D) := by
-    intro D hD
-    rw [hsplit D, measure_union (hdisj D)
-      (((measurable_offColour v) hflipB).inter ((measurable_window v) (hD.inter hC₁m))),
-      hoff B (D ∩ C₀) hB (hD.inter hC₀m), hoff (flipOff v true ⁻¹' B) (D ∩ C₁) hflipB
-        (hD.inter hC₁m), hlaw, ← mul_add, Set.preimage_inter, Set.preimage_inter,
-      ← measure_union ?_ ((measurable_window v) hD |>.inter ((measurable_window v) hC₁m))]
-    · congr 1
-      rw [← Set.inter_union_distrib_left]
-      congr 1
-      have hcover : window v ⁻¹' C₀ ∪ window v ⁻¹' C₁ = Set.univ := by
-        ext ω
-        simp only [Set.mem_union, Set.mem_preimage, Set.mem_univ, iff_true]
-        rcases h : colour (freshLayer ω) v with _ | _
-        · exact Or.inl ((hbit ω).mp h)
-        · exact Or.inr ((hbit' ω).mp h)
-      rw [hcover, Set.inter_univ]
-    · rw [Set.disjoint_left]
-      rintro ω ⟨-, h0⟩ ⟨-, h1⟩
-      exact Bool.false_ne_true (((hbit ω).mpr h0).symm.trans ((hbit' ω).mpr h1))
-  have hB' : μ (relColour v ⁻¹' B) = μ (offColour v ⁻¹' B) := by
-    have := key Set.univ MeasurableSet.univ
-    simpa using this
-  rw [key C hC, hB']
-
-/-! ### Triviality of the empty and singleton fixing algebras -/
-
-/-- **Fixing events at fewer than two vertices are null or conull.** The pullback to the rank-two
-cube is invariant under every permutation fixing the support, hence almost surely a function of
-the local window there; but it is also a function of the relative colouring, which is
-independent of that window. A set independent of itself is trivial. -/
-theorem fixing_trivial_of_card_lt_two {A : Finset (Σ _ : Unit, ℕ)} (hA : A.card < 2)
-    {E : Set (RelStructure ternarySig (Vinfinite ternarySig))}
-    (hE : MeasurableSet[RelStructure.fixingAlgebra A] E) :
-    ternaryLaw E = 0 ∨ ternaryLaw E = 1 := by
-  classical
-  -- reduce to a singleton support
-  obtain ⟨v, hAv⟩ : ∃ v : ℕ, A ⊆ vertexFinset v := by
-    rcases Nat.lt_succ_iff.mp hA |>.eq_or_lt with h1 | h0
-    · obtain ⟨a, rfl⟩ := Finset.card_eq_one.mp h1
-      obtain ⟨u, w⟩ := a
-      cases u
-      exact ⟨w, le_rfl⟩
-    · have : A = ∅ := Finset.card_eq_zero.mp (Nat.lt_one_iff.mp h0)
-      exact ⟨0, by rw [this]; exact Finset.empty_subset _⟩
-  have hE' : MeasurableSet[RelStructure.fixingAlgebra (vertexFinset v)] E :=
-    RelStructure.fixingAlgebra_mono hAv E hE
-  set μ := rankLatentSource ternarySig 2 with hμ
-  set D : Set Cube := (arr ∘ freshLayer) ⁻¹' E with hD
-  have hDm : MeasurableSet D := (measurable_arr.comp measurable_freshLayer) hE'.1
-  have hlaw : ternaryLaw E = μ D := by
-    rw [ternaryLaw_eq_map_cube, Measure.map_apply (measurable_arr.comp measurable_freshLayer) hE'.1]
-  -- invariance of the pullback
-  have hinv : ∀ σ : FinSuppPerm ternarySig, SortwiseFixing (vertexFinset v) σ.1 →
-      rankLatentRelabel σ 2 ⁻¹' D =ᵐ[μ] D := by
-    intro σ hσ
-    refine Filter.EventuallyEq.of_eq ?_
-    rw [hD, ← Set.preimage_comp,
-      show (arr ∘ freshLayer) ∘ rankLatentRelabel σ 2 =
-        RelStructure.relabel σ.1 ∘ (arr ∘ freshLayer) from
-        funext fun ω => arr_freshLayer_rankLatentRelabel σ ω,
-      Set.preimage_comp, hE'.2 σ.1 hσ]
-  obtain ⟨D', ⟨C, hC, rfl⟩, hD'⟩ :=
-    rankLatentSource_exists_local_ae_eq_of_ae_invariant (vertexFinset v) hDm hinv
-  -- the pullback is a function of the relative colouring
-  have hDrel : D = relColour v ⁻¹' (arrOf ⁻¹' E) := by
-    ext ω
-    simp only [hD, Set.mem_preimage, Function.comp_apply, arr_freshLayer_eq_arrOf_relColour v]
-  have hBm : MeasurableSet (arrOf ⁻¹' E) := measurable_arrOf hE'.1
-  have hind := (indepFun_iff_measure_inter_preimage_eq_mul.mp (indepFun_relColour_window v))
-    (arrOf ⁻¹' E) C hBm hC
-  have hsq : μ D = μ D * μ D := by
-    calc μ D = μ (D ∩ window v ⁻¹' C) := by
-          refine (measure_congr ?_).symm
-          exact ((Filter.EventuallyEq.refl _ D).inter hD').trans
-            (Filter.EventuallyEq.of_eq (Set.inter_self D))
-      _ = μ D * μ (window v ⁻¹' C) := by rw [hDrel]; exact hind
-      _ = μ D * μ D := by rw [measure_congr hD']
-  rw [hlaw]
-  rcases eq_or_ne (μ D) 0 with h0 | h0
-  · exact Or.inl h0
-  · right
-    have h1 : 1 * μ D = μ D * μ D := by rw [one_mul]; exact hsq
-    exact ((ENNReal.mul_left_inj h0 (measure_ne_top _ _)).mp h1).symm
 
 /-! ### The independent rank-two representation -/
 
 /-- **The rank-two coupling**: the law with an independent rank-two latent array. -/
 noncomputable def rankTwoCoupling :
-    Measure (RelStructure ternarySig (Vinfinite ternarySig) × Cube) :=
+    Measure (RelStructure ternarySig (Vinfinite ternarySig) × Cube 3) :=
   ternaryLaw.prod (rankLatentSource ternarySig 2)
 
 instance : IsProbabilityMeasure rankTwoCoupling := by
@@ -717,10 +309,10 @@ instance : IsProbabilityMeasure rankTwoCoupling := by
 
 open scoped Classical in
 theorem ae_blockMap_coupling {A : Finset (Σ _ : Unit, ℕ)} (hA : A.card < 3) :
-    (fun p : RelStructure ternarySig (Vinfinite ternarySig) × Cube =>
+    (fun p : RelStructure ternarySig (Vinfinite ternarySig) × Cube 3 =>
         blockMap (S := ternarySig) A p.1) =ᵐ[rankTwoCoupling] fun _ => fun _ => false := by
   have hmp : MeasurePreserving (Prod.fst :
-      RelStructure ternarySig (Vinfinite ternarySig) × Cube → _) rankTwoCoupling ternaryLaw :=
+      RelStructure ternarySig (Vinfinite ternarySig) × Cube 3 → _) rankTwoCoupling ternaryLaw :=
     ⟨measurable_fst, rankTwoCoupling_map_fst⟩
   exact hmp.quasiMeasurePreserving.ae (ae_blockMap_of_card_lt_three hA)
 
@@ -760,58 +352,23 @@ noncomputable def rankTwoRep : ternaryExchangeable.RankRepresentation 2 where
 
 /-! ### The pair event has probability one half -/
 
-theorem uniform01_Iic_half_compl : uniform01 (Set.Iic (1 / 2 : ℝ))ᶜ = 1 / 2 := by
-  rw [prob_compl_eq_one_sub measurableSet_Iic, uniform01_Iic_half, one_div,
-    ENNReal.one_sub_inv_two]
-
-/-- Two distinct vertices' colours are two independent fair bits. -/
-theorem source_colour_pair {u v : ℕ} (huv : u ≠ v) (b : Bool) :
-    iidUniformSource (RankSupport ternarySig 1)
-      {ω | colour ω u = b ∧ colour ω v = !b} = 1 / 4 := by
-  classical
-  have hne : vertexSupport u ≠ vertexSupport v := fun h => huv (vertexSupport_injective h)
-  set t : RankSupport ternarySig 1 → Set ℝ := fun A =>
-    if A = vertexSupport u then (if b then Set.Iic (1 / 2 : ℝ) else (Set.Iic (1 / 2 : ℝ))ᶜ)
-    else (if b then (Set.Iic (1 / 2 : ℝ))ᶜ else Set.Iic (1 / 2 : ℝ)) with ht
-  have hset : {ω : Colours | colour ω u = b ∧ colour ω v = !b} =
-      Set.pi ({vertexSupport u, vertexSupport v} : Finset (RankSupport ternarySig 1)) t := by
-    ext ω
-    simp only [Set.mem_setOf_eq, Set.mem_pi, Finset.coe_insert, Finset.coe_singleton,
-      Set.mem_insert_iff, Set.mem_singleton_iff, forall_eq_or_imp, forall_eq, ht,
-      if_neg hne.symm, colour]
-    cases b <;> simp
-  have hmeas : ∀ A ∈ ({vertexSupport u, vertexSupport v} :
-      Finset (RankSupport ternarySig 1)), MeasurableSet (t A) := by
-    intro A _
-    simp only [ht]
-    split_ifs <;> first | exact measurableSet_Iic | exact measurableSet_Iic.compl
-  rw [hset, iidUniformSource, Measure.infinitePi_pi _ hmeas, Finset.prod_pair hne]
-  simp only [ht, if_pos rfl, if_neg hne.symm]
-  have h4 : (2 : ℝ≥0∞)⁻¹ * 2⁻¹ = 4⁻¹ := by
-    rw [← ENNReal.mul_inv (by simp) (by simp)]; norm_num
-  cases b
-  · simp only [Bool.false_eq_true, ↓reduceIte, uniform01_Iic_half_compl, uniform01_Iic_half]
-    rw [one_div, one_div, h4]
-  · simp only [↓reduceIte, uniform01_Iic_half_compl, uniform01_Iic_half]
-    rw [one_div, one_div, h4]
-
 theorem ternaryLaw_pairEvent {u v : ℕ} (huv : u ≠ v) : ternaryLaw (pairEvent u v) = 1 / 2 := by
   classical
   rw [ternaryLaw, Measure.map_apply measurable_arr (measurableSet_pairEvent u v)]
   have hpre : arr ⁻¹' pairEvent u v =
-      {ω : Colours | colour ω u = true ∧ colour ω v = !true} ∪
+      {ω : Colours 3 | colour ω u = true ∧ colour ω v = !true} ∪
         {ω | colour ω u = false ∧ colour ω v = !false} := by
     ext ω
     simp only [Set.mem_preimage, mem_pairEvent_arr, Set.mem_union, Set.mem_setOf_eq, huv,
       ne_eq, not_false_eq_true, true_and, Bool.not_true, Bool.not_false]
     cases colour ω u <;> cases colour ω v <;> simp
-  have hdisj : Disjoint {ω : Colours | colour ω u = true ∧ colour ω v = !true}
+  have hdisj : Disjoint {ω : Colours 3 | colour ω u = true ∧ colour ω v = !true}
       {ω | colour ω u = false ∧ colour ω v = !false} := by
     rw [Set.disjoint_left]
     rintro ω ⟨h1, -⟩ ⟨h2, -⟩
     rw [h1] at h2
     exact Bool.false_ne_true h2.symm
-  have hm : ∀ b : Bool, MeasurableSet {ω : Colours | colour ω u = b ∧ colour ω v = !b} :=
+  have hm : ∀ b : Bool, MeasurableSet {ω : Colours 3 | colour ω u = b ∧ colour ω v = !b} :=
     fun b => ((measurable_colour u) (measurableSet_singleton b)).inter
       ((measurable_colour v) (measurableSet_singleton (!b)))
   rw [hpre, measure_union hdisj (hm false), source_colour_pair huv, source_colour_pair huv,
@@ -840,21 +397,21 @@ def pairIdx (u v : ℕ) (huv : u ≠ v) : RankSupport ternarySig 2 :=
 theorem card_pairSupport {u v : ℕ} (huv : u ≠ v) : (pairSupport u v).card = 2 :=
   (pairIdx u v huv).2
 
-/-- The section of the rank-three local window at a pair: the old coordinates from `o`, the fresh
+/-- The section of the rank-three local window 3 at a pair: the old coordinates from `o`, the fresh
 pair coordinate from `t`. -/
-noncomputable def sect (u v : ℕ) (o : Cube) (t : ℝ) :
+noncomputable def sect (u v : ℕ) (o : Cube 3) (t : ℝ) :
     LocalLatentSpace (S := ternarySig) (pairSupport u v) 3 :=
   fun B => if h : B.1.1.card < 2 then o ⟨B.1.1, h⟩ else t
 
 theorem measurable_sect_uncurry (u v : ℕ) :
-    Measurable fun p : Cube × ℝ => sect u v p.1 p.2 := by
+    Measurable fun p : Cube 3 × ℝ => sect u v p.1 p.2 := by
   refine measurable_pi_lambda _ fun B => ?_
   by_cases h : B.1.1.card < 2
   · simp only [sect, dif_pos h]; exact (measurable_pi_apply _).comp measurable_fst
   · simp only [sect, dif_neg h]; exact measurable_snd
 
-/-- The local window at a pair, read on the successor split of the cube. -/
-theorem localLatents_succEquiv_symm {u v : ℕ} (huv : u ≠ v) (o : Cube)
+/-- The local window 3 at a pair, read on the successor split of the cube. -/
+theorem localLatents_succEquiv_symm {u v : ℕ} (huv : u ≠ v) (o : Cube 3)
     (x : RankSupport ternarySig 2 → ℝ) :
     localLatents (S := ternarySig) (pairSupport u v) 3 ((rankLatentSpaceSuccEquiv 2).symm (o, x)) =
       sect u v o (x (pairIdx u v huv)) := by
@@ -876,7 +433,7 @@ theorem rankLatentProjection_eq_fst_succEquiv :
   funext ω A
   rfl
 
-theorem rankLatentProjection_succEquiv_symm (o : Cube) (x : RankSupport ternarySig 2 → ℝ) :
+theorem rankLatentProjection_succEquiv_symm (o : Cube 3) (x : RankSupport ternarySig 2 → ℝ) :
     rankLatentProjection (S := ternarySig) (Nat.le_succ 2)
       ((rankLatentSpaceSuccEquiv 2).symm (o, x)) = o := by
   rw [rankLatentProjection_eq_fst_succEquiv, Function.comp_apply,
@@ -929,12 +486,12 @@ theorem isEmpty_rankSuccessor : IsEmpty (InfiniteRelExchangeableLaw.RankSuccesso
       ∀ U : Set (LocalLatentSpace (S := ternarySig) (pairSupport u v) 3), MeasurableSet U →
       Prod.fst ⁻¹' pairEvent u v =ᵐ[P]
         Prod.snd ⁻¹' (localLatents (S := ternarySig) (pairSupport u v) 3 ⁻¹' U) →
-      (fun o : Cube => uniform01 {t | sect u v o t ∈ U}) =ᵐ[rankLatentSource ternarySig 2]
+      (fun o : Cube 3 => uniform01 {t | sect u v o t ∈ U}) =ᵐ[rankLatentSource ternarySig 2]
         fun _ => 1 / 2 := by
     intro u v huv U hU hae
-    have hsectm : MeasurableSet {p : Cube × ℝ | sect u v p.1 p.2 ∈ U} :=
+    have hsectm : MeasurableSet {p : Cube 3 × ℝ | sect u v p.1 p.2 ∈ U} :=
       measurable_sect_uncurry u v hU
-    have hφ : Measurable fun o : Cube => uniform01 {t | sect u v o t ∈ U} :=
+    have hφ : Measurable fun o : Cube 3 => uniform01 {t | sect u v o t ∈ U} :=
       measurable_measure_prodMk_left hsectm
     refine ae_eq_of_forall_setLIntegral_eq_of_sigmaFinite hφ measurable_const fun B hB _ => ?_
     rw [setLIntegral_const]
@@ -1022,11 +579,12 @@ theorem isEmpty_rankSuccessor : IsEmpty (InfiniteRelExchangeableLaw.RankSuccesso
     intro h
     have := congrArg (fun A : RankSupport ternarySig 2 => (⟨(), 1⟩ : Σ _ : Unit, ℕ) ∈ A.1) h
     simp [pairIdx, pairSupport] at this
-  set tset : Cube → RankSupport ternarySig 2 → Set ℝ := fun o p =>
+  set tset : Cube 3 → RankSupport ternarySig 2 → Set ℝ := fun o p =>
     if p = pairIdx 0 1 (by decide) then {t | sect 0 1 o t ∈ U01}
     else if p = pairIdx 1 2 (by decide) then {t | sect 1 2 o t ∈ U12}
     else {t | sect 0 2 o t ∈ U02} with htset
-  have hsec : ∀ o : Cube, Prod.mk o ⁻¹' ((rankLatentSpaceSuccEquiv 2).symm ⁻¹' (V01 ∩ V12 ∩ V02)) =
+  have hsec : ∀ o : Cube 3,
+      Prod.mk o ⁻¹' ((rankLatentSpaceSuccEquiv 2).symm ⁻¹' (V01 ∩ V12 ∩ V02)) =
       Set.pi ({pairIdx 0 1 (by decide), pairIdx 1 2 (by decide), pairIdx 0 2 (by decide)} :
         Finset (RankSupport ternarySig 2)) (tset o) := by
     intro o
@@ -1050,7 +608,7 @@ theorem isEmpty_rankSuccessor : IsEmpty (InfiniteRelExchangeableLaw.RankSuccesso
       simp only [htset, if_neg hne1.symm] at h2
       simp only [htset, if_neg hne2.symm, if_neg hne3.symm] at h3
       exact ⟨⟨h1, h2⟩, h3⟩
-  have hsm : ∀ o : Cube, ∀ p ∈ ({pairIdx 0 1 (by decide), pairIdx 1 2 (by decide),
+  have hsm : ∀ o : Cube 3, ∀ p ∈ ({pairIdx 0 1 (by decide), pairIdx 1 2 (by decide),
       pairIdx 0 2 (by decide)} : Finset (RankSupport ternarySig 2)), MeasurableSet (tset o p) := by
     intro o p _
     simp only [htset]
@@ -1066,7 +624,7 @@ theorem isEmpty_rankSuccessor : IsEmpty (InfiniteRelExchangeableLaw.RankSuccesso
     rw [measure_congr hTV, ← Measure.map_apply measurable_snd hVm, hsnd, source_three_eq,
       MeasurableEquiv.map_apply,
       Measure.prod_apply ((rankLatentSpaceSuccEquiv 2).symm.measurable hVm)]
-    have hae : (fun o : Cube => iidUniformSource (RankSupport ternarySig 2)
+    have hae : (fun o : Cube 3 => iidUniformSource (RankSupport ternarySig 2)
         (Prod.mk o ⁻¹' ((rankLatentSpaceSuccEquiv 2).symm ⁻¹' (V01 ∩ V12 ∩ V02))))
         =ᵐ[(rankLatentSource ternarySig 2)] fun _ => (1 / 2 : ℝ≥0∞) * (1 / 2 * (1 / 2)) := by
       filter_upwards [h01, h12, h02] with o e1 e2 e3
@@ -1131,7 +689,7 @@ theorem measurableSet_triEvent (i : Fin 3) : MeasurableSet (triEvent i) :=
 theorem ternaryLaw_triEvent (i : Fin 3) : ternaryLaw (triEvent i) = 1 / 2 := by
   rw [ternaryLaw, Measure.map_apply measurable_arr (measurableSet_triEvent i)]
   have key : ∀ a b : ℕ, a ≠ b →
-      (∀ ω : Colours, arr ω (triCoord i) = xor (colour ω a) (colour ω b)) →
+      (∀ ω : Colours 3, arr ω (triCoord i) = xor (colour ω a) (colour ω b)) →
       (iidUniformSource (RankSupport ternarySig 1)) (arr ⁻¹' triEvent i) = 1 / 2 := by
     intro a b hab hx
     have : arr ⁻¹' triEvent i = arr ⁻¹' pairEvent a b := by
@@ -1171,11 +729,11 @@ theorem measurableSet_triSet (i : Fin 3) : MeasurableSet (triSet i) :=
 single-vertex overlaps read three parities of a triangle. -/
 theorem not_admissible_rankTwoRep : ¬ rankTwoRep.Admissible := by
   intro h
-  have hind : IndepFun (Prod.fst : RelStructure ternarySig (Vinfinite ternarySig) × Cube → _)
+  have hind : IndepFun (Prod.fst : RelStructure ternarySig (Vinfinite ternarySig) × Cube 3 → _)
       Prod.snd rankTwoCoupling := by
     refine (indepFun_iff_map_prod_eq_prod_map_map measurable_fst.aemeasurable
       measurable_snd.aemeasurable).mpr ?_
-    rw [show (fun p : RelStructure ternarySig (Vinfinite ternarySig) × Cube => (p.1, p.2)) = id
+    rw [show (fun p : RelStructure ternarySig (Vinfinite ternarySig) × Cube 3 => (p.1, p.2)) = id
       from rfl, Measure.map_id, rankTwoCoupling_map_fst, rankTwoCoupling_map_snd]
     rfl
   have h' := (rankTwoRep.admissible_iff_iIndepFun_of_indep hind).mp h 3 triSets
@@ -1183,7 +741,7 @@ theorem not_admissible_rankTwoRep : ¬ rankTwoRep.Admissible := by
   rw [iIndepFun_iff_measure_inter_preimage_eq_mul] at h'
   have key := h' Finset.univ (sets := triSet) (fun i _ => measurableSet_triSet i)
   have hpre : ∀ i, (inducedMap (triSets i) ∘
-      (Prod.fst : RelStructure ternarySig (Vinfinite ternarySig) × Cube → _)) ⁻¹' triSet i =
+      (Prod.fst : RelStructure ternarySig (Vinfinite ternarySig) × Cube 3 → _)) ⁻¹' triSet i =
       Prod.fst ⁻¹' triEvent i := fun i => rfl
   simp only [hpre, Finset.mem_univ, Set.iInter_true] at key
   have hP : rankTwoRep.P = rankTwoCoupling := rfl
@@ -1199,10 +757,10 @@ theorem not_admissible_rankTwoRep : ¬ rankTwoRep.Admissible := by
 
 /-- **The coloured coupling**: the singleton latents carry the colours. -/
 noncomputable def colourCoupling :
-    Measure (RelStructure ternarySig (Vinfinite ternarySig) × Cube) :=
+    Measure (RelStructure ternarySig (Vinfinite ternarySig) × Cube 3) :=
   (rankLatentSource ternarySig 2).map fun ω => (arr (freshLayer ω), ω)
 
-theorem measurable_colourMap : Measurable fun ω : Cube => (arr (freshLayer ω), ω) :=
+theorem measurable_colourMap : Measurable fun ω : Cube 3 => (arr (freshLayer ω), ω) :=
   (measurable_arr.comp measurable_freshLayer).prodMk measurable_id
 
 instance : IsProbabilityMeasure colourCoupling := by
@@ -1211,13 +769,13 @@ instance : IsProbabilityMeasure colourCoupling := by
 
 @[simp] theorem colourCoupling_map_fst : colourCoupling.map Prod.fst = ternaryLaw := by
   rw [colourCoupling, Measure.map_map measurable_fst measurable_colourMap,
-    show (Prod.fst ∘ fun ω : Cube => (arr (freshLayer ω), ω)) = arr ∘ freshLayer from rfl]
+    show (Prod.fst ∘ fun ω : Cube 3 => (arr (freshLayer ω), ω)) = arr ∘ freshLayer from rfl]
   exact ternaryLaw_eq_map_cube.symm
 
 @[simp] theorem colourCoupling_map_snd :
     colourCoupling.map Prod.snd = rankLatentSource ternarySig 2 := by
   rw [colourCoupling, Measure.map_map measurable_snd measurable_colourMap,
-    show (Prod.snd ∘ fun ω : Cube => (arr (freshLayer ω), ω)) = id from rfl, Measure.map_id]
+    show (Prod.snd ∘ fun ω : Cube 3 => (arr (freshLayer ω), ω)) = id from rfl, Measure.map_id]
 
 theorem colourCoupling_invariant (σ : FinSuppPerm ternarySig) :
     colourCoupling.map (Prod.map (RelStructure.relabel σ.1) (⇑(rankLatentRelabel σ 2))) =
@@ -1226,8 +784,8 @@ theorem colourCoupling_invariant (σ : FinSuppPerm ternarySig) :
     Measure.map_map ((measurable_relabel σ.1).prodMap (rankLatentRelabel σ 2).measurable)
       measurable_colourMap,
     show (Prod.map (RelStructure.relabel σ.1) (⇑(rankLatentRelabel σ 2)) ∘
-        fun ω : Cube => (arr (freshLayer ω), ω)) =
-      (fun ω : Cube => (arr (freshLayer ω), ω)) ∘ (⇑(rankLatentRelabel σ 2)) from by
+        fun ω : Cube 3 => (arr (freshLayer ω), ω)) =
+      (fun ω : Cube 3 => (arr (freshLayer ω), ω)) ∘ (⇑(rankLatentRelabel σ 2)) from by
       funext ω
       show Prod.map (RelStructure.relabel σ.1) (rankLatentRelabel σ 2) (arr (freshLayer ω), ω) =
         (arr (freshLayer (rankLatentRelabel σ 2 ω)), rankLatentRelabel σ 2 ω)
@@ -1237,10 +795,10 @@ theorem colourCoupling_invariant (σ : FinSuppPerm ternarySig) :
 
 open scoped Classical in
 theorem ae_blockMap_colourCoupling {A : Finset (Σ _ : Unit, ℕ)} (hA : A.card < 3) :
-    (fun p : RelStructure ternarySig (Vinfinite ternarySig) × Cube =>
+    (fun p : RelStructure ternarySig (Vinfinite ternarySig) × Cube 3 =>
         blockMap (S := ternarySig) A p.1) =ᵐ[colourCoupling] fun _ => fun _ => false := by
   have hmp : MeasurePreserving (Prod.fst :
-      RelStructure ternarySig (Vinfinite ternarySig) × Cube → _) colourCoupling ternaryLaw :=
+      RelStructure ternarySig (Vinfinite ternarySig) × Cube 3 → _) colourCoupling ternaryLaw :=
     ⟨measurable_fst, colourCoupling_map_fst⟩
   exact hmp.quasiMeasurePreserving.ae (ae_blockMap_of_card_lt_three hA)
 
@@ -1269,7 +827,7 @@ noncomputable def colourRep : ternaryExchangeable.RankRepresentation 2 where
 /-- **The coloured coupling is admissible**: the structure is a function of its latents. -/
 theorem admissible_colourRep : colourRep.Admissible := by
   refine colourRep.admissible_of_ae_eq_snd (measurable_arr.comp measurable_freshLayer) ?_
-  show (fun p : RelStructure ternarySig (Vinfinite ternarySig) × Cube => p.1)
+  show (fun p : RelStructure ternarySig (Vinfinite ternarySig) × Cube 3 => p.1)
     =ᵐ[colourCoupling] fun p => (arr ∘ freshLayer) p.2
   rw [colourCoupling]
   exact (ae_map_iff measurable_colourMap.aemeasurable (measurableSet_eq_fun measurable_fst
