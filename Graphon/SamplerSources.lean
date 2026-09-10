@@ -199,6 +199,34 @@ theorem Measure.infinitePi_map_sumPiEquivProdPi {ι ι' γ : Type*} [MeasurableS
     Measure.map_infinitePi_infinitePi_of_inj Sum.inl_injective,
     Measure.map_infinitePi_infinitePi_of_inj Sum.inr_injective]
 
+/-! ### Disjoint blocks of an infinite product source are independent -/
+
+/-- **Disjoint blocks of coordinates are mutually independent.** For an injection from a sigma
+type of blocks into the index set, the block-restriction maps of an infinite product of
+probability measures are mutually independent. -/
+theorem iIndepFun_infinitePi_blocks {ι γ : Type*} [MeasurableSpace γ] (ν : ι → Measure γ)
+    [∀ i, IsProbabilityMeasure (ν i)] {k : Type*} {T : k → Type*}
+    {f : (Σ i : k, T i) → ι} (hf : Function.Injective f) :
+    ProbabilityTheory.iIndepFun (fun (i : k) (x : ι → γ) (j : T i) => x (f ⟨i, j⟩))
+      (Measure.infinitePi ν) := by
+  have hm : ∀ i : k, Measurable fun (x : ι → γ) (j : T i) => x (f ⟨i, j⟩) :=
+    fun i => measurable_pi_lambda _ fun _ => measurable_pi_apply _
+  rw [ProbabilityTheory.iIndepFun_iff_map_fun_eq_infinitePi_map hm]
+  have hjoint : (fun (x : ι → γ) (i : k) (j : T i) => x (f ⟨i, j⟩)) =
+      ⇑(MeasurableEquiv.piCurry fun (_ : k) (_ : T _) => γ) ∘
+        fun (x : ι → γ) (p : Σ i : k, T i) => x (f p) := rfl
+  rw [hjoint, ← Measure.map_map (MeasurableEquiv.piCurry _).measurable
+    (measurable_pi_lambda _ fun _ => measurable_pi_apply _),
+    Measure.map_infinitePi_infinitePi_of_inj hf]
+  show Measure.map _ (Measure.infinitePi fun p : Σ i : k, T i =>
+    (fun i j => ν (f ⟨i, j⟩)) p.1 p.2) = _
+  rw [Measure.infinitePi_map_piCurry (μ := fun i j => ν (f ⟨i, j⟩))]
+  congr 1
+  funext i
+  have hi : Function.Injective fun j : T i => f ⟨i, j⟩ :=
+    fun a b h => eq_of_heq (Sigma.mk.inj_iff.mp (hf h)).2
+  exact (Measure.map_infinitePi_infinitePi_of_inj hi).symm
+
 /-! ### Finite projections of infinite product sources -/
 
 /-- Pushing an infinite product of probability measures forward along precomposition

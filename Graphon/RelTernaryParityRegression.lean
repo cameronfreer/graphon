@@ -4,6 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelRankSuccessorContract
+import Graphon.RelAdmissible
 
 /-!
 # The ternary parity regression: no exact successor (R4 converse, #107)
@@ -1084,6 +1085,196 @@ representation, is refuted. -/
 theorem not_successorStatement : ¬ InfiniteRelExchangeableLaw.SuccessorStatement ternarySig :=
   fun h =>
   isEmpty_rankSuccessor.false (h ternaryExchangeable 2 rankTwoRep).some
+
+/-! ### Admissibility: the independent coupling fails it, the coloured coupling satisfies it -/
+
+/-- The three test sets, pairwise meeting in one vertex. -/
+def triSets : Fin 3 → Finset (Σ _ : Unit, ℕ) :=
+  ![{⟨(), 0⟩, ⟨(), 1⟩, ⟨(), 3⟩}, {⟨(), 1⟩, ⟨(), 2⟩, ⟨(), 4⟩}, {⟨(), 0⟩, ⟨(), 2⟩, ⟨(), 5⟩}]
+
+theorem card_inter_triSets : ∀ i j : Fin 3, i ≠ j → (triSets i ∩ triSets j).card = 1 := by
+  decide
+
+theorem smallOverlap_triSets : SmallOverlap (S := ternarySig) 2 triSets := by
+  intro i j hij B hBi hBj
+  have h := Finset.card_le_card (Finset.subset_inter hBi hBj)
+  rw [card_inter_triSets i j hij] at h
+  omega
+
+/-- The witnessing coordinate of each test set. -/
+def triCoord : Fin 3 → RelCoord ternarySig (Vinfinite ternarySig) :=
+  ![ternaryCoord 0 1 3, ternaryCoord 1 2 4, ternaryCoord 0 2 5]
+
+theorem triCoord_support_subset : ∀ i, (triCoord i).support ⊆ triSets i := by
+  intro i v hv
+  rw [RelCoord.mem_support_iff] at hv
+  obtain ⟨k, rfl⟩ := hv
+  fin_cases i <;> fin_cases k <;> simp [triCoord, triSets, RelCoord.taggedValue]
+
+/-- The witnessing coordinate as an induced index. -/
+def triIdx (i : Fin 3) : InducedIndex (S := ternarySig) (triSets i) :=
+  ⟨triCoord i, triCoord_support_subset i⟩
+
+/-- Each witnessing coordinate reads a pair parity. -/
+theorem arrOf_triCoord (d : ℕ → Bool) :
+    (arrOf d (triCoord 0) = xor (d 0) (d 1)) ∧ (arrOf d (triCoord 1) = xor (d 1) (d 2)) ∧
+      (arrOf d (triCoord 2) = xor (d 0) (d 2)) := by
+  refine ⟨?_, ?_, ?_⟩ <;> simp [triCoord, arrOf_apply, Distinct]
+
+/-- The event that the witnessing coordinate holds. -/
+def triEvent (i : Fin 3) : Set (RelStructure ternarySig (Vinfinite ternarySig)) :=
+  (fun X : RelStructure ternarySig (Vinfinite ternarySig) => X (triCoord i)) ⁻¹' {true}
+
+theorem measurableSet_triEvent (i : Fin 3) : MeasurableSet (triEvent i) :=
+  measurable_pi_apply _ (measurableSet_singleton true)
+
+theorem ternaryLaw_triEvent (i : Fin 3) : ternaryLaw (triEvent i) = 1 / 2 := by
+  rw [ternaryLaw, Measure.map_apply measurable_arr (measurableSet_triEvent i)]
+  have key : ∀ a b : ℕ, a ≠ b →
+      (∀ ω : Colours, arr ω (triCoord i) = xor (colour ω a) (colour ω b)) →
+      (iidUniformSource (RankSupport ternarySig 1)) (arr ⁻¹' triEvent i) = 1 / 2 := by
+    intro a b hab hx
+    have : arr ⁻¹' triEvent i = arr ⁻¹' pairEvent a b := by
+      ext ω
+      simp only [Set.mem_preimage, triEvent, Set.mem_singleton_iff, mem_pairEvent_arr, hx, hab,
+        ne_eq, not_false_eq_true, true_and]
+    rw [this, ← Measure.map_apply measurable_arr (measurableSet_pairEvent a b), ← ternaryLaw,
+      ternaryLaw_pairEvent hab]
+  fin_cases i
+  · exact key 0 1 (by decide) fun ω => (arrOf_triCoord (colour ω)).1
+  · exact key 1 2 (by decide) fun ω => (arrOf_triCoord (colour ω)).2.1
+  · exact key 0 2 (by decide) fun ω => (arrOf_triCoord (colour ω)).2.2
+
+theorem ternaryLaw_triEvent_inter : ternaryLaw (⋂ i, triEvent i) = 0 := by
+  rw [ternaryLaw, Measure.map_apply measurable_arr (MeasurableSet.iInter measurableSet_triEvent)]
+  have : arr ⁻¹' (⋂ i, triEvent i) = ∅ := by
+    ext ω
+    simp only [Set.mem_preimage, Set.mem_iInter, triEvent, Set.mem_singleton_iff,
+      Set.mem_empty_iff_false, iff_false, not_forall]
+    obtain ⟨h0, h1, h2⟩ := arrOf_triCoord (colour ω)
+    by_contra h
+    push Not at h
+    have e0 := h 0; have e1 := h 1; have e2 := h 2
+    rw [arr, h0] at e0; rw [arr, h1] at e1; rw [arr, h2] at e2
+    revert e0 e1 e2
+    cases colour ω 0 <;> cases colour ω 1 <;> cases colour ω 2 <;> simp
+  rw [this, measure_empty]
+
+/-- The witnessing event on the induced structure. -/
+def triSet (i : Fin 3) : Set (InducedSpace (S := ternarySig) (triSets i)) :=
+  (fun x : InducedSpace (S := ternarySig) (triSets i) => x (triIdx i)) ⁻¹' {true}
+
+theorem measurableSet_triSet (i : Fin 3) : MeasurableSet (triSet i) :=
+  (measurable_pi_apply (triIdx i)) MeasurableSet.of_discrete
+
+/-- **The independent coupling is not admissible**: three induced structures with pairwise
+single-vertex overlaps read three parities of a triangle. -/
+theorem not_admissible_rankTwoRep : ¬ rankTwoRep.Admissible := by
+  intro h
+  have hind : IndepFun (Prod.fst : RelStructure ternarySig (Vinfinite ternarySig) × Cube → _)
+      Prod.snd rankTwoCoupling := by
+    refine (indepFun_iff_map_prod_eq_prod_map_map measurable_fst.aemeasurable
+      measurable_snd.aemeasurable).mpr ?_
+    rw [show (fun p : RelStructure ternarySig (Vinfinite ternarySig) × Cube => (p.1, p.2)) = id
+      from rfl, Measure.map_id, rankTwoCoupling_map_fst, rankTwoCoupling_map_snd]
+    rfl
+  have h' := (rankTwoRep.admissible_iff_iIndepFun_of_indep hind).mp h 3 triSets
+    smallOverlap_triSets
+  rw [iIndepFun_iff_measure_inter_preimage_eq_mul] at h'
+  have key := h' Finset.univ (sets := triSet) (fun i _ => measurableSet_triSet i)
+  have hpre : ∀ i, (inducedMap (triSets i) ∘
+      (Prod.fst : RelStructure ternarySig (Vinfinite ternarySig) × Cube → _)) ⁻¹' triSet i =
+      Prod.fst ⁻¹' triEvent i := fun i => rfl
+  simp only [hpre, Finset.mem_univ, Set.iInter_true] at key
+  have hP : rankTwoRep.P = rankTwoCoupling := rfl
+  have hfst : ∀ i, rankTwoCoupling (Prod.fst ⁻¹' triEvent i) = 1 / 2 := fun i => by
+    rw [← Measure.map_apply measurable_fst (measurableSet_triEvent i), rankTwoCoupling_map_fst,
+      ternaryLaw_triEvent]
+  rw [hP, ← Set.preimage_iInter, ← Measure.map_apply measurable_fst
+    (MeasurableSet.iInter measurableSet_triEvent), rankTwoCoupling_map_fst,
+    ternaryLaw_triEvent_inter, Fin.prod_univ_three, hfst, hfst, hfst] at key
+  norm_num at key
+
+/-! ### The coloured coupling -/
+
+/-- **The coloured coupling**: the singleton latents carry the colours. -/
+noncomputable def colourCoupling :
+    Measure (RelStructure ternarySig (Vinfinite ternarySig) × Cube) :=
+  (rankLatentSource ternarySig 2).map fun ω => (arr (freshLayer ω), ω)
+
+theorem measurable_colourMap : Measurable fun ω : Cube => (arr (freshLayer ω), ω) :=
+  (measurable_arr.comp measurable_freshLayer).prodMk measurable_id
+
+instance : IsProbabilityMeasure colourCoupling := by
+  rw [colourCoupling]
+  exact Measure.isProbabilityMeasure_map measurable_colourMap.aemeasurable
+
+@[simp] theorem colourCoupling_map_fst : colourCoupling.map Prod.fst = ternaryLaw := by
+  rw [colourCoupling, Measure.map_map measurable_fst measurable_colourMap,
+    show (Prod.fst ∘ fun ω : Cube => (arr (freshLayer ω), ω)) = arr ∘ freshLayer from rfl]
+  exact ternaryLaw_eq_map_cube.symm
+
+@[simp] theorem colourCoupling_map_snd :
+    colourCoupling.map Prod.snd = rankLatentSource ternarySig 2 := by
+  rw [colourCoupling, Measure.map_map measurable_snd measurable_colourMap,
+    show (Prod.snd ∘ fun ω : Cube => (arr (freshLayer ω), ω)) = id from rfl, Measure.map_id]
+
+theorem colourCoupling_invariant (σ : FinSuppPerm ternarySig) :
+    colourCoupling.map (Prod.map (RelStructure.relabel σ.1) (⇑(rankLatentRelabel σ 2))) =
+      colourCoupling := by
+  rw [colourCoupling,
+    Measure.map_map ((measurable_relabel σ.1).prodMap (rankLatentRelabel σ 2).measurable)
+      measurable_colourMap,
+    show (Prod.map (RelStructure.relabel σ.1) (⇑(rankLatentRelabel σ 2)) ∘
+        fun ω : Cube => (arr (freshLayer ω), ω)) =
+      (fun ω : Cube => (arr (freshLayer ω), ω)) ∘ (⇑(rankLatentRelabel σ 2)) from by
+      funext ω
+      show Prod.map (RelStructure.relabel σ.1) (rankLatentRelabel σ 2) (arr (freshLayer ω), ω) =
+        (arr (freshLayer (rankLatentRelabel σ 2 ω)), rankLatentRelabel σ 2 ω)
+      exact Prod.ext (arr_freshLayer_rankLatentRelabel σ ω).symm rfl,
+    ← Measure.map_map measurable_colourMap (rankLatentRelabel σ 2).measurable,
+    rankLatentSource_map_rankLatentRelabel]
+
+open scoped Classical in
+theorem ae_blockMap_colourCoupling {A : Finset (Σ _ : Unit, ℕ)} (hA : A.card < 3) :
+    (fun p : RelStructure ternarySig (Vinfinite ternarySig) × Cube =>
+        blockMap (S := ternarySig) A p.1) =ᵐ[colourCoupling] fun _ => fun _ => false := by
+  have hmp : MeasurePreserving (Prod.fst :
+      RelStructure ternarySig (Vinfinite ternarySig) × Cube → _) colourCoupling ternaryLaw :=
+    ⟨measurable_fst, colourCoupling_map_fst⟩
+  exact hmp.quasiMeasurePreserving.ae (ae_blockMap_of_card_lt_three hA)
+
+open scoped Classical in
+/-- **The coloured rank-two representation.** -/
+noncomputable def colourRep : ternaryExchangeable.RankRepresentation 2 where
+  P := colourCoupling
+  isProbabilityMeasure_P := inferInstance
+  map_fst := colourCoupling_map_fst
+  map_snd := colourCoupling_map_snd
+  invariant := colourCoupling_invariant
+  lower_recovers := fun A hA =>
+    ⟨fun _ => fun _ => false, measurable_const, ae_blockMap_colourCoupling (by omega)⟩
+  fixing_complete := fun _ _ E hE =>
+    ⟨(arr ∘ freshLayer) ⁻¹' E,
+      (measurable_arr.comp measurable_freshLayer) (RelStructure.fixingAlgebra_le _ E hE),
+      snd_preimage_ae_eq_fst_preimage_map_graph (measurable_arr.comp measurable_freshLayer)
+        (RelStructure.fixingAlgebra_le _ E hE)⟩
+  screening := fun A hA =>
+    CondIndepFun.congr (condIndepFun_const_left (fun _ => false) _) measurable_const
+      (measurable_restObservation 2 _)
+      ((measurable_blockMap (S := ternarySig) _).comp measurable_fst)
+      (measurable_restObservation 2 _) (ae_blockMap_colourCoupling (by omega)).symm
+      Filter.EventuallyEq.rfl
+
+/-- **The coloured coupling is admissible**: the structure is a function of its latents. -/
+theorem admissible_colourRep : colourRep.Admissible := by
+  refine colourRep.admissible_of_ae_eq_snd (measurable_arr.comp measurable_freshLayer) ?_
+  show (fun p : RelStructure ternarySig (Vinfinite ternarySig) × Cube => p.1)
+    =ᵐ[colourCoupling] fun p => (arr ∘ freshLayer) p.2
+  rw [colourCoupling]
+  exact (ae_map_iff measurable_colourMap.aemeasurable (measurableSet_eq_fun measurable_fst
+    ((measurable_arr.comp measurable_freshLayer).comp measurable_snd))).mpr
+    (Filter.Eventually.of_forall fun _ => rfl)
 
 end TernaryParityRegression
 
