@@ -396,7 +396,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.InfiniteRelExchangeableLaw.preimage_layerCylinder_refinedLayerMap
 #print axioms RelSignature.InfiniteRelExchangeableLaw.ae_refinedLayerKernel_layerCylinder
 #print axioms RelSignature.InfiniteRelExchangeableLaw.refinedLayerKernel_map_ae_eq_infinitePi
-#print axioms MeasureTheory.Measure.infinitePi_map_comp_of_injective'
+#print axioms RelSignature.TernaryParityRegression.not_successorStatement
 #print axioms RelSignature.TernaryParityRegression.vertexSupport_injective
 #print axioms RelSignature.TernaryParityRegression.measurable_colour
 #print axioms RelSignature.TernaryParityRegression.distinct_map

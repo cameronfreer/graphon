@@ -29,7 +29,8 @@ this rank-two representation has **no** `RankSuccessor`.
 * `pairEvent` — the pair fixing events and their parity reading `mem_pairEvent_arr`.
 * `rankTwoRep` — the independent rank-two representation.
 * `fixing_trivial_of_card_lt_two` — triviality of the empty and singleton fixing algebras.
-* `isEmpty_rankSuccessor` — the obstruction.
+* `isEmpty_rankSuccessor`, `not_successorStatement` — the obstruction, and the refutation of the
+  universal successor statement.
 -/
 
 open MeasureTheory ProbabilityTheory
@@ -529,7 +530,7 @@ theorem map_offColour_flip (v : ℕ) :
   have hsrc : (rankLatentSource ternarySig 2).map (fun (ω : Cube) (w : ℕ) => ω (singIndex w)) =
       Measure.infinitePi fun _ : ℕ => uniform01 := by
     rw [rankLatentSource, iidUniformSource]
-    exact Measure.infinitePi_map_comp_of_injective' _ singIndex_injective
+    exact Measure.map_infinitePi_infinitePi_of_inj singIndex_injective
   have hψ : Measurable fun (x : ℕ → ℝ) (w : ℕ) => g w (x w) :=
     measurable_pi_lambda _ fun w => (hgm w).comp (measurable_pi_apply w)
   have hψ' : Measurable fun (x : ℕ → ℝ) (w : ℕ) => g' w (x w) :=
@@ -1077,6 +1078,12 @@ theorem isEmpty_rankSuccessor : IsEmpty (InfiniteRelExchangeableLaw.RankSuccesso
     rw [lintegral_congr_ae hae, lintegral_const, measure_univ, mul_one, h8]
   rw [hT0] at hT8
   exact absurd hT8.symm (by simp)
+
+/-- **The universal successor statement is false**: the old target, quantified over every current
+representation, is refuted. -/
+theorem not_successorStatement : ¬ InfiniteRelExchangeableLaw.SuccessorStatement ternarySig :=
+  fun h =>
+  isEmpty_rankSuccessor.false (h ternaryExchangeable 2 rankTwoRep).some
 
 end TernaryParityRegression
 

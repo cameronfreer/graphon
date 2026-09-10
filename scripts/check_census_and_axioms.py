@@ -420,7 +420,7 @@ AUDITED_DECLS = {
     "RelSignature.InfiniteRelExchangeableLaw.preimage_layerCylinder_refinedLayerMap",
     "RelSignature.InfiniteRelExchangeableLaw.ae_refinedLayerKernel_layerCylinder",
     "RelSignature.InfiniteRelExchangeableLaw.refinedLayerKernel_map_ae_eq_infinitePi",
-    "MeasureTheory.Measure.infinitePi_map_comp_of_injective'",
+    "RelSignature.TernaryParityRegression.not_successorStatement",
     "RelSignature.TernaryParityRegression.vertexSupport_injective",
     "RelSignature.TernaryParityRegression.measurable_colour",
     "RelSignature.TernaryParityRegression.distinct_map",
