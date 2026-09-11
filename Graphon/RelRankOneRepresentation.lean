@@ -42,6 +42,57 @@ universe u
 
 variable {S : RelSignature.{u}}
 
+/-- **The rank-one representation built from a rank-one latent coupling.** The fields are the
+transported coupling clauses, the nullary-block recovery, fixing completeness read off the
+lower-rank factor, and the conditioning ladder. -/
+noncomputable def CoherentBasis.rankOneRepOf [Countable S.Srt] [Countable S.Rel]
+    {M : InfiniteRelExchangeableLaw S} (B : CoherentBasis M) (f : ℝ → B.LowerFactorSpace 1)
+    (g : RankLatentSpace S 1 → B.LowerFactorSpace 1) (hg : Measurable g)
+    (hprob : IsProbabilityMeasure (B.rankOneLatentCoupling f))
+    (hfst : (B.rankOneLatentCoupling f).map Prod.fst =
+      (M.law : Measure (RelStructure S (Vinfinite S))))
+    (hsnd : (B.rankOneLatentCoupling f).map Prod.snd = rankLatentSource S 1)
+    (hinv : ∀ σ : FinSuppPerm S, (B.rankOneLatentCoupling f).map
+      (Prod.map (RelStructure.relabel σ.1) (rankLatentRelabel σ 1)) = B.rankOneLatentCoupling f)
+    (hres : B.lowerFactorMap 1 ∘ Prod.fst =ᵐ[B.rankOneLatentCoupling f] g ∘ Prod.snd)
+    (hci : CondIndepFun (MeasurableSpace.comap (B.lowerFactorMap 1 ∘ Prod.fst) inferInstance)
+      ((B.measurable_lowerFactorMap' 1).comp measurable_fst).comap_le
+      Prod.fst Prod.snd (B.rankOneLatentCoupling f)) :
+    M.RankRepresentation 1 :=
+  haveI := hprob
+  { P := B.rankOneLatentCoupling f
+    isProbabilityMeasure_P := hprob
+    map_fst := hfst
+    map_snd := hsnd
+    invariant := hinv
+    lower_recovers := fun A hA => B.exists_blockMap_recovery_of_card_lt_one hfst hg hres A hA
+    fixing_complete := fun A hA E hE => by
+      classical
+      have hqmp : Measure.QuasiMeasurePreserving
+          (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S 1 → _)
+          (B.rankOneLatentCoupling f) (M.law : Measure (RelStructure S (Vinfinite S))) :=
+        ⟨measurable_fst, hfst ▸ Measure.AbsolutelyContinuous.rfl⟩
+      obtain ⟨E₀, hE₀meas, hE₀ae⟩ := B.exists_comap_factorMap_ae_eq A hE
+      obtain ⟨T, hT, hTE⟩ := B.comap_factorMap_le_comap_lowerFactorMap hA _ hE₀meas
+      refine ⟨g ⁻¹' T, hg hT, ?_⟩
+      have h1 : Prod.fst ⁻¹' E =ᵐ[B.rankOneLatentCoupling f] Prod.fst ⁻¹' E₀ :=
+        hqmp.preimage_ae_eq hE₀ae.symm
+      have h2 : Prod.fst ⁻¹' E₀ =ᵐ[B.rankOneLatentCoupling f] Prod.snd ⁻¹' (g ⁻¹' T) := by
+        rw [← hTE]
+        refine Filter.eventuallyEq_set.mpr ?_
+        filter_upwards [hres] with p hp
+        show p.1 ∈ B.lowerFactorMap 1 ⁻¹' T ↔ p ∈ Prod.snd ⁻¹' (g ⁻¹' T)
+        simp only [Set.mem_preimage]
+        rw [show B.lowerFactorMap 1 p.1 = g p.2 from hp]
+      exact (h1.trans h2).symm
+    screening := fun A hA => by
+      classical
+      obtain ⟨g₀, hg₀, hrec⟩ := B.exists_blockMap_recovery_of_card_lt_one hfst hg hres
+        (∅ : Finset (Σ s : S.Srt, Vinfinite S s)) (by simp)
+      exact condIndepFun_blockMap_restObservation_one
+        (B.iCondIndepFun_blockMap_singleton_comap_snd hfst hg hres hci)
+        hg₀ hrec A hA }
+
 /-- **The rank-one representation exists**, for an arbitrary exchangeable law: a coupling of
 the law with the rank-one latents satisfying all `RankRepresentation` clauses — marginals,
 joint relabeling invariance, local recovery of everything below rank one, and rank-truncated
@@ -52,33 +103,6 @@ theorem InfiniteRelExchangeableLaw.nonempty_rankRepresentation_one
   classical
   obtain ⟨B⟩ := M.nonempty_coherentBasis
   obtain ⟨f, g, hg, hprob, hfst, hsnd, hinv, hres, hci⟩ := B.exists_rankOneLatentCoupling
-  haveI := hprob
-  obtain ⟨g₀, hg₀, hrec⟩ := B.exists_blockMap_recovery_of_card_lt_one hfst hg hres
-    (∅ : Finset (Σ s : S.Srt, Vinfinite S s)) (by simp)
-  have hladder := B.iCondIndepFun_blockMap_singleton_comap_snd hfst hg hres
-    (hci measurable_id)
-  have hqmp : Measure.QuasiMeasurePreserving
-      (Prod.fst : RelStructure S (Vinfinite S) × RankLatentSpace S 1 → _)
-      (B.rankOneLatentCoupling f) (M.law : Measure (RelStructure S (Vinfinite S))) :=
-    ⟨measurable_fst, hfst ▸ Measure.AbsolutelyContinuous.rfl⟩
-  refine ⟨⟨B.rankOneLatentCoupling f, hprob, hfst, hsnd, hinv,
-    fun A hA => B.exists_blockMap_recovery_of_card_lt_one hfst hg hres A hA,
-    fun A hA E hE => ?_,
-    fun A hA => condIndepFun_blockMap_restObservation_one hladder hg₀ hrec A hA⟩⟩
-  -- fixing completeness: a representative read off the lower-rank factor, transported to the
-  -- coupling and across the recovery identity
-  obtain ⟨E₀, hE₀meas, hE₀ae⟩ := B.exists_comap_factorMap_ae_eq A hE
-  obtain ⟨T, hT, hTE⟩ := B.comap_factorMap_le_comap_lowerFactorMap hA _ hE₀meas
-  refine ⟨g ⁻¹' T, hg hT, ?_⟩
-  have h1 : Prod.fst ⁻¹' E =ᵐ[B.rankOneLatentCoupling f] Prod.fst ⁻¹' E₀ :=
-    hqmp.preimage_ae_eq hE₀ae.symm
-  have h2 : Prod.fst ⁻¹' E₀ =ᵐ[B.rankOneLatentCoupling f] Prod.snd ⁻¹' (g ⁻¹' T) := by
-    rw [← hTE]
-    refine Filter.eventuallyEq_set.mpr ?_
-    filter_upwards [hres] with p hp
-    show p.1 ∈ B.lowerFactorMap 1 ⁻¹' T ↔ p ∈ Prod.snd ⁻¹' (g ⁻¹' T)
-    simp only [Set.mem_preimage]
-    rw [show B.lowerFactorMap 1 p.1 = g p.2 from hp]
-  exact (h1.trans h2).symm
+  exact ⟨B.rankOneRepOf f g hg hprob hfst hsnd hinv hres (hci measurable_id)⟩
 
 end RelSignature

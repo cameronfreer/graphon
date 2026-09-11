@@ -49,18 +49,6 @@ variable {S : RelSignature.{u}}
 
 /-! ### Carrier identities -/
 
-/-- Restricting the identified carrier along the doubling embedding reads the original half. -/
-theorem restrict_doubleEmb_poolStructureEquiv (Y : RelStructure S (PoolVertex S)) :
-    RelStructure.restrict (doubleEmb S) (poolStructureEquiv S Y) = restrictOriginal S Y := by
-  funext c
-  change Y (RelCoord.map (fun s => ((poolVertexEquiv S s).symm : Vinfinite S s → PoolVertex S s))
-    (RelCoord.map (fun s => (doubleEmb S s : Vinfinite S s → Vinfinite S s)) c)) =
-    Y (RelCoord.map (fun s => (originalVertex S s : Vinfinite S s → PoolVertex S s)) c)
-  rw [← RelCoord.map_comp]
-  congr 2
-  funext s x
-  exact (poolVertexEquiv S s).symm_apply_apply (Sum.inl x)
-
 /-- The identified support of an original-half support is the doubled support. -/
 theorem identifiedSupport_supportImage_originalVertex (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     identifiedSupport (supportImage (originalVertex S) A) = doubleSupport A := by

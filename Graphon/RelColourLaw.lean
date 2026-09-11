@@ -114,7 +114,7 @@ theorem freshLayer_rankLatentRelabel (σ : FinSuppPerm (oneSortSig k)) (ω : Cub
   show freshLayer ω (rankSupportEquiv σ 1 A) = _
   rw [rankSupportEquiv_eq_supportPerm]
 
-/-- **Exact equivariance on the cube.** -/
+/-- The singleton latent index at a vertex. -/
 def singIndex (k : ℕ) (w : ℕ) : RankLatentIndex (oneSortSig k) 2 :=
   ⟨{⟨(), w⟩}, by simp⟩
 

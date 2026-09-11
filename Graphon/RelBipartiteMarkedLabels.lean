@@ -4,7 +4,7 @@ Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
 import Graphon.RelBipartiteScreening
-import Graphon.RelRefinedRealization
+import Graphon.RelPooledFixingSeam
 
 /-!
 # Marked labels in the pooled bipartite law (R4 converse, #107, #197)

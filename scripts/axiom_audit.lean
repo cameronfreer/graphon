@@ -517,6 +517,11 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.BipartiteRegression.bipartiteLaw_pairEvent_inter
 #print axioms RelSignature.BipartiteRegression.not_iCondIndepFun_singletonFixing
 #print axioms RelSignature.BipartiteRegression.screening_fails_but_successor_exists
+#print axioms RelSignature.measurable_inducedMap_fixingAlgebra
+#print axioms RelSignature.InfiniteRelExchangeableLaw.disjoint_of_smallOverlap_one
+#print axioms RelSignature.InfiniteRelExchangeableLaw.iCondIndepFun_inducedMap_of_smallOverlap_one
+#print axioms RelSignature.CoherentBasis.iCondIndepFun_comap_snd_of_invariant
+#print axioms RelSignature.InfiniteRelExchangeableLaw.exists_admissible_rankRepresentation_one
 #print axioms RelSignature.BipartiteRegression.measurable_labels
 #print axioms RelSignature.BipartiteRegression.measurable_idStructure
 #print axioms RelSignature.BipartiteRegression.measurable_idLatents

@@ -149,6 +149,18 @@ noncomputable def pooledFiniteActiveFixingAlgebra (X : Finset (Σ s : S.Srt, Poo
     (RelStructure.finiteActiveFixingAlgebra
       (supportImage (fun s => (poolVertexEquiv S s).toEmbedding) X))
 
+/-- Restricting the identified carrier along the doubling embedding reads the original half. -/
+theorem restrict_doubleEmb_poolStructureEquiv (Y : RelStructure S (PoolVertex S)) :
+    RelStructure.restrict (doubleEmb S) (poolStructureEquiv S Y) = restrictOriginal S Y := by
+  funext c
+  change Y (RelCoord.map (fun s => ((poolVertexEquiv S s).symm : Vinfinite S s → PoolVertex S s))
+    (RelCoord.map (fun s => (doubleEmb S s : Vinfinite S s → Vinfinite S s)) c)) =
+    Y (RelCoord.map (fun s => (originalVertex S s : Vinfinite S s → PoolVertex S s)) c)
+  rw [← RelCoord.map_comp]
+  congr 2
+  funext s x
+  exact (poolVertexEquiv S s).symm_apply_apply (Sum.inl x)
+
 /-! ### The doubled sub-copy under an exchangeable law -/
 
 namespace InfiniteRelExchangeableLaw
