@@ -522,6 +522,11 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.InfiniteRelExchangeableLaw.iCondIndepFun_inducedMap_of_smallOverlap_one
 #print axioms RelSignature.CoherentBasis.iCondIndepFun_comap_snd_of_invariant
 #print axioms RelSignature.InfiniteRelExchangeableLaw.exists_admissible_rankRepresentation_one
+#print axioms RelSignature.ae_eq_map_of_preimage_ae_eq
+#print axioms RelSignature.iSup_rat_lt_eq
+#print axioms RelSignature.InfiniteRelExchangeableLaw.comap_localLatents_snd_le
+#print axioms RelSignature.InfiniteRelExchangeableLaw.comap_rankLatentRelabel_comp_snd
+#print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.condExp_fixing_eq_local
 #print axioms RelSignature.BipartiteRegression.measurable_labels
 #print axioms RelSignature.BipartiteRegression.measurable_idStructure
 #print axioms RelSignature.BipartiteRegression.measurable_idLatents

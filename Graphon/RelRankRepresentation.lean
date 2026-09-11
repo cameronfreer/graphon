@@ -137,7 +137,7 @@ theorem measurable_restObservation [Countable S.Rel] (n : ℕ)
   (measurable_pi_lambda _ fun _ => measurable_fst.eval).prodMk measurable_snd
 
 /-- Pushing an almost-everywhere equality of measurable sets forward along a measurable map. -/
-private theorem ae_eq_map_of_preimage_ae_eq {α β : Type*} [MeasurableSpace α] [MeasurableSpace β]
+theorem ae_eq_map_of_preimage_ae_eq {α β : Type*} [MeasurableSpace α] [MeasurableSpace β]
     {μ : Measure α} {f : α → β} (hf : Measurable f) {s t : Set β}
     (hs : MeasurableSet s) (ht : MeasurableSet t) (h : f ⁻¹' s =ᵐ[μ] f ⁻¹' t) :
     s =ᵐ[μ.map f] t := by

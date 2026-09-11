@@ -194,36 +194,40 @@ namespace CoherentBasis
 variable {S : RelSignature.{u}} {M : InfiniteRelExchangeableLaw S} (B : CoherentBasis M)
 
 open scoped Classical in
-/-- **The conditioning ladder.** Under a coupling of the law with the rank-one latents —
-structure marginal the law, rank-one factor resolved by a measurable latent read, structure and
-latent conditionally independent given the factor — the singleton blocks are **mutually**
-conditionally independent given the full latent σ-algebra. -/
-theorem iCondIndepFun_blockMap_singleton_comap_snd [Countable S.Rel]
+/-- **The conditioning ladder, generalized.** Under a coupling of the law with the rank-one
+latents — structure marginal the law, rank-one factor resolved by a measurable latent read,
+structure and latent conditionally independent given the factor — any family of structure
+observations that is mutually conditionally independent given the invariant σ-algebra under
+the law is mutually conditionally independent given the full latent σ-algebra under the
+coupling. The canonical coupling's conditional-independence clause is consumed at the
+refinement rung; recovery alone would not justify the extra information in the latent. -/
+theorem iCondIndepFun_comap_snd_of_invariant [Countable S.Rel]
     {P : Measure (RelStructure S (Vinfinite S) × RankLatentSpace S 1)}
     [IsProbabilityMeasure P]
     (hfst : P.map Prod.fst = (M.law : Measure (RelStructure S (Vinfinite S))))
     {g : RankLatentSpace S 1 → B.LowerFactorSpace 1} (hg : Measurable g)
     (hres : B.lowerFactorMap 1 ∘ Prod.fst =ᵐ[P] g ∘ Prod.snd)
     (hci : CondIndepFun (MeasurableSpace.comap (B.lowerFactorMap 1 ∘ Prod.fst) inferInstance)
-      ((B.measurable_lowerFactorMap' 1).comp measurable_fst).comap_le Prod.fst Prod.snd P) :
+      ((B.measurable_lowerFactorMap' 1).comp measurable_fst).comap_le Prod.fst Prod.snd P)
+    {ι : Type*} {γ : ι → Type*} [∀ i, MeasurableSpace (γ i)]
+    {Y : ∀ i, RelStructure S (Vinfinite S) → γ i} (hY : ∀ i, Measurable (Y i))
+    (hinv : iCondIndepFun RelStructure.invariantAlgebra (RelStructure.invariantAlgebra_le (S := S))
+      Y (M.law : Measure (RelStructure S (Vinfinite S)))) :
     iCondIndepFun (MeasurableSpace.comap (Prod.snd : RelStructure S (Vinfinite S) ×
         RankLatentSpace S 1 → RankLatentSpace S 1) inferInstance)
-      measurable_snd.comap_le
-      (singletonBlockRead S) P := by
+      measurable_snd.comap_le (fun i => Y i ∘ Prod.fst) P := by
   classical
   haveI : IsProbabilityMeasure (M.law : Measure (RelStructure S (Vinfinite S))) := M.law.2
   have hMP : MeasurePreserving Prod.fst P (M.law : Measure (RelStructure S (Vinfinite S))) :=
     ⟨measurable_fst, hfst⟩
-  have hblockmeas : ∀ v : Σ s : S.Srt, Vinfinite S s,
-      Measurable (singletonBlockRead S v) :=
-    fun v => measurable_singletonBlockRead v
-  -- rung 1: the peel, pulled to the coupling along `fst`
+  have hmeas : ∀ i, Measurable (Y i ∘ (Prod.fst : RelStructure S (Vinfinite S) ×
+      RankLatentSpace S 1 → _)) := fun i => (hY i).comp measurable_fst
+  -- rung 1: the source statement, pulled to the coupling along `fst`
   have h1 : iCondIndepFun (RelStructure.invariantAlgebra.comap Prod.fst)
       ((MeasurableSpace.comap_mono (RelStructure.invariantAlgebra_le (S := S))).trans
         (measurable_iff_comap_le.mp hMP.measurable))
-      (singletonBlockRead S) P :=
-    iCondIndepFun_comp_measurePreserving hMP (RelStructure.invariantAlgebra_le (S := S))
-      (fun v => measurable_blockMap _) (M.iCondIndepFun_blockMap_singleton)
+      (fun i => Y i ∘ Prod.fst) P :=
+    iCondIndepFun_comp_measurePreserving hMP (RelStructure.invariantAlgebra_le (S := S)) hY hinv
   -- rung 2: down to the rank-one factor pullback, by eventwise representability
   have hFI : MeasurableSpace.comap (B.lowerFactorMap 1 ∘ Prod.fst) inferInstance ≤
       RelStructure.invariantAlgebra.comap
@@ -249,8 +253,8 @@ theorem iCondIndepFun_blockMap_singleton_comap_snd [Countable S.Rel]
       (MeasurableSpace.comap (B.lowerFactorMap 1 ∘ Prod.fst) inferInstance)
       (hFI.trans ((MeasurableSpace.comap_mono (RelStructure.invariantAlgebra_le (S := S))).trans
         (measurable_iff_comap_le.mp hMP.measurable)))
-      (singletonBlockRead S) P :=
-    (iCondIndepFun_congr_of_ae_representable hFI _ hrepFI hblockmeas).mp h1
+      (fun i => Y i ∘ Prod.fst) P :=
+    (iCondIndepFun_congr_of_ae_representable hFI _ hrepFI hmeas).mp h1
   -- rung 3: up to the join with the latent algebra, by independent refinement
   have hciAlg : CondIndep (MeasurableSpace.comap (B.lowerFactorMap 1 ∘ Prod.fst) inferInstance)
       (MeasurableSpace.comap (Prod.fst : RelStructure S (Vinfinite S) ×
@@ -259,35 +263,31 @@ theorem iCondIndepFun_blockMap_singleton_comap_snd [Countable S.Rel]
         RankLatentSpace S 1 → _) inferInstance)
       ((B.measurable_lowerFactorMap' 1).comp measurable_fst).comap_le P :=
     (condIndepFun_iff_condIndep _ _ _ _ _).mp hci
-  have hsupBlocks : (⨆ v : Σ s : S.Srt, Vinfinite S s, MeasurableSpace.comap
-      (singletonBlockRead S v) inferInstance) ≤
+  have hsupY : (⨆ i, MeasurableSpace.comap (Y i ∘ Prod.fst) inferInstance) ≤
       MeasurableSpace.comap (Prod.fst : RelStructure S (Vinfinite S) ×
         RankLatentSpace S 1 → _) inferInstance :=
-    iSup_le fun v => by
-      rw [show singletonBlockRead S v
-            = blockMap ({v} : Finset (Σ s : S.Srt, Vinfinite S s)) ∘ Prod.fst from rfl,
-        ← MeasurableSpace.comap_comp]
-      exact MeasurableSpace.comap_mono (measurable_iff_comap_le.mp (measurable_blockMap _))
+    iSup_le fun i => by
+      rw [← MeasurableSpace.comap_comp]
+      exact MeasurableSpace.comap_mono (measurable_iff_comap_le.mp (hY i))
   have h3 : CondIndep (MeasurableSpace.comap (B.lowerFactorMap 1 ∘ Prod.fst) inferInstance)
-      (⨆ v : Σ s : S.Srt, Vinfinite S s, MeasurableSpace.comap
-        (singletonBlockRead S v) inferInstance)
+      (⨆ i, MeasurableSpace.comap (Y i ∘ Prod.fst) inferInstance)
       (MeasurableSpace.comap (B.lowerFactorMap 1 ∘ Prod.fst) inferInstance ⊔
         MeasurableSpace.comap (Prod.snd : RelStructure S (Vinfinite S) ×
           RankLatentSpace S 1 → _) inferInstance)
       ((B.measurable_lowerFactorMap' 1).comp measurable_fst).comap_le P := by
-    refine CondIndep.sup_right ?_ (hsupBlocks.trans (measurable_iff_comap_le.mp measurable_fst))
+    refine CondIndep.sup_right ?_ (hsupY.trans (measurable_iff_comap_le.mp measurable_fst))
       measurable_snd.comap_le
-    exact condIndep_of_condIndep_of_le_left hciAlg hsupBlocks
+    exact condIndep_of_condIndep_of_le_left hciAlg hsupY
   have h4 : iCondIndepFun
       (MeasurableSpace.comap (B.lowerFactorMap 1 ∘ Prod.fst) inferInstance ⊔
         MeasurableSpace.comap (Prod.snd : RelStructure S (Vinfinite S) ×
           RankLatentSpace S 1 → _) inferInstance)
       (sup_le (((B.measurable_lowerFactorMap' 1).comp measurable_fst).comap_le)
         measurable_snd.comap_le)
-      (singletonBlockRead S) P := by
+      (fun i => Y i ∘ Prod.fst) P := by
     rw [iCondIndepFun_iff_iCondIndep] at h2 ⊢
     exact iCondIndep_of_condIndep_iSup _ _ le_sup_left
-      (fun v => (hblockmeas v).comap_le) h2 h3
+      (fun i => (hmeas i).comap_le) h2 h3
   -- rung 4: down to the latent algebra alone, by representability of the join
   have hrepJ : ∀ s, MeasurableSet[MeasurableSpace.comap
       (B.lowerFactorMap 1 ∘ Prod.fst) inferInstance ⊔
@@ -302,7 +302,25 @@ theorem iCondIndepFun_blockMap_singleton_comap_snd [Countable S.Rel]
     filter_upwards [hres] with p hp
     simp only [Set.mem_preimage, Function.comp_apply]
     rw [show B.lowerFactorMap 1 p.1 = g p.2 from hp]
-  exact (iCondIndepFun_congr_of_ae_representable le_sup_right _ hrepJ hblockmeas).mp h4
+  exact (iCondIndepFun_congr_of_ae_representable le_sup_right _ hrepJ hmeas).mp h4
+
+open scoped Classical in
+/-- **The conditioning ladder** for the singleton blocks: the general ladder applied to the
+singleton peel. -/
+theorem iCondIndepFun_blockMap_singleton_comap_snd [Countable S.Rel]
+    {P : Measure (RelStructure S (Vinfinite S) × RankLatentSpace S 1)}
+    [IsProbabilityMeasure P]
+    (hfst : P.map Prod.fst = (M.law : Measure (RelStructure S (Vinfinite S))))
+    {g : RankLatentSpace S 1 → B.LowerFactorSpace 1} (hg : Measurable g)
+    (hres : B.lowerFactorMap 1 ∘ Prod.fst =ᵐ[P] g ∘ Prod.snd)
+    (hci : CondIndepFun (MeasurableSpace.comap (B.lowerFactorMap 1 ∘ Prod.fst) inferInstance)
+      ((B.measurable_lowerFactorMap' 1).comp measurable_fst).comap_le Prod.fst Prod.snd P) :
+    iCondIndepFun (MeasurableSpace.comap (Prod.snd : RelStructure S (Vinfinite S) ×
+        RankLatentSpace S 1 → RankLatentSpace S 1) inferInstance)
+      measurable_snd.comap_le
+      (singletonBlockRead S) P :=
+  B.iCondIndepFun_comap_snd_of_invariant hfst hg hres hci (fun _ => measurable_blockMap _)
+    M.iCondIndepFun_blockMap_singleton
 
 end CoherentBasis
 
