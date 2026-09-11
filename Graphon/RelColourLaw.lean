@@ -3,12 +3,13 @@ Copyright (c) 2026 Cameron Freer. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Cameron Freer
 -/
-import Graphon.RelRankSuccessorContract
+import Graphon.RelLatentLocalization
 
 /-!
-# Colour laws on a one-sort signature (R4 converse, #107)
+# Colour laws on a one-sort, one-relation signature (R4 converse, #107)
 
-Route-neutral machinery for laws built from independent fair vertex colours. A structure
+Route-neutral machinery for laws on `oneSortSig k` — one sort and one relation of arity `k` —
+built from independent fair vertex colours. A structure
 `F d` is read off a Boolean colouring `d : ℕ → Bool`; the colours come from the fresh singleton
 layer of the rank-two latent cube. When `F` is equivariant and depends on the colouring only
 through its differences, the law `colourLaw F` is exchangeable and its empty and singleton fixing
@@ -94,8 +95,7 @@ theorem source_map_freshLayer :
     rankLatentSource_map_rankLatentSpaceSuccEquiv, Measure.map_snd_prod]
   simp
 
-/-- The law, read off the rank-two cube. -/
-
+/-- The finitely supported rank-support action agrees with the full-permutation helper. -/
 theorem rankSupportEquiv_eq_supportPerm (σ : FinSuppPerm (oneSortSig k))
     (A : RankSupport (oneSortSig k) 1) : rankSupportEquiv σ 1 A = supportPerm (σ.1 ()) A := by
   refine Subtype.ext ?_
@@ -115,7 +115,6 @@ theorem freshLayer_rankLatentRelabel (σ : FinSuppPerm (oneSortSig k)) (ω : Cub
   rw [rankSupportEquiv_eq_supportPerm]
 
 /-- **Exact equivariance on the cube.** -/
-
 def singIndex (k : ℕ) (w : ℕ) : RankLatentIndex (oneSortSig k) 2 :=
   ⟨{⟨(), w⟩}, by simp⟩
 
@@ -312,7 +311,7 @@ theorem map_offColour_flip (v : ℕ) :
       (measurable_decideLe measurable_id : Measurable fun t : ℝ => decide (t ≤ 1 / 2))]
     rfl
 
-/-- **The relative colouring is independent of the local window k at `v`.** -/
+/-- **The relative colouring is independent of the local window at `v`.** -/
 theorem indepFun_relColour_window (v : ℕ) :
     IndepFun (relColour v) (window k v) (rankLatentSource (oneSortSig k) 2) := by
   set μ := rankLatentSource (oneSortSig k) 2 with hμ

@@ -141,10 +141,6 @@ theorem arr_pairCoord (ω : Colours) :
       (arr ω (pairCoord 2) = xor (colour ω 0) (colour ω 2)) :=
   ⟨rfl, rfl, rfl⟩
 
-theorem uniform01_Iic_half_compl' : uniform01 (Set.Iic (1 / 2 : ℝ))ᶜ = 1 / 2 := by
-  rw [prob_compl_eq_one_sub measurableSet_Iic, ColourLaw.uniform01_Iic_half, one_div,
-    ENNReal.one_sub_inv_two]
-
 /-- Each edge event has probability one half. -/
 theorem bipartiteLaw_pairEvent (i : Fin 3) : bipartiteLaw (pairEvent i) = 1 / 2 := by
   rw [bipartiteLaw, Measure.map_apply measurable_arr (measurableSet_pairEvent i)]
@@ -238,13 +234,15 @@ theorem not_iCondIndepFun_singletonFixing :
     bipartiteLaw_pairEvent_inter, Fin.prod_univ_three, hfst, hfst, hfst] at key
   norm_num at key
 
-/-- **The distinction**: screening by the existing fixing factors fails, yet the same admissible
-input has an exact successor whose output is admissible. -/
+/-- **The distinction**: the input is admissible, screening by its existing fixing factors
+fails, yet it has an exact successor whose output is admissible. -/
 theorem screening_fails_but_successor_exists :
+    rankOneRep.Admissible ∧
     (¬ iCondIndepFun singletonFixingCond singletonFixingCond_le
       (fun i => inducedMap (S := digraphSig) (pairSets i) ∘ Prod.fst) rankOneCoupling) ∧
-    Nonempty (InfiniteRelExchangeableLaw.RankSuccessor rankOneRep) ∧ rankTwoRep.Admissible :=
-  ⟨not_iCondIndepFun_singletonFixing, ⟨bipartiteSuccessor⟩, admissible_rankTwoRep⟩
+    ∃ D : InfiniteRelExchangeableLaw.RankSuccessor rankOneRep, D.next.Admissible :=
+  ⟨admissible_rankOneRep, not_iCondIndepFun_singletonFixing,
+    ⟨bipartiteSuccessor, admissible_rankTwoRep⟩⟩
 
 end BipartiteRegression
 
