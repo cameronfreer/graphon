@@ -34,6 +34,15 @@ this through the exact joint carrier identification: in any pooled rank extensio
 structure is conditionally independent of the pair (purely spare structure, whole pooled latent
 array), given the original old latents.
 
+**The exact disintegration** (`map_eq_compProd_structureKernel_prod_spareEnvironmentKernel`)
+makes the source-preservation consequence explicit: the joint law of (original old latents,
+(original structure, (purely spare structure, whole pooled latent array))) is the rank-`n`
+latent source composed with the product of the structure kernel of the representation
+(`RankRepresentation.structureKernel`, the conditional law of the structure given the latents
+under `C.P`) and the spare environment kernel (`PooledRankExtension.spareEnvironmentKernel`).
+The original structure–latent marginal is `C.P` exactly, and the single a.e. kernel comparison
+is governed by the rank-`n` latent source.
+
 The statements concern the purely spare structure only. They say nothing about mixed
 observations, the conditioning is exactly the σ-algebra of the original old latents, and no
 mutual statement at the next rank is made.
@@ -479,6 +488,107 @@ theorem PooledRankExtension.condIndepFun_restrictOriginal_restrictPool {C : M.Ra
   funext s
   ext x
   exact (poolVertexEquiv S s).symm_apply_apply (Sum.inl x)
+
+/-! ### The exact disintegration over the original old latents -/
+
+namespace RankRepresentation
+
+variable (C : M.RankRepresentation n)
+
+/-- **The structure kernel of a representation**: the conditional law of the structure given the
+whole latent array, under `C.P`. -/
+noncomputable def structureKernel :
+    Kernel (RankLatentSpace S n) (RelStructure S (Vinfinite S)) :=
+  haveI := C.isProbabilityMeasure_P
+  condDistrib Prod.fst Prod.snd C.P
+
+instance : IsMarkovKernel (structureKernel C) := by
+  haveI := C.isProbabilityMeasure_P
+  unfold structureKernel
+  infer_instance
+
+end RankRepresentation
+
+namespace PooledRankExtension
+
+variable {C : M.RankRepresentation n} (Q : PooledRankExtension C)
+
+/-- **The spare environment kernel** of a pooled extension: the conditional law of the pair
+(purely spare structure, whole pooled latent array) given the original old latents, under the
+pooled law. -/
+noncomputable def spareEnvironmentKernel :
+    Kernel (RankLatentSpace S n) (RelStructure S (Vinfinite S) × PooledRankLatentSpace S n) :=
+  condDistrib (fun p : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n =>
+    (restrictPool S p.1, p.2)) (restrictOriginalLatents S n ∘ Prod.snd) Q.law
+
+instance : IsMarkovKernel Q.spareEnvironmentKernel := by
+  unfold spareEnvironmentKernel
+  infer_instance
+
+/-- The original old latents are governed by the rank-`n` latent source. -/
+theorem map_restrictOriginalLatents_snd :
+    (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+      (restrictOriginalLatents S n ∘ Prod.snd) = rankLatentSource S n := by
+  rw [← C.map_snd, ← Q.map_restrictOriginal, Measure.map_map measurable_snd
+    (measurable_restrictOriginal.prodMap (measurable_restrictOriginalLatents n))]
+  rfl
+
+/-- **The original structure–latent marginal is the representation, exactly**, in pair form. -/
+theorem map_restrictOriginal_restrictOriginalLatents :
+    (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+      (fun p => (restrictOriginal S p.1, restrictOriginalLatents S n p.2)) = C.P :=
+  Q.map_restrictOriginal
+
+/-- **The conditional law of the original structure given the original old latents is the
+structure kernel of the representation**, `rankLatentSource`-a.e. -/
+theorem condDistrib_restrictOriginal_ae_eq :
+    condDistrib (restrictOriginal S ∘ Prod.fst) (restrictOriginalLatents S n ∘ Prod.snd)
+        (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n))
+      =ᵐ[rankLatentSource S n] RankRepresentation.structureKernel C := by
+  haveI := C.isProbabilityMeasure_P
+  rw [← Q.map_restrictOriginalLatents_snd]
+  refine condDistrib_ae_eq_of_measure_eq_compProd _
+    (measurable_restrictOriginal.comp measurable_fst).aemeasurable ?_
+  rw [Q.map_restrictOriginalLatents_snd, ← C.map_snd, RankRepresentation.structureKernel,
+    compProd_map_condDistrib measurable_fst.aemeasurable,
+    ← Q.map_restrictOriginal_restrictOriginalLatents, Measure.map_map
+    (measurable_snd.prodMk measurable_fst)
+    (show Measurable (fun p : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n =>
+        (restrictOriginal S p.1, restrictOriginalLatents S n p.2)) from
+      (measurable_restrictOriginal.comp measurable_fst).prodMk
+        ((measurable_restrictOriginalLatents n).comp measurable_snd))]
+  rfl
+
+/-- **The exact disintegration over the original old latents.** Under an admissible
+representation at positive rank, the joint law of (original old latents, (original structure,
+(purely spare structure, whole pooled latent array))) is the rank-`n` latent source composed
+with the product of the structure kernel of the representation and the spare environment
+kernel. -/
+theorem map_eq_compProd_structureKernel_prod_spareEnvironmentKernel (hn : 0 < n)
+    (hC : C.Admissible) :
+    (Q.law : Measure (RelStructure S (PoolVertex S) × PooledRankLatentSpace S n)).map
+        (fun p => (restrictOriginalLatents S n p.2,
+          (restrictOriginal S p.1, (restrictPool S p.1, p.2)))) =
+      rankLatentSource S n ⊗ₘ
+        (RankRepresentation.structureKernel C ×ₖ Q.spareEnvironmentKernel) := by
+  have hX : Measurable (restrictOriginal S ∘
+      (Prod.fst : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → _)) :=
+    measurable_restrictOriginal.comp measurable_fst
+  have hE : Measurable (fun p : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n =>
+      (restrictPool S p.1, p.2)) :=
+    (measurable_restrictPool.comp measurable_fst).prodMk measurable_snd
+  have hZ : Measurable (restrictOriginalLatents S n ∘
+      (Prod.snd : RelStructure S (PoolVertex S) × PooledRankLatentSpace S n → _)) :=
+    (measurable_restrictOriginalLatents n).comp measurable_snd
+  have h := (condIndepFun_iff_map_prod_eq_prod_condDistrib_prod_condDistrib hX hE hZ).mp
+    (Q.condIndepFun_restrictOriginal_restrictPool hn hC)
+  rw [← Measure.compProd_eq_comp_prod, Q.map_restrictOriginalLatents_snd] at h
+  refine Eq.trans h (Measure.compProd_congr ?_)
+  filter_upwards [Q.condDistrib_restrictOriginal_ae_eq] with z hz
+  rw [Kernel.prod_apply, Kernel.prod_apply, hz]
+  rfl
+
+end PooledRankExtension
 
 end InfiniteRelExchangeableLaw
 
