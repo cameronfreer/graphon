@@ -528,6 +528,8 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.condExp_fixing_eq_local
 #print axioms RelSignature.InfiniteRelExchangeableLaw.smallOverlap_pair_of_disjoint
 #print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.condExp_inter_eq_mul_of_disjoint
+#print axioms RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.condIndepFun_restrict_of_disjoint
+#print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.condIndepFun_restrictOriginal_restrictPool
 #print axioms RelSignature.BipartiteRegression.measurable_labels
 #print axioms RelSignature.BipartiteRegression.measurable_idStructure
 #print axioms RelSignature.BipartiteRegression.measurable_idLatents

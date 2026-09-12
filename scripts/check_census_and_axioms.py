@@ -552,6 +552,8 @@ AUDITED_DECLS = {
     "RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.condExp_fixing_eq_local",
     "RelSignature.InfiniteRelExchangeableLaw.smallOverlap_pair_of_disjoint",
     "RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.condExp_inter_eq_mul_of_disjoint",
+    "RelSignature.InfiniteRelExchangeableLaw.RankRepresentation.condIndepFun_restrict_of_disjoint",
+    "RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.condIndepFun_restrictOriginal_restrictPool",
     "RelSignature.BipartiteRegression.measurable_labels",
     "RelSignature.BipartiteRegression.measurable_idStructure",
     "RelSignature.BipartiteRegression.measurable_idLatents",
