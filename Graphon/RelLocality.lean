@@ -33,7 +33,7 @@ open MeasureTheory ProbabilityTheory
 namespace RelSignature
 
 /-- Reading the supremum of the rationals below a nonnegative real recovers it. -/
-theorem iSup_rat_lt_eq {x : ℝ} (hx : 0 ≤ x) :
+private theorem iSup_rat_lt_eq {x : ℝ} (hx : 0 ≤ x) :
     (⨆ q : ℚ, if (q : ℝ) < x then (q : ℝ) else 0) = x := by
   have hbdd : BddAbove (Set.range fun q : ℚ => if (q : ℝ) < x then (q : ℝ) else 0) := by
     refine ⟨x, ?_⟩
@@ -87,15 +87,13 @@ theorem comap_rankLatentRelabel_comp_snd (σ : FinSuppPerm S) :
 
 variable (S n) in
 /-- The whole latent σ-algebra on the coupling space. -/
-@[implicit_reducible]
-noncomputable def latentAlg :
+noncomputable abbrev latentAlg :
     MeasurableSpace (RelStructure S (Vinfinite S) × RankLatentSpace S n) :=
   MeasurableSpace.comap Prod.snd inferInstance
 
 variable (n) in
 /-- The local latent σ-algebra at `A` on the coupling space. -/
-@[implicit_reducible]
-noncomputable def localAlg (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+noncomputable abbrev localAlg (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     MeasurableSpace (RelStructure S (Vinfinite S) × RankLatentSpace S n) :=
   MeasurableSpace.comap (localLatents A n ∘ Prod.snd) inferInstance
 

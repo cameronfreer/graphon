@@ -69,6 +69,7 @@ import Graphon.RelAdmissible
 import Graphon.RelAdmissibleRegressions
 import Graphon.RelAdmissibleBase
 import Graphon.RelLocality
+import Graphon.RelSpareScreening
 import Graphon.RelBipartiteScreening
 import Graphon.RelBipartiteMarkedLabels
 import Graphon.RelIidEdgeRegression
