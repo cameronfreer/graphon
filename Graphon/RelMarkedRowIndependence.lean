@@ -525,7 +525,8 @@ theorem rowBound_lt_rowFresh {v : Σ s : S.Srt, Vinfinite S s}
   Nat.lt_succ_self _
 
 theorem freshFor_of_rowBound_lt {v : Σ s : S.Srt, Vinfinite S s}
-    {t : Finset (MarkedCoord (S := S) {v})} {w : ℕ} (hw : rowBound t < w) (c : t) : FreshFor v.1 w c.1.1 :=
+    {t : Finset (MarkedCoord (S := S) {v})} {w : ℕ} (hw : rowBound t < w) (c : t) :
+    FreshFor v.1 w c.1.1 :=
   freshFor_of_spareBound_lt v.1 c.1.1
     (lt_of_le_of_lt (Finset.le_sup (f := fun c : MarkedCoord (S := S) {v} => c.1.spareBound) c.2)
       hw)
@@ -534,7 +535,8 @@ theorem freshFor_of_rowBound_lt {v : Σ s : S.Srt, Vinfinite S s}
 
 /-- The block of `N` fresh spare vertices polled at stage `N`. -/
 noncomputable def pollBlockRow {v : Σ s : S.Srt, Vinfinite S s}
-    (t : Finset (MarkedCoord (S := S) {v})) (N : ℕ) : Finset ℕ := Finset.Ico (rowBound t + N) (rowBound t + 2 * N)
+    (t : Finset (MarkedCoord (S := S) {v})) (N : ℕ) : Finset ℕ :=
+  Finset.Ico (rowBound t + N) (rowBound t + 2 * N)
 
 theorem rowBound_lt_of_mem_pollBlockRow {v : Σ s : S.Srt, Vinfinite S s}
     {t : Finset (MarkedCoord (S := S) {v})} {N w : ℕ} (hw : w ∈ pollBlockRow t N) :
