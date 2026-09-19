@@ -72,6 +72,7 @@ import Graphon.RelLocality
 import Graphon.RelSpareScreening
 import Graphon.RelMarkedRepresentation
 import Graphon.RelMarkedRowIndependence
+import Graphon.RelMarkedRowKernel
 import Graphon.RelBipartiteScreening
 import Graphon.RelBipartiteMarkedLabels
 import Graphon.RelIidEdgeRegression
