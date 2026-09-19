@@ -584,9 +584,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.exists_swapFixed_of_mem_envGenerators
 #print axioms RelSignature.rowBound_lt_rowFresh
 #print axioms RelSignature.freshFor_of_rowBound_lt
-#print axioms RelSignature.rowBound_lt_of_mem_pollBlockRow
-#print axioms RelSignature.le_of_mem_pollBlockRow
-#print axioms RelSignature.card_pollBlockRow
 #print axioms RelSignature.InfiniteRelExchangeableLaw.measurableSet_rowEvent
 #print axioms RelSignature.InfiniteRelExchangeableLaw.measurableSet_pollEvent
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.measure_rowEvent_inter_eq_pollEvent
