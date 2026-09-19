@@ -26,8 +26,9 @@ invariance therefore identifies the probability of a row cylinder against an env
 cylinder with the probability of the polled copy against the same cylinder. Polled copies at
 distinct spare vertices are exchangeable, so their averages form a Cauchy sequence in `L²`,
 with an explicit second-moment computation. The limit is identified with the conditional
-probability of the row cylinder by testing against environment cylinders, and the product
-identity follows from the multilinearity of the averages.
+probability of the row cylinder by testing against environment cylinders. This gives the peel
+identity: the row conditional probability multiplies against any set fixed by the transpositions,
+and the finite-family product follows by induction over the family.
 -/
 
 universe u
@@ -63,7 +64,7 @@ theorem measurable_structureRelabel (ρ : ∀ s, Equiv.Perm (PoolVertex S s)) :
 
 /-! ### Coordinate cylinders on the coupling space -/
 
-/-- The event that finitely many structure coordinates, read through `ψ`, land in `T`. -/
+/-- The event that the structure coordinates read through `ψ` land in `T`. -/
 def cylEvent {ι : Type*} (ψ : ι → RelCoord S (PoolVertex S)) (T : Set (ι → Bool)) :
     Set (PooledOne S) :=
   {p | (fun i => p.1 (ψ i)) ∈ T}
@@ -534,23 +535,23 @@ theorem freshFor_of_rowBound_lt {v : Σ s : S.Srt, Vinfinite S s}
 /-! ### Poll blocks -/
 
 /-- The block of `N` fresh spare vertices polled at stage `N`. -/
-noncomputable def pollBlockRow {v : Σ s : S.Srt, Vinfinite S s}
+private noncomputable def pollBlockRow {v : Σ s : S.Srt, Vinfinite S s}
     (t : Finset (MarkedCoord (S := S) {v})) (N : ℕ) : Finset ℕ :=
   Finset.Ico (rowBound t + N) (rowBound t + 2 * N)
 
-theorem rowBound_lt_of_mem_pollBlockRow {v : Σ s : S.Srt, Vinfinite S s}
+private theorem rowBound_lt_of_mem_pollBlockRow {v : Σ s : S.Srt, Vinfinite S s}
     {t : Finset (MarkedCoord (S := S) {v})} {N w : ℕ} (hw : w ∈ pollBlockRow t N) :
     rowBound t < w := by
   rw [pollBlockRow, Finset.mem_Ico] at hw
   omega
 
-theorem le_of_mem_pollBlockRow {v : Σ s : S.Srt, Vinfinite S s}
+private theorem le_of_mem_pollBlockRow {v : Σ s : S.Srt, Vinfinite S s}
     {t : Finset (MarkedCoord (S := S) {v})} {N w : ℕ} (hw : w ∈ pollBlockRow t N) :
     rowBound t + N ≤ w := by
   rw [pollBlockRow, Finset.mem_Ico] at hw
   exact hw.1
 
-theorem card_pollBlockRow {v : Σ s : S.Srt, Vinfinite S s} (t : Finset (MarkedCoord (S := S) {v}))
+private theorem card_pollBlockRow {v : Σ s : S.Srt, Vinfinite S s} (t : Finset (MarkedCoord (S := S) {v}))
     (N : ℕ) : (pollBlockRow t N).card = N := by
   rw [pollBlockRow, Nat.card_Ico]
   omega
@@ -659,11 +660,11 @@ theorem PooledRankExtension.measure_pollEvent_inter_pollEvent (hT : MeasurableSe
 /-! ### The empirical averages of the polls -/
 
 /-- **The empirical average of the polls** over the block at stage `N`. -/
-noncomputable def pollAverage (N : ℕ) : PooledOne S → ℝ :=
+private noncomputable def pollAverage (N : ℕ) : PooledOne S → ℝ :=
   fun p => (N : ℝ)⁻¹ * ∑ w ∈ pollBlockRow t N, (pollEvent v w t T).indicator (fun _ => (1 : ℝ)) p
 
 omit [Countable S.Srt] [Countable S.Rel] in
-theorem stronglyMeasurable_envAlg_pollAverage (hT : MeasurableSet T) (N : ℕ) :
+private theorem stronglyMeasurable_envAlg_pollAverage (hT : MeasurableSet T) (N : ℕ) :
     StronglyMeasurable[envAlg S] (pollAverage v t T N) := by
   letI : MeasurableSpace (PooledOne S) := envAlg S
   have hsum : StronglyMeasurable
@@ -678,18 +679,18 @@ theorem stronglyMeasurable_envAlg_pollAverage (hT : MeasurableSet T) (N : ℕ) :
   exact hsum.const_mul _
 
 omit [Countable S.Srt] [Countable S.Rel] in
-theorem measurable_pollAverage (hT : MeasurableSet T) (N : ℕ) :
+private theorem measurable_pollAverage (hT : MeasurableSet T) (N : ℕ) :
     Measurable (pollAverage v t T N) := by
   refine (Finset.measurable_sum _ fun w _ => ?_).const_mul _
   exact measurable_const.indicator (measurableSet_pollEvent v t T hT w)
 
 omit [Countable S.Srt] [Countable S.Rel] in
-theorem pollAverage_nonneg (N : ℕ) (p : PooledOne S) : 0 ≤ pollAverage v t T N p :=
+private theorem pollAverage_nonneg (N : ℕ) (p : PooledOne S) : 0 ≤ pollAverage v t T N p :=
   mul_nonneg (inv_nonneg.mpr (Nat.cast_nonneg N))
     (Finset.sum_nonneg fun _ _ => Set.indicator_nonneg (fun _ _ => zero_le_one) _)
 
 omit [Countable S.Srt] [Countable S.Rel] in
-theorem pollAverage_le_one (N : ℕ) (p : PooledOne S) : pollAverage v t T N p ≤ 1 := by
+private theorem pollAverage_le_one (N : ℕ) (p : PooledOne S) : pollAverage v t T N p ≤ 1 := by
   unfold pollAverage
   have hsum :
       ∑ w ∈ pollBlockRow t N, (pollEvent v w t T).indicator (fun _ => (1 : ℝ)) p ≤ (N : ℝ) := by
@@ -705,34 +706,34 @@ theorem pollAverage_le_one (N : ℕ) (p : PooledOne S) : pollAverage v t T N p �
       _ = 1 := inv_mul_cancel₀ hNpos.ne'
 
 omit [Countable S.Srt] [Countable S.Rel] in
-theorem norm_pollAverage_le_one (N : ℕ) (p : PooledOne S) : ‖pollAverage v t T N p‖ ≤ 1 := by
+private theorem norm_pollAverage_le_one (N : ℕ) (p : PooledOne S) : ‖pollAverage v t T N p‖ ≤ 1 := by
   rw [Real.norm_eq_abs, abs_le]
   exact ⟨by linarith [pollAverage_nonneg v t T N p], pollAverage_le_one v t T N p⟩
 
-theorem integrable_pollAverage (hT : MeasurableSet T) (N : ℕ) :
+private theorem integrable_pollAverage (hT : MeasurableSet T) (N : ℕ) :
     Integrable (pollAverage v t T N) Q.lawOne :=
   (integrable_const (1 : ℝ)).mono' (measurable_pollAverage v t T hT N).aestronglyMeasurable
     (Filter.Eventually.of_forall (norm_pollAverage_le_one v t T N))
 
-theorem memLp_two_pollAverage (hT : MeasurableSet T) (N : ℕ) :
+private theorem memLp_two_pollAverage (hT : MeasurableSet T) (N : ℕ) :
     MemLp (pollAverage v t T N) 2 Q.lawOne :=
   MemLp.of_bound (measurable_pollAverage v t T hT N).aestronglyMeasurable 1
     (Filter.Eventually.of_forall (norm_pollAverage_le_one v t T N))
 
 /-- The pair moment function of the polls. -/
-noncomputable def pollMoment (w w' : ℕ) : ℝ :=
+private noncomputable def pollMoment (w w' : ℕ) : ℝ :=
   Q.lawOne.real (pollEvent v w t T ∩ pollEvent v w' t T)
 
 /-- The common value of the off-diagonal pair moments. -/
-noncomputable def pollConstant : ℝ := Q.lawOne.real (rowEvent v t T ∩ pollEvent v (rowFresh t) t T)
+private noncomputable def pollConstant : ℝ := Q.lawOne.real (rowEvent v t T ∩ pollEvent v (rowFresh t) t T)
 
-theorem pollMoment_eq_pollConstant (hT : MeasurableSet T) {w w' : ℕ} (hw : rowBound t < w)
+private theorem pollMoment_eq_pollConstant (hT : MeasurableSet T) {w w' : ℕ} (hw : rowBound t < w)
     (hw' : rowBound t < w') (hww' : w ≠ w') :
     pollMoment Q v t T w w' = pollConstant Q v t T := by
   rw [pollMoment, pollConstant, measureReal_def, measureReal_def,
     Q.measure_pollEvent_inter_pollEvent v t T hT hw hw' hww']
 
-theorem pollConstant_le_pollMoment (hT : MeasurableSet T) {w w' : ℕ} (hw : rowBound t < w)
+private theorem pollConstant_le_pollMoment (hT : MeasurableSet T) {w w' : ℕ} (hw : rowBound t < w)
     (hw' : rowBound t < w') : pollConstant Q v t T ≤ pollMoment Q v t T w w' := by
   by_cases hww' : w = w'
   · subst hww'
@@ -741,13 +742,13 @@ theorem pollConstant_le_pollMoment (hT : MeasurableSet T) {w w' : ℕ} (hw : row
     exact measureReal_mono Set.inter_subset_left
   · rw [pollMoment_eq_pollConstant Q v t T hT hw hw' hww']
 
-theorem pollMoment_le_one (w w' : ℕ) : pollMoment Q v t T w w' ≤ 1 := measureReal_le_one
+private theorem pollMoment_le_one (w w' : ℕ) : pollMoment Q v t T w w' ≤ 1 := measureReal_le_one
 
-theorem pollConstant_nonneg : 0 ≤ pollConstant Q v t T := measureReal_nonneg
+private theorem pollConstant_nonneg : 0 ≤ pollConstant Q v t T := measureReal_nonneg
 
 omit [Countable S.Srt] [Countable S.Rel] in
 /-- The product of two averages, expanded as a double sum of indicators of intersections. -/
-theorem pollAverage_mul_pollAverage (N M : ℕ) :
+private theorem pollAverage_mul_pollAverage (N M : ℕ) :
     (fun p => pollAverage v t T N p * pollAverage v t T M p) = fun p =>
       (N : ℝ)⁻¹ * (M : ℝ)⁻¹ * ∑ w ∈ pollBlockRow t N, ∑ w' ∈ pollBlockRow t M,
         (pollEvent v w t T ∩ pollEvent v w' t T).indicator (fun _ => (1 : ℝ)) p := by
@@ -763,7 +764,7 @@ theorem pollAverage_mul_pollAverage (N M : ℕ) :
   simp only [this]
 
 /-- The integral of the product of two averages. -/
-theorem integral_pollAverage_mul (hT : MeasurableSet T) (N M : ℕ) :
+private theorem integral_pollAverage_mul (hT : MeasurableSet T) (N M : ℕ) :
     ∫ p, pollAverage v t T N p * pollAverage v t T M p ∂Q.lawOne =
       (N : ℝ)⁻¹ * (M : ℝ)⁻¹ * ∑ w ∈ pollBlockRow t N, ∑ w' ∈ pollBlockRow t M,
         pollMoment Q v t T w w' := by
@@ -782,7 +783,7 @@ theorem integral_pollAverage_mul (hT : MeasurableSet T) (N M : ℕ) :
     exact integrable_finsetSum _ fun w' _ => (integrable_const 1).indicator
       ((measurableSet_pollEvent v t T hT w).inter (measurableSet_pollEvent v t T hT w'))
 
-theorem integrable_pollAverage_mul (hT : MeasurableSet T) (N M : ℕ) :
+private theorem integrable_pollAverage_mul (hT : MeasurableSet T) (N M : ℕ) :
     Integrable (fun p => pollAverage v t T N p * pollAverage v t T M p) Q.lawOne := by
   rw [pollAverage_mul_pollAverage]
   refine Integrable.const_mul (integrable_finsetSum _ fun w _ => integrable_finsetSum _
@@ -790,7 +791,7 @@ theorem integrable_pollAverage_mul (hT : MeasurableSet T) (N M : ℕ) :
   exact (measurableSet_pollEvent v t T hT w).inter (measurableSet_pollEvent v t T hT w')
 
 /-- **The cross moment is at least the constant.** -/
-theorem pollConstant_le_integral_pollAverage_mul (hT : MeasurableSet T) {N M : ℕ} (hN : 1 ≤ N)
+private theorem pollConstant_le_integral_pollAverage_mul (hT : MeasurableSet T) {N M : ℕ} (hN : 1 ≤ N)
     (hM : 1 ≤ M) :
     pollConstant Q v t T ≤ ∫ p, pollAverage v t T N p * pollAverage v t T M p ∂Q.lawOne := by
   rw [integral_pollAverage_mul Q v t T hT]
@@ -812,7 +813,7 @@ theorem pollConstant_le_integral_pollAverage_mul (hT : MeasurableSet T) {N M : �
     _ ≤ _ := by gcongr
 
 /-- **The diagonal moment is at most the constant plus `1 / N`.** -/
-theorem integral_pollAverage_sq_le (hT : MeasurableSet T) {N : ℕ} (hN : 1 ≤ N) :
+private theorem integral_pollAverage_sq_le (hT : MeasurableSet T) {N : ℕ} (hN : 1 ≤ N) :
     ∫ p, pollAverage v t T N p * pollAverage v t T N p ∂Q.lawOne ≤
       pollConstant Q v t T + (N : ℝ)⁻¹ := by
   rw [integral_pollAverage_mul Q v t T hT]
@@ -845,7 +846,7 @@ theorem integral_pollAverage_sq_le (hT : MeasurableSet T) {N : ℕ} (hN : 1 ≤ 
 
 /-- **The Cauchy estimate**: the averages at stages `N` and `M` are within `1 / N + 1 / M` in
 mean square. -/
-theorem integral_sq_pollAverage_sub_le (hT : MeasurableSet T) {N M : ℕ} (hN : 1 ≤ N)
+private theorem integral_sq_pollAverage_sub_le (hT : MeasurableSet T) {N M : ℕ} (hN : 1 ≤ N)
     (hM : 1 ≤ M) :
     ∫ p, (pollAverage v t T N p - pollAverage v t T M p) ^ 2 ∂Q.lawOne ≤
       (N : ℝ)⁻¹ + (M : ℝ)⁻¹ := by
@@ -867,10 +868,10 @@ theorem integral_sq_pollAverage_sub_le (hT : MeasurableSet T) {N M : ℕ} (hN : 
 /-! ### The limit of the averages -/
 
 /-- The averages from stage `1` on, as elements of `L²`. -/
-noncomputable def pollAverageLp (hT : MeasurableSet T) (N : ℕ) : Lp ℝ 2 Q.lawOne :=
+private noncomputable def pollAverageLp (hT : MeasurableSet T) (N : ℕ) : Lp ℝ 2 Q.lawOne :=
   (memLp_two_pollAverage Q v t T hT (N + 1)).toLp _
 
-theorem dist_pollAverageLp_eq (hT : MeasurableSet T) (N M : ℕ) :
+private theorem dist_pollAverageLp_eq (hT : MeasurableSet T) (N M : ℕ) :
     dist (pollAverageLp Q v t T hT N) (pollAverageLp Q v t T hT M) =
       Real.sqrt (∫ p, (pollAverage v t T (N + 1) p - pollAverage v t T (M + 1) p) ^ 2
         ∂Q.lawOne) := by
@@ -883,7 +884,7 @@ theorem dist_pollAverageLp_eq (hT : MeasurableSet T) (N M : ℕ) :
   funext p
   simp only [ENNReal.toReal_ofNat, Pi.sub_apply, Real.norm_eq_abs, Real.rpow_two, sq_abs]
 
-theorem cauchySeq_pollAverageLp (hT : MeasurableSet T) :
+private theorem cauchySeq_pollAverageLp (hT : MeasurableSet T) :
     CauchySeq (pollAverageLp Q v t T hT) := by
   refine cauchySeq_of_le_tendsto_0 (fun K : ℕ => Real.sqrt (2 * ((K : ℝ) + 1)⁻¹)) ?_ ?_
   · intro n m K hn hm
@@ -910,7 +911,7 @@ theorem cauchySeq_pollAverageLp (hT : MeasurableSet T) :
 
 /-- **The `L²` limit of the averages, projected onto the environment.** There is an
 environment-measurable integrable function which the averages approach in `L¹`. -/
-theorem exists_rowLimit (hT : MeasurableSet T) :
+private theorem exists_rowLimit (hT : MeasurableSet T) :
     ∃ g : PooledOne S → ℝ, StronglyMeasurable[envAlg S] g ∧ Integrable g Q.lawOne ∧
       Filter.Tendsto (fun N => eLpNorm (pollAverage v t T (N + 1) - g) 1 Q.lawOne)
         Filter.atTop (nhds 0) := by
@@ -949,7 +950,7 @@ theorem exists_rowLimit (hT : MeasurableSet T) :
     hbound
 
 /-- **The set integrals of a limit against a swap-fixed set and an environment generator.** -/
-theorem setIntegral_rowLimit (hT : MeasurableSet T) {g : PooledOne S → ℝ}
+private theorem setIntegral_rowLimit (hT : MeasurableSet T) {g : PooledOne S → ℝ}
     (hgi : Integrable g Q.lawOne)
     (hg : Filter.Tendsto (fun N => eLpNorm (pollAverage v t T (N + 1) - g) 1 Q.lawOne)
       Filter.atTop (nhds 0))
@@ -992,7 +993,7 @@ theorem univ_mem_envGenerators : (Set.univ : Set (PooledOne S)) ∈ envGenerator
 
 /-- **Conditioning on the environment peels the row of `v` off a swap-fixed set**: the limit `g`
 of the averages multiplies. -/
-theorem PooledRankExtension.condExp_rowEvent_inter_ae_eq_mul (hT : MeasurableSet T)
+private theorem PooledRankExtension.condExp_rowEvent_inter_ae_eq_mul (hT : MeasurableSet T)
     {g : PooledOne S → ℝ} (hgm : StronglyMeasurable[envAlg S] g) (hgi : Integrable g Q.lawOne)
     (hg : Filter.Tendsto (fun N => eLpNorm (pollAverage v t T (N + 1) - g) 1 Q.lawOne)
       Filter.atTop (nhds 0))
