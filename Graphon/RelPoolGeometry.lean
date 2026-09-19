@@ -144,4 +144,43 @@ theorem restrictPool_relabel_sumCongr (σ τ : ∀ s, Equiv.Perm (Vinfinite S s)
     restrictPool S (RelStructure.relabel (fun s => Equiv.sumCongr (σ s) (τ s)) X) =
       RelStructure.relabel τ (restrictPool S X) := rfl
 
+/-! ### The boundary swap
+
+Exchanging the original and spare copies of the vertices of a finite original set is an
+involution of the pooled carrier, sort by sort. It is the elementary motion shared by the polling
+stages and the marked representation. -/
+
+open scoped Classical in
+/-- The swap of the two halves on the vertices of `B`, on one sort. -/
+noncomputable def swapHalvesFun (B : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt) :
+    PoolVertex S s → PoolVertex S s
+  | Sum.inl x => if (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ B then Sum.inr x else Sum.inl x
+  | Sum.inr x => if (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ B then Sum.inl x else Sum.inr x
+
+open scoped Classical in
+theorem swapHalvesFun_involutive (B : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt) :
+    Function.Involutive (swapHalvesFun (S := S) B s) := by
+  intro x
+  rcases x with x | x <;> by_cases hx : (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ B <;>
+    simp [swapHalvesFun, hx]
+
+open scoped Classical in
+/-- **The boundary swap** of a vertex set of the original carrier: exchanges each vertex's
+original and spare copies, fixing everything else. -/
+noncomputable def boundarySwap (B : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    ∀ s, Equiv.Perm (PoolVertex S s) :=
+  fun s => (swapHalvesFun_involutive B s).toPerm
+
+open scoped Classical in
+theorem boundarySwap_apply (B : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt)
+    (x : PoolVertex S s) : boundarySwap (S := S) B s x = swapHalvesFun B s x := rfl
+
+open scoped Classical in
+/-- **The swap carries the original copy of the block to the spare copy.** -/
+theorem boundarySwap_original_of_mem (B : Finset (Σ s : S.Srt, Vinfinite S s))
+    {w : Σ s : S.Srt, Vinfinite S s} (hw : w ∈ B) :
+    boundarySwap (S := S) B w.1 (originalVertex S w.1 w.2) = poolVertex S w.1 w.2 := by
+  show swapHalvesFun B w.1 (Sum.inl w.2) = Sum.inr w.2
+  simp [swapHalvesFun, hw]
+
 end RelSignature

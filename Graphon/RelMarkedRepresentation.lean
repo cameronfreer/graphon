@@ -16,9 +16,10 @@ permutations of the spare vertices: it distinguishes the marks.
 The **marked representation theorem** says that every fixing event at `A` of the original
 structure is, modulo the pooled structure marginal, an event of the marked observation at `A`.
 The proof is a finite-motion approximation. A fixing event is approximated in measure by
-cylinders of the original structure. Each cylinder reads finitely many original vertices; a
-finitely supported pooled permutation fixing `A` pointwise moves those outside `A` into spare
-positions, so the transported cylinder is an event of the marked observation. The pooled seam
+cylinders of the original structure. Each cylinder reads finitely many original vertices; the
+boundary swap of those outside `A`, a finitely supported pooled involution fixing `A` pointwise,
+moves them into spare positions, so the transported cylinder is an event of the marked
+observation. The pooled seam
 makes the fixing event almost surely invariant under that permutation, and pooled invariance
 makes the permutation measure preserving, so the transported cylinder approximates the fixing
 event exactly as well as the original one did. A conditional expectation onto the marked
@@ -47,6 +48,11 @@ def markedSet (A : Finset (Σ s : S.Srt, Vinfinite S s)) : Set (Σ s : S.Srt, Po
 def MarkedCoord (A : Finset (Σ s : S.Srt, Vinfinite S s)) :=
   {c : RelCoord S (PoolVertex S) // ∀ v ∈ c.support, v ∈ markedSet A}
 
+instance [Countable S.Rel] (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
+    Countable (MarkedCoord (S := S) A) := by
+  unfold MarkedCoord
+  infer_instance
+
 /-- The marked observation space at `A`. -/
 abbrev MarkedSpace (A : Finset (Σ s : S.Srt, Vinfinite S s)) := MarkedCoord (S := S) A → Bool
 
@@ -59,59 +65,39 @@ theorem measurable_markedObs (A : Finset (Σ s : S.Srt, Vinfinite S s)) :
     Measurable (markedObs (S := S) A) :=
   measurable_pi_lambda _ fun _ => measurable_pi_apply _
 
-/-! ### The finite motion pushing a finite original set out of `A` into the spare copy -/
+/-! ### The boundary swap pushes a finite original set out of `A` into the spare copy -/
 
-open scoped Classical in
-/-- The involution of the pooled carrier at sort `s` exchanging the original and spare copies of
-every vertex of `W` at that sort. -/
-noncomputable def pushOut (W : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt) :
-    PoolVertex S s → PoolVertex S s
-  | Sum.inl a => if (⟨s, a⟩ : Σ s : S.Srt, Vinfinite S s) ∈ W then Sum.inr a else Sum.inl a
-  | Sum.inr b => if (⟨s, b⟩ : Σ s : S.Srt, Vinfinite S s) ∈ W then Sum.inl b else Sum.inr b
-
-theorem pushOut_involutive (W : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt) :
-    Function.Involutive (pushOut (S := S) W s) := by
-  classical
-  rintro (a | b) <;> simp only [pushOut] <;> split_ifs with h <;> simp [h]
-
-/-- The finite motion as a pooled permutation. -/
-noncomputable def pushOutPerm (W : Finset (Σ s : S.Srt, Vinfinite S s)) :
-    ∀ s : S.Srt, Equiv.Perm (PoolVertex S s) :=
-  fun s => (pushOut_involutive W s).toPerm
-
-theorem pushOutPerm_apply (W : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt)
-    (x : PoolVertex S s) : pushOutPerm W s x = pushOut W s x := rfl
-
-theorem pushOutPerm_eq_one_of_forall_notMem (W : Finset (Σ s : S.Srt, Vinfinite S s)) {s : S.Srt}
-    (hs : ∀ a, (⟨s, a⟩ : Σ s : S.Srt, Vinfinite S s) ∉ W) : pushOutPerm W s = 1 := by
+theorem boundarySwap_eq_one_of_forall_notMem (W : Finset (Σ s : S.Srt, Vinfinite S s)) {s : S.Srt}
+    (hs : ∀ a, (⟨s, a⟩ : Σ s : S.Srt, Vinfinite S s) ∉ W) : boundarySwap W s = 1 := by
   classical
   ext x
   rcases x with a | b
-  · show pushOut W s (Sum.inl a) = Sum.inl a
-    simp only [pushOut]
+  · show swapHalvesFun W s (Sum.inl a) = Sum.inl a
+    simp only [swapHalvesFun]
     exact if_neg (hs a)
-  · show pushOut W s (Sum.inr b) = Sum.inr b
-    simp only [pushOut]
+  · show swapHalvesFun W s (Sum.inr b) = Sum.inr b
+    simp only [swapHalvesFun]
     exact if_neg (hs b)
 
-theorem pushOutPerm_inl_mem_markedSet (W A : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt)
+theorem boundarySwap_inl_mem_markedSet (W A : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt)
     (a : Vinfinite S s) (h : (⟨s, a⟩ : Σ s : S.Srt, Vinfinite S s) ∈ W ∨
       (⟨s, a⟩ : Σ s : S.Srt, Vinfinite S s) ∈ A) :
-    (⟨s, pushOutPerm W s (Sum.inl a)⟩ : Σ s : S.Srt, PoolVertex S s) ∈ markedSet A := by
+    (⟨s, boundarySwap W s (Sum.inl a)⟩ : Σ s : S.Srt, PoolVertex S s) ∈ markedSet A := by
   classical
-  show (⟨s, pushOut W s (Sum.inl a)⟩ : Σ s : S.Srt, PoolVertex S s) ∈ markedSet A
-  simp only [pushOut]
+  show (⟨s, swapHalvesFun W s (Sum.inl a)⟩ : Σ s : S.Srt, PoolVertex S s) ∈ markedSet A
+  simp only [swapHalvesFun]
   split_ifs with hW
   · exact Or.inr ⟨a, rfl⟩
   · exact Or.inl ⟨a, rfl, h.resolve_left hW⟩
 
-theorem pushOutPerm_fixes (W A : Finset (Σ s : S.Srt, Vinfinite S s)) (hWA : Disjoint W A) :
-    ∀ v ∈ supportImage (fun s => originalVertex S s) A, pushOutPerm W v.1 v.2 = v.2 := by
+theorem boundarySwap_fixes_of_disjoint (W A : Finset (Σ s : S.Srt, Vinfinite S s))
+    (hWA : Disjoint W A) :
+    ∀ v ∈ supportImage (fun s => originalVertex S s) A, boundarySwap W v.1 v.2 = v.2 := by
   classical
   intro v hv
   obtain ⟨⟨s, a⟩, ha, rfl⟩ := (mem_supportImage_iff _ _ _).mp hv
-  show pushOut W s (Sum.inl a) = Sum.inl a
-  simp only [pushOut]
+  show swapHalvesFun W s (Sum.inl a) = Sum.inl a
+  simp only [swapHalvesFun]
   rw [if_neg]
   exact fun h => Finset.disjoint_left.mp hWA h ha
 
@@ -148,8 +134,9 @@ theorem PooledRankExtension.measurePreserving_relabel_structureLaw (Q : PooledRa
       ((measurable_relabel ρ).prodMap (pooledRankLatentRelabel ρ n).measurable)]
   rfl
 
-/-- **A fixing event is almost surely invariant under a finitely supported pooled motion fixing
-`A`.** -/
+/-- **A fixing event is almost surely invariant under a pooled motion fixing `A` with finitely
+many active sorts.** The motion may have infinite vertex support; only finitely many sorts may
+move. -/
 theorem PooledRankExtension.relabel_preimage_restrictOriginal_ae_eq (Q : PooledRankExtension C)
     {A : Finset (Σ s : S.Srt, Vinfinite S s)} {F : Set (RelStructure S (Vinfinite S))}
     (hF : MeasurableSet[RelStructure.fixingAlgebra A] F)
@@ -164,32 +151,32 @@ theorem PooledRankExtension.relabel_preimage_restrictOriginal_ae_eq (Q : PooledR
   exact hpull.symm.trans (hinv.trans hae)
 
 /-- The pooled coordinate map carrying an original coordinate through the push-out. -/
-noncomputable def pushOutEmb (W : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt) :
+noncomputable def boundarySwapEmb (W : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt) :
     Vinfinite S s ↪ PoolVertex S s :=
-  (originalVertex S s).trans (pushOutPerm W s).toEmbedding
+  (originalVertex S s).trans (boundarySwap W s).toEmbedding
 
 omit [Countable S.Srt] [Countable S.Rel] in
 open scoped Classical in
 /-- **A cylinder of the original structure, pushed out of `A`, is a marked event.** -/
-theorem exists_markedObs_preimage_eq_relabel_pushOutPerm
+theorem exists_markedObs_preimage_eq_relabel_boundarySwap
     (A : Finset (Σ s : S.Srt, Vinfinite S s)) (t : Finset (RelCoord S (Vinfinite S)))
     (T : Set (∀ _ : t, Bool)) (hT : MeasurableSet T) :
     ∃ D : Set (MarkedSpace (S := S) A), MeasurableSet D ∧
       markedObs A ⁻¹' D =
-        RelStructure.relabel (pushOutPerm ((t.biUnion fun c => c.support) \ A)) ⁻¹'
+        RelStructure.relabel (boundarySwap ((t.biUnion fun c => c.support) \ A)) ⁻¹'
           (restrictOriginal S ⁻¹' (cylinder t T : Set (RelStructure S (Vinfinite S)))) := by
   set W : Finset (Σ s : S.Srt, Vinfinite S s) := (t.biUnion fun c => c.support) \ A with hW
-  have hsupp : ∀ c : t, ∀ v ∈ (RelCoord.map (fun s => ⇑(pushOutEmb W s)) c.1).support,
+  have hsupp : ∀ c : t, ∀ v ∈ (RelCoord.map (fun s => ⇑(boundarySwapEmb W s)) c.1).support,
       v ∈ markedSet A := by
     intro c v hv
     rw [← supportImage_support, mem_supportImage_iff] at hv
     obtain ⟨⟨s, a⟩, ha, rfl⟩ := hv
-    refine pushOutPerm_inl_mem_markedSet W A s a ?_
+    refine boundarySwap_inl_mem_markedSet W A s a ?_
     by_cases hA : (⟨s, a⟩ : Σ s : S.Srt, Vinfinite S s) ∈ A
     · exact Or.inr hA
     · exact Or.inl (Finset.mem_sdiff.mpr ⟨Finset.mem_biUnion.mpr ⟨c.1, c.2, ha⟩, hA⟩)
   refine ⟨(fun Z : MarkedSpace (S := S) A => fun c : t =>
-    Z ⟨RelCoord.map (fun s => ⇑(pushOutEmb W s)) c.1, hsupp c⟩) ⁻¹' T,
+    Z ⟨RelCoord.map (fun s => ⇑(boundarySwapEmb W s)) c.1, hsupp c⟩) ⁻¹' T,
     (measurable_pi_lambda _ fun _ => measurable_pi_apply _) hT, ?_⟩
   ext Y
   simp only [Set.mem_preimage, mem_cylinder]
@@ -219,25 +206,25 @@ theorem PooledRankExtension.exists_markedAlg_symmDiff_lt (Q : PooledRankExtensio
   obtain ⟨Cyl, hCyl, hlt⟩ := hdense.approx F hFm (measure_ne_top _ _) ε hε
   obtain ⟨t, T, hT, rfl⟩ := (mem_measurableCylinders _).mp hCyl
   set W : Finset (Σ s : S.Srt, Vinfinite S s) := (t.biUnion fun c => c.support) \ A with hW
-  obtain ⟨D, hD, hDeq⟩ := exists_markedObs_preimage_eq_relabel_pushOutPerm A t T hT
+  obtain ⟨D, hD, hDeq⟩ := exists_markedObs_preimage_eq_relabel_boundarySwap A t T hT
   refine ⟨markedObs A ⁻¹' D, ⟨D, hD, rfl⟩, ?_⟩
   rw [hDeq]
-  have hρfin : ∃ Tf : Finset S.Srt, ∀ s, s ∉ Tf → pushOutPerm W s = 1 :=
-    ⟨W.image Sigma.fst, fun s hs => pushOutPerm_eq_one_of_forall_notMem W fun a ha =>
+  have hρfin : ∃ Tf : Finset S.Srt, ∀ s, s ∉ Tf → boundarySwap W s = 1 :=
+    ⟨W.image Sigma.fst, fun s hs => boundarySwap_eq_one_of_forall_notMem W fun a ha =>
       hs (Finset.mem_image.mpr ⟨_, ha, rfl⟩)⟩
-  have hρ := pushOutPerm_fixes W A Finset.sdiff_disjoint
+  have hρ := boundarySwap_fixes_of_disjoint W A Finset.sdiff_disjoint
   have hinv := Q.relabel_preimage_restrictOriginal_ae_eq hF hρfin hρ
-  have hmp := Q.measurePreserving_relabel_structureLaw (pushOutPerm W)
+  have hmp := Q.measurePreserving_relabel_structureLaw (boundarySwap W)
   have hcylm : MeasurableSet
       (restrictOriginal S ⁻¹' (cylinder t T : Set (RelStructure S (Vinfinite S)))) :=
     measurable_restrictOriginal hT.cylinder
-  calc Q.structureLaw ((restrictOriginal S ⁻¹' F) ∆ (RelStructure.relabel (pushOutPerm W) ⁻¹'
+  calc Q.structureLaw ((restrictOriginal S ⁻¹' F) ∆ (RelStructure.relabel (boundarySwap W) ⁻¹'
           (restrictOriginal S ⁻¹' (cylinder t T : Set (RelStructure S (Vinfinite S))))))
-      = Q.structureLaw ((RelStructure.relabel (pushOutPerm W) ⁻¹' (restrictOriginal S ⁻¹' F)) ∆
-          (RelStructure.relabel (pushOutPerm W) ⁻¹'
+      = Q.structureLaw ((RelStructure.relabel (boundarySwap W) ⁻¹' (restrictOriginal S ⁻¹' F)) ∆
+          (RelStructure.relabel (boundarySwap W) ⁻¹'
             (restrictOriginal S ⁻¹' (cylinder t T : Set (RelStructure S (Vinfinite S)))))) :=
         measure_congr (ae_eq_set_symmDiff hinv.symm Filter.EventuallyEq.rfl)
-    _ = Q.structureLaw (RelStructure.relabel (pushOutPerm W) ⁻¹'
+    _ = Q.structureLaw (RelStructure.relabel (boundarySwap W) ⁻¹'
           ((restrictOriginal S ⁻¹' F) ∆
             (restrictOriginal S ⁻¹' (cylinder t T : Set (RelStructure S (Vinfinite S)))))) := by
         rw [Set.preimage_symmDiff]

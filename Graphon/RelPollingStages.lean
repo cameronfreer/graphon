@@ -553,38 +553,14 @@ theorem comap_pooledJointRelabel_inv_reservoirFiltration (hD : ∀ v ∈ D, v.2 
     comap_pooledJointRelabel_avoidAlgebra (halfPreserving_pooledPollPerm N D).inv,
     imageSet_pooledPollPerm_inv_reservoir N D hD m]
 
-/-! ### The boundary swap
+/-! ### The boundary swap at a poll block
 
-The insertion step exchanges the original block at slot `m` with its spare copy. The swap is a
-finite boundary-crossing motion: it moves exactly the two copies of the slot-`m` block, both of
+The insertion step exchanges the original block at slot `m` with its spare copy, using the
+boundary swap of `RelPoolGeometry`. The swap is a finite boundary-crossing motion: it moves
+exactly the two copies of the slot-`m` block, both of
 which lie in the stage-`m` reservoir, so the stage at `m` is fixed by
 `comap_pooledJointRelabel_avoidAlgebra_of_fix`, while the target support — original, below the
 bound, outside `D` — is fixed pointwise. -/
-
-open scoped Classical in
-/-- The swap of the two halves on the vertices of `B`, on one sort. -/
-noncomputable def swapHalvesFun (B : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt) :
-    PoolVertex S s → PoolVertex S s
-  | Sum.inl x => if (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ B then Sum.inr x else Sum.inl x
-  | Sum.inr x => if (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ B then Sum.inl x else Sum.inr x
-
-open scoped Classical in
-theorem swapHalvesFun_involutive (B : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt) :
-    Function.Involutive (swapHalvesFun (S := S) B s) := by
-  intro x
-  rcases x with x | x <;> by_cases hx : (⟨s, x⟩ : Σ s : S.Srt, Vinfinite S s) ∈ B <;>
-    simp [swapHalvesFun, hx]
-
-open scoped Classical in
-/-- **The boundary swap** of a vertex set of the original carrier: exchanges each vertex's
-original and spare copies, fixing everything else. -/
-noncomputable def boundarySwap (B : Finset (Σ s : S.Srt, Vinfinite S s)) :
-    ∀ s, Equiv.Perm (PoolVertex S s) :=
-  fun s => (swapHalvesFun_involutive B s).toPerm
-
-open scoped Classical in
-theorem boundarySwap_apply (B : Finset (Σ s : S.Srt, Vinfinite S s)) (s : S.Srt)
-    (x : PoolVertex S s) : boundarySwap (S := S) B s x = swapHalvesFun B s x := rfl
 
 open scoped Classical in
 /-- A vertex moved by the swap lies in one of the two copies of `B`. -/
@@ -625,14 +601,6 @@ theorem boundarySwap_original_of_lt (m : ℕ) {w : Σ s : S.Srt, Vinfinite S s} 
     boundarySwap (pollBlock N D m) w.1 (originalVertex S w.1 w.2) = originalVertex S w.1 w.2 := by
   show swapHalvesFun (pollBlock N D m) w.1 (Sum.inl w.2) = Sum.inl w.2
   simp [swapHalvesFun, notMem_pollBlock_of_lt N D hw hwD m]
-
-open scoped Classical in
-/-- **The swap carries the original copy of the block to the spare copy.** -/
-theorem boundarySwap_original_of_mem (B : Finset (Σ s : S.Srt, Vinfinite S s))
-    {w : Σ s : S.Srt, Vinfinite S s} (hw : w ∈ B) :
-    boundarySwap (S := S) B w.1 (originalVertex S w.1 w.2) = poolVertex S w.1 w.2 := by
-  show swapHalvesFun B w.1 (Sum.inl w.2) = Sum.inr w.2
-  simp [swapHalvesFun, hw]
 
 open scoped Classical in
 /-- The swap has finite support on both halves and finitely many active sorts, so it conjugates
