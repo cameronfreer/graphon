@@ -75,22 +75,23 @@ theorem exists_rowEvent_of_mem_rowCylinders {v : RowIndex S} {H : Set (PooledOne
 
 /-- A Boolean-coordinate cylinder of the row family: finitely many marked coordinates, at
 finitely many vertices, with prescribed values. -/
-def rowsCylinder (T : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool)) :
+private def rowsCylinder (T : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool)) :
     Set (∀ v : RowIndex S, MarkedSpace (S := S) {v}) :=
   {f | ∀ x ∈ T, f x.1.1 x.1.2 = x.2}
 
 /-- The coordinates of a cylinder at the vertex `v`, as a cylinder of the row of `v`. -/
-def rowsCylinderAt (T : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool))
+private def rowsCylinderAt (T : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool))
     (v : RowIndex S) : Set (MarkedSpace (S := S) {v}) :=
   {y | ∀ x ∈ T, ∀ h : x.1.1 = v, y ⟨x.1.2.1, h ▸ x.1.2.2⟩ = x.2}
 
 open scoped Classical in
 /-- The vertices of a cylinder's coordinates. -/
-noncomputable def rowsAnchors (T : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool)) :
+private noncomputable def rowsAnchors
+    (T : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool)) :
     Finset (RowIndex S) :=
   (T.map fun x => x.1.1).toFinset
 
-theorem measurableSet_rowsCylinder
+private theorem measurableSet_rowsCylinder
     (T : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool)) :
     MeasurableSet (rowsCylinder T) := by
   have h : rowsCylinder T = ⋂ x ∈ T,
@@ -101,7 +102,7 @@ theorem measurableSet_rowsCylinder
   exact Set.Finite.measurableSet_biInter (List.finite_toSet T) fun x _ =>
     ((measurable_pi_apply x.1.2).comp (measurable_pi_apply x.1.1)) (measurableSet_singleton x.2)
 
-theorem measurableSet_rowsCylinderAt
+private theorem measurableSet_rowsCylinderAt
     (T : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool)) (v : RowIndex S) :
     MeasurableSet (rowsCylinderAt T v) := by
   have h : rowsCylinderAt T v = ⋂ x ∈ T, ⋂ h : x.1.1 = v,
@@ -112,17 +113,18 @@ theorem measurableSet_rowsCylinderAt
   exact Set.Finite.measurableSet_biInter (List.finite_toSet T) fun x _ =>
     MeasurableSet.iInter fun _ => measurable_pi_apply _ (measurableSet_singleton x.2)
 
-theorem rowsCylinder_append (T₁ T₂ : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool)) :
+private theorem rowsCylinder_append
+    (T₁ T₂ : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool)) :
     rowsCylinder (T₁ ++ T₂) = rowsCylinder T₁ ∩ rowsCylinder T₂ := by
   ext f
   simp [rowsCylinder, or_imp, forall_and]
 
-theorem isPiSystem_rowsCylinder : IsPiSystem (Set.range (rowsCylinder (S := S))) := by
+private theorem isPiSystem_rowsCylinder : IsPiSystem (Set.range (rowsCylinder (S := S))) := by
   rintro _ ⟨T₁, rfl⟩ _ ⟨T₂, rfl⟩ -
   exact ⟨T₁ ++ T₂, rowsCylinder_append T₁ T₂⟩
 
 /-- The Boolean-coordinate cylinders generate the σ-algebra of the row family. -/
-theorem generateFrom_rowsCylinder :
+private theorem generateFrom_rowsCylinder :
     MeasurableSpace.generateFrom (Set.range (rowsCylinder (S := S))) =
       (inferInstance : MeasurableSpace (∀ v : RowIndex S, MarkedSpace (S := S) {v})) := by
   refine le_antisymm (MeasurableSpace.generateFrom_le ?_) ?_
@@ -140,7 +142,8 @@ theorem generateFrom_rowsCylinder :
     simp [rowsCylinder]
 
 /-- A cylinder is the finite product of its cylinders at the anchors. -/
-theorem rowsCylinder_eq_pi (T : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool)) :
+private theorem rowsCylinder_eq_pi
+    (T : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool)) :
     rowsCylinder T = Set.pi (rowsAnchors T) (rowsCylinderAt T) := by
   classical
   ext f
@@ -153,7 +156,7 @@ theorem rowsCylinder_eq_pi (T : List ((Σ v : RowIndex S, MarkedCoord (S := S) {
     exact h x.1.1 ⟨x, hx, rfl⟩ x hx rfl
 
 /-- The preimage of a cylinder under the row family is the intersection of the row preimages. -/
-theorem rowsObs_preimage_rowsCylinder
+private theorem rowsObs_preimage_rowsCylinder
     (T : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool)) :
     rowsObs ⁻¹' rowsCylinder T = ⋂ v ∈ rowsAnchors T, rowObs v ⁻¹' rowsCylinderAt T v := by
   rw [rowsCylinder_eq_pi]
@@ -168,50 +171,31 @@ variable {M : InfiniteRelExchangeableLaw S} [Countable S.Srt] [Countable S.Rel]
 
 /-! ### The product identity for rows given as cylinder pullbacks -/
 
-omit [Countable S.Srt] [Countable S.Rel] in
-/-- A finite intersection of row cylinders at other vertices is swap-fixed beyond some bound. -/
-theorem exists_swapFixed_biInter_of_rowCylinders (v : RowIndex S) (F : Finset (RowIndex S))
-    (hv : v ∉ F) {H : RowIndex S → Set (PooledOne S)}
-    (hH : ∀ u ∈ F, H u ∈ rowCylinders (S := S) u) :
-    ∃ b, SwapFixed v b (⋂ u ∈ F, H u) := by
-  classical
-  induction F using Finset.induction_on with
-  | empty => exact ⟨0, by simpa using swapFixed_univ v 0⟩
-  | insert u F hu ih =>
-    obtain ⟨b, hb⟩ := ih (fun h => hv (Finset.mem_insert_of_mem h))
-      (fun w hw => hH w (Finset.mem_insert_of_mem hw))
-    obtain ⟨t, T, -, hHu⟩ := exists_rowEvent_of_mem_rowCylinders (hH u (Finset.mem_insert_self u F))
-    have hvu : v ≠ u := fun h => hv (h ▸ Finset.mem_insert_self u F)
-    refine ⟨max (rowBound t) b, ?_⟩
-    rw [Finset.set_biInter_insert, hHu]
-    exact ((swapFixed_rowEvent_of_ne hvu t T).mono (le_max_left _ _)).inter
-      (hb.mono (le_max_right _ _))
-
-/-- **The finite-family product identity, for rows given as cylinder pullbacks.** -/
+/-- **The finite-family product identity, for rows given as cylinder pullbacks**: a direct
+corollary of the identity for row cylinders, after choosing a cylinder presentation of each tested
+event. -/
 theorem PooledRankExtension.condExp_iInter_eq_prod_of_rowCylinders (F : Finset (RowIndex S))
     {H : RowIndex S → Set (PooledOne S)} (hH : ∀ u ∈ F, H u ∈ rowCylinders (S := S) u) :
     Q.lawOne⟦⋂ u ∈ F, H u | envAlg S⟧ =ᵐ[Q.lawOne] ∏ u ∈ F, Q.lawOne⟦H u | envAlg S⟧ := by
   classical
-  induction F using Finset.induction_on with
-  | empty =>
-    simp only [Finset.notMem_empty, Set.iInter_of_empty, Set.iInter_univ, Finset.prod_empty]
-    rw [Set.indicator_univ, condExp_const envAlg_le]
-    exact Filter.EventuallyEq.rfl
-  | insert v F hv ih =>
-    rw [Finset.set_biInter_insert, Finset.prod_insert hv]
-    have hrest : ∀ u ∈ F, H u ∈ rowCylinders (S := S) u :=
-      fun u hu => hH u (Finset.mem_insert_of_mem hu)
-    obtain ⟨t, T, hT, hHv⟩ :=
-      exists_rowEvent_of_mem_rowCylinders (hH v (Finset.mem_insert_self v F))
-    have hKm : MeasurableSet (⋂ u ∈ F, H u) := Finset.measurableSet_biInter _ fun u hu => by
-      obtain ⟨t', T', hT', hHu⟩ := exists_rowEvent_of_mem_rowCylinders (hrest u hu)
-      rw [hHu]
-      exact measurableSet_rowEvent u t' T' hT'
-    obtain ⟨b, hb⟩ := exists_swapFixed_biInter_of_rowCylinders v F hv hrest
-    have hpeel := Q.condExp_rowEvent_inter v t T hT hKm hb
-    rw [← hHv] at hpeel
-    filter_upwards [hpeel, ih hrest] with p hp hp'
-    rw [hp, Pi.mul_apply, Pi.mul_apply, hp']
+  have hpres : ∀ u : RowIndex S,
+      ∃ q : Σ t : Finset (MarkedCoord (S := S) {u}), Set (t → Bool),
+        MeasurableSet q.2 ∧ (u ∈ F → H u = rowEvent u q.1 q.2) := by
+    intro u
+    by_cases hu : u ∈ F
+    · obtain ⟨t, T, hT, hHu⟩ := exists_rowEvent_of_mem_rowCylinders (hH u hu)
+      exact ⟨⟨t, T⟩, hT, fun _ => hHu⟩
+    · exact ⟨⟨∅, Set.univ⟩, MeasurableSet.univ, fun h => absurd h hu⟩
+  choose pres hpres using hpres
+  have h := Q.condExp_iInter_rowEvent_eq_prod (fun u : RowIndex S => u) Function.injective_id
+    (fun u => (pres u).1) (fun u => (pres u).2) (fun u => (hpres u).1) F
+  have h1 : (⋂ u ∈ F, H u) = ⋂ u ∈ F, rowEvent u (pres u).1 (pres u).2 :=
+    Set.iInter₂_congr fun u hu => (hpres u).2 hu
+  have h2 : (∏ u ∈ F, Q.lawOne⟦H u | envAlg S⟧) =
+      ∏ u ∈ F, Q.lawOne⟦rowEvent u (pres u).1 (pres u).2 | envAlg S⟧ :=
+    Finset.prod_congr rfl fun u hu => by rw [(hpres u).2 hu]
+  rw [h1, h2]
+  exact h
 
 /-- **Mutual conditional independence of the marked rows given the environment, at rank one.** -/
 theorem PooledRankExtension.iCondIndepFun_rowObs :
@@ -260,7 +244,7 @@ instance : IsMarkovKernel Q.rowsKernel := by
 
 /-- **The cylinder identity**: for almost every environment, the conditional kernel of the row
 family gives a Boolean-coordinate cylinder the product of the row kernels' masses. -/
-theorem PooledRankExtension.ae_rowsKernel_rowsCylinder
+private theorem PooledRankExtension.ae_rowsKernel_rowsCylinder
     (T : List ((Σ v : RowIndex S, MarkedCoord (S := S) {v}) × Bool)) :
     ∀ᵐ e ∂Q.envLaw, Q.rowsKernel e (rowsCylinder T) =
       ∏ v ∈ rowsAnchors T, Q.rowKernel v e (rowsCylinderAt T v) := by
@@ -317,6 +301,18 @@ theorem PooledRankExtension.rowsKernel_ae_eq_infinitePi :
 theorem PooledRankExtension.map_envObs_rowsObs_eq_compProd :
     Q.lawOne.map (fun p => (envObs p, rowsObs p)) = Q.envLaw ⊗ₘ Q.rowsKernel :=
   (compProd_map_condDistrib measurable_rowsObs.aemeasurable).symm
+
+/-- **The integrated product law on measurable rectangles**: the joint law of (environment, rows)
+gives a rectangle the integral over the environment set of the product of the row kernels. -/
+theorem PooledRankExtension.map_envObs_rowsObs_prod
+    {D : Set (RelStructure S (Vinfinite S) × PooledRankLatentSpace S 1)} (hD : MeasurableSet D)
+    {T : Set (∀ v : RowIndex S, MarkedSpace (S := S) {v})} (hT : MeasurableSet T) :
+    Q.lawOne.map (fun p => (envObs p, rowsObs p)) (D ×ˢ T) =
+      ∫⁻ e in D, Measure.infinitePi (fun v : RowIndex S => Q.rowKernel v e) T ∂Q.envLaw := by
+  rw [Q.map_envObs_rowsObs_eq_compProd, Measure.compProd_apply_prod hD hT]
+  refine setLIntegral_congr_fun_ae hD ?_
+  filter_upwards [Q.rowsKernel_ae_eq_infinitePi] with e he _
+  rw [he]
 
 end InfiniteRelExchangeableLaw
 
