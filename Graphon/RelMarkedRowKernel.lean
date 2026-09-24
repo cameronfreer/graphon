@@ -52,18 +52,19 @@ theorem rowObs_preimage_cylinder (v : RowIndex S) (t : Finset (MarkedCoord (S :=
     rowObs v ⁻¹' (cylinder t T : Set (MarkedSpace (S := S) {v})) = rowEvent v t T := rfl
 
 /-- The generating π-system of a row: the pullbacks of the measurable cylinders. -/
-def rowCylinders (v : RowIndex S) : Set (Set (PooledOne S)) :=
+private def rowCylinders (v : RowIndex S) : Set (Set (PooledOne S)) :=
   Set.preimage (rowObs v) '' measurableCylinders fun _ : MarkedCoord (S := S) {v} => Bool
 
-theorem isPiSystem_rowCylinders (v : RowIndex S) : IsPiSystem (rowCylinders (S := S) v) :=
+private theorem isPiSystem_rowCylinders (v : RowIndex S) :
+    IsPiSystem (rowCylinders (S := S) v) :=
   isPiSystem_measurableCylinders.comap _
 
-theorem comap_rowObs_eq_generateFrom (v : RowIndex S) :
+private theorem comap_rowObs_eq_generateFrom (v : RowIndex S) :
     MeasurableSpace.comap (rowObs (S := S) v) inferInstance =
       MeasurableSpace.generateFrom (rowCylinders v) := by
   rw [rowCylinders, ← MeasurableSpace.comap_generateFrom, generateFrom_measurableCylinders]
 
-theorem exists_rowEvent_of_mem_rowCylinders {v : RowIndex S} {H : Set (PooledOne S)}
+private theorem exists_rowEvent_of_mem_rowCylinders {v : RowIndex S} {H : Set (PooledOne S)}
     (hH : H ∈ rowCylinders (S := S) v) :
     ∃ (t : Finset (MarkedCoord (S := S) {v})) (T : Set (t → Bool)),
       MeasurableSet T ∧ H = rowEvent v t T := by
@@ -174,7 +175,8 @@ variable {M : InfiniteRelExchangeableLaw S} [Countable S.Srt] [Countable S.Rel]
 /-- **The finite-family product identity, for rows given as cylinder pullbacks**: a direct
 corollary of the identity for row cylinders, after choosing a cylinder presentation of each tested
 event. -/
-theorem PooledRankExtension.condExp_iInter_eq_prod_of_rowCylinders (F : Finset (RowIndex S))
+private theorem PooledRankExtension.condExp_iInter_eq_prod_of_rowCylinders
+    (F : Finset (RowIndex S))
     {H : RowIndex S → Set (PooledOne S)} (hH : ∀ u ∈ F, H u ∈ rowCylinders (S := S) u) :
     Q.lawOne⟦⋂ u ∈ F, H u | envAlg S⟧ =ᵐ[Q.lawOne] ∏ u ∈ F, Q.lawOne⟦H u | envAlg S⟧ := by
   classical

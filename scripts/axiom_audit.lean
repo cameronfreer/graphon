@@ -599,10 +599,6 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.measurable_rowObs
 #print axioms RelSignature.measurable_rowsObs
 #print axioms RelSignature.rowObs_preimage_cylinder
-#print axioms RelSignature.isPiSystem_rowCylinders
-#print axioms RelSignature.comap_rowObs_eq_generateFrom
-#print axioms RelSignature.exists_rowEvent_of_mem_rowCylinders
-#print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.condExp_iInter_eq_prod_of_rowCylinders
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.iCondIndepFun_rowObs
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.rowsKernel_ae_eq_infinitePi
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.map_envObs_rowsObs_eq_compProd
