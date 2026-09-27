@@ -21,6 +21,16 @@ finite-family peel product then starts from it. The marked observation and the o
 indexed as one family, so the argument keeps the mutual form until the two groups are separated.
 Adjoining the latent array enlarges the observed variable, not the conditioning, which stays
 exactly the environment. No admissibility hypothesis and no bound on the cardinality of `A` enters.
+
+**Joint-law locality.** The environment and the rows of `A` are read off the marked observation
+at `A` and the latent array, so weak union moves them into the conditioning: given the
+environment and the rows of `A`, the rows outside `A` add nothing to the full induced original
+structure on `A`. With `ν` the joint law of (environment, rows), `Γ` the conditional law of the
+original structure given (environment, rows), and `γ_A` the conditional law of the induced
+structure on `A` given the environment and the rows of `A`, the joint laws through `Γ` and
+through `γ_A` are exact, and `Γ(e, r)` read on `A` is `γ_A(e, r|_A)` for `ν`-almost every
+`(e, r)`. The environment stays in both kernels; nothing here removes it, and nothing assumes that
+the rows recover the structure.
 -/
 
 universe u
@@ -225,6 +235,27 @@ private theorem prod_option_of_notMem {M : Type*} [CommMonoid M] {F : Finset (Op
 
 end Option
 
+/-! ### The induced observation and the restriction of the rows -/
+
+/-- The full induced original structure on `A`, as an observation on the coupling space. -/
+def inducedObs (A : Finset (RowIndex S)) : PooledOne S → InducedSpace (S := S) A :=
+  fun p => inducedMap A (restrictOriginal S p.1)
+
+theorem measurable_inducedObs (A : Finset (RowIndex S)) : Measurable (inducedObs (S := S) A) :=
+  (measurable_inducedMap A).comp (measurable_restrictOriginal.comp measurable_fst)
+
+/-- Keep the environment and the rows of the vertices of `A`. -/
+def restrictEnvRows (A : Finset (RowIndex S)) :
+    (RelStructure S (Vinfinite S) × PooledRankLatentSpace S 1) ×
+        (∀ v : RowIndex S, MarkedSpace (S := S) {v}) →
+      (RelStructure S (Vinfinite S) × PooledRankLatentSpace S 1) ×
+        (∀ v : A, MarkedSpace (S := S) {v.1}) :=
+  fun x => (x.1, A.restrict x.2)
+
+theorem measurable_restrictEnvRows (A : Finset (RowIndex S)) :
+    Measurable (restrictEnvRows (S := S) A) :=
+  measurable_fst.prodMk ((Finset.measurable_restrict A).comp measurable_snd)
+
 namespace InfiniteRelExchangeableLaw
 
 variable {M : InfiniteRelExchangeableLaw S} [Countable S.Srt] [Countable S.Rel]
@@ -330,6 +361,161 @@ theorem PooledRankExtension.condIndepFun_markedObs_rowsOut (A : Finset (RowIndex
   rw [condIndepFun_iff_condIndep]
   refine condIndep_of_condIndep_of_le_left (Q.condIndep_markedLatentObs_rowsOut A) ?_
   exact Measurable.comap_le (measurable_fst.comp (comap_measurable (markedLatentObs A)))
+
+/-! ### Joint-law locality -/
+
+/-- **The joint law `ν` of (environment, rows).** -/
+noncomputable abbrev PooledRankExtension.envRowsLaw :
+    Measure ((RelStructure S (Vinfinite S) × PooledRankLatentSpace S 1) ×
+      (∀ v : RowIndex S, MarkedSpace (S := S) {v})) :=
+  Q.lawOne.map fun p => (envObs p, rowsObs p)
+
+/-- **The kernel `Γ`**: the conditional law of the original structure given (environment,
+rows). -/
+noncomputable def PooledRankExtension.structureRowsKernel :
+    Kernel ((RelStructure S (Vinfinite S) × PooledRankLatentSpace S 1) ×
+      (∀ v : RowIndex S, MarkedSpace (S := S) {v})) (RelStructure S (Vinfinite S)) :=
+  condDistrib (fun p : PooledOne S => restrictOriginal S p.1) (fun p => (envObs p, rowsObs p))
+    Q.lawOne
+
+instance : IsMarkovKernel Q.structureRowsKernel := by
+  unfold PooledRankExtension.structureRowsKernel
+  infer_instance
+
+/-- **The local kernel `γ_A`**: the conditional law of the full induced original structure on
+`A` given the environment and the rows of the vertices of `A`. -/
+noncomputable def PooledRankExtension.localKernel (A : Finset (RowIndex S)) :
+    Kernel ((RelStructure S (Vinfinite S) × PooledRankLatentSpace S 1) ×
+      (∀ v : A, MarkedSpace (S := S) {v.1})) (InducedSpace (S := S) A) :=
+  condDistrib (inducedObs A) (fun p => (envObs p, A.restrict (rowsObs p))) Q.lawOne
+
+instance (A : Finset (RowIndex S)) : IsMarkovKernel (Q.localKernel A) := by
+  unfold PooledRankExtension.localKernel
+  infer_instance
+
+/-- **The exact joint law through `Γ`.** -/
+theorem PooledRankExtension.map_envRows_restrictOriginal_eq_compProd :
+    Q.lawOne.map (fun p => ((envObs p, rowsObs p), restrictOriginal S p.1)) =
+      Q.envRowsLaw ⊗ₘ Q.structureRowsKernel :=
+  (compProd_map_condDistrib (measurable_restrictOriginal.comp measurable_fst).aemeasurable).symm
+
+/-- **Outside rows add nothing to the induced structure on `A`, given the environment and the
+rows of `A`**: weak union applied to the outside-row separation, the environment and the rows of
+`A` being read off the marked observation at `A` and the latent array. -/
+theorem PooledRankExtension.condIndep_rowsOut_inducedObs (A : Finset (RowIndex S)) :
+    CondIndep (MeasurableSpace.comap (fun p => (envObs p, A.restrict (rowsObs p))) inferInstance)
+      (MeasurableSpace.comap (rowsOut A) inferInstance)
+      (MeasurableSpace.comap (inducedObs A) inferInstance)
+      (measurable_envObs.prodMk ((Finset.measurable_restrict A).comp measurable_rowsObs)).comap_le
+      Q.lawOne := by
+  have hk : Measurable fun p : PooledOne S => (envObs p, A.restrict (rowsObs p)) :=
+    measurable_envObs.prodMk ((Finset.measurable_restrict A).comp measurable_rowsObs)
+  have hmarked : Measurable[MeasurableSpace.comap (markedLatentObs A) inferInstance]
+      (markedLatentObs (S := S) A) := comap_measurable _
+  have hind : MeasurableSpace.comap (inducedObs (S := S) A) inferInstance ≤
+      MeasurableSpace.comap (markedLatentObs A) inferInstance :=
+    Measurable.comap_le (f := inducedObs A)
+      ((measurable_markedToInduced A).comp (measurable_fst.comp hmarked))
+  have henv : MeasurableSpace.comap (fun p : PooledOne S => (envObs p, A.restrict (rowsObs p)))
+      inferInstance ≤ MeasurableSpace.comap (markedLatentObs A) inferInstance :=
+    Measurable.comap_le (f := fun p : PooledOne S => (envObs p, A.restrict (rowsObs p)))
+      ((((measurable_markedToSpare A).comp (measurable_fst.comp hmarked)).prodMk
+        (measurable_snd.comp hmarked)).prodMk
+        ((measurable_markedToRows A).comp (measurable_fst.comp hmarked)))
+  exact condIndep_weak_union envAlg_le (measurable_rowsOut A).comap_le
+    (measurable_inducedObs A).comap_le hk.comap_le
+    (Measurable.comap_le (f := envObs) (measurable_fst.comp (comap_measurable _)))
+    (condIndep_of_condIndep_of_le_right (Q.condIndep_markedLatentObs_rowsOut A).symm
+      (sup_le hind henv))
+
+/-- **Locality in the split observation.** Conditioning the induced structure on `A` on the
+environment, the rows of `A`, and the rows outside `A` is conditioning it on the environment and
+the rows of `A`, almost everywhere under the law of the split observation. -/
+theorem PooledRankExtension.condDistrib_inducedObs_split_ae_eq (A : Finset (RowIndex S)) :
+    condDistrib (inducedObs A)
+        (fun p => ((envObs p, A.restrict (rowsObs p)), rowsOut A p)) Q.lawOne
+      =ᵐ[Q.lawOne.map fun p => ((envObs p, A.restrict (rowsObs p)), rowsOut A p)]
+        (Q.localKernel A).prodMkRight _ := by
+  have hk : Measurable fun p : PooledOne S => (envObs p, A.restrict (rowsObs p)) :=
+    measurable_envObs.prodMk ((Finset.measurable_restrict A).comp measurable_rowsObs)
+  refine (condIndepFun_iff_condDistrib_prod_ae_eq_prodMkRight (measurable_inducedObs A)
+    (measurable_rowsOut A) hk).mp ?_
+  rw [condIndepFun_iff_condIndep]
+  exact Q.condIndep_rowsOut_inducedObs A
+
+/-- **Joint-law locality, exactly.** The joint law of (environment, rows) and the full induced
+original structure on `A` is `ν` composed with the local kernel, read through the environment and
+the rows of `A`. -/
+theorem PooledRankExtension.map_envRows_inducedObs_eq_compProd (A : Finset (RowIndex S)) :
+    Q.lawOne.map (fun p => ((envObs p, rowsObs p), inducedObs A p)) =
+      Q.envRowsLaw ⊗ₘ
+        (Q.localKernel A).comap (restrictEnvRows A) (measurable_restrictEnvRows A) := by
+  classical
+  set join := (MeasurableEquiv.piEquivPiSubtypeProd
+    (fun v : RowIndex S => MarkedSpace (S := S) {v}) (· ∈ A)).symm with hjoin
+  set ψ : ((RelStructure S (Vinfinite S) × PooledRankLatentSpace S 1) ×
+      (∀ v : A, MarkedSpace (S := S) {v.1})) × (∀ v : {v : RowIndex S // v ∉ A},
+        MarkedSpace (S := S) {v.1}) →
+      (RelStructure S (Vinfinite S) × PooledRankLatentSpace S 1) ×
+        (∀ v : RowIndex S, MarkedSpace (S := S) {v}) :=
+    fun x => (x.1.1, join (x.1.2, x.2)) with hψ
+  have hψm : Measurable ψ :=
+    measurable_fst.fst.prodMk (join.measurable.comp (measurable_fst.snd.prodMk measurable_snd))
+  have hk : Measurable fun p : PooledOne S =>
+      ((envObs p, A.restrict (rowsObs p)), rowsOut A p) :=
+    (measurable_envObs.prodMk ((Finset.measurable_restrict A).comp measurable_rowsObs)).prodMk
+      (measurable_rowsOut A)
+  -- the split observation recombines to (environment, rows)
+  have hψk : ψ ∘ (fun p : PooledOne S => ((envObs p, A.restrict (rowsObs p)), rowsOut A p)) =
+      fun p => (envObs p, rowsObs p) := by
+    funext p
+    exact Prod.ext rfl (join.apply_symm_apply (rowsObs p))
+  -- the local kernel, pulled back along the recombination, ignores the outside rows
+  have hcomap : (Q.localKernel A).prodMkRight (∀ v : {v : RowIndex S // v ∉ A},
+      MarkedSpace (S := S) {v.1}) =
+      ((Q.localKernel A).comap (restrictEnvRows A) (measurable_restrictEnvRows A)).comap ψ hψm := by
+    ext x : 1
+    rw [Kernel.prodMkRight_apply, Kernel.comap_apply, Kernel.comap_apply]
+    congr 1
+    refine Prod.ext rfl (funext fun v => ?_)
+    show x.1.2 v = join (x.1.2, x.2) v.1
+    rw [hjoin, MeasurableEquiv.piEquivPiSubtypeProd_symm_apply]
+    dsimp only
+    rw [dif_pos v.2]
+  calc Q.lawOne.map (fun p => ((envObs p, rowsObs p), inducedObs A p))
+      = (Q.lawOne.map fun p => (((envObs p, A.restrict (rowsObs p)), rowsOut A p),
+          inducedObs A p)).map (Prod.map ψ id) := by
+        rw [Measure.map_map (hψm.prodMap measurable_id) (hk.prodMk (measurable_inducedObs A))]
+        congr 1
+        funext p
+        exact Prod.ext (congrFun hψk p).symm rfl
+    _ = ((Q.lawOne.map fun p => ((envObs p, A.restrict (rowsObs p)), rowsOut A p)) ⊗ₘ
+          (Q.localKernel A).prodMkRight _).map (Prod.map ψ id) := by
+        rw [← Measure.compProd_congr (Q.condDistrib_inducedObs_split_ae_eq A),
+          compProd_map_condDistrib (measurable_inducedObs A).aemeasurable]
+    _ = (Q.lawOne.map fun p => ((envObs p, A.restrict (rowsObs p)), rowsOut A p)).map ψ ⊗ₘ
+          (Q.localKernel A).comap (restrictEnvRows A) (measurable_restrictEnvRows A) := by
+        rw [hcomap]
+        exact Measure.map_prodMap_compProd_comap _ hψm _
+    _ = Q.envRowsLaw ⊗ₘ
+          (Q.localKernel A).comap (restrictEnvRows A) (measurable_restrictEnvRows A) := by
+        rw [Measure.map_map hψm hk, hψk]
+
+/-- **Joint-law locality, as a kernel comparison.** For `ν`-almost every (environment, rows),
+the conditional law of the original structure, read on `A`, is the local kernel at the
+environment and the rows of `A`. -/
+theorem PooledRankExtension.structureRowsKernel_map_inducedMap_ae_eq (A : Finset (RowIndex S)) :
+    ∀ᵐ x ∂Q.envRowsLaw,
+      (Q.structureRowsKernel x).map (inducedMap A) = Q.localKernel A (x.1, A.restrict x.2) := by
+  have h1 := condDistrib_comp (μ := Q.lawOne) (mβ := Prod.instMeasurableSpace)
+    (fun p => (envObs p, rowsObs p))
+    (measurable_restrictOriginal.comp measurable_fst).aemeasurable (measurable_inducedMap A)
+  have h2 := condDistrib_ae_eq_of_measure_eq_compProd (μ := Q.lawOne)
+    (fun p => (envObs p, rowsObs p)) (measurable_inducedObs A).aemeasurable
+    (Q.map_envRows_inducedObs_eq_compProd A)
+  filter_upwards [h1, h2] with x hx1 hx2
+  rw [← Kernel.map_apply _ (measurable_inducedMap A)]
+  exact hx1.symm.trans hx2
 
 end InfiniteRelExchangeableLaw
 
