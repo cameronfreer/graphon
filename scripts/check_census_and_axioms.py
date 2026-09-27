@@ -833,6 +833,7 @@ AUDITED_DECLS = {
     "RelSignature.InfiniteRelExchangeableLaw.pooledPollingWitness",
     "RelSignature.InfiniteRelExchangeableLaw.enrichedBlock_comp_enrichedPollingMap",
     "RelSignature.mem_supportImage_iff",
+    "RelSignature.condIndep_weak_union",
     "RelSignature.InfiniteRelExchangeableLaw.enrichedPollingLaw",
     "RelSignature.InfiniteRelExchangeableLaw.enrichedPollingLaw_map_fst",
     "support_digraphCoord",

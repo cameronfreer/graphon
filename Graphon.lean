@@ -56,6 +56,7 @@ import Graphon.RelFixingStages
 import Graphon.RelInsertion
 import Graphon.RelRefinedRealization
 import Graphon.RelRefinedKernel
+import Graphon.RelWeakUnion
 import Graphon.RelAustinPolling
 import Graphon.RelAustinEnriched
 import Graphon.RelAustinKernel

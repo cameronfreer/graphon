@@ -885,6 +885,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.InfiniteRelExchangeableLaw.enrichedBlock_comp_enrichedPollingMap
 #print axioms RelSignature.mem_supportImage_iff
 #print axioms RelSignature.InfiniteRelExchangeableLaw.pollingClusters
+#print axioms RelSignature.condIndep_weak_union
 #print axioms RelSignature.InfiniteRelExchangeableLaw.enrichedPollingLaw
 #print axioms RelSignature.InfiniteRelExchangeableLaw.enrichedPollingLaw_map_fst
 
