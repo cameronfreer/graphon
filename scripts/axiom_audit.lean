@@ -595,6 +595,7 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.InfiniteRelExchangeableLaw.univ_mem_envGenerators
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.condExp_rowEvent_inter
 #print axioms RelSignature.InfiniteRelExchangeableLaw.swapFixed_biInter_rowEvent
+#print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.condExp_iInter_rowEvent_inter_eq_prod
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.condExp_iInter_rowEvent_eq_prod
 #print axioms RelSignature.measurable_rowObs
 #print axioms RelSignature.measurable_rowsObs
@@ -603,6 +604,16 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.rowsKernel_ae_eq_infinitePi
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.map_envObs_rowsObs_eq_compProd
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.map_envObs_rowsObs_prod
+#print axioms RelSignature.markedSet_mono
+#print axioms RelSignature.measurable_markedRestrict
+#print axioms RelSignature.markedRestrict_markedObs
+#print axioms RelSignature.measurable_markedToInduced
+#print axioms RelSignature.inducedMap_restrictOriginal
+#print axioms RelSignature.measurable_markedToSpare
+#print axioms RelSignature.restrictPool_eq_markedToSpare
+#print axioms RelSignature.measurable_markedToRows
+#print axioms RelSignature.restrict_rowsObs
+#print axioms RelSignature.envObs_eq_markedToSpare
 #print axioms RelSignature.BipartiteRegression.measurable_labels
 #print axioms RelSignature.BipartiteRegression.measurable_idStructure
 #print axioms RelSignature.BipartiteRegression.measurable_idLatents

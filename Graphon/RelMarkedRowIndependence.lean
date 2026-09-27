@@ -28,7 +28,8 @@ distinct spare vertices are exchangeable, so their averages form a Cauchy sequen
 with an explicit second-moment computation. The limit is identified with the conditional
 probability of the row cylinder by testing against environment cylinders. This gives the peel
 identity: the row conditional probability multiplies against any set fixed by the transpositions,
-and the finite-family product follows by induction over the family.
+and the finite-family product follows by induction over the family, starting from any measurable
+set fixed by the transpositions at every vertex of the family.
 -/
 
 universe u
@@ -551,8 +552,8 @@ private theorem le_of_mem_pollBlockRow {v : Σ s : S.Srt, Vinfinite S s}
   rw [pollBlockRow, Finset.mem_Ico] at hw
   exact hw.1
 
-private theorem card_pollBlockRow {v : Σ s : S.Srt, Vinfinite S s} (t : Finset (MarkedCoord (S := S) {v}))
-    (N : ℕ) : (pollBlockRow t N).card = N := by
+private theorem card_pollBlockRow {v : Σ s : S.Srt, Vinfinite S s}
+    (t : Finset (MarkedCoord (S := S) {v})) (N : ℕ) : (pollBlockRow t N).card = N := by
   rw [pollBlockRow, Nat.card_Ico]
   omega
 
@@ -706,7 +707,8 @@ private theorem pollAverage_le_one (N : ℕ) (p : PooledOne S) : pollAverage v t
       _ = 1 := inv_mul_cancel₀ hNpos.ne'
 
 omit [Countable S.Srt] [Countable S.Rel] in
-private theorem norm_pollAverage_le_one (N : ℕ) (p : PooledOne S) : ‖pollAverage v t T N p‖ ≤ 1 := by
+private theorem norm_pollAverage_le_one (N : ℕ) (p : PooledOne S) :
+    ‖pollAverage v t T N p‖ ≤ 1 := by
   rw [Real.norm_eq_abs, abs_le]
   exact ⟨by linarith [pollAverage_nonneg v t T N p], pollAverage_le_one v t T N p⟩
 
@@ -725,7 +727,8 @@ private noncomputable def pollMoment (w w' : ℕ) : ℝ :=
   Q.lawOne.real (pollEvent v w t T ∩ pollEvent v w' t T)
 
 /-- The common value of the off-diagonal pair moments. -/
-private noncomputable def pollConstant : ℝ := Q.lawOne.real (rowEvent v t T ∩ pollEvent v (rowFresh t) t T)
+private noncomputable def pollConstant : ℝ :=
+  Q.lawOne.real (rowEvent v t T ∩ pollEvent v (rowFresh t) t T)
 
 private theorem pollMoment_eq_pollConstant (hT : MeasurableSet T) {w w' : ℕ} (hw : rowBound t < w)
     (hw' : rowBound t < w') (hww' : w ≠ w') :
@@ -791,8 +794,8 @@ private theorem integrable_pollAverage_mul (hT : MeasurableSet T) (N M : ℕ) :
   exact (measurableSet_pollEvent v t T hT w).inter (measurableSet_pollEvent v t T hT w')
 
 /-- **The cross moment is at least the constant.** -/
-private theorem pollConstant_le_integral_pollAverage_mul (hT : MeasurableSet T) {N M : ℕ} (hN : 1 ≤ N)
-    (hM : 1 ≤ M) :
+private theorem pollConstant_le_integral_pollAverage_mul (hT : MeasurableSet T) {N M : ℕ}
+    (hN : 1 ≤ N) (hM : 1 ≤ M) :
     pollConstant Q v t T ≤ ∫ p, pollAverage v t T N p * pollAverage v t T M p ∂Q.lawOne := by
   rw [integral_pollAverage_mul Q v t T hT]
   have hNpos : (0 : ℝ) < N := Nat.cast_pos.mpr hN
@@ -1087,6 +1090,38 @@ theorem swapFixed_biInter_rowEvent {ι : Type*} (v : ι → Σ s : S.Srt, Vinfin
   exact (swapFixed_rowEvent_of_ne hij (t j) (T j)).mono
     (Finset.le_sup (f := fun j => rowBound (t j)) hj) w hw
 
+/-- **The finite-family product identity against a common swap-fixed set.** For distinct original
+vertices, cylinder events of their marked rows, and a measurable set fixed by the transpositions at
+each of those vertices beyond a common bound, the conditional probability of the intersection
+given the environment is the product of the row conditional probabilities and the conditional
+probability of the set. -/
+theorem PooledRankExtension.condExp_iInter_rowEvent_inter_eq_prod {ι : Type*}
+    (v : ι → Σ s : S.Srt, Vinfinite S s) (hv : Function.Injective v)
+    (t : ∀ i, Finset (MarkedCoord (S := S) {v i})) (T : ∀ i, Set (t i → Bool))
+    (hT : ∀ i, MeasurableSet (T i)) {K₀ : Set (PooledOne S)} (hK₀ : MeasurableSet K₀) {b : ℕ}
+    (hK₀b : ∀ i, SwapFixed (v i) b K₀) (F : Finset ι) :
+    Q.lawOne⟦(⋂ i ∈ F, rowEvent (v i) (t i) (T i)) ∩ K₀ | envAlg S⟧ =ᵐ[Q.lawOne]
+      (∏ i ∈ F, Q.lawOne⟦rowEvent (v i) (t i) (T i) | envAlg S⟧) * Q.lawOne⟦K₀ | envAlg S⟧ := by
+  classical
+  induction F using Finset.induction_on with
+  | empty =>
+    simp only [Finset.notMem_empty, Set.iInter_of_empty, Set.iInter_univ, Set.univ_inter,
+      Finset.prod_empty, one_mul]
+    exact Filter.EventuallyEq.rfl
+  | insert i F hi ih =>
+    rw [Finset.set_biInter_insert, Set.inter_assoc, Finset.prod_insert hi]
+    have hKm : MeasurableSet ((⋂ j ∈ F, rowEvent (v j) (t j) (T j)) ∩ K₀) :=
+      (Finset.measurableSet_biInter _ fun j _ =>
+        measurableSet_rowEvent (v j) (t j) (T j) (hT j)).inter hK₀
+    have hfix : SwapFixed (v i) (max (F.sup fun j => rowBound (t j)) b)
+        ((⋂ j ∈ F, rowEvent (v j) (t j) (T j)) ∩ K₀) :=
+      ((swapFixed_biInter_rowEvent v hv t T F hi).mono (le_max_left _ _)).inter
+        ((hK₀b i).mono (le_max_right _ _))
+    have hpeel := Q.condExp_rowEvent_inter (v i) (t i) (T i) (hT i) hKm hfix
+    filter_upwards [hpeel, ih] with p hp hp'
+    rw [hp, Pi.mul_apply, Pi.mul_apply, hp']
+    simp only [Pi.mul_apply, Finset.prod_apply, mul_assoc]
+
 /-- **Conditional independence of the marked rows given the environment, at rank one**: for
 distinct original vertices and cylinder events of their marked rows, the conditional probability
 of the intersection given the environment is the product of the conditional probabilities. -/
@@ -1096,20 +1131,12 @@ theorem PooledRankExtension.condExp_iInter_rowEvent_eq_prod {ι : Type*}
     (hT : ∀ i, MeasurableSet (T i)) (F : Finset ι) :
     Q.lawOne⟦⋂ i ∈ F, rowEvent (v i) (t i) (T i) | envAlg S⟧ =ᵐ[Q.lawOne]
       ∏ i ∈ F, Q.lawOne⟦rowEvent (v i) (t i) (T i) | envAlg S⟧ := by
-  classical
-  induction F using Finset.induction_on with
-  | empty =>
-    simp only [Finset.notMem_empty, Set.iInter_of_empty, Set.iInter_univ, Finset.prod_empty]
-    rw [Set.indicator_univ, condExp_const envAlg_le]
-    exact Filter.EventuallyEq.rfl
-  | insert i F hi ih =>
-    rw [Finset.set_biInter_insert, Finset.prod_insert hi]
-    have hKm : MeasurableSet (⋂ j ∈ F, rowEvent (v j) (t j) (T j)) :=
-      Finset.measurableSet_biInter _ fun j _ => measurableSet_rowEvent (v j) (t j) (T j) (hT j)
-    have hpeel := Q.condExp_rowEvent_inter (v i) (t i) (T i) (hT i) hKm
-      (swapFixed_biInter_rowEvent v hv t T F hi)
-    filter_upwards [hpeel, ih] with p hp hp'
-    rw [hp, Pi.mul_apply, Pi.mul_apply, hp']
+  have h := Q.condExp_iInter_rowEvent_inter_eq_prod v hv t T hT MeasurableSet.univ
+    (fun i => swapFixed_univ (v i) 0) F
+  rw [Set.inter_univ, Set.indicator_univ, condExp_const envAlg_le] at h
+  filter_upwards [h] with p hp
+  rw [hp, Pi.mul_apply]
+  simp
 
 end InfiniteRelExchangeableLaw
 
