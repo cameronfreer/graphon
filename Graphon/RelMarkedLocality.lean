@@ -31,6 +31,15 @@ structure on `A` given the environment and the rows of `A`, the joint laws throu
 through `γ_A` are exact, and `Γ(e, r)` read on `A` is `γ_A(e, r|_A)` for `ν`-almost every
 `(e, r)`. The environment stays in both kernels; nothing here removes it, and nothing assumes that
 the rows recover the structure.
+
+**Averaging, under admissibility.** Purely spare screening makes the joint law of the
+environment and the original structure the environment marginal composed with the structure
+kernel of the representation at the original old latents, which are a coordinate of the
+environment. Integrating `Γ` against the named conditional kernel of the rows recovers that
+kernel for almost every environment; substituting the product form of the row kernel afterward,
+and reading on `A` through the kernel comparison, gives the local averaging identity. These are
+averaging identities: the rows are integrated out, while `Γ` and `γ_A` keep their environment
+argument.
 -/
 
 universe u
@@ -255,6 +264,15 @@ def restrictEnvRows (A : Finset (RowIndex S)) :
 theorem measurable_restrictEnvRows (A : Finset (RowIndex S)) :
     Measurable (restrictEnvRows (S := S) A) :=
   measurable_fst.prodMk ((Finset.measurable_restrict A).comp measurable_snd)
+
+/-- The original old latents, read off the environment: at rank one the pooled latent array
+restricts to the original one. -/
+noncomputable def envOriginalLatents : RelStructure S (Vinfinite S) × PooledRankLatentSpace S 1 →
+    RankLatentSpace S 1 :=
+  fun e => restrictOriginalLatents S 1 e.2
+
+theorem measurable_envOriginalLatents : Measurable (envOriginalLatents (S := S)) :=
+  (measurable_restrictOriginalLatents 1).comp measurable_snd
 
 namespace InfiniteRelExchangeableLaw
 
@@ -516,6 +534,155 @@ theorem PooledRankExtension.structureRowsKernel_map_inducedMap_ae_eq (A : Finset
   filter_upwards [h1, h2] with x hx1 hx2
   rw [← Kernel.map_apply _ (measurable_inducedMap A)]
   exact hx1.symm.trans hx2
+
+/-! ### Averaging over the rows, under admissibility -/
+
+/-- **The environment and the original structure, under admissibility**: their joint law is
+exactly the environment marginal composed with the structure kernel of the representation, read
+at the original old latents. Purely spare screening, the original old latents being a coordinate
+of the environment. -/
+theorem PooledRankExtension.map_envObs_restrictOriginal_eq_compProd (hC : C.Admissible) :
+    Q.lawOne.map (fun p => (envObs p, restrictOriginal S p.1)) =
+      Q.envLaw ⊗ₘ (RankRepresentation.structureKernel C).comap envOriginalLatents
+        measurable_envOriginalLatents := by
+  have hξ : Measurable fun p : PooledOne S => restrictOriginalLatents S 1 p.2 :=
+    (measurable_restrictOriginalLatents 1).comp measurable_snd
+  have hX : Measurable fun p : PooledOne S => restrictOriginal S p.1 :=
+    measurable_restrictOriginal.comp measurable_fst
+  set j : RelStructure S (Vinfinite S) × PooledRankLatentSpace S 1 →
+      RankLatentSpace S 1 × (RelStructure S (Vinfinite S) × PooledRankLatentSpace S 1) :=
+    fun e => (envOriginalLatents e, e) with hjdef
+  have hj : Measurable j := measurable_envOriginalLatents.prodMk measurable_id
+  -- screening, as a kernel identity given (original old latents, environment)
+  have hK1 := (condIndepFun_iff_condDistrib_prod_ae_eq_prodMkRight hX measurable_envObs hξ).mp
+    (Q.condIndepFun_restrictOriginal_restrictPool one_pos hC).symm
+  have hfst : (Q.lawOne.map fun p => (restrictOriginalLatents S 1 p.2, envObs p)).map Prod.fst =
+      rankLatentSource S 1 := by
+    rw [Measure.map_map measurable_fst (hξ.prodMk measurable_envObs)]
+    exact Q.map_restrictOriginalLatents_snd
+  have hK0 : ∀ᵐ y ∂(Q.lawOne.map fun p => (restrictOriginalLatents S 1 p.2, envObs p)),
+      condDistrib (fun p : PooledOne S => restrictOriginal S p.1)
+          (fun p => restrictOriginalLatents S 1 p.2) Q.lawOne y.1 =
+        RankRepresentation.structureKernel C y.1 := by
+    have h0 : ∀ᵐ z ∂(Q.lawOne.map fun p => (restrictOriginalLatents S 1 p.2, envObs p)).map
+        Prod.fst, condDistrib (fun p : PooledOne S => restrictOriginal S p.1)
+          (fun p => restrictOriginalLatents S 1 p.2) Q.lawOne z =
+        RankRepresentation.structureKernel C z := by
+      rw [hfst]
+      exact Q.condDistrib_restrictOriginal_ae_eq
+    exact ae_of_ae_map measurable_fst.aemeasurable h0
+  have hmain : Q.lawOne.map (fun p => ((restrictOriginalLatents S 1 p.2, envObs p),
+      restrictOriginal S p.1)) =
+      (Q.lawOne.map fun p => (restrictOriginalLatents S 1 p.2, envObs p)) ⊗ₘ
+        (RankRepresentation.structureKernel C).prodMkRight _ := by
+    rw [← compProd_map_condDistrib hX.aemeasurable]
+    refine Measure.compProd_congr (hK1.trans ?_)
+    filter_upwards [hK0] with y hy
+    rw [Kernel.prodMkRight_apply, Kernel.prodMkRight_apply, hy]
+  have hmapj : (Q.lawOne.map fun p => (restrictOriginalLatents S 1 p.2, envObs p)) =
+      Q.envLaw.map j := by
+    rw [PooledRankExtension.envLaw, Measure.map_map hj measurable_envObs]
+    rfl
+  have hcomap : ((RankRepresentation.structureKernel C).prodMkRight
+      (RelStructure S (Vinfinite S) × PooledRankLatentSpace S 1)).comap j hj =
+      (RankRepresentation.structureKernel C).comap envOriginalLatents
+        measurable_envOriginalLatents := by
+    ext e : 1
+    rfl
+  have hj' : Q.lawOne.map (fun p => ((restrictOriginalLatents S 1 p.2, envObs p),
+      restrictOriginal S p.1)) =
+      (Q.lawOne.map fun p => (envObs p, restrictOriginal S p.1)).map (Prod.map j id) := by
+    rw [Measure.map_map (hj.prodMap measurable_id) (measurable_envObs.prodMk hX)]
+    rfl
+  have hcancel : ∀ m : Measure ((RelStructure S (Vinfinite S) × PooledRankLatentSpace S 1) ×
+      RelStructure S (Vinfinite S)), (m.map (Prod.map j id)).map (Prod.map Prod.snd id) = m :=
+    fun m => by
+      rw [Measure.map_map (measurable_snd.prodMap measurable_id) (hj.prodMap measurable_id)]
+      exact Measure.map_id
+  rw [← hcancel (Q.lawOne.map fun p => (envObs p, restrictOriginal S p.1)), ← hj', hmain, hmapj,
+    ← Measure.map_prodMap_compProd_comap _ hj, hcomap, hcancel]
+
+/-- The joint law of the environment and the original structure is the environment marginal
+composed with `Γ` averaged over the conditional law of the rows. -/
+theorem PooledRankExtension.map_envObs_restrictOriginal_eq_compProd_snd :
+    Q.lawOne.map (fun p => (envObs p, restrictOriginal S p.1)) =
+      Q.envLaw ⊗ₘ (Q.rowsKernel ⊗ₖ Q.structureRowsKernel).snd := by
+  have hX : Measurable fun p : PooledOne S => restrictOriginal S p.1 :=
+    measurable_restrictOriginal.comp measurable_fst
+  have h := Q.map_envRows_restrictOriginal_eq_compProd
+  rw [PooledRankExtension.envRowsLaw, Q.map_envObs_rowsObs_eq_compProd] at h
+  rw [Kernel.snd_eq, Measure.compProd_map measurable_snd, ← Measure.compProd_assoc', ← h,
+    Measure.map_map MeasurableEquiv.prodAssoc.measurable
+      ((measurable_envObs.prodMk measurable_rowsObs).prodMk hX),
+    Measure.map_map (measurable_id.prodMap measurable_snd)
+      (MeasurableEquiv.prodAssoc.measurable.comp
+        ((measurable_envObs.prodMk measurable_rowsObs).prodMk hX))]
+  rfl
+
+/-- **Averaging identity, in kernel form, under admissibility.** For almost every environment,
+`Γ` integrated against the conditional law of the rows is the structure kernel of the
+representation at the original old latents. The rows are integrated out; the environment is
+not removed from `Γ`. -/
+theorem PooledRankExtension.rowsKernel_compProd_structureRowsKernel_snd_ae_eq
+    (hC : C.Admissible) :
+    (Q.rowsKernel ⊗ₖ Q.structureRowsKernel).snd =ᵐ[Q.envLaw]
+      (RankRepresentation.structureKernel C).comap envOriginalLatents
+        measurable_envOriginalLatents := by
+  have hX : Measurable fun p : PooledOne S => restrictOriginal S p.1 :=
+    measurable_restrictOriginal.comp measurable_fst
+  have h1 := condDistrib_ae_eq_of_measure_eq_compProd (μ := Q.lawOne) envObs hX.aemeasurable
+    Q.map_envObs_restrictOriginal_eq_compProd_snd
+  have h2 := condDistrib_ae_eq_of_measure_eq_compProd (μ := Q.lawOne) envObs hX.aemeasurable
+    (Q.map_envObs_restrictOriginal_eq_compProd hC)
+  exact h1.symm.trans h2
+
+/-- **A1: the averaging identity against the row kernel.** For almost every environment `e` and
+every measurable set `B` of original structures, `Γ(e, ·)(B)` integrated against the conditional
+law of the rows is the structure kernel of the representation at the original old latents. -/
+theorem PooledRankExtension.lintegral_structureRowsKernel_rowsKernel (hC : C.Admissible) :
+    ∀ᵐ e ∂Q.envLaw, ∀ B : Set (RelStructure S (Vinfinite S)), MeasurableSet B →
+      ∫⁻ r, Q.structureRowsKernel (e, r) B ∂Q.rowsKernel e =
+        RankRepresentation.structureKernel C (envOriginalLatents e) B := by
+  filter_upwards [Q.rowsKernel_compProd_structureRowsKernel_snd_ae_eq hC] with e he B hB
+  have h := congrArg (fun m : Measure (RelStructure S (Vinfinite S)) => m B) he
+  rw [Kernel.snd_apply' _ _ hB, Kernel.compProd_apply (measurable_snd hB),
+    Kernel.comap_apply] at h
+  exact h
+
+/-- **A1, with the conditional product law of the rows substituted.** -/
+theorem PooledRankExtension.lintegral_structureRowsKernel_infinitePi (hC : C.Admissible) :
+    ∀ᵐ e ∂Q.envLaw, ∀ B : Set (RelStructure S (Vinfinite S)), MeasurableSet B →
+      ∫⁻ r, Q.structureRowsKernel (e, r) B
+          ∂(Measure.infinitePi fun v : RowIndex S => Q.rowKernel v e) =
+        RankRepresentation.structureKernel C (envOriginalLatents e) B := by
+  filter_upwards [Q.lintegral_structureRowsKernel_rowsKernel hC, Q.rowsKernel_ae_eq_infinitePi]
+    with e he hκ B hB
+  rw [← hκ]
+  exact he B hB
+
+/-- **A2: the local averaging identity.** For almost every environment `e` and every measurable
+set `B` of induced structures on `A`, the local kernel at `e`, integrated against the product of
+the row kernels of the vertices of `A`, is the structure kernel of the representation at the
+original old latents, read on `A`. The `ν`-null exceptional set of the kernel comparison is
+transferred through `ν = ν_E ⊗ₘ κ`. -/
+theorem PooledRankExtension.lintegral_localKernel_pi (hC : C.Admissible)
+    (A : Finset (RowIndex S)) :
+    ∀ᵐ e ∂Q.envLaw, ∀ B : Set (InducedSpace (S := S) A), MeasurableSet B →
+      ∫⁻ rA, Q.localKernel A (e, rA) B ∂(Measure.pi fun v : A => Q.rowKernel v.1 e) =
+        RankRepresentation.structureKernel C (envOriginalLatents e) (inducedMap A ⁻¹' B) := by
+  have hloc := Q.structureRowsKernel_map_inducedMap_ae_eq A
+  rw [PooledRankExtension.envRowsLaw, Q.map_envObs_rowsObs_eq_compProd] at hloc
+  filter_upwards [Measure.ae_ae_of_ae_compProd hloc, Q.lintegral_structureRowsKernel_rowsKernel hC,
+    Q.rowsKernel_ae_eq_infinitePi] with e he hA1 hκ B hB
+  have hγ : Measurable fun rA : (∀ v : A, MarkedSpace (S := S) {v.1}) =>
+      Q.localKernel A (e, rA) B :=
+    (Kernel.measurable_coe _ hB).comp measurable_prodMk_left
+  rw [← hA1 _ (measurable_inducedMap A hB),
+    ← Measure.infinitePi_map_restrict (μ := fun v : RowIndex S => Q.rowKernel v e),
+    lintegral_map hγ (Finset.measurable_restrict A), ← hκ]
+  refine lintegral_congr_ae (he.mono fun r hr => ?_)
+  show Q.localKernel A (e, A.restrict r) B = Q.structureRowsKernel (e, r) (inducedMap A ⁻¹' B)
+  rw [← Measure.map_apply (measurable_inducedMap A) hB, hr]
 
 end InfiniteRelExchangeableLaw
 
