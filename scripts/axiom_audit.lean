@@ -600,6 +600,9 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.measurable_rowObs
 #print axioms RelSignature.measurable_rowsObs
 #print axioms RelSignature.rowObs_preimage_cylinder
+#print axioms RelSignature.isPiSystem_rowCylinders
+#print axioms RelSignature.comap_rowObs_eq_generateFrom
+#print axioms RelSignature.exists_rowEvent_of_mem_rowCylinders
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.iCondIndepFun_rowObs
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.rowsKernel_ae_eq_infinitePi
 #print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.map_envObs_rowsObs_eq_compProd
@@ -614,6 +617,14 @@ custom axioms. Target list and policy: `scripts/check_census_and_axioms.py`
 #print axioms RelSignature.measurable_markedToRows
 #print axioms RelSignature.restrict_rowsObs
 #print axioms RelSignature.envObs_eq_markedToSpare
+#print axioms RelSignature.measurable_markedLatentObs
+#print axioms RelSignature.measurable_rowsOut
+#print axioms RelSignature.isPiSystem_markedLatentGenerators
+#print axioms RelSignature.comap_markedLatentObs_eq_generateFrom
+#print axioms RelSignature.swapFixed_markedCylinder
+#print axioms RelSignature.exists_swapFixed_of_mem_markedLatentGenerators
+#print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.condIndep_markedLatentObs_rowsOut
+#print axioms RelSignature.InfiniteRelExchangeableLaw.PooledRankExtension.condIndepFun_markedObs_rowsOut
 #print axioms RelSignature.BipartiteRegression.measurable_labels
 #print axioms RelSignature.BipartiteRegression.measurable_idStructure
 #print axioms RelSignature.BipartiteRegression.measurable_idLatents

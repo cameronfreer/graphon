@@ -52,19 +52,19 @@ theorem rowObs_preimage_cylinder (v : RowIndex S) (t : Finset (MarkedCoord (S :=
     rowObs v ⁻¹' (cylinder t T : Set (MarkedSpace (S := S) {v})) = rowEvent v t T := rfl
 
 /-- The generating π-system of a row: the pullbacks of the measurable cylinders. -/
-private def rowCylinders (v : RowIndex S) : Set (Set (PooledOne S)) :=
+def rowCylinders (v : RowIndex S) : Set (Set (PooledOne S)) :=
   Set.preimage (rowObs v) '' measurableCylinders fun _ : MarkedCoord (S := S) {v} => Bool
 
-private theorem isPiSystem_rowCylinders (v : RowIndex S) :
+theorem isPiSystem_rowCylinders (v : RowIndex S) :
     IsPiSystem (rowCylinders (S := S) v) :=
   isPiSystem_measurableCylinders.comap _
 
-private theorem comap_rowObs_eq_generateFrom (v : RowIndex S) :
+theorem comap_rowObs_eq_generateFrom (v : RowIndex S) :
     MeasurableSpace.comap (rowObs (S := S) v) inferInstance =
       MeasurableSpace.generateFrom (rowCylinders v) := by
   rw [rowCylinders, ← MeasurableSpace.comap_generateFrom, generateFrom_measurableCylinders]
 
-private theorem exists_rowEvent_of_mem_rowCylinders {v : RowIndex S} {H : Set (PooledOne S)}
+theorem exists_rowEvent_of_mem_rowCylinders {v : RowIndex S} {H : Set (PooledOne S)}
     (hH : H ∈ rowCylinders (S := S) v) :
     ∃ (t : Finset (MarkedCoord (S := S) {v})) (T : Set (t → Bool)),
       MeasurableSet T ∧ H = rowEvent v t T := by
