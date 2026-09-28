@@ -158,16 +158,16 @@ theorem measurable_rowsOut (A : Finset (RowIndex S)) : Measurable (rowsOut (S :=
 
 /-- The generating π-system of the marked observation with the latent array: marked cylinders
 crossed with latent events. -/
-def markedLatentGenerators (A : Finset (RowIndex S)) : Set (Set (PooledOne S)) :=
+private def markedLatentGenerators (A : Finset (RowIndex S)) : Set (Set (PooledOne S)) :=
   Set.preimage (markedLatentObs A) ''
     Set.image2 (· ×ˢ ·) (measurableCylinders fun _ : MarkedCoord (S := S) A => Bool)
       {L : Set (PooledRankLatentSpace S 1) | MeasurableSet L}
 
-theorem isPiSystem_markedLatentGenerators (A : Finset (RowIndex S)) :
+private theorem isPiSystem_markedLatentGenerators (A : Finset (RowIndex S)) :
     IsPiSystem (markedLatentGenerators (S := S) A) :=
   (isPiSystem_measurableCylinders.prod MeasurableSpace.isPiSystem_measurableSet).comap _
 
-theorem comap_markedLatentObs_eq_generateFrom (A : Finset (RowIndex S)) :
+private theorem comap_markedLatentObs_eq_generateFrom (A : Finset (RowIndex S)) :
     MeasurableSpace.comap (markedLatentObs (S := S) A) inferInstance =
       MeasurableSpace.generateFrom (markedLatentGenerators A) := by
   have hspan : IsCountablySpanning
@@ -192,7 +192,7 @@ theorem swapFixed_markedCylinder {A : Finset (RowIndex S)} {v : RowIndex S} (hv 
 
 /-- A generator of the marked observation with the latent array is measurable and swap-fixed
 at every original vertex outside `A`, beyond a common bound. -/
-theorem exists_swapFixed_of_mem_markedLatentGenerators {A : Finset (RowIndex S)}
+private theorem exists_swapFixed_of_mem_markedLatentGenerators {A : Finset (RowIndex S)}
     {K : Set (PooledOne S)} (hK : K ∈ markedLatentGenerators A) :
     MeasurableSet K ∧ ∃ b, ∀ v : RowIndex S, v ∉ A → SwapFixed v b K := by
   obtain ⟨_, ⟨C, hC, L, hL, rfl⟩, rfl⟩ := hK
